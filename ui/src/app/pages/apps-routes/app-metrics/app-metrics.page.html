@@ -1,0 +1,69 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Properties</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
+
+  <ng-container *ngIf="!($loading$ | async)">
+    <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+      <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
+    </ion-refresher>
+
+    <ion-item *ngIf="error" style="margin-bottom: 16px;">
+      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+    </ion-item>
+
+    <!-- no metrics -->
+    <ion-item *ngIf="($hasMetrics$ | async) === false">
+      <ion-label class="ion-text-wrap">
+        <p>No properties for {{ app.title }} {{ app.versionInstalled }}.</p>
+      </ion-label>
+    </ion-item>
+
+    <ion-item-group>
+      <div *ngFor="let keyval of $metrics$ | async | keyvalue: asIsOrder">
+        <!-- object -->
+        <ion-item button detail="false" *ngIf="keyval.value.type === 'object'" (click)="goToNested(keyval.key)">
+          <ion-button *ngIf="keyval.value.description" class="help-button" fill="clear" slot="start" (click)="presentDescription(keyval, $event)">
+            <ion-icon size="small" slot="icon-only" name="help-circle-outline"></ion-icon>
+          </ion-button>
+          <ion-label class="ion-text-wrap">
+            <h2>{{ keyval.key }}</h2>
+          </ion-label>
+          <ion-icon slot="end" name="arrow-forward"></ion-icon>
+        </ion-item>
+        <!-- not object -->
+        <ion-item *ngIf="keyval.value.type === 'string'">
+          <ion-button *ngIf="keyval.value.description" class="help-button" fill="clear" slot="start" (click)="presentDescription(keyval, $event)">
+            <ion-icon size="small" slot="icon-only" name="help-circle-outline"></ion-icon>
+          </ion-button>
+          <ion-label class="ion-text-wrap">
+            <h2>{{ keyval.key }}</h2>
+            <p>{{ keyval.value.masked && !unmasked[keyval.key] ? (keyval.value.value | mask ) : (keyval.value.value | truncateEnd : 100) }}</p>
+          </ion-label>
+          <div slot="end" *ngIf="keyval.value.copyable || keyval.value.qr">
+            <ion-button *ngIf="keyval.value.masked" fill="clear" (click)="toggleMask(keyval.key)">
+              <ion-icon slot="icon-only" [name]="unmasked[keyval.key] ? 'eye-off-outline' : 'eye-outline'" [color]="unmasked[keyval.key] ? 'danger' : 'primary'" size="small"></ion-icon>
+            </ion-button>
+            <ion-button *ngIf="keyval.value.qr" fill="clear" (click)="showQR(keyval.value.value)">
+              <ion-icon slot="icon-only" name="qr-code-outline" size="small" color="primary"></ion-icon>
+            </ion-button>
+            <ion-button *ngIf="keyval.value.copyable" fill="clear" (click)="copy(keyval.value.value)">
+              <ion-icon slot="icon-only" name="copy-outline" size="small" color="primary"></ion-icon>
+            </ion-button>
+          </div>
+        </ion-item>
+      </div>
+    </ion-item-group>
+
+  </ng-container>
+</ion-content>

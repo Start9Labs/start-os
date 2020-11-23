@@ -1,0 +1,52 @@
+<ion-header style="height: 12vh">
+  <ion-toolbar>
+    <ion-label class="toolbar-label text-ellipses">
+      <h1 class="toolbar-title">{{ params.toolbar.title }}</h1>
+      <h3 style="font-size: large; font-style: italic">{{params.toolbar.action}} <ion-text style="font-size: medium;" color="medium">{{ params.toolbar.version | displayEmver }}</ion-text></h3>
+    </ion-label>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-slides *ngIf="!($error$ | async)" id="slide-show" style="--bullet-background: white" pager="false">
+    <ion-slide *ngFor="let slide of params.slideDefinitions">
+      <dependencies #components *ngIf="slide.selector === 'dependencies'" [params]="slide.params"></dependencies>
+      <dependents #components *ngIf="slide.selector === 'dependents'" [params]="slide.params" [finished]="finished"></dependents>
+      <complete #components *ngIf="slide.selector === 'complete'" [params]="slide.params" [finished]="finished"></complete>
+    </ion-slide>
+  </ion-slides>
+
+
+  <div *ngIf="$error$ | async as error" class="slide-content">
+    <div style="margin-top: 25px;">
+      <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
+        <ion-label color="danger" style="font-size: xx-large; font-weight: bold;">
+          Error
+        </ion-label>
+      </div>
+      <div class="long-message">
+        {{error}}
+      </div>
+    </div>
+  </div>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar style="padding: 8px;">
+    <ng-container *ngIf="!($error$ | async)">
+      <ion-button slot="start" *ngIf="($anythingLoading$ | async) && currentSlideDef.cancelButton.whileLoading as cancel" (click)="finished({ cancelled: true })" class="toolbar-button" fill="outline" color="medium">
+        <ion-text *ngIf="cancel.text as t">{{t}}</ion-text>
+        <ion-icon *ngIf="!cancel.text" name="close-outline"></ion-icon>
+      </ion-button>
+      <ion-button slot="start" *ngIf="!($anythingLoading$ | async) && currentSlideDef.cancelButton.afterLoading as cancel" (click)="finished({ cancelled: true })" class="toolbar-button" fill="outline" color="medium">
+        <ion-text *ngIf="cancel.text as t">{{t}}</ion-text>
+        <ion-icon *ngIf="!cancel.text" name="close-outline"></ion-icon>
+      </ion-button>
+      <ion-button slot="end" *ngIf="currentSlideDef.nextButton as nextButton" (click)="finished({})" [disabled]="$anythingLoading$ | async" fill="outline" class="toolbar-button" color="primary"><ion-text [class.smaller-text]="nextButton.length > 16">{{nextButton}}</ion-text></ion-button>
+      <ion-button slot="end" *ngIf="currentSlideDef.finishButton as finishButton" (click)="finished({ final: true })" [disabled]="$anythingLoading$ | async" fill="outline" class="toolbar-button" color="primary"><ion-text [class.smaller-text]="finishButton.length > 16">{{finishButton}}</ion-text></ion-button>
+    </ng-container>
+    <ng-container *ngIf="$error$ | async">
+      <ion-button slot="start" (click)="finished({ final: true })" style="text-transform: capitalize; font-weight: bolder;" color="danger">Dismiss</ion-button>
+    </ng-container>
+  </ion-toolbar>
+</ion-footer>

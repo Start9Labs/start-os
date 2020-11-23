@@ -1,0 +1,9 @@
+<ion-fab id="recommendation" vertical="top" horizontal="end" slot="fixed"> 
+  <ion-fab-button [disabled]="disabled" style="border-style: solid;
+  border-radius: 100px;
+  border-color: #FFEB3B;
+  border-width: medium;
+  box-shadow: 0 0 10px white;" size="small" (click)="presentPopover($event)">
+    <img [src]="rec.iconURL | iconParse" />
+  </ion-fab-button>
+</ion-fab>

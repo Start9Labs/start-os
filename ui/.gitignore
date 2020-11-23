@@ -1,0 +1,33 @@
+# Specifies intentionally untracked files to ignore when using Git
+# http://git-scm.com/docs/gitignore
+
+*~
+*.sw[mnpcod]
+.tmp
+*.tmp
+*.tmp.*
+.DS_Store
+Thumbs.db
+UserInterfaceState.xcuserstate
+$RECYCLE.BIN/
+
+start9-ambassador
+*.tar.gz
+
+ambassador.tar.gz
+*.log
+log.txt
+npm-debug.log*
+
+postprocess.js
+
+/.idea
+/.ionic
+/.sass-cache
+/.sourcemaps
+/.vscode
+/.gradle
+/dist
+/out-tsc
+/node_modules
+/www

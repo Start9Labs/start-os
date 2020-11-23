@@ -1,0 +1,67 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+    <ion-title>Secure LAN Setup</ion-title>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <ion-item-group>
+    <ion-item lines="none" style="font-size: small; --background: var(--ion-background-color);">
+      <ion-label size="small" class="ion-text-wrap">
+        <ion-text color="medium">For a <ion-text style="font-style: italic;">faster</ion-text> experience, you can also securely communicate with your Embassy by visiting its Local Area Network (LAN) address.</ion-text>
+      </ion-label>
+    </ion-item>
+    <!-- info -->
+    <ion-item lines="none">
+      <ion-label class="ion-text-wrap">
+        <h2><ion-text color="warning">Instructions</ion-text></h2>
+        <ng-container *ngIf="!lanDisabled">
+          <ul style="font-size: smaller">
+            <li>Download your Embassy's SSL Certificate Authority by clicking the download button below.</li>
+            <li>Install and trust the CA.</li>
+            <li>Connect this device to the same network as the Embassy. This should be your private home network.</li>
+            <li>Navigate to your Embassy LAN address, indicated below.</li>
+          </ul>
+        </ng-container>
+        <div *ngIf="lanDisabled" class="ion-padding-top ion-padding-bottom">
+          <p [innerHtml]="lanDisabledExplanation[lanDisabled]"></p>
+        </div>
+        <a *ngIf="!isConsulate" [href]="fullDocumentationLink" target="_blank">full documentation</a>
+        <ion-button *ngIf="isConsulate" fill="outline"  (click)="copyDocumentation()">full documentation</ion-button>
+
+      </ion-label>
+    </ion-item>
+
+    <ion-item-divider style="margin-top: 0px"></ion-item-divider>
+    <!-- Certificate -->
+    <ion-item [disabled]="!!lanDisabled">
+      <ion-label class="ion-text-wrap">
+        <h2>SSL Certificate</h2>
+        <p>Embassy Local CA</p>
+      </ion-label>
+      <ion-button [disabled]="!!lanDisabled" slot="end" fill="clear" (click)="installCert()">
+        <ion-icon slot="icon-only" name="download-outline"></ion-icon>
+      </ion-button>
+    </ion-item>
+    <!-- URL -->
+    <ion-item [disabled]="!!lanDisabled" >
+      <ion-label class="ion-text-wrap">
+        <h2>LAN Address</h2>
+        <a [href]="lanAddress" target="_blank">{{ lanAddress }}</a>
+      </ion-label>
+      <ion-button [disabled]="!!lanDisabled" slot="end" fill="clear" (click)="copyLAN()">
+        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+      </ion-button>
+    </ion-item>
+  </ion-item-group>
+
+  <!-- hidden element for downloading cert -->
+  <a id="install-cert" href="/api/v0/certificate" download="Embassy Local CA.crt"></a>
+
+</ion-content>

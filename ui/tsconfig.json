@@ -1,0 +1,38 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./out-tsc/app",
+    "sourceMap": true,
+    "declaration": false,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "strictNullChecks": false,
+    "target": "es2015",
+    "paths": {
+      "stream": ["./node_modules/stream-browserify"],
+      "crypto": ["./node_modules/crypto-browserify"],
+      "vm": ["./node_modules/vm-browserify"]
+    },
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+    "lib": [
+      "es2018",
+      "dom"
+    ]
+  },
+  "angularCompilerOptions": {
+    "strictInjectionParameters": true
+  },
+  "files": [
+    "src/main.ts",
+    "src/polyfills.ts",
+  ],
+  "include": [
+    "src/**/*.d.ts"
+  ]
+}

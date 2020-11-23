@@ -1,0 +1,53 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Installed Services</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content style="position: relative">
+  <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
+
+  <ng-container *ngIf="!($loading$ | async)">
+    <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+      <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
+    </ion-refresher>
+
+    <ion-item *ngIf="error">
+      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+    </ion-item>
+
+    <ion-grid>
+      <ion-row>
+        <ion-col *ngFor="let app of apps" sizeXs="4" sizeSm="3" sizeMd="2" sizeLg="2">
+          <ion-card class="installed-card" [class.installed-card-on]="(app.subject.status | async) === 'RUNNING'" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
+            <img style="position: absolute" class="main-img" [src]="app.subject.iconURL | async | iconParse" [alt]="app.subject.title | async" />
+            <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+            <img class="bulb-on"  *ngIf="app.subject.status | async | displayBulb: 'green'" src="assets/img/running-bulb.png"/>
+            <img class="bulb-on"  *ngIf="app.subject.status | async | displayBulb: 'red'" src="assets/img/issue-bulb.png"/>
+            <img class="bulb-on"  *ngIf="app.subject.status | async | displayBulb: 'yellow'" src="assets/img/warning-bulb.png"/>
+            <img class="bulb-off" *ngIf="app.subject.status | async | displayBulb: 'off'" src="assets/img/off-bulb.png"/>
+            <ion-card-header>
+              <status [appStatus]="app.subject.status | async" size="small"></status>
+              <p>{{ app.subject.title | async }}</p>
+            </ion-card-header>
+          </ion-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+
+    <div *ngIf="!apps || !apps.length" class="ion-text-center ion-padding">
+      <div style="display: flex; flex-direction: column; justify-content: center; height: 40vh">
+        <h2>Welcome to your <span style="font-style: italic; color: var(--ion-color-start9)">Embassy</span></h2>
+        <p class="ion-text-wrap">Get started by installing your first service.</p>
+      </div>
+      <ion-button [routerLink]="['/services','marketplace']" style="width: 50%;" fill="outline">
+        <ion-icon slot="start" name="cart-outline"></ion-icon>
+        Marketplace
+      </ion-button>
+    </div>
+
+  </ng-container>
+</ion-content>

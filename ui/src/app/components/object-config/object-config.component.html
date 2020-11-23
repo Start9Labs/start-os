@@ -1,0 +1,10 @@
+<div *ngFor="let keyval of (spec.type === 'object' ? spec.spec : spec.variants[value[spec.tag.id]]) | keyvalue: asIsOrder">
+  <object-config-item
+    [key]="keyval.key"
+    [spec]="keyval.value"
+    [value]="value[keyval.key]"
+    [anno]="annotations.members[keyval.key]"
+    (onClick)="handleClick(keyval.key)"
+    [class.add-margin]="keyval.key === 'advanced'"
+  ></object-config-item>
+</div>

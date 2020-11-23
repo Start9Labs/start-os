@@ -1,0 +1,13 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "ambassador-agent:lib"
+
+    - path: "./app/main.hs"
+      component: "ambassador-agent:exe:agent"
+
+    - path: "./test"
+      component: "ambassador-agent:test:agent-test"
+
+    - path: "./"
+      component: "ambassador-agent:lib"

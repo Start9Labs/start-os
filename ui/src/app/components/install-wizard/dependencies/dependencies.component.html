@@ -1,0 +1,31 @@
+<div class="slide-content">
+  <div style="margin-top: 25px;">
+    <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
+      <ion-label [color]="$color$ | async" style="font-size: xx-large; font-weight: bold;">
+        {{label}}
+      </ion-label>
+    </div>
+
+    <div class="long-message">
+      {{longMessage}}
+    </div>
+
+    <div style="margin: 25px 0px;">
+      <ion-item
+        style="--ion-item-background: rgb(0,0,0,0); margin-top: 5px"
+        *ngFor="let dep of dependencyViolations"
+      >
+      <ion-avatar style="position: relative; height: 4vh; width: 4vh" slot="start">
+        <div class="badge" [style]="dep.badgeStyle"></div>
+        <img [src]="dep.iconURL | iconParse" />
+      </ion-avatar>
+        <ion-label>
+          <h5>{{dep.title}}</h5>
+          <ion-text color="medium" style="font-size: smaller">{{dep.versionSpec}}</ion-text>
+        </ion-label>
+        <ion-text [color]="dep.color" style="font-size: smaller; font-style: italic; margin-right: 5px;">{{dep.violation}}</ion-text>
+        <status *ngIf="dep.isInstalling" [appStatus]="'INSTALLING'" size="italics-small"></status>
+      </ion-item>
+    </div>
+  </div>
+</div>

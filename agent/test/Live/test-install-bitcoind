@@ -1,0 +1,2 @@
+#!/bin/bash
+curl -k --header "Content-Type: application/json" --request POST --data '{"id":"bitcoind","version":"0.18.1"}' https://localhost:5959/v0/apps/install

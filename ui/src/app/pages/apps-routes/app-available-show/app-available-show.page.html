@@ -1,0 +1,115 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Marketplace Details</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-bottom" *ngIf="{
+    id: app$.id | async,
+    status: app$.status | async,
+    title: app$.title | async,
+    versionInstalled: app$.versionInstalled | async,
+    versionViewing: app$.versionViewing | async,
+    descriptionLong: app$.descriptionLong | async,
+    serviceRequirements: app$.serviceRequirements | async,
+    iconURL: app$.iconURL | async,
+    releaseNotes: app$.releaseNotes | async
+  } as vars"
+>
+  <ion-spinner *ngIf="($loading$ | async)" class="center" name="lines" color="warning"></ion-spinner>
+
+  <error-message [$error$]="$error$" [dismissable]="vars.id"></error-message>
+
+  <ng-container *ngIf="!($loading$ | async) && vars.id && (app$ | compareInstalledAndViewing | async) as installedStatus">
+    <ion-item-group>
+      <ion-item lines="none">
+        <ion-avatar slot="start">
+          <img [src]="vars.iconURL | iconParse" />
+        </ion-avatar>
+        <ion-label class="ion-text-wrap">
+          <h1 style="font-family: 'Montserrat'">{{ vars.title }}</h1>
+          <h3>{{ vars.versionViewing | displayEmver }}</h3>
+          <ng-container *ngIf="vars.status !== 'INSTALLING'">
+            <h3 *ngIf="installedStatus === 'installed-equal'"><ion-text color="medium">Installed</ion-text></h3> 
+            <h3 *ngIf="installedStatus === 'installed-below' || installedStatus === 'installed-above'"><ion-text color="medium">Installed </ion-text><ion-text style="font-size: small" color="medium"> at {{vars.versionInstalled | displayEmver}}</ion-text></h3> 
+          </ng-container>
+          <ng-container *ngIf="vars.status === 'INSTALLING'">
+            <h3>
+              <status appStatus="INSTALLING" [text]="' (' + (vars.versionInstalled | displayEmver) + ')'" size="medium"></status>
+            </h3>
+          </ng-container>
+        </ion-label>
+
+      </ion-item>
+    </ion-item-group>
+
+    <ion-button *ngIf="!vars.versionInstalled" class="main-action-button" expand="block" fill="outline" color="success" (click)="install()">
+      Install
+    </ion-button>
+
+    <div *ngIf="vars.versionInstalled && vars.status !== 'INSTALLING' ">
+      <ion-button *ngIf="installedStatus === 'installed-below'" class="main-action-button" expand="block" fill="outline" color="success" (click)="update('update')">
+        Update to {{ vars.versionViewing | displayEmver }}
+      </ion-button>
+      <ion-button *ngIf="installedStatus === 'installed-above'" class="main-action-button" expand="block" fill="outline" color="warning" (click)="update('downgrade')">
+        Downgrade to {{ vars.versionViewing | displayEmver }}
+      </ion-button>
+    </div>
+
+    <ion-item-group>
+      <ng-container *ngIf="recommendation">
+        <ion-item class="recommendation-item">
+          <ion-label class="ion-text-wrap">
+            <h2 style="display: flex; align-items: center;">
+              <ion-avatar style="height: 3vh; width: 3vh; margin: 5px" slot="start">
+                <img [src]="recommendation.iconURL | iconParse" [alt]="recommendation.title"/>
+              </ion-avatar>
+              <ion-text style="margin: 5px; font-family: 'Montserrat'; font-size: smaller;">{{recommendation.title}}</ion-text>
+            </h2>
+            <div style="margin: 2px 5px">
+              <p style="color: var(--ion-color-medium); font-size: small">{{recommendation.description}}</p>
+              <p *ngIf="vars.versionViewing | satisfiesEmver: recommendation.versionSpec" class="recommendation-text">{{vars.title}} version {{vars.versionViewing | displayEmver}} is compatible.</p>
+              <p *ngIf="!(vars.versionViewing | satisfiesEmver: recommendation.versionSpec)" class="recommendation-text recommendation-error">{{vars.title}} version {{vars.versionViewing | displayEmver}} is NOT compatible.</p>
+            </div>
+          </ion-label>
+        </ion-item>
+      </ng-container>
+
+      <ion-item-divider class="divider">Description</ion-item-divider>
+      <ion-item lines="none">
+        <ion-label class="ion-text-wrap">
+          <ion-text color="medium">
+            <h5>{{ vars.descriptionLong }}</h5>
+          </ion-text>
+        </ion-label>
+      </ion-item>
+
+      <ion-item-divider>Release Notes</ion-item-divider>
+      <ion-item lines="none" button details="true" [disabled]="" (click)="presentModalReleaseNotes()" [disabled]="$versionSpecificLoading$ | async">
+        <ion-icon slot="start" name="newspaper-outline" color="medium"></ion-icon>
+        <ion-label *ngIf="!($versionSpecificLoading$ | async)"><ion-text color="medium">New in {{ vars.versionViewing | displayEmver }}</ion-text></ion-label>
+        <ion-spinner style="display: block; margin: auto;" name="lines" color="dark" *ngIf="$versionSpecificLoading$ | async"></ion-spinner>
+      </ion-item>
+
+      <ng-container *ngIf="(vars.serviceRequirements)?.length">
+        <ion-item-divider class="divider">Service Dependencies
+          <ion-button style="position: relative; right: 10px;" size="small" fill="clear" color="medium"  (click)="presentPopover(serviceDependencyDefintion, $event)">
+            <ion-icon name="help-circle-outline"></ion-icon>
+          </ion-button>
+        </ion-item-divider>
+        <dependency-list [$loading$]="$versionSpecificLoading$" [hostApp]="app$ | peekProperties" [dependencies]="vars.serviceRequirements"></dependency-list>
+      </ng-container>
+      <ion-item-divider></ion-item-divider>
+      <ion-item lines="none" button (click)="presentAlertVersions()">
+        <ion-icon color="medium" slot="start" name="file-tray-stacked-outline"></ion-icon>
+        <ion-label color="medium">Other versions</ion-label>
+      </ion-item>
+    </ion-item-group>
+  </ng-container>
+</ion-content>

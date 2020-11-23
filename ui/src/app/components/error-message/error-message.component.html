@@ -1,0 +1,6 @@
+<ion-item lines="none"  *ngIf="$error$ | async as error" class="notifier-item" style="margin-top: 12px">
+  <ion-label class="ion-text-wrap" color="danger"><p>{{ error }}</p></ion-label>
+  <ion-button *ngIf="dismissable" size="small" slot="end" fill="outline" color="danger" (click)="clear()">
+    <ion-icon style="height: 12px; width: 12px;" name="close"></ion-icon>
+  </ion-button>
+</ion-item>

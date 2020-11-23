@@ -1,0 +1,52 @@
+<ion-header>
+  <ion-buttons slot="start">
+    <pwa-back-button></pwa-back-button>
+  </ion-buttons>
+  <ion-toolbar>
+    <ion-title>Add Network</ion-title>
+  </ion-toolbar>
+  <ion-buttons slot="end">
+    <badge-menu-button></badge-menu-button>
+  </ion-buttons>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+
+  <ion-item *ngIf="error">
+    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+  </ion-item>
+
+  <ion-item-group>
+    <ion-item>
+      <ion-label>Select Country</ion-label>
+      <ion-select slot="end" placeholder="Select" [(ngModel)]="countryCode" [selectedText]="countryCode">
+        <ion-select-option *ngFor="let country of countries | keyvalue : asIsOrder" [value]="country.key">
+          {{ country.key }} - {{ country.value }}
+        </ion-select-option>
+      </ion-select>
+    </ion-item>
+    <ion-item-divider>Network and Password</ion-item-divider>
+    <ion-item>
+      <ion-input placeholder="Network Name (SSID)" [(ngModel)]="ssid"></ion-input>
+    </ion-item>
+    <ion-item>
+      <ion-input type="password" placeholder="Password" [(ngModel)]="password"></ion-input>
+    </ion-item>
+  </ion-item-group>
+
+  <ion-grid style="margin-top: 40px;">
+    <ion-row>
+      <ion-col size="6">
+        <ion-button [disabled]="!ssid" expand="block" fill="outline" color="primary" (click)="add()">
+          Add
+        </ion-button>
+      </ion-col>
+      <ion-col size="6">
+        <ion-button [disabled]="!ssid" expand="block" fill="outline" color="success" (click)="addAndConnect()">
+          Add and Connect
+        </ion-button>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+
+</ion-content>

@@ -1,0 +1,163 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Service Details</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content *ngIf="{
+     id: app.id | async,
+     torAddress: app.torAddress | async,
+     status: app.status | async,
+     versionInstalled: app.versionInstalled | async,
+     configuredRequirements: app.configuredRequirements | async,
+     lastBackup: app.lastBackup | async,
+     hasFetchedFull: app.hasFetchedFull | async,
+     iconURL: app.iconURL | async,
+     title: app.title | async
+  } as vars" class="ion-padding-bottom">
+  <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
+
+  <ng-container *ngIf="!($loading$ | async)">
+    <ion-refresher *ngIf="app && app.id" slot="fixed" (ionRefresh)="doRefresh($event)">
+      <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
+    </ion-refresher>
+
+    <error-message [$error$]="$error$" [dismissable]="!!(app && app.id)"></error-message>
+
+    <div class="top-plate" *ngIf="app && app.id">
+      <ion-item class="no-cushion-item" lines="none">
+        <ion-label class="ion-text-wrap" style="
+          display: grid;
+          grid-template-columns: 80px auto;
+          margin: 0px;
+          margin-top: 15px;"
+        >
+          <ion-avatar style="justify-self: center; height: 55px; width: 55px" slot="start">
+            <img [src]="vars.iconURL | iconParse" />
+          </ion-avatar>
+          <div style="display: flex; flex-direction: column;">
+            <ion-text style="font-family: 'Montserrat'; font-size: x-large; line-height: normal;" [class.less-large]="vars.title.length > 20">
+              {{ vars.title }}
+            </ion-text>
+            <ion-text style="margin-top: -5px; margin-left: 2px;">
+              {{ vars.versionInstalled | displayEmver }}
+            </ion-text>
+          </div>
+        </ion-label>
+      </ion-item>
+
+      <ion-item class="no-cushion-item" lines=none>
+        <ion-label class="status-readout">
+          <status size="bold-large" [appStatus]="vars.status"></status>
+          <ion-button  *ngIf="vars.status === AppStatus.NEEDS_CONFIG" expand="block" fill="outline" [routerLink]="['config']">
+            Configure
+          </ion-button>
+          <ion-button  *ngIf="[AppStatus.RUNNING, AppStatus.CRASHED, AppStatus.PAUSED, AppStatus.RESTARTING] | includes: vars.status" expand="block" fill="outline" (click)="stop()">
+            Stop
+          </ion-button>
+          <ion-button  *ngIf="vars.status === AppStatus.CREATING_BACKUP" expand="block" fill="outline" (click)="presentAlertStopBackup()">
+            Stop Backup
+          </ion-button>
+          <ion-button  *ngIf="vars.status === AppStatus.DEAD" expand="block" fill="outline" (click)="uninstall()">
+            Force Uninstall
+          </ion-button>
+          <ion-button  *ngIf="vars.status === AppStatus.BROKEN_DEPENDENCIES" expand="block" fill="outline" (click)="scrollToRequirements()">
+            Fix
+          </ion-button>
+          <ion-button *ngIf="vars.status === AppStatus.STOPPED" expand="block" fill="outline" (click)="start()">
+            Start
+          </ion-button>
+        </ion-label>
+      </ion-item>
+    </div>
+
+    <ng-container *ngIf="app && app.id && vars.status !== 'INSTALLING'">
+      <ion-item-group class="ion-padding-bottom">
+        <ion-item-divider>Tor Address</ion-item-divider>
+        <ion-item lines="none">
+          <ion-label style="display: flex; justify-content: space-between; align-items: center;">
+            <p style="color: var(--ion-color-dark)">{{ vars.torAddress | truncateCenter:18:18:true }}</p>
+            <ion-button slot="end" fill="clear" (click)="copyTor()">
+              <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
+            </ion-button>
+          </ion-label>
+        </ion-item>
+
+        <ion-item-divider>Backups</ion-item-divider>
+        <!-- create backup -->
+        <ion-item button [disabled]="[AppStatus.RESTORING_BACKUP, AppStatus.CREATING_BACKUP, AppStatus.INSTALLING, AppStatus.RESTARTING, AppStatus.STOPPING] | includes: vars.status" (click)="presentModalBackup('create')">
+          <ion-icon slot="start" name="save-outline" color="primary"></ion-icon>
+          <ion-label style="display: flex; flex-direction: column;">
+            <ion-text color="primary">Create new Backup</ion-text>
+            <ion-text color="medium" style="font-size: x-small">
+              Last Backup: {{vars.lastBackup ? (vars.lastBackup | date: 'short') : 'never'}}
+            </ion-text>
+          </ion-label>
+        </ion-item>
+        <!-- restore backup -->
+        <ion-item lines="none" button [disabled]="[AppStatus.RESTORING_BACKUP, AppStatus.CREATING_BACKUP, AppStatus.INSTALLING, AppStatus.RESTARTING, AppStatus.STOPPING] | includes: vars.status" (click)="presentModalBackup('restore')">
+          <ion-icon slot="start" name="color-wand-outline" color="primary"></ion-icon>
+          <ion-label><ion-text color="primary">Restore from Backup</ion-text></ion-label>
+        </ion-item>
+
+        <ion-item-divider>General</ion-item-divider>
+        <!-- instructions -->
+        <ion-item button details="true" (click)="checkForUpdates()">
+          <ion-icon slot="start" name="refresh-outline" color="primary"></ion-icon>
+          <ion-label><ion-text style="font-weight: 500;" color="primary">Check for Updates</ion-text></ion-label>
+        </ion-item>
+        <!-- instructions -->
+        <ion-item [routerLink]="['instructions']">
+          <ion-icon slot="start" name="list-outline" color="primary"></ion-icon>
+          <ion-label><ion-text color="primary">Instructions</ion-text></ion-label>
+        </ion-item>
+        <!-- config -->
+        <ion-item [disabled]="[AppStatus.CREATING_BACKUP, AppStatus.RESTORING_BACKUP, AppStatus.INSTALLING, AppStatus.DEAD] | includes: vars.status" [routerLink]="['config']">
+          <ion-icon slot="start" name="construct-outline" color="primary"></ion-icon>
+          <ion-label><ion-text color="primary">Config</ion-text></ion-label>
+        </ion-item>
+        <!-- metrics -->
+        <ion-item [routerLink]="['metrics']">
+          <ion-icon slot="start" name="information-circle-outline" color="primary"></ion-icon>
+          <ion-label><ion-text color="primary">Properties</ion-text></ion-label>
+        </ion-item>
+        <!-- logs -->
+        <ion-item [disabled]="vars.status === AppStatus.INSTALLING" [routerLink]="['logs']">
+          <ion-icon slot="start" name="newspaper-outline" color="primary"></ion-icon>
+          <ion-label><ion-text color="primary">Logs</ion-text></ion-label>
+        </ion-item>
+        <!-- marketplace -->
+        <ion-item lines="none" [routerLink]="['/services', 'marketplace', appId]">
+          <ion-icon slot="start" name="cart-outline" color="primary"></ion-icon>
+          <ion-label><ion-text color="primary">Marketplace Details</ion-text></ion-label>
+        </ion-item>
+
+        <!-- dependencies -->
+        <ng-container *ngIf="vars.configuredRequirements && vars.configuredRequirements.length">
+          <ion-item-divider [id]="'service-requirements-' + vars.id">Dependencies
+            <ion-button style="position: relative; right: 10px;" size="small" fill="clear" color="medium"  (click)="presentPopover(dependencyDefintion(), $event)">
+              <ion-icon name="help-circle-outline"></ion-icon>
+            </ion-button>
+          </ion-item-divider>
+          <dependency-list [$loading$]="$loadingDependencies$" depType="installed" [hostApp]="app | peekProperties" [dependencies]="vars.configuredRequirements"></dependency-list>
+        </ng-container>
+
+        <ion-item-divider></ion-item-divider>
+
+        <ng-container *ngIf="vars.status !== AppStatus.INSTALLING && vars.status !== 'CREATING_BACKUP'">
+          <!-- uninstall -->
+          <ion-item style="--background: transparent" button (click)="uninstall()">
+            <ion-icon slot="start" name="trash-outline" color="medium"></ion-icon>
+            <ion-label><ion-text color="danger">Uninstall</ion-text></ion-label>
+          </ion-item>
+        </ng-container>
+      </ion-item-group>
+    </ng-container>
+  </ng-container>
+</ion-content>

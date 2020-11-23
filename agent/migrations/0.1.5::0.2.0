@@ -1,0 +1,2 @@
+DROP TABLE authorized_key;
+DROP TABLE replay_nonce;

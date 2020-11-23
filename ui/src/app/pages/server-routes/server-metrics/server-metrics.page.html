@@ -1,0 +1,32 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Metrics</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-item *ngIf="error" style="margin-bottom: 16px;">
+    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+  </ion-item>
+
+  <ion-spinner *ngIf="loading" class="center" name="lines" color="warning"></ion-spinner>
+
+  <ion-item-group *ngFor="let metricGroup of metrics | keyvalue : asIsOrder">
+    <ion-item-divider class="divider">{{ metricGroup.key }}</ion-item-divider>
+    <ion-item *ngFor="let metric of metricGroup.value | keyvalue : asIsOrder">
+      <ion-label>
+        <ion-text color="medium">{{ metric.key }}</ion-text>
+      </ion-label>
+      <ion-note *ngIf="metric.value" slot="end" class="metric-note">
+        <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
+      </ion-note>
+    </ion-item>
+  </ion-item-group>
+
+</ion-content>

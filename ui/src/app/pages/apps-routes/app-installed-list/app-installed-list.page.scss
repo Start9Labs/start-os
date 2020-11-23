@@ -1,0 +1,53 @@
+.installed-card {
+  margin: 0;
+  background: linear-gradient(37deg, #333333, #131313);
+  border-radius: 10px;
+  text-align: center;
+
+  ion-card-header {
+    padding: 0;
+
+    status {
+      font-size: 9px;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    p {
+      font-family: 'Montserrat';
+      font-size: 11px;
+      color: white;
+      margin: 0px 12px 8px 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+.main-img {
+  width: 50%;
+  margin: 9px;
+  color: white;
+  border-radius: var(--icon-border-radius);
+}
+
+.bulb-on {
+  position: absolute !important;
+  left: -7px !important;
+  top: -7px !important;
+  height: 25px !important;
+  width: 25px !important;
+  margin: 9px;
+}
+
+.bulb-off {
+  position: absolute !important;
+  left: -1px !important;
+  top: -1px !important;
+  height: 13px !important;
+  width: 13px !important;
+  margin: 9px;
+}

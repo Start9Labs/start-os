@@ -1,0 +1,30 @@
+name: Rust
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Cache .cargo
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            ${{ runner.os }}-cargo-
+      - name: Cache target release directory
+        uses: actions/cache@v1
+        with:
+          path: target/release
+          key: ${{ runner.os }}-target-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-target-release-${{ hashFiles('**/Cargo.lock') }}
+            ${{ runner.os }}-target-release-
+      - name: Check
+        run: cargo check
+      - name: Test
+        run: cargo test --release

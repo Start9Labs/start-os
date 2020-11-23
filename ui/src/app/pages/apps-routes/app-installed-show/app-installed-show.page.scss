@@ -1,0 +1,41 @@
+.full-width {
+  margin: 10px;
+}
+
+.about-attribute {
+  font-size: small;
+}
+
+.about-attribute-value {
+  font-size: small;
+}
+
+.less-large {
+  font-size: 20px !important;
+}
+
+.top-plate {
+  // margin-top: 20px;
+  background: var(--ion-item-background);
+  margin: 20px 10px;
+  border-radius: 10px;
+  border-style: solid;
+  border-color: #373737;
+}
+
+.status-readout {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 10px;
+  border-radius: 10px;
+  align-items: center;
+  background: var(--ion-background-color);
+  margin: 10px 10px 15px 10px;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #404040;
+}
+
+.no-cushion-item {
+  --background: transparent; --padding-start: 0px; --inner-padding-end: 0px; --padding-end: 0px;
+}

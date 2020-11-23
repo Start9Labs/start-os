@@ -1,0 +1,43 @@
+.add-margin {
+  margin: 0 16px;
+}
+
+.help-button {
+  position: relative;
+  bottom: 7px;
+  right: 9px;
+}
+
+.new-tag {
+  padding: 0px 5px;
+  font-weight: bold;
+  font-size: smaller;
+  color: #cecece;
+  font-style: italic;
+}
+
+.status-icon{
+  // width: 2%;
+  margin-right: 12px;
+}
+
+.bright {
+  color: white !important;
+}
+
+.bold {
+  font-weight: bold;
+}
+
+.invalid {
+  color: var(--ion-color-danger) !important;
+}
+
+.organizer {
+  display: flex;
+  align-items: center;
+}
+
+.name {
+  text-decoration: underline;
+}

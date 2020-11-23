@@ -1,0 +1,54 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Service Marketplace</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-bottom">
+
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
+  </ion-refresher>
+
+  <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
+
+  <ng-container *ngIf="!($loading$ | async)">
+
+    <ion-item *ngIf="error" style="margin-bottom: 16px;">
+      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+    </ion-item>
+
+    <ion-card *ngFor="let app of apps" style="margin: 10px 10px;" [routerLink]="[app.id]">
+      <ion-item style="--inner-border-width: 0 0 .4px 0; --border-color: #525252;" *ngIf="{ installing: (app.subject.status | async) === 'INSTALLING', installComparison: app.subject | compareInstalledAndLatest | async } as l">
+        <ion-avatar style="margin-top: 8px;" slot="start">
+          <img [src]="app.subject.iconURL | async | iconParse" />
+        </ion-avatar>
+        <ion-label style="margin-top: 6px; margin-bottom: 3px">
+          <h1 style="font-family: 'Montserrat'; font-size: 20px; margin-bottom: 0px;">
+            {{app.subject.title | async}}
+          </h1>
+          <div *ngIf="!l.installing && l.installComparison === 'installed-equal'" class="beneath-title">
+            <ion-text style="font-size: 12px;" color="success">Installed</ion-text>
+          </div>
+          <div *ngIf="!l.installing && l.installComparison === 'installed-below'" class="beneath-title">
+            <ion-text style="font-size: 12px;" color="warning">Update Available</ion-text>
+          </div>
+          <div *ngIf="l.installing" class="beneath-title" style="display: flex; flex-direction: row; align-items: center;">
+            <ion-text style="font-size: 12px;" color="primary">Installing</ion-text>
+            <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="primary"></ion-spinner>
+          </div>
+        </ion-label>
+      </ion-item>
+      <ion-card-content style="
+        font-size: small !important;
+        padding-bottom: 10px;
+        padding-top: 6px;
+        ">
+        {{ app.subject.descriptionShort | async }}
+      </ion-card-content>
+    </ion-card>
+  </ng-container>
+</ion-content>

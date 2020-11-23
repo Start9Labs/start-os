@@ -1,0 +1,45 @@
+
+<ng-container *ngIf="{ loading: $loading$ | async, disabled: installing || ($loading$ | async) } as l" >
+  <ion-item
+    class="dependency"
+    style="--border-color: var(--ion-color-medium-shade)"
+    [lines]="presentAlertDescription ? 'inset' : 'full'"
+  >
+    <ion-avatar style="position: relative; height: 5vh; width: 5vh; margin: 0px;" slot="start">
+      <div *ngIf="!l.loading" class="badge" [style]="badgeStyle"></div>
+      <img [src]="dep.iconURL | iconParse" />
+    </ion-avatar>
+    <ion-label class="ion-text-wrap" style="padding: 1vh; padding-left: 2vh">
+      <h4 style="font-family: 'Montserrat'">{{ dep.title }}
+        <span *ngIf="recommended" style="font-family: 'Open Sans'; font-size: small; color: var(--ion-color-medium)">(recommended)</span>
+      </h4>
+      <p style="font-size: small">{{ dep.versionSpec }}</p>
+      <p *ngIf="!l.loading" style="padding-top: 2px; position: relative; font-style: italic; font-size: smaller"><ion-text [color]="color">{{statusText}}</ion-text></p>
+      <p *ngIf="l.loading"  style="padding-top: 2px; position: relative; font-style: italic; font-size: smaller"><ion-text color="medium">Refreshing</ion-text></p>
+    </ion-label>
+
+    <ion-button size="small" (click)="presentAlertDescription=!presentAlertDescription" [disabled]="l.loading" color="medium" fill="clear" style="margin: 14px; font-size: small">
+      <ion-icon *ngIf="!presentAlertDescription" name="chevron-down"></ion-icon>
+      <ion-icon *ngIf="presentAlertDescription" name="chevron-up"></ion-icon>
+    </ion-button>
+
+    <ion-button size="small" (click)="toInstall()" *ngIf="!installing && !l.loading" color="primary" fill="outline" style="font-size: small">
+      {{actionText}}
+    </ion-button>
+
+    <div slot="end" *ngIf='installing || (l.loading)' style="margin: 0" >
+      <div *ngIf='installing && !(l.loading)' class="spinner">
+        <ion-spinner  [color]="color" style="height: 3vh; width: 3vh"  name="dots"></ion-spinner>
+      </div>
+
+      <div *ngIf='(l.loading)' class="spinner">
+        <ion-spinner  [color]="medium" style="height: 3vh; width: 3vh"  name="lines"></ion-spinner>
+      </div>
+    </div>
+  </ion-item>
+  <ion-item style="margin-bottom: 10px"*ngIf="presentAlertDescription" lines="none">
+    <div style="font-size: small; color: var(--ion-color-medium)" [innerHtml]="descriptionText"></div>
+  </ion-item>
+  <div style="height: 8px"></div>
+</ng-container>
+

@@ -1,0 +1,51 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>SSH Keys</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
+  </ion-refresher>
+
+  <ion-item *ngIf="error" style="margin-bottom: 16px;">
+    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+  </ion-item>
+
+  <ion-item-group>
+    <ion-item-divider style="margin-top: 0px;">Description</ion-item-divider>
+    <ion-item lines="none">
+      <ion-label class="ion-text-wrap">
+        <h2><ion-text color="medium">Add SSH keys to your Embassy to gain root access from the command line.</ion-text></h2>
+      </ion-label>
+    </ion-item>
+
+    <ion-item-divider>Saved Keys</ion-item-divider>
+    <ion-item-sliding *ngFor="let fingerprint of server.ssh | async">
+      <ion-item-options side="end">
+        <ion-item-option color="danger" (click)="delete(fingerprint)">
+          <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+        </ion-item-option>
+      </ion-item-options>
+      <ion-item>
+        <ion-label class="ion-text-wrap">{{ fingerprint.alg }} {{ fingerprint.hash }} {{ fingerprint.hostname }}
+        </ion-label>
+      </ion-item>
+    </ion-item-sliding>
+  </ion-item-group>
+
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button (click)="presentModalAdd()" class="fab-button">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+
+</ion-content>

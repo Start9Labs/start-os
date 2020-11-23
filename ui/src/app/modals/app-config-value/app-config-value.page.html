@@ -1,0 +1,83 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="dismiss()">
+        <ion-icon name="arrow-back"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>
+      {{ spec.name }}
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button [disabled]="!!error" (click)="done()" color="primary">
+        {{ saveFn ? 'Save' : 'Done' }}
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+
+  <config-header [spec]="spec" [error]="error"></config-header>
+
+  <ion-item-group>
+    <ion-item-divider>
+      <ion-button *ngIf="spec.type === 'string' && spec.copyable" style="padding-right: 12px;" size="small" slot="end" fill="clear" color="primary" (click)="copy()">
+        <ion-icon slot="icon-only" name="copy-outline" size="small"></ion-icon>
+      </ion-button>
+    </ion-item-divider>
+    <!-- string -->
+    <ion-item *ngIf="spec.type === 'string'">
+      <ion-input [type]="spec.masked && !unmasked ? 'password' : 'text'" placeholder="Enter value" [(ngModel)]="value" (ngModelChange)="handleInput()"></ion-input>
+      <div slot="end">
+        <ion-button *ngIf="spec.masked" fill="clear" [color]="unmasked ? 'danger' : 'primary'" (click)="toggleMask()">
+          <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
+        </ion-button>
+        <ion-button *ngIf="value && spec.nullable" fill="clear" color="medium" (click)="clear()">
+          <ion-icon slot="icon-only" name="close" size="small"></ion-icon>
+        </ion-button>
+      </div>
+    </ion-item>
+    <!-- number -->
+    <ion-item *ngIf="spec.type === 'number'">
+      <ion-input type="tel" placeholder="Enter value" [(ngModel)]="value" (ngModelChange)="handleInput()"></ion-input>
+      <span slot="end" *ngIf="spec.units"><ion-text color="medium">{{ spec.units }}</ion-text></span>
+      <ion-button *ngIf="value && spec.nullable" slot="end" fill="clear" color="medium" (click)="clear()">
+        <ion-icon slot="icon-only" name="close" size="small"></ion-icon>
+      </ion-button>
+    </ion-item>
+    <!-- boolean -->
+    <ion-item *ngIf="spec.type === 'boolean'">
+      <ion-label>{{ spec.name }}</ion-label>
+      <ion-toggle slot="end" [(ngModel)]="value" (ngModelChange)="edited = true"></ion-toggle>
+    </ion-item>
+    <!-- enum -->
+    <ion-list *ngIf="spec.type === 'enum'">
+      <ion-radio-group [(ngModel)]="value">
+        <ion-item *ngFor="let option of spec.values">
+          <ion-label>{{ spec.valueNames[option] }}</ion-label>
+          <ion-radio slot="start" [value]="option"></ion-radio>
+        </ion-item>
+      </ion-radio-group>
+    </ion-list>
+    <!-- metadata -->
+    <div class="ion-padding-start">
+      <p *ngIf="spec.type === 'string' && spec.patternDescription">
+        <ion-text color="medium">{{ spec.patternDescription }}</ion-text>
+      </p>
+      <p *ngIf="spec.type === 'number' && spec.integral">
+        <ion-text color="medium">{{ integralDescription }}</ion-text>
+      </p>
+      <p *ngIf="rangeDescription">
+        <ion-text color="medium">{{ rangeDescription }}</ion-text>
+      </p>
+      <p *ngIf="spec.default">
+        <ion-text color="medium">
+          <p>Default: {{ defaultDescription }} <ion-icon style="padding-left: 8px;" name="refresh-outline" color="primary" (click)="refreshDefault()"></ion-icon></p>
+          <p *ngIf="spec.type === 'number' && spec.units">Units: {{ spec.units }}</p>
+        </ion-text>
+      </p>
+    </div>
+  </ion-item-group>
+
+</ion-content>

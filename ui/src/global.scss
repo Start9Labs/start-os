@@ -1,0 +1,280 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "~@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "~@ionic/angular/css/normalize.css";
+@import "~@ionic/angular/css/structure.css";
+@import "~@ionic/angular/css/typography.css";
+@import '~@ionic/angular/css/display.css';
+
+/* Optional CSS utils that can be commented out */
+@import "~@ionic/angular/css/padding.css";
+@import "~@ionic/angular/css/float-elements.css";
+@import "~@ionic/angular/css/text-alignment.css";
+@import "~@ionic/angular/css/text-transformation.css";
+@import "~@ionic/angular/css/flex-utils.css";
+
+.ios ion-title {
+  padding-inline-start: 60px;
+  padding-inline-end: 60px;
+}
+
+.select-change-warning .alert-sub-title {
+  color: var(--ion-color-warning)
+}
+
+.break-all {
+  word-break: break-all;
+}
+
+.loader {
+  --spinner-color: var(--ion-color-warning) !important;
+}
+
+.loader-ontop-of-all {
+  --spinner-color: var(--ion-color-warning) !important;
+  z-index: 40000 !important;
+}
+
+.alert-danger {
+  color: var(--ion-color-danger) !important;
+  & ion-icon {
+    color: var(--ion-color-danger) !important;
+  }
+}
+
+.borderless {
+  border-style: none;
+}
+
+.fab-button {
+  margin: 20px;
+  --background: transparent;
+  --border-color: var(--ion-color-primary);
+  --border-style: solid;
+  --border-width: 2px;
+}
+
+.help-button {
+  margin: 0 8px 0 0;
+}
+
+.item-interactive {
+  --highlight-background: transparent !important;
+}
+
+.alert-config-value {
+  .alert-message.sc-ion-alert-md {
+    color: var(--ion-color-danger) !important;
+  }
+}
+
+.center {
+  display: block;
+  margin: auto;
+  height: 100%;
+}
+
+.notification-toast {
+  --background: var(--ion-color-light);
+  --button-color: var(--ion-color-primary);
+  --border-color: var(--ion-color-warning);
+  --border-style: solid;
+  --border-width: 2px;
+  --color: white;
+}
+
+.sublist-spinner {
+  text-align: center;
+  margin-top: 40px;
+}
+
+.alert-radio-label.sc-ion-alert-md {
+  white-space: normal !important;
+}
+
+.alert-radio-label.sc-ion-alert-ios {
+  white-space: normal !important;
+}
+
+ion-title {
+  font-family: 'Montserrat';
+  font-weight: unset;
+}
+
+ion-item {
+  --border-width: 0;
+}
+
+ion-textarea {
+  margin-top: 0;
+  padding-left: 12px;
+}
+
+ion-note {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+ion-badge {
+  font-weight: bold;
+}
+
+ion-item-divider {
+  --background: transparent;
+}
+
+ion-infinite-scroll ion-infinite-scroll-content {
+  --color: var(--ion-color-warning) !important;
+}
+
+ion-action-sheet {
+  --backdrop-opacity: 0.75 !important;
+}
+
+ion-alert {
+  --backdrop-opacity: 0.75 !important;
+}
+
+ion-loading {
+  --backdrop-opacity: 0.75 !important;
+}
+
+* {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+ion-popover {
+  --background: var(--ion-color-warning) !important;
+
+  ion-backdrop {
+      --backdrop-opacity: 0.45 !important;
+  }
+}
+
+.text-ellipses {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-wrapper {
+  position: absolute;
+  height: 90%!important;
+  top: 5%;
+  width: 90%!important;
+  left: 5%;
+  display: block;
+}
+
+@media (min-width:1000px) {
+  .modal-wrapper {
+    position: absolute;
+    height: 80% !important;
+    top: 10%;
+    width: 60% !important;
+    left: 20%;
+    display: block;
+  }
+}
+
+ion-slides {
+  .slider-wrapper {
+    height: 100%;
+    width: 100%
+  }
+}
+
+.qr-popover {
+  --width: auto;
+  --background: transparent !important;
+}
+
+ion-loading {
+  z-index: 100 !important;
+}
+
+ion-modal {
+  --box-shadow: 3px 4px 14px 3px rgba(255,255,255,0.3) !important;
+}
+
+ion-modal:first-of-type {
+  --backdrop-opacity: 0.75 !important;
+}
+
+
+.swiper-pagination {
+  position: fixed;
+  bottom: 0px;
+  padding-bottom: 3px;
+}
+
+ion-avatar {
+  --border-radius: var(--icon-border-radius);
+}
+
+.no-white-space {
+  --white-space: 0;
+  --box-shadow: 3px 3px 10px var(--ion-color-primary);
+}
+
+.notifier-item {
+  margin: 12px;
+  margin-top: 0px;
+  border-radius: 12px;
+  // kills the lines
+  --border-width: 0;
+  --inner-border-width: 0;
+}
+
+.full-page-spinner { 
+  min-height: 80vh;
+  align-items: center;
+  color: white;
+  margin: 0px 30px;
+  display: grid;
+  grid-template-rows: 35% 15%;
+}
+
+.recommendation-item {
+  margin: 10px;
+  border-style: solid;
+  border-width: 1px;
+  border-style: groove;
+  border-color: dimgrey;
+  border-radius: 10px;
+  box-shadow: 4px 4px 16px var(--ion-color-primary);
+  --padding-start: 10px;
+}
+
+// .divider {
+//   margin-top: 15px;
+//   color: var(--ion-color-medium);
+//   font-size: medium;
+//   padding-left: 10px;
+//   font-weight: unset;
+// }
+
+ion-item-divider {
+  margin-top: 15px;
+  color: var(--ion-color-medium);
+  font-size: medium;
+  padding-left: 10px;
+  font-weight: unset;
+}

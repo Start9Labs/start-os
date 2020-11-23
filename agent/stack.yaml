@@ -1,0 +1,25 @@
+resolver: nightly-2020-09-29
+
+packages:
+- .
+
+extra-deps:
+  - aeson-1.4.7.1
+  - aeson-flatten-0.1.0.2
+  - exinst-0.8
+  - fused-effects-1.1.0.0
+  - fused-effects-th-0.1.0.2
+  - git-embed-0.1.0
+  - json-stream-0.4.2.4
+  - protolude-0.3.0
+  - streaming-conduit-0.1.2.2
+  - streaming-utils-0.2.0.0
+  # to avoid the ridiculous bug where stat64 is not found (only affects development)
+  - git: https://github.com/ProofOfKeags/persistent.git
+    commit: 3b52b13d9ce79cdef14bb1c37cc527657a529462
+    subdirs:
+      - persistent-sqlite
+
+ghc-options:
+  "$locals": -fwrite-ide-info
+  "$everything": -haddock
