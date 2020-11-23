@@ -9,6 +9,7 @@ import { HttpErrorResponse } from '@angular/common/http'
 import { isUnauthorized } from 'src/app/util/web.util'
 import { Replace } from 'src/app/util/types.util'
 import { AppMetrics, parseMetricsPermissive } from 'src/app/util/metrics.util'
+import { modulateTime } from 'src/app/util/misc.util'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -122,23 +123,23 @@ export class LiveApiService extends ApiService {
   }
 
   async uninstallApp (appId: string, dryRun: boolean = false): Promise<{ breakages: DependentBreakage[] }> {
-    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/uninstall${dryRunParam(dryRun, true)}`, readTimeout: 30000 })
+    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/uninstall${dryRunParam(dryRun, true)}`, readTimeout: 60000 })
   }
 
   async startApp (appId: string): Promise<Unit> {
-    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/start`, readTimeout: 30000 })
+    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/start`, readTimeout: 60000 })
       .then(() => this.appModel.update({ id: appId, status: AppStatus.RUNNING }))
       .then(() => ({ }))
   }
 
   async stopApp (appId: string, dryRun: boolean = false): Promise<{ breakages: DependentBreakage[] }> {
-    const res = await this.authRequest<{ breakages: DependentBreakage[] }>({ method: Method.POST, url: `/apps/${appId}/stop${dryRunParam(dryRun, true)}`, readTimeout: 30000 })
-    if (!dryRun) this.appModel.update({ id: appId, status: AppStatus.STOPPING })
+    const res = await this.authRequest<{ breakages: DependentBreakage[] }>({ method: Method.POST, url: `/apps/${appId}/stop${dryRunParam(dryRun, true)}`, readTimeout: 60000 })
+    if (!dryRun) this.appModel.update({ id: appId, status: AppStatus.STOPPING }, modulateTime(new Date(), 5, 'seconds'))
     return res
   }
 
   async restartApp (appId: string): Promise<Unit> {
-    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/restart`, readTimeout: 30000 })
+    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/restart`, readTimeout: 60000 })
       .then(() => ({ } as any))
   }
 
@@ -147,13 +148,13 @@ export class LiveApiService extends ApiService {
       password: password || undefined,
       logicalname,
     }
-    return this.authRequest<ReqRes.PostAppBackupCreateRes>({ method: Method.POST, url: `/apps/${appId}/backup`, data, readTimeout: 30000 })
+    return this.authRequest<ReqRes.PostAppBackupCreateRes>({ method: Method.POST, url: `/apps/${appId}/backup`, data, readTimeout: 60000 })
       .then(() => this.appModel.update({ id: appId, status: AppStatus.CREATING_BACKUP }))
       .then(() => ({ }))
   }
 
   async stopAppBackup (appId: string): Promise<Unit> {
-    return this.authRequest<ReqRes.PostAppBackupStopRes>({ method: Method.POST, url: `/apps/${appId}/backup/stop`, readTimeout: 30000 })
+    return this.authRequest<ReqRes.PostAppBackupStopRes>({ method: Method.POST, url: `/apps/${appId}/backup/stop`, readTimeout: 60000 })
       .then(() => this.appModel.update({ id: appId, status: AppStatus.STOPPED }))
       .then(() => ({ }))
   }
@@ -163,7 +164,7 @@ export class LiveApiService extends ApiService {
       password: password || undefined,
       logicalname,
     }
-    return this.authRequest<ReqRes.PostAppBackupRestoreRes>({ method: Method.POST, url: `/apps/${appId}/backup/restore`, data, readTimeout: 30000 })
+    return this.authRequest<ReqRes.PostAppBackupRestoreRes>({ method: Method.POST, url: `/apps/${appId}/backup/restore`, data, readTimeout: 60000 })
       .then(() => this.appModel.update({ id: appId, status: AppStatus.RESTORING_BACKUP }))
       .then(() => ({ }))
   }
@@ -172,24 +173,24 @@ export class LiveApiService extends ApiService {
     const data: ReqRes.PatchAppConfigReq = {
       config,
     }
-    return this.authRequest({ method: Method.PATCH, url: `/apps/${app.id}/config${dryRunParam(dryRun, true)}`, data, readTimeout: 30000 })
+    return this.authRequest({ method: Method.PATCH, url: `/apps/${app.id}/config${dryRunParam(dryRun, true)}`, data, readTimeout: 60000 })
   }
 
   async postConfigureDependency (dependencyId: string, dependentId: string, dryRun?: boolean): Promise<{ config: object, breakages: DependentBreakage[] }> {
-    return this.authRequest({ method: Method.POST, url: `/apps/${dependencyId}/autoconfig/${dependentId}${dryRunParam(dryRun, true)}`, readTimeout: 30000 })
+    return this.authRequest({ method: Method.POST, url: `/apps/${dependencyId}/autoconfig/${dependentId}${dryRunParam(dryRun, true)}`, readTimeout: 60000 })
   }
 
   async patchServerConfig (attr: string, value: any): Promise<Unit> {
     const data: ReqRes.PatchServerConfigReq = {
       value,
     }
-    return this.authRequest({ method: Method.PATCH, url: `/${attr}`, data, readTimeout: 30000 })
+    return this.authRequest({ method: Method.PATCH, url: `/${attr}`, data, readTimeout: 60000 })
       .then(() => this.serverModel.update({ [attr]: value }))
       .then(() => ({ }))
   }
 
   async wipeAppData (app: AppInstalledPreview): Promise<Unit> {
-    return this.authRequest({ method: Method.POST, url: `/apps/${app.id}/wipe`, readTimeout: 30000 }).then((res) => {
+    return this.authRequest({ method: Method.POST, url: `/apps/${app.id}/wipe`, readTimeout: 60000 }).then((res) => {
       this.appModel.update({ id: app.id, status: AppStatus.NEEDS_CONFIG })
       return res
     })
@@ -230,11 +231,11 @@ export class LiveApiService extends ApiService {
   }
 
   async restartServer (): Promise<Unit> {
-    return this.authRequest({ method: Method.POST, url: '/restart', readTimeout: 30000 })
+    return this.authRequest({ method: Method.POST, url: '/restart', readTimeout: 60000 })
   }
 
   async shutdownServer (): Promise<Unit> {
-    return this.authRequest({ method: Method.POST, url: '/shutdown', readTimeout: 30000 })
+    return this.authRequest({ method: Method.POST, url: '/shutdown', readTimeout: 60000 })
   }
 
   private async authRequest<T> (opts: HttpOptions, overrides: Partial<{ version: string }> = { }): Promise<T> {

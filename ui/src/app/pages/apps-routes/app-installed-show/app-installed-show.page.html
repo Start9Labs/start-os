@@ -81,8 +81,8 @@
       <ion-item-group class="ion-padding-bottom">
         <ion-item-divider>Tor Address</ion-item-divider>
         <ion-item lines="none">
-          <ion-label style="display: flex; justify-content: space-between; align-items: center;">
-            <p style="color: var(--ion-color-dark)">{{ vars.torAddress | truncateCenter:18:18:true }}</p>
+          <ion-label style="display: flex; justify-content: space-between; align-items: center;" class="ion-text-wrap">
+            <p style="color: var(--ion-color-dark)">{{ vars.torAddress }}</p>
             <ion-button slot="end" fill="clear" (click)="copyTor()">
               <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
             </ion-button>

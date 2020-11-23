@@ -1,10 +1,10 @@
 import { Component } from '@angular/core'
 import { NavController, AlertController, ModalController, PopoverController } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
-import { AppStatus } from 'src/app/models/app-model'
+import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { ApiService } from 'src/app/services/api/api.service'
-import { pauseFor, isEmptyObject } from 'src/app/util/misc.util'
+import { pauseFor, isEmptyObject, modulateTime } from 'src/app/util/misc.util'
 import { PropertySubject, peekProperties } from 'src/app/util/property-subject.util'
 import { LoaderService, markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
@@ -60,6 +60,7 @@ export class AppConfigPage extends Cleanup {
     private readonly modalController: ModalController,
     private readonly trackingModalCtrl: TrackingModalController,
     private readonly popoverController: PopoverController,
+    private readonly appModel: AppModel,
   ) { super() }
 
   backButtonDefense = false
@@ -182,6 +183,7 @@ export class AppConfigPage extends Cleanup {
 
   async save () {
     const app = peekProperties(this.app)
+    const ogAppStatus = app.status
 
     return this.loader.of({
       message: `Saving config...`,
@@ -208,6 +210,9 @@ export class AppConfigPage extends Cleanup {
     })
     .then(({ skip }) => {
       if (skip) return
+      if (ogAppStatus === AppStatus.RUNNING) {
+        this.appModel.update({ id: this.appId, status: AppStatus.RESTARTING }, modulateTime(new Date(), 3, 'seconds'))
+      }
       this.navCtrl.back()
     })
     .catch(e => this.error = { text: e.message })

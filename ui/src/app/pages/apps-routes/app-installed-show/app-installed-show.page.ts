@@ -17,6 +17,7 @@ import { catchError, concatMap, filter, switchMap, tap } from 'rxjs/operators'
 import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
+import { displayEmver } from 'src/app/pipes/emver.pipe'
 
 @Component({
   selector: 'app-installed-show',
@@ -115,7 +116,7 @@ export class AppInstalledShowPage extends Cleanup {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Update Available',
-      message: `New version ${versionLatest} found for ${app.title}.`,
+      message: `New version ${displayEmver(versionLatest)} found for ${app.title}.`,
       buttons: [
         {
           text: 'Cancel',

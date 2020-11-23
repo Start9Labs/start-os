@@ -1,0 +1,2 @@
+- Update app version in package.json
+- Update app version in manifest.yaml
