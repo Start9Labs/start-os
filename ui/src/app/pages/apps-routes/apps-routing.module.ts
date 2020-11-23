@@ -24,6 +24,10 @@ const routes: Routes = [
     loadChildren: () => import('./app-installed-show/app-installed-show.module').then(m => m.AppInstalledShowPageModule),
   },
   {
+    path: 'installed/:appId/ui',
+    loadChildren: () => import('./app-installed-ui/app-installed-ui.module').then(m => m.AppInstalledUiPageModule),
+  },
+  {
     path: 'installed/:appId/instructions',
     loadChildren: () => import('./app-instructions/app-instructions.module').then(m => m.AppInstructionsPageModule),
   },

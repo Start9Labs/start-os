@@ -49,6 +49,21 @@ export class ModelPreload {
     )
   }
 
+  appPreview (appId: string): Observable<PropertySubject<AppInstalledFull> > {
+    return fromSync$(() => this.appModel.watch(appId)).pipe(
+      concatMap(app => {
+        // if we haven't fetched full, don't return till we do
+        // if we have fetched full, go ahead and return now, but fetch full again in the background
+        if (!app.hasFetchedFull.getValue()) {
+          return from(this.loadInstalledApp(appId))
+        } else {
+          this.loadInstalledApp(appId)
+          return of(app)
+        }
+      }),
+    )
+  }
+
   loadInstalledApp (appId: string): Promise<PropertySubject<AppInstalledFull>> {
     return this.api.getInstalledApp(appId).then(res => {
       this.appModel.update({ id: appId, ...res, hasFetchedFull: true })

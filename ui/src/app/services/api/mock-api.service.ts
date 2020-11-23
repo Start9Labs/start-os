@@ -8,6 +8,8 @@ import { ApiServer, Unit as EmptyResponse, Unit } from './api-types'
 import { AppMetrics, AppMetricsVersioned, parseMetricsPermissive } from 'src/app/util/metrics.util'
 import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppInstalledFull, mockAppDependentBreakages, toInstalledPreview } from './mock-app-fixures'
 
+const { version } = require('../../../../package.json')
+
 //@TODO consider moving to test folders.
 @Injectable()
 export class MockApiService extends ApiService {
@@ -389,7 +391,7 @@ const mockApiNotifications: ReqRes.GetNotificationsRes = [
 const mockApiServer: () => ReqRes.GetServerRes = () => ({
   serverId: 'start9-mockxyzab',
   name: 'Embassy:12345678',
-  versionInstalled: '0.2.5',
+  versionInstalled: version,
   status: ServerStatus.RUNNING,
   alternativeRegistryUrl: 'beta-registry.start9labs.com',
   specs: {
@@ -420,7 +422,7 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
 })
 
 const mockVersionLatest: ReqRes.GetVersionLatestRes = {
-  versionLatest: '0.2.5',
+  versionLatest: version,
   canUpdate: true,
 }
 

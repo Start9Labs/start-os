@@ -20,6 +20,7 @@ export function toInstalledPreview (f: AppInstalledFull): AppInstalledPreview {
     title: f.title,
     iconURL: f.iconURL,
     torAddress: f.torAddress,
+    ui: f.ui,
   }
 }
 
@@ -41,6 +42,7 @@ export function toServiceBreakage (f: BaseApp): DependentBreakage {
 }
 
 export const bitcoinI: AppInstalledFull = {
+  ui: false,
   id: 'bitcoind',
   versionInstalled: '0.18.1',
   title: 'Bitcoin Core',
@@ -54,6 +56,7 @@ export const bitcoinI: AppInstalledFull = {
 }
 
 export const lightningI: AppInstalledFull = {
+  ui: false,
   id: 'c-lightning',
   status: AppStatus.RUNNING,
   title: 'C Lightning',
@@ -76,6 +79,7 @@ export const lightningI: AppInstalledFull = {
 }
 
 export const cupsI: AppInstalledFull = {
+  ui: true,
   id: 'cups',
   versionInstalled: '2.1.0',
   title: 'Cups Messenger',
