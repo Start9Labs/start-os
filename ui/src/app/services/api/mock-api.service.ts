@@ -621,7 +621,7 @@ const mockApiAppMetricsV1: AppMetricsVersioned<2> = {
           masked: false,
           value: '35',
         },
-        'Password': {
+        'PasswordPasswordPasswordPasswordPassword': {
           type: 'string',
           description: 'A secret password',
           copyable: true,

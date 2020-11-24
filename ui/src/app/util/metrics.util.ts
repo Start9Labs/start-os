@@ -178,7 +178,7 @@ interface AppMetricBase {
   description: string | null
 }
 
-interface AppMetricString extends AppMetricBase {
+export interface AppMetricString extends AppMetricBase {
   type: 'string'
   value: string
   copyable: boolean
@@ -189,4 +189,20 @@ interface AppMetricString extends AppMetricBase {
 interface AppMetricObject extends AppMetricBase {
   type: 'object'
   value: AppMetricsV2
+}
+
+function isMetricString (s: AppMetricString | AppMetricObject): s is AppMetricString {
+  return s.type === 'string'
+}
+
+export function flattenMetrics (metrics: AppMetrics, prefix = ''): { [nestedName: string]: AppMetricString } {
+  let toReturn = { }
+  Object.entries(metrics).forEach( ([k, v]) => {
+    if (isMetricString(v)) {
+      toReturn[prefix + k] = v
+    } else {
+      toReturn = { ...toReturn, ...flattenMetrics(v.value, `${k}/`) }
+    }
+  })
+  return toReturn
 }

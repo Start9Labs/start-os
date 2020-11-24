@@ -1,37 +1,80 @@
-import { Component, NgZone } from '@angular/core'
-import { ApiService } from 'src/app/services/api/api.service'
-import { AppModel } from 'src/app/models/app-model'
-import { AppAvailablePreview, AppInstalledFull, AppInstalledPreview } from 'src/app/models/app-types'
-import { pauseFor } from 'src/app/util/misc.util'
-import { PropertySubjectId, initPropertySubject, peekProperties } from 'src/app/util/property-subject.util'
-import { Subscription, BehaviorSubject, combineLatest } from 'rxjs'
-import { take, tap } from 'rxjs/operators'
-import { markAsLoadingDuring$, markAsLoadingDuringP } from 'src/app/services/loader.service'
+import { Component } from '@angular/core'
+import { AppInstalledFull } from 'src/app/models/app-types'
+import { PropertySubject } from 'src/app/util/property-subject.util'
+import { BehaviorSubject, EMPTY, from, Observable, of } from 'rxjs'
+import { catchError, concatMap, delay, map, switchMap, tap } from 'rxjs/operators'
+import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { ActivatedRoute } from '@angular/router'
 import { ModelPreload } from 'src/app/models/model-preload'
+import { PopoverController } from '@ionic/angular'
+import { ServiceUiMenuComponent } from 'src/app/components/service-ui-menu/service-ui-menu.component'
+import { AppMetrics } from 'src/app/util/metrics.util'
+import { ApiService } from 'src/app/services/api/api.service'
+import { AppModel } from 'src/app/models/app-model'
+import { Cleanup } from 'src/app/util/cleanup'
 
 @Component({
   selector: 'app-installed-ui',
   templateUrl: './app-installed-ui.page.html',
   styleUrls: ['./app-installed-ui.page.scss'],
 })
-export class AppInstalledUiPage {
+export class AppInstalledUiPage extends Cleanup {
   private appId: string
-  private app: AppInstalledFull
+  $app$: PropertySubject<AppInstalledFull>
+  error: string = undefined
+  $properties$: BehaviorSubject<AppMetrics> = new BehaviorSubject({ })
   $loading$ = new BehaviorSubject(true)
+
 
   constructor (
     private readonly route: ActivatedRoute,
     private readonly preload: ModelPreload,
-  ) { }
+    private readonly popover: PopoverController,
+    private readonly apiService: ApiService,
+    private readonly appModel: AppModel,
+  ) {  super() }
 
   ngOnInit () {
     this.appId = this.route.snapshot.paramMap.get('appId') as string
-    markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId))
-    .pipe(
-      tap(app => this.app = peekProperties(app)),
-    ).subscribe()
+    this.cleanup(
+      markAsLoadingDuring$(this.$loading$,
+        this.preload.appFull(this.appId)
+        .pipe(
+          tap(app => this.$app$ = app),
+          concatMap(() => this.getMetrics()),
+        ),
+      ).pipe(
+          concatMap(() =>
+            this.appModel.watchForRunning(this.appId).pipe(
+              () => this.getMetrics(),
+            ),
+          ),
+        ).subscribe(),
+    )
   }
 
-  
+  async presentPopoverMenu (ev: Event) {
+    const p = await this.popover.create({
+      component: ServiceUiMenuComponent,
+      componentProps: { properties$: this.$properties$ },
+      showBackdrop: true,
+      backdropDismiss: true,
+      event: ev,
+      cssClass: 'ui-menu',
+    })
+
+    await p.present()
+  }
+
+  getMetrics (): Observable<void> {
+    return from(this.apiService.getAppMetrics(this.appId)).pipe(
+      tap(() => this.error = undefined),
+      map(metrics => this.$properties$.next(metrics)),
+      catchError(e => {
+        this.error = e.message
+        return of(console.error(`Exception in metrics polling`, e))
+      }),
+    )
+  }
+
 }

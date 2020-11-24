@@ -263,18 +263,20 @@ ion-avatar {
   --padding-start: 10px;
 }
 
-// .divider {
-//   margin-top: 15px;
-//   color: var(--ion-color-medium);
-//   font-size: medium;
-//   padding-left: 10px;
-//   font-weight: unset;
-// }
-
 ion-item-divider {
   margin-top: 15px;
   color: var(--ion-color-medium);
   font-size: medium;
   padding-left: 10px;
   font-weight: unset;
+}
+
+.ui-menu {
+  --width: 325px !important;
+}
+
+@media (min-width:1000px) {
+  .ui-menu {
+    --width: 500px !important;
+  }
 }
