@@ -1,17 +1,40 @@
 <ion-list>
-  <ion-item *ngFor="let item of (menuItems$ | async)" style="--inner-padding-end: 5px;" button (click)="autoFill(item)">
+  <ion-item style="padding-top: 5px" detail="false" lines="none" *ngFor="let item of (menuItems$ | async)" button (click)="copy(item)">
     <div style="font-size: small; width: 100%; display: flex; justify-content: space-between; align-items: center;">
-      <ion-label style="
-        font-size: smaller;
-        color: var(--ion-color-medium);
-        max-width: 75%;
-      ">
-        <div style="color: white;" class="text-ellipses">{{item[0]}}</div>
-        <div class="text-ellipses">{{!item[1].masked ? item[1].value : item[1].value | mask}}</div>
+      <ion-label style="padding-right: 2px; max-width: 85%;">
+        {{item[0]}}
+        <!-- <div style="color: white;" >
+        </div> -->
+        <!-- <div class="text-ellipses">{{!item[1].masked ? item[1].value : item[1].value | mask}}</div> -->
       </ion-label>
-      <ion-button color="primary" fill="clear" size="small" (click)="copy(item, $event)">
-        <ion-icon name="copy-outline"></ion-icon>
-      </ion-button>
+      <!-- <ion-button color="primary" fill="clear" size="small" (click)="autofill(item, $event)"> -->
+        <ion-icon color="dark" name="copy-outline"></ion-icon>
+      <!-- </ion-button> -->
     </div>
+  </ion-item>
+  <div class="menu-divider-line"></div>
+  <ion-item lines="none" button detail="false">
+    <div style="font-size: small; width: 100%; display: flex; justify-content: space-between; align-items: center;">
+      <ion-label style="max-width: 75%;">
+        <div style="color: white;" class="text-ellipses">Logs</div>
+      </ion-label>
+        <ion-icon color="dark" name="chevron-forward"></ion-icon>
+    </div>
+  </ion-item>
+  <ion-item lines="none" button detail="false">
+    <div style="font-size: small; width: 100%; display: flex; justify-content: space-between; align-items: center;">
+      <ion-label style="max-width: 75%;">
+        <div style="color: white;" class="text-ellipses">Properties</div>
+      </ion-label>
+        <ion-icon color="dark" name="chevron-forward"></ion-icon>
+    </div>
+  </ion-item>
+ 
+  <div class="menu-divider-line"></div>
+  <ion-item lines="none" style="font-size: small;" button detail="false">
+    <ion-icon name="close-outline"></ion-icon>
+    <ion-label style="margin-left: 5px;" color="danger">
+      Quit
+    </ion-label>
   </ion-item>
 </ion-list>

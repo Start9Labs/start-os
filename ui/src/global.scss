@@ -161,7 +161,7 @@ ion-loading {
 }
 
 ion-popover {
-  --background: var(--ion-color-warning) !important;
+  --background: var(--ion-item-background) !important;
 
   ion-backdrop {
       --backdrop-opacity: 0.45 !important;

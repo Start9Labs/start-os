@@ -15,6 +15,8 @@ import { copyToClipboard } from 'src/app/util/web.util'
 export class ServiceUiMenuComponent implements OnInit {
   @Input()
   properties$: Observable<AppMetrics>
+
+  // iFrame: HTMLElement | null
   menuItems$: Observable<[string, AppMetricString][]>
 
   toast: HTMLIonToastElement
@@ -24,9 +26,10 @@ export class ServiceUiMenuComponent implements OnInit {
   ngOnInit () {
     this.menuItems$ = this.properties$.pipe(
       map(
-        ps => Object.entries(flattenMetrics(ps)).filter(([k, v]) => v.copyable).sort(
-          ([k1, v], [k2, v2]) => k1 < k2 ? -1 : 1,
-        ),
+        ps => Object.entries(flattenMetrics(ps))
+          .filter(([k, v]) => v.copyable)
+          // .map(getSelections)
+          .sort(([k1, v], [k2, v2]) => k1 < k2 ? 1 : -1),
       ),
       traceWheel('props'),
     )
@@ -36,8 +39,7 @@ export class ServiceUiMenuComponent implements OnInit {
     this.clearToast()
   }
 
-  async copy (item: [string, AppMetricString], ev: Event) {
-    ev.stopPropagation()
+  async copy (item: [string, AppMetricString]) {
     let message = ''
     await copyToClipboard(item[1].value).then(success => { message = success ? 'copied to clipboard!' :  'failed to copy'})
 
@@ -51,19 +53,24 @@ export class ServiceUiMenuComponent implements OnInit {
     await this.toast.present()
   }
 
-  async autoFill (item: [string, AppMetricString]) {
-    console.log('autofill', item)
+  // async autoFill (item: [string, AppMetricString], ev: Event) {
+  //   ev.stopPropagation()
 
-    await this.clearToast()
-    this.toast = await this.toastCtrl.create({
-      header: 'Unable to auto-fill the selected item on this page. Copy and paste the information instead.',
-      position: 'bottom',
-      cssClass: 'notification-toast',
-    })
-    await this.toast.present()
-  }
+  //   await this.clearToast()
+  //   this.toast = await this.toastCtrl.create({
+  //     header: 'Unable to auto-fill the selected item on this page. Copy and paste the information instead.',
+  //     position: 'bottom',
+  //     cssClass: 'notification-toast',
+  //   })
+  //   await this.toast.present()
+  // }
 
   async clearToast () {
     if (this.toast) { this.toast.dismiss(); this.toast = undefined }
   }
 }
+
+// function getSelections (iframe: HTMLElement, a: [string, AppMetricString]): [string, AppMetricString & { selection?: NodeList }] {
+//   if (!a[1].autofillSelector) return a
+//   const selection = iframe.
+// }

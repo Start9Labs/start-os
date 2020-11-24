@@ -182,6 +182,7 @@ export interface AppMetricString extends AppMetricBase {
   type: 'string'
   value: string
   copyable: boolean
+  autofillSelector?: string,
   qr: boolean
   masked: boolean
 }

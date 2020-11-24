@@ -12,5 +12,5 @@
 
 <ion-content style="--overflow: hidden;" *ngIf="{loading: $loading$ | async} as vars">
   <ion-spinner *ngIf="vars.loading || !$app$" class="center" name="lines" color="warning"></ion-spinner>
-  <iframe *ngIf="!vars.loading && $app$" src="https://www.github.com" width="100%" height="100%" style="border:1px solid black;"></iframe>
+  <iframe (onload)="iFrameLoaded()" *ngIf="!vars.loading && $app$" [id]="appId + '-ui'" src="http://localhost:8100" width="100%" height="100%" style="border:1px solid black;"></iframe>
 </ion-content>

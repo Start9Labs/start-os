@@ -1,4 +1,4 @@
-import { Component } from '@angular/core'
+import { Component, ElementRef, ViewChild } from '@angular/core'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { PropertySubject } from 'src/app/util/property-subject.util'
 import { BehaviorSubject, EMPTY, from, Observable, of } from 'rxjs'
@@ -25,7 +25,6 @@ export class AppInstalledUiPage extends Cleanup {
   $properties$: BehaviorSubject<AppMetrics> = new BehaviorSubject({ })
   $loading$ = new BehaviorSubject(true)
 
-
   constructor (
     private readonly route: ActivatedRoute,
     private readonly preload: ModelPreload,
@@ -44,26 +43,35 @@ export class AppInstalledUiPage extends Cleanup {
           concatMap(() => this.getMetrics()),
         ),
       ).pipe(
-          concatMap(() =>
-            this.appModel.watchForRunning(this.appId).pipe(
-              () => this.getMetrics(),
-            ),
+        concatMap(() =>
+          this.appModel.watchForRunning(this.appId).pipe(
+            () => this.getMetrics(),
           ),
-        ).subscribe(),
+        ),
+      ).subscribe(),
     )
   }
 
+  pop: HTMLIonPopoverElement
   async presentPopoverMenu (ev: Event) {
-    const p = await this.popover.create({
+    if (this.pop) await this.pop.dismiss()
+    this.pop = await this.popover.create({
       component: ServiceUiMenuComponent,
-      componentProps: { properties$: this.$properties$ },
+      componentProps: {
+        properties$: this.$properties$,
+        iFrame: document.getElementById(`${this.appId}-ui`),
+      },
       showBackdrop: true,
       backdropDismiss: true,
       event: ev,
       cssClass: 'ui-menu',
     })
 
-    await p.present()
+    await this.pop.present()
+  }
+
+  ionViewDidLeave () {
+    if (this.pop) this.pop.dismiss()
   }
 
   getMetrics (): Observable<void> {
