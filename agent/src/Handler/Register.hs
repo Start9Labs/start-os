@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 module Handler.Register where
 
@@ -31,44 +32,59 @@ import           Lib.SystemPaths
 import           Model
 import           Settings
 
-postRegisterR :: Handler RegisterRes
-postRegisterR = handleS9ErrT $ do
-    settings           <- getsYesod appSettings
 
-    productKey         <- liftIO . getProductKey . appFilesystemBase $ settings
-    req                <- requireCheckJsonBody
+postRegisterR :: Handler RegisterRes
+postRegisterR = handleS9ErrT . fromSys $ do
+    time "Start"
+    settings   <- getsYesod appSettings
+
+    productKey <- liftIO . getProductKey . appFilesystemBase $ settings
+    time "Read Product Key"
+    req <- requireCheckJsonBody
+    time "Parse JSON Body"
 
     -- Decrypt torkey and password. This acts as product key authentication.
-    torKeyFileContents <- decryptTorkey productKey req
-    password           <- decryptPassword productKey req
-    rsaKeyFileContents <- decryptRSAKey productKey req
+    torKeyFileContents <- lift $ decryptTorkey productKey req
+    time "Decrypt Tor Key"
+    password <- lift $ decryptPassword productKey req
+    time "Decrypt Password"
+    rsaKeyFileContents <- lift $ decryptRSAKey productKey req
+    time "Decrypto RSA"
 
     -- Check for existing registration.
-    checkExistingPasswordRegistration rootAccountName >>= \case
+    lift $ checkExistingPasswordRegistration rootAccountName >>= \case
         Nothing -> pure ()
         Just _  -> sendResponseStatus (Status 209 "Preexisting") ()
+    time "Check Password Registration"
 
     -- install new tor hidden service key and restart tor
-    registerResTorAddress <- runM (injectFilesystemBaseFromContext settings $ bootupTor torKeyFileContents) >>= \case
-        Just t  -> pure t
-        Nothing -> throwE TorServiceTimeoutE
+    registerResTorAddress <-
+        lift $ runM (injectFilesystemBaseFromContext settings $ bootupTor torKeyFileContents) >>= \case
+            Just t  -> pure t
+            Nothing -> throwE TorServiceTimeoutE
+    time "Bootstrap Tor Hidden Service"
 
     -- install new ssl CA cert + nginx conf and restart nginx
     registerResCert <-
-        runM . handleS9ErrC . (>>= liftEither) . liftIO . runM . injectFilesystemBaseFromContext settings $ do
+        runM . handleS9ErrC . liftEither <=< liftIO . runM . injectFilesystemBaseFromContext settings $ do
             bootupHttpNginx
             runError @S9Error $ bootupSslNginx rsaKeyFileContents
+    time "Bootstrap SSL Configuration"
 
     -- create an hmac of the torAddress + caCert for front end
     registerResTorAddressSig <- produceProofOfKey productKey registerResTorAddress
-    registerResCertSig       <- produceProofOfKey productKey registerResCert
+    time "Sign Tor Address"
+    registerResCertSig <- produceProofOfKey productKey registerResCert
+    time "Sign Certificate"
 
     -- must match CN in config/csr.conf
     let registerResCertName = root_CA_CERT_NAME
     registerResLanAddress <- runM . injectFilesystemBaseFromContext settings $ getStart9AgentHostnameLocal
+    time "Fetch Agent Hostname"
 
     -- registration successful, save the password hash
-    registerResClaimedAt  <- saveAccountRegistration rootAccountName password
+    registerResClaimedAt <- lift $ saveAccountRegistration rootAccountName password
+    time "Save Account Registration"
     pure RegisterRes { .. }
 
 

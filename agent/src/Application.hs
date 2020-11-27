@@ -81,10 +81,10 @@ appMain = do
                 die . toS $ "Invalid Port: " <> n
         ["--git-hash"] -> do
             putStrLn @Text $embedGitRevision
-            exitWith ExitSuccess
+            exitSuccess
         ["--version"] -> do
             putStrLn @Text (show agentVersion)
-            exitWith ExitSuccess
+            exitSuccess
         _ -> pure settings
     createDirectoryIfMissing False (toS $ agentDataDirectory `relativeTo` appFilesystemBase settings')
 
