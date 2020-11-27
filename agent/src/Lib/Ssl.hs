@@ -306,7 +306,7 @@ writeIntermediateCert :: MonadIO m => DeriveCertificate -> m (ExitCode, String, 
 writeIntermediateCert DeriveCertificate {..} = liftIO $ fromSys $ interpret $ do
   lift . lift $ time "Intermediate Cert Write Start"
     -- openssl genrsa -out dump/int.key 4096
-  segment $ openssl [i|genrsa -out #{applicantKeyPath} 4096|]
+  segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
   lift . lift $ time "Generate intermediate RSA Key"
   -- openssl req -new -config dump/int-csr.conf -key dump/int.key -nodes -out dump/int.csr
   segment $ openssl [i|req -new
@@ -333,7 +333,7 @@ writeIntermediateCert DeriveCertificate {..} = liftIO $ fromSys $ interpret $ do
 writeLeafCert :: MonadIO m => DeriveCertificate -> Text -> Text -> m (ExitCode, String, String)
 writeLeafCert DeriveCertificate {..} hostname torAddress = liftIO $ fromSys $ interpret $ do
   lift . lift $ time "Leaf Cert Write Start"
-  segment $ openssl [i|genrsa -out #{applicantKeyPath} 4096|]
+  segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
   lift . lift $ time "Generate leaf RSA Key"
   segment $ openssl [i|req -config #{applicantConfPath}
                              -key #{applicantKeyPath}
