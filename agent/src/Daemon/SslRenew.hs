@@ -13,8 +13,8 @@ import           Lib.Ssl
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
 import           Lib.Tor
 import           Control.Carrier.Lift
-import           System.Directory               ( renameDirectory
-                                                , removeDirectory
+import           System.Directory               ( removePathForcibly
+                                                , renameDirectory
                                                 )
 import           Lib.SystemCtl
 import qualified Lib.Notifications             as Notifications
@@ -66,7 +66,7 @@ renewSslLeafCert ctx = do
                     $ Notifications.emit (AppId "EmbassyOS") agentVersion
                     $ Notifications.CertRenewFailed (ExitFailure n) out err
         let sslDir = toS $ sslDirectory `relativeTo` base
-        liftIO $ removeDirectory sslDir
+        liftIO $ removePathForcibly sslDir
         liftIO $ renameDirectory sslDirTmp sslDir
         liftIO $ systemCtl RestartService "nginx" $> ()
 

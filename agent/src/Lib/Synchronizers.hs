@@ -526,7 +526,7 @@ replaceDerivativeCerts = do
         ExitFailure n -> throwError $ OpenSslE "leaf" n out' err'
 
     sslDir <- toS <$> getAbsoluteLocationFor sslDirectory
-    liftIO $ removeDirectory sslDir
+    liftIO $ removePathForcibly sslDir
     liftIO $ renameDirectory sslDirTmp sslDir
     liftIO $ systemCtl RestartService "nginx" $> ()
 
