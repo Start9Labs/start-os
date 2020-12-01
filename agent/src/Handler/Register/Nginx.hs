@@ -22,20 +22,7 @@ import           Lib.Synchronizers
 import           Lib.SystemPaths
 import           Lib.Tor
 import           System.Posix                   ( removeLink )
-import           Data.String.Interpolate.IsString
-                                                ( i )
 import           Lib.SystemCtl
-
-time :: MonadIO m => Text -> StateT UTCTime m ()
-time t = do
-    last <- Startlude.get
-    now  <- liftIO getCurrentTime
-    putStrLn @Text [i|#{t}: #{diffUTCTime now last}|]
-    put now
-
-fromSys :: MonadIO m => StateT UTCTime m a -> m a
-fromSys m = liftIO getCurrentTime >>= evalStateT m
-
 
 -- Left error, Right CA cert for hmac signing
 bootupSslNginx :: (HasFilesystemBase sig m, Has (Error S9Error) sig m, Has (Lift IO) sig m, MonadIO m)
@@ -96,7 +83,7 @@ bootupHttpNginx :: (HasFilesystemBase sig m, MonadIO m) => m ()
 bootupHttpNginx = installAmbassadorUiNginxHTTP "start9-ambassador.conf"
 
 writeSslKeyAndCert :: (MonadIO m, HasFilesystemBase sig m, Has (Error S9Error) sig m) => ByteString -> m Text
-writeSslKeyAndCert rsaKeyFileContents = fromSys $ do
+writeSslKeyAndCert rsaKeyFileContents = do
     directory     <- toS <$> getAbsoluteLocationFor sslDirectory
     caKeyPath     <- toS <$> getAbsoluteLocationFor rootCaKeyPath
     caConfPath    <- toS <$> getAbsoluteLocationFor rootCaOpenSslConfPath
@@ -112,13 +99,10 @@ writeSslKeyAndCert rsaKeyFileContents = fromSys $ do
 
     let hostname = sid <> ".local"
 
-    time "SSL Start"
     liftIO $ createDirectoryIfMissing False directory
     liftIO $ BS.writeFile caKeyPath rsaKeyFileContents
-    time "Write SSL Root Key"
 
     (exit, str1, str2) <- writeRootCaCert caConfPath caKeyPath caCertPath
-    time "Generate SSL Root Cert"
     liftIO $ do
         putStrLn @Text "openssl logs"
         putStrLn @Text "exit code: "

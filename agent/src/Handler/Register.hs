@@ -34,57 +34,43 @@ import           Settings
 
 
 postRegisterR :: Handler RegisterRes
-postRegisterR = handleS9ErrT . fromSys $ do
-    time "Start"
-    settings   <- getsYesod appSettings
+postRegisterR = handleS9ErrT $ do
+    settings           <- getsYesod appSettings
 
-    productKey <- liftIO . getProductKey . appFilesystemBase $ settings
-    time "Read Product Key"
-    req <- requireCheckJsonBody
-    time "Parse JSON Body"
+    productKey         <- liftIO . getProductKey . appFilesystemBase $ settings
+    req                <- requireCheckJsonBody
 
     -- Decrypt torkey and password. This acts as product key authentication.
-    torKeyFileContents <- lift $ decryptTorkey productKey req
-    time "Decrypt Tor Key"
-    password <- lift $ decryptPassword productKey req
-    time "Decrypt Password"
-    rsaKeyFileContents <- lift $ decryptRSAKey productKey req
-    time "Decrypto RSA"
+    torKeyFileContents <- decryptTorkey productKey req
+    password           <- decryptPassword productKey req
+    rsaKeyFileContents <- decryptRSAKey productKey req
 
     -- Check for existing registration.
-    lift $ checkExistingPasswordRegistration rootAccountName >>= \case
+    checkExistingPasswordRegistration rootAccountName >>= \case
         Nothing -> pure ()
         Just _  -> sendResponseStatus (Status 209 "Preexisting") ()
-    time "Check Password Registration"
 
     -- install new tor hidden service key and restart tor
-    registerResTorAddress <-
-        lift $ runM (injectFilesystemBaseFromContext settings $ bootupTor torKeyFileContents) >>= \case
-            Just t  -> pure t
-            Nothing -> throwE TorServiceTimeoutE
-    time "Bootstrap Tor Hidden Service"
+    registerResTorAddress <- runM (injectFilesystemBaseFromContext settings $ bootupTor torKeyFileContents) >>= \case
+        Just t  -> pure t
+        Nothing -> throwE TorServiceTimeoutE
 
     -- install new ssl CA cert + nginx conf and restart nginx
     registerResCert <-
         runM . handleS9ErrC . liftEither <=< liftIO . runM . injectFilesystemBaseFromContext settings $ do
             bootupHttpNginx
             runError @S9Error $ bootupSslNginx rsaKeyFileContents
-    time "Bootstrap SSL Configuration"
 
     -- create an hmac of the torAddress + caCert for front end
     registerResTorAddressSig <- produceProofOfKey productKey registerResTorAddress
-    time "Sign Tor Address"
-    registerResCertSig <- produceProofOfKey productKey registerResCert
-    time "Sign Certificate"
+    registerResCertSig       <- produceProofOfKey productKey registerResCert
 
     -- must match CN in config/csr.conf
     let registerResCertName = root_CA_CERT_NAME
     registerResLanAddress <- runM . injectFilesystemBaseFromContext settings $ getStart9AgentHostnameLocal
-    time "Fetch Agent Hostname"
 
     -- registration successful, save the password hash
-    registerResClaimedAt <- lift $ saveAccountRegistration rootAccountName password
-    time "Save Account Registration"
+    registerResClaimedAt  <- saveAccountRegistration rootAccountName password
     pure RegisterRes { .. }
 
 
