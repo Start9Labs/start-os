@@ -190,7 +190,7 @@ startupSequence foundation = do
         withAgentVersionLog_ "App notifications refreshing"
 
         withAgentVersionLog_ "Initializing SSL certificate renewal loop"
-        void . forkIO . forever $ forkIO $ SSLRenew.renewSslLeafCert foundation *> sleep 86_400
+        void . forkIO . forever $ forkIO (SSLRenew.renewSslLeafCert foundation) *> sleep 86_400
         withAgentVersionLog_ "SSL Renewal daemon started"
 
         -- reloading avahi daemon
