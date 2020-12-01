@@ -2,6 +2,7 @@ use std::path::Path;
 
 use failure::ResultExt as _;
 use futures::stream::StreamExt;
+use tokio_compat_02::IoCompat;
 use tokio_tar as tar;
 
 use crate::config::{ConfigRuleEntry, ConfigSpec};
@@ -48,7 +49,7 @@ pub async fn info_full<P: AsRef<Path>>(
         .with_context(|e| format!("{}: {}", p.display(), e))
         .with_code(crate::error::FILESYSTEM_ERROR)?;
     log::info!("Extracting archive.");
-    let mut pkg = tar::Archive::new(r);
+    let mut pkg = tar::Archive::new(IoCompat::new(r));
     let mut entries = pkg.entries()?;
     log::info!("Opening manifest from archive.");
     let manifest = entries
@@ -62,7 +63,7 @@ pub async fn info_full<P: AsRef<Path>>(
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing manifest.");
-    let manifest: Manifest = from_cbor_async_reader(manifest).await?;
+    let manifest: Manifest = from_cbor_async_reader(IoCompat::new(manifest)).await?;
     let manifest = manifest.into_latest();
     crate::ensure_code!(
         crate::version::Current::new()
@@ -93,7 +94,7 @@ pub async fn info_full<P: AsRef<Path>>(
                 "Package File Invalid or Corrupted"
             );
             log::trace!("Deserializing config spec.");
-            let spec = from_cbor_async_reader(spec).await?;
+            let spec = from_cbor_async_reader(IoCompat::new(spec)).await?;
             log::info!("Opening config rules from archive.");
             let rules = entries
                 .next()
@@ -108,7 +109,7 @@ pub async fn info_full<P: AsRef<Path>>(
                 "Package File Invalid or Corrupted"
             );
             log::trace!("Deserializing config rules.");
-            let rules = from_cbor_async_reader(rules).await?;
+            let rules = from_cbor_async_reader(IoCompat::new(rules)).await?;
             Some(AppConfig { spec, rules })
         } else {
             None
@@ -124,7 +125,7 @@ pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
         .with_context(|e| format!("{}: {}", p.display(), e))
         .with_code(crate::error::FILESYSTEM_ERROR)?;
     log::info!("Extracting archive.");
-    let mut pkg = tar::Archive::new(r);
+    let mut pkg = tar::Archive::new(IoCompat::new(r));
     let mut entries = pkg.entries()?;
     log::info!("Opening manifest from archive.");
     let manifest = entries
@@ -138,7 +139,7 @@ pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing manifest.");
-    let manifest: Manifest = from_cbor_async_reader(manifest).await?;
+    let manifest: Manifest = from_cbor_async_reader(IoCompat::new(manifest)).await?;
     let manifest = manifest.into_latest();
     crate::ensure_code!(
         crate::version::Current::new()
@@ -166,7 +167,7 @@ pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
     if manifest.has_instructions {
         use tokio::io::AsyncWriteExt;
 
-        let mut instructions = entries
+        let instructions = entries
             .next()
             .await
             .ok_or(crate::install::Error::CorruptedPkgFile(
@@ -175,7 +176,7 @@ pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
             .no_code()??;
 
         let mut stdout = tokio::io::stdout();
-        tokio::io::copy(&mut instructions, &mut stdout)
+        tokio::io::copy(&mut IoCompat::new(instructions), &mut stdout)
             .await
             .with_code(crate::error::FILESYSTEM_ERROR)?;
         stdout
