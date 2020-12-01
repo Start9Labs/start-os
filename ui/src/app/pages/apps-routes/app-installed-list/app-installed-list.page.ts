@@ -96,21 +96,25 @@ export class AppInstalledListPage extends Cleanup {
     })
   }
 
+  goToUi = false
   handlePan (app: PropertySubjectId<AppInstalledPreview>, ev: any) {
-
     if (!app.subject.ui.getValue()) return
     const card = document.getElementById(app.id)
-    console.log('offsetX', ev.deltaX)
-    console.log('offsetY', ev.deltaY)
-    const threshold = 0.5 * card.offsetHeight
+    const threshold = 0.8 * card.offsetHeight
+
+    if (ev.deltaY >= threshold) this.goToUi = true
+
     card.style.top = dampenPosition(0.5 * card.offsetHeight, ev.deltaY) + 'px'
 
     if (ev.isFinal) {
       card.style.transition = '0.5s cubic-bezier(0.26, 0.74, 0.4, 0.88) all'
-      if (ev.deltaY >= threshold) {
-        card.style.top = 1.5 * card.offsetHeight + 'px'
+      if (this.goToUi) {
+        card.style.top = '0px'
         card.style.opacity = '0'
-        this.viewServiceUI(app.id)
+        pauseFor(500)
+          .then(() => this.viewServiceUI(app.id))
+          .then(() => pauseFor(500))
+          .then(() => card.style.opacity = '1')
       } else {
         card.style.top = 0 + 'px'
       }
@@ -144,57 +148,3 @@ export class AppInstalledListPage extends Cleanup {
 export function dampenPosition (boundary: number, delta: number): number {
   return Math.max(0, boundary + 50 * Math.log(delta / 50 + 1))
 }
-
-/*
-var lastPosX = 0;
-var lastPosY = 0;
-var isDragging = false;
-function handleDrag(ev) {
-
-  // for convience, let's get a reference to our object
-  var elem = ev.target;
-
-  // DRAG STARTED
-  // here, let's snag the current position
-  // and keep track of the fact that we're dragging
-  if ( ! isDragging ) {
-    isDragging = true;
-    lastPosX = elem.offsetLeft;
-    lastPosY = elem.offsetTop;
-    setStatus("You, sir, are dragging me...");
-
-    setBlockText("WOAH");
-  }
-
-  // we simply need to determine where the x,y of this
-  // object is relative to where it's "last" known position is
-  // NOTE:
-  //    deltaX and deltaY are cumulative
-  // Thus we need to always calculate 'real x and y' relative
-  // to the "lastPosX/Y"
-  var posX = ev.deltaX + lastPosX;
-  var posY = ev.deltaY + lastPosY;
-
-  // move our element to that position
-  elem.style.left = posX + "px";
-  elem.style.top = posY + "px";
-
-  // DRAG ENDED
-  // this is where we simply forget we are dragging
-  if (ev.isFinal) {
-    isDragging = false;
-    setStatus("Much better. It's nice here.");
-    setBlockText("Thanks");
-  }
-}
-
-
-
-function setStatus(msg) {
-  statusBar.textContent = msg;
-}
-function setBlockText(msg) {
-  myBlock.textContent = msg;
-}
-
-*/

@@ -28,8 +28,8 @@
           left: 5%;
           top: 5%;
           margin: 0px;
-          background: red;
-          border-radius: 10px;"></div>
+          background: var(--ion-color-primary);
+          border-radius: 10px;" [class.go-to-ui]="goToUi"></div>
           <ion-card [id]="app.id" (pan)="handlePan(app, $event)"  class="installed-card" [class.installed-card-on]="(app.subject.status | async) === 'RUNNING'" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
             <img style="position: absolute" class="main-img" [src]="app.subject.iconURL | async | iconParse" [alt]="app.subject.title | async" />
             <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">

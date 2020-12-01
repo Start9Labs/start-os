@@ -6,12 +6,13 @@ import { catchError, concatMap, delay, map, switchMap, tap } from 'rxjs/operator
 import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { ActivatedRoute } from '@angular/router'
 import { ModelPreload } from 'src/app/models/model-preload'
-import { PopoverController } from '@ionic/angular'
+import { NavController, PopoverController } from '@ionic/angular'
 import { ServiceUiMenuComponent } from 'src/app/components/service-ui-menu/service-ui-menu.component'
 import { AppMetrics } from 'src/app/util/metrics.util'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AppModel } from 'src/app/models/app-model'
 import { Cleanup } from 'src/app/util/cleanup'
+import { UiComms } from 'src/app/services/ui-comms.service'
 
 @Component({
   selector: 'app-installed-ui',
@@ -22,8 +23,10 @@ export class AppInstalledUiPage extends Cleanup {
   private appId: string
   $app$: PropertySubject<AppInstalledFull>
   error: string = undefined
+
   $properties$: BehaviorSubject<AppMetrics> = new BehaviorSubject({ })
   $loading$ = new BehaviorSubject(true)
+  $iframeLoading$ = new BehaviorSubject(true)
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -31,6 +34,8 @@ export class AppInstalledUiPage extends Cleanup {
     private readonly popover: PopoverController,
     private readonly apiService: ApiService,
     private readonly appModel: AppModel,
+    private readonly uiComms: UiComms,
+    private readonly navCtrl: NavController,
   ) {  super() }
 
   ngOnInit () {
@@ -40,6 +45,7 @@ export class AppInstalledUiPage extends Cleanup {
         this.preload.appFull(this.appId)
         .pipe(
           tap(app => this.$app$ = app),
+          tap(() => this.uiComms.$isViewingUi$.next(true)),
           concatMap(() => this.getMetrics()),
         ),
       ).pipe(
@@ -59,7 +65,7 @@ export class AppInstalledUiPage extends Cleanup {
       component: ServiceUiMenuComponent,
       componentProps: {
         properties$: this.$properties$,
-        iFrame: document.getElementById(`${this.appId}-ui`),
+        quit: () => this.quit(),
       },
       showBackdrop: true,
       backdropDismiss: true,
@@ -70,8 +76,29 @@ export class AppInstalledUiPage extends Cleanup {
     await this.pop.present()
   }
 
+  iframeLoaded () {
+    setTimeout(() => this.$iframeLoading$.next(false), 300)
+  }
+
+  quit () {
+    this.navCtrl.navigateRoot('/services/installed')
+  }
+
+  iframe: HTMLIFrameElement | null
+  getIframe () {
+    if (!this.iframe) {
+      this.iframe = document.getElementById(`${this.appId}-ui`) as HTMLIFrameElement
+    }
+    return this.iframe
+  }
+
   ionViewDidLeave () {
     if (this.pop) this.pop.dismiss()
+
+    const iframe = this.getIframe()
+    if (iframe) { iframe.src = 'about:blank' }
+
+    this.uiComms.$isViewingUi$.next(false)
   }
 
   getMetrics (): Observable<void> {

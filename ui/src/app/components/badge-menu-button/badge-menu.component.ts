@@ -2,7 +2,7 @@ import { Component } from '@angular/core'
 import { ServerModel } from '../../models/server-model'
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { SplitPaneTracker } from 'src/app/services/split-pane.service'
+import { SplitPaneComms } from 'src/app/services/split-pane-comms.service'
 import { isPlatform } from '@ionic/angular'
 
 @Component({
@@ -18,7 +18,7 @@ export class BadgeMenuComponent {
 
   constructor (
     private readonly serverModel: ServerModel,
-    private readonly splitPane: SplitPaneTracker,
+    private readonly splitPane: SplitPaneComms,
   ) {
     this.menuFixedOpen$ = this.splitPane.$menuFixedOpenOnLeft$.asObservable()
     this.badge$ = this.serverModel.watch().badge.pipe(map(i => i > 0))

@@ -15,6 +15,8 @@ import { copyToClipboard } from 'src/app/util/web.util'
 export class ServiceUiMenuComponent implements OnInit {
   @Input()
   properties$: Observable<AppMetrics>
+  @Input()
+  quit: () => void
 
   // iFrame: HTMLElement | null
   menuItems$: Observable<[string, AppMetricString][]>

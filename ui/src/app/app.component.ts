@@ -11,7 +11,8 @@ import { filter, take } from 'rxjs/operators'
 import { AlertController } from '@ionic/angular'
 import { LoaderService } from './services/loader.service'
 import { Emver } from './services/emver.service'
-import { SplitPaneTracker } from './services/split-pane.service'
+import { SplitPaneComms } from './services/split-pane-comms.service'
+import { UiComms } from './services/ui-comms.service'
 import { LoadingOptions } from '@ionic/core'
 
 @Component({
@@ -60,7 +61,8 @@ export class AppComponent {
     private readonly alertCtrl: AlertController,
     private readonly loader: LoaderService,
     private readonly emver: Emver,
-    readonly splitPane: SplitPaneTracker,
+    readonly uiComms: UiComms,
+    readonly splitPane: SplitPaneComms,
   ) {
     // set dark theme
     document.body.classList.toggle('dark', true)
