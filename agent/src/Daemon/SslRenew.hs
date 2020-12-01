@@ -25,7 +25,7 @@ import           Constants
 renewSslLeafCert :: AgentCtx -> IO ()
 renewSslLeafCert ctx = do
     let base = appFilesystemBase . appSettings $ ctx
-    hn  <- injectFilesystemBase base getStart9AgentHostname
+    hn  <- (<> ".local") <$> injectFilesystemBase base getStart9AgentHostname
     tor <- injectFilesystemBase base getAgentHiddenServiceUrl
     putStr @Text "SSL Renewal Required? "
     needsRenew <- doesSslNeedRenew (toS $ entityCertPath hn `relativeTo` base)

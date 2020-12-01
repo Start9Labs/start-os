@@ -467,7 +467,7 @@ syncConvertEcdsaCerts = SyncOp "Convert Intermediate Cert to ECDSA P256" check m
 
 replaceDerivativeCerts :: (HasFilesystemBase sig m, Fused.Has (Error S9Error) sig m, MonadIO m) => m ()
 replaceDerivativeCerts = do
-    hn             <- getStart9AgentHostname
+    hn             <- (<> ".local") <$> getStart9AgentHostname
     tor            <- getAgentHiddenServiceUrl
 
     caKeyPath      <- toS <$> getAbsoluteLocationFor rootCaKeyPath
