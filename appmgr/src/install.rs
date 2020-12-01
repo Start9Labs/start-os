@@ -14,8 +14,9 @@ use std::time::Duration;
 use failure::ResultExt as _;
 use futures::stream::StreamExt;
 use futures::stream::TryStreamExt;
-use tokio::io::AsyncRead;
 use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncRead, ReadBuf};
+use tokio_compat_02::IoCompat;
 use tokio_tar as tar;
 
 use crate::config::{ConfigRuleEntry, ConfigSpec};
@@ -62,13 +63,13 @@ where
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<std::io::Result<usize>> {
+        buf: &mut ReadBuf,
+    ) -> Poll<std::io::Result<()>> {
         let atomic = self.as_ref().1.clone(); // TODO: not efficient
         match unsafe { self.map_unchecked_mut(|a| &mut a.0) }.poll_read(cx, buf) {
-            Poll::Ready(Ok(res)) => {
-                atomic.fetch_add(res as u64, atomic::Ordering::SeqCst);
-                Poll::Ready(Ok(res))
+            Poll::Ready(Ok(())) => {
+                atomic.fetch_add(buf.filled().len() as u64, atomic::Ordering::SeqCst);
+                Poll::Ready(Ok(()))
             }
             a => a,
         }
@@ -141,7 +142,7 @@ pub async fn download(url: &str, name: Option<&str>) -> Result<PathBuf, crate::E
             if is_done {
                 break;
             }
-            tokio::time::delay_for(Duration::from_millis(10)).await;
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
         if !*crate::QUIET.read().await {
             println!("\rDownloading... 100%");
@@ -191,7 +192,7 @@ pub async fn install_path<P: AsRef<Path>>(p: P, name: Option<&str>) -> Result<()
             if is_done {
                 break;
             }
-            tokio::time::delay_for(Duration::from_millis(10)).await;
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
         if !*crate::QUIET.read().await {
             println!("\rInstalling... 100%");
@@ -213,7 +214,7 @@ pub async fn install<R: AsyncRead + Unpin + Send + Sync>(
     name: Option<&str>,
 ) -> Result<(), crate::Error> {
     log::info!("Extracting archive.");
-    let mut pkg = tar::Archive::new(r);
+    let mut pkg = tar::Archive::new(IoCompat::new(r));
     let mut entries = pkg.entries()?;
     log::info!("Opening manifest from archive.");
     let manifest = entries
@@ -227,7 +228,9 @@ pub async fn install<R: AsyncRead + Unpin + Send + Sync>(
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing manifest.");
-    let manifest: Manifest = from_cbor_async_reader(manifest).await.no_code()?;
+    let manifest: Manifest = from_cbor_async_reader(IoCompat::new(manifest))
+        .await
+        .no_code()?;
     match manifest {
         Manifest::V0(m) => install_v0(m, entries, name).await?,
     };
@@ -236,7 +239,7 @@ pub async fn install<R: AsyncRead + Unpin + Send + Sync>(
 
 pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
     manifest: ManifestV0,
-    mut entries: tar::Entries<R>,
+    mut entries: tar::Entries<IoCompat<R>>,
     name: Option<&str>,
 ) -> Result<(), crate::Error> {
     crate::ensure_code!(
@@ -291,7 +294,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing config spec.");
-    let config_spec: ConfigSpec = from_cbor_async_reader(config_spec).await?;
+    let config_spec: ConfigSpec = from_cbor_async_reader(IoCompat::new(config_spec)).await?;
     log::info!("Saving config spec.");
     let mut config_spec_out = app_dir.join("config_spec.yaml").write(None).await?;
     to_yaml_async_writer(&mut *config_spec_out, &config_spec).await?;
@@ -308,14 +311,15 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing config rules.");
-    let config_rules: Vec<ConfigRuleEntry> = from_cbor_async_reader(config_rules).await?;
+    let config_rules: Vec<ConfigRuleEntry> =
+        from_cbor_async_reader(IoCompat::new(config_rules)).await?;
     log::info!("Saving config rules.");
     let mut config_rules_out = app_dir.join("config_rules.yaml").write(None).await?;
     to_yaml_async_writer(&mut *config_rules_out, &config_rules).await?;
     config_rules_out.commit().await?;
     if manifest.has_instructions {
         log::info!("Opening instructions from archive.");
-        let mut instructions = entries
+        let instructions = entries
             .next()
             .await
             .ok_or(Error::CorruptedPkgFile("missing config rules"))
@@ -327,7 +331,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
         );
         log::info!("Saving instructions.");
         let mut instructions_out = app_dir.join("instructions.md").write(None).await?;
-        tokio::io::copy(&mut instructions, &mut *instructions_out)
+        tokio::io::copy(&mut IoCompat::new(instructions), &mut *instructions_out)
             .await
             .with_code(crate::error::FILESYSTEM_ERROR)?;
         instructions_out.commit().await?;
@@ -407,11 +411,13 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
                     .arg("stop")
                     .arg(&manifest.id)
                     .spawn()?
+                    .wait()
                     .await?;
                 tokio::process::Command::new("docker")
                     .arg("rm")
                     .arg(&manifest.id)
                     .spawn()?
+                    .wait()
                     .await?;
                 crate::ensure_code!(
                     tokio::process::Command::new("docker")
@@ -426,7 +432,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
                 )
             }
             log::info!("Opening image.tar from archive.");
-            let mut image = entries
+            let image = entries
                 .next()
                 .await
                 .ok_or(Error::CorruptedPkgFile("missing image.tar"))
@@ -452,12 +458,12 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
                 })
                 .spawn()?;
             let mut child_in = child.stdin.take().unwrap();
-            tokio::io::copy(&mut image, &mut child_in).await?;
+            tokio::io::copy(&mut IoCompat::new(image), &mut child_in).await?;
             child_in.flush().await?;
             child_in.shutdown().await?;
             drop(child_in);
             crate::ensure_code!(
-                child.await?.success(),
+                child.wait().await?.success(),
                 crate::error::DOCKER_ERROR,
                 "Failed to Load Docker Image From Tar"
             );
