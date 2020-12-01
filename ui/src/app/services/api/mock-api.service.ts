@@ -389,7 +389,7 @@ const mockApiNotifications: ReqRes.GetNotificationsRes = [
 const mockApiServer: () => ReqRes.GetServerRes = () => ({
   serverId: 'start9-mockxyzab',
   name: 'Embassy:12345678',
-  versionInstalled: '0.2.5',
+  versionInstalled: '0.2.6',
   status: ServerStatus.RUNNING,
   alternativeRegistryUrl: 'beta-registry.start9labs.com',
   specs: {
@@ -420,7 +420,7 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
 })
 
 const mockVersionLatest: ReqRes.GetVersionLatestRes = {
-  versionLatest: '0.2.5',
+  versionLatest: '0.2.6',
   canUpdate: true,
 }
 
