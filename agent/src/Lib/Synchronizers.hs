@@ -5,7 +5,9 @@
 {-# LANGUAGE TemplateHaskell      #-}
 module Lib.Synchronizers where
 
-import           Startlude               hiding ( check )
+import           Startlude               hiding ( check
+                                                , err
+                                                )
 import qualified Startlude.ByteStream          as ByteStream
 import qualified Startlude.ByteStream.Char8    as ByteStream
 
@@ -61,6 +63,8 @@ import           Settings
 import           Util.File
 import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
+import qualified Data.Text                     as T
+import           Control.Effect.Error    hiding ( run )
 
 
 data Synchronizer = Synchronizer
@@ -87,16 +91,16 @@ parseKernelVersion = do
     major' <- decimal
     minor' <- char '.' *> decimal
     patch' <- char '.' *> decimal
-    arch   <- string "-v7l+" *> pure ArmV7 <|> string "-v8+" *> pure ArmV8
+    arch   <- string "-v7l+" $> ArmV7 <|> string "-v8+" $> ArmV8
     pure $ KernelVersion (Version (major', minor', patch', 0)) arch
 
 synchronizer :: Synchronizer
-synchronizer = sync_0_2_5
+synchronizer = sync_0_2_6
 {-# INLINE synchronizer #-}
 
-sync_0_2_5 :: Synchronizer
-sync_0_2_5 = Synchronizer
-    "0.2.5"
+sync_0_2_6 :: Synchronizer
+sync_0_2_6 = Synchronizer
+    "0.2.6"
     [ syncCreateAgentTmp
     , syncCreateSshDir
     , syncRemoveAvahiSystemdDependency
@@ -114,6 +118,7 @@ sync_0_2_5 = Synchronizer
     , syncPrepSslRootCaDir
     , syncPrepSslIntermediateCaDir
     , syncPersistLogs
+    , syncConvertEcdsaCerts
     ]
 
 syncCreateAgentTmp :: SyncOp
@@ -141,7 +146,7 @@ syncCreateSshDir = SyncOp "Create SSH directory" check migrate False
 syncRemoveAvahiSystemdDependency :: SyncOp
 syncRemoveAvahiSystemdDependency = SyncOp "Remove Avahi Systemd Dependency" check migrate False
     where
-        wanted = decodeUtf8 $ $(embedFile "config/agent.service")
+        wanted = decodeUtf8 $(embedFile "config/agent.service")
         check  = do
             base    <- asks $ appFilesystemBase . appSettings
             content <- liftIO $ readFile (toS $ agentServicePath `relativeTo` base)
@@ -172,7 +177,7 @@ sync32BitKernel = SyncOp "32 Bit Kernel Switch" check migrate True
         check          = do
             settings <- asks appSettings
             cfg      <- injectFilesystemBaseFromContext settings getBootCfgPath
-            liftIO . run $ fmap isNothing $ (shell [i|grep "arm_64bit=0" #{cfg} || true|] $| conduit await)
+            liftIO . run $ isNothing <$> (shell [i|grep "arm_64bit=0" #{cfg} || true|] $| conduit await)
         migrate = do
             base <- asks $ appFilesystemBase . appSettings
             let tmpFile = bootConfigTempPath `relativeTo` base
@@ -234,9 +239,9 @@ syncWriteConf name contents' confLocation = SyncOp [i|Write #{name} Conf|] check
                 liftIO
                 $       (Just <$> readFile (toS $ confLocation `relativeTo` base))
                 `catch` (\(e :: IOException) -> if isDoesNotExistError e then pure Nothing else throwIO e)
-            case conf of
-                Nothing -> pure True
-                Just co -> pure $ if co == contents then False else True
+            pure $ case conf of
+                Nothing -> True
+                Just co -> co /= contents
         migrate = do
             base <- asks $ appFilesystemBase . appSettings
             void . liftIO $ createDirectoryIfMissing True (takeDirectory (toS $ confLocation `relativeTo` base))
@@ -330,7 +335,7 @@ syncInstallAmbassadorUI = SyncOp "Install Ambassador UI" check migrate False
         streamUntar root stream = Conduit.runConduit $ Conduit.fromBStream stream .| Conduit.untar \f -> do
             let path = toS . (toS root </>) . joinPath . drop 1 . splitPath . B8.unpack . Conduit.filePath $ f
             print path
-            if (Conduit.fileType f == Conduit.FTDirectory)
+            if Conduit.fileType f == Conduit.FTDirectory
                 then liftIO $ createDirectoryIfMissing True path
                 else Conduit.sinkFile path
 
@@ -372,8 +377,8 @@ installAmbassadorUiNginx mSslOverrides fileName = do
     void . liftIO $ systemCtl RestartService "nginx"
     where
         ambassadorUiClientManifiest b = toS $ (ambassadorUiPath <> "/client-manifest.yaml") `relativeTo` b
-        nginxAvailableConf b = toS $ (nginxSitesAvailable fileName) `relativeTo` b
-        nginxEnabledConf b = toS $ (nginxSitesEnabled fileName) `relativeTo` b
+        nginxAvailableConf b = toS $ nginxSitesAvailable fileName `relativeTo` b
+        nginxEnabledConf b = toS $ nginxSitesEnabled fileName `relativeTo` b
 
 syncOpenHttpPorts :: SyncOp
 syncOpenHttpPorts = SyncOp "Open Hidden Service Port 80" check migrate False
@@ -425,6 +430,111 @@ syncUpgradeLifeline = SyncOp "Upgrade Lifeline" check migrate False
 syncPersistLogs :: SyncOp
 syncPersistLogs =
     (syncWriteConf "Journald" $(embedFile "config/journald.conf") journaldConfig) { syncOpRequiresReboot = True }
+
+syncRepairSsl :: SyncOp
+syncRepairSsl = SyncOp "Repair SSL Certs" check migrate False
+    where
+        check = do
+            base <- asks $ appFilesystemBase . appSettings
+            let p = toS $ sslDirectory `relativeTo` base
+            liftIO $ not <$> doesDirectoryExist p
+        migrate = do
+            base <- asks $ appFilesystemBase . appSettings
+            let newCerts = toS $ (agentTmpDirectory <> sslDirectory) `relativeTo` base
+            liftIO $ renameDirectory newCerts (toS $ sslDirectory `relativeTo` base)
+            liftIO $ systemCtl RestartService "nginx" $> ()
+
+syncConvertEcdsaCerts :: SyncOp
+syncConvertEcdsaCerts = SyncOp "Convert Intermediate Cert to ECDSA P256" check migrate False
+    where
+        check = do
+            fs <- asks $ appFilesystemBase . appSettings
+            let intCertKey = toS $ intermediateCaKeyPath `relativeTo` fs
+            exists <- liftIO $ doesPathExist intCertKey
+            if exists
+                then do
+                    header <- liftIO $ headMay . lines <$> readFile intCertKey
+                    pure $ case header of
+                        Nothing -> False
+                        Just y  -> "BEGIN RSA PRIVATE KEY" `T.isInfixOf` y
+                else pure False
+        migrate = cantFail $ do
+            base <- asks $ appFilesystemBase . appSettings
+            (runM . runExceptT) (injectFilesystemBase base replaceDerivativeCerts) >>= \case
+                Left  e  -> failUpdate e
+                Right () -> pure ()
+
+
+replaceDerivativeCerts :: (HasFilesystemBase sig m, Fused.Has (Error S9Error) sig m, MonadIO m) => m ()
+replaceDerivativeCerts = do
+    sid <- getStart9AgentHostname
+    let hostname = sid <> ".local"
+    tor            <- getAgentHiddenServiceUrl
+
+    caKeyPath      <- toS <$> getAbsoluteLocationFor rootCaKeyPath
+    caConfPath     <- toS <$> getAbsoluteLocationFor rootCaOpenSslConfPath
+    caCertPath     <- toS <$> getAbsoluteLocationFor rootCaCertPath
+
+    intCaKeyPath   <- toS <$> getAbsoluteLocationFor intermediateCaKeyPath
+    intCaConfPath  <- toS <$> getAbsoluteLocationFor intermediateCaOpenSslConfPath
+    intCaCertPath  <- toS <$> getAbsoluteLocationFor intermediateCaCertPath
+
+    sslDirTmp      <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> sslDirectory)
+    entKeyPathTmp  <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityKeyPath sid)
+    entConfPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityConfPath sid)
+    entCertPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityCertPath sid)
+    liftIO $ createDirectoryIfMissing True sslDirTmp
+    liftIO $ BS.writeFile entConfPathTmp (domain_CSR_CONF hostname)
+
+    -- ensure duplicate certificates are acceptable
+    base <- Fused.ask @"filesystemBase"
+    liftIO $ BS.writeFile (toS $ (rootCaDirectory <> "index.txt.attr") `relativeTo` base) "unique_subject = no\n"
+    liftIO $ BS.writeFile (toS $ (intermediateCaDirectory <> "index.txt.attr") `relativeTo` base)
+                          "unique_subject = no\n"
+
+    (ec, out, err) <- writeIntermediateCert DeriveCertificate { applicantConfPath = intCaConfPath
+                                                              , applicantKeyPath  = intCaKeyPath
+                                                              , applicantCertPath = intCaCertPath
+                                                              , signingConfPath   = caConfPath
+                                                              , signingKeyPath    = caKeyPath
+                                                              , signingCertPath   = caCertPath
+                                                              , duration          = 3650
+                                                              }
+    liftIO $ do
+        putStrLn @Text "openssl logs"
+        putStrLn @Text "exit code: "
+        print ec
+        putStrLn @String $ "stdout: " <> out
+        putStrLn @String $ "stderr: " <> err
+    case ec of
+        ExitSuccess   -> pure ()
+        ExitFailure n -> throwError $ OpenSslE "leaf" n out err
+
+    (ec', out', err') <- writeLeafCert
+        DeriveCertificate { applicantConfPath = entConfPathTmp
+                          , applicantKeyPath  = entKeyPathTmp
+                          , applicantCertPath = entCertPathTmp
+                          , signingConfPath   = intCaConfPath
+                          , signingKeyPath    = intCaKeyPath
+                          , signingCertPath   = intCaCertPath
+                          , duration          = 365
+                          }
+        hostname
+        tor
+    liftIO $ do
+        putStrLn @Text "openssl logs"
+        putStrLn @Text "exit code: "
+        print ec
+        putStrLn @String $ "stdout: " <> out'
+        putStrLn @String $ "stderr: " <> err'
+    case ec' of
+        ExitSuccess   -> pure ()
+        ExitFailure n -> throwError $ OpenSslE "leaf" n out' err'
+
+    sslDir <- toS <$> getAbsoluteLocationFor sslDirectory
+    liftIO $ removePathForcibly sslDir
+    liftIO $ renameDirectory sslDirTmp sslDir
+    liftIO $ systemCtl RestartService "nginx" $> ()
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do

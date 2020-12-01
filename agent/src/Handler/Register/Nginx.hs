@@ -5,6 +5,7 @@ module Handler.Register.Nginx where
 
 import           Startlude               hiding ( ask
                                                 , catchError
+                                                , err
                                                 )
 
 import           Control.Carrier.Error.Church
@@ -54,13 +55,13 @@ resetSslState = do
     traverse_
         (liftIO . removePathForcibly . toS . flip relativeTo base)
         [ rootCaKeyPath
-        , relBase $ (rootCaCertPath `relativeTo` "/") <> ".csr"
+        , relBase $ (rootCaCertPath `relativeTo` base) <> ".csr"
         , rootCaCertPath
         , intermediateCaKeyPath
-        , relBase $ (intermediateCaCertPath `relativeTo` "/") <> ".csr"
+        , relBase $ (intermediateCaCertPath `relativeTo` base) <> ".csr"
         , intermediateCaCertPath
         , entityKeyPath host
-        , relBase $ (entityCertPath host `relativeTo` "/") <> ".csr"
+        , relBase $ (entityCertPath host `relativeTo` base) <> ".csr"
         , entityCertPath host
         , entityConfPath host
         , nginxSitesAvailable nginxSslConf
@@ -74,9 +75,8 @@ resetSslState = do
             >>= traverse_ removePathForcibly
         writeFile (toS $ flip relativeTo base $ rootCaDirectory <> "/index.txt")         ""
         writeFile (toS $ flip relativeTo base $ intermediateCaDirectory <> "/index.txt") ""
-    _ <- liftIO $ try @SomeException . removeLink . toS $ (nginxSitesEnabled nginxSslConf) `relativeTo` base
+    _ <- liftIO $ try @SomeException . removeLink . toS $ nginxSitesEnabled nginxSslConf `relativeTo` base
     pure ()
-
 
 bootupHttpNginx :: (HasFilesystemBase sig m, MonadIO m) => m ()
 bootupHttpNginx = installAmbassadorUiNginxHTTP "start9-ambassador.conf"

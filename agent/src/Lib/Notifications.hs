@@ -19,8 +19,8 @@ emit :: MonadIO m => AppId -> Version -> AgentNotification -> SqlPersistT m (Ent
 emit appId version ty = do
     uuid <- liftIO nextRandom
     now  <- liftIO getCurrentTime
-    let k = (NotificationKey uuid)
-    let v = (Notification now Nothing appId version (toCode ty) (toTitle ty) (toMessage appId version ty))
+    let k = NotificationKey uuid
+    let v = Notification now Nothing appId version (toCode ty) (toTitle ty) (toMessage appId version ty)
     insertKey k v
     putStrLn $ toMessage appId version ty
     pure $ Entity k v
@@ -42,6 +42,7 @@ data AgentNotification =
     | RestoreFailed S9Error
     | RestartFailed S9Error
     | DockerFuckening
+    | CertRenewFailed ExitCode String String
 
 -- CODES
 -- RULES:
@@ -54,6 +55,7 @@ data AgentNotification =
 -- The second digit indicates where the error was originated from as follows
 -- 0: Originates from Agent
 -- 1: Originates from App (Not presently used)
+-- 2: Originates from Agent ABOUT THE AGENT
 --
 -- The remaining section of the code may be as long as you want but must be at least one digit
 -- EXAMPLES:
@@ -78,6 +80,7 @@ toCode (InstallFailedS9Error _)        = "303"
 toCode (BackupFailed         _)        = "304"
 toCode (RestoreFailed        _)        = "305"
 toCode (RestartFailed        _)        = "306"
+toCode CertRenewFailed{}               = "320"
 
 toTitle :: AgentNotification -> Text
 toTitle InstallSuccess                  = "Install succeeded"
@@ -90,6 +93,7 @@ toTitle (BackupFailed                _) = "Backup failed"
 toTitle (RestoreFailed               _) = "Restore failed"
 toTitle (RestartFailed               _) = "Restart failed"
 toTitle DockerFuckening                 = "App unstoppable"
+toTitle CertRenewFailed{}               = "Embassy Certificate Renewal Failed"
 
 toMessage :: AppId -> Version -> AgentNotification -> Text
 toMessage appId version InstallSuccess = [i|Successfully installed #{appId} at version #{version}|]
@@ -107,3 +111,10 @@ toMessage appId _version (BackupFailed  reason) = [i|Failed to back up #{appId}:
 toMessage appId _version (RestoreFailed reason) = [i|Failed to restore #{appId}: #{errorMessage $ toError reason}|]
 toMessage appId _version (RestartFailed reason) =
     [i|Failed to restart #{appId}: #{errorMessage $ toError reason}. Please manually restart|]
+toMessage _ version (CertRenewFailed ec o e) = [i|Failed to renew SSL Certificates for EmbassyOS (#{version})
+ExitCode: #{ec}
+Stdout:
+#{o}
+Stderr:
+#{e}
+|]

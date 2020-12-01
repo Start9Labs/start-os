@@ -198,7 +198,7 @@ toStatus = \case
     NoCompliantAgentE _    -> status404
     PersistentE       _    -> status500
     WifiConnectionE        -> status500
-    AppMgrParseE _ _ _     -> status500
+    AppMgrParseE{}         -> status500
     AppMgrInvalidConfigE _ -> status400
     AppMgrE        _ _     -> status500
     AppMgrVersionE _ _     -> status500
@@ -220,28 +220,28 @@ toStatus = \case
         (AppStatusTmp    NeedsConfig, Start) -> status403
         (AppStatusTmp    NeedsConfig, Stop ) -> status200
         (AppStatusTmp    _          , _    ) -> status403
-    UpdateSelfE _ _             -> status500
-    InvalidSshKeyE _            -> status400
-    InvalidSsidE                -> status400
-    InvalidPskE                 -> status400
-    InvalidRequestE _ _         -> status400
-    NotFoundE       _ _         -> status404
-    UpdateInProgressE           -> status403
-    TemporarilyForbiddenE _ _ _ -> status403
-    TorServiceTimeoutE          -> status500
-    NginxSslE _                 -> status500
-    WifiOrphaningE              -> status403
-    ManifestParseE _ _          -> status500
-    NoPasswordExistsE           -> status401
-    MissingFileE        _       -> status500
-    ClientCryptographyE _       -> status401
-    TTLExpirationE      _       -> status403
-    EnvironmentValE     _       -> status500
-    HostsParamsE        _       -> status400
-    BackupE _ _                 -> status500
-    BackupPassInvalidE          -> status403
-    InternalE _                 -> status500
-    OpenSslE _ _ _ _            -> status500
+    UpdateSelfE _ _         -> status500
+    InvalidSshKeyE _        -> status400
+    InvalidSsidE            -> status400
+    InvalidPskE             -> status400
+    InvalidRequestE _ _     -> status400
+    NotFoundE       _ _     -> status404
+    UpdateInProgressE       -> status403
+    TemporarilyForbiddenE{} -> status403
+    TorServiceTimeoutE      -> status500
+    NginxSslE _             -> status500
+    WifiOrphaningE          -> status403
+    ManifestParseE _ _      -> status500
+    NoPasswordExistsE       -> status401
+    MissingFileE        _   -> status500
+    ClientCryptographyE _   -> status401
+    TTLExpirationE      _   -> status403
+    EnvironmentValE     _   -> status500
+    HostsParamsE        _   -> status400
+    BackupE _ _             -> status500
+    BackupPassInvalidE      -> status403
+    InternalE _             -> status500
+    OpenSslE{}              -> status500
 
 handleS9ErrC :: (MonadHandler m, MonadLogger m) => ErrorC S9Error m a -> m a
 handleS9ErrC action =
@@ -251,12 +251,11 @@ handleS9ErrC action =
     in  runErrorC action handleIt pure
 
 handleS9ErrT :: (MonadHandler m, MonadLogger m) => S9ErrT m a -> m a
-handleS9ErrT action = do
-    runExceptT action >>= \case
-        Left e -> do
-            $logError $ show e
-            toStatus >>= sendResponseStatus $ e
-        Right a -> pure a
+handleS9ErrT action = runExceptT action >>= \case
+    Left e -> do
+        $logError $ show e
+        toStatus >>= sendResponseStatus $ e
+    Right a -> pure a
 
 runS9ErrT :: MonadIO m => S9ErrT m a -> m (Either S9Error a)
 runS9ErrT = runExceptT

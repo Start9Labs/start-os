@@ -1,6 +1,17 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE QuasiQuotes #-}
-module Lib.Ssl where
+module Lib.Ssl
+    ( DeriveCertificate(..)
+    , root_CA_CERT_NAME
+    , writeRootCaCert
+    , writeIntermediateCert
+    , domain_CSR_CONF
+    , writeLeafCert
+    , root_CA_OPENSSL_CONF
+    , intermediate_CA_OPENSSL_CONF
+    , segment
+    )
+where
 
 import           Startlude
 
@@ -295,7 +306,7 @@ data DeriveCertificate = DeriveCertificate
 writeIntermediateCert :: MonadIO m => DeriveCertificate -> m (ExitCode, String, String)
 writeIntermediateCert DeriveCertificate {..} = liftIO $ interpret $ do
     -- openssl genrsa -out dump/int.key 4096
-    segment $ openssl [i|genrsa -out #{applicantKeyPath} 4096|]
+    segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
     -- openssl req -new -config dump/int-csr.conf -key dump/int.key -nodes -out dump/int.csr
     segment $ openssl [i|req -new
                              -config #{applicantConfPath}
@@ -317,7 +328,7 @@ writeIntermediateCert DeriveCertificate {..} = liftIO $ interpret $ do
 
 writeLeafCert :: MonadIO m => DeriveCertificate -> Text -> Text -> m (ExitCode, String, String)
 writeLeafCert DeriveCertificate {..} hostname torAddress = liftIO $ interpret $ do
-    segment $ openssl [i|genrsa -out #{applicantKeyPath} 4096|]
+    segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
     segment $ openssl [i|req -config #{applicantConfPath}
                              -key #{applicantKeyPath}
                              -new
@@ -336,11 +347,11 @@ writeLeafCert DeriveCertificate {..} hostname torAddress = liftIO $ interpret $ 
                             |]
     liftIO $ readFile signingCertPath >>= appendFile applicantCertPath
 
-openssl :: Text -> IO (ExitCode, String, String)
-openssl = ($ "") . readProcessWithExitCode "openssl" . fmap toS . words
+openssl :: MonadIO m => Text -> m (ExitCode, String, String)
+openssl = liftIO . ($ "") . readProcessWithExitCode "openssl" . fmap toS . words
 {-# INLINE openssl #-}
 
-interpret :: ExceptT ExitCode (StateT (String, String) IO) () -> IO (ExitCode, String, String)
+interpret :: MonadIO m => ExceptT ExitCode (StateT (String, String) m) () -> m (ExitCode, String, String)
 interpret = fmap (over _1 (either id (const ExitSuccess)) . regroup) . flip runStateT ("", "") . runExceptT
 {-# INLINE interpret #-}
 
@@ -348,8 +359,8 @@ regroup :: (a, (b, c)) -> (a, b, c)
 regroup (a, (b, c)) = (a, b, c)
 {-# INLINE regroup #-}
 
-segment :: IO (ExitCode, String, String) -> ExceptT ExitCode (StateT (String, String) IO) ()
-segment action = liftIO action >>= \case
+segment :: MonadIO m => m (ExitCode, String, String) -> ExceptT ExitCode (StateT (String, String) m) ()
+segment action = (lift . lift) action >>= \case
     (ExitSuccess, o, e) -> modify (bimap (<> o) (<> e))
     (ec         , o, e) -> modify (bimap (<> o) (<> e)) *> throwE ec
 {-# INLINE segment #-}

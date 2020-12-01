@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 module Handler.Register where
 
@@ -55,7 +56,7 @@ postRegisterR = handleS9ErrT $ do
 
     -- install new ssl CA cert + nginx conf and restart nginx
     registerResCert <-
-        runM . handleS9ErrC . (>>= liftEither) . liftIO . runM . injectFilesystemBaseFromContext settings $ do
+        runM . handleS9ErrC . liftEither <=< liftIO . runM . injectFilesystemBaseFromContext settings $ do
             bootupHttpNginx
             runError @S9Error $ bootupSslNginx rsaKeyFileContents
 

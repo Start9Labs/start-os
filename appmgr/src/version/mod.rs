@@ -20,6 +20,7 @@ mod v0_2_2;
 mod v0_2_3;
 mod v0_2_4;
 mod v0_2_5;
+mod v0_2_6;
 
 pub use v0_2_5::Version as Current;
 
@@ -39,6 +40,7 @@ enum Version {
     V0_2_3(Wrapper<v0_2_3::Version>),
     V0_2_4(Wrapper<v0_2_4::Version>),
     V0_2_5(Wrapper<v0_2_5::Version>),
+    V0_2_6(Wrapper<v0_2_6::Version>),
     Other(emver::Version),
 }
 
@@ -146,6 +148,7 @@ pub async fn init() -> Result<(), failure::Error> {
             Version::V0_2_3(v) => v.0.migrate_to(&Current::new()).await?,
             Version::V0_2_4(v) => v.0.migrate_to(&Current::new()).await?,
             Version::V0_2_5(v) => v.0.migrate_to(&Current::new()).await?,
+            Version::V0_2_6(v) => v.0.migrate_to(&Current::new()).await?,
             Version::Other(_) => (),
             // TODO find some way to automate this?
         }
@@ -231,6 +234,7 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         Version::V0_2_3(v) => Current::new().migrate_to(&v.0).await?,
         Version::V0_2_4(v) => Current::new().migrate_to(&v.0).await?,
         Version::V0_2_5(v) => Current::new().migrate_to(&v.0).await?,
+        Version::V0_2_6(v) => Current::new().migrate_to(&v.0).await?,
         Version::Other(_) => (),
         // TODO find some way to automate this?
     };

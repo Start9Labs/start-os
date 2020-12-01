@@ -1,6 +1,6 @@
 [package]
 name = "appmgr"
-version = "0.2.5"
+version = "0.2.6"
 authors = ["Aiden McClelland <me@drbonez.dev>"]
 edition = "2018"
 
