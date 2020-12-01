@@ -37,6 +37,8 @@ async fn inner_main() -> Result<(), Error> {
     let version = format!("{}", crate::version::Current::new().semver());
     let git_version =
         git_version::git_version!(args = ["--always", "--abbrev=40", "--dirty=-modified"]);
+    #[cfg(not(feature = "production"))]
+    let git_version = format!("{}-dev", git_version);
     #[allow(unused_mut)]
     let mut app = App::new("Start9 Application Manager")
         .version(version.as_str())
