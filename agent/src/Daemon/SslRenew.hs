@@ -13,7 +13,8 @@ import           Lib.Ssl
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
 import           Lib.Tor
 import           Control.Carrier.Lift
-import           System.Directory               ( removePathForcibly
+import           System.Directory               ( doesPathExist
+                                                , removePathForcibly
                                                 , renameDirectory
                                                 )
 import           Lib.SystemCtl
@@ -74,5 +75,9 @@ renewSslLeafCert ctx = do
 
 doesSslNeedRenew :: FilePath -> IO Bool
 doesSslNeedRenew cert = do
-    ec <- liftIO $ system [i|openssl x509 -checkend 2592000 -noout -in #{cert}|]
-    pure $ ec /= ExitSuccess
+    exists <- doesPathExist cert
+    if exists
+        then do
+            ec <- liftIO $ system [i|openssl x509 -checkend 2592000 -noout -in #{cert}|]
+            pure $ ec /= ExitSuccess
+        else pure False
