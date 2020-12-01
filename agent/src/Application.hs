@@ -19,6 +19,7 @@ module Application
     , handler
     , runDb
     , getAgentCtx
+    , sleep
     )
 where
 
@@ -189,7 +190,7 @@ startupSequence foundation = do
         withAgentVersionLog_ "App notifications refreshing"
 
         withAgentVersionLog_ "Initializing SSL certificate renewal loop"
-        void . forkIO . forever $ forkIO $ SSLRenew.renewSslLeafCert foundation
+        void . forkIO . forever $ forkIO $ SSLRenew.renewSslLeafCert foundation *> sleep 86_400
         withAgentVersionLog_ "SSL Renewal daemon started"
 
         -- reloading avahi daemon
@@ -203,6 +204,10 @@ startupSequence foundation = do
 
     withAgentVersionLog_ "Listening for Self-Update Signal"
     waitForUpdateSignal foundation
+
+sleep :: Integer -> IO ()
+sleep n = let (full, r) = (n * 1_000_000) `divMod` (fromIntegral $ (maxBound :: Int)) in
+    replicateM_ (fromIntegral full) (threadDelay maxBound) *> threadDelay (fromIntegral r)
 
 --------------------------------------------------------------
 -- Functions for DevelMain.hs (a way to run the AgentCtx from GHCi)
