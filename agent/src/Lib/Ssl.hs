@@ -1,16 +1,16 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE QuasiQuotes #-}
 module Lib.Ssl
-  ( DeriveCertificate(..)
-  , root_CA_CERT_NAME
-  , writeRootCaCert
-  , writeIntermediateCert
-  , domain_CSR_CONF
-  , writeLeafCert
-  , root_CA_OPENSSL_CONF
-  , intermediate_CA_OPENSSL_CONF
-  , segment
-  )
+    ( DeriveCertificate(..)
+    , root_CA_CERT_NAME
+    , writeRootCaCert
+    , writeIntermediateCert
+    , domain_CSR_CONF
+    , writeLeafCert
+    , root_CA_OPENSSL_CONF
+    , intermediate_CA_OPENSSL_CONF
+    , segment
+    )
 where
 
 import           Startlude
@@ -269,52 +269,52 @@ OU = Embassy
 
 writeRootCaCert :: MonadIO m => FilePath -> FilePath -> FilePath -> m (ExitCode, String, String)
 writeRootCaCert confPath keyFilePath certFileDestinationPath = liftIO $ readProcessWithExitCode
-  "openssl"
-  [ "req"
-  , -- use x509
-    "-new"
-  , -- new request
-    "-x509"
-  , -- self signed x509
-    "-nodes"
-  , -- no passphrase
-    "-days"
-  , -- expires in...
-    "3650"
-  , -- valid for 10 years. Max is 20 years
-    "-key"
-  , -- source private key
-    toS keyFilePath
-  , "-out"
+    "openssl"
+    [ "req"
+    , -- use x509
+      "-new"
+    , -- new request
+      "-x509"
+    , -- self signed x509
+      "-nodes"
+    , -- no passphrase
+      "-days"
+    , -- expires in...
+      "3650"
+    , -- valid for 10 years. Max is 20 years
+      "-key"
+    , -- source private key
+      toS keyFilePath
+    , "-out"
     -- target cert path
-  , toS certFileDestinationPath
-  , "-config"
+    , toS certFileDestinationPath
+    , "-config"
       -- configured by...
-  , toS confPath
-  ]
-  ""
+    , toS confPath
+    ]
+    ""
 
 data DeriveCertificate = DeriveCertificate
-  { applicantConfPath :: FilePath
-  , applicantKeyPath  :: FilePath
-  , applicantCertPath :: FilePath
-  , signingConfPath   :: FilePath
-  , signingKeyPath    :: FilePath
-  , signingCertPath   :: FilePath
-  , duration          :: Integer
-  }
+    { applicantConfPath :: FilePath
+    , applicantKeyPath  :: FilePath
+    , applicantCertPath :: FilePath
+    , signingConfPath   :: FilePath
+    , signingKeyPath    :: FilePath
+    , signingCertPath   :: FilePath
+    , duration          :: Integer
+    }
 writeIntermediateCert :: MonadIO m => DeriveCertificate -> m (ExitCode, String, String)
 writeIntermediateCert DeriveCertificate {..} = liftIO $ interpret $ do
     -- openssl genrsa -out dump/int.key 4096
-  segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
-  -- openssl req -new -config dump/int-csr.conf -key dump/int.key -nodes -out dump/int.csr
-  segment $ openssl [i|req -new
+    segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
+    -- openssl req -new -config dump/int-csr.conf -key dump/int.key -nodes -out dump/int.csr
+    segment $ openssl [i|req -new
                              -config #{applicantConfPath}
                              -key #{applicantKeyPath}
                              -nodes
                              -out #{applicantCertPath <> ".csr"}|]
-  -- openssl x509 -CA dump/ca.crt -CAkey dump/ca.key -CAcreateserial -days 3650 -req -in dump/int.csr -out dump/int.crt
-  segment $ openssl [i|ca -batch
+    -- openssl x509 -CA dump/ca.crt -CAkey dump/ca.key -CAcreateserial -days 3650 -req -in dump/int.csr -out dump/int.crt
+    segment $ openssl [i|ca -batch
                             -config #{signingConfPath}
                             -rand_serial
                             -keyfile #{signingKeyPath}
@@ -324,17 +324,17 @@ writeIntermediateCert DeriveCertificate {..} = liftIO $ interpret $ do
                             -notext
                             -in #{applicantCertPath <> ".csr"}
                             -out #{applicantCertPath}|]
-  liftIO $ readFile signingCertPath >>= appendFile applicantCertPath
+    liftIO $ readFile signingCertPath >>= appendFile applicantCertPath
 
 writeLeafCert :: MonadIO m => DeriveCertificate -> Text -> Text -> m (ExitCode, String, String)
 writeLeafCert DeriveCertificate {..} hostname torAddress = liftIO $ interpret $ do
-  segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
-  segment $ openssl [i|req -config #{applicantConfPath}
+    segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
+    segment $ openssl [i|req -config #{applicantConfPath}
                              -key #{applicantKeyPath}
                              -new
                              -addext subjectAltName=DNS:#{hostname},DNS:*.#{hostname},DNS:#{torAddress},DNS:*.#{torAddress}
                              -out #{applicantCertPath <> ".csr"}|]
-  segment $ openssl [i|ca -batch
+    segment $ openssl [i|ca -batch
                             -config #{signingConfPath}
                             -rand_serial
                             -keyfile #{signingKeyPath}
@@ -345,7 +345,7 @@ writeLeafCert DeriveCertificate {..} hostname torAddress = liftIO $ interpret $ 
                             -in #{applicantCertPath <> ".csr"}
                             -out #{applicantCertPath}
                             |]
-  liftIO $ readFile signingCertPath >>= appendFile applicantCertPath
+    liftIO $ readFile signingCertPath >>= appendFile applicantCertPath
 
 openssl :: MonadIO m => Text -> m (ExitCode, String, String)
 openssl = liftIO . ($ "") . readProcessWithExitCode "openssl" . fmap toS . words
@@ -361,6 +361,6 @@ regroup (a, (b, c)) = (a, b, c)
 
 segment :: MonadIO m => m (ExitCode, String, String) -> ExceptT ExitCode (StateT (String, String) m) ()
 segment action = (lift . lift) action >>= \case
-  (ExitSuccess, o, e) -> modify (bimap (<> o) (<> e))
-  (ec         , o, e) -> modify (bimap (<> o) (<> e)) *> throwE ec
+    (ExitSuccess, o, e) -> modify (bimap (<> o) (<> e))
+    (ec         , o, e) -> modify (bimap (<> o) (<> e)) *> throwE ec
 {-# INLINE segment #-}
