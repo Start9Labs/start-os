@@ -467,7 +467,8 @@ syncConvertEcdsaCerts = SyncOp "Convert Intermediate Cert to ECDSA P256" check m
 
 replaceDerivativeCerts :: (HasFilesystemBase sig m, Fused.Has (Error S9Error) sig m, MonadIO m) => m ()
 replaceDerivativeCerts = do
-    hn             <- (<> ".local") <$> getStart9AgentHostname
+    sid <- getStart9AgentHostname
+    let hostname = sid <> ".local"
     tor            <- getAgentHiddenServiceUrl
 
     caKeyPath      <- toS <$> getAbsoluteLocationFor rootCaKeyPath
@@ -479,11 +480,11 @@ replaceDerivativeCerts = do
     intCaCertPath  <- toS <$> getAbsoluteLocationFor intermediateCaCertPath
 
     sslDirTmp      <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> sslDirectory)
-    entKeyPathTmp  <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityKeyPath hn)
-    entConfPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityConfPath hn)
-    entCertPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityCertPath hn)
+    entKeyPathTmp  <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityKeyPath sid)
+    entConfPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityConfPath sid)
+    entCertPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityCertPath sid)
     liftIO $ createDirectoryIfMissing True sslDirTmp
-    liftIO $ BS.writeFile entConfPathTmp (domain_CSR_CONF hn)
+    liftIO $ BS.writeFile entConfPathTmp (domain_CSR_CONF hostname)
 
     -- ensure duplicate certificates are acceptable
     base <- Fused.ask @"filesystemBase"
@@ -518,7 +519,7 @@ replaceDerivativeCerts = do
                           , signingCertPath   = intCaCertPath
                           , duration          = 365
                           }
-        hn
+        hostname
         tor
     liftIO $ do
         putStrLn @Text "openssl logs"
