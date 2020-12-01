@@ -304,18 +304,15 @@ data DeriveCertificate = DeriveCertificate
   , duration          :: Integer
   }
 writeIntermediateCert :: MonadIO m => DeriveCertificate -> m (ExitCode, String, String)
-writeIntermediateCert DeriveCertificate {..} = liftIO $ fromSys $ interpret $ do
-  lift . lift $ time "Intermediate Cert Write Start"
+writeIntermediateCert DeriveCertificate {..} = liftIO $ interpret $ do
     -- openssl genrsa -out dump/int.key 4096
   segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
-  lift . lift $ time "Generate intermediate RSA Key"
   -- openssl req -new -config dump/int-csr.conf -key dump/int.key -nodes -out dump/int.csr
   segment $ openssl [i|req -new
                              -config #{applicantConfPath}
                              -key #{applicantKeyPath}
                              -nodes
                              -out #{applicantCertPath <> ".csr"}|]
-  lift . lift $ time "Generate intermediate CSR"
   -- openssl x509 -CA dump/ca.crt -CAkey dump/ca.key -CAcreateserial -days 3650 -req -in dump/int.csr -out dump/int.crt
   segment $ openssl [i|ca -batch
                             -config #{signingConfPath}
@@ -327,21 +324,16 @@ writeIntermediateCert DeriveCertificate {..} = liftIO $ fromSys $ interpret $ do
                             -notext
                             -in #{applicantCertPath <> ".csr"}
                             -out #{applicantCertPath}|]
-  lift . lift $ time "Sign intermediate certificate"
   liftIO $ readFile signingCertPath >>= appendFile applicantCertPath
-  lift . lift $ time "Update certificate chain"
 
 writeLeafCert :: MonadIO m => DeriveCertificate -> Text -> Text -> m (ExitCode, String, String)
-writeLeafCert DeriveCertificate {..} hostname torAddress = liftIO $ fromSys $ interpret $ do
-  lift . lift $ time "Leaf Cert Write Start"
+writeLeafCert DeriveCertificate {..} hostname torAddress = liftIO $ interpret $ do
   segment $ openssl [i|ecparam -genkey -name prime256v1 -noout -out #{applicantKeyPath}|]
-  lift . lift $ time "Generate leaf RSA Key"
   segment $ openssl [i|req -config #{applicantConfPath}
                              -key #{applicantKeyPath}
                              -new
                              -addext subjectAltName=DNS:#{hostname},DNS:*.#{hostname},DNS:#{torAddress},DNS:*.#{torAddress}
                              -out #{applicantCertPath <> ".csr"}|]
-  lift . lift $ time "Generate leaf CSR"
   segment $ openssl [i|ca -batch
                             -config #{signingConfPath}
                             -rand_serial
@@ -353,9 +345,7 @@ writeLeafCert DeriveCertificate {..} hostname torAddress = liftIO $ fromSys $ in
                             -in #{applicantCertPath <> ".csr"}
                             -out #{applicantCertPath}
                             |]
-  lift . lift $ time "Sign leaf CSR"
   liftIO $ readFile signingCertPath >>= appendFile applicantCertPath
-  lift . lift $ time "Update certificate chain"
 
 openssl :: MonadIO m => Text -> m (ExitCode, String, String)
 openssl = liftIO . ($ "") . readProcessWithExitCode "openssl" . fmap toS . words
@@ -374,14 +364,3 @@ segment action = (lift . lift) action >>= \case
   (ExitSuccess, o, e) -> modify (bimap (<> o) (<> e))
   (ec         , o, e) -> modify (bimap (<> o) (<> e)) *> throwE ec
 {-# INLINE segment #-}
-
-time :: MonadIO m => Text -> StateT UTCTime m ()
-time t = do
-  last <- Startlude.get
-  now  <- liftIO getCurrentTime
-  putStrLn @Text [i|#{t}: #{diffUTCTime now last}|]
-  put now
-
-fromSys :: MonadIO m => StateT UTCTime m a -> m a
-fromSys m = liftIO getCurrentTime >>= evalStateT m
-
