@@ -116,6 +116,7 @@ sync_0_2_6 = Synchronizer
     , syncPrepSslRootCaDir
     , syncPrepSslIntermediateCaDir
     , syncPersistLogs
+    , syncConvertEcdsaCerts
     ]
 
 syncCreateAgentTmp :: SyncOp
