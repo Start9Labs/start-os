@@ -19,6 +19,7 @@ module Application
     , handler
     , runDb
     , getAgentCtx
+    , sleep
     )
 where
 
@@ -65,6 +66,7 @@ import           Lib.WebServer
 import           Model
 import           Settings
 import Lib.Background
+import qualified Daemon.SslRenew as SSLRenew
 
 appMain :: IO ()
 appMain = do
@@ -81,10 +83,10 @@ appMain = do
                 die . toS $ "Invalid Port: " <> n
         ["--git-hash"] -> do
             putStrLn @Text $embedGitRevision
-            exitWith ExitSuccess
+            exitSuccess
         ["--version"] -> do
             putStrLn @Text (show agentVersion)
-            exitWith ExitSuccess
+            exitSuccess
         _ -> pure settings
     createDirectoryIfMissing False (toS $ agentDataDirectory `relativeTo` appFilesystemBase settings')
 
@@ -187,6 +189,10 @@ startupSequence foundation = do
         void . forkIO . forever $ forkIO (runReaderT AppNotifications.fetchAndSave foundation) >> threadDelay 5_000_000
         withAgentVersionLog_ "App notifications refreshing"
 
+        withAgentVersionLog_ "Initializing SSL certificate renewal loop"
+        void . forkIO . forever $ forkIO (SSLRenew.renewSslLeafCert foundation) *> sleep 86_400
+        withAgentVersionLog_ "SSL Renewal daemon started"
+
         -- reloading avahi daemon
         -- DRAGONS! make sure this step happens AFTER system synchronization
         withAgentVersionLog_ "Publishing Agent to Avahi Daemon"
@@ -198,6 +204,10 @@ startupSequence foundation = do
 
     withAgentVersionLog_ "Listening for Self-Update Signal"
     waitForUpdateSignal foundation
+
+sleep :: Integer -> IO ()
+sleep n = let (full, r) = (n * 1_000_000) `divMod` (fromIntegral $ (maxBound :: Int)) in
+    replicateM_ (fromIntegral full) (threadDelay maxBound) *> threadDelay (fromIntegral r)
 
 --------------------------------------------------------------
 -- Functions for DevelMain.hs (a way to run the AgentCtx from GHCi)
