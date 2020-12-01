@@ -61,6 +61,8 @@ import           Settings
 import           Util.File
 import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
+import qualified Data.Text                     as T
+import           Handler.Register.Nginx         ( replaceDerivativeCerts )
 
 
 data Synchronizer = Synchronizer
@@ -439,33 +441,16 @@ syncRepairSsl = SyncOp "Repair SSL Certs" check migrate False
             liftIO $ renameDirectory newCerts (toS $ sslDirectory `relativeTo` base)
             liftIO $ systemCtl RestartService "nginx" $> ()
 
--- syncConvertEcdsaCerts :: SyncOp
--- syncConvertEcdsaCerts = SyncOp "Convert Intermediate Cert to ECDSA P256" check migrate False
---     where
---         check = do
---             fs     <- asks $ appFilesystemBase . appSettings
---             header <- liftIO $ headMay . lines <$> readFile (toS $ intermediateCaKeyPath `relativeTo` fs)
---             pure $ case header of
---                 Nothing -> False
---                 Just y  -> "BEGIN RSA PRIVATE KEY" `T.isInfixOf` y
---         migrate = replaceDerivativeCerts
-
--- syncConvertEcdsaLeafCert :: SyncOp
--- syncConvertEcdsaLeafCert = SyncOp "Convert Intermediate Cert to ECDSA P256" check migrate False
---     where
---         check = do
---             fs     <- asks $ appFilesystemBase . appSettings
---             h      <- injectFilesystemBase fs getStart9AgentHostname
---             header <- liftIO $ headMay . lines <$> readFile (toS $ entityKeyPath h `relativeTo` fs)
---             pure $ case header of
---                 Nothing -> False
---                 Just y  -> "BEGIN RSA PRIVATE" `T.isInfixOf` y
---         migrate = do
---             base <- asks $ appFilesystemBase . appSettings
---             _
-
--- syncRotateExpiringCerts :: SyncOp
--- syncRotateExpiringCerts = _
+syncConvertEcdsaCerts :: SyncOp
+syncConvertEcdsaCerts = SyncOp "Convert Intermediate Cert to ECDSA P256" check migrate False
+    where
+        check = do
+            fs     <- asks $ appFilesystemBase . appSettings
+            header <- liftIO $ headMay . lines <$> readFile (toS $ intermediateCaKeyPath `relativeTo` fs)
+            pure $ case header of
+                Nothing -> False
+                Just y  -> "BEGIN RSA PRIVATE KEY" `T.isInfixOf` y
+        migrate = replaceDerivativeCerts
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
