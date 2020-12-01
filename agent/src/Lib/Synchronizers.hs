@@ -448,11 +448,16 @@ syncConvertEcdsaCerts :: SyncOp
 syncConvertEcdsaCerts = SyncOp "Convert Intermediate Cert to ECDSA P256" check migrate False
     where
         check = do
-            fs     <- asks $ appFilesystemBase . appSettings
-            header <- liftIO $ headMay . lines <$> readFile (toS $ intermediateCaKeyPath `relativeTo` fs)
-            pure $ case header of
-                Nothing -> False
-                Just y  -> "BEGIN RSA PRIVATE KEY" `T.isInfixOf` y
+            fs <- asks $ appFilesystemBase . appSettings
+            let intCertKey = toS $ intermediateCaKeyPath `relativeTo` fs
+            exists <- liftIO $ doesPathExist intCertKey
+            if exists
+                then do
+                    header <- liftIO $ headMay . lines <$> readFile intCertKey
+                    pure $ case header of
+                        Nothing -> False
+                        Just y  -> "BEGIN RSA PRIVATE KEY" `T.isInfixOf` y
+                else pure False
         migrate = cantFail $ do
             base <- asks $ appFilesystemBase . appSettings
             (runM . runExceptT) (injectFilesystemBase base replaceDerivativeCerts) >>= \case
