@@ -65,6 +65,7 @@ import           Lib.WebServer
 import           Model
 import           Settings
 import Lib.Background
+import qualified Daemon.SslRenew as SSLRenew
 
 appMain :: IO ()
 appMain = do
@@ -186,6 +187,10 @@ startupSequence foundation = do
         withAgentVersionLog_ "Initializing app notifications refresh loop"
         void . forkIO . forever $ forkIO (runReaderT AppNotifications.fetchAndSave foundation) >> threadDelay 5_000_000
         withAgentVersionLog_ "App notifications refreshing"
+
+        withAgentVersionLog_ "Initializing SSL certificate renewal loop"
+        void . forkIO . forever $ forkIO $ SSLRenew.renewSslLeafCert foundation
+        withAgentVersionLog_ "SSL Renewal daemon started"
 
         -- reloading avahi daemon
         -- DRAGONS! make sure this step happens AFTER system synchronization

@@ -87,7 +87,7 @@ parseKernelVersion = do
     major' <- decimal
     minor' <- char '.' *> decimal
     patch' <- char '.' *> decimal
-    arch   <- string "-v7l+" *> pure ArmV7 <|> string "-v8+" *> pure ArmV8
+    arch   <- string "-v7l+" $> ArmV7 <|> string "-v8+" $> ArmV8
     pure $ KernelVersion (Version (major', minor', patch', 0)) arch
 
 synchronizer :: Synchronizer
@@ -141,7 +141,7 @@ syncCreateSshDir = SyncOp "Create SSH directory" check migrate False
 syncRemoveAvahiSystemdDependency :: SyncOp
 syncRemoveAvahiSystemdDependency = SyncOp "Remove Avahi Systemd Dependency" check migrate False
     where
-        wanted = decodeUtf8 $ $(embedFile "config/agent.service")
+        wanted = decodeUtf8 $(embedFile "config/agent.service")
         check  = do
             base    <- asks $ appFilesystemBase . appSettings
             content <- liftIO $ readFile (toS $ agentServicePath `relativeTo` base)
@@ -172,7 +172,7 @@ sync32BitKernel = SyncOp "32 Bit Kernel Switch" check migrate True
         check          = do
             settings <- asks appSettings
             cfg      <- injectFilesystemBaseFromContext settings getBootCfgPath
-            liftIO . run $ fmap isNothing $ (shell [i|grep "arm_64bit=0" #{cfg} || true|] $| conduit await)
+            liftIO . run $ isNothing <$> (shell [i|grep "arm_64bit=0" #{cfg} || true|] $| conduit await)
         migrate = do
             base <- asks $ appFilesystemBase . appSettings
             let tmpFile = bootConfigTempPath `relativeTo` base
@@ -234,9 +234,9 @@ syncWriteConf name contents' confLocation = SyncOp [i|Write #{name} Conf|] check
                 liftIO
                 $       (Just <$> readFile (toS $ confLocation `relativeTo` base))
                 `catch` (\(e :: IOException) -> if isDoesNotExistError e then pure Nothing else throwIO e)
-            case conf of
-                Nothing -> pure True
-                Just co -> pure $ if co == contents then False else True
+            pure $ case conf of
+                Nothing -> True
+                Just co -> co /= contents
         migrate = do
             base <- asks $ appFilesystemBase . appSettings
             void . liftIO $ createDirectoryIfMissing True (takeDirectory (toS $ confLocation `relativeTo` base))
@@ -330,7 +330,7 @@ syncInstallAmbassadorUI = SyncOp "Install Ambassador UI" check migrate False
         streamUntar root stream = Conduit.runConduit $ Conduit.fromBStream stream .| Conduit.untar \f -> do
             let path = toS . (toS root </>) . joinPath . drop 1 . splitPath . B8.unpack . Conduit.filePath $ f
             print path
-            if (Conduit.fileType f == Conduit.FTDirectory)
+            if Conduit.fileType f == Conduit.FTDirectory
                 then liftIO $ createDirectoryIfMissing True path
                 else Conduit.sinkFile path
 
@@ -372,8 +372,8 @@ installAmbassadorUiNginx mSslOverrides fileName = do
     void . liftIO $ systemCtl RestartService "nginx"
     where
         ambassadorUiClientManifiest b = toS $ (ambassadorUiPath <> "/client-manifest.yaml") `relativeTo` b
-        nginxAvailableConf b = toS $ (nginxSitesAvailable fileName) `relativeTo` b
-        nginxEnabledConf b = toS $ (nginxSitesEnabled fileName) `relativeTo` b
+        nginxAvailableConf b = toS $ nginxSitesAvailable fileName `relativeTo` b
+        nginxEnabledConf b = toS $ nginxSitesEnabled fileName `relativeTo` b
 
 syncOpenHttpPorts :: SyncOp
 syncOpenHttpPorts = SyncOp "Open Hidden Service Port 80" check migrate False
@@ -425,6 +425,47 @@ syncUpgradeLifeline = SyncOp "Upgrade Lifeline" check migrate False
 syncPersistLogs :: SyncOp
 syncPersistLogs =
     (syncWriteConf "Journald" $(embedFile "config/journald.conf") journaldConfig) { syncOpRequiresReboot = True }
+
+syncRepairSsl :: SyncOp
+syncRepairSsl = SyncOp "Repair SSL Certs" check migrate False
+    where
+        check = do
+            base <- asks $ appFilesystemBase . appSettings
+            let p = toS $ sslDirectory `relativeTo` base
+            liftIO $ not <$> doesDirectoryExist p
+        migrate = do
+            base <- asks $ appFilesystemBase . appSettings
+            let newCerts = toS $ (agentTmpDirectory <> sslDirectory) `relativeTo` base
+            liftIO $ renameDirectory newCerts (toS $ sslDirectory `relativeTo` base)
+            liftIO $ systemCtl RestartService "nginx" $> ()
+
+-- syncConvertEcdsaCerts :: SyncOp
+-- syncConvertEcdsaCerts = SyncOp "Convert Intermediate Cert to ECDSA P256" check migrate False
+--     where
+--         check = do
+--             fs     <- asks $ appFilesystemBase . appSettings
+--             header <- liftIO $ headMay . lines <$> readFile (toS $ intermediateCaKeyPath `relativeTo` fs)
+--             pure $ case header of
+--                 Nothing -> False
+--                 Just y  -> "BEGIN RSA PRIVATE KEY" `T.isInfixOf` y
+--         migrate = replaceDerivativeCerts
+
+-- syncConvertEcdsaLeafCert :: SyncOp
+-- syncConvertEcdsaLeafCert = SyncOp "Convert Intermediate Cert to ECDSA P256" check migrate False
+--     where
+--         check = do
+--             fs     <- asks $ appFilesystemBase . appSettings
+--             h      <- injectFilesystemBase fs getStart9AgentHostname
+--             header <- liftIO $ headMay . lines <$> readFile (toS $ entityKeyPath h `relativeTo` fs)
+--             pure $ case header of
+--                 Nothing -> False
+--                 Just y  -> "BEGIN RSA PRIVATE" `T.isInfixOf` y
+--         migrate = do
+--             base <- asks $ appFilesystemBase . appSettings
+--             _
+
+-- syncRotateExpiringCerts :: SyncOp
+-- syncRotateExpiringCerts = _
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
