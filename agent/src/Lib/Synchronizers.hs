@@ -5,7 +5,9 @@
 {-# LANGUAGE TemplateHaskell      #-}
 module Lib.Synchronizers where
 
-import           Startlude               hiding ( check )
+import           Startlude               hiding ( check
+                                                , err
+                                                )
 import qualified Startlude.ByteStream          as ByteStream
 import qualified Startlude.ByteStream.Char8    as ByteStream
 
@@ -62,7 +64,7 @@ import           Util.File
 import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
 import qualified Data.Text                     as T
-import           Handler.Register.Nginx         ( replaceDerivativeCerts )
+import           Control.Effect.Error    hiding ( run )
 
 
 data Synchronizer = Synchronizer
@@ -451,7 +453,82 @@ syncConvertEcdsaCerts = SyncOp "Convert Intermediate Cert to ECDSA P256" check m
             pure $ case header of
                 Nothing -> False
                 Just y  -> "BEGIN RSA PRIVATE KEY" `T.isInfixOf` y
-        migrate = replaceDerivativeCerts
+        migrate = cantFail $ do
+            base <- asks $ appFilesystemBase . appSettings
+            (runM . runExceptT) (injectFilesystemBase base replaceDerivativeCerts) >>= \case
+                Left  e  -> failUpdate e
+                Right () -> pure ()
+
+
+replaceDerivativeCerts :: (HasFilesystemBase sig m, Fused.Has (Error S9Error) sig m, MonadIO m) => m ()
+replaceDerivativeCerts = do
+    hn             <- getStart9AgentHostname
+    tor            <- getAgentHiddenServiceUrl
+
+    caKeyPath      <- toS <$> getAbsoluteLocationFor rootCaKeyPath
+    caConfPath     <- toS <$> getAbsoluteLocationFor rootCaOpenSslConfPath
+    caCertPath     <- toS <$> getAbsoluteLocationFor rootCaCertPath
+
+    intCaKeyPath   <- toS <$> getAbsoluteLocationFor intermediateCaKeyPath
+    intCaConfPath  <- toS <$> getAbsoluteLocationFor intermediateCaOpenSslConfPath
+    intCaCertPath  <- toS <$> getAbsoluteLocationFor intermediateCaCertPath
+
+    sslDirTmp      <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> sslDirectory)
+    entKeyPathTmp  <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityKeyPath hn)
+    entConfPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityConfPath hn)
+    entCertPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityCertPath hn)
+    liftIO $ createDirectoryIfMissing True sslDirTmp
+    liftIO $ BS.writeFile entConfPathTmp (domain_CSR_CONF hn)
+
+    -- ensure duplicate certificates are acceptable
+    base <- Fused.ask @"filesystemBase"
+    liftIO $ BS.writeFile (toS $ (rootCaDirectory <> "index.txt.attr") `relativeTo` base) "unique_subject = no\n"
+    liftIO $ BS.writeFile (toS $ (intermediateCaDirectory <> "index.txt.attr") `relativeTo` base)
+                          "unique_subject = no\n"
+
+    (ec, out, err) <- writeIntermediateCert DeriveCertificate { applicantConfPath = intCaConfPath
+                                                              , applicantKeyPath  = intCaKeyPath
+                                                              , applicantCertPath = intCaCertPath
+                                                              , signingConfPath   = caConfPath
+                                                              , signingKeyPath    = caKeyPath
+                                                              , signingCertPath   = caCertPath
+                                                              , duration          = 3650
+                                                              }
+    liftIO $ do
+        putStrLn @Text "openssl logs"
+        putStrLn @Text "exit code: "
+        print ec
+        putStrLn @String $ "stdout: " <> out
+        putStrLn @String $ "stderr: " <> err
+    case ec of
+        ExitSuccess   -> pure ()
+        ExitFailure n -> throwError $ OpenSslE "leaf" n out err
+
+    (ec', out', err') <- writeLeafCert
+        DeriveCertificate { applicantConfPath = entConfPathTmp
+                          , applicantKeyPath  = entKeyPathTmp
+                          , applicantCertPath = entCertPathTmp
+                          , signingConfPath   = intCaConfPath
+                          , signingKeyPath    = intCaKeyPath
+                          , signingCertPath   = intCaCertPath
+                          , duration          = 365
+                          }
+        hn
+        tor
+    liftIO $ do
+        putStrLn @Text "openssl logs"
+        putStrLn @Text "exit code: "
+        print ec
+        putStrLn @String $ "stdout: " <> out'
+        putStrLn @String $ "stderr: " <> err'
+    case ec' of
+        ExitSuccess   -> pure ()
+        ExitFailure n -> throwError $ OpenSslE "leaf" n out' err'
+
+    sslDir <- toS <$> getAbsoluteLocationFor sslDirectory
+    liftIO $ removeDirectory sslDir
+    liftIO $ renameDirectory sslDirTmp sslDir
+    liftIO $ systemCtl RestartService "nginx" $> ()
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
