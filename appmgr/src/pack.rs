@@ -5,6 +5,7 @@ use failure::ResultExt;
 use futures::stream::StreamExt;
 use linear_map::LinearMap;
 use rand::SeedableRng;
+use tokio_compat_02::IoCompat;
 use tokio_tar as tar;
 
 use crate::config::{ConfigRuleEntry, ConfigSpec};
@@ -41,7 +42,7 @@ pub async fn pack(path: &str, output: &str) -> Result<(), failure::Error> {
         output.display(),
     );
     let out_file = tokio::fs::File::create(output).await?;
-    let mut out = tar::Builder::new(out_file);
+    let mut out = tar::Builder::new(IoCompat::new(out_file));
     log::info!("Reading {}/manifest.yaml.", path.display());
     let manifest: Manifest = crate::util::from_yaml_async_reader(
         tokio::fs::File::open(path.join("manifest.yaml"))
@@ -130,7 +131,7 @@ pub async fn pack(path: &str, output: &str) -> Result<(), failure::Error> {
             h.set_size(0);
             h.set_path(format!("APPMGR_DIR_END:{}", asset.src.display()))?;
             h.set_cksum();
-            out.append(&h, tokio::io::empty()).await?;
+            out.append(&h, IoCompat::new(tokio::io::empty())).await?;
         } else {
             out.append_path_with_name(&file_path, &asset.src).await?;
         }
@@ -144,7 +145,8 @@ pub async fn pack(path: &str, output: &str) -> Result<(), failure::Error> {
             log::info!("Writing image.tar to archive.");
             let mut header = tar::Header::new_gnu();
             header.set_size(image.metadata().await?.len());
-            out.append_data(&mut header, "image.tar", image).await?;
+            out.append_data(&mut header, "image.tar", IoCompat::new(image))
+                .await?;
         }
     }
     out.into_inner().await?;
@@ -199,7 +201,7 @@ pub async fn verify(path: &str) -> Result<(), failure::Error> {
         .await
         .with_context(|e| format!("{}: {}", path.display(), e))?;
     log::info!("Extracting archive.");
-    let mut pkg = tar::Archive::new(r);
+    let mut pkg = tar::Archive::new(IoCompat::new(r));
     let mut entries = pkg.entries()?;
     log::info!("Opening manifest from archive.");
     let manifest = entries
@@ -212,7 +214,7 @@ pub async fn verify(path: &str) -> Result<(), failure::Error> {
         manifest.path()?.display()
     );
     log::trace!("Deserializing manifest.");
-    let manifest: Manifest = from_cbor_async_reader(manifest).await?;
+    let manifest: Manifest = from_cbor_async_reader(IoCompat::new(manifest)).await?;
     let manifest = manifest.into_latest();
     ensure!(
         crate::version::Current::new()
@@ -245,7 +247,7 @@ pub async fn verify(path: &str) -> Result<(), failure::Error> {
         config_spec.path()?.display()
     );
     log::trace!("Deserializing config spec.");
-    let config_spec: ConfigSpec = from_cbor_async_reader(config_spec).await?;
+    let config_spec: ConfigSpec = from_cbor_async_reader(IoCompat::new(config_spec)).await?;
     log::trace!("Validating config spec.");
     config_spec.validate(&manifest)?;
     let config = config_spec.gen(&mut rand::rngs::StdRng::from_entropy(), &None)?;
@@ -261,7 +263,8 @@ pub async fn verify(path: &str) -> Result<(), failure::Error> {
         config_rules.path()?.display()
     );
     log::trace!("Deserializing config rules.");
-    let config_rules: Vec<ConfigRuleEntry> = from_cbor_async_reader(config_rules).await?;
+    let config_rules: Vec<ConfigRuleEntry> =
+        from_cbor_async_reader(IoCompat::new(config_rules)).await?;
     log::trace!("Validating config rules against config spec.");
     let mut cfgs = LinearMap::new();
     cfgs.insert(name, Cow::Borrowed(&config));
@@ -375,7 +378,7 @@ pub async fn verify(path: &str) -> Result<(), failure::Error> {
                 .await
                 .ok_or_else(|| format_err!("image.tar is missing manifest.json"))??;
             let image_manifest: Vec<DockerManifest> =
-                from_json_async_reader(image_manifest).await?;
+                from_json_async_reader(IoCompat::new(image_manifest)).await?;
             image_manifest
                 .into_iter()
                 .flat_map(|a| a.repo_tags)
