@@ -32,7 +32,6 @@ import           Lib.SystemPaths
 import           Model
 import           Settings
 
-
 postRegisterR :: Handler RegisterRes
 postRegisterR = handleS9ErrT $ do
     settings           <- getsYesod appSettings
