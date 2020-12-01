@@ -206,7 +206,7 @@ startupSequence foundation = do
     waitForUpdateSignal foundation
 
 sleep :: Integer -> IO ()
-sleep n = let (full, r) = (n * 1_000_000) `divMod` (fromIntegral $ (maxBound :: Int)) in
+sleep n = let (full, r) = (n * 1_000_000) `divMod` fromIntegral (maxBound :: Int) in
     replicateM_ (fromIntegral full) (threadDelay maxBound) *> threadDelay (fromIntegral r)
 
 --------------------------------------------------------------

@@ -13,8 +13,8 @@ import           Lib.Ssl
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
 import           Lib.Tor
 import           Control.Carrier.Lift
-import           System.Directory               ( renameDirectory
-                                                , removeDirectory
+import           System.Directory               ( removePathForcibly
+                                                , renameDirectory
                                                 )
 import           Lib.SystemCtl
 import qualified Lib.Notifications             as Notifications
@@ -25,10 +25,11 @@ import           Constants
 renewSslLeafCert :: AgentCtx -> IO ()
 renewSslLeafCert ctx = do
     let base = appFilesystemBase . appSettings $ ctx
-    hn  <- injectFilesystemBase base getStart9AgentHostname
+    sid <- injectFilesystemBase base getStart9AgentHostname
+    let hostname = sid <> ".local"
     tor <- injectFilesystemBase base getAgentHiddenServiceUrl
     putStr @Text "SSL Renewal Required? "
-    needsRenew <- doesSslNeedRenew (toS $ entityCertPath hn `relativeTo` base)
+    needsRenew <- doesSslNeedRenew (toS $ entityCertPath sid `relativeTo` base)
     print needsRenew
     when needsRenew $ runM . injectFilesystemBase base $ do
         intCaKeyPath   <- toS <$> getAbsoluteLocationFor intermediateCaKeyPath
@@ -36,9 +37,9 @@ renewSslLeafCert ctx = do
         intCaCertPath  <- toS <$> getAbsoluteLocationFor intermediateCaCertPath
 
         sslDirTmp      <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> sslDirectory)
-        entKeyPathTmp  <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityKeyPath hn)
-        entConfPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityConfPath hn)
-        entCertPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityCertPath hn)
+        entKeyPathTmp  <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityKeyPath sid)
+        entConfPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityConfPath sid)
+        entCertPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityCertPath sid)
 
         (ec, out, err) <- writeLeafCert
             DeriveCertificate { applicantConfPath = entConfPathTmp
@@ -49,7 +50,7 @@ renewSslLeafCert ctx = do
                               , signingCertPath   = intCaCertPath
                               , duration          = 365
                               }
-            hn
+            hostname
             tor
         liftIO $ do
             putStrLn @Text "openssl logs"
@@ -66,7 +67,7 @@ renewSslLeafCert ctx = do
                     $ Notifications.emit (AppId "EmbassyOS") agentVersion
                     $ Notifications.CertRenewFailed (ExitFailure n) out err
         let sslDir = toS $ sslDirectory `relativeTo` base
-        liftIO $ removeDirectory sslDir
+        liftIO $ removePathForcibly sslDir
         liftIO $ renameDirectory sslDirTmp sslDir
         liftIO $ systemCtl RestartService "nginx" $> ()
 
