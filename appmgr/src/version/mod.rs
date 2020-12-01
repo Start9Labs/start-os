@@ -22,7 +22,7 @@ mod v0_2_4;
 mod v0_2_5;
 mod v0_2_6;
 
-pub use v0_2_5::Version as Current;
+pub use v0_2_6::Version as Current;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
