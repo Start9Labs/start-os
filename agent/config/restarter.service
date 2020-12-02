@@ -1,0 +1,7 @@
+[Unit]
+Description=restarts dead containers
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /root/restarter.sh
