@@ -22,5 +22,7 @@ appmgr/target/armv7-unknown-linux-musleabihf/release/appmgr: $(APPMGR_SRC)
 	docker run --rm -it -v ~/.cargo/registry:/root/.cargo/registry -v "$(shell pwd)"/appmgr:/home/rust/src start9/rust-arm-cross:latest cargo build --release --features=production
 	docker run --rm -it -v ~/.cargo/registry:/root/.cargo/registry -v "$(shell pwd)"/appmgr:/home/rust/src start9/rust-arm-cross:latest arm-linux-gnueabi-strip target/armv7-unknown-linux-gnueabihf/release/appmgr
 
-agent: $(AGENT_SRC)
+agent/dist/agent: $(AGENT_SRC)
 	(cd agent; ./build.sh)
+
+agent: agent/dist/agent
