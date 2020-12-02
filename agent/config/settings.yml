@@ -34,6 +34,6 @@ database:
   database: "start9_agent.sqlite3"
   poolsize: "_env:YESOD_SQLITE_POOLSIZE:10"
 
-app-mgr-version-spec: "=0.2.6"
+app-mgr-version-spec: "=0.2.7"
 
 #analytics: UA-YOURCODE

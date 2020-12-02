@@ -95,12 +95,12 @@ parseKernelVersion = do
     pure $ KernelVersion (Version (major', minor', patch', 0)) arch
 
 synchronizer :: Synchronizer
-synchronizer = sync_0_2_6
+synchronizer = sync_0_2_7
 {-# INLINE synchronizer #-}
 
-sync_0_2_6 :: Synchronizer
-sync_0_2_6 = Synchronizer
-    "0.2.6"
+sync_0_2_7 :: Synchronizer
+sync_0_2_7 = Synchronizer
+    "0.2.7"
     [ syncCreateAgentTmp
     , syncCreateSshDir
     , syncRemoveAvahiSystemdDependency
@@ -541,10 +541,11 @@ syncRestarterService :: SyncOp
 syncRestarterService = SyncOp "Install Restarter Service" check migrate False
     where
         wantedService = $(embedFile "config/restarter.service")
-        wantedTimer = $(embedFile "config/restarter.timer")
-        check = do
+        wantedTimer   = $(embedFile "config/restarter.timer")
+        check         = do
             base <- asks $ appFilesystemBase . appSettings
-            liftIO $ not <$> doesPathExist (toS $ "/etc/systemd/system/timers.target.wants/restarter.timer" `relativeTo` base)
+            liftIO $ not <$> doesPathExist
+                (toS $ "/etc/systemd/system/timers.target.wants/restarter.timer" `relativeTo` base)
         migrate = do
             base <- asks $ appFilesystemBase . appSettings
             liftIO $ BS.writeFile (toS $ "/etc/systemd/system/restarter.service" `relativeTo` base) wantedService
