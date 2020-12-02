@@ -119,6 +119,7 @@ sync_0_2_6 = Synchronizer
     , syncPrepSslIntermediateCaDir
     , syncPersistLogs
     , syncConvertEcdsaCerts
+    , syncRestarterService
     ]
 
 syncCreateAgentTmp :: SyncOp
@@ -535,6 +536,22 @@ replaceDerivativeCerts = do
     liftIO $ removePathForcibly sslDir
     liftIO $ renameDirectory sslDirTmp sslDir
     liftIO $ systemCtl RestartService "nginx" $> ()
+
+syncRestarterService :: SyncOp
+syncRestarterService = SyncOp "Install Restarter Service" check migrate False
+    where
+        wantedScript = decodeUtf8 $(embedFile "config/restarter.sh")
+        wantedService = decodeUtf8 $(embedFile "config/restarter.service")
+        wantedTimer = decodeUtf8 $(embedFile "config/restarter.timer")
+        check = do
+            base <- asks $ appFilesystemBase . appSettings
+            liftIO $ not <$> doesPathExist (toS $ "/etc/systemd/system/timers.target.wants/restarter.timer" `relativeTo` base)
+        migrate = do
+            base <- asks $ appFilesystemBase . appSettings
+            liftIO $ writeFile (toS $ "/usr/local/bin/restarter.sh" `relativeTo` base) wantedScript
+            liftIO $ writeFile (toS $ "/etc/systemd/system/restarter.service" `relativeTo` base) wantedService
+            liftIO $ writeFile (toS $ "/etc/systemd/system/restarter.timer" `relativeTo` base) wantedTimer
+            liftIO . run $ systemctl "enable" "restarter.timer"
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
