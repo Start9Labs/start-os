@@ -816,6 +816,9 @@ async fn inner_main() -> Result<(), Error> {
                                 .takes_value(true)
                                 .help("Password to use for encryption of backup file"),
                         ),
+                )
+                .subcommand(
+                    SubCommand::with_name("repair-app-status").about("Restarts crashed apps"), // TODO: remove
                 ),
         );
 
@@ -1540,6 +1543,10 @@ async fn inner_main() -> Result<(), Error> {
                 std::process::exit(1);
             }
         },
+        #[cfg(not(feature = "portable"))]
+        ("repair-app-status", _) => {
+            control::repair_app_status().await?;
+        }
         ("pack", Some(sub_m)) => {
             pack(
                 sub_m.value_of("PATH").unwrap(),
