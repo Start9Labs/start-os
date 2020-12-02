@@ -4,4 +4,4 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash /root/restarter.sh
+ExecStart=/usr/local/bin/appmgr repair-app-status
