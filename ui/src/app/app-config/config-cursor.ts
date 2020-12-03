@@ -1,5 +1,5 @@
 import {
-  ValueSpec, ConfigSpec, UniqueBy, ValueSpecOf, ValueType
+  ValueSpec, ConfigSpec, UniqueBy, ValueSpecOf, ValueType, ValueSpecObject
 } from './config-types'
 import * as pointer from 'json-pointer'
 import * as handlebars from 'handlebars'
@@ -226,11 +226,11 @@ export class ConfigCursor<T extends ValueType> {
           for (let idx in cfg) {
             let cursor = this.seekNext(idx)
             if (cursor.checkInvalid()) {
-              return `Item #${idx + 1} is invalid. ${cursor.checkInvalid()}`
+              return `Item #${Number(idx) + 1} is invalid. ${cursor.checkInvalid()}.`
             }
             for (let idx2 in cfg) {
               if (idx !== idx2 && cursor.equals(this.seekNext(idx2))) {
-                return `Item #${idx + 1} is not unique.`
+                return `Item #${Number(idx) + 1} is not unique. ${(cursor.cachedSpec as ValueSpecObject).uniqueBy} must be unique.`
               }
             }
           }
