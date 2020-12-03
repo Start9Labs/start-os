@@ -39,7 +39,7 @@ const routes: Routes = [
   imports: [
     RouterModule.forRoot(routes, {
       preloadingStrategy: PreloadAllModules,
-      initialNavigation: false,
+      initialNavigation: 'disabled',
       useHash: true,
     }),
   ],
