@@ -20,7 +20,7 @@ pub async fn start_app(name: &str, update_metadata: bool) -> Result<(), Error> {
         true,
     )
     .await?;
-    let status = crate::apps::status(name).await?.status;
+    let status = crate::apps::status(name, false).await?.status;
     if status == crate::apps::DockerStatus::Stopped {
         if update_metadata {
             crate::config::configure(name, None, None, false).await?;
@@ -111,7 +111,7 @@ pub async fn stop_dependents(
     ) -> BoxFuture<'a, Result<(), Error>> {
         async move {
             for dependent in crate::apps::dependents(name, false).await? {
-                if crate::apps::status(&dependent).await?.status
+                if crate::apps::status(&dependent, false).await?.status
                     != crate::apps::DockerStatus::Stopped
                 {
                     stop_dependents_rec(&dependent, dry_run, DependencyError::NotRunning, res)
@@ -229,7 +229,7 @@ pub async fn repair_app_status() -> Result<(), Error> {
             true,
         )
         .await?;
-        if crate::apps::status(&name).await?.status == crate::apps::DockerStatus::Stopped {
+        if crate::apps::status(&name, false).await?.status == crate::apps::DockerStatus::Stopped {
             start_app(&name, true).await?;
         }
         crate::util::unlock(lock).await?;

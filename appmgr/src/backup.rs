@@ -56,7 +56,7 @@ pub async fn create_backup<P: AsRef<Path>>(
         f.flush().await?;
     }
 
-    let status = crate::apps::status(app_id).await?;
+    let status = crate::apps::status(app_id, false).await?;
     let exclude = if volume_path.is_dir() {
         let ignore_path = volume_path.join(".backupignore");
         if ignore_path.is_file() {
@@ -148,7 +148,7 @@ pub async fn restore_backup<P: AsRef<Path>>(
         );
     }
 
-    let status = crate::apps::status(app_id).await?;
+    let status = crate::apps::status(app_id, false).await?;
     let running = status.status == crate::apps::DockerStatus::Running;
     if running {
         crate::control::stop_app(app_id, true, false).await?;

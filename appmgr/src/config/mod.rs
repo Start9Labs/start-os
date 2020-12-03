@@ -137,7 +137,9 @@ pub async fn configure(
             &mut res.stopped,
         )
         .await?;
-        if crate::apps::status(&dependent).await?.status != crate::apps::DockerStatus::Stopped {
+        if crate::apps::status(&dependent, false).await?.status
+            != crate::apps::DockerStatus::Stopped
+        {
             crate::control::stop_app(&dependent, false, dry_run).await?;
             res.stopped.insert(
                 // TODO: maybe don't do this if its not running
@@ -283,7 +285,8 @@ pub async fn configure(
                 crate::apps::set_configured(name, true).await?;
                 crate::apps::set_recoverable(name, false).await?;
             }
-            if crate::apps::status(name).await?.status != crate::apps::DockerStatus::Stopped {
+            if crate::apps::status(name, false).await?.status != crate::apps::DockerStatus::Stopped
+            {
                 if !dry_run {
                     crate::apps::set_needs_restart(name, true).await?;
                 }
