@@ -389,7 +389,7 @@ const mockApiNotifications: ReqRes.GetNotificationsRes = [
 const mockApiServer: () => ReqRes.GetServerRes = () => ({
   serverId: 'start9-mockxyzab',
   name: 'Embassy:12345678',
-  versionInstalled: '0.2.6',
+  versionInstalled: '0.2.7',
   status: ServerStatus.RUNNING,
   alternativeRegistryUrl: 'beta-registry.start9labs.com',
   specs: {
@@ -420,7 +420,7 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
 })
 
 const mockVersionLatest: ReqRes.GetVersionLatestRes = {
-  versionLatest: '0.2.6',
+  versionLatest: '0.2.7',
   canUpdate: true,
 }
 
@@ -664,7 +664,7 @@ const mockApiAppConfig: ReqRes.GetAppConfigRes = {
         },
         {
           'firstName': 'Admin2',
-          'lastName': 'User2',
+          'lastName': 'User',
           'age': 40,
         },
       ],
@@ -1038,26 +1038,26 @@ const mockApiAppConfig: ReqRes.GetAppConfigRes = {
   },
   // actual config
   config: {
-    testnet: undefined,
-    objectList: undefined,
-    unionList: undefined,
-    randomEnum: 'option1',
-    favoriteNumber: 8,
-    secondaryNumbers: undefined,
-    rpcsettings: {
-      laws: null,
-      rpcpass: null,
-      rpcuser: '123',
-      rulemakers: [],
-    },
-    advanced: {
-      notifications: ['call'],
-    },
-    bitcoinNode: undefined,
-    port: 5959,
-    maxconnections: null,
-    rpcallowip: undefined,
-    rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
+    // testnet: undefined,
+    // objectList: undefined,
+    // unionList: undefined,
+    // randomEnum: 'option1',
+    // favoriteNumber: 8,
+    // secondaryNumbers: undefined,
+    // rpcsettings: {
+    //   laws: null,
+    //   rpcpass: null,
+    //   rpcuser: '123',
+    //   rulemakers: [],
+    // },
+    // advanced: {
+    //   notifications: ['call'],
+    // },
+    // bitcoinNode: undefined,
+    // port: 5959,
+    // maxconnections: null,
+    // rpcallowip: undefined,
+    // rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
   },
   rules: [],
 }

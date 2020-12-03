@@ -29,7 +29,12 @@
       </ion-label>
     </ion-item>
 
-    <ion-item-group>
+    <ion-item-group *ngIf="($hasMetrics$ | async) === true">
+      <ion-item *ngIf="app.status !== 'RUNNING'" class="ion-margin-bottom">
+        <ion-label class="ion-text-wrap">
+          <p><ion-text color="warning">{{ app.title }} is not running. Properties could be innacurate.</ion-text></p>
+        </ion-label>
+      </ion-item>
       <div *ngFor="let keyval of $metrics$ | async | keyvalue: asIsOrder">
         <!-- object -->
         <ion-item button detail="false" *ngIf="keyval.value.type === 'object'" (click)="goToNested(keyval.key)">
