@@ -16,7 +16,7 @@ export const AppStatusRendering: {
 } = {
   [AppStatus.UNKNOWN]: { display: 'Connecting', color: 'dark', showDots: true },
   [AppStatus.REMOVING]: { display: 'Removing', color: 'dark', showDots: true },
-  [AppStatus.CRASHED]: { display: 'Crashing', color: 'danger', showDots: true },
+  [AppStatus.CRASHED]: { display: 'Crashed', color: 'danger', showDots: false },
   [AppStatus.NEEDS_CONFIG]: { display: 'Needs Config', color: 'warning', showDots: false },
   [AppStatus.RUNNING]: { display: 'Running', color: 'success', showDots: false },
   [AppStatus.UNREACHABLE]: { display: 'Unreachable', color: 'danger', showDots: false },
