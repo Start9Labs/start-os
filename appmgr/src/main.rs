@@ -816,10 +816,10 @@ async fn inner_main() -> Result<(), Error> {
                                 .takes_value(true)
                                 .help("Password to use for encryption of backup file"),
                         ),
-                )
-                .subcommand(
-                    SubCommand::with_name("repair-app-status").about("Restarts crashed apps"), // TODO: remove
                 ),
+        )
+        .subcommand(
+            SubCommand::with_name("repair-app-status").about("Restarts crashed apps"), // TODO: remove
         );
 
     let matches = app.clone().get_matches();
