@@ -16,10 +16,15 @@ impl VersionT for Version {
     async fn up(&self) -> Result<(), Error> {
         for (app_id, _) in crate::apps::list_info().await? {
             tokio::process::Command::new("docker")
+                .arg("stop")
+                .arg(&app_id)
+                .invoke("Docker")
+                .await?;
+            tokio::process::Command::new("docker")
                 .arg("update")
                 .arg("--restart")
                 .arg("no")
-                .arg(app_id)
+                .arg(&app_id)
                 .invoke("Docker")
                 .await?;
         }

@@ -22,6 +22,7 @@ impl VersionT for Version {
         tokio::io::copy(
             &mut AsyncCompat(
                 reqwest::get(&format!("{}/torrc?spec==0.1.1", &*crate::SYS_REGISTRY_URL))
+                    .compat()
                     .await
                     .with_context(|e| format!("GET {}/torrc: {}", &*crate::SYS_REGISTRY_URL, e))
                     .with_code(crate::error::NETWORK_ERROR)?
@@ -76,6 +77,7 @@ impl VersionT for Version {
         tokio::io::copy(
             &mut AsyncCompat(
                 reqwest::get(&format!("{}/torrc?spec==0.1.0", &*crate::SYS_REGISTRY_URL))
+                    .compat()
                     .await
                     .with_context(|e| format!("GET {}/torrc: {}", &*crate::SYS_REGISTRY_URL, e))
                     .no_code()?

@@ -16,7 +16,7 @@ use futures::stream::StreamExt;
 use futures::stream::TryStreamExt;
 use tokio::io::AsyncWriteExt;
 use tokio::io::{AsyncRead, ReadBuf};
-use tokio_compat_02::IoCompat;
+use tokio_compat_02::{FutureExt, IoCompat};
 use tokio_tar as tar;
 
 use crate::config::{ConfigRuleEntry, ConfigSpec};
@@ -99,6 +99,7 @@ pub async fn download(url: &str, name: Option<&str>) -> Result<PathBuf, crate::E
     let url = reqwest::Url::parse(url).no_code()?;
     log::info!("Downloading {}.", url.as_str());
     let response = reqwest::get(url)
+        .compat()
         .await
         .with_code(crate::error::NETWORK_ERROR)?
         .error_for_status()

@@ -538,7 +538,7 @@ replaceDerivativeCerts = do
     liftIO $ systemCtl RestartService "nginx" $> ()
 
 syncRestarterService :: SyncOp
-syncRestarterService = SyncOp "Install Restarter Service" check migrate False
+syncRestarterService = SyncOp "Install Restarter Service" check migrate True
     where
         wantedService = $(embedFile "config/restarter.service")
         wantedTimer   = $(embedFile "config/restarter.timer")
