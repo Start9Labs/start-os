@@ -131,7 +131,7 @@ pub async fn remove(id: &str) -> Result<(), failure::Error> {
     Ok(())
 }
 
-pub async fn status(id: &str) -> Result<AppStatus, Error> {
+pub async fn status(id: &str, remap_crashed: bool) -> Result<AppStatus, Error> {
     let output = std::process::Command::new("docker")
         .args(&["inspect", id, "--format", "{{.State.Status}}"])
         .stdout(std::process::Stdio::piped())
@@ -155,6 +155,19 @@ pub async fn status(id: &str) -> Result<AppStatus, Error> {
             "restarting" => DockerStatus::Restarting,
             "removing" => DockerStatus::Removing,
             "dead" => DockerStatus::Dead,
+            "exited"
+                if remap_crashed && {
+                    let path = PersistencePath::from_ref("running.yaml");
+                    if let Some(mut f) = path.maybe_read(false).await.transpose()? {
+                        let running: Vec<String> = from_yaml_async_reader(&mut *f).await?;
+                        running.iter().filter(|a| a.as_str() == id).next().is_some()
+                    } else {
+                        false
+                    }
+                } =>
+            {
+                DockerStatus::Restarting
+            }
             "created" | "exited" => DockerStatus::Stopped,
             "paused" => DockerStatus::Paused,
             _ => Err(format_err!("unknown status: {}", status))?,
@@ -275,7 +288,7 @@ pub async fn info_full(
     Ok(AppInfoFull {
         info: info(id).await?,
         status: if with_status {
-            Some(status(id).await?)
+            Some(status(id, true).await?)
         } else {
             None
         },
@@ -379,8 +392,12 @@ pub async fn list(
     let info = list_info().await?;
     futures::future::join_all(info.into_iter().map(move |(id, info)| async move {
         let (status, manifest, config, dependencies) = futures::try_join!(
-            OptionFuture::from(if with_status { Some(status(&id)) } else { None })
-                .map(Option::transpose),
+            OptionFuture::from(if with_status {
+                Some(status(&id, true))
+            } else {
+                None
+            })
+            .map(Option::transpose),
             OptionFuture::from(if with_manifest {
                 Some(manifest(&id))
             } else {

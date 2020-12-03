@@ -561,7 +561,8 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
         if dep_info.mount_shared
             && crate::apps::list_info().await?.get(&dep_id).is_some()
             && crate::apps::manifest(&dep_id).await?.shared.is_some()
-            && crate::apps::status(&dep_id).await?.status != crate::apps::DockerStatus::Stopped
+            && crate::apps::status(&dep_id, false).await?.status
+                != crate::apps::DockerStatus::Stopped
         {
             crate::apps::set_needs_restart(&dep_id, true).await?;
         }
