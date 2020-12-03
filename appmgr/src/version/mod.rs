@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use async_trait::async_trait;
 use failure::ResultExt as _;
 use futures::stream::TryStreamExt;
+use tokio_compat_02::FutureExt;
 
 use crate::util::{to_yaml_async_writer, AsyncCompat, PersistencePath};
 use crate::Error;
@@ -168,7 +169,7 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         .collect();
     let url = format!("{}/appmgr?spec={}", &*crate::SYS_REGISTRY_URL, req_str);
     log::info!("Fetching new version from {}", url);
-    let response = reqwest::get(&url)
+    let response = reqwest::get(&url).compat()
         .await
         .with_code(crate::error::NETWORK_ERROR)?
         .error_for_status()
