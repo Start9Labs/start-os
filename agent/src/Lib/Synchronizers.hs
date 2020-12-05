@@ -41,6 +41,7 @@ import           System.FilePath.Posix          ( takeDirectory )
 import           System.Directory
 import           System.IO.Error
 import           System.Posix.Files
+import           System.Process                 ( callCommand )
 import qualified Streaming.Prelude             as Stream
 import qualified Streaming.Conduit             as Conduit
 import qualified Streaming.Zip                 as Stream
@@ -550,7 +551,8 @@ syncRestarterService = SyncOp "Install Restarter Service" check migrate True
             base <- asks $ appFilesystemBase . appSettings
             liftIO $ BS.writeFile (toS $ "/etc/systemd/system/restarter.service" `relativeTo` base) wantedService
             liftIO $ BS.writeFile (toS $ "/etc/systemd/system/restarter.timer" `relativeTo` base) wantedTimer
-            liftIO . run $ systemctl "enable" "restarter.timer"
+            liftIO $ callCommand "systemctl enable restarter.service"
+            liftIO $ callCommand "systemctl enable restarter.timer"
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
