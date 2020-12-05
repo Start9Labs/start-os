@@ -710,7 +710,6 @@ remapAppMgrInfo jobCache serverApps = flip
                     $   ((, infoResVersion) <$> HM.lookup appId tmpStatuses)
                     <|> (guard (not infoResIsConfigured || infoResIsRecoverable) $> (NeedsConfig, infoResVersion))
                     <|> (guard realViolations $> (BrokenDependencies, infoResVersion))
-                    <|> (guard (infoResStatus == Restarting) $> (Crashed, infoResVersion))
         in  ( status
             , version
             , infoRes
