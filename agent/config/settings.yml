@@ -28,7 +28,6 @@ detailed-logging: "_env:DETAILED_LOGGING:false"
 
 # NB: If you need a numeric value (e.g. 123) to parse as a String, wrap it in single quotes (e.g. "_env:YESOD_PGPASS:'123'")
 # See https://github.com/yesodweb/yesod/wiki/Configuration#parsing-numeric-values-as-strings
-cors-override-star: "_env:CORS_OVERRIDE_STAR:"
 filesystem-base: "_env:FILESYSTEM_BASE:/"
 database:
   database: "start9_agent.sqlite3"
