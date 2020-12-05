@@ -64,20 +64,11 @@ mkYesodDispatch "AgentCtx" resourcesAgentCtx
 instance YesodSubDispatch Auth AgentCtx where
     yesodSubDispatch = $(mkYesodSubDispatch resourcesAuth)
 
--- | Convert our foundation to a WAI Application by calling @toWaiAppPlain@ and
--- applying some additional middlewares.
-makeApplication :: AgentCtx -> IO Application
-makeApplication foundation = do
-    logWare <- makeLogWare foundation
-    -- Create the WAI application and apply middlewares
-    appPlain <- toWaiAppPlain foundation
-    let origin = case appCorsOverrideStar $ appSettings foundation of
-            Nothing -> Nothing
-            Just override -> Just ([encodeUtf8 override], True)
-    pure . logWare . cors (const . Just $ policy origin) . defaultMiddlewaresNoLogging $ appPlain
+dynamicCorsResourcePolicy :: Request -> Maybe CorsResourcePolicy
+dynamicCorsResourcePolicy req = Just . policy $ requestHeaderHost req
     where
         policy o = simpleCorsResourcePolicy
-            { corsOrigins        = o
+            { corsOrigins        = (\o' -> ([o'], True)) <$> o
             , corsMethods        = ["GET", "POST", "HEAD", "PUT", "DELETE", "TRACE", "CONNECT", "OPTIONS", "PATCH"]
             , corsRequestHeaders = [ "app-version"
                                    , "Accept"
@@ -137,6 +128,15 @@ makeApplication foundation = do
                                    ]
             , corsIgnoreFailures = True
             }
+
+-- | Convert our foundation to a WAI Application by calling @toWaiAppPlain@ and
+-- applying some additional middlewares.
+makeApplication :: AgentCtx -> IO Application
+makeApplication foundation = do
+    logWare <- makeLogWare foundation
+    -- Create the WAI application and apply middlewares
+    appPlain <- toWaiAppPlain foundation
+    pure . logWare . cors dynamicCorsResourcePolicy . defaultMiddlewaresNoLogging $ appPlain
 
 startWeb :: AgentCtx -> IO ()
 startWeb foundation = do
