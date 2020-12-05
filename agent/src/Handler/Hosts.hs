@@ -5,26 +5,24 @@ module Handler.Hosts where
 import           Startlude               hiding ( ask )
 
 import           Control.Carrier.Lift           ( runM )
-import           Control.Carrier.Error.Church
 import           Data.Conduit
 import qualified Data.Conduit.Binary           as CB
 import           Data.Time.ISO8601
 import           Yesod.Core              hiding ( expiresAt )
 
 import           Foundation
-import           Daemon.ZeroConf
-import           Handler.Register               ( produceProofOfKey
-                                                , checkExistingPasswordRegistration
+import           Handler.Register               ( checkExistingPasswordRegistration
+                                                , getRegistration
                                                 )
 import           Handler.Types.Hosts
-import           Handler.Types.Register
 import           Lib.Crypto
 import           Lib.Error
 import           Lib.Password                   ( rootAccountName )
 import           Lib.ProductKey
-import           Lib.Ssl
-import           Lib.SystemPaths
-import           Lib.Tor
+import           Lib.SystemPaths                ( injectFilesystemBaseFromContext
+                                                , rootCaCertPath
+                                                , SystemPath(relativeTo)
+                                                )
 import           Settings
 
 getHostsR :: Handler HostsRes
@@ -59,23 +57,7 @@ verifyTimestampNotExpired expirationTimestamp = do
         Nothing         -> throwE $ TTLExpirationE "invalid timestamp"
         Just expiration -> when (expiration < now) (throwE $ TTLExpirationE "expired")
 
-getRegistration :: (MonadIO m, HasFilesystemBase sig m, Has (Error S9Error) sig m) => Text -> UTCTime -> m RegisterRes
-getRegistration productKey registerResClaimedAt = do
-    torAddress <- getAgentHiddenServiceUrlMaybe >>= \case
-        Nothing -> throwError $ NotFoundE "prior registration" "torAddress"
-        Just t  -> pure $ t
-    caCert <- readSystemPath rootCaCertPath >>= \case
-        Nothing -> throwError $ NotFoundE "prior registration" "cert"
-        Just t  -> pure t
 
-    -- create an hmac of the torAddress + caCert for front end
-    registerResTorAddressSig <- produceProofOfKey productKey torAddress
-    registerResCertSig       <- produceProofOfKey productKey caCert
-
-    let registerResCertName = root_CA_CERT_NAME
-    registerResLanAddress <- getStart9AgentHostnameLocal
-
-    pure RegisterRes { .. }
 
 getCertificateR :: Handler TypedContent
 getCertificateR = do
