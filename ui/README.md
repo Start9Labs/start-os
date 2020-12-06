@@ -6,14 +6,10 @@
 
 `npm i -g @ionic/cli`
 
-`git clone https://github.com/Start9Labs/embassy-ui.git`
+`git clone https://github.com/Start9Labs/embassy-os.git`
 
-`cd embassy-ui`
+`cd embassy-os/ui`
 
 `npm i`
 
 `ionic serve`
-
-## Production Deployment
-
-`ionic build --prod`
