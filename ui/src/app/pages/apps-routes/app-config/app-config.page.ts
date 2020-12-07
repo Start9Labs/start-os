@@ -205,7 +205,7 @@ export class AppConfigPage extends Cleanup {
       }
 
       return this.apiService.patchAppConfig(app, config).then(
-        () => this.preload.loadInstalledApp(this.appId).then(() => ({ skip: false})),
+        () => this.preload.loadInstalledApp(this.appId).then(() => ({ skip: false })),
       )
     })
     .then(({ skip }) => {
