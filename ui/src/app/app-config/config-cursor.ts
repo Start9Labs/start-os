@@ -223,15 +223,16 @@ export class ConfigCursor<T extends ValueType> {
           if (max && length > max) {
             return spec.subtype === 'enum' ? 'Too many options selected.' : 'List is too long.'
           }
-          if (spec.subtype === 'enum') return null
-          for (let idx in cfg) {
+          for (let idx = 0; idx < cfg.length; idx++) {
             let cursor = this.seekNext(idx)
-            if (cursor.checkInvalid()) {
-              return `Item #${Number(idx) + 1} is invalid. ${cursor.checkInvalid()}.`
+            const invalid = cursor.checkInvalid()
+            if (invalid) {
+              return `Item #${idx + 1} is invalid. ${invalid}.`
             }
-            for (let idx2 in cfg) {
-              if (idx !== idx2 && cursor.equals(this.seekNext(idx2))) {
-                return `Item #${Number(idx) + 1} is not unique. ${(cursor.cachedSpec as ValueSpecObject).uniqueBy} must be unique.`
+            if (spec.subtype === 'enum') continue
+            for (let idx2 = idx + 1; idx2 < cfg.length; idx2++) {
+              if (cursor.equals(this.seekNext(idx2))) {
+                return `Item #${idx + 1} is not unique. ${JSON.stringify((cursor.cachedSpec as ValueSpecObject).uniqueBy)} must be unique.`
               }
             }
           }
