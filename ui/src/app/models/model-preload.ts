@@ -50,8 +50,9 @@ export class ModelPreload {
   }
 
   loadInstalledApp (appId: string): Promise<PropertySubject<AppInstalledFull>> {
+    const now = new Date()
     return this.api.getInstalledApp(appId).then(res => {
-      this.appModel.update({ id: appId, ...res, hasFetchedFull: true })
+      this.appModel.update({ id: appId, ...res, hasFetchedFull: true }, now)
       return this.appModel.watch(appId)
     })
   }
