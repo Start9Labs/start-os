@@ -102,6 +102,7 @@ export interface ListValueSpecNumber {
 
 export interface ListValueSpecEnum {
   values: string[]
+  valuesSet?: Set<string>
   valueNames: { [value: string]: string }
 }
 
