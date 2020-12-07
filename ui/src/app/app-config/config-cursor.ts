@@ -223,6 +223,7 @@ export class ConfigCursor<T extends ValueType> {
           if (max && length > max) {
             return spec.subtype === 'enum' ? 'Too many options selected.' : 'List is too long.'
           }
+          if (spec.subtype === 'enum') return null
           for (let idx in cfg) {
             let cursor = this.seekNext(idx)
             if (cursor.checkInvalid()) {
