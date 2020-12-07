@@ -1,5 +1,5 @@
 import {
-  ValueSpec, ConfigSpec, UniqueBy, ValueSpecOf, ValueType, ValueSpecObject
+  ValueSpec, ConfigSpec, UniqueBy, ValueSpecOf, ValueType, ValueSpecObject, ValueSpecUnion
 } from './config-types'
 import * as pointer from 'json-pointer'
 import * as handlebars from 'handlebars'
@@ -207,7 +207,8 @@ export class ConfigCursor<T extends ValueType> {
         }
       case 'enum':
         if (typeof cfg === 'string') {
-          return spec.values.includes(cfg) ? null : `${cfg} is not a valid selection.`
+          spec.valuesSet = spec.valuesSet || new Set(spec.values)
+          return spec.valuesSet.has(cfg) ? null : `${cfg} is not a valid selection.`
         } else {
           throw new TypeError(`${this.ptr}: expected string, got ${Array.isArray(cfg) ? 'array' : typeof cfg}`)
         }
@@ -232,7 +233,13 @@ export class ConfigCursor<T extends ValueType> {
             if (spec.subtype === 'enum') continue
             for (let idx2 = idx + 1; idx2 < cfg.length; idx2++) {
               if (cursor.equals(this.seekNext(idx2))) {
-                return `Item #${idx + 1} is not unique. ${JSON.stringify((cursor.cachedSpec as ValueSpecObject).uniqueBy)} must be unique.`
+                return `Item #${idx + 1} is not unique.` + ('uniqueBy' in cursor.spec()) ? `${
+                  displayUniqueBy(
+                    (cursor.spec() as ValueSpecObject | ValueSpecUnion).uniqueBy,
+                    (cursor.spec() as ValueSpecObject | ValueSpecUnion),
+                    cursor.config()
+                  )
+                } must be unique.` : ''
               }
             }
           }
@@ -444,5 +451,35 @@ function isEqual (uniqueBy: UniqueBy, lhs: ConfigCursor<'object'>, rhs: ConfigCu
       }
     }
     return true
+  }
+}
+
+function displayUniqueBy(uniqueBy: UniqueBy, spec: ValueSpecObject | ValueSpecUnion, value: object): string {
+  if (typeof uniqueBy === 'string') {
+    if (spec.type === 'object') {
+      return spec.spec[uniqueBy].name
+    } else if (spec.type === 'union') {
+      if (uniqueBy === spec.tag.id) {
+        return spec.tag.name
+      } else {
+        return spec.variants[value[spec.tag.id]][uniqueBy].name
+      }
+    }
+  } else if ('any' in uniqueBy) {
+    return uniqueBy.any.map(uq => {
+      if (typeof uq === 'object' && 'all' in uq) {
+        return `(${displayUniqueBy(uq, spec, value)})`
+      } else {
+        return displayUniqueBy(uq, spec, value)
+      }
+    }).join(' and ')
+  } else if ('all' in uniqueBy) {
+    return uniqueBy.all.map(uq => {
+      if (typeof uq === 'object' && 'any' in uq) {
+        return `(${displayUniqueBy(uq, spec, value)})`
+      } else {
+        return displayUniqueBy(uq, spec, value)
+      }
+    }).join(' or ')
   }
 }
