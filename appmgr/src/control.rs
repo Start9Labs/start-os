@@ -207,6 +207,18 @@ pub async fn resume_app(name: &str) -> Result<(), Error> {
 }
 
 pub async fn repair_app_status() -> Result<(), Error> {
+    let lock = crate::util::lock_file(
+        format!(
+            "{}",
+            Path::new(crate::PERSISTENCE_DIR)
+                .join("apps")
+                .join(name)
+                .join("control.lock")
+                .display()
+        ),
+        true,
+    )
+    .await?;
     let running: Vec<String> = if let Some(mut f) = PersistencePath::from_ref("running.yaml")
         .maybe_read(false)
         .await
@@ -217,22 +229,10 @@ pub async fn repair_app_status() -> Result<(), Error> {
         Vec::new()
     };
     for name in running {
-        let lock = crate::util::lock_file(
-            format!(
-                "{}",
-                Path::new(crate::PERSISTENCE_DIR)
-                    .join("apps")
-                    .join(&name)
-                    .join("control.lock")
-                    .display()
-            ),
-            true,
-        )
-        .await?;
         if crate::apps::status(&name, false).await?.status == crate::apps::DockerStatus::Stopped {
             start_app(&name, true).await?;
         }
-        crate::util::unlock(lock).await?;
     }
+    crate::util::unlock(lock).await?;
     Ok(())
 }
