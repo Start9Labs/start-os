@@ -373,7 +373,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
                         .with_code(crate::error::FILESYSTEM_ERROR)?;
                 }
             }
-            src.unpack_in(&dst_path).await?;
+            src.unpack_in(&dst_path).compat().await?;
             if src.header().entry_type().is_dir() {
                 loop {
                     let mut file = entries
@@ -387,7 +387,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
                     {
                         break;
                     } else {
-                        file.unpack_in(&dst_path).await?;
+                        file.unpack_in(&dst_path).compat().await?;
                     }
                 }
             }
