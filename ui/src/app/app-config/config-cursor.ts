@@ -454,7 +454,7 @@ function isEqual (uniqueBy: UniqueBy, lhs: ConfigCursor<'object'>, rhs: ConfigCu
   }
 }
 
-function displayUniqueBy(uniqueBy: UniqueBy, spec: ValueSpecObject | ValueSpecUnion, value: object): string {
+export function displayUniqueBy(uniqueBy: UniqueBy, spec: ValueSpecObject | ValueSpecUnion, value: object): string {
   if (typeof uniqueBy === 'string') {
     if (spec.type === 'object') {
       return spec.spec[uniqueBy].name
