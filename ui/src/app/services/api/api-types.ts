@@ -11,7 +11,10 @@ export interface ApiServer {
   versionInstalled: string
   alternativeRegistryUrl: string | null
   specs: ServerSpecs
-  wifi: { ssids: string[]; current: string; }
+  wifi: {
+    ssids: string[]
+    current: string | null
+  }
   ssh: SSHFingerprint[]
   serverId: string
 }
