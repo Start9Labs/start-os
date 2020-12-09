@@ -60,7 +60,7 @@ export class WifiService {
       let message = 'Note. It may take a few minutes for your Embassy to reconnect over Tor. If it does not reconnect after 5 minutes, please unplug the device and plug it back in. You may also need to hard refresh your browser cache.'
       const alert = await this.alertCtrl.create({
         header: `Connected to "${ssid}"`,
-        message: old ? message : 'You may now unplug your Embassy from Ethernet.<br /></br />' + message,
+        message: old !== null ? message : 'You may now unplug your Embassy from Ethernet.<br /></br />' + message,
         buttons: ['OK'],
       })
       await alert.present()
