@@ -30,6 +30,13 @@
     <ion-item-group>
       <ion-item-divider></ion-item-divider>
 
+      <ion-item lines="none"  button (click)="checkForUpdates()">
+        <ion-icon slot="start" name="refresh-outline" color="primary"></ion-icon>
+        <ion-label><ion-text style="font-weight: bold;" color="primary">Check for Updates</ion-text></ion-label>
+      </ion-item>
+
+      <ion-item-divider></ion-item-divider>
+
       <ion-item [routerLink]="['specs']">
         <ion-icon slot="start" name="information-circle-outline" color="primary"></ion-icon>
         <ion-label><ion-text color="primary">About</ion-text></ion-label>
@@ -45,21 +52,12 @@
         <ion-label><ion-text color="primary">Config</ion-text></ion-label>
       </ion-item>
 
-      <ion-item-divider></ion-item-divider>
-
-      <ion-item lines="none"  button (click)="checkForUpdates()">
-        <ion-icon slot="start" name="refresh-outline" color="primary"></ion-icon>
-        <ion-label><ion-text style="font-weight: bold;" color="primary">Check for Updates</ion-text></ion-label>
-      </ion-item>
-
-      <ion-item-divider></ion-item-divider>
-
       <ion-item [routerLink]="['lan']">
         <ion-icon slot="start" name="home-outline" color="primary"></ion-icon>
         <ion-label><ion-text color="primary">Secure LAN Setup</ion-text></ion-label>
       </ion-item>
 
-      <ion-item [routerLink]="['wifi']">
+      <ion-item *ngIf="(server.wifi | async)?.ssids.length" [routerLink]="['wifi']">
         <ion-icon slot="start" name="wifi" color="primary"></ion-icon>
         <ion-label><ion-text color="primary">WiFi</ion-text></ion-label>
       </ion-item>
