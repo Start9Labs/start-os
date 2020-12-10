@@ -46,21 +46,18 @@
       </ion-item-divider>
 
       <div *ngFor="let v of value; index as i;">
-        <ion-item-sliding>
-          <ion-item button detail="false" (click)="presentModalValueEdit(i)">
-            <ion-icon size="small" slot="start" *ngIf="!annotations.members[i] || (annotations.members[i] | annotationStatus: 'NoChange')" style="margin-right: 15px; color: rgba(0,0,0,0); background: radial-gradient(#2a4e8970, #2a4e8970 35%, transparent 35%, transparent);" name="ellipse"></ion-icon>
-            <ion-icon size="small" slot="start" *ngIf="!annotations.members[i] || (annotations.members[i] | annotationStatus: 'Added')" style="margin-right: 15px; color: rgba(0,0,0,0); background: radial-gradient(#2a4e8970, #2a4e8970 35%, transparent 35%, transparent);" name="ellipse"></ion-icon>
-            <ion-icon size="small" slot="start" *ngIf="annotations.members[i] && (annotations.members[i] | annotationStatus: 'Edited')" style="margin-right: 15px" color="primary" name="ellipse"></ion-icon>
-            <ion-icon size="small" slot="start" *ngIf="annotations.members[i] && (annotations.members[i] | annotationStatus: 'Invalid')" style="margin-right: 15px" color="danger" name="warning-outline"></ion-icon>
+        <ion-item button detail="false" (click)="presentModalValueEdit(i)">
+          <ion-icon size="small" slot="start" *ngIf="!annotations.members[i] || (annotations.members[i] | annotationStatus: 'NoChange')" style="margin-right: 15px; color: rgba(0,0,0,0); background: radial-gradient(#2a4e8970, #2a4e8970 35%, transparent 35%, transparent);" name="ellipse"></ion-icon>
+          <ion-icon size="small" slot="start" *ngIf="!annotations.members[i] || (annotations.members[i] | annotationStatus: 'Added')" style="margin-right: 15px; color: rgba(0,0,0,0); background: radial-gradient(#2a4e8970, #2a4e8970 35%, transparent 35%, transparent);" name="ellipse"></ion-icon>
+          <ion-icon size="small" slot="start" *ngIf="annotations.members[i] && (annotations.members[i] | annotationStatus: 'Edited')" style="margin-right: 15px" color="primary" name="ellipse"></ion-icon>
+          <ion-icon size="small" slot="start" *ngIf="annotations.members[i] && (annotations.members[i] | annotationStatus: 'Invalid')" style="margin-right: 15px" color="danger" name="warning-outline"></ion-icon>
 
-            <ion-label>{{ valueString[i] }}</ion-label>
-          </ion-item>
-          <ion-item-options side="end">
-            <ion-item-option color="danger" (click)="presentAlertDeleteEntry(i)">
-              <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-            </ion-item-option>
-          </ion-item-options>
-        </ion-item-sliding>
+          <ion-label>{{ valueString[i] }}</ion-label>
+
+          <ion-button slot="end" fill="clear" (click)="presentAlertDelete(i, $event)">
+            <ion-icon slot="icon-only" name="close-outline" color="medium"></ion-icon>
+          </ion-button>
+        </ion-item>
       </div>
     </ion-item-group>
   </div>
