@@ -71,14 +71,20 @@ export class WifiListPage {
 
   // Let's add country code here.
   async connect (ssid: string): Promise<void> {
+    this.error = ''
     this.loader.of({
       message: 'Connecting. This could take while...',
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync(async () => {
+      const current = this.server.wifi.getValue().current
       await this.apiService.connectWifi(ssid)
-      await this.wifiService.confirmWifi(ssid)
-      this.error = ''
+      const success = await this.wifiService.confirmWifi(ssid)
+      if (success) {
+        this.wifiService.presentAlertSuccess(ssid, current)
+      } else {
+        this.wifiService.presentToastFail()
+      }
     }).catch(e => {
       console.error(e)
       this.error = e.message
@@ -86,6 +92,7 @@ export class WifiListPage {
   }
 
   async delete (ssid: string): Promise<void> {
+    this.error = ''
     this.loader.of({
       message: 'Deleting...',
       spinner: 'lines',
