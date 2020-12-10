@@ -57,7 +57,7 @@
         <ion-label><ion-text color="primary">Secure LAN Setup</ion-text></ion-label>
       </ion-item>
 
-      <ion-item *ngIf="(server.wifi | async)?.ssids.length" [routerLink]="['wifi']">
+      <ion-item [routerLink]="['wifi']">
         <ion-icon slot="start" name="wifi" color="primary"></ion-icon>
         <ion-label><ion-text color="primary">WiFi</ion-text></ion-label>
       </ion-item>
