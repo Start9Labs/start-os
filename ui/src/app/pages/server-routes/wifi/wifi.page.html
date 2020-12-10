@@ -23,13 +23,15 @@
   <ion-item-group>
     <ion-item>
       <ion-label class="ion-text-wrap">
+        <ion-text color="warning">Warning!</ion-text>
+        <br />
+        <br />
         <p>
-          Add WiFi credentials to your Embassy so it can connect to the Internet without an ethernet cable.
+          <ion-text color="dark">This feature has been temporarily deprecated. If you make changes to WiFi, your Embassy may need to be restarted, and it may become unreachable over Tor for hours. This is an issue with the Tor daemon adjusting to network changes and is on the docket to be fixed.</ion-text>
         </p>
+        <!-- <p>Add WiFi credentials to your Embassy so it can connect to the Internet without an ethernet cable.</p> -->
       </ion-label>
     </ion-item>
-
-    <ion-item-divider class="borderless"></ion-item-divider>
 
     <ion-item-divider>Saved Networks</ion-item-divider>
     <ion-item button detail="false" *ngFor="let ssid of (server.wifi | async)?.ssids" (click)="presentAction(ssid)">
