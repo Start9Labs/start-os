@@ -104,7 +104,9 @@ export class AppConfigListPage extends ModalPresentable {
     return this.presentModal(nextCursor, () => this.updateCaches())
   }
 
-  async presentAlertDeleteEntry (key: number) {
+  async presentAlertDelete (key: number, e: Event) {
+    e.stopPropagation()
+    
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Caution',

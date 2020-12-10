@@ -29,17 +29,14 @@
     </ion-item>
 
     <ion-item-divider>Saved Keys</ion-item-divider>
-    <ion-item-sliding *ngFor="let fingerprint of server.ssh | async">
-      <ion-item-options side="end">
-        <ion-item-option color="danger" (click)="delete(fingerprint)">
-          <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-        </ion-item-option>
-      </ion-item-options>
-      <ion-item>
-        <ion-label class="ion-text-wrap">{{ fingerprint.alg }} {{ fingerprint.hash }} {{ fingerprint.hostname }}
-        </ion-label>
-      </ion-item>
-    </ion-item-sliding>
+    <ion-item *ngFor="let fingerprint of server.ssh | async">
+      <ion-label class="ion-text-wrap">
+        {{ fingerprint.alg }} {{ fingerprint.hash }} {{ fingerprint.hostname }}
+      </ion-label>
+      <ion-button slot="end" fill="clear" (click)="presentAlertDelete(fingerprint)">
+        <ion-icon slot="icon-only" name="close-outline" color="medium"></ion-icon>
+      </ion-button>
+    </ion-item>
   </ion-item-group>
 
   <ion-fab vertical="bottom" horizontal="end" slot="fixed">
