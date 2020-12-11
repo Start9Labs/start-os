@@ -51,8 +51,7 @@ export class WifiAddPage {
       const current = this.serverModel.peek().wifi.current
       await this.apiService.addWifi(this.ssid, this.password, this.countryCode, true)
       const success = await this.wifiService.confirmWifi(this.ssid)
-      if (!success) {
-        this.wifiService.addWifi(this.ssid)
+      if (success) {
         this.navCtrl.back()
         this.wifiService.presentAlertSuccess(this.ssid, current)
       } else {
