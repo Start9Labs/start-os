@@ -78,7 +78,7 @@ export class WifiService {
   }
 
   async presentAlertSuccess (current: string, old?: string): Promise<void> {
-    let message = 'Note. It may take a while for your Embassy to reconnect over Tor, upward of a few hours. Unplugging the device and plugging it back in may help, but it just takes time. You may also need to hard refresh your browser cache.'
+    let message = 'Note. It may take a while for your Embassy to reconnect over Tor, upward of a few hours. Unplugging the device and plugging it back in may help, but it may also just need time. You may also need to hard refresh your browser cache.'
     const alert = await this.alertCtrl.create({
       header: `Connected to "${current}"`,
       message: old ? message : 'You may now unplug your Embassy from Ethernet.<br /></br />' + message,
