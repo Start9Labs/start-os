@@ -55,6 +55,8 @@ import           Handler.Status
 import           Handler.Wifi
 import           Handler.V0
 import           Settings
+import           Network.HTTP.Types.Header ( hOrigin )
+import           Data.List (lookup)
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -65,7 +67,7 @@ instance YesodSubDispatch Auth AgentCtx where
     yesodSubDispatch = $(mkYesodSubDispatch resourcesAuth)
 
 dynamicCorsResourcePolicy :: Request -> Maybe CorsResourcePolicy
-dynamicCorsResourcePolicy req = Just . policy $ requestHeaderHost req
+dynamicCorsResourcePolicy req = Just . policy . lookup hOrigin $ requestHeaders req
     where
         policy o = simpleCorsResourcePolicy
             { corsOrigins        = (\o' -> ([o'], True)) <$> o
