@@ -25,14 +25,6 @@ pub enum Error {
 pub async fn pack(path: &str, output: &str) -> Result<(), failure::Error> {
     let path = Path::new(path.trim_end_matches("/"));
     let output = Path::new(output);
-    ensure!(
-        output
-            .extension()
-            .and_then(|a| a.to_str())
-            .ok_or_else(|| Error::InvalidOutputPath(format!("{}", output.display())))?
-            == "s9pk",
-        "Extension Must Be '.s9pk'"
-    );
     log::info!(
         "Starting pack of {} to {}.",
         path.file_name()
@@ -74,9 +66,6 @@ pub async fn pack(path: &str, output: &str) -> Result<(), failure::Error> {
             .with_context(|e| format!("{}: config_spec.yaml", e))?,
     )
     .await?;
-    config_spec.validate(&manifest)?;
-    let config = config_spec.gen(&mut rand::rngs::StdRng::from_entropy(), &None)?;
-    config_spec.matches(&config)?;
     log::info!("Writing config spec to archive.");
     let bin_config_spec = serde_cbor::to_vec(&config_spec)?;
     let mut config_spec_header = tar::Header::new_gnu();
@@ -94,12 +83,6 @@ pub async fn pack(path: &str, output: &str) -> Result<(), failure::Error> {
             .with_context(|e| format!("{}: config_rules.yaml", e))?,
     )
     .await?;
-    let mut cfgs = LinearMap::new();
-    cfgs.insert(manifest.id.as_str(), Cow::Borrowed(&config));
-    for rule in &config_rules {
-        rule.check(&config, &cfgs)
-            .with_context(|e| format!("Default Config does not satisfy: {}", e))?;
-    }
     log::info!("Writing config rules to archive.");
     let bin_config_rules = serde_cbor::to_vec(&config_rules)?;
     let mut config_rules_header = tar::Header::new_gnu();
