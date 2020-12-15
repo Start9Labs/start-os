@@ -61,7 +61,7 @@ export class AppModel extends MapSubject<AppInstalledFull> {
   }
 
   // when an app is turned on
-  watchForRunning (appId: string): Observable<string | undefined> {
+  watchForTurnedOn (appId: string): Observable<string | undefined> {
     const toWatch = super.watch(appId)
     if (!toWatch) return of(undefined)
 

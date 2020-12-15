@@ -1,5 +1,11 @@
 <ion-header *ngIf="{loading: $loading$ | async} as vars">
   <ion-toolbar>
+    <ion-buttons style="margin: 0px 15px" slot="start">
+      <img class="bulb"  *ngIf="status$ | async | displayBulb: 'green'" src="assets/img/green-bulb.png"/>
+      <img class="bulb"  *ngIf="status$ | async | displayBulb: 'red'" src="assets/img/red-bulb.png"/>
+      <img class="bulb"  *ngIf="status$ | async | displayBulb: 'yellow'" src="assets/img/yellow-bulb.png"/>
+      <img class="bulb" *ngIf="status$ | async | displayBulb: 'off'" src="assets/img/black-bulb.png"/>
+    </ion-buttons>
     <ion-title>{{$app$.title | async}}</ion-title>
     <ion-buttons slot="end">
       <ion-spinner *ngIf="vars.loading" name="dots" color="medium"></ion-spinner>

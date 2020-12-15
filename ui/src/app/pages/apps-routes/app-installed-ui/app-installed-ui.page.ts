@@ -10,7 +10,7 @@ import { NavController, PopoverController } from '@ionic/angular'
 import { ServiceUiMenuComponent } from 'src/app/components/service-ui-menu/service-ui-menu.component'
 import { AppMetrics } from 'src/app/util/metrics.util'
 import { ApiService } from 'src/app/services/api/api.service'
-import { AppModel } from 'src/app/models/app-model'
+import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { Cleanup } from 'src/app/util/cleanup'
 import { UiComms } from 'src/app/services/ui-comms.service'
 
@@ -27,6 +27,7 @@ export class AppInstalledUiPage extends Cleanup {
   $properties$: BehaviorSubject<AppMetrics> = new BehaviorSubject({ })
   $loading$ = new BehaviorSubject(true)
   $iframeLoading$ = new BehaviorSubject(true)
+  status$: Observable<AppStatus>
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -40,6 +41,7 @@ export class AppInstalledUiPage extends Cleanup {
 
   ngOnInit () {
     this.appId = this.route.snapshot.paramMap.get('appId') as string
+    this.status$ = this.appModel.watch(this.appId).status.asObservable()
     this.cleanup(
       markAsLoadingDuring$(this.$loading$,
         this.preload.appFull(this.appId)
@@ -50,7 +52,7 @@ export class AppInstalledUiPage extends Cleanup {
         ),
       ).pipe(
         concatMap(() =>
-          this.appModel.watchForRunning(this.appId).pipe(
+          this.appModel.watchForTurnedOn(this.appId).pipe(
             () => this.getMetrics(),
           ),
         ),
