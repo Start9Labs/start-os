@@ -41,7 +41,6 @@ data AppSettings = AppSettings
     -- ^ Should all log messages be displayed?
     , appMgrVersionSpec         :: VersionRange
     , appFilesystemBase         :: Text
-    , appCorsOverrideStar       :: Maybe Text
     }
     deriving Show
 
@@ -64,7 +63,6 @@ instance FromJSON AppSettings where
 
         appMgrVersionSpec         <- o .: "app-mgr-version-spec"
         appFilesystemBase         <- o .: "filesystem-base"
-        appCorsOverrideStar       <- o .:? "cors-override-star"
         return AppSettings { .. }
 
 -- | Raw bytes at compile time of @config/settings.yml@

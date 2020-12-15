@@ -1,9 +1,10 @@
 use std::path::Path;
 
 use futures::future::{BoxFuture, FutureExt};
-use linear_map::LinearMap;
+use linear_map::{set::LinearSet, LinearMap};
 
 use crate::dependencies::{DependencyError, TaggedDependencyError};
+use crate::util::{from_yaml_async_reader, PersistencePath, YamlUpdateHandle};
 use crate::Error;
 
 pub async fn start_app(name: &str, update_metadata: bool) -> Result<(), Error> {
@@ -19,7 +20,7 @@ pub async fn start_app(name: &str, update_metadata: bool) -> Result<(), Error> {
         true,
     )
     .await?;
-    let status = crate::apps::status(name).await?.status;
+    let status = crate::apps::status(name, false).await?.status;
     if status == crate::apps::DockerStatus::Stopped {
         if update_metadata {
             crate::config::configure(name, None, None, false).await?;
@@ -27,6 +28,10 @@ pub async fn start_app(name: &str, update_metadata: bool) -> Result<(), Error> {
             crate::dependencies::update_binds(name).await?;
         }
         crate::apps::set_needs_restart(name, false).await?;
+        let mut running = YamlUpdateHandle::<LinearSet<String>>::new_or_default(
+            PersistencePath::from_ref("running.yaml"),
+        )
+        .await?;
         let output = tokio::process::Command::new("docker")
             .args(&["start", name])
             .stdout(std::process::Stdio::null())
@@ -38,6 +43,8 @@ pub async fn start_app(name: &str, update_metadata: bool) -> Result<(), Error> {
             "Failed to Start Application: {}",
             std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
         );
+        running.insert(name.to_owned());
+        running.commit().await?;
     } else if status == crate::apps::DockerStatus::Paused {
         resume_app(name).await?;
     }
@@ -67,6 +74,10 @@ pub async fn stop_app(
             true,
         )
         .await?;
+        let mut running = YamlUpdateHandle::<LinearSet<String>>::new_or_default(
+            PersistencePath::from_ref("running.yaml"),
+        )
+        .await?;
         log::info!("Stopping {}", name);
         let output = tokio::process::Command::new("docker")
             .args(&["stop", "-t", "25", name])
@@ -79,6 +90,8 @@ pub async fn stop_app(
             "Failed to Stop Application: {}",
             std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
         );
+        running.remove(name);
+        running.commit().await?;
         crate::util::unlock(lock).await?;
     }
     Ok(res)
@@ -98,7 +111,7 @@ pub async fn stop_dependents(
     ) -> BoxFuture<'a, Result<(), Error>> {
         async move {
             for dependent in crate::apps::dependents(name, false).await? {
-                if crate::apps::status(&dependent).await?.status
+                if crate::apps::status(&dependent, false).await?.status
                     != crate::apps::DockerStatus::Stopped
                 {
                     stop_dependents_rec(&dependent, dry_run, DependencyError::NotRunning, res)
@@ -190,5 +203,36 @@ pub async fn resume_app(name: &str) -> Result<(), Error> {
         std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
     );
     crate::util::unlock(lock).await?;
+    Ok(())
+}
+
+pub async fn repair_app_status() -> Result<(), Error> {
+    let mut running_file = PersistencePath::from_ref("running.yaml")
+        .maybe_read(false)
+        .await
+        .transpose()?;
+    let running: Vec<String> = if let Some(f) = running_file.as_mut() {
+        from_yaml_async_reader::<_, &mut tokio::fs::File>(f).await?
+    } else {
+        Vec::new()
+    };
+    for name in running {
+        let lock = crate::util::lock_file(
+            format!(
+                "{}",
+                Path::new(crate::PERSISTENCE_DIR)
+                    .join("apps")
+                    .join(&name)
+                    .join("control.lock")
+                    .display()
+            ),
+            true,
+        )
+        .await?;
+        if crate::apps::status(&name, false).await?.status == crate::apps::DockerStatus::Stopped {
+            start_app(&name, true).await?;
+        }
+        crate::util::unlock(lock).await?;
+    }
     Ok(())
 }

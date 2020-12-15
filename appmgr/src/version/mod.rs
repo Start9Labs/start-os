@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use async_trait::async_trait;
 use failure::ResultExt as _;
 use futures::stream::TryStreamExt;
+use tokio_compat_02::FutureExt;
 
 use crate::util::{to_yaml_async_writer, AsyncCompat, PersistencePath};
 use crate::Error;
@@ -20,8 +21,10 @@ mod v0_2_2;
 mod v0_2_3;
 mod v0_2_4;
 mod v0_2_5;
+mod v0_2_6;
+mod v0_2_7;
 
-pub use v0_2_5::Version as Current;
+pub use v0_2_7::Version as Current;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -39,6 +42,8 @@ enum Version {
     V0_2_3(Wrapper<v0_2_3::Version>),
     V0_2_4(Wrapper<v0_2_4::Version>),
     V0_2_5(Wrapper<v0_2_5::Version>),
+    V0_2_6(Wrapper<v0_2_6::Version>),
+    V0_2_7(Wrapper<v0_2_7::Version>),
     Other(emver::Version),
 }
 
@@ -146,6 +151,8 @@ pub async fn init() -> Result<(), failure::Error> {
             Version::V0_2_3(v) => v.0.migrate_to(&Current::new()).await?,
             Version::V0_2_4(v) => v.0.migrate_to(&Current::new()).await?,
             Version::V0_2_5(v) => v.0.migrate_to(&Current::new()).await?,
+            Version::V0_2_6(v) => v.0.migrate_to(&Current::new()).await?,
+            Version::V0_2_7(v) => v.0.migrate_to(&Current::new()).await?,
             Version::Other(_) => (),
             // TODO find some way to automate this?
         }
@@ -162,7 +169,7 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         .collect();
     let url = format!("{}/appmgr?spec={}", &*crate::SYS_REGISTRY_URL, req_str);
     log::info!("Fetching new version from {}", url);
-    let response = reqwest::get(&url)
+    let response = reqwest::get(&url).compat()
         .await
         .with_code(crate::error::NETWORK_ERROR)?
         .error_for_status()
@@ -231,6 +238,8 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         Version::V0_2_3(v) => Current::new().migrate_to(&v.0).await?,
         Version::V0_2_4(v) => Current::new().migrate_to(&v.0).await?,
         Version::V0_2_5(v) => Current::new().migrate_to(&v.0).await?,
+        Version::V0_2_6(v) => Current::new().migrate_to(&v.0).await?,
+        Version::V0_2_7(v) => Current::new().migrate_to(&v.0).await?,
         Version::Other(_) => (),
         // TODO find some way to automate this?
     };

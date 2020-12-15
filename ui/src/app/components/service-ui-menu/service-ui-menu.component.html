@@ -13,7 +13,7 @@
     </div>
   </ion-item>
   <div class="menu-divider-line"></div>
-  <ion-item lines="none" button detail="false">
+  <ion-item lines="none" button detail="false" (click)="logs()">
     <div style="font-size: small; width: 100%; display: flex; justify-content: space-between; align-items: center;">
       <ion-label style="max-width: 75%;">
         <div style="color: white;" class="text-ellipses">Logs</div>
@@ -33,7 +33,7 @@
   <div class="menu-divider-line"></div>
   <ion-item lines="none" style="font-size: small;" button detail="false" (click)="quit()">
     <ion-icon name="close-outline"></ion-icon>
-    <ion-label style="margin-left: 5px;" color="danger">
+    <ion-label style="margin-left: 5px; margin-top: 8px;" color="danger">
       Quit
     </ion-label>
   </ion-item>

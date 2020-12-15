@@ -1,5 +1,5 @@
 import {
-  ValueSpec, ConfigSpec, UniqueBy, ValueSpecOf, ValueType
+  ValueSpec, ConfigSpec, UniqueBy, ValueSpecOf, ValueType, ValueSpecObject, ValueSpecUnion
 } from './config-types'
 import * as pointer from 'json-pointer'
 import * as handlebars from 'handlebars'
@@ -207,7 +207,8 @@ export class ConfigCursor<T extends ValueType> {
         }
       case 'enum':
         if (typeof cfg === 'string') {
-          return spec.values.includes(cfg) ? null : `${cfg} is not a valid selection.`
+          spec.valuesSet = spec.valuesSet || new Set(spec.values)
+          return spec.valuesSet.has(cfg) ? null : `${cfg} is not a valid selection.`
         } else {
           throw new TypeError(`${this.ptr}: expected string, got ${Array.isArray(cfg) ? 'array' : typeof cfg}`)
         }
@@ -223,14 +224,22 @@ export class ConfigCursor<T extends ValueType> {
           if (max && length > max) {
             return spec.subtype === 'enum' ? 'Too many options selected.' : 'List is too long.'
           }
-          for (let idx in cfg) {
+          for (let idx = 0; idx < cfg.length; idx++) {
             let cursor = this.seekNext(idx)
-            if (cursor.checkInvalid()) {
-              return `Item #${idx + 1} is invalid. ${cursor.checkInvalid()}`
+            const invalid = cursor.checkInvalid()
+            if (invalid) {
+              return `Item #${idx + 1} is invalid. ${invalid}.`
             }
-            for (let idx2 in cfg) {
-              if (idx !== idx2 && cursor.equals(this.seekNext(idx2))) {
-                return `Item #${idx + 1} is not unique.`
+            if (spec.subtype === 'enum') continue
+            for (let idx2 = idx + 1; idx2 < cfg.length; idx2++) {
+              if (cursor.equals(this.seekNext(idx2))) {
+                return `Item #${idx + 1} is not unique.` + ('uniqueBy' in cursor.spec()) ? `${
+                  displayUniqueBy(
+                    (cursor.spec() as ValueSpecObject | ValueSpecUnion).uniqueBy,
+                    (cursor.spec() as ValueSpecObject | ValueSpecUnion),
+                    cursor.config()
+                  )
+                } must be unique.` : ''
               }
             }
           }
@@ -442,5 +451,35 @@ function isEqual (uniqueBy: UniqueBy, lhs: ConfigCursor<'object'>, rhs: ConfigCu
       }
     }
     return true
+  }
+}
+
+export function displayUniqueBy(uniqueBy: UniqueBy, spec: ValueSpecObject | ValueSpecUnion, value: object): string {
+  if (typeof uniqueBy === 'string') {
+    if (spec.type === 'object') {
+      return spec.spec[uniqueBy].name
+    } else if (spec.type === 'union') {
+      if (uniqueBy === spec.tag.id) {
+        return spec.tag.name
+      } else {
+        return spec.variants[value[spec.tag.id]][uniqueBy].name
+      }
+    }
+  } else if ('any' in uniqueBy) {
+    return uniqueBy.any.map(uq => {
+      if (typeof uq === 'object' && 'all' in uq) {
+        return `(${displayUniqueBy(uq, spec, value)})`
+      } else {
+        return displayUniqueBy(uq, spec, value)
+      }
+    }).join(' and ')
+  } else if ('all' in uniqueBy) {
+    return uniqueBy.all.map(uq => {
+      if (typeof uq === 'object' && 'any' in uq) {
+        return `(${displayUniqueBy(uq, spec, value)})`
+      } else {
+        return displayUniqueBy(uq, spec, value)
+      }
+    }).join(' or ')
   }
 }

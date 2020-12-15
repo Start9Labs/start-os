@@ -115,7 +115,9 @@ impl DepInfo {
         if !errors.is_empty() {
             return Ok(Err(DependencyError::ConfigUnsatisfied(errors)));
         }
-        if crate::apps::status(dependency_id).await?.status != crate::apps::DockerStatus::Running {
+        if crate::apps::status(dependency_id, false).await?.status
+            != crate::apps::DockerStatus::Running
+        {
             return Ok(Err(DependencyError::NotRunning));
         }
         Ok(Ok(()))

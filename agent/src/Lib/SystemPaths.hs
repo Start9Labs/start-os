@@ -76,18 +76,15 @@ getAbsoluteLocationFor path = do
 readSystemPath :: (HasFilesystemBase sig m, MonadIO m) => SystemPath -> m (Maybe Text)
 readSystemPath path = do
     loadPath <- getAbsoluteLocationFor path
-    contents <-
-        liftIO
+    liftIO
         $       (Just <$> readFile (toS loadPath))
         `catch` (\(e :: IOException) -> if isDoesNotExistError e then pure Nothing else throwIO e)
-    pure contents
 
 -- like the above, but throws IO error if file not found
 readSystemPath' :: (HasFilesystemBase sig m, MonadIO m) => SystemPath -> m Text
 readSystemPath' path = do
     loadPath <- getAbsoluteLocationFor path
-    contents <- liftIO . readFile . toS $ loadPath
-    pure contents
+    liftIO . readFile . toS $ loadPath
 
 writeSystemPath :: (HasFilesystemBase sig m, MonadIO m) => SystemPath -> Text -> m ()
 writeSystemPath path contents = do

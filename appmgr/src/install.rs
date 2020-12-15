@@ -14,8 +14,9 @@ use std::time::Duration;
 use failure::ResultExt as _;
 use futures::stream::StreamExt;
 use futures::stream::TryStreamExt;
-use tokio::io::AsyncRead;
 use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncRead, ReadBuf};
+use tokio_compat_02::FutureExt;
 use tokio_tar as tar;
 
 use crate::config::{ConfigRuleEntry, ConfigSpec};
@@ -62,13 +63,13 @@ where
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<std::io::Result<usize>> {
+        buf: &mut ReadBuf,
+    ) -> Poll<std::io::Result<()>> {
         let atomic = self.as_ref().1.clone(); // TODO: not efficient
         match unsafe { self.map_unchecked_mut(|a| &mut a.0) }.poll_read(cx, buf) {
-            Poll::Ready(Ok(res)) => {
-                atomic.fetch_add(res as u64, atomic::Ordering::SeqCst);
-                Poll::Ready(Ok(res))
+            Poll::Ready(Ok(())) => {
+                atomic.fetch_add(buf.filled().len() as u64, atomic::Ordering::SeqCst);
+                Poll::Ready(Ok(()))
             }
             a => a,
         }
@@ -98,6 +99,7 @@ pub async fn download(url: &str, name: Option<&str>) -> Result<PathBuf, crate::E
     let url = reqwest::Url::parse(url).no_code()?;
     log::info!("Downloading {}.", url.as_str());
     let response = reqwest::get(url)
+        .compat()
         .await
         .with_code(crate::error::NETWORK_ERROR)?
         .error_for_status()
@@ -141,7 +143,7 @@ pub async fn download(url: &str, name: Option<&str>) -> Result<PathBuf, crate::E
             if is_done {
                 break;
             }
-            tokio::time::delay_for(Duration::from_millis(10)).await;
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
         if !*crate::QUIET.read().await {
             println!("\rDownloading... 100%");
@@ -191,7 +193,7 @@ pub async fn install_path<P: AsRef<Path>>(p: P, name: Option<&str>) -> Result<()
             if is_done {
                 break;
             }
-            tokio::time::delay_for(Duration::from_millis(10)).await;
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
         if !*crate::QUIET.read().await {
             println!("\rInstalling... 100%");
@@ -407,11 +409,13 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
                     .arg("stop")
                     .arg(&manifest.id)
                     .spawn()?
+                    .wait()
                     .await?;
                 tokio::process::Command::new("docker")
                     .arg("rm")
                     .arg(&manifest.id)
                     .spawn()?
+                    .wait()
                     .await?;
                 crate::ensure_code!(
                     tokio::process::Command::new("docker")
@@ -457,7 +461,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
             child_in.shutdown().await?;
             drop(child_in);
             crate::ensure_code!(
-                child.await?.success(),
+                child.wait().await?.success(),
                 crate::error::DOCKER_ERROR,
                 "Failed to Load Docker Image From Tar"
             );
@@ -554,7 +558,8 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
         if dep_info.mount_shared
             && crate::apps::list_info().await?.get(&dep_id).is_some()
             && crate::apps::manifest(&dep_id).await?.shared.is_some()
-            && crate::apps::status(&dep_id).await?.status != crate::apps::DockerStatus::Stopped
+            && crate::apps::status(&dep_id, false).await?.status
+                != crate::apps::DockerStatus::Stopped
         {
             crate::apps::set_needs_restart(&dep_id, true).await?;
         }

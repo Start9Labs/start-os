@@ -1,4 +1,5 @@
 APPMGR_SRC := $(shell find appmgr/src) appmgr/Cargo.toml appmgr/Cargo.lock
+AGENT_SRC := $(shell find agent/src) $(shell find agent/config) agent/stack.yaml agent/package.yaml agent/build.sh
 
 .DELETE_ON_ERROR:
 
@@ -18,5 +19,12 @@ product_key:
 	cat /dev/random | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key
 
 appmgr/target/armv7-unknown-linux-musleabihf/release/appmgr: $(APPMGR_SRC)
-	docker run --rm -it -v ~/.cargo/registry:/root/.cargo/registry -v "$(shell pwd)"/appmgr:/home/rust/src start9/rust-arm-cross:latest cargo build --release --features=production
-	docker run --rm -it -v ~/.cargo/registry:/root/.cargo/registry -v "$(shell pwd)"/appmgr:/home/rust/src start9/rust-arm-cross:latest arm-linux-gnueabi-strip target/armv7-unknown-linux-gnueabihf/release/appmgr
+	docker run --rm -it -v ~/.cargo/registry:/root/.cargo/registry -v "$(shell pwd)":/home/rust/src start9/rust-arm-cross:latest sh -c "(cd appmgr && cargo build --release --features=production)"
+	docker run --rm -it -v ~/.cargo/registry:/root/.cargo/registry -v "$(shell pwd)":/home/rust/src start9/rust-arm-cross:latest arm-linux-gnueabi-strip appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr
+
+appmgr: appmgr/target/armv7-unknown-linux-musleabihf/release/appmgr
+
+agent/dist/agent: $(AGENT_SRC)
+	(cd agent; ./build.sh)
+
+agent: agent/dist/agent

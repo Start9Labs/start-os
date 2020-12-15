@@ -1,10 +1,14 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 module Handler.Register where
 
 import           Startlude               hiding ( ask )
 
-import           Control.Carrier.Error.Either   ( runError )
+import           Control.Carrier.Error.Either   ( runError
+                                                , Error
+                                                , throwError
+                                                )
 import           Control.Carrier.Lift
 import           Control.Effect.Throw           ( liftEither )
 import           Crypto.Cipher.Types
@@ -28,6 +32,7 @@ import           Lib.Password
 import           Lib.ProductKey
 import           Lib.Ssl
 import           Lib.SystemPaths
+import           Lib.Tor
 import           Model
 import           Settings
 
@@ -45,8 +50,11 @@ postRegisterR = handleS9ErrT $ do
 
     -- Check for existing registration.
     checkExistingPasswordRegistration rootAccountName >>= \case
-        Nothing -> pure ()
-        Just _  -> sendResponseStatus (Status 209 "Preexisting") ()
+        Nothing        -> pure ()
+        Just claimedAt -> do
+            res <- mapExceptT (liftIO . runM . injectFilesystemBaseFromContext settings)
+                $ getRegistration productKey claimedAt
+            sendResponseStatus (Status 209 "Preexisting") res
 
     -- install new tor hidden service key and restart tor
     registerResTorAddress <- runM (injectFilesystemBaseFromContext settings $ bootupTor torKeyFileContents) >>= \case
@@ -55,7 +63,7 @@ postRegisterR = handleS9ErrT $ do
 
     -- install new ssl CA cert + nginx conf and restart nginx
     registerResCert <-
-        runM . handleS9ErrC . (>>= liftEither) . liftIO . runM . injectFilesystemBaseFromContext settings $ do
+        runM . handleS9ErrC . liftEither <=< liftIO . runM . injectFilesystemBaseFromContext settings $ do
             bootupHttpNginx
             runError @S9Error $ bootupSslNginx rsaKeyFileContents
 
@@ -138,3 +146,21 @@ produceProofOfKey key message = do
     salt <- random16
     let hmac = computeHmac key message salt
     pure $ HmacSig hmac message salt
+
+getRegistration :: (MonadIO m, HasFilesystemBase sig m, Has (Error S9Error) sig m) => Text -> UTCTime -> m RegisterRes
+getRegistration productKey registerResClaimedAt = do
+    torAddress <- getAgentHiddenServiceUrlMaybe >>= \case
+        Nothing -> throwError $ NotFoundE "prior registration" "torAddress"
+        Just t  -> pure $ t
+    caCert <- readSystemPath rootCaCertPath >>= \case
+        Nothing -> throwError $ NotFoundE "prior registration" "cert"
+        Just t  -> pure t
+
+    -- create an hmac of the torAddress + caCert for front end
+    registerResTorAddressSig <- produceProofOfKey productKey torAddress
+    registerResCertSig       <- produceProofOfKey productKey caCert
+
+    let registerResCertName = root_CA_CERT_NAME
+    registerResLanAddress <- getStart9AgentHostnameLocal
+
+    pure RegisterRes { .. }

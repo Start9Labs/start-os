@@ -1,7 +1,8 @@
 import { Component, Input, OnInit } from '@angular/core'
-import { ToastController } from '@ionic/angular'
+import { ToastController, PopoverController, ModalController } from '@ionic/angular'
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
+import { AppLogsPage } from 'src/app/pages/apps-routes/app-logs/app-logs.page'
 import { Cleanup } from 'src/app/util/cleanup'
 import { AppMetrics, AppMetricString, flattenMetrics } from 'src/app/util/metrics.util'
 import { traceWheel } from 'src/app/util/misc.util'
@@ -23,14 +24,16 @@ export class ServiceUiMenuComponent implements OnInit {
 
   toast: HTMLIonToastElement
 
-  constructor (private readonly toastCtrl: ToastController) { }
+  constructor (
+    private readonly toastCtrl: ToastController,
+    private readonly popover: PopoverController,
+    private readonly modalCtrl: ModalController) { }
 
   ngOnInit () {
     this.menuItems$ = this.properties$.pipe(
       map(
         ps => Object.entries(flattenMetrics(ps))
           .filter(([k, v]) => v.copyable)
-          // .map(getSelections)
           .sort(([k1, v], [k2, v2]) => k1 < k2 ? 1 : -1),
       ),
       traceWheel('props'),
@@ -39,6 +42,17 @@ export class ServiceUiMenuComponent implements OnInit {
 
   ionViewWillLeave () {
     this.clearToast()
+  }
+
+  async logs() {
+    const m = await this.modalCtrl.create({
+      component: AppLogsPage,
+      componentProps: {
+        isModal: true
+      }
+     })
+    await m.present()
+    return this.popover.dismiss()
   }
 
   async copy (item: [string, AppMetricString]) {
@@ -54,6 +68,8 @@ export class ServiceUiMenuComponent implements OnInit {
     })
     await this.toast.present()
   }
+
+
 
   // async autoFill (item: [string, AppMetricString], ev: Event) {
   //   ev.stopPropagation()

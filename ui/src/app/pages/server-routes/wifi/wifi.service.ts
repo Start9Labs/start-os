@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { ToastController } from '@ionic/angular'
+import { AlertController, ToastController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { pauseFor } from 'src/app/util/misc.util'
 import { ServerModel } from 'src/app/models/server-model'
@@ -12,6 +12,7 @@ export class WifiService {
   constructor (
     private readonly apiService: ApiService,
     private readonly toastCtrl: ToastController,
+    private readonly alertCtrl: AlertController,
     private readonly serverModel: ServerModel,
   ) { }
 
@@ -41,7 +42,7 @@ export class WifiService {
         } else {
           attempts++
           const diff = end - start
-          await pauseFor(Math.max(0, timeout - diff))
+          await pauseFor(Math.max(2000, timeout - diff))
           if (attempts === maxAttempts) {
             this.serverModel.update({ wifi: { current, ssids } })
           }
@@ -52,29 +53,38 @@ export class WifiService {
       }
     }
 
-    if (this.serverModel.peek().wifi.current === ssid) {
-      return true
-    } else {
-      const toast = await this.toastCtrl.create({
-        header: 'Failed to connect:',
-        message: `Check credentials and try again`,
-        position: 'bottom',
-        duration: 4000,
-        buttons: [
-          {
-            side: 'start',
-            icon: 'close',
-            handler: () => {
-              return true
-            },
+    return this.serverModel.peek().wifi.current === ssid
+  }
+
+  async presentToastFail (): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      header: 'Failed to connect:',
+      message: `Check credentials and try again`,
+      position: 'bottom',
+      duration: 4000,
+      buttons: [
+        {
+          side: 'start',
+          icon: 'close',
+          handler: () => {
+            return true
           },
-        ],
-        cssClass: 'notification-toast',
-      })
+        },
+      ],
+      cssClass: 'notification-toast',
+    })
 
-      setTimeout(() => toast.present(), 300)
+    await toast.present()
+  }
 
-      return false
-    }
+  async presentAlertSuccess (current: string, old?: string): Promise<void> {
+    let message = 'Note. It may take a while for your Embassy to reconnect over Tor, upward of a few hours. Unplugging the device and plugging it back in may help, but it may also just need time. You may also need to hard refresh your browser cache.'
+    const alert = await this.alertCtrl.create({
+      header: `Connected to "${current}"`,
+      message: old ? message : 'You may now unplug your Embassy from Ethernet.<br /></br />' + message,
+      buttons: ['OK'],
+    })
+
+    await alert.present()
   }
 }

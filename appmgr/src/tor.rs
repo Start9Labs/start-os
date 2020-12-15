@@ -198,7 +198,7 @@ pub async fn read_tor_address(name: &str, timeout: Option<Duration>) -> Result<S
                 }
             }
         } {
-            tokio::time::delay_for(Duration::from_millis(100)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
     }
     let tor_addr = match tokio::fs::read_to_string(&addr_path).await {
@@ -238,7 +238,7 @@ pub async fn read_tor_key(
                 }
             }
         } {
-            tokio::time::delay_for(Duration::from_millis(100)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
     }
     let tor_key = match version {

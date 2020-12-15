@@ -23,7 +23,7 @@
   <ng-container *ngIf="!($loading$ | async)">
     <ion-item *ngIf="error" class="notifier-item">
       <ion-label style="margin: 7px 5px;" class="ion-text-wrap">
-        <p style="color: var(--ion-color-danger)">{{error.text}}.</p>
+        <p style="color: var(--ion-color-danger)">{{error.text}}</p>
         <p><a style="color: var(--ion-color-danger); text-decoration: underline; font-weight: bold;" *ngIf="error.moreInfo && !openErrorMoreInfo" (click)="openErrorMoreInfo = true">{{error.moreInfo.buttonText}}</a></p>
 
         <!-- presentPopover(error.moreInfo.title, error.moreInfo.description, $event) -->
@@ -94,21 +94,22 @@
         </ion-label>
       </ion-item>
 
+      <!-- save button, always show -->
+      <ion-button
+        [disabled]="invalid || (!edited && !added && !(['NEEDS_CONFIG'] | includes: (app.status | async)))"
+        fill="outline"
+        expand="block"
+        style="margin: 10px"
+        color="primary"
+        (click)="save()"
+      >
+        <ion-text color="primary" style="font-weight: bold">
+          Save
+        </ion-text>
+      </ion-button>
+
       <!-- has config -->
       <ng-container *ngIf="hasConfig">
-        <ion-button
-          [disabled]="invalid || (!edited && !added && !(['NEEDS_CONFIG'] | includes: (app.status | async)))"
-          fill="outline"
-          expand="block"
-          style="margin: 10px"
-          color="primary"
-          (click)="save()"
-        >
-          <ion-text color="primary" style="font-weight: bold">
-            Save
-          </ion-text>
-        </ion-button>
-
         <ion-item-group class="ion-text-wrap ion-padding-bottom">
           <ion-item-divider>Config Options</ion-item-divider>
           <object-config [cursor]="rootCursor" (onEdit)="handleObjectEdit()"></object-config>

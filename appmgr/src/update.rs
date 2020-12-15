@@ -19,7 +19,9 @@ pub async fn update(
     let version = crate::registry::version(name, &version_req).await?;
     let mut res = LinearMap::new();
     for dependent in crate::apps::dependents(name, false).await? {
-        if crate::apps::status(&dependent).await?.status != crate::apps::DockerStatus::Stopped {
+        if crate::apps::status(&dependent, false).await?.status
+            != crate::apps::DockerStatus::Stopped
+        {
             let manifest = crate::apps::manifest(&dependent).await?;
             match manifest.dependencies.0.get(name) {
                 Some(dep) if !version.satisfies(&dep.version) => {
@@ -30,7 +32,8 @@ pub async fn update(
                         &mut res,
                     )
                     .await?;
-                    if crate::apps::status(name).await?.status != crate::apps::DockerStatus::Stopped
+                    if crate::apps::status(name, false).await?.status
+                        != crate::apps::DockerStatus::Stopped
                     {
                         crate::control::stop_app(&dependent, false, dry_run).await?;
                         res.insert(
@@ -53,7 +56,8 @@ pub async fn update(
                         &mut res,
                     )
                     .await?;
-                    if crate::apps::status(name).await?.status != crate::apps::DockerStatus::Stopped
+                    if crate::apps::status(name, false).await?.status
+                        != crate::apps::DockerStatus::Stopped
                     {
                         crate::control::stop_app(&dependent, false, dry_run).await?;
                         res.insert(

@@ -1,10 +1,11 @@
-import { Component, ViewChild } from '@angular/core'
+import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
-import { IonContent } from '@ionic/angular'
+import { IonContent, ModalController } from '@ionic/angular'
 import { pauseFor } from 'src/app/util/misc.util'
 import { markAsLoadingDuringP } from 'src/app/services/loader.service'
 import { BehaviorSubject } from 'rxjs'
+// import { Input } from 'hammerjs'
 
 @Component({
   selector: 'app-logs',
@@ -12,6 +13,9 @@ import { BehaviorSubject } from 'rxjs'
   styleUrls: ['./app-logs.page.scss'],
 })
 export class AppLogsPage {
+  @Input()
+  isModal = false
+
   @ViewChild(IonContent, { static: false }) private content: IonContent
   $loading$ = new BehaviorSubject(true)
   error = ''
@@ -21,7 +25,12 @@ export class AppLogsPage {
   constructor (
     private readonly route: ActivatedRoute,
     private readonly apiService: ApiService,
+    private readonly modalController: ModalController,
   ) { }
+
+  async dismissModal () {
+    return this.isModal && this.modalController.dismiss()
+  }
 
   async ngOnInit () {
     this.appId = this.route.snapshot.paramMap.get('appId') as string

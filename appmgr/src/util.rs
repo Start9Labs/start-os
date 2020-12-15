@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use failure::ResultExt as _;
 use file_lock::FileLock;
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 use crate::Error;
 use crate::ResultExt as _;
@@ -244,8 +244,8 @@ impl tokio::io::AsyncRead for UpdateHandle<ForRead> {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        buf: &mut [u8],
-    ) -> std::task::Poll<std::io::Result<usize>> {
+        buf: &mut ReadBuf,
+    ) -> std::task::Poll<std::io::Result<()>> {
         unsafe { self.map_unchecked_mut(|a| a.file.file.as_mut().unwrap()) }.poll_read(cx, buf)
     }
 }
@@ -371,7 +371,13 @@ where
         cx: &mut std::task::Context<'_>,
         buf: &mut [u8],
     ) -> std::task::Poll<std::io::Result<usize>> {
-        tokio::io::AsyncRead::poll_read(unsafe { self.map_unchecked_mut(|a| &mut a.0) }, cx, buf)
+        let mut read_buf = ReadBuf::new(buf);
+        tokio::io::AsyncRead::poll_read(
+            unsafe { self.map_unchecked_mut(|a| &mut a.0) },
+            cx,
+            &mut read_buf,
+        )
+        .map(|res| res.map(|_| read_buf.filled().len()))
     }
 }
 impl<T> tokio::io::AsyncRead for AsyncCompat<T>
@@ -381,9 +387,14 @@ where
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        buf: &mut [u8],
-    ) -> std::task::Poll<std::io::Result<usize>> {
-        futures::io::AsyncRead::poll_read(unsafe { self.map_unchecked_mut(|a| &mut a.0) }, cx, buf)
+        buf: &mut ReadBuf,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        futures::io::AsyncRead::poll_read(
+            unsafe { self.map_unchecked_mut(|a| &mut a.0) },
+            cx,
+            buf.initialize_unfilled(),
+        )
+        .map(|res| res.map(|len| buf.set_filled(len)))
     }
 }
 impl<T> futures::io::AsyncWrite for AsyncCompat<T>
