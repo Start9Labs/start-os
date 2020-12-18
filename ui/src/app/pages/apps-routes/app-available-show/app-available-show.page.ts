@@ -25,9 +25,14 @@ import { displayEmver } from 'src/app/pipes/emver.pipe'
 })
 export class AppAvailableShowPage extends Cleanup {
   $loading$ = new BehaviorSubject(true)
-  $versionSpecificLoading$ = new BehaviorSubject(false)
+
+  // When a new version is selected
+  $newVersionLoading$ = new BehaviorSubject(false)
+  // When dependencies are refreshing
+  $dependenciesLoading$ = new BehaviorSubject(false)
+
   $error$ = new BehaviorSubject(undefined)
-  app$: PropertySubject<AppAvailableFull> = { } as any
+  $app$: PropertySubject<AppAvailableFull> = { } as any
   appId: string
 
   openRecommendation = false
@@ -58,26 +63,18 @@ export class AppAvailableShowPage extends Cleanup {
     this.cleanup(
       markAsLoadingDuring$(this.$loading$,
         from(this.apiService.getAvailableApp(this.appId)).pipe(
-          tap(app => this.app$ = initPropertySubject(app)),
+          tap(app => this.$app$ = initPropertySubject(app)),
           concatMap(() => this.fetchRecommendation()),
         ),
       ).pipe(
         concatMap(() => this.syncWhenDependencyInstalls()), //must be final in stack
         catchError(e => of(this.setError(e))),
       ).subscribe(),
-      merge(this.$loading$, this.$versionSpecificLoading$).pipe(concatMap(l => {
-        if (l) {
-          this.showMoreReleaseNotes = false
-        }
-        return pauseFor(125)
-      })).subscribe(
-        () => this.setMoreReleaseNotes(),
-      ),
     )
   }
 
   ionViewDidEnter () {
-    markAsLoadingDuring$(this.$versionSpecificLoading$, this.fetchAppVersionInfo()).subscribe({
+    markAsLoadingDuring$(this.$dependenciesLoading$, this.syncVersionSpecificInfo()).subscribe({
       error: e => this.setError(e),
     })
   }
@@ -96,25 +93,25 @@ export class AppAvailableShowPage extends Cleanup {
     return await popover.present()
   }
 
-  fetchAppVersionInfo (versionSpec?: string): Observable<any> {
-    if (!this.app$.versionViewing) return of({ })
-    const specToFetch = versionSpec || `=${this.app$.versionViewing.getValue()}`
+  syncVersionSpecificInfo (versionSpec?: string): Observable<any> {
+    if (!this.$app$.versionViewing) return of({ })
+    const specToFetch = versionSpec || `=${this.$app$.versionViewing.getValue()}`
     return from(this.apiService.getAvailableAppVersionSpecificInfo(this.appId, specToFetch)).pipe(
-      tap(versionInfo => this.syncVersionSpecificInfo(versionInfo)),
+      tap(versionInfo => this.mergeInfo(versionInfo)),
     )
   }
 
-  private syncVersionSpecificInfo (versionSpecificInfo: AppAvailableVersionSpecificInfo) {
+  private mergeInfo (versionSpecificInfo: AppAvailableVersionSpecificInfo) {
     this.zone.run(() => {
       Object.entries(versionSpecificInfo).forEach( ([k, v]) => {
-        if (!this.app$[k]) this.app$[k] = new BehaviorSubject(undefined)
-        if (v !== this.app$[k].getValue()) this.app$[k].next(v)
+        if (!this.$app$[k]) this.$app$[k] = new BehaviorSubject(undefined)
+        if (v !== this.$app$[k].getValue()) this.$app$[k].next(v)
       })
     })
   }
 
   async presentAlertVersions () {
-    const app = peekProperties(this.app$)
+    const app = peekProperties(this.$app$)
     const alert = await this.alertCtrl.create({
       header: 'Versions',
       backdropDismiss: false,
@@ -133,13 +130,15 @@ export class AppAvailableShowPage extends Cleanup {
         }, {
           text: 'Ok',
           handler: (version: string) => {
-            const previousVersion = this.app$.versionViewing.getValue()
-            this.app$.versionViewing.next(version)
-            markAsLoadingDuring$(this.$versionSpecificLoading$, this.fetchAppVersionInfo(`=${version}`))
+            const previousVersion = this.$app$.versionViewing.getValue()
+            this.$app$.versionViewing.next(version)
+            markAsLoadingDuring$(
+              this.$newVersionLoading$, this.syncVersionSpecificInfo(`=${version}`)
+            )
             .subscribe({
               error: e => {
                 this.setError(e)
-                this.app$.versionViewing.next(previousVersion)
+                this.$app$.versionViewing.next(previousVersion)
               },
             })
           },
@@ -151,7 +150,7 @@ export class AppAvailableShowPage extends Cleanup {
   }
 
   async install () {
-    const app = peekProperties(this.app$)
+    const app = peekProperties(this.$app$)
     const { cancelled } = await wizardModal(
       this.modalCtrl,
       this.wizardBaker.install({
@@ -166,7 +165,7 @@ export class AppAvailableShowPage extends Cleanup {
   }
 
   async update (action: 'update' | 'downgrade') {
-    const app = peekProperties(this.app$)
+    const app = peekProperties(this.$app$)
 
     const value = {
       id: app.id,
@@ -190,7 +189,7 @@ export class AppAvailableShowPage extends Cleanup {
   }
 
   async presentModalReleaseNotes () {
-    const { releaseNotes, versionViewing } = peekProperties(this.app$)
+    const { releaseNotes, versionViewing } = peekProperties(this.$app$)
 
     const modal = await this.modalCtrl.create({
       component: AppReleaseNotesPage,
@@ -207,17 +206,17 @@ export class AppAvailableShowPage extends Cleanup {
     this.recommendation = history.state && history.state.installationRecommendation
 
     if (this.recommendation) {
-      return from(this.fetchAppVersionInfo(this.recommendation.versionSpec))
+      return from(this.syncVersionSpecificInfo(this.recommendation.versionSpec))
     } else {
       return of({ })
     }
   }
 
   private syncWhenDependencyInstalls (): Observable<void> {
-    return this.app$.serviceRequirements.pipe(
+    return this.$app$.serviceRequirements.pipe(
       filter(deps => !!deps),
       switchMap(deps => this.appModel.watchForInstallations(deps)),
-      concatMap(() => markAsLoadingDuring$(this.$versionSpecificLoading$, this.fetchAppVersionInfo())),
+      concatMap(() => markAsLoadingDuring$(this.$dependenciesLoading$, this.syncVersionSpecificInfo())),
       catchError(e => of(console.error(e))),
     )
   }
@@ -226,24 +225,4 @@ export class AppAvailableShowPage extends Cleanup {
     console.error(e)
     this.$error$.next(e.message)
   }
-
-  private setMoreReleaseNotes () {
-    const releaseNotes = document.getElementById(`release-notes-${this.appId}`)
-    if (releaseNotes) {
-      this.showMoreReleaseNotes = isTextOverflow(releaseNotes)
-    }
-  }
-
-  @HostListener('window:resize', ['$event'])
-  onResize () {
-    this.setMoreReleaseNotes()
-  }
-}
-
-function isTextOverflow (elem: any): boolean {
-  if (elem) {
-    return (elem.offsetWidth < elem.scrollWidth)
-  }
-
-  return false
 }
