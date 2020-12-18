@@ -11,22 +11,22 @@
 </ion-header>
 
 <ion-content class="ion-padding-bottom" *ngIf="{
-    id: app$.id | async,
-    status: app$.status | async,
-    title: app$.title | async,
-    versionInstalled: app$.versionInstalled | async,
-    versionViewing: app$.versionViewing | async,
-    descriptionLong: app$.descriptionLong | async,
-    serviceRequirements: app$.serviceRequirements | async,
-    iconURL: app$.iconURL | async,
-    releaseNotes: app$.releaseNotes | async
+    id: $app$.id | async,
+    status: $app$.status | async,
+    title: $app$.title | async,
+    versionInstalled: $app$.versionInstalled | async,
+    versionViewing: $app$.versionViewing | async,
+    descriptionLong: $app$.descriptionLong | async,
+    serviceRequirements: $app$.serviceRequirements | async,
+    iconURL: $app$.iconURL | async,
+    releaseNotes: $app$.releaseNotes | async
   } as vars"
 >
   <ion-spinner *ngIf="($loading$ | async)" class="center" name="lines" color="warning"></ion-spinner>
 
   <error-message [$error$]="$error$" [dismissable]="vars.id"></error-message>
 
-  <ng-container *ngIf="!($loading$ | async) && vars.id && (app$ | compareInstalledAndViewing | async) as installedStatus">
+  <ng-container *ngIf="!($loading$ | async) && vars.id && ($app$ | compareInstalledAndViewing | async) as installedStatus">
     <ion-item-group>
       <ion-item lines="none">
         <ion-avatar slot="start">
@@ -91,10 +91,10 @@
       </ion-item>
 
       <ion-item-divider>Release Notes</ion-item-divider>
-      <ion-item lines="none" button details="true" [disabled]="" (click)="presentModalReleaseNotes()" [disabled]="$versionSpecificLoading$ | async">
+      <ion-item lines="none" button details="true" [disabled]="" (click)="presentModalReleaseNotes()" [disabled]="$newVersionLoading$ | async">
         <ion-icon slot="start" name="newspaper-outline" color="medium"></ion-icon>
-        <ion-label *ngIf="!($versionSpecificLoading$ | async)"><ion-text color="medium">New in {{ vars.versionViewing | displayEmver }}</ion-text></ion-label>
-        <ion-spinner style="display: block; margin: auto;" name="lines" color="dark" *ngIf="$versionSpecificLoading$ | async"></ion-spinner>
+        <ion-label *ngIf="!($newVersionLoading$ | async)"><ion-text color="medium">New in {{ vars.versionViewing | displayEmver }}</ion-text></ion-label>
+        <ion-spinner style="display: block; margin: auto;" name="lines" color="dark" *ngIf="$newVersionLoading$ | async"></ion-spinner>
       </ion-item>
 
       <ng-container *ngIf="(vars.serviceRequirements)?.length">
@@ -103,7 +103,7 @@
             <ion-icon name="help-circle-outline"></ion-icon>
           </ion-button>
         </ion-item-divider>
-        <dependency-list [$loading$]="$versionSpecificLoading$" [hostApp]="app$ | peekProperties" [dependencies]="vars.serviceRequirements"></dependency-list>
+        <dependency-list [$loading$]="$dependenciesLoading$" [hostApp]="$app$ | peekProperties" [dependencies]="vars.serviceRequirements"></dependency-list>
       </ng-container>
       <ion-item-divider></ion-item-divider>
       <ion-item lines="none" button (click)="presentAlertVersions()">
