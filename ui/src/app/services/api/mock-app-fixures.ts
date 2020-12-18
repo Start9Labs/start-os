@@ -56,7 +56,7 @@ export const bitcoinI: AppInstalledFull = {
 }
 
 export const lightningI: AppInstalledFull = {
-  ui: false,
+  ui: true,
   id: 'c-lightning',
   status: AppStatus.RUNNING,
   title: 'C Lightning',

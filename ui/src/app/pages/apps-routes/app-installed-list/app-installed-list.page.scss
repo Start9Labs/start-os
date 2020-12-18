@@ -34,7 +34,7 @@
   border-radius: var(--icon-border-radius);
 }
 
-.bulb-on {
+.bulb {
   position: absolute !important;
   left: -1px !important;
   top: -1px !important;
@@ -43,9 +43,9 @@
   margin: 9px;
 }
 
-.bulb-off {
+.chevrons {
   position: absolute !important;
-  left: -1px !important;
+  right: -1px !important;
   top: -1px !important;
   height: 16px !important;
   width: 16px !important;

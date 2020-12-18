@@ -1,7 +1,7 @@
 import { Component, ElementRef, ViewChild } from '@angular/core'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { PropertySubject } from 'src/app/util/property-subject.util'
-import { BehaviorSubject, EMPTY, from, Observable, of } from 'rxjs'
+import { BehaviorSubject, combineLatest, EMPTY, from, Observable, of } from 'rxjs'
 import { catchError, concatMap, delay, map, switchMap, tap } from 'rxjs/operators'
 import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { ActivatedRoute } from '@angular/router'
@@ -20,14 +20,16 @@ import { UiComms } from 'src/app/services/ui-comms.service'
   styleUrls: ['./app-installed-ui.page.scss'],
 })
 export class AppInstalledUiPage extends Cleanup {
+  AppStatus = AppStatus
   private appId: string
-  $app$: PropertySubject<AppInstalledFull>
+  $app$: PropertySubject<AppInstalledFull> = {  } as any
   error: string = undefined
 
   $properties$: BehaviorSubject<AppMetrics> = new BehaviorSubject({ })
-  $loading$ = new BehaviorSubject(true)
+  $appLoading$ = new BehaviorSubject(true)
   $iframeLoading$ = new BehaviorSubject(true)
   status$: Observable<AppStatus>
+  isRunning$: Observable<boolean>
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -42,22 +44,23 @@ export class AppInstalledUiPage extends Cleanup {
   ngOnInit () {
     this.appId = this.route.snapshot.paramMap.get('appId') as string
     this.status$ = this.appModel.watch(this.appId).status.asObservable()
-    this.cleanup(
-      markAsLoadingDuring$(this.$loading$,
-        this.preload.appFull(this.appId)
-        .pipe(
-          tap(app => this.$app$ = app),
-          tap(() => this.uiComms.$isViewingUi$.next(true)),
-          concatMap(() => this.getMetrics()),
-        ),
-      ).pipe(
-        concatMap(() =>
+    this.isRunning$ = this.status$.pipe(map(s => s === AppStatus.RUNNING))
+
+    markAsLoadingDuring$(this.$appLoading$,
+      this.preload.appFull(this.appId)
+      .pipe(
+        tap(app => this.$app$ = app),
+        tap(() => this.uiComms.$isViewingUi$.next(true)),
+        concatMap(() => this.getMetrics()),
+      ),
+    ).subscribe(
+      () => {
+        this.cleanup(
           this.appModel.watchForTurnedOn(this.appId).pipe(
             () => this.getMetrics(),
-          ),
-        ),
-      ).subscribe(),
-    )
+          ).subscribe(),
+        )
+      })
   }
 
   pop: HTMLIonPopoverElement
@@ -84,6 +87,10 @@ export class AppInstalledUiPage extends Cleanup {
 
   quit () {
     this.navCtrl.navigateRoot('/services/installed')
+  }
+
+  toServiceShow() {
+    this.navCtrl.navigateRoot('/services/installed/' + this.appId)
   }
 
   iframe: HTMLIFrameElement | null
