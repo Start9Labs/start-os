@@ -194,6 +194,13 @@ ion-popover {
   }
 }
 
+.ui-modal .modal-wrapper {
+  height: 100% !important;
+  top: 0% !important;
+  width: 100% !important;
+  left: 0% !important;
+}
+
 ion-slides {
   .slider-wrapper {
     height: 100%;
@@ -289,3 +296,4 @@ ion-item-divider {
   height: 100%;
   width: 100%;
 }
+

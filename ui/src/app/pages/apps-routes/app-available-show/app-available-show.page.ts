@@ -11,19 +11,20 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { AppModel } from 'src/app/models/app-model'
 import { initPropertySubject, peekProperties, PropertySubject } from 'src/app/util/property-subject.util'
-import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { pauseFor } from 'src/app/util/misc.util'
 import { AppReleaseNotesPage } from 'src/app/modals/app-release-notes/app-release-notes.page'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
+import { ExtensionBase } from 'src/app/services/extensions/base.extension'
+import { Cleanup } from 'src/app/services/extensions/cleanup.extension'
 
 @Component({
   selector: 'app-available-show',
   templateUrl: './app-available-show.page.html',
   styleUrls: ['./app-available-show.page.scss'],
 })
-export class AppAvailableShowPage extends Cleanup {
+export class AppAvailableShowPage extends Cleanup(ExtensionBase) {
   $loading$ = new BehaviorSubject(true)
   $versionSpecificLoading$ = new BehaviorSubject(false)
   $error$ = new BehaviorSubject(undefined)

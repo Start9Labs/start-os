@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ToastController, ModalController, IonContent, PopoverController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { ActivatedRoute } from '@angular/router'
+import { ActivatedRoute, Router, UrlSegment } from '@angular/router'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledFull } from 'src/app/models/app-types'
@@ -10,21 +10,24 @@ import { chill, pauseFor } from 'src/app/util/misc.util'
 import { PropertySubject, peekProperties } from 'src/app/util/property-subject.util'
 import { AppBackupPage } from 'src/app/modals/app-backup/app-backup.page'
 import { LoaderService, markAsLoadingDuring$, markAsLoadingDuringP } from 'src/app/services/loader.service'
-import { BehaviorSubject, Observable, of } from 'rxjs'
+import { BehaviorSubject, fromEvent, Observable, of } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { catchError, concatMap, filter, switchMap, tap } from 'rxjs/operators'
-import { Cleanup } from 'src/app/util/cleanup'
+import { catchError, concatMap, filter, switchMap, take, tap } from 'rxjs/operators'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
+import { AppInstalledUiPage } from '../app-installed-ui/app-installed-ui.page'
+import { Cleanup } from '../../../services/extensions/cleanup.extension'
+import { ExtensionBase } from '../../../services/extensions/base.extension'
+import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
 
 @Component({
   selector: 'app-installed-show',
   templateUrl: './app-installed-show.page.html',
   styleUrls: ['./app-installed-show.page.scss'],
 })
-export class AppInstalledShowPage extends Cleanup {
+export class AppInstalledShowPage extends Cleanup(ExtensionBase) {
   $loading$ = new BehaviorSubject(true)
   $loadingDependencies$ = new BehaviorSubject(false) // when true, dependencies will render with spinners.
 
@@ -34,6 +37,8 @@ export class AppInstalledShowPage extends Cleanup {
   AppStatus = AppStatus
   showInstructions = false
 
+  backButtonDefense = false
+
   dependencyDefintion = () => `<span style="font-style: italic">Dependencies</span> are other services which must be installed, configured appropriately, and started in order to start ${this.app.title.getValue()}`
 
   @ViewChild(IonContent) content: IonContent
@@ -41,6 +46,7 @@ export class AppInstalledShowPage extends Cleanup {
   constructor (
     private readonly alertCtrl: AlertController,
     private readonly route: ActivatedRoute,
+    private readonly router: Router,
     private readonly navCtrl: NavController,
     private readonly loader: LoaderService,
     private readonly toastCtrl: ToastController,
@@ -51,12 +57,17 @@ export class AppInstalledShowPage extends Cleanup {
     private readonly appModel: AppModel,
     private readonly popoverController: PopoverController,
     private readonly emver: Emver,
+    private readonly trackingModalCtrl: TrackingModalController
   ) {
     super()
   }
 
   async ngOnInit () {
     this.appId = this.route.snapshot.paramMap.get('appId') as string
+
+    if(this.router.url.endsWith('/ui')) {
+      window.history.back()
+    }
 
     this.cleanup(
       markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId))
@@ -65,6 +76,21 @@ export class AppInstalledShowPage extends Cleanup {
           concatMap(() => this.syncWhenDependencyInstalls()), //must be final in stack
           catchError(e => of(this.setError(e))),
         ).subscribe(),
+      fromEvent(window, 'popstate').subscribe(() => {
+        this.backButtonDefense = false
+        this.trackingModalCtrl.dismissAll()
+      }),
+      this.trackingModalCtrl.onCreateAny$().subscribe(() => {
+        if (!this.backButtonDefense) {
+          window.history.pushState(null, null, window.location.href + '/ui')
+          this.backButtonDefense = true
+        }
+      }),
+      this.trackingModalCtrl.onDismissAny$().subscribe(() => {
+        if (!this.trackingModalCtrl.anyModals && this.backButtonDefense === true) {
+          this.navCtrl.back()
+        }
+      }),
     )
   }
 
@@ -232,6 +258,18 @@ export class AppInstalledShowPage extends Cleanup {
       ],
     })
     await alert.present()
+  }
+
+  async viewServiceUI (appId: string) {
+    const m = await this.trackingModalCtrl.create({
+      component: AppInstalledUiPage,
+      componentProps: {
+        appId
+      },
+      cssClass: 'ui-modal'
+     }
+    )
+    await m.present()
   }
 
   async stopBackup (): Promise<void> {

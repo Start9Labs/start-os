@@ -14,17 +14,18 @@ import { catchError, concatMap, map, take, tap } from 'rxjs/operators'
 import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { ConfigSpec } from 'src/app/app-config/config-types'
 import { ConfigCursor } from 'src/app/app-config/config-cursor'
+import { ExtensionBase } from 'src/app/services/extensions/base.extension'
+import { Cleanup } from 'src/app/services/extensions/cleanup.extension'
 
 @Component({
   selector: 'app-config',
   templateUrl: './app-config.page.html',
   styleUrls: ['./app-config.page.scss'],
 })
-export class AppConfigPage extends Cleanup {
+export class AppConfigPage extends Cleanup(ExtensionBase) {
   error: { text: string, moreInfo?:
     { title: string, description: string, buttonText: string }
   }

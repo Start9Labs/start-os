@@ -8,15 +8,17 @@ import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { BehaviorSubject, Observable, Subscription } from 'rxjs'
 import { S9Server, ServerModel, ServerStatus } from 'src/app/models/server-model'
 import { SyncDaemon } from 'src/app/services/sync.service'
-import { Cleanup } from 'src/app/util/cleanup'
-import { NavController } from '@ionic/angular'
+import { ModalController, NavController } from '@ionic/angular'
+import { AppInstalledUiPage } from '../app-installed-ui/app-installed-ui.page'
+import { ExtensionBase } from 'src/app/services/extensions/base.extension'
+import { Cleanup } from 'src/app/services/extensions/cleanup.extension'
 
 @Component({
   selector: 'app-installed-list',
   templateUrl: './app-installed-list.page.html',
   styleUrls: ['./app-installed-list.page.scss'],
 })
-export class AppInstalledListPage extends Cleanup {
+export class AppInstalledListPage extends Cleanup(ExtensionBase) {
   swiped = false
   error = ''
   initError = ''
@@ -40,7 +42,7 @@ export class AppInstalledListPage extends Cleanup {
     private readonly appModel: AppModel,
     private readonly preload: ModelPreload,
     private readonly syncDaemon: SyncDaemon,
-    private readonly navCtrl: NavController,
+    private readonly modalCtrl: ModalController,
   ) {
     super()
   }
@@ -126,7 +128,15 @@ export class AppInstalledListPage extends Cleanup {
   }
 
   async viewServiceUI (appId: string) {
-    this.navCtrl.navigateForward(`/services/installed/${appId}/ui`)
+    const m = await this.modalCtrl.create({
+      component: AppInstalledUiPage,
+      componentProps: {
+        appId
+      },
+      cssClass: 'ui-modal'
+     }
+    )
+    await m.present()
   }
 
   async doRefresh (event: any) {

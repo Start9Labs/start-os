@@ -2,20 +2,22 @@ import { Component, Input, OnInit, QueryList, ViewChild, ViewChildren } from '@a
 import { IonContent, IonSlides, ModalController } from '@ionic/angular'
 import { BehaviorSubject, combineLatest, Subscription } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { Cleanup } from 'src/app/util/cleanup'
 import { capitalizeFirstLetter } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
 import { DependenciesComponent } from './dependencies/dependencies.component'
 import { DependentsComponent } from './dependents/dependents.component'
 import { Colorable, Loadable } from './loadable'
 import { WizardAction } from './wizard-types'
+import { Cleanup } from '../../services/extensions/cleanup.extension'
+import { ExtensionBase } from '../../services/extensions/base.extension'
+
 
 @Component({
   selector: 'install-wizard',
   templateUrl: './install-wizard.component.html',
   styleUrls: ['./install-wizard.component.scss'],
 })
-export class InstallWizardComponent extends Cleanup implements OnInit {
+export class InstallWizardComponent extends Cleanup(ExtensionBase) implements OnInit {
   @Input() params: {
     // defines the slideshow in the html
     slideDefinitions: SlideDefinition[]

@@ -1,56 +1,62 @@
-import { Component, ElementRef, ViewChild } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { PropertySubject } from 'src/app/util/property-subject.util'
-import { BehaviorSubject, combineLatest, EMPTY, from, Observable, of } from 'rxjs'
-import { catchError, concatMap, delay, map, switchMap, tap } from 'rxjs/operators'
+import { BehaviorSubject, from, Observable, of } from 'rxjs'
+import { catchError, concatMap, map, take, tap } from 'rxjs/operators'
 import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { ActivatedRoute } from '@angular/router'
 import { ModelPreload } from 'src/app/models/model-preload'
-import { NavController, PopoverController } from '@ionic/angular'
+import { ModalController, NavController, PopoverController } from '@ionic/angular'
 import { ServiceUiMenuComponent } from 'src/app/components/service-ui-menu/service-ui-menu.component'
 import { AppMetrics } from 'src/app/util/metrics.util'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
-import { Cleanup } from 'src/app/util/cleanup'
-import { UiComms } from 'src/app/services/ui-comms.service'
+import { ExtensionBase } from 'src/app/services/extensions/base.extension'
+import { Cleanup } from 'src/app/services/extensions/cleanup.extension'
+import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
 
 @Component({
   selector: 'app-installed-ui',
   templateUrl: './app-installed-ui.page.html',
   styleUrls: ['./app-installed-ui.page.scss'],
 })
-export class AppInstalledUiPage extends Cleanup {
+export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
+  @Input()
+  appId: string
   AppStatus = AppStatus
-  private appId: string
   $app$: PropertySubject<AppInstalledFull> = {  } as any
   error: string = undefined
 
   $properties$: BehaviorSubject<AppMetrics> = new BehaviorSubject({ })
-  $appLoading$ = new BehaviorSubject(true)
-  $iframeLoading$ = new BehaviorSubject(true)
+  $appLoading$ = new BehaviorSubject(false)
+  $iframeLoading$ = new BehaviorSubject(false)
   status$: Observable<AppStatus>
   isRunning$: Observable<boolean>
 
   constructor (
-    private readonly route: ActivatedRoute,
     private readonly preload: ModelPreload,
     private readonly popover: PopoverController,
     private readonly apiService: ApiService,
     private readonly appModel: AppModel,
-    private readonly uiComms: UiComms,
     private readonly navCtrl: NavController,
+    private readonly trackingModalCtrl: TrackingModalController,
+    private readonly route: ActivatedRoute,
   ) {  super() }
 
   ngOnInit () {
-    this.appId = this.route.snapshot.paramMap.get('appId') as string
     this.status$ = this.appModel.watch(this.appId).status.asObservable()
     this.isRunning$ = this.status$.pipe(map(s => s === AppStatus.RUNNING))
+
+    this.route.params.pipe(take(1)).subscribe(params => {
+      if (params.ui) {
+        window.history.back()
+      }
+    })
 
     markAsLoadingDuring$(this.$appLoading$,
       this.preload.appFull(this.appId)
       .pipe(
         tap(app => this.$app$ = app),
-        tap(() => this.uiComms.$isViewingUi$.next(true)),
         concatMap(() => this.getMetrics()),
       ),
     ).subscribe(
@@ -86,11 +92,12 @@ export class AppInstalledUiPage extends Cleanup {
   }
 
   quit () {
-    this.navCtrl.navigateRoot('/services/installed')
+    return this.trackingModalCtrl.dismiss()
   }
 
-  toServiceShow() {
-    this.navCtrl.navigateRoot('/services/installed/' + this.appId)
+  async toServiceShow () {
+    await this.navCtrl.navigateRoot('/services/installed/' + this.appId)
+    return this.trackingModalCtrl.dismiss()
   }
 
   iframe: HTMLIFrameElement | null
@@ -106,8 +113,6 @@ export class AppInstalledUiPage extends Cleanup {
 
     const iframe = this.getIframe()
     if (iframe) { iframe.src = 'about:blank' }
-
-    this.uiComms.$isViewingUi$.next(false)
   }
 
   getMetrics (): Observable<void> {

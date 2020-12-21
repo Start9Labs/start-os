@@ -11,7 +11,7 @@
         <ng-container *ngIf="$showMenuContent$ | async">
           <ion-list style="padding: 0px">
             <ion-menu-toggle auto-hide="false" *ngFor="let page of appPages; let i = index">
-              <ion-item [disabled]="uiComms.$isViewingUi$ | async"
+              <ion-item
                 button
                 (click)="selectedIndex = i"
                 routerDirection="root"
