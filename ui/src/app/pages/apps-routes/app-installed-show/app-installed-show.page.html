@@ -12,6 +12,7 @@
 
 <ion-content *ngIf="{
      id: app.id | async,
+     ui: app.ui | async,
      torAddress: app.torAddress | async,
      status: app.status | async,
      versionInstalled: app.versionInstalled | async,
@@ -75,6 +76,13 @@
           </ion-button>
         </ion-label>
       </ion-item>
+      <ion-item class="no-cushion-item" *ngIf="vars.ui" lines="none">
+        <ion-label style="margin: 10px 0px; display: flex; justify-content: space-between; align-items: center;" class="ion-text-wrap">
+          <ion-button [fill]="vars.status !== 'RUNNING' ? 'outline' : 'solid'" [disabled]="vars.status !== 'RUNNING'"style="width: 100%; padding: 0px 10px" (click)="viewServiceUI(appId)">
+            Launch
+          </ion-button>
+        </ion-label>
+      </ion-item>
     </div>
 
     <ng-container *ngIf="app && app.id && vars.status !== 'INSTALLING'">
@@ -85,13 +93,6 @@
             <p style="color: var(--ion-color-dark)">{{ vars.torAddress }}</p>
             <ion-button slot="end" fill="clear" (click)="copyTor()">
               <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
-            </ion-button>
-          </ion-label>
-        </ion-item>
-        <ion-item lines="none">
-          <ion-label style="display: flex; justify-content: space-between; align-items: center;" class="ion-text-wrap">
-            <ion-button style="width: 100%; padding: 0px 10px" fill="outline" (click)="viewServiceUI(appId)">
-              LAUNCH
             </ion-button>
           </ion-label>
         </ion-item>

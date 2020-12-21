@@ -42,7 +42,6 @@ export class AppInstalledListPage extends Cleanup(ExtensionBase) {
     private readonly appModel: AppModel,
     private readonly preload: ModelPreload,
     private readonly syncDaemon: SyncDaemon,
-    private readonly modalCtrl: ModalController,
   ) {
     super()
   }
@@ -96,47 +95,6 @@ export class AppInstalledListPage extends Cleanup(ExtensionBase) {
         this.error = e.message
       },
     })
-  }
-
-  goToUi = false
-  handlePan (app: PropertySubjectId<AppInstalledPreview>, ev: any) {
-    if (!app.subject.ui.getValue()) return
-    const card = document.getElementById(app.id)
-    const threshold = 0.8 * card.offsetHeight
-
-    if (ev.deltaY >= threshold) this.goToUi = true
-
-    card.style.top = dampenPosition(0.5 * card.offsetHeight, ev.deltaY) + 'px'
-
-    if (ev.isFinal) {
-      card.style.transition = '0.5s cubic-bezier(0.26, 0.74, 0.4, 0.88) all'
-      if (this.goToUi) {
-        card.style.top = '0px'
-        card.style.opacity = '0'
-        pauseFor(500)
-          .then(() => this.viewServiceUI(app.id))
-          .then(() => pauseFor(500))
-          .then(() => card.style.opacity = '1')
-      } else {
-        card.style.top = 0 + 'px'
-      }
-
-      pauseFor(500).then(() => {
-        card.style.transition = 'unset'
-      })
-    }
-  }
-
-  async viewServiceUI (appId: string) {
-    const m = await this.modalCtrl.create({
-      component: AppInstalledUiPage,
-      componentProps: {
-        appId
-      },
-      cssClass: 'ui-modal'
-     }
-    )
-    await m.present()
   }
 
   async doRefresh (event: any) {

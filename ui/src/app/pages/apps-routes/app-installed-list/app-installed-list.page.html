@@ -18,24 +18,13 @@
     <ion-grid>
       <ion-row>
         <ion-col *ngFor="let app of apps" sizeXs="4" sizeSm="3" sizeMd="2" sizeLg="2">
-          <div style="
-            height: 90%;
-            width: 90%;
-            position: absolute;
-            left: 5%;
-            top: 5%;
-            margin: 0px;
-            background: var(--ion-color-primary);
-            border-radius: 10px;" [class.go-to-ui]="goToUi">
-          </div>
-          <ion-card [id]="app.id" (pan)="handlePan(app, $event)"  class="installed-card" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
+          <ion-card [id]="app.id" class="installed-card" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
             <img style="position: absolute" class="main-img" [src]="app.subject.iconURL | async | iconParse" [alt]="app.subject.title | async" />
             <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
             <img class="bulb"  *ngIf="app.subject.status | async | displayBulb: 'green'" src="assets/img/green-bulb.png"/>
             <img class="bulb"  *ngIf="app.subject.status | async | displayBulb: 'red'" src="assets/img/red-bulb.png"/>
             <img class="bulb"  *ngIf="app.subject.status | async | displayBulb: 'yellow'" src="assets/img/yellow-bulb.png"/>
             <img class="bulb" *ngIf="app.subject.status | async | displayBulb: 'off'" src="assets/img/black-bulb.png"/>
-            <img class="chevrons" *ngIf="app.subject.ui | async" src="assets/img/ui-chevrons.png"/>
             <ion-card-header>
               <status [appStatus]="app.subject.status | async" size="small"></status>
               <p>{{ app.subject.title | async }}</p>
