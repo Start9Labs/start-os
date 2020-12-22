@@ -1,0 +1,10 @@
+[Unit]
+Description=Boot process for system setup.
+
+[Service]
+Type=oneshot
+ExecStart=/root/setup.sh
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
