@@ -13,7 +13,7 @@ UI_SRC := $(shell find ui/src) \
 
 all: embassy.img
 
-embassy.img: buster.img product_key appmgr/target/armv7-unknown-linux-musleabihf/release/appmgr ui/www agent/dist/agent agent/config/agent.service lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline lifeline/lifeline.service setup.sh setup.service docker-daemon.json
+embassy.img: buster.img product_key appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr ui/www agent/dist/agent agent/config/agent.service lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline lifeline/lifeline.service setup.sh setup.service docker-daemon.json
 	sudo ./make_image.sh
 
 buster.img:
