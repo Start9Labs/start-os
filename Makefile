@@ -14,7 +14,7 @@ UI_SRC := $(shell find ui/src) \
 all: embassy.img
 
 embassy.img: buster.img product_key appmgr/target/armv7-unknown-linux-musleabihf/release/appmgr ui/www agent/dist/agent agent/config/agent.service lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline lifeline/lifeline.service setup.sh setup.service docker-daemon.json
-	./make_image.sh
+	sudo ./make_image.sh
 
 buster.img:
 	wget -O buster.zip https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2020-08-24/2020-08-20-raspios-buster-armhf-lite.zip
