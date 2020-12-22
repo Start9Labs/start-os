@@ -10,14 +10,6 @@ rm -rf www
 echo "FILTER: ionic build"
 npm run build-prod
 
-echo "FILTER: cp client-manifest.yaml www"
-cp client-manifest.yaml www
-
-echo "FILTER: git hash"
-touch git-hash.txt
-git log | head -n1 > git-hash.txt
-mv git-hash.txt www
-
 echo "FILTER: ssh + rm -rf /var/www/html/start9-ambassador/"
 ssh root@start9-$1.local "rm -rf /var/www/html/start9-ambassador"
 

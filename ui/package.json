@@ -8,7 +8,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "build-prod": "ng build --prod && tsc postprocess.ts && node postprocess.js",
+    "build-prod": "ng build --prod && tsc postprocess.ts && node postprocess.js && cp client-manifest.yaml www && git log | head -n1 > www/git-hash.txt",
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e"
