@@ -1,16 +1,24 @@
-# Embassy OS
+# EmbassyOS
+### _Anyone can do it. No one can stop it._ ###
 
-Embassy OS is the software for a radical, uncompromising, plug and play personal server, offering one-click installation and simple configuration of open source software services that run over Tor V3. The Embassy is your sovereign territory in the land of the Internet.
+EmbassyOS is a mass-market, graphical operating system designed to facilitate the discovery, installation, configuration, private self-hosting, and reliable operation of open-source software services and applications. It aims to eliminate trust and custodianship from personal computing.
 
-@MattDHill TODO: add screenshots, in depth description of Embassy OS
+![EmbassyOS image](https://sesoodan.sirv.com/0.2.5.png)
 
-## [Buy An Embassy](https://start9labs.com/)
-No technical expertise required.
+## Running EmbassyOS
+There are multiple ways to obtain and begin using EmbassyOS.
 
-## [Buy Embassy OS](https://images.start9labs.com/)
-Requires [building your own hardware](https://docs.start9labs.com/getting-started/diy.html)
+### Buy an Embassy
+This is the most convenient option. Simply [buy an Embassy](https://start9labs.com) from Start9 Labs and plug it in. Depending on where you live, shipping costs and import duties may vary.
 
-## [Build Embassy OS From Source](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md#building-the-image)
-The most sovereign way to run Embassy OS.
+### Build your own Embassy
+While not as convenient as buying an Embassy, this option is easier than you might imagine, and there are 4 reasons why you might prefer it:
+1. You already have a Raspberry Pi and would like to re-purpose it.
+1. You live outside the United States and want to save on shipping fees and import duties.
+1. You prefer not to divulge your physical shipping address.
+1. You just like building things.
 
-If you choose this option, you can also choose to [pay to register a product key](@MattDHill TODO) so that you don't miss out on the Start9 Labs Service Marketplace.
+To pursue this option, follow this [guide](https://docs.start9labs.com/getting-started/diy.html).
+
+## Contributing
+To build EmbassyOS form source, or to contribute to its development, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md#building-the-image).
