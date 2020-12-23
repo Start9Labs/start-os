@@ -167,12 +167,13 @@ You will also need to make sure you've downloaded and installed LLVM 9.
 
 Once you have done these things, you simply need to `cd` into the embassy-os project and then run `make agent`.
 
-- `ui`
+##### ui
   - @afg419 TODO
   - what dependencies (node, ionic, ts?)
   - what vs code plugins
   - what code formatter
-- `appmgr`
+
+##### appmgr
   - [Install Rust](https://rustup.rs)
   - Recommended: [rust-analyzer](https://rust-analyzer.github.io/)
 
