@@ -8,7 +8,7 @@ Embassy OS is the software for a radical, uncompromising, plug and play personal
 No technical expertise required.
 
 ## [Buy Embassy OS](https://images.start9labs.com/)
-Requires [building your own hardware]()
+Requires [building your own hardware](https://docs.start9labs.com/getting-started/diy.html)
 
 ## [Build Embassy OS From Source](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md#building-the-image)
 The most sovereign way to run Embassy OS.
