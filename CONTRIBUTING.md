@@ -168,7 +168,19 @@ You will also need to make sure you've downloaded and installed LLVM 9.
 Once you have done these things, you simply need to `cd` into the embassy-os project and then run `make agent`.
 
 ##### ui
-  - [ionic cli](https://ionicframework.com/docs/intro/cli)
+- Requirements
+  - [Install nodejs](https://nodejs.org/en/)
+  - [Install npm](https://www.npmjs.com/get-npm)
+  - [Install ionic cli](https://ionicframework.com/docs/intro/cli)
+- Scripts (run within ./ui directory)
+  - `npm i` installs ui node package dependencies
+  - `npm run build` compiles project, depositing build artifacts into ./ui/www
+  - `npm run build-prod` as above but customized for deployment to an Embassy
+  - `ionic serve` serves the ui on localhost:8100 for local development. Edit ./ui/use-mocks.json to 'true' to use mocks during local development
+  - `./build-send.sh <embassy .local address suffix>` builds the project and deploys it to the referenced Embassy
+    - Find your Embassy on the LAN using the Start9 Setup App or network tools. It's address will be of the form `start9-<suffix>.local`.
+    - For example `./build-send.sh abcdefgh` will deploy the ui to the Embassy with LAN address `start9-abcdefgh.local`.
+    - SSH keys must be installed on the Embassy prior to running this script.
 
 ##### appmgr
   - [Install Rust](https://rustup.rs)
