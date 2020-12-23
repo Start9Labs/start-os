@@ -9,7 +9,7 @@ EmbassyOS is a mass-market, graphical operating system designed to facilitate th
 There are multiple ways to obtain and begin using EmbassyOS.
 
 ### Buy an Embassy
-This is the most convenient option. Simply [buy an Embassy](Start9 https://start9labs.com) from Start9 Labs and plug it in. Depending on where you live, shipping costs and import duties may vary.
+This is the most convenient option. Simply [buy an Embassy](https://start9labs.com) from Start9 Labs and plug it in. Depending on where you live, shipping costs and import duties may vary.
 
 ### Build your own Embassy
 While not as convenient as buying an Embassy, this option is easier than you might imagine, and there are 4 reasons why you might prefer it:
