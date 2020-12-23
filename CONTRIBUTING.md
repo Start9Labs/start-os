@@ -20,9 +20,16 @@ All types of contributions are encouraged and valued. See the [Table of Contents
   - [Reporting Bugs](#reporting-bugs)
   - [Suggesting Enhancements](#suggesting-enhancements)
   - [Your First Code Contribution](#your-first-code-contribution)
+    - [Setting Up Your Development Environment](#setting-up-your-development-environment)
+    - [Building The Image](#building-the-image)
   - [Improving The Documentation](#improving-the-documentation)
 - [Styleguides](#styleguides)
+  - [Formatting](#formatting)
+  - [Atomic Commits](#atomic-commits)
   - [Commit Messages](#commit-messages)
+  - [Pull Requests](#pull-requests)
+  - [Rebasing Changes](#rebasing-changes)
+- [Join The Discussion](#join-the-discussion)
 - [Join The Project Team](#join-the-project-team)
 
 
@@ -150,6 +157,13 @@ Embassy OS has 3 main components: `agent`, `appmgr`, and `ui`.
   - [Install Rust](https://rustup.rs)
   - Recommended: [rust-analyzer](https://rust-analyzer.github.io/)
 
+#### Building The Image
+- Requirements
+  - `ext4fs` (available if running on the Linux kernel)
+  - [Docker](https://docs.docker.com/get-docker/)
+  - GNU Make
+- Building
+  - run `make`
 
 ### Improving The Documentation
 @elvece fill out or delete this
