@@ -20,9 +20,16 @@ All types of contributions are encouraged and valued. See the [Table of Contents
   - [Reporting Bugs](#reporting-bugs)
   - [Suggesting Enhancements](#suggesting-enhancements)
   - [Your First Code Contribution](#your-first-code-contribution)
+    - [Setting Up Your Development Environment](#setting-up-your-development-environment)
+    - [Building The Image](#building-the-image)
   - [Improving The Documentation](#improving-the-documentation)
 - [Styleguides](#styleguides)
+  - [Formatting](#formatting)
+  - [Atomic Commits](#atomic-commits)
   - [Commit Messages](#commit-messages)
+  - [Pull Requests](#pull-requests)
+  - [Rebasing Changes](#rebasing-changes)
+- [Join The Discussion](#join-the-discussion)
 - [Join The Project Team](#join-the-project-team)
 
 
@@ -135,29 +142,69 @@ Embassy OS has 3 main components: `agent`, `appmgr`, and `ui`.
 ### Your First Code Contribution
 
 #### Setting up your development environment
-- `ui`
-  - @afg419 TODO
-  - what dependencies (node, ionic, ts?)
-  - what vs code plugins
-  - what code formatter
-- `agent`
-  - @ProofOfKeags TODO
-  - How to install stack, ghc, cabal
-  - HLS
-  - what vs code plugins
-  - brittany
-- `appmgr`
+##### agent
+There are two main workflows to consider when developing on the agent. During the development process you will spend
+most of your time developing in an environment where you cannot actually run the agent. This is because we make heavy
+platform specific assumptions (by nature of the project) around what folders get used and what package management tools
+are used for the underlying system. If you are running this on a platform besides Linux you won't even be able to run
+the agent effectively on your dev machine. Even if you are on Linux you may not want to turn administrative control over
+to the software you are currently developing. So how do you know that anything you are doing is right? We make extensive
+use of Haskell's type system and surrounding tooling. For this you will want to make sure you are using the [haskell-language-server](https://github.com/haskell/haskell-language-server)
+and [stack](https://github.com/commercialhaskell/stack)
+
+At some point though you will want to build the agent for the target platform (Raspberry Pi 4). This is the second build
+flow that you will need to consider.
+
+At Start9 we build the agent in two different ways. The primary way we have done it is on the Raspberry Pi itself. To do
+this you will need stack built for the Raspberry Pi. Unfortunately, however, FPComplete no longer
+distributes ARMv7 binaries for stack. Though hopefully soon we will be able to submit the binaries we've built for this
+project back to them and have them hosted more visibly. The way we bootstrap through this problem is by downloading version
+[2.1.3](https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-arm.tar.gz) and using that
+to compile v2.5.1. Before you can successfully compile anything with GHC on the Raspberry Pi. You will need to tweak the
+relevant GHC config. You will need to edit the file at `~/.stack/programs/arm-linux/ghc-8.10.2/lib/ghc-8.10.2/settings`
+and change the line `("C compiler flags", " -marm -fno-stack-protector -mcpu=cortex-a7")` to include `-mcpu=cortex-a7`.
+You will also need to make sure you've downloaded and installed LLVM 9.
+
+Once you have done these things, you simply need to `cd` into the embassy-os project and then run `make agent`.
+
+##### ui
+- Requirements
+  - [Install nodejs](https://nodejs.org/en/)
+  - [Install npm](https://www.npmjs.com/get-npm)
+  - [Install ionic cli](https://ionicframework.com/docs/intro/cli)
+- Scripts (run within ./ui directory)
+  - `npm i` installs ui node package dependencies
+  - `npm run build` compiles project, depositing build artifacts into ./ui/www
+  - `npm run build-prod` as above but customized for deployment to an Embassy
+  - `ionic serve` serves the ui on localhost:8100 for local development. Edit ./ui/use-mocks.json to 'true' to use mocks during local development
+  - `./build-send.sh <embassy .local address suffix>` builds the project and deploys it to the referenced Embassy
+    - Find your Embassy on the LAN using the Start9 Setup App or network tools. It's address will be of the form `start9-<suffix>.local`.
+    - For example `./build-send.sh abcdefgh` will deploy the ui to the Embassy with LAN address `start9-abcdefgh.local`.
+    - SSH keys must be installed on the Embassy prior to running this script.
+
+##### appmgr
   - [Install Rust](https://rustup.rs)
   - Recommended: [rust-analyzer](https://rust-analyzer.github.io/)
 
+#### Building The Image
+- Requirements
+  - `ext4fs` (available if running on the Linux kernel)
+  - [Docker](https://docs.docker.com/get-docker/)
+  - GNU Make
+- Building
+  - build the [agent](#agent)
+    - make sure resulting artifact is agent/dist/agent
+  - run `make`
 
 ### Improving The Documentation
-@elvece fill out or delete this
+You can find the repository for Start9's documentation [here](https://github.com/Start9Labs/documentation). If there is something you would like to see added, let us know, or create an issue yourself. Welcome are contributions for lacking or incorrect information, broken links, requested additions, or general style improvements. 
+
+Contributions in the form of setup guides for integrations with external applications are highly encouraged. If you struggled through a process and would like to share your steps with others, check out the docs for each [service](https://github.com/Start9Labs/documentation/blob/master/source/user-manuals/available-services/index.rst) we support. The wrapper repos contain sections for adding integration guides, such as this [one](https://github.com/Start9Labs/bitcoind-wrapper/tree/master/docs). These not only help out others in the community, but inform how we can create a more seamless and intuitive experience.
 
 ## Styleguides
 ### Formatting
 Code must be formatted with the formatter designated for each component:
-- `ui`: @afg419 TODO
+- `ui`: [tslint](https://palantir.github.io/tslint/)
 - `agent`: [brittany](https://github.com/lspitzner/brittany)
 - `appmgr`: [rustfmt](https://github.com/rust-lang/rustfmt)
 
@@ -183,7 +230,7 @@ Current or aspiring contributors? Join our community developer Matrix channel: `
 Just interested in or using the project? Join our community [Telegram](https://t.me/start9_labs) or Matrix channel: `#community:matrix.start9labs.com`.
 
 ## Join The Project Team
-<!-- TODO -->
+Interested in becoming a part of the Start9 Labs team? Send an email to <jobs@start9labs.com>
 
 <!-- omit in toc -->
 ## Attribution
