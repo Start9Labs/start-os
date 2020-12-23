@@ -168,10 +168,7 @@ You will also need to make sure you've downloaded and installed LLVM 9.
 Once you have done these things, you simply need to `cd` into the embassy-os project and then run `make agent`.
 
 ##### ui
-  - @afg419 TODO
-  - what dependencies (node, ionic, ts?)
-  - what vs code plugins
-  - what code formatter
+  - [ionic cli](https://ionicframework.com/docs/intro/cli)
 
 ##### appmgr
   - [Install Rust](https://rustup.rs)
@@ -191,7 +188,7 @@ Once you have done these things, you simply need to `cd` into the embassy-os pro
 ## Styleguides
 ### Formatting
 Code must be formatted with the formatter designated for each component:
-- `ui`: @afg419 TODO
+- `ui`: [tslint](https://palantir.github.io/tslint/)
 - `agent`: [brittany](https://github.com/lspitzner/brittany)
 - `appmgr`: [rustfmt](https://github.com/rust-lang/rustfmt)
 
