@@ -197,7 +197,9 @@ Once you have done these things, you simply need to `cd` into the embassy-os pro
   - run `make`
 
 ### Improving The Documentation
-@elvece fill out or delete this
+You can find the repository for Start9's documentation [here](https://github.com/Start9Labs/documentation). If there is something you would like to see added, let us know, or create an issue yourself. Welcome are contributions for lacking or incorrect information, broken links, requested additions, or general style improvements. 
+
+Contributions in the form of setup guides for integrations with external applications are highly encouraged. If you struggled through a process and would like to share your steps with others, check out the docs for each [service](https://github.com/Start9Labs/documentation/blob/master/source/user-manuals/available-services/index.rst) we support. The wrapper repos contain sections for adding integration guides, such as this [one](https://github.com/Start9Labs/bitcoind-wrapper/tree/master/docs). These not only help out others in the community, but inform how we can create a more seamless and intuitive experience.
 
 ## Styleguides
 ### Formatting
