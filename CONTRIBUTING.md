@@ -192,6 +192,8 @@ Once you have done these things, you simply need to `cd` into the embassy-os pro
   - [Docker](https://docs.docker.com/get-docker/)
   - GNU Make
 - Building
+  - build the [agent](#agent)
+    - make sure resulting artifact is agent/dist/agent
   - run `make`
 
 ### Improving The Documentation
