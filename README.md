@@ -14,7 +14,7 @@ This is the most convenient option. Simply [buy an Embassy](https://start9labs.c
 ### Build your own Embassy
 While not as convenient as buying an Embassy, this option is easier than you might imagine, and there are 4 reasons why you might prefer it:
 1. You already have a Raspberry Pi and would like to re-purpose it.
-1. You live outside the United States and want to save on shipping fees and import duties.
+1. You want to save on shipping costs.
 1. You prefer not to divulge your physical shipping address.
 1. You just like building things.
 
