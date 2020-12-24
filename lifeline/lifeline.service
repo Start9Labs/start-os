@@ -1,0 +1,10 @@
+[Unit]
+Description=Boot process for system reset.
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/lifeline
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
