@@ -15,11 +15,11 @@ import { BehaviorSubject } from 'rxjs'
 export class AppLogsPage {
   @Input()
   isModal = false
-
+  @Input()
+  appId: string
   @ViewChild(IonContent, { static: false }) private content: IonContent
   $loading$ = new BehaviorSubject(true)
   error = ''
-  appId: string
   logs: string
 
   constructor (
@@ -33,7 +33,7 @@ export class AppLogsPage {
   }
 
   async ngOnInit () {
-    this.appId = this.route.snapshot.paramMap.get('appId') as string
+    this.appId = this.appId || this.route.snapshot.paramMap.get('appId') as string
 
     markAsLoadingDuringP(this.$loading$, Promise.all([
       this.getLogs(),

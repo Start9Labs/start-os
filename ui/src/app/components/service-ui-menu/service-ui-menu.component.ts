@@ -16,9 +16,10 @@ export class ServiceUiMenuComponent implements OnInit {
   @Input()
   properties$: Observable<AppMetrics>
   @Input()
+  appId: string
+  @Input()
   quit: () => void
 
-  // iFrame: HTMLElement | null
   menuItems$: Observable<[string, AppMetricString][]>
 
   toast: HTMLIonToastElement
@@ -32,8 +33,8 @@ export class ServiceUiMenuComponent implements OnInit {
     this.menuItems$ = this.properties$.pipe(
       map(
         ps => Object.entries(flattenMetrics(ps))
-          .filter(([k, v]) => v.copyable)
-          .sort(([k1, v], [k2, v2]) => k1 < k2 ? 1 : -1),
+          .filter(([_, v]) => v.copyable)
+          .sort(([k1, _], [k2, __]) => k1 < k2 ? 1 : -1),
       ),
       traceWheel('props'),
     )
@@ -47,7 +48,8 @@ export class ServiceUiMenuComponent implements OnInit {
     const m = await this.modalCtrl.create({
       component: AppLogsPage,
       componentProps: {
-        isModal: true
+        isModal: true,
+        appId: this.appId
       }
      })
     await m.present()
@@ -69,7 +71,7 @@ export class ServiceUiMenuComponent implements OnInit {
   }
 
 
-
+  // Need JS injection on inner services for this to work
   // async autoFill (item: [string, AppMetricString], ev: Event) {
   //   ev.stopPropagation()
 

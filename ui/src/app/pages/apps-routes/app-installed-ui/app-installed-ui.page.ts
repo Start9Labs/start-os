@@ -86,6 +86,7 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
     this.pop = await this.popover.create({
       component: ServiceUiMenuComponent,
       componentProps: {
+        appId: this.appId,
         properties$: this.$properties$,
         quit: () => this.quit(),
       },
@@ -99,11 +100,7 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
   }
 
   iframeLoaded () {
-    const d = document.getElementById(`${this.appId}-ui`)
-    debugger
-    console.log('iFrame', d)
-    console.log('iFrame loaded')
-    setTimeout(() => this.$iframeLoading$.next(false), 300)
+    this.$iframeLoading$.next(false)
   }
 
   quit () {
