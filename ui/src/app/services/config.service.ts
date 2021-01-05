@@ -16,6 +16,7 @@ export class ConfigService {
 
   isConsulateIos     = window['platform'] === 'ios'
   isConsulateAndroid = window['platform'] === 'android'
+  isConsulate = this.isConsulateIos || this.isConsulateAndroid
 
   isTor () : boolean {
     return this.api.useMocks || this.origin.endsWith('.onion')

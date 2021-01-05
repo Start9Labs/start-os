@@ -7,6 +7,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "serve-tor": "ng run app:serve --host=0.0.0.0 --port=8100 --disableHostCheck",
     "build": "ng build",
     "build-prod": "ng build --prod && tsc postprocess.ts && node postprocess.js",
     "test": "ng test",

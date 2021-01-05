@@ -6,7 +6,7 @@ import { catchError, concatMap, map, take, tap } from 'rxjs/operators'
 import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { ActivatedRoute } from '@angular/router'
 import { ModelPreload } from 'src/app/models/model-preload'
-import { ModalController, NavController, PopoverController } from '@ionic/angular'
+import { NavController, PopoverController } from '@ionic/angular'
 import { ServiceUiMenuComponent } from 'src/app/components/service-ui-menu/service-ui-menu.component'
 import { AppMetrics } from 'src/app/util/metrics.util'
 import { ApiService } from 'src/app/services/api/api.service'
@@ -14,6 +14,8 @@ import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { ExtensionBase } from 'src/app/services/extensions/base.extension'
 import { Cleanup } from 'src/app/services/extensions/cleanup.extension'
 import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'app-installed-ui',
@@ -33,14 +35,18 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
   status$: Observable<AppStatus>
   isRunning$: Observable<boolean>
 
+  uiAddress$: Observable<SafeResourceUrl>
+
   constructor (
     private readonly preload: ModelPreload,
     private readonly popover: PopoverController,
     private readonly apiService: ApiService,
     private readonly appModel: AppModel,
+    private readonly config: ConfigService,
     private readonly navCtrl: NavController,
     private readonly trackingModalCtrl: TrackingModalController,
     private readonly route: ActivatedRoute,
+    private readonly sani: DomSanitizer,
   ) {  super() }
 
   ngOnInit () {
@@ -56,14 +62,19 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
     markAsLoadingDuring$(this.$appLoading$,
       this.preload.appFull(this.appId)
       .pipe(
-        tap(app => this.$app$ = app),
-        concatMap(() => this.getMetrics()),
+        tap(app => {
+          this.$app$ = app
+          this.uiAddress$ = this.$app$.torAddress.pipe(
+            map(addr => this.sani.bypassSecurityTrustResourceUrl(this.config.isConsulate ? `ext+onion://${addr}` : `http://${addr}`))
+          )
+        }),
+        concatMap(() => this.getCopyable()),
       ),
     ).subscribe(
       () => {
         this.cleanup(
           this.appModel.watchForTurnedOn(this.appId).pipe(
-            () => this.getMetrics(),
+            () => this.getCopyable(),
           ).subscribe(),
         )
       })
@@ -115,7 +126,7 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
     if (iframe) { iframe.src = 'about:blank' }
   }
 
-  getMetrics (): Observable<void> {
+  getCopyable (): Observable<void> {
     return from(this.apiService.getAppMetrics(this.appId)).pipe(
       tap(() => this.error = undefined),
       map(metrics => this.$properties$.next(metrics)),
@@ -125,5 +136,4 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
       }),
     )
   }
-
 }

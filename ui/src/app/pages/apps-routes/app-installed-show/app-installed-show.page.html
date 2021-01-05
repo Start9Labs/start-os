@@ -76,7 +76,8 @@
           </ion-button>
         </ion-label>
       </ion-item>
-      <ion-item class="no-cushion-item" *ngIf="vars.ui" lines="none">
+      <!-- TODO get rid of || true below lol. -->
+      <ion-item class="no-cushion-item" *ngIf="vars.ui || true" lines="none">
         <ion-label style="margin: 10px 0px; display: flex; justify-content: space-between; align-items: center;" class="ion-text-wrap">
           <ion-button [fill]="vars.status !== 'RUNNING' ? 'outline' : 'solid'" [disabled]="vars.status !== 'RUNNING'"style="width: 100%; padding: 0px 10px" (click)="viewServiceUI(appId)">
             Launch

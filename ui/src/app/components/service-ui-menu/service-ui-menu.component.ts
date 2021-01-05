@@ -3,7 +3,6 @@ import { ToastController, PopoverController, ModalController } from '@ionic/angu
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { AppLogsPage } from 'src/app/pages/apps-routes/app-logs/app-logs.page'
-import { Cleanup } from 'src/app/util/cleanup'
 import { AppMetrics, AppMetricString, flattenMetrics } from 'src/app/util/metrics.util'
 import { traceWheel } from 'src/app/util/misc.util'
 import { copyToClipboard } from 'src/app/util/web.util'
