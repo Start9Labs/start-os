@@ -31,7 +31,7 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
 
   $properties$: BehaviorSubject<AppMetrics> = new BehaviorSubject({ })
   $appLoading$ = new BehaviorSubject(false)
-  $iframeLoading$ = new BehaviorSubject(false)
+  $iframeLoading$ = new BehaviorSubject(true)
   status$: Observable<AppStatus>
   isRunning$: Observable<boolean>
 
@@ -99,6 +99,10 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
   }
 
   iframeLoaded () {
+    const d = document.getElementById(`${this.appId}-ui`)
+    debugger
+    console.log('iFrame', d)
+    console.log('iFrame loaded')
     setTimeout(() => this.$iframeLoading$.next(false), 300)
   }
 
