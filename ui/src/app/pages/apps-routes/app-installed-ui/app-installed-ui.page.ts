@@ -1,83 +1,104 @@
-import { Component, Input } from '@angular/core'
+import { Component } from '@angular/core'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { PropertySubject } from 'src/app/util/property-subject.util'
-import { BehaviorSubject, from, Observable, of } from 'rxjs'
-import { catchError, concatMap, map, take, tap } from 'rxjs/operators'
-import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
+import { BehaviorSubject, from, Observable, of, timer } from 'rxjs'
+import { catchError, concatMap, delay, distinctUntilChanged, filter, map, take, takeUntil, tap } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { ModelPreload } from 'src/app/models/model-preload'
 import { NavController, PopoverController } from '@ionic/angular'
 import { ServiceUiMenuComponent } from 'src/app/components/service-ui-menu/service-ui-menu.component'
 import { AppMetrics } from 'src/app/util/metrics.util'
 import { ApiService } from 'src/app/services/api/api.service'
-import { AppModel, AppStatus } from 'src/app/models/app-model'
+import { AppStatus } from 'src/app/models/app-model'
 import { ExtensionBase } from 'src/app/services/extensions/base.extension'
 import { Cleanup } from 'src/app/services/extensions/cleanup.extension'
-import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser'
 import { ConfigService } from 'src/app/services/config.service'
+import { traceWheel } from 'src/app/util/misc.util'
 
+
+export enum UiPageState {
+  // 0 and 1 unfixable (on this page) error states.
+  APP_NOT_RUNNING,
+  IFRAME_TIMEOUT,
+
+  // 2 + expected states
+  LOADING_APP,
+  LOADING_IFRAME,
+  IFRAME_LOADED,
+}
 @Component({
   selector: 'app-installed-ui',
   templateUrl: './app-installed-ui.page.html',
   styleUrls: ['./app-installed-ui.page.scss'],
 })
 export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
-  @Input()
+  static IFRAME_TIMEOUT = 45000
   appId: string
   AppStatus = AppStatus
   $app$: PropertySubject<AppInstalledFull> = {  } as any
   error: string = undefined
 
-  $properties$: BehaviorSubject<AppMetrics> = new BehaviorSubject({ })
-  $appLoading$ = new BehaviorSubject(false)
-  $iframeLoading$ = new BehaviorSubject(true)
-  status$: Observable<AppStatus>
-  isRunning$: Observable<boolean>
+  UiPageState = UiPageState
+  $state$ = new BehaviorSubject(UiPageState.LOADING_APP)
+  state$ = this.$state$.pipe(
+    distinctUntilChanged(),
+    delay(0) // fixes an angular change detection quirk in webkit browsers. I don't understand it.
+  )
 
+  $properties$: BehaviorSubject<AppMetrics> = new BehaviorSubject({ })
   uiAddress$: Observable<SafeResourceUrl>
 
   constructor (
     private readonly preload: ModelPreload,
     private readonly popover: PopoverController,
     private readonly apiService: ApiService,
-    private readonly appModel: AppModel,
     private readonly config: ConfigService,
     private readonly navCtrl: NavController,
-    private readonly trackingModalCtrl: TrackingModalController,
-    private readonly route: ActivatedRoute,
     private readonly sani: DomSanitizer,
+    private readonly route: ActivatedRoute,
   ) {  super() }
 
+  updateState(s: UiPageState) {
+    const current = this.$state$.getValue()
+    if(current <= 1) return
+    this.$state$.next(s)
+  }
+
   ngOnInit () {
-    this.status$ = this.appModel.watch(this.appId).status.asObservable()
-    this.isRunning$ = this.status$.pipe(map(s => s === AppStatus.RUNNING))
-
-    this.route.params.pipe(take(1)).subscribe(params => {
-      if (params.ui) {
-        window.history.back()
-      }
-    })
-
-    markAsLoadingDuring$(this.$appLoading$,
-      this.preload.appFull(this.appId)
-      .pipe(
+    this.appId = this.route.snapshot.paramMap.get('appId') as string
+    this.cleanup(
+      this.preload.appFull(this.appId).pipe(
         tap(app => {
           this.$app$ = app
           this.uiAddress$ = this.$app$.torAddress.pipe(
-            map(addr => this.sani.bypassSecurityTrustResourceUrl(this.config.isConsulate ? `ext+onion://${addr}` : `http://${addr}`))
+            traceWheel("address"),
+            map(addr => this.sani.bypassSecurityTrustResourceUrl(this.config.isConsulate ? `ext+onion://${addr}` : `http://${addr}`)),
           )
         }),
         concatMap(() => this.getCopyable()),
-      ),
-    ).subscribe(
-      () => {
-        this.cleanup(
-          this.appModel.watchForTurnedOn(this.appId).pipe(
-            () => this.getCopyable(),
-          ).subscribe(),
-        )
-      })
+        map(() => this.loadFrame()),
+        concatMap(() => this.$app$.status.pipe(
+          filter(s => s !== AppStatus.RUNNING),
+          tap(() => this.updateState(UiPageState.APP_NOT_RUNNING))
+        ))
+      ).subscribe()
+    )
+  }
+
+  loadFrame(){
+    this.updateState(UiPageState.LOADING_IFRAME)
+
+    timer(AppInstalledUiPage.IFRAME_TIMEOUT).pipe(
+      takeUntil(this.$state$.pipe(filter(s => s !== UiPageState.LOADING_IFRAME))),
+    ).subscribe(() => this.updateState(UiPageState.IFRAME_TIMEOUT))
+  }
+
+  frameLoaded (e: any) {
+    // This fixes a quirk in webkit browsers where (load) is triggered twice, once immediately prior to actual loading.
+    // Luckily, this errant (load) has src === ''
+    if(e.target.src === '') return
+    this.updateState(UiPageState.IFRAME_LOADED)
   }
 
   pop: HTMLIonPopoverElement
@@ -88,7 +109,7 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
       componentProps: {
         appId: this.appId,
         properties$: this.$properties$,
-        quit: () => this.quit(),
+        quit: () => this.toServiceShow(),
       },
       showBackdrop: true,
       backdropDismiss: true,
@@ -99,17 +120,8 @@ export class AppInstalledUiPage extends Cleanup(ExtensionBase) {
     await this.pop.present()
   }
 
-  iframeLoaded () {
-    this.$iframeLoading$.next(false)
-  }
-
-  quit () {
-    return this.trackingModalCtrl.dismiss()
-  }
-
-  async toServiceShow () {
-    await this.navCtrl.navigateRoot('/services/installed/' + this.appId)
-    return this.trackingModalCtrl.dismiss()
+  toServiceShow () {
+    return this.navCtrl.navigateBack(`/services/installed/${this.appId}`)
   }
 
   iframe: HTMLIFrameElement | null

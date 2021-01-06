@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ToastController, ModalController, IonContent, PopoverController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { ActivatedRoute, Router, UrlSegment } from '@angular/router'
+import { ActivatedRoute } from '@angular/router'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledFull } from 'src/app/models/app-types'
@@ -17,10 +17,8 @@ import { catchError, concatMap, filter, switchMap, take, tap } from 'rxjs/operat
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
-import { AppInstalledUiPage } from '../app-installed-ui/app-installed-ui.page'
 import { Cleanup } from '../../../services/extensions/cleanup.extension'
 import { ExtensionBase } from '../../../services/extensions/base.extension'
-import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
 
 @Component({
   selector: 'app-installed-show',
@@ -46,7 +44,6 @@ export class AppInstalledShowPage extends Cleanup(ExtensionBase) {
   constructor (
     private readonly alertCtrl: AlertController,
     private readonly route: ActivatedRoute,
-    private readonly router: Router,
     private readonly navCtrl: NavController,
     private readonly loader: LoaderService,
     private readonly toastCtrl: ToastController,
@@ -57,17 +54,12 @@ export class AppInstalledShowPage extends Cleanup(ExtensionBase) {
     private readonly appModel: AppModel,
     private readonly popoverController: PopoverController,
     private readonly emver: Emver,
-    private readonly trackingModalCtrl: TrackingModalController
   ) {
     super()
   }
 
   async ngOnInit () {
     this.appId = this.route.snapshot.paramMap.get('appId') as string
-
-    if(this.router.url.endsWith('/ui')) {
-      window.history.back()
-    }
 
     this.cleanup(
       markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId))
@@ -76,21 +68,6 @@ export class AppInstalledShowPage extends Cleanup(ExtensionBase) {
           concatMap(() => this.syncWhenDependencyInstalls()), //must be final in stack
           catchError(e => of(this.setError(e))),
         ).subscribe(),
-      fromEvent(window, 'popstate').subscribe(() => {
-        this.backButtonDefense = false
-        this.trackingModalCtrl.dismissAll()
-      }),
-      this.trackingModalCtrl.onCreateAny$().subscribe(() => {
-        if (!this.backButtonDefense) {
-          window.history.pushState(null, null, window.location.href + '/ui')
-          this.backButtonDefense = true
-        }
-      }),
-      this.trackingModalCtrl.onDismissAny$().subscribe(() => {
-        if (!this.trackingModalCtrl.anyModals && this.backButtonDefense === true) {
-          this.navCtrl.back()
-        }
-      }),
     )
   }
 
@@ -261,15 +238,8 @@ export class AppInstalledShowPage extends Cleanup(ExtensionBase) {
   }
 
   async viewServiceUI (appId: string) {
-    const m = await this.trackingModalCtrl.create({
-      component: AppInstalledUiPage,
-      componentProps: {
-        appId
-      },
-      cssClass: 'ui-modal'
-     }
-    )
-    await m.present()
+    console.log('appId', appId)
+    return this.navCtrl.navigateRoot(`/services/installed/${appId}/ui`)
   }
 
   async stopBackup (): Promise<void> {

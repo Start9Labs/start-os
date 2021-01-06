@@ -1,31 +1,31 @@
-<ion-header *ngIf="{appLoading: $appLoading$ | async} as vars">
+<ion-header *ngIf="{state: state$ | async} as vars">
   <ion-toolbar>
-    <ion-buttons style="margin: 0px 15px" slot="start">
-      <ion-button color="dark" fill="clear" (click)="quit()"><ion-icon name="close"></ion-icon></ion-button>
-      <!-- <img class="bulb"  *ngIf="status$ | async | displayBulb: 'green'" src="assets/img/green-bulb.png"/>
-      <img class="bulb"  *ngIf="status$ | async | displayBulb: 'red'" src="assets/img/red-bulb.png"/>
-      <img class="bulb"  *ngIf="status$ | async | displayBulb: 'yellow'" src="assets/img/yellow-bulb.png"/>
-      <img class="bulb" *ngIf="status$ | async | displayBulb: 'off'" src="assets/img/black-bulb.png"/> -->
-      <!-- <img class="main-img" [src]="$app$.iconURL | async | iconParse"/> -->
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
     </ion-buttons>
     <div class="flex-center" style="flex-direction: row;">
       <img class="main-img" [src]="$app$.iconURL | async | iconParse"/>
       {{$app$.title | async}}
     </div>
     <ion-buttons slot="end">
-      <ion-spinner *ngIf="vars.appLoading" name="dots" color="medium"></ion-spinner>
-      <ion-button *ngIf="!vars.appLoading" (click)=presentPopoverMenu($event)>
+      <ion-spinner *ngIf="vars.state === UiPageState.APP_LOADING" name="dots" color="medium"></ion-spinner>
+      <ion-button *ngIf="vars.state !== UiPageState.APP_LOADING" (click)=presentPopoverMenu($event)>
         <ion-icon color="dark" name="ellipsis-vertical"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content style="--overflow: hidden;" *ngIf="{isRunning: isRunning$ | async, status: status$ | async, uiAddress: uiAddress$ | async, appLoading: $appLoading$ | async, iframeLoading: $iframeLoading$ | async } as vars">
-  <ion-spinner *ngIf="vars.appLoading || vars.iframeLoading" style="position: absolute; width: 4vh; left: calc(50% - 2vh); height: 100%;" name="lines" color="warning"></ion-spinner>
-  <iframe [class.invisible]="vars.iframeLoading" (load)="iframeLoaded()" *ngIf="!vars.appLoading && vars.isRunning" [id]="appId + '-ui'" [src]="vars.uiAddress" width="100%" height="100%" style="border:1px solid black;"></iframe>
-  <div *ngIf="!vars.appLoading && !vars.isRunning" class="flex-center" style="border:1px solid black; color: white">
-    <ion-label style="margin:10px">{{$app$.title | async}} is not running.</ion-label>
+<ion-content style="--overflow: hidden;" *ngIf="{state: state$ | async, uiAddress: uiAddress$ | async } as vars">
+  <ion-spinner *ngIf="vars.state === UiPageState.LOADING_APP || vars.state === UiPageState.LOADING_IFRAME" style="position: absolute; width: 4vh; left: calc(50% - 2vh); height: 100%;" name="lines" color="warning"></ion-spinner>
+  <iframe *ngIf="vars.state === UiPageState.LOADING_IFRAME || vars.state === UiPageState.IFRAME_LOADED" [class.invisible]="vars.state === UiPageState.LOADING_IFRAME" (load)="frameLoaded($event)" [id]="appId + '-ui'" [src]="vars.uiAddress" width="100%" height="100%" style="border:1px solid black;"></iframe>
+
+  <div *ngIf="vars.state === UiPageState.APP_NOT_RUNNING" class="flex-center" style="border:1px solid black; color: white">
+    <ion-label style="margin:10px">Cannot launch {{$app$.title | async}}: Not Running.</ion-label>
     <ion-button fill="outline" (click)="toServiceShow()">View</ion-button>
+  </div>
+
+  <div *ngIf="vars.state === UiPageState.IFRAME_TIMEOUT" class="flex-center" style="border:1px solid black; color: var(--ion-color-danger)">
+    <ion-label style="margin:10px">Cannot launch {{$app$.title | async}}: Timeout</ion-label>
   </div>
 </ion-content>

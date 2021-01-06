@@ -9,6 +9,12 @@ import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/b
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
 import { ServiceUiMenuComponentModule } from 'src/app/components/service-ui-menu/service-ui-menu.component.module'
 
+const routes: Routes = [
+  {
+    path: '',
+    component: AppInstalledUiPage,
+  },
+]
 @NgModule({
   imports: [
     CommonModule,
@@ -18,6 +24,7 @@ import { ServiceUiMenuComponentModule } from 'src/app/components/service-ui-menu
     PwaBackComponentModule,
     BadgeMenuComponentModule,
     ServiceUiMenuComponentModule,
+    RouterModule.forChild(routes),
   ],
   declarations: [AppInstalledUiPage],
 })

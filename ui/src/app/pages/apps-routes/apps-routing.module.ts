@@ -23,14 +23,9 @@ const routes: Routes = [
     path: 'installed/:appId',
     loadChildren: () => import('./app-installed-show/app-installed-show.module').then(m => m.AppInstalledShowPageModule),
   },
-  // TODO: remove this somehow
-  {
-    path: 'installed/:appId/uix',
-    loadChildren: () => import('./app-installed-ui/app-installed-ui.module').then(m => m.AppInstalledUiPageModule),
-  },
   {
     path: 'installed/:appId/ui',
-    loadChildren: () => import('./app-installed-show/app-installed-show.module').then(m => m.AppInstalledShowPageModule),
+    loadChildren: () => import('./app-installed-ui/app-installed-ui.module').then(m => m.AppInstalledUiPageModule),
   },
   {
     path: 'installed/:appId/instructions',
