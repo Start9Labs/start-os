@@ -91,7 +91,7 @@
   --button-color: var(--ion-color-primary);
   --border-color: var(--ion-color-warning);
   --border-style: solid;
-  --border-width: 2px;
+  --border-width: 1px;
   --color: white;
 }
 
@@ -191,6 +191,32 @@ ion-popover {
     width: 60% !important;
     left: 20%;
     display: block;
+  }
+}
+
+
+@media (min-width:1000px) {
+  .alertlike-modal {
+    --backdrop-opacity: 0.7 !important;
+    .modal-wrapper {
+      height: 46% !important;
+      width: 46% !important;
+      left: 26% !important;
+      top: 26% !important;
+      --box-shadow: none !important;
+    }
+  }
+}
+
+
+.alertlike-modal {
+  --backdrop-opacity: 0.7 !important;
+  .modal-wrapper {
+    height: 60% !important;
+    width: 80% !important;
+    left: 10% !important;
+    top: 20% !important;
+    --box-shadow: none !important;
   }
 }
 
