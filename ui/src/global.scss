@@ -194,6 +194,12 @@ ion-popover {
   }
 }
 
+.alert-error-message {
+  .alert-message {
+    color: var(--ion-color-danger);
+  }
+}
+
 ion-slides {
   .slider-wrapper {
     height: 100%;

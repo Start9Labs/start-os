@@ -57,6 +57,7 @@ export abstract class ApiService {
   abstract deleteWifi (ssid: string): Promise<Unit>
   abstract restartServer (): Promise<Unit>
   abstract shutdownServer (): Promise<Unit>
+  abstract ejectExternalDisk (logicalName: string): Promise<Unit>
 }
 
 export module ReqRes {

@@ -29,11 +29,15 @@ export class MockApiService extends ApiService {
   async postConfigureDependency (dependencyId: string, dependentId: string, dryRun?: boolean): Promise<{ config: object, breakages: DependentBreakage[] }> {
     await pauseFor(2000)
     throw new Error ('some misc backend error ohh we forgot to make this endpoint or something')
-    // return { config: mockCupsDependentConfig, breakages: [ ] }
   }
 
   async getServer (): Promise<ApiServer> {
     return mockGetServer()
+  }
+
+  async ejectExternalDisk (): Promise<Unit> {
+    await pauseFor(2000)
+    return { }
   }
 
   async getCheckAuth (): Promise<ReqRes.GetCheckAuthRes> {
