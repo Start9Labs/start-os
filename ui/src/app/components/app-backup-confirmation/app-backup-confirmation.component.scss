@@ -1,0 +1,10 @@
+.error-message {
+  --background: var(--ion-color-danger);
+  margin: 12px;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.legacy-error-message {
+  margin: 5px;
+}

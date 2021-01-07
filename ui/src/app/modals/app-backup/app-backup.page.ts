@@ -6,6 +6,7 @@ import { ApiService } from 'src/app/services/api/api.service'
 import { DiskInfo, DiskPartition } from 'src/app/models/server-model'
 import { pauseFor } from 'src/app/util/misc.util'
 import { concatMap } from 'rxjs/operators'
+import { AppBackupConfirmationComponent } from 'src/app/components/app-backup-confirmation/app-backup-confirmation.component'
 
 @Component({
   selector: 'app-backup',
@@ -84,43 +85,58 @@ export class AppBackupPage {
   }
 
   private async presentAlertCreateEncrypted (disk: DiskInfo, partition: DiskPartition): Promise<void> {
-    const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
-      header: `Ready to Backup`,
-      message: `Enter your master password to create an encrypted backup of ${this.app.title} to "${partition.label || partition.logicalname}".`,
-      inputs: [
-        {
-          name: 'password',
-          label: 'Password',
-          type: 'password',
-          placeholder: 'Master Password',
-        },
-        {
-          name: 'eject',
-          label: 'Eject drive when finished',
-          placeholder: 'Eject drive when finished',
-          type: 'checkbox',
-        },
-      ],
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Create Backup',
-          handler: async (data) => {
-            if (!data.password || data.password.length < 12) {
-              alert.message = new IonicSafeString(alert.message + '<br /><br /><ion-text color="danger">Password must be at least 12 characters in length.</ion-text>')
-              return false
-            } else {
-              return this.create(disk, partition, data.password, data.eject)
-            }
-          },
-        },
-      ],
+    const m = await this.modalCtrl.create({
+      componentProps: {
+        app: this.app,
+        partition,
+      },
+      component: AppBackupConfirmationComponent,
     })
-    await alert.present()
+
+    m.onWillDismiss().then(res => {
+      const data = res.data
+      if (data.cancel) return
+      return this.create(disk, partition, data.password, data.eject)
+    })
+
+    return await m.present()
+    // const alert = await this.alertCtrl.create({
+    //   backdropDismiss: false,
+    //   header: `Ready to Backup`,
+    //   message: `Enter your master password to create an encrypted backup of ${this.app.title} to "${partition.label || partition.logicalname}".`,
+    //   inputs: [
+    //     {
+    //       name: 'password',
+    //       label: 'Password',
+    //       type: 'password',
+    //       placeholder: 'Master Password',
+    //     },
+    //     {
+    //       name: 'eject',
+    //       label: 'Eject drive when finished',
+    //       placeholder: 'Eject drive when',
+    //       type: 'checkbox',
+    //     },
+    //   ],
+    //   buttons: [
+    //     {
+    //       text: 'Cancel',
+    //       role: 'cancel',
+    //     },
+    //     {
+    //       text: 'Create Backup',
+    //       handler: async (data) => {
+    //         if (!data.password || data.password.length < 12) {
+    //           alert.message = new IonicSafeString(alert.message + '<br /><br /><ion-text color="danger">Password must be at least 12 characters in length.</ion-text>')
+    //           return false
+    //         } else {
+    //           return this.create(disk, partition, data.password, data.eject)
+    //         }
+    //       },
+    //     },
+    //   ],
+    // })
+    // await alert.present()
   }
 
   private async presentAlertWarn (partition: DiskPartition): Promise<void> {

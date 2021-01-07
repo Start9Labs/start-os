@@ -1,0 +1,37 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      Confirm Backup
+    </ion-title>
+    <ion-buttons slot="start">
+      <ion-button slot="start" (click)="cancel()">
+        <ion-icon name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <!-- <ion-label class="ion-text-wrap" style="margin: 20px">{{message}}</ion-label> -->
+  <form (submit)="submit()">
+    <ion-item-group>
+      <ion-item>
+        <ion-input [type]="unmasked ? 'text' : 'password'" name="password" placeholder="password" [(ngModel)]="password" (ionChange)="$error$.next('')"></ion-input>
+        <!-- <ion-button fill="clear" [color]="unmasked ? 'danger' : 'primary'" (click)="toggleMask()">
+          <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
+        </ion-button> -->
+      </ion-item>
+      <ion-item *ngIf="$error$ | async as e" lines="none">
+        <ion-label class="ion-text-wrap" color="danger">{{ e }}</ion-label>
+      </ion-item>
+      <ion-item-divider></ion-item-divider>
+      <ion-item>
+        <ion-label>Eject drive when backup complete?</ion-label>
+        <ion-checkbox color="primary" checked slot="end" [(ngModel)]="eject"></ion-checkbox>
+      </ion-item>
+    </ion-item-group>
+    <ion-button type="submit" [disabled]="!password" style="margin-top: 30px" expand="block" fill="outline">
+      Backup
+    </ion-button>
+  </form>
+</ion-content>
