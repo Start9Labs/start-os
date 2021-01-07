@@ -40,3 +40,4 @@ const routes: Routes = [
   declarations: [AppInstalledShowPage],
 })
 export class AppInstalledShowPageModule { }
+
