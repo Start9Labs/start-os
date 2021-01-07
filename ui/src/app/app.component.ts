@@ -47,6 +47,11 @@ export class AppComponent {
       url: '/notifications',
       icon: 'notifications-outline',
     },
+    {
+      title: 'External Drives',
+      url: '/drives',
+      icon: 'albums-outline',
+    },
   ]
 
   constructor (

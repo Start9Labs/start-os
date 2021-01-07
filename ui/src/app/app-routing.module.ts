@@ -33,6 +33,11 @@ const routes: Routes = [
     canActivateChild: [AuthGuard],
     loadChildren: () => import('./pages/apps-routes/apps-routing.module').then(m => m.AppsRoutingModule),
   },
+  {
+    path: 'drives',
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./pages/server-routes/external-drives/external-drives.module').then( m => m.ExternalDrivesPageModule),
+  },
 ]
 
 @NgModule({

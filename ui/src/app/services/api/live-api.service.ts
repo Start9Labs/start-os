@@ -9,7 +9,7 @@ import { HttpErrorResponse } from '@angular/common/http'
 import { isUnauthorized } from 'src/app/util/web.util'
 import { Replace } from 'src/app/util/types.util'
 import { AppMetrics, parseMetricsPermissive } from 'src/app/util/metrics.util'
-import { modulateTime } from 'src/app/util/misc.util'
+// import { modulateTime } from 'src/app/util/misc.util'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -59,6 +59,10 @@ export class LiveApiService extends ApiService {
 
   async getExternalDisks (): Promise<DiskInfo[]> {
     return this.authRequest<ReqRes.GetExternalDisksRes>({ method: Method.GET, url: `/disks` })
+  }
+
+  async ejectExternalDisk (logicalName: string): Promise<Unit> {
+    return this.authRequest({ method: Method.DELETE, url: `/disks/${logicalName}` })
   }
 
   async updateAgent (version: string): Promise<Unit> {
