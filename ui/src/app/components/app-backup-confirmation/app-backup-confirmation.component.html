@@ -1,37 +1,29 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>
-      Confirm Backup
-    </ion-title>
-    <ion-buttons slot="start">
-      <ion-button slot="start" (click)="cancel()">
-        <ion-icon name="close-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
 <ion-content>
-  <!-- <ion-label class="ion-text-wrap" style="margin: 20px">{{message}}</ion-label> -->
-  <form (submit)="submit()">
-    <ion-item-group>
-      <ion-item>
-        <ion-input [type]="unmasked ? 'text' : 'password'" name="password" placeholder="password" [(ngModel)]="password" (ionChange)="$error$.next('')"></ion-input>
-        <!-- <ion-button fill="clear" [color]="unmasked ? 'danger' : 'primary'" (click)="toggleMask()">
-          <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
-        </ion-button> -->
+  <div style="height: 85%; margin: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <h4><ion-text color="dark">Ready to Backup</ion-text></h4>
+      <p><ion-text color="medium">Enter your master password to create an encrypted backup.</ion-text></p>  
+    </div>
+    <div>
+      <ion-item lines="none" style="--background: var(--ion-background-color); --border-color: var(--ion-color-medium);">
+        <ion-label style="font-size: small" position="floating">Master Password</ion-label>
+        <ion-input style="border-style: solid; border-width: 0px 0px 1px 0px; border-color: var(--ion-color-dark);" [(ngModel)]="password" type="password" (ionChange)="$error$.next('')"></ion-input>
       </ion-item>
-      <ion-item *ngIf="$error$ | async as e" lines="none">
-        <ion-label class="ion-text-wrap" color="danger">{{ e }}</ion-label>
+      <ion-item *ngIf="$error$ | async as e" lines="none" style="--background: var(--ion-background-color);">
+        <ion-label style="font-size: small" color="danger" class="ion-text-wrap">{{e}}</ion-label>
       </ion-item>
-      <ion-item-divider></ion-item-divider>
-      <ion-item>
-        <ion-label>Eject drive when backup complete?</ion-label>
+      <ion-item lines="none" style="--background: var(--ion-background-color)">
+        <ion-label class="ion-text-wrap" color="medium" style="font-size: small">Eject drive when backup complete?</ion-label>
         <ion-checkbox color="primary" checked slot="end" [(ngModel)]="eject"></ion-checkbox>
       </ion-item>
-    </ion-item-group>
-    <ion-button type="submit" [disabled]="!password" style="margin-top: 30px" expand="block" fill="outline">
-      Backup
-    </ion-button>
-  </form>
+    </div>
+    <div style="display: flex; justify-content: flex-end; align-items: center;">
+      <ion-button fill="clear" color="medium" (click)="cancel()">
+        Cancel
+      </ion-button>
+      <ion-button fill="clear" color="primary" (click)="submit()">
+        Create Backup
+      </ion-button>
+    </div>
+  </div>
 </ion-content>
