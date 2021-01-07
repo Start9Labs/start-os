@@ -37,7 +37,7 @@ const routes: Routes = [
     path: 'developer',
     canActivate: [AuthGuard],
     loadChildren: () => import('./developer-routes/developer-routing.module').then( m => m.DeveloperRoutingModule),
-  },
+  }
 ]
 
 @NgModule({

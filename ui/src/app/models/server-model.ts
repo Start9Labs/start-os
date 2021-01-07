@@ -161,7 +161,7 @@ export interface DiskInfo {
 
 export interface DiskPartition {
   logicalname: string,
-  isMounted: boolean, // Do not let them back up to this if true
+  isMounted: boolean, // We do not allow backups to mounted partitions
   size: string | null,
   label: string | null,
 }
