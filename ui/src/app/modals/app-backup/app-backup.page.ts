@@ -1,10 +1,11 @@
 import { Component, Input } from '@angular/core'
-import { ModalController, AlertController, LoadingController, IonicSafeString } from '@ionic/angular'
+import { ModalController, AlertController, LoadingController, IonicSafeString, ToastController } from '@ionic/angular'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { ApiService } from 'src/app/services/api/api.service'
 import { DiskInfo, DiskPartition } from 'src/app/models/server-model'
 import { pauseFor } from 'src/app/util/misc.util'
+import { concatMap } from 'rxjs/operators'
 
 @Component({
   selector: 'app-backup',
@@ -25,6 +26,7 @@ export class AppBackupPage {
     private readonly loadingCtrl: LoadingController,
     private readonly apiService: ApiService,
     private readonly appModel: AppModel,
+    private readonly toastCtrl: ToastController,
   ) { }
 
   ngOnInit () {
@@ -73,18 +75,18 @@ export class AppBackupPage {
     await alert.present()
   }
 
-  async presentAlert (partition: DiskPartition): Promise<void> {
+  async presentAlert (disk: DiskInfo, partition: DiskPartition): Promise<void> {
     if (this.type === 'create') {
-      this.presentAlertCreateEncrypted(partition)
+      this.presentAlertCreateEncrypted(disk, partition)
     } else {
       this.presentAlertWarn(partition)
     }
   }
 
-  private async presentAlertCreateEncrypted (partition: DiskPartition): Promise<void> {
+  private async presentAlertCreateEncrypted (disk: DiskInfo, partition: DiskPartition): Promise<void> {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
-      header: `Encrypt Backup`,
+      header: `Ready to Backup`,
       message: `Enter your master password to create an encrypted backup of ${this.app.title} to "${partition.label || partition.logicalname}".`,
       inputs: [
         {
@@ -92,6 +94,12 @@ export class AppBackupPage {
           label: 'Password',
           type: 'password',
           placeholder: 'Master Password',
+        },
+        {
+          name: 'eject',
+          label: 'Eject drive when finished',
+          placeholder: 'Eject drive when finished',
+          type: 'checkbox',
         },
       ],
       buttons: [
@@ -101,12 +109,12 @@ export class AppBackupPage {
         },
         {
           text: 'Create Backup',
-          handler: (data) => {
+          handler: async (data) => {
             if (!data.password || data.password.length < 12) {
               alert.message = new IonicSafeString(alert.message + '<br /><br /><ion-text color="danger">Password must be at least 12 characters in length.</ion-text>')
               return false
             } else {
-              this.create(partition, data.password)
+              return this.create(disk, partition, data.password, data.eject)
             }
           },
         },
@@ -183,7 +191,7 @@ export class AppBackupPage {
     }
   }
 
-  private async create (partition: DiskPartition, password?: string): Promise<void> {
+  private async create (disk: DiskInfo, partition: DiskPartition, password: string, eject: boolean): Promise<void> {
     this.error = ''
 
     const loader = await this.loadingCtrl.create({
@@ -195,6 +203,14 @@ export class AppBackupPage {
     try {
       await this.apiService.createAppBackup(this.app.id, partition.logicalname, password)
       this.appModel.update({ id: this.app.id, status: AppStatus.CREATING_BACKUP })
+      if (eject) {
+        this.appModel.watchForBackup(this.app.id).pipe(concatMap(
+          () => this.apiService.ejectExternalDisk(disk.logicalname),
+        )).subscribe({
+          next: () => this.toastEjection(true),
+          error: () => this.toastEjection(false),
+        })
+      }
       await this.dismiss()
     } catch (e) {
       console.error(e)
@@ -202,5 +218,27 @@ export class AppBackupPage {
     } finally {
       await loader.dismiss()
     }
+  }
+
+  private async toastEjection (success: boolean) {
+    const { header, message, cssClass } = success ? {
+      header: 'Success',
+      message: 'Drive ejected successfully',
+      cssClass: '',
+    } : {
+      header: 'Error',
+      message: 'Drive did not eject successfully',
+      cssClass: 'alert-error-message',
+    }
+    const t = await this.toastCtrl.create({
+      header,
+      message,
+      cssClass,
+      buttons: [{
+        icon: 'close-outline',
+        role: 'cancel',
+      }]
+    })
+    await t.present()
   }
 }

@@ -60,6 +60,19 @@ export class AppModel extends MapSubject<AppInstalledFull> {
     )
   }
 
+  // when an app is installing
+  watchForBackup (appId: string): Observable<string | undefined> {
+    const toWatch = super.watch(appId)
+    if (!toWatch) return of(undefined)
+
+    return toWatch.status.pipe(
+      pairwise(),
+      filter( ([old, _]) => old === AppStatus.CREATING_BACKUP),
+      take(1),
+      mapTo(appId),
+    )
+  }
+
   watchForInstallations (appIds: { id: string }[]): Observable<string> {
     return merge(...appIds.map(({ id }) => this.watchForInstallation(id))).pipe(
       filter(t => !!t),

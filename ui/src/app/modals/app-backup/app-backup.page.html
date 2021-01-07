@@ -34,7 +34,7 @@
     <ion-item-group *ngFor="let d of disks">
       <ion-item-divider>{{ d.logicalname }} ({{ d.size }})</ion-item-divider>
       <ion-item-group>
-        <ion-item button [disabled]="p.isMounted" *ngFor="let p of d.partitions" (click)="presentAlert(p)">
+        <ion-item button [disabled]="p.isMounted" *ngFor="let p of d.partitions" (click)="presentAlert(d, p)">
           <ion-icon slot="start" name="save-outline"></ion-icon>
           <ion-label>
             <h2>{{ p.label || p.logicalname }}</h2>
