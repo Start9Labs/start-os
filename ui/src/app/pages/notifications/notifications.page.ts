@@ -3,7 +3,6 @@ import { ServerModel, S9Notification } from 'src/app/models/server-model'
 import { ApiService } from 'src/app/services/api/api.service'
 import { pauseFor } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
-
 @Component({
   selector: 'notifications',
   templateUrl: 'notifications.page.html',
