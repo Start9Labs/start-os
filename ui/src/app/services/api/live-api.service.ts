@@ -13,6 +13,7 @@ import { modulateTime } from 'src/app/util/misc.util'
 
 @Injectable()
 export class LiveApiService extends ApiService {
+  
   constructor (
     private readonly http: HttpService,
     // TODO remove app + server model from here. updates to state should be done in a separate class wrapping ApiService + App/ServerModel
