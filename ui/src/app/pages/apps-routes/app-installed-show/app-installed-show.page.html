@@ -76,11 +76,16 @@
           </ion-button>
         </ion-label>
       </ion-item>
-      <!-- TODO get rid of || true below lol. -->
-      <ion-item class="no-cushion-item" *ngIf="vars.ui || true" lines="none">
-        <ion-label style="margin: 10px 0px; display: flex; justify-content: space-between; align-items: center;" class="ion-text-wrap">
-          <ion-button [fill]="vars.status !== 'RUNNING' ? 'outline' : 'solid'" [disabled]="vars.status !== 'RUNNING'"style="width: 100%; padding: 0px 10px" (click)="launchUiTab()">
-            Launch
+
+      <ion-item class="no-cushion-item" *ngIf="vars.ui && !isConsulate" lines="none">
+        <ion-label style="margin: 10px 0px; display: flex; justify-content: left; align-items: center;" class="ion-text-wrap">
+          <ion-button fill="clear" size="small" class="launch-explanation-button" (click)="presentPopover(vars.status === 'RUNNING' ? launchDefinition() : launchOffDefinition(), $event)">
+            <ion-icon color="medium" name="information-circle-outline">
+            </ion-icon>
+          </ion-button>
+          <ion-button  [disabled]="vars.status !== 'RUNNING'" class="launch-button" [class.launch-button-off]="vars.status !== 'RUNNING'" (click)="launchUiTab()">
+            <ion-icon style="position: absolute; z-index: 1; left: 0;" name="rocket-outline"></ion-icon>
+            <ion-text>LAUNCH</ion-text>
           </ion-button>
         </ion-label>
       </ion-item>
