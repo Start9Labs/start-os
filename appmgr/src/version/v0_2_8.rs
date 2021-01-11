@@ -6,12 +6,12 @@ const V0_2_8: emver::Version = emver::Version::new(0, 2, 8, 0);
 pub struct Version;
 #[async_trait]
 impl VersionT for Version {
-    type Previous = v0_2_8::Version;
+    type Previous = v0_2_7::Version;
     fn new() -> Self {
         Version
     }
     fn semver(&self) -> &'static emver::Version {
-        &V0_2_4
+        &V0_2_8
     }
     async fn up(&self) -> Result<(), Error> {
         Ok(())
