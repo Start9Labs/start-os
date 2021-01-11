@@ -98,6 +98,9 @@ postRestoreBackupR appId = disableEndpointOnFailedUpdate $ do
 getListDisksR :: Handler (JSONResponse [AppMgr.DiskInfo])
 getListDisksR = fmap JSONResponse . runM . handleS9ErrC $ listDisksLogic
 
+deleteEjectDiskR :: Text -> Handler ()
+deleteEjectDiskR t = runM . handleS9ErrC $ ejectDiskLogic t
+
 
 -- Logic
 
@@ -202,6 +205,16 @@ restoreBackupLogic appId RestoreBackupReq {..} = do
 
 listDisksLogic :: (Has (Error S9Error) sig m, MonadIO m) => m [AppMgr.DiskInfo]
 listDisksLogic = runExceptT AppMgr.diskShow >>= liftEither
+
+ejectDiskLogic :: (Has (Error S9Error) sig m, MonadIO m) => Text -> m ()
+ejectDiskLogic t = runExceptT (diskEject t) >>= liftEither
+
+diskEject :: MonadIO m => Text -> S9ErrT m ()
+diskEject t = do
+    (ec, _) <- AppMgr.readProcessInheritStderr "eject" [toS t] ""
+    case ec of
+        ExitSuccess -> pure ()
+        ExitFailure n -> throwE $ EjectE n
 
 insertBackupResult :: MonadIO m => AppId -> Version -> Bool -> SqlPersistT m (Entity BackupRecord)
 insertBackupResult appId appVersion succeeded = do
