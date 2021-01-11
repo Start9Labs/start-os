@@ -31,6 +31,7 @@ data S9Error =
     | AppMgrParseE Text Text String
     | AppMgrInvalidConfigE Text
     | AppMgrE Text Int
+    | EjectE Int
     | AvahiE Text
     | MetricE Text
     | AppMgrVersionE Version VersionRange
@@ -86,6 +87,7 @@ toError = \case
     AppMgrParseE cmd result e ->
         ErrorResponse APPMGR_PARSE_ERROR [i|"appmgr #{cmd}" yielded an unparseable result:#{result}\nError: #{e}|]
     AppMgrE cmd code -> ErrorResponse APPMGR_ERROR [i|"appmgr #{cmd}" exited with #{code}|]
+    EjectE code -> ErrorResponse EJECT_ERROR [i|"eject" command exited with #{code}|]
     AppMgrVersionE av avs ->
         ErrorResponse APPMGR_ERROR [i|"appmgr version #{av}" fails to satisfy requisite spec #{avs}|]
     AvahiE  e               -> ErrorResponse AVAHI_ERROR [i|#{e}|]
@@ -151,6 +153,7 @@ data ErrorCode =
     | APPMGR_CONFIG_ERROR
     | APPMGR_PARSE_ERROR
     | APPMGR_ERROR
+    | EJECT_ERROR
     | AVAHI_ERROR
     | REGISTRY_ERROR
     | APP_NOT_INSTALLED
@@ -201,6 +204,7 @@ toStatus = \case
     AppMgrParseE{}         -> status500
     AppMgrInvalidConfigE _ -> status400
     AppMgrE        _ _     -> status500
+    EjectE  _              -> status500
     AppMgrVersionE _ _     -> status500
     AvahiE  _              -> status500
     MetricE _              -> status500
