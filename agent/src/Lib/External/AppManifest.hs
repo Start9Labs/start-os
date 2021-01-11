@@ -64,6 +64,9 @@ data AppManifest (n :: Nat) where
                     , appManifestV0Dependencies :: HM.HashMap AppId VersionRange
                     } -> AppManifest 0
 
+hasUi :: forall n. AppManifest n -> Bool
+hasUi AppManifestV0 {..} = isJust $ HM.lookup 80 appManifestV0PortMapping
+
 instance FromJSON (Some1 AppManifest) where
     parseJSON = withObject "App Manifest" $ \o -> do
         o .: "compat" >>= \case
