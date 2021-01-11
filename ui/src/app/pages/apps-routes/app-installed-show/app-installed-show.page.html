@@ -53,7 +53,7 @@
         </ion-label>
       </ion-item>
 
-      <ion-item class="no-cushion-item" lines=none>
+      <ion-item class="no-cushion-item" lines=none style="margin-bottom: 10px">
         <ion-label class="status-readout">
           <status size="bold-large" [appStatus]="vars.status"></status>
           <ion-button  *ngIf="vars.status === AppStatus.NEEDS_CONFIG" expand="block" fill="outline" [routerLink]="['config']">
@@ -78,7 +78,7 @@
       </ion-item>
 
       <ion-item class="no-cushion-item" *ngIf="vars.ui && !isConsulate" lines="none">
-        <ion-label style="margin: 10px 0px; display: flex; justify-content: left; align-items: center;" class="ion-text-wrap">
+        <ion-label style="margin-bottom: 10px; margin-top: 0px; display: flex; justify-content: left; align-items: center;" class="ion-text-wrap">
           <ion-button fill="clear" size="small" class="launch-explanation-button" (click)="presentPopover(vars.status === 'RUNNING' ? launchDefinition() : launchOffDefinition(), $event)">
             <ion-icon color="medium" name="information-circle-outline">
             </ion-icon>
