@@ -93,6 +93,11 @@ export class AppInstalledShowPage extends Cleanup {
     }
   }
 
+  async launchUiTab () {
+    const uiAddress = this.app.torAddress.getValue()
+    return window.open(uiAddress, '_blank')
+  }
+
   async checkForUpdates () {
     const app = peekProperties(this.app)
 
@@ -146,7 +151,7 @@ export class AppInstalledShowPage extends Cleanup {
   async copyTor () {
     const app = peekProperties(this.app)
     let message = ''
-    await copyToClipboard(app.torAddress || '').then(success => { message = success ? 'copied to clipboard!' :  'failed to copy'})
+    await copyToClipboard(app.torAddress || '').then(success => { message = success ? 'copied to clipboard!' :  'failed to copy' })
 
     const toast = await this.toastCtrl.create({
       header: message,

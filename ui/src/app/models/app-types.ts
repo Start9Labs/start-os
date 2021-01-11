@@ -34,6 +34,7 @@ export interface AppAvailableVersionSpecificInfo {
 export interface AppInstalledPreview extends BaseApp {
   torAddress: string
   versionInstalled: string
+  ui: boolean
 }
 
 export interface AppInstalledFull extends AppInstalledPreview {

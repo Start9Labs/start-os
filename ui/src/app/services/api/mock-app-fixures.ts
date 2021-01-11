@@ -20,6 +20,7 @@ export function toInstalledPreview (f: AppInstalledFull): AppInstalledPreview {
     title: f.title,
     iconURL: f.iconURL,
     torAddress: f.torAddress,
+    ui: f.ui,
   }
 }
 
@@ -51,6 +52,7 @@ export const bitcoinI: AppInstalledFull = {
   lastBackup: new Date().toISOString(),
   configuredRequirements: [],
   hasFetchedFull: true,
+  ui: false,
 }
 
 export const lightningI: AppInstalledFull = {
@@ -73,6 +75,7 @@ export const lightningI: AppInstalledFull = {
       }),
   ],
   hasFetchedFull: true,
+  ui: true,
 }
 
 export const cupsI: AppInstalledFull = {
@@ -85,6 +88,7 @@ export const cupsI: AppInstalledFull = {
 
   instructions: 'some instructions',
   lastBackup: new Date().toISOString(),
+  ui: true,
   configuredRequirements: [
     toServiceRequirement(lightningI,
       {
