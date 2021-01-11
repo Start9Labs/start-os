@@ -18,6 +18,7 @@ import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'app-installed-show',
@@ -33,8 +34,11 @@ export class AppInstalledShowPage extends Cleanup {
   appId: string
   AppStatus = AppStatus
   showInstructions = false
+  isConsulate: boolean
 
   dependencyDefintion = () => `<span style="font-style: italic">Dependencies</span> are other services which must be installed, configured appropriately, and started in order to start ${this.app.title.getValue()}`
+  launchDefinition = () => `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. If a service does not have this button, you must access it using another interface, such as a mobile app, desktop app, or another service on the Embassy. Please view the instructions for a service for details on how to use it.</p>`
+  launchOffDefinition = () => `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. Get your service running in order to launch!</p>`
 
   @ViewChild(IonContent) content: IonContent
 
@@ -51,8 +55,10 @@ export class AppInstalledShowPage extends Cleanup {
     private readonly appModel: AppModel,
     private readonly popoverController: PopoverController,
     private readonly emver: Emver,
+    config: ConfigService,
   ) {
     super()
+    this.isConsulate = config.isConsulateIos || config.isConsulateAndroid
   }
 
   async ngOnInit () {
