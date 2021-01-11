@@ -96,12 +96,12 @@ parseKernelVersion = do
     pure $ KernelVersion (Version (major', minor', patch', 0)) arch
 
 synchronizer :: Synchronizer
-synchronizer = sync_0_2_7
+synchronizer = sync_0_2_8
 {-# INLINE synchronizer #-}
 
-sync_0_2_7 :: Synchronizer
-sync_0_2_7 = Synchronizer
-    "0.2.7"
+sync_0_2_8 :: Synchronizer
+sync_0_2_8 = Synchronizer
+    "0.2.8"
     [ syncCreateAgentTmp
     , syncCreateSshDir
     , syncRemoveAvahiSystemdDependency
