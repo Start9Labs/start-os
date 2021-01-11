@@ -19,7 +19,8 @@
      lastBackup: app.lastBackup | async,
      hasFetchedFull: app.hasFetchedFull | async,
      iconURL: app.iconURL | async,
-     title: app.title | async
+     title: app.title | async,
+     ui: app.ui | async
   } as vars" class="ion-padding-bottom">
   <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
 
@@ -72,6 +73,14 @@
           </ion-button>
           <ion-button *ngIf="vars.status === AppStatus.STOPPED" expand="block" fill="outline" (click)="start()">
             Start
+          </ion-button>
+        </ion-label>
+      </ion-item>
+      <!-- TODO get rid of || true below lol. -->
+      <ion-item class="no-cushion-item" *ngIf="vars.ui || true" lines="none">
+        <ion-label style="margin: 10px 0px; display: flex; justify-content: space-between; align-items: center;" class="ion-text-wrap">
+          <ion-button [fill]="vars.status !== 'RUNNING' ? 'outline' : 'solid'" [disabled]="vars.status !== 'RUNNING'"style="width: 100%; padding: 0px 10px" (click)="launchUiTab()">
+            Launch
           </ion-button>
         </ion-label>
       </ion-item>
