@@ -68,6 +68,7 @@ import           Lib.Background
 import           Lib.Error
 import qualified Lib.External.AppMgr           as AppMgr
 import qualified Lib.External.Registry         as Reg
+import qualified Lib.External.AppManifest      as AppManifest
 import           Lib.IconCache
 import qualified Lib.Notifications             as Notifications
 import           Lib.SystemPaths
@@ -230,7 +231,7 @@ getInstalledAppsLogic :: (Has (Reader AgentCtx) sig m, Has AppMgr2.AppMgr sig m,
 getInstalledAppsLogic = do
     jobCache <- asks appBackgroundJobs >>= liftIO . readTVarIO
     let installCache = installInfo . fst <$> inspect SInstalling jobCache
-    serverApps <- AppMgr2.list [AppMgr2.flags|-s -d|]
+    serverApps <- AppMgr2.list [AppMgr2.flags|-s -d -m|]
     let remapped           = remapAppMgrInfo jobCache serverApps
         installingPreviews = flip
             HM.mapWithKey
@@ -242,6 +243,7 @@ getInstalledAppsLogic = do
                 , appInstalledPreviewStatus           = AppStatusTmp Installing
                 , appInstalledPreviewVersionInstalled = storeAppVersionInfoVersion
                 , appInstalledPreviewTorAddress       = Nothing
+                , appInstalledPreviewUi               = False
                 }
         installedPreviews = flip
             HML.mapWithKey
@@ -251,6 +253,7 @@ getInstalledAppsLogic = do
                 , appInstalledPreviewStatus           = s
                 , appInstalledPreviewVersionInstalled = v
                 , appInstalledPreviewTorAddress       = infoResTorAddress
+                , appInstalledPreviewUi               = withSome1 infoResManifest AppManifest.hasUi
                 }
 
     pure $ HML.elems $ HML.union installingPreviews installedPreviews

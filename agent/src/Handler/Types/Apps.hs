@@ -43,6 +43,7 @@ data AppInstalledPreview = AppInstalledPreview
     , appInstalledPreviewStatus           :: AppStatus
     , appInstalledPreviewVersionInstalled :: Version
     , appInstalledPreviewTorAddress       :: Maybe TorAddress
+    , appInstalledPreviewUi               :: Bool
     }
     deriving (Eq, Show)
 instance ToJSON AppInstalledPreview where
@@ -50,6 +51,7 @@ instance ToJSON AppInstalledPreview where
         [ "status" .= appInstalledPreviewStatus
         , "versionInstalled" .= appInstalledPreviewVersionInstalled
         , "torAddress" .= (unTorAddress <$> appInstalledPreviewTorAddress)
+        , "ui" .= appInstalledPreviewUi
         ]
 
 data InstallNewAppReq = InstallNewAppReq
