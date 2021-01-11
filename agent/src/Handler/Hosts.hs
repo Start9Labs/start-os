@@ -7,7 +7,6 @@ import           Startlude               hiding ( ask )
 import           Control.Carrier.Lift           ( runM )
 import           Data.Conduit
 import qualified Data.Conduit.Binary           as CB
-import           Data.Time.ISO8601
 import           Yesod.Core              hiding ( expiresAt )
 
 import           Foundation
@@ -32,7 +31,6 @@ getHostsR = handleS9ErrT $ do
     hostParams <- extractHostsQueryParams
 
     verifyHmac productKey hostParams
-    verifyTimestampNotExpired $ hostsParamsExpiration hostParams
 
     mClaimedAt <- checkExistingPasswordRegistration rootAccountName
     case mClaimedAt of
@@ -49,15 +47,6 @@ verifyHmac productKey params = do
     where
         HostsParams { hostsParamsHmac, hostsParamsExpiration, hostsParamsSalt } = params
         unauthorizedHmac = ClientCryptographyE "Unauthorized hmac"
-
-verifyTimestampNotExpired :: MonadIO m => Text -> S9ErrT m ()
-verifyTimestampNotExpired expirationTimestamp = do
-    now <- liftIO getCurrentTime
-    case parseISO8601 . toS $ expirationTimestamp of
-        Nothing         -> throwE $ TTLExpirationE "invalid timestamp"
-        Just expiration -> when (expiration < now) (throwE $ TTLExpirationE "expired")
-
-
 
 getCertificateR :: Handler TypedContent
 getCertificateR = do
