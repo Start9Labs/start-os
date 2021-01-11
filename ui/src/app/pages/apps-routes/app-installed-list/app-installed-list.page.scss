@@ -51,3 +51,35 @@
   width: 13px !important;
   margin: 9px;
 }
+
+.launch-button-opaque {
+  position: absolute;
+  z-index: 1;
+  --border-radius: 100px;
+  width: 42px;
+  height: 42px;
+  right: -5px;
+  top: -5px;
+  --background: #2b2a2b //linear-gradient(120deg, rgb(35, 178, 251, 0.7), transparent);
+  box-shadow: 0 0 4px 2px rgb(91 200 255);
+  border-radius: 100px;
+}
+
+.launch-button-transparent {
+  position: absolute;
+  z-index: 1;
+  --border-radius: 100px;
+  width: 42px;
+  height: 42px;
+  right: -5px;
+  top: -5px;
+  --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
+}
+
+.launch-button-off {
+  --background: transparent;
+  --box-shadow: none;
+  ion-icon {
+    color: var(--ion-color-medium);
+  }
+}

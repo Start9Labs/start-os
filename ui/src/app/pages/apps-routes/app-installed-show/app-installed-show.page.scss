@@ -39,3 +39,25 @@
 .no-cushion-item {
   --background: transparent; --padding-start: 0px; --inner-padding-end: 0px; --padding-end: 0px;
 }
+
+.launch-button {
+  width: 100%; 
+  padding: 0px 10px;
+  --background: linear-gradient(200deg, rgb(70 193 255), rgb(70 193 255 / 45%));
+  width: calc(100% - 32px);
+  border-radius: 8px;
+  --border-radius: 8px;
+}
+
+.launch-button-off {
+  --background: #383838;
+  color: var(--ion-color-medium)
+}
+
+.launch-explanation-button {
+  position: absolute;
+  z-index: 1;
+  right: -2px;
+  top: 10px;
+  --border-radius: 100px;
+}

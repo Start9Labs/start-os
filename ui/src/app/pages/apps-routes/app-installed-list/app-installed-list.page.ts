@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { AppModel } from 'src/app/models/app-model'
+import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledPreview } from 'src/app/models/app-types'
 import { ModelPreload } from 'src/app/models/model-preload'
 import { doForAtLeast } from 'src/app/util/misc.util'
@@ -9,6 +9,7 @@ import { BehaviorSubject, Observable, Subscription } from 'rxjs'
 import { S9Server, ServerModel, ServerStatus } from 'src/app/models/server-model'
 import { SyncDaemon } from 'src/app/services/sync.service'
 import { Cleanup } from 'src/app/util/cleanup'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'app-installed-list',
@@ -21,6 +22,8 @@ export class AppInstalledListPage extends Cleanup {
   $loading$ = new BehaviorSubject(true)
   s9Host$: Observable<string>
 
+  AppStatus = AppStatus
+
   server: PropertySubject<S9Server>
   currentServer: S9Server
   apps: PropertySubjectId<AppInstalledPreview>[] = []
@@ -32,14 +35,17 @@ export class AppInstalledListPage extends Cleanup {
   segmentValue: 'services' | 'embassy' = 'services'
 
   showCertDownload : boolean
+  isConsulate: boolean
 
   constructor (
     private readonly serverModel: ServerModel,
     private readonly appModel: AppModel,
     private readonly preload: ModelPreload,
     private readonly syncDaemon: SyncDaemon,
+    config: ConfigService,
   ) {
     super()
+    this.isConsulate = config.isConsulateAndroid || config.isConsulateIos
   }
 
   ngOnDestroy () {
@@ -50,6 +56,7 @@ export class AppInstalledListPage extends Cleanup {
     this.server = this.serverModel.watch()
     this.apps = []
     this.cleanup(
+
       // serverUpdateSubscription
       this.server.status.subscribe(status => {
         if (status === ServerStatus.UPDATING) {
@@ -87,6 +94,11 @@ export class AppInstalledListPage extends Cleanup {
         this.error = e.message
       },
     })
+
+  }
+
+  async launchUiTab (address: string) {
+    return window.open(address, '_blank')
   }
 
   async doRefresh (event: any) {
