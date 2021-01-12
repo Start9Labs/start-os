@@ -35,6 +35,7 @@ export class AppInstalledShowPage extends Cleanup {
   AppStatus = AppStatus
   showInstructions = false
   isConsulate: boolean
+  isTor: boolean
 
   dependencyDefintion = () => `<span style="font-style: italic">Dependencies</span> are other services which must be installed, configured appropriately, and started in order to start ${this.app.title.getValue()}`
   launchDefinition = () => `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. If a service does not have this button, you must access it using another interface, such as a mobile app, desktop app, or another service on the Embassy. Please view the instructions for a service for details on how to use it.</p>`
@@ -59,6 +60,7 @@ export class AppInstalledShowPage extends Cleanup {
   ) {
     super()
     this.isConsulate = config.isConsulateIos || config.isConsulateAndroid
+    this.isTor = config.isTor()
   }
 
   async ngOnInit () {
@@ -101,6 +103,7 @@ export class AppInstalledShowPage extends Cleanup {
 
   async launchUiTab () {
     const uiAddress = this.app.torAddress.getValue()
+    console.log('launching', uiAddress)
     return window.open(uiAddress, '_blank')
   }
 
