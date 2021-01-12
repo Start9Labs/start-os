@@ -95,11 +95,17 @@ postRestoreBackupR appId = disableEndpointOnFailedUpdate $ do
         & handleS9ErrC
         & runM
 
-getListDisksR :: Handler (JSONResponse [AppMgr.DiskInfo])
-getListDisksR = fmap JSONResponse . runM . handleS9ErrC $ listDisksLogic
+getDisksR :: Handler (JSONResponse [AppMgr.DiskInfo])
+getDisksR = fmap JSONResponse . runM . handleS9ErrC $ listDisksLogic
 
-deleteEjectDiskR :: Text -> Handler ()
-deleteEjectDiskR t = runM . handleS9ErrC $ ejectDiskLogic t
+deleteDisksR :: Handler ()
+deleteDisksR = handleS9ErrT $ do
+    logicalName <- lookupGetParam "logicalName" >>= orThrow400
+    runM . handleS9ErrC $ ejectDiskLogic logicalName
+    where
+        orThrow400 = \case
+            Nothing -> throwE $ ParamsE "logicalName"
+            Just p  -> pure p
 
 
 -- Logic
