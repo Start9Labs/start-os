@@ -1143,7 +1143,7 @@ async fn inner_main() -> Result<(), Error> {
                     "{}",
                     serde_yaml::to_string(&res).with_code(crate::error::SERDE_ERROR)?
                 );
-            } else if !res.is_empty() {
+            } else if !res.needs_restart.is_empty() || !res.stopped.is_empty() {
                 use prettytable::{Cell, Row, Table};
                 let mut table = Table::new();
                 let heading = vec![
@@ -1152,7 +1152,14 @@ async fn inner_main() -> Result<(), Error> {
                     Cell::new("REASON"),
                 ];
                 table.add_row(Row::new(heading));
-                for (name, reason) in res {
+                for name in res.needs_restart {
+                    table.add_row(Row::new(vec![
+                        Cell::new(&name),
+                        Cell::new("Needs Restart"),
+                        Cell::new("Configuration Changed"),
+                    ]));
+                }
+                for (name, reason) in res.stopped {
                     table.add_row(Row::new(vec![
                         Cell::new(&name),
                         Cell::new("Stopped"),

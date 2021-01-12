@@ -301,6 +301,8 @@ pub struct ConfigRuleEntryWithSuggestions {
     #[serde(flatten)]
     pub entry: ConfigRuleEntry,
     pub suggestions: Vec<Suggestion>,
+    #[serde(default)]
+    pub cleanup: Vec<Suggestion>,
 }
 impl ConfigRuleEntryWithSuggestions {
     pub fn apply<'a>(

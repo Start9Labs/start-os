@@ -5,7 +5,7 @@ use emver::{Version, VersionRange};
 use linear_map::LinearMap;
 use rand::SeedableRng;
 
-use crate::config::{Config, ConfigRuleEntryWithSuggestions, ConfigSpec};
+use crate::config::{Config, ConfigRuleEntryWithSuggestions, ConfigSpec, ConfigurationRes};
 use crate::manifest::ManifestLatest;
 use crate::Error;
 use crate::ResultExt as _;
@@ -165,7 +165,7 @@ pub async fn auto_configure(
     dependent: &str,
     dependency: &str,
     dry_run: bool,
-) -> Result<crate::config::ConfigurationRes, Error> {
+) -> Result<ConfigurationRes, Error> {
     let (dependent_config, mut dependency_config, manifest) = futures::try_join!(
         crate::apps::config_or_default(dependent),
         crate::apps::config_or_default(dependency),
@@ -184,6 +184,31 @@ pub async fn auto_configure(
         if let Err(e) = rule.apply(dependency, &mut dependency_config, &mut cfgs) {
             log::warn!("Rule Unsatisfied After Applying Suggestions: {}", e);
         }
+    }
+    crate::config::configure(dependency, Some(dependency_config), None, dry_run).await
+}
+
+pub async fn cleanup_config(
+    dependent: &str,
+    dependency: &str,
+    dry_run: bool,
+) -> Result<ConfigurationRes, Error> {
+    let (dependent_config, mut dependency_config, manifest) = futures::try_join!(
+        crate::apps::config_or_default(dependent),
+        crate::apps::config_or_default(dependency),
+        crate::apps::manifest(dependent)
+    )?;
+    let mut cfgs = LinearMap::new();
+    cfgs.insert(dependent, Cow::Borrowed(&dependent_config));
+    cfgs.insert(dependency, Cow::Owned(dependency_config.clone()));
+    let dep_info = manifest
+        .dependencies
+        .0
+        .get(dependency)
+        .ok_or_else(|| failure::format_err!("{} Does Not Depend On {}", dependent, dependency))
+        .no_code()?;
+    for rule in dep_info.config.iter().flat_map(|r| r.cleanup.iter()) {
+        rule.apply(dependency, &mut dependency_config, &mut cfgs);
     }
     crate::config::configure(dependency, Some(dependency_config), None, dry_run).await
 }
