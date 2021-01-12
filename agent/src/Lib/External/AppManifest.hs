@@ -6,10 +6,8 @@ import           Startlude               hiding ( ask )
 
 import           Control.Effect.Reader.Labelled
 import           Data.Aeson
-import           Data.Singletons.TypeLits
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.Yaml                     as Yaml
-import           Exinst
 
 import           Lib.Error
 import           Lib.SystemPaths
@@ -49,53 +47,49 @@ instance FromJSON AssetMapping where
         assetMappingOverwrite <- o .: "overwrite"
         pure $ AssetMapping { .. }
 
-data AppManifest (n :: Nat) where
-    AppManifestV0 ::{ appManifestV0Id :: AppId
-                    , appManifestV0Version :: Version
-                    , appManifestV0Title :: Text
-                    , appManifestV0DescShort :: Text
-                    , appManifestV0DescLong :: Text
-                    , appManifestV0ReleaseNotes :: Text
-                    , appManifestV0PortMapping :: HM.HashMap Word16 Word16
-                    , appManifestV0ImageType :: ImageType
-                    , appManifestV0Mount :: FilePath
-                    , appManifestV0Assets :: [AssetMapping]
-                    , appManifestV0OnionVersion :: OnionVersion
-                    , appManifestV0Dependencies :: HM.HashMap AppId VersionRange
-                    } -> AppManifest 0
+data AppManifest where
+     AppManifest :: { appManifestId :: AppId
+                    , appManifestVersion :: Version
+                    , appManifestTitle :: Text
+                    , appManifestDescShort :: Text
+                    , appManifestDescLong :: Text
+                    , appManifestReleaseNotes :: Text
+                    , appManifestPortMapping :: HM.HashMap Word16 Word16
+                    , appManifestImageType :: ImageType
+                    , appManifestMount :: FilePath
+                    , appManifestAssets :: [AssetMapping]
+                    , appManifestOnionVersion :: OnionVersion
+                    , appManifestDependencies :: HM.HashMap AppId VersionRange
+                    } -> AppManifest
 
-hasUi :: forall n. AppManifest n -> Bool
-hasUi AppManifestV0 {..} = isJust $ HM.lookup 80 appManifestV0PortMapping
+hasUi :: AppManifest -> Bool
+hasUi AppManifest {..} = isJust $ HM.lookup 80 appManifestPortMapping
 
-instance FromJSON (Some1 AppManifest) where
-    parseJSON = withObject "App Manifest" $ \o -> Some1 (SNat @0) <$> parseJSON (Object o)
-
-
-instance FromJSON (AppManifest 0) where
-    parseJSON = withObject "App Manifest V0" $ \o -> do
-        appManifestV0Id           <- o .: "id"
-        appManifestV0Version      <- o .: "version"
-        appManifestV0Title        <- o .: "title"
-        appManifestV0DescShort    <- o .: "description" >>= (.: "short")
-        appManifestV0DescLong     <- o .: "description" >>= (.: "long")
-        appManifestV0ReleaseNotes <- o .: "release-notes"
-        appManifestV0PortMapping  <- o .: "ports" >>= fmap HM.fromList . traverse parsePortMapping
-        appManifestV0ImageType    <- o .: "image" >>= (.: "type")
-        appManifestV0Mount        <- o .: "mount"
-        appManifestV0Assets       <- o .: "assets" >>= traverse parseJSON
-        appManifestV0OnionVersion <- o .: "hidden-service-version"
-        appManifestV0Dependencies <- o .:? "dependencies" .!= HM.empty >>= traverse parseDepInfo
-        pure $ AppManifestV0 { .. }
+instance FromJSON AppManifest where
+    parseJSON = withObject "App Manifest " $ \o -> do
+        appManifestId           <- o .: "id"
+        appManifestVersion      <- o .: "version"
+        appManifestTitle        <- o .: "title"
+        appManifestDescShort    <- o .: "description" >>= (.: "short")
+        appManifestDescLong     <- o .: "description" >>= (.: "long")
+        appManifestReleaseNotes <- o .: "release-notes"
+        appManifestPortMapping  <- o .: "ports" >>= fmap HM.fromList . traverse parsePortMapping
+        appManifestImageType    <- o .: "image" >>= (.: "type")
+        appManifestMount        <- o .: "mount"
+        appManifestAssets       <- o .: "assets" >>= traverse parseJSON
+        appManifestOnionVersion <- o .: "hidden-service-version"
+        appManifestDependencies <- o .:? "dependencies" .!= HM.empty >>= traverse parseDepInfo
+        pure $ AppManifest { .. }
         where
             parsePortMapping = withObject "Port Mapping" $ \o -> liftA2 (,) (o .: "tor") (o .: "internal")
             parseDepInfo     = withObject "Dep Info" $ (.: "version")
 
-getAppManifest :: (MonadIO m, HasFilesystemBase sig m) => AppId -> S9ErrT m (Maybe (Some1 AppManifest))
+getAppManifest :: (MonadIO m, HasFilesystemBase sig m) => AppId -> S9ErrT m (Maybe AppManifest)
 getAppManifest appId = do
     base <- ask @"filesystemBase"
     ExceptT $ first (ManifestParseE appId) <$> liftIO
         (Yaml.decodeFileEither . toS $ (appMgrAppPath appId <> "manifest.yaml") `relativeTo` base)
 
-uiAvailable :: AppManifest n -> Bool
+uiAvailable :: AppManifest -> Bool
 uiAvailable = \case
-    AppManifestV0 { appManifestV0PortMapping } -> elem 80 (HM.keys appManifestV0PortMapping)
+    AppManifest { appManifestPortMapping } -> elem 80 (HM.keys appManifestPortMapping)
