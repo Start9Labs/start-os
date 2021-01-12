@@ -68,10 +68,8 @@ hasUi :: forall n. AppManifest n -> Bool
 hasUi AppManifestV0 {..} = isJust $ HM.lookup 80 appManifestV0PortMapping
 
 instance FromJSON (Some1 AppManifest) where
-    parseJSON = withObject "App Manifest" $ \o -> do
-        o .: "compat" >>= \case
-            ("v0" :: Text) -> Some1 (SNat @0) <$> parseJSON (Object o)
-            compat         -> fail $ "Unknown Manifest Version: " <> toS compat
+    parseJSON = withObject "App Manifest" $ \o -> Some1 (SNat @0) <$> parseJSON (Object o)
+
 
 instance FromJSON (AppManifest 0) where
     parseJSON = withObject "App Manifest V0" $ \o -> do
