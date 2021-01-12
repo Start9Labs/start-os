@@ -320,6 +320,18 @@ impl ConfigRuleEntryWithSuggestions {
             Ok(())
         }
     }
+    pub fn cleanup<'a>(
+        &self,
+        id: &'a str,
+        cfg: &mut Config,
+        cfgs: &mut LinearMap<&'a str, Cow<Config>>,
+    ) {
+        if self.entry.check(cfg, cfgs).is_ok() {
+            for cleanup in &self.cleanup {
+                cleanup.apply(id, cfg, cfgs);
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -207,8 +207,8 @@ pub async fn cleanup_config(
         .get(dependency)
         .ok_or_else(|| failure::format_err!("{} Does Not Depend On {}", dependent, dependency))
         .no_code()?;
-    for rule in dep_info.config.iter().flat_map(|r| r.cleanup.iter()) {
-        rule.apply(dependency, &mut dependency_config, &mut cfgs);
+    for rule in &dep_info.config {
+        rule.cleanup(dependency, &mut dependency_config, &mut cfgs);
     }
     crate::config::configure(dependency, Some(dependency_config), None, dry_run).await
 }
