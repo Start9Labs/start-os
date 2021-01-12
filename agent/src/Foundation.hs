@@ -62,6 +62,7 @@ import           Settings
 data AgentCtx = AgentCtx
     { appSettings                 :: AppSettings
     , appHttpManager              :: Manager
+    , appTorManager               :: Manager
     , appConnPool                 :: ConnectionPool -- ^ Database connection pool.
     , appLogger                   :: Logger
     , appWebServerThreadId        :: IORef (Maybe ThreadId)
@@ -71,6 +72,7 @@ data AgentCtx = AgentCtx
     , appSelfUpdateSpecification  :: MVar VersionRange
     , appBackgroundJobs           :: TVar JobCache
     , appIconTags                 :: TVar (HM.HashMap AppId (Digest MD5))
+    , appLastTorRestart           :: IORef UTCTime
     }
 
 setWebProcessThreadId :: ThreadId -> AgentCtx -> IO ()

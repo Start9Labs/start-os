@@ -67,6 +67,8 @@ import           Model
 import           Settings
 import Lib.Background
 import qualified Daemon.SslRenew as SSLRenew
+import Lib.Tor (newTorManager)
+import Daemon.TorHealth
 
 appMain :: IO ()
 appMain = do
@@ -106,6 +108,7 @@ makeFoundation appSettings = do
     -- subsite.
     appLogger                   <- newStdoutLoggerSet defaultBufSize >>= makeYesodLogger
     appHttpManager              <- getGlobalManager
+    appTorManager               <- newTorManager (appTorSocksPort appSettings)
     appWebServerThreadId        <- newIORef Nothing
     appSelfUpdateSpecification  <- newEmptyMVar
     appIsUpdating               <- newIORef Nothing
@@ -192,6 +195,10 @@ startupSequence foundation = do
         withAgentVersionLog_ "Initializing SSL certificate renewal loop"
         void . forkIO . forever $ forkIO (SSLRenew.renewSslLeafCert foundation) *> sleep 86_400
         withAgentVersionLog_ "SSL Renewal daemon started"
+
+        withAgentVersionLog_ "Initializing Tor health check loop"
+        void . forkIO . forever $ forkIO (runReaderT torHealth foundation) *> sleep 300
+        withAgentVersionLog_ "Tor health check loop running"
 
         -- reloading avahi daemon
         -- DRAGONS! make sure this step happens AFTER system synchronization
