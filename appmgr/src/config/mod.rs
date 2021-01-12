@@ -115,6 +115,13 @@ pub struct ConfigurationRes {
     pub needs_restart: LinearSet<String>,
     pub stopped: LinearMap<String, TaggedDependencyError>,
 }
+impl ConfigurationRes {
+    pub fn merge_with(&mut self, other: Self) {
+        self.changed.extend(other.changed.into_iter());
+        self.needs_restart.extend(other.needs_restart.into_iter());
+        self.stopped.extend(other.stopped.into_iter());
+    }
+}
 
 // returns apps with changed configurations
 pub async fn configure(
