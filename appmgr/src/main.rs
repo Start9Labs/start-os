@@ -404,6 +404,13 @@ async fn inner_main() -> Result<(), Error> {
                         .help("Deletes all application data"),
                 )
                 .arg(
+                    Arg::with_name("cleanup-config")
+                        .long("cleanup-config")
+                        .help(
+                        "Removes bespoke settings added to the configuration of its dependencies",
+                    ),
+                )
+                .arg(
                     Arg::with_name("ID")
                         .help("ID of the application to be removed")
                         .required(true),
@@ -1123,6 +1130,7 @@ async fn inner_main() -> Result<(), Error> {
             let res = remove(
                 sub_m.value_of("ID").unwrap(),
                 sub_m.is_present("purge"),
+                sub_m.is_present("cleanup-config"),
                 sub_m.is_present("dry-run"),
             )
             .await?;

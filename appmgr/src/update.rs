@@ -76,7 +76,7 @@ pub async fn update(
         return Ok(res);
     }
     let download_path = crate::install::download_name(name_version).await?;
-    crate::remove::remove(name, false, false).await?;
+    crate::remove::remove(name, false, false, false).await?;
     crate::install::install_path(download_path, Some(name)).await?;
     crate::apps::set_recoverable(name, false).await?;
 
