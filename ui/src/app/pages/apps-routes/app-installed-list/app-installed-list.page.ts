@@ -100,7 +100,7 @@ export class AppInstalledListPage extends Cleanup {
   }
 
   async launchUiTab (address: string) {
-    console.log('launching', address)
+    address = address.startsWith('http') ? address : `http://${address}`
     return window.open(address, '_blank')
   }
 
