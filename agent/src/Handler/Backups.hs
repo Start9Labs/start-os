@@ -99,12 +99,12 @@ getDisksR :: Handler (JSONResponse [AppMgr.DiskInfo])
 getDisksR = fmap JSONResponse . runM . handleS9ErrC $ listDisksLogic
 
 deleteDisksR :: Handler ()
-deleteDisksR = handleS9ErrT $ do
+deleteDisksR = runM . handleS9ErrC $ do
     logicalName <- lookupGetParam "logicalName" >>= orThrow400
-    runM . handleS9ErrC $ ejectDiskLogic logicalName
+    ejectDiskLogic logicalName
     where
         orThrow400 = \case
-            Nothing -> throwE $ ParamsE "logicalName"
+            Nothing -> throwError $ ParamsE "logicalName"
             Just p  -> pure p
 
 
