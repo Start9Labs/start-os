@@ -25,7 +25,6 @@ import qualified Data.HashMap.Strict           as HM
 import           Data.Singletons.Prelude hiding ( Error )
 import           Data.Singletons.Prelude.Either
 import qualified Data.String                   as String
-import           Exinst
 
 import           Lib.Algebra.Domain.AppMgr.Types
 import           Lib.Algebra.Domain.AppMgr.TH
@@ -67,7 +66,7 @@ data InfoRes a = InfoRes
               (Either_ (DefaultEqSym1 'OnlyDependencies) (ElemSym1 'IncludeDependencies) a)
               (HM.HashMap AppId DependencyInfo)
     , infoResManifest
-          :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) (Some1 AppManifest)
+          :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) AppManifest
     , infoResStatus :: Include (Either_ (DefaultEqSym1 'OnlyStatus) (ElemSym1 'IncludeStatus) a) AppContainerStatus
     }
 instance SingI (a :: Either OnlyInfoFlag [IncludeInfoFlag]) => FromJSON (InfoRes a) where
