@@ -1,10 +1,15 @@
 use std::path::Path;
 
 use crate::config::ConfigurationRes;
-use crate::dependencies::{cleanup_config, DependencyError};
+use crate::dependencies::DependencyError;
 use crate::Error;
 
-pub async fn remove(name: &str, purge: bool, dry_run: bool) -> Result<ConfigurationRes, Error> {
+pub async fn remove(
+    name: &str,
+    purge: bool,
+    cleanup_config: bool,
+    dry_run: bool,
+) -> Result<ConfigurationRes, Error> {
     let manifest = crate::apps::manifest(name).await?;
     let mut res = ConfigurationRes::default();
     crate::stop_dependents(
@@ -48,10 +53,12 @@ pub async fn remove(name: &str, purge: bool, dry_run: bool) -> Result<Configurat
             log::error!("Failed to Remove Docker Image");
         };
     }
-    if purge {
+    if cleanup_config {
         for (dep, _) in manifest.dependencies.0.iter() {
-            res.merge_with(cleanup_config(&manifest.id, dep, dry_run).await?);
+            res.merge_with(crate::dependencies::cleanup_config(&manifest.id, dep, dry_run).await?);
         }
+    }
+    if purge {
         if !dry_run {
             log::info!("Removing tor hidden service.");
             crate::tor::rm_svc(name).await?;
