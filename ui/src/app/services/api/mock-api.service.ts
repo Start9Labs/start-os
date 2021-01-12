@@ -424,7 +424,7 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
 })
 
 const mockVersionLatest: ReqRes.GetVersionLatestRes = {
-  versionLatest: '15.2.8',
+  versionLatest: '15.2.8.6',
   canUpdate: true,
 }
 
