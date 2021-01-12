@@ -36,6 +36,7 @@ export class AppInstalledListPage extends Cleanup {
 
   showCertDownload : boolean
   isConsulate: boolean
+  isTor: boolean
 
   constructor (
     private readonly serverModel: ServerModel,
@@ -46,6 +47,7 @@ export class AppInstalledListPage extends Cleanup {
   ) {
     super()
     this.isConsulate = config.isConsulateAndroid || config.isConsulateIos
+    this.isTor = config.isTor()
   }
 
   ngOnDestroy () {
@@ -98,6 +100,7 @@ export class AppInstalledListPage extends Cleanup {
   }
 
   async launchUiTab (address: string) {
+    console.log('launching', address)
     return window.open(address, '_blank')
   }
 
