@@ -69,12 +69,12 @@ instance MonadResource m => MonadResource (FE.ReaderC r m)  where
 instance MonadResource m => MonadResource (FE.ErrorC e m) where
     liftResourceT = lift . liftResourceT
 
-
 instance MonadThrow (sub m) => MonadThrow (FE.Labelled label sub m) where
     throwM = FE.Labelled . throwM
 instance MonadThrow m => MonadThrow (FE.LiftC m) where
     throwM = FE.LiftC . throwM
 
+instance MonadLogger m => MonadLogger (FE.ErrorC e m) where
 instance MonadLogger m => MonadLogger (FE.LiftC m) where
 instance MonadLogger (sub m) => MonadLogger (FE.Labelled label sub m) where
     monadLoggerLog a b c d = FE.Labelled $ monadLoggerLog a b c d
@@ -90,6 +90,13 @@ instance MonadHandler (sub m) => MonadHandler (FE.Labelled label sub m) where
     type SubHandlerSite (FE.Labelled label sub m) = SubHandlerSite (sub m)
     liftHandler    = FE.Labelled . liftHandler
     liftSubHandler = FE.Labelled . liftSubHandler
+
+
+instance MonadHandler m => MonadHandler (FE.ErrorC e m) where
+    type HandlerSite (FE.ErrorC e m) = HandlerSite m
+    type SubHandlerSite (FE.ErrorC e m) = SubHandlerSite m
+    liftHandler    = lift . liftHandler
+    liftSubHandler = lift . liftSubHandler
 
 instance MonadTransControl t => MonadTransControl (FE.Labelled k t) where
     type StT (FE.Labelled k t) a = StT t a
