@@ -63,7 +63,7 @@ export class LiveApiService extends ApiService {
   }
 
   async ejectExternalDisk (logicalName: string): Promise<Unit> {
-    return this.authRequest({ method: Method.DELETE, url: `/disks/${logicalName}` })
+    return this.authRequest({ method: Method.DELETE, url: `/disks?logicalName=${encodeURI(logicalName)}` })
   }
 
   async updateAgent (version: string): Promise<Unit> {
