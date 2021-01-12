@@ -253,7 +253,7 @@ getInstalledAppsLogic = do
                 , appInstalledPreviewStatus           = s
                 , appInstalledPreviewVersionInstalled = v
                 , appInstalledPreviewTorAddress       = infoResTorAddress
-                , appInstalledPreviewUi               = AppManifest.hasUi infoResManifest
+                , appInstalledPreviewUi               = AppManifest.uiAvailable infoResManifest
                 }
 
     pure $ HML.elems $ HML.union installingPreviews installedPreviews

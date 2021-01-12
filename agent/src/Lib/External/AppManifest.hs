@@ -62,8 +62,8 @@ data AppManifest where
                     , appManifestDependencies :: HM.HashMap AppId VersionRange
                     } -> AppManifest
 
-hasUi :: AppManifest -> Bool
-hasUi AppManifest {..} = isJust $ HM.lookup 80 appManifestPortMapping
+uiAvailable :: AppManifest -> Bool
+uiAvailable AppManifest {..} = isJust $ HM.lookup 80 appManifestPortMapping
 
 instance FromJSON AppManifest where
     parseJSON = withObject "App Manifest " $ \o -> do
@@ -89,7 +89,3 @@ getAppManifest appId = do
     base <- ask @"filesystemBase"
     ExceptT $ first (ManifestParseE appId) <$> liftIO
         (Yaml.decodeFileEither . toS $ (appMgrAppPath appId <> "manifest.yaml") `relativeTo` base)
-
-uiAvailable :: AppManifest -> Bool
-uiAvailable = \case
-    AppManifest { appManifestPortMapping } -> elem 80 (HM.keys appManifestPortMapping)
