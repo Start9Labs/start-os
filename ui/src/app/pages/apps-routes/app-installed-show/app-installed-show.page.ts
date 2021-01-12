@@ -38,8 +38,9 @@ export class AppInstalledShowPage extends Cleanup {
   isTor: boolean
 
   dependencyDefintion = () => `<span style="font-style: italic">Dependencies</span> are other services which must be installed, configured appropriately, and started in order to start ${this.app.title.getValue()}`
-  launchDefinition = () => `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. If a service does not have this button, you must access it using another interface, such as a mobile app, desktop app, or another service on the Embassy. Please view the instructions for a service for details on how to use it.</p>`
-  launchOffDefinition = () => `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. Get your service running in order to launch!</p>`
+  launchDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. If a service does not have this button, you must access it using another interface, such as a mobile app, desktop app, or another service on the Embassy. Please view the instructions for a service for details on how to use it.</p>`
+  launchOffDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. Get your service running in order to launch!</p>`
+  launchLocalDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. Visit your Embassy at its Tor address to launch this service!</p>`
 
   @ViewChild(IonContent) content: IonContent
 
@@ -102,8 +103,8 @@ export class AppInstalledShowPage extends Cleanup {
   }
 
   async launchUiTab () {
-    const uiAddress = this.app.torAddress.getValue()
-    console.log('launching', uiAddress)
+    let uiAddress = this.app.torAddress.getValue()
+    uiAddress = uiAddress.startsWith('http') ? uiAddress : `http://${uiAddress}`
     return window.open(uiAddress, '_blank')
   }
 
@@ -271,6 +272,18 @@ export class AppInstalledShowPage extends Cleanup {
 
     if (data.cancelled) return
     return this.navCtrl.navigateRoot('/services/installed')
+  }
+
+  async presentLaunchPopover (status: AppStatus, ev: any) {
+    let desc: string
+    if (!this.isTor) {
+      desc = this.launchLocalDefinition
+    } else if (status !== AppStatus.RUNNING) {
+      desc = this.launchOffDefinition
+    } else {
+      desc = this.launchDefinition
+    }
+    return this.presentPopover(desc, ev)
   }
 
   async presentPopover (information: string, ev: any) {
