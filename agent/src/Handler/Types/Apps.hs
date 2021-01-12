@@ -14,6 +14,7 @@ import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Lib.Types.Emver.Orphans        ( )
 import           Lib.Types.NetAddress
+import qualified Data.HashMap.Strict           as HM
 data AppBase = AppBase
     { appBaseId      :: AppId
     , appBaseTitle   :: Text
@@ -188,3 +189,7 @@ newtype AutoconfigureChangesRes = AutoconfigureChangesRes
     }
 instance ToJSON AutoconfigureChangesRes where
     toJSON AutoconfigureChangesRes {..} = object ["config" .= autoconfigureChangesConfig]
+
+newtype RevertDependencyRes = RevertDependencyRes { revertDependencyChanges :: HM.HashMap AppId Value }
+instance ToJSON RevertDependencyRes where
+    toJSON RevertDependencyRes {..} = object ["changes" .= revertDependencyChanges]

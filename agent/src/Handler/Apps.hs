@@ -331,23 +331,26 @@ getInstalledAppByIdLogic appId = do
                                   }
     runMaybeT (installing <|> installed) `orThrowM` NotFoundE "appId" (show appId)
 
-postUninstallAppR :: AppId -> Handler (JSONResponse (WithBreakages ()))
+postUninstallAppR :: AppId -> Handler (JSONResponse (WithBreakages RevertDependencyRes))
 postUninstallAppR appId = do
-    dry <- AppMgr2.DryRun . isJust <$> lookupGetParam "dryrun"
-    disableEndpointOnFailedUpdate . intoHandler $ JSONResponse <$> postUninstallAppLogic appId dry
+    dry    <- AppMgr2.DryRun . isJust <$> lookupGetParam "dryrun"
+    revert <- AppMgr2.CleanupConfig . isJust <$> lookupGetParam "revertDependencyConfigs"
+    disableEndpointOnFailedUpdate . intoHandler $ JSONResponse <$> postUninstallAppLogic appId dry revert
 
 postUninstallAppLogic :: ( HasFilesystemBase sig m
                          , Has (Reader AgentCtx) sig m
                          , Has (Error S9Error) sig m
                          , Has AppMgr2.AppMgr sig m
                          , MonadIO m
+                         , MonadBaseControl IO m
                          , HasLabelled "databaseConnection" (Reader ConnectionPool) sig m
                          , HasLabelled "iconTagCache" (Reader (TVar (HM.HashMap AppId (Digest MD5)))) sig m
                          )
                       => AppId
                       -> AppMgr2.DryRun
-                      -> m (WithBreakages ())
-postUninstallAppLogic appId dryrun = do
+                      -> AppMgr2.CleanupConfig
+                      -> m (WithBreakages RevertDependencyRes)
+postUninstallAppLogic appId dryrun revert = do
     jobCache <- asks appBackgroundJobs >>= liftIO . readTVarIO
     let tmpStatuses = statuses jobCache
     serverApps <- AppMgr2.list [AppMgr2.flags| |]
@@ -357,12 +360,17 @@ postUninstallAppLogic appId dryrun = do
         Just CreatingBackup  -> throwError (TemporarilyForbiddenE appId "uninstall" (show CreatingBackup))
         Just RestoringBackup -> throwError (TemporarilyForbiddenE appId "uninstall" (show RestoringBackup))
         _                    -> pure ()
-    let flags = if coerce dryrun then Left dryrun else Right (AppMgr2.Purge True)
-    breakageIds <- HM.keys . AppMgr2.unBreakageMap <$> AppMgr2.remove flags appId
-    bs <- pure (traverse (hydrate $ (AppMgr2.infoResTitle &&& AppMgr2.infoResVersion) <$> serverApps) breakageIds)
-        `orThrowM` InternalE "Reported app breakage for app that isn't installed, contact support"
+    let flags = if coerce dryrun then Left dryrun else Right (AppMgr2.Purge True, revert)
+    AppMgr2.AppDifferential {..} <- AppMgr2.remove flags appId
+    when (not $ coerce dryrun) $ for_ appDifferentialNeedsRestart postRestartServerAppLogic
+    bs <-
+        pure
+                (traverse (hydrate $ (AppMgr2.infoResTitle &&& AppMgr2.infoResVersion) <$> serverApps)
+                          (HM.keys appDifferentialStopped)
+                )
+            `orThrowM` InternalE "Reported app breakage for app that isn't installed, contact support"
     when (not $ coerce dryrun) $ clearIcon appId
-    pure $ WithBreakages bs ()
+    pure $ WithBreakages bs (RevertDependencyRes appDifferentialChanged)
 
 type InstallResponse :: Bool -> Type
 data InstallResponse a = InstallResponse (If a (WithBreakages ()) AppInstalledFull)
@@ -584,12 +592,12 @@ patchAppConfigLogic :: ( Has (Reader AgentCtx) sig m
                     -> Value
                     -> m (WithBreakages ())
 patchAppConfigLogic appId dryrun cfg = do
-    serverApps                <- AppMgr2.list [AppMgr2.flags| |]
-    AppMgr2.ConfigureRes {..} <- AppMgr2.configure dryrun appId (Just cfg)
-    when (not $ coerce dryrun) $ for_ configureResNeedsRestart postRestartServerAppLogic
+    serverApps                   <- AppMgr2.list [AppMgr2.flags| |]
+    AppMgr2.AppDifferential {..} <- AppMgr2.configure dryrun appId (Just cfg)
+    when (not $ coerce dryrun) $ for_ appDifferentialNeedsRestart postRestartServerAppLogic
     breakages <-
         traverse (hydrate ((AppMgr2.infoResTitle &&& AppMgr2.infoResVersion) <$> serverApps))
-                 (HM.keys configureResStopped)
+                 (HM.keys appDifferentialStopped)
             `orThrowPure` InternalE "Breakage reported for app that is not installed, contact support"
     pure $ WithBreakages breakages ()
 
@@ -678,12 +686,12 @@ postAutoconfigureLogic dependency dependent dry = do
         (False, _    ) -> throwError $ NotFoundE "appId" (show dependency)
         (_    , False) -> throwError $ NotFoundE "appId" (show dependent)
         _              -> pure ()
-    AppMgr2.AutoconfigureRes {..} <- AppMgr2.autoconfigure dry dependent dependency
-    when (not $ coerce dry) $ for_ (AppMgr2.configureResNeedsRestart autoconfigureConfigRes) postRestartServerAppLogic
+    AppMgr2.AppDifferential {..} <- AppMgr2.autoconfigure dry dependent dependency
+    when (not $ coerce dry) $ for_ appDifferentialNeedsRestart postRestartServerAppLogic
     let titles = (AppMgr2.infoResTitle &&& AppMgr2.infoResVersion) <$> appData
-    bases <- traverse (hydrate titles) (HM.keys (AppMgr2.configureResStopped autoconfigureConfigRes))
+    bases <- traverse (hydrate titles) (HM.keys appDifferentialStopped)
         `orThrowPure` InternalE "Breakages reported for app that isn't installed, contact support"
-    pure $ WithBreakages bases (AutoconfigureChangesRes $ HM.lookup dependency autoconfigureChanged)
+    pure $ WithBreakages bases (AutoconfigureChangesRes $ HM.lookup dependency appDifferentialChanged)
 
 indexBy :: (Eq k, Hashable k) => (v -> k) -> [v] -> HM.HashMap k v
 indexBy = flip foldr HM.empty . (>>= HM.insertWith const)

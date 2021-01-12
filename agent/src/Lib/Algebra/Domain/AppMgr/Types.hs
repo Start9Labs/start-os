@@ -11,6 +11,7 @@ import           Data.Singletons.TH
 newtype LocalOnly = LocalOnly { unLocalOnly :: Bool }
 newtype NoCache = NoCache { unNoCache :: Bool }
 newtype Purge = Purge { unPurge :: Bool }
+newtype CleanupConfig = CleanupConfig { unCleanupConfig :: Bool }
 newtype DryRun = DryRun { unDryRun :: Bool }
 
 $(singletons [d|

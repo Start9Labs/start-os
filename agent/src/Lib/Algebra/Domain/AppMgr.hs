@@ -65,9 +65,8 @@ data InfoRes a = InfoRes
           :: Include
               (Either_ (DefaultEqSym1 'OnlyDependencies) (ElemSym1 'IncludeDependencies) a)
               (HM.HashMap AppId DependencyInfo)
-    , infoResManifest
-          :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) AppManifest
-    , infoResStatus :: Include (Either_ (DefaultEqSym1 'OnlyStatus) (ElemSym1 'IncludeStatus) a) AppContainerStatus
+    , infoResManifest :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) AppManifest
+    , infoResStatus   :: Include (Either_ (DefaultEqSym1 'OnlyStatus) (ElemSym1 'IncludeStatus) a) AppContainerStatus
     }
 instance SingI (a :: Either OnlyInfoFlag [IncludeInfoFlag]) => FromJSON (InfoRes a) where
     parseJSON = withObject "AppMgr Info/List Response" $ \o -> do
@@ -208,32 +207,33 @@ instance FromJSON DependencyViolation where
         in  version <|> config
     parseJSON other = fail $ "Invalid Dependency Violation" <> show other
 
-data AutoconfigureRes = AutoconfigureRes
-    { autoconfigureConfigRes :: ConfigureRes
-    , autoconfigureChanged   :: HM.HashMap AppId Value
-    }
-instance FromJSON AutoconfigureRes where
-    parseJSON = withObject "AppMgr AutoconfigureRes" $ \o -> do
-        autoconfigureConfigRes <- parseJSON (Object o)
-        autoconfigureChanged   <- o .: "changed"
-        pure AutoconfigureRes { .. }
+-- data AutoconfigureRes = AutoconfigureRes
+--     { autoconfigureAppDifferential :: AppDifferential
+--     }
+-- instance FromJSON AutoconfigureRes where
+--     parseJSON = withObject "AppMgr AutoconfigureRes" $ \o -> do
+--         autoconfigureAppDifferential <- parseJSON (Object o)
+--         autoconfigureChanged         <- o .: "changed"
+--         pure AutoconfigureRes { .. }
 
-data ConfigureRes = ConfigureRes
-    { configureResNeedsRestart :: [AppId]
-    , configureResStopped      :: HM.HashMap AppId (AppId, DependencyError) -- TODO: Consider making this nested hashmaps
+data AppDifferential = AppDifferential
+    { appDifferentialNeedsRestart :: [AppId]
+    , appDifferentialStopped      :: HM.HashMap AppId (AppId, DependencyError) -- TODO: Consider making this nested hashmaps
+    , appDifferentialChanged      :: HM.HashMap AppId Value
     }
     deriving Eq
-instance FromJSON ConfigureRes where
+instance FromJSON AppDifferential where
     parseJSON = withObject "AppMgr ConfigureRes" $ \o -> do
-        configureResNeedsRestart <- o .: "needs-restart"
-        configureResStopped'     <- o .: "stopped"
-        configureResStopped      <- for
-            configureResStopped'
+        appDifferentialNeedsRestart <- o .: "needs-restart"
+        appDifferentialChanged      <- o .: "changed"
+        appDifferentialStopped'     <- o .: "stopped"
+        appDifferentialStopped      <- for
+            appDifferentialStopped'
             \v -> do
                 depId    <- v .: "dependency"
                 depError <- v .: "error"
                 pure (depId, depError)
-        pure ConfigureRes { .. }
+        pure AppDifferential { .. }
 
 newtype BreakageMap = BreakageMap { unBreakageMap :: HM.HashMap AppId (AppId, DependencyError) }
 instance FromJSON BreakageMap where
@@ -249,8 +249,8 @@ instance FromJSON BreakageMap where
 data AppMgr (m :: Type -> Type) k where
     -- Backup ::_
     CheckDependencies ::LocalOnly -> AppId -> Maybe VersionRange -> AppMgr m (HM.HashMap AppId DependencyInfo)
-    Configure ::DryRun -> AppId -> Maybe Value -> AppMgr m ConfigureRes
-    Autoconfigure ::DryRun -> AppId -> AppId -> AppMgr m AutoconfigureRes
+    Configure ::DryRun -> AppId -> Maybe Value -> AppMgr m AppDifferential
+    Autoconfigure ::DryRun -> AppId -> AppId -> AppMgr m AppDifferential
     -- Disks ::_
     Info ::Sing (flags :: Either OnlyInfoFlag [IncludeInfoFlag]) -> AppId -> AppMgr m (Maybe (InfoRes flags))
     InfoRaw ::OnlyInfoFlag -> AppId -> AppMgr m (Maybe Text)
@@ -261,7 +261,7 @@ data AppMgr (m :: Type -> Type) k where
     -- Logs ::_
     -- Notifications ::_
     -- Pack ::_
-    Remove ::Either DryRun Purge -> AppId -> AppMgr m BreakageMap
+    Remove ::Either DryRun (Purge, CleanupConfig) -> AppId -> AppMgr m AppDifferential
     Restart ::AppId -> AppMgr m ()
     -- SelfUpdate ::_
     -- Semver ::_
@@ -377,9 +377,12 @@ instance (Has (Error S9Error) sig m, Algebra sig m, MonadIO m) => Algebra (AppMg
             pure $ ctx $> res
         (L (Remove dryorpurge appId)) -> do
             let args = "remove" : case dryorpurge of
-                    Left  (DryRun True) -> ["--dry-run", show appId, "--json"]
-                    Right (Purge  True) -> ["--purge", show appId, "--json"]
-                    _                   -> [show appId]
+                    Left (DryRun True ) -> ["--dry-run", show appId, "--json"]
+                    Left (DryRun False) -> [show appId, "--json"]
+                    Right (Purge purge, CleanupConfig cleanup) ->
+                        let addPurge   = if purge then ("--purge" :) else id
+                            addCleanup = if cleanup then ("--cleanup-config" :) else id
+                        in  addPurge . addCleanup $ [show appId, "--json"]
             (ec, out) <- readProcessInheritStderr "appmgr" args ""
             res       <- case ec of
                 ExitSuccess -> case eitherDecodeStrict out of
