@@ -41,6 +41,9 @@ data AppSettings = AppSettings
     -- ^ Should all log messages be displayed?
     , appMgrVersionSpec         :: VersionRange
     , appFilesystemBase         :: Text
+    , appTorSocksPort           :: Word16
+    -- ^ Port on localhost where the tor client is listening, defaults to 9050
+    , appTorRestartCooldown     :: NominalDiffTime
     }
     deriving Show
 
@@ -63,6 +66,8 @@ instance FromJSON AppSettings where
 
         appMgrVersionSpec         <- o .: "app-mgr-version-spec"
         appFilesystemBase         <- o .: "filesystem-base"
+        appTorSocksPort           <- o .:? "tor-socks-port" .!= 9050
+        appTorRestartCooldown     <- o .:? "tor-restart-cooldown" .!= (secondsToNominalDiffTime 600)
         return AppSettings { .. }
 
 -- | Raw bytes at compile time of @config/settings.yml@

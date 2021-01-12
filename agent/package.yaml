@@ -42,6 +42,7 @@ dependencies:
 - comonad
 - conduit
 - conduit-extra
+- connection
 - containers
 - cryptonite
 - cryptonite-conduit
@@ -72,6 +73,7 @@ dependencies:
 - mime-types
 - monad-control
 - monad-logger
+- network
 - persistent
 - persistent-sqlite
 - persistent-template
@@ -82,6 +84,7 @@ dependencies:
 - regex-compat # TODO: trim this dep
 - shell-conduit
 - singletons
+- socks
 - stm
 - streaming
 - streaming-bytestring
