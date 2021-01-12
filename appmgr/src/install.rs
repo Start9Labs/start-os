@@ -478,7 +478,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
     let mut args = vec![
         Cow::Borrowed(OsStr::new("create")),
         Cow::Borrowed(OsStr::new("--restart")),
-        Cow::Borrowed(OsStr::new("on-failure")),
+        Cow::Borrowed(OsStr::new("no")),
         Cow::Borrowed(OsStr::new("--name")),
         Cow::Borrowed(OsStr::new(&manifest.id)),
         Cow::Borrowed(OsStr::new("--mount")),
