@@ -24,7 +24,7 @@
         <ion-col *ngFor="let app of apps" sizeXs="4" sizeSm="3" sizeMd="2" sizeLg="2">
           <ng-container *ngIf="{ tor: app.subject.torAddress | async, status: app.subject.status | async, ui: app.subject.ui | async, iconURL: app.subject.iconURL | async | iconParse, title: app.subject.title | async } as vars"  >
           <ion-button
-            *ngIf="vars.ui && !isConsulate"
+            *ngIf="vars.ui && !isConsulate && isTor"
             [disabled]="vars.status !== AppStatus.RUNNING"
             [class.launch-button-off]="vars.status !== AppStatus.RUNNING"
             class="launch-button-transparent"
