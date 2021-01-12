@@ -52,6 +52,7 @@ data S9Error =
     | WifiOrphaningE
     | NoPasswordExistsE
     | HostsParamsE Text
+    | ParamsE Text
     | MissingFileE SystemPath
     | ClientCryptographyE Text
     | TTLExpirationE Text
@@ -138,6 +139,7 @@ toError = \case
     TTLExpirationE      desc  -> ErrorResponse REGISTRATION_ERROR [i|TTL Expiration failure: #{desc}|]
     EnvironmentValE     appId -> ErrorResponse SYNCHRONIZATION_ERROR [i|Could not read environment values for #{appId}|]
     HostsParamsE        key   -> ErrorResponse REGISTRATION_ERROR [i|Missing or invalid parameter #{key}|]
+    ParamsE             key   -> ErrorResponse INVALID_REQUEST [i|Missing or invalid parameter #{key}|]
     InternalE           msg   -> ErrorResponse INTERNAL_ERROR msg
     BackupE appId reason      -> ErrorResponse BACKUP_ERROR [i|Backup failed for #{appId}: #{reason}|]
     BackupPassInvalidE        -> ErrorResponse BACKUP_ERROR [i|Password provided for backups is invalid|]
@@ -242,6 +244,7 @@ toStatus = \case
     TTLExpirationE      _   -> status403
     EnvironmentValE     _   -> status500
     HostsParamsE        _   -> status400
+    ParamsE             _   -> status400
     BackupE _ _             -> status500
     BackupPassInvalidE      -> status403
     InternalE _             -> status500

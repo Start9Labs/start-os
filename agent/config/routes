@@ -37,8 +37,7 @@
 /v0/apps/#AppId/backup/restore        RestoreBackupR           POST
 /v0/apps/#AppId/autoconfig/#AppId     AutoconfigureR           POST
 
-/v0/disks                             ListDisksR               GET
-/v0/disks/#Text                       EjectDiskR               DELETE
+/v0/disks                             DisksR                   GET DELETE
 
 /v0/update                            UpdateAgentR             POST
 /v0/wifi                              WifiR                    GET POST
