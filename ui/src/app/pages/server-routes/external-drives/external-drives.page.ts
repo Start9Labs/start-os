@@ -2,7 +2,7 @@ import { Component } from '@angular/core'
 import { pauseFor } from 'src/app/util/misc.util'
 import { ApiService } from 'src/app/services/api/api.service'
 import { DiskInfo } from 'src/app/models/server-model'
-import { markAsLoadingDuring$, markAsLoadingDuringAsync, markAsLoadingDuringP } from 'src/app/services/loader.service'
+import { markAsLoadingDuringP } from 'src/app/services/loader.service'
 import { BehaviorSubject } from 'rxjs'
 import { AlertController } from '@ionic/angular'
 
@@ -36,7 +36,10 @@ export class ExternalDrivesPage {
 
   async fetchDisks () {
     return this.apiService.getExternalDisks().then(ds => {
-      this.disks = ds.map(d => ({ ...d, $ejecting$: new BehaviorSubject(false)})).sort( (a, b) => a.logicalname < b.logicalname ? -1 : 1 )
+      this.disks = ds
+        .filter(d => !!d.partitions.find(p => !p.isMounted))
+        .map(d => ({ ...d, $ejecting$: new BehaviorSubject(false)}))
+        .sort( (a, b) => a.logicalname < b.logicalname ? -1 : 1 )
     })
   }
 
