@@ -207,15 +207,6 @@ instance FromJSON DependencyViolation where
         in  version <|> config
     parseJSON other = fail $ "Invalid Dependency Violation" <> show other
 
--- data AutoconfigureRes = AutoconfigureRes
---     { autoconfigureAppDifferential :: AppDifferential
---     }
--- instance FromJSON AutoconfigureRes where
---     parseJSON = withObject "AppMgr AutoconfigureRes" $ \o -> do
---         autoconfigureAppDifferential <- parseJSON (Object o)
---         autoconfigureChanged         <- o .: "changed"
---         pure AutoconfigureRes { .. }
-
 data AppDifferential = AppDifferential
     { appDifferentialNeedsRestart :: [AppId]
     , appDifferentialStopped      :: HM.HashMap AppId (AppId, DependencyError) -- TODO: Consider making this nested hashmaps
