@@ -121,6 +121,7 @@ sync_0_2_8 = Synchronizer
     , syncPersistLogs
     , syncConvertEcdsaCerts
     , syncRestarterService
+    , syncInstallEject
     ]
 
 syncCreateAgentTmp :: SyncOp
@@ -169,8 +170,8 @@ syncFullUpgrade = SyncOp "Full Upgrade" check migrate True
                 Just (Done _ (KernelVersion (Version av) _)) -> if av < (4, 19, 118, 0) then pure True else pure False
                 _ -> pure False
         migrate = liftIO . run $ do
-            shell "apt update"
-            shell "apt full-upgrade -y"
+            shell "apt-get update"
+            shell "apt-get full-upgrade -y"
 
 sync32BitKernel :: SyncOp
 sync32BitKernel = SyncOp "32 Bit Kernel Switch" check migrate True
@@ -194,16 +195,24 @@ syncInstallNginx = SyncOp "Install Nginx" check migrate False
     where
         check   = liftIO . run $ fmap isNothing (shell [i|which nginx || true|] $| conduit await)
         migrate = liftIO . run $ do
-            apt "update"
-            apt "install" "nginx" "-y"
+            shell "apt-get update"
+            shell "apt-get install nginx -y"
+
+syncInstallEject :: SyncOp
+syncInstallEject = SyncOp "Install Eject" check migrate False
+    where
+        check   = liftIO . run $ fmap isNothing (shell [i|which eject || true|] $| conduit await)
+        migrate = liftIO . run $ do
+            shell "apt-get update"
+            shell "apt-get install eject -y"
 
 syncInstallDuplicity :: SyncOp
 syncInstallDuplicity = SyncOp "Install duplicity" check migrate False
     where
         check   = liftIO . run $ fmap isNothing (shell [i|which duplicity || true|] $| conduit await)
         migrate = liftIO . run $ do
-            apt "update"
-            apt "install" "-y" "duplicity"
+            shell "apt-get update"
+            shell "apt-get install -y duplicity"
 
 syncInstallExfatFuse :: SyncOp
 syncInstallExfatFuse = SyncOp "Install exfat-fuse" check migrate False
@@ -215,8 +224,8 @@ syncInstallExfatFuse = SyncOp "Install exfat-fuse" check migrate False
                             ProcessException _ (ExitFailure 1) -> pure True
                             _ -> throwIO e
         migrate = liftIO . run $ do
-            apt "update"
-            apt "install" "-y" "exfat-fuse"
+            shell "apt-get update"
+            shell "apt-get install -y exfat-fuse"
 
 syncInstallExfatUtils :: SyncOp
 syncInstallExfatUtils = SyncOp "Install exfat-utils" check migrate False
@@ -228,8 +237,8 @@ syncInstallExfatUtils = SyncOp "Install exfat-utils" check migrate False
                             ProcessException _ (ExitFailure 1) -> pure True
                             _ -> throwIO e
         migrate = liftIO . run $ do
-            apt "update"
-            apt "install" "-y" "exfat-utils"
+            shell "apt-get update"
+            shell "apt-get install -y exfat-utils"
 
 syncWriteConf :: Text -> ByteString -> SystemPath -> SyncOp
 syncWriteConf name contents' confLocation = SyncOp [i|Write #{name} Conf|] check migrate False
