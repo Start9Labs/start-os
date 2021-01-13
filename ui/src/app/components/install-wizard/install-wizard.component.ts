@@ -7,6 +7,7 @@ import { capitalizeFirstLetter } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
 import { DependenciesComponent } from './dependencies/dependencies.component'
 import { DependentsComponent } from './dependents/dependents.component'
+import { DeveloperNotesComponent } from './developer-notes/developer-notes.component'
 import { Colorable, Loadable } from './loadable'
 import { WizardAction } from './wizard-types'
 
@@ -88,14 +89,14 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
 }
 
 export interface SlideCommon {
-  selector: string
+  selector: string // component http selector
   cancelButton: {
     // indicates the existence of a cancel button, and whether to have text or an icon 'x' by default.
     afterLoading?: { text?: string },
     whileLoading?: { text?: string }
   }
-  nextButton?: string,
-  finishButton?: string
+  nextButton?: string, // existence and content of next button
+  finishButton?: string // existence and content of finish button
 }
 
 export type SlideDefinition = SlideCommon & (
@@ -108,6 +109,9 @@ export type SlideDefinition = SlideCommon & (
   } | {
     selector: 'complete',
     params: CompleteComponent['params']
+  } | {
+    selector: 'developer-notes',
+    params: DeveloperNotesComponent['params']
   }
 )
 
