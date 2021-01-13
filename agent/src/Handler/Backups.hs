@@ -57,14 +57,13 @@ instance FromJSON RestoreBackupReq where
         restoreBackupPassword    <- o .:? "password" .!= Nothing
         pure RestoreBackupReq { .. }
 
-data DeleteDisksReq = DeleteDisksReq
-    { deleteDisksLogicalName :: Text 
+data EjectDiskReq = EjectDiskReq
+    { ejectDiskLogicalName :: Text 
     } deriving (Eq, Show)
-instance FromJSON DeleteDisksReq where
+instance FromJSON EjectDiskReq where
     parseJSON = withObject "Eject Disk Req" $ \o -> do
-        deleteDisksLogicalName <- o .: "logicalName"
-        pure DeleteDisksReq { .. }
-
+        ejectDiskLogicalName <- o .: "logicalName"
+        pure EjectDiskReq { .. }
 
 -- Handlers
 
@@ -107,8 +106,8 @@ postRestoreBackupR appId = disableEndpointOnFailedUpdate $ do
 getDisksR :: Handler (JSONResponse [AppMgr.DiskInfo])
 getDisksR = fmap JSONResponse . runM . handleS9ErrC $ listDisksLogic
 
-deleteDisksR :: Handler ()
-deleteDisksR = runM . handleS9ErrC $ requireCheckJsonBody >>= ejectDiskLogic . deleteDisksLogicalName
+postEjectR :: Handler ()
+postEjectR = runM . handleS9ErrC $ requireCheckJsonBody >>= ejectDiskLogic . ejectDiskLogicalName
 
 -- Logic
 
