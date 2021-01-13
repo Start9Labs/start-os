@@ -15,15 +15,11 @@
     <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
   </ion-refresher>
 
-  <ion-item-divider>
-    Storage
-  </ion-item-divider>
-
   <ion-item-group>
     <!-- <ion-list> -->
       <ion-item *ngFor="let d of disks; let i = index">
         <ion-icon slot="start" name="save-outline"></ion-icon>
-        <ion-label>{{d.logicalname}}</ion-label>
+        <ion-label>{{d.logicalname}} ({{ d.size }})</ion-label>
         <ion-button *ngIf="!(d.$ejecting$ | async)" slot="end" fill="clear" color="medium" (click)="ejectDisk(i)">
           <ion-icon color="primary" class="icon" src="/assets/icon/eject.svg"></ion-icon>
         </ion-button>

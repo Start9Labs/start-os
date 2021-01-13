@@ -488,13 +488,13 @@ const mockApiExternalDisks: DiskInfo[] = [
   },
   {
     logicalname: '/dev/sbd',
-    size: '128GBGB',
+    size: '128GB',
     description: 'large USB stick',
     partitions: [
       {
         logicalname: 'sdba1',
         size: '32GB',
-        isMounted: true,
+        isMounted: false,
         label: 'Partition 1',
       },
       {
