@@ -9,9 +9,9 @@ export class WizardBaker {
   constructor (private readonly apiService: ApiService, private readonly appModel: AppModel) { }
 
   install (values: {
-    id: string, title: string, version: string, serviceRequirements: AppDependency[]
+    id: string, title: string, version: string, serviceRequirements: AppDependency[], developerNotes?: string
   }): InstallWizardComponent['params'] {
-    const { id, title, version, serviceRequirements } = values
+    const { id, title, version, serviceRequirements, developerNotes } = values
 
     validate(id, exists, 'missing id')
     validate(title, exists, 'missing title')
@@ -22,6 +22,9 @@ export class WizardBaker {
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
+      { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
+        action, title, version, serviceRequirements,
+      }},
       { selector: 'dependencies', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Install', params: {
         action, title, version, serviceRequirements,
       }},
@@ -38,6 +41,7 @@ export class WizardBaker {
     id: string, title: string, version: string, serviceRequirements: AppDependency[]
   }): InstallWizardComponent['params'] {
     const { id, title, version, serviceRequirements } = values
+
     validate(id, exists, 'missing id')
     validate(title, exists, 'missing title')
     validate(version, exists, 'missing version')
