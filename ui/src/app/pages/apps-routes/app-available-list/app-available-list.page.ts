@@ -74,7 +74,9 @@ export class AppAvailableListPage {
   async getApps (): Promise<void> {
     try {
       this.apps = await this.apiService.getAvailableApps().then(apps =>
-        apps.map(a => ({ id: a.id, subject: initPropertySubject(a) })),
+        apps
+          .sort( (a1, a2) => a2.latestVersionTimestamp.getTime() - a1.latestVersionTimestamp.getTime())
+          .map(a => ({ id: a.id, subject: initPropertySubject(a) })),
       )
       this.appModel.getContents().forEach(appInstalled => this.mergeInstalledProps(appInstalled.id))
     } catch (e) {
