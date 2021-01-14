@@ -6,29 +6,27 @@
       </ion-button>
     </ion-buttons>
     <ion-title >
-      <ion-label style="font-size: 24px;" class="ion-text-wrap">Welcome to {{ version }}</ion-label>
+      <ion-label style="font-size: 20px;" class="ion-text-wrap">Welcome to {{ version }}</ion-label>
     </ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
-  <ion-item class="notifier-item">
-    <ion-label class="ion-text-wrap">
-      <h2 style="color: var(--ion-color-danger)" class="attn-header">Critical Information - Read Carefully!</h2>
-      <p style="color: white">
-        If you have LND or c-lightning installed, it is critical that you update them to the latest version. 
-        An oversight in Start9’s USB backups system has created a situation where restoring a LND or c-lightning backup can result in permanent loss of channel funds.
-        To be clear, <ion-text style="font-weight: 'bold';">DO NOT</ion-text> attempt to restore a LND or c-lightning backup until you have updated these services to the latest versions.
-      </p>
-    </ion-label>
-  </ion-item>
-
-  <div style="padding: 10px">
-    <h3>General Overview</h3>
+  <div>
+    <h3>Overview</h3>
     <p>
       0.2.8 is a small but important update designed to enhance awareness around potential pitfalls of using certain services.
       It introduces warnings for installing, uninstalling, backing up, and restoring backups of stateful services such as LND or c-lightning.
       This release also draws a distinction between services that can be launched inside the browser and those that are designed to run in the background.
+    </p>
+  </div>
+
+  <div style="margin-top: 30px">
+    <h3 style="color: var(--ion-color-danger)">Critical Information - Read Carefully</h3>
+    <p>
+      If you have LND or c-lightning installed, it is critical that you update them to the latest version. 
+      An oversight in Start9’s USB backups system has created a situation where restoring a LND or c-lightning backup can result in permanent loss of channel funds.
+      To be clear, <ion-text style="font-weight: 'bold';">DO NOT</ion-text> attempt to restore a LND or c-lightning backup until you have updated these services to the latest versions.
     </p>
   </div>
 </ion-content>
