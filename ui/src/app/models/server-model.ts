@@ -105,6 +105,7 @@ export class ServerModel {
       wifi: { ssids: [], current: undefined },
       ssh: [],
       notifications: [],
+      welcomeSeen: true,
     })
   }
 }
@@ -122,6 +123,7 @@ export interface S9Server {
   wifi: { ssids: string[], current: string }
   ssh: SSHFingerprint[]
   notifications: S9Notification[]
+  welcomeSeen: boolean
 }
 
 export interface S9Notification {

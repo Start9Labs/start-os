@@ -15,6 +15,7 @@ import { ConfigService } from './services/config.service'
 import { QRCodeModule } from 'angularx-qrcode'
 import { APP_CONFIG_COMPONENT_MAPPING } from './modals/app-config-injectable/modal-injectable-token'
 import { appConfigComponents } from './modals/app-config-injectable/modal-injectable-value';
+import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -26,6 +27,7 @@ import { appConfigComponents } from './modals/app-config-injectable/modal-inject
     AppRoutingModule,
     IonicStorageModule.forRoot(),
     QRCodeModule,
+    OSWelcomePageModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
