@@ -26,7 +26,6 @@
         <p style="color: var(--ion-color-danger)">{{error.text}}</p>
         <p><a style="color: var(--ion-color-danger); text-decoration: underline; font-weight: bold;" *ngIf="error.moreInfo && !openErrorMoreInfo" (click)="openErrorMoreInfo = true">{{error.moreInfo.buttonText}}</a></p>
 
-        <!-- presentPopover(error.moreInfo.title, error.moreInfo.description, $event) -->
         <ng-container *ngIf="openErrorMoreInfo">
           <p style="margin-top: 10px; color: var(--ion-color-medium);" [innerHTML]="error.moreInfo.title"></p>
           <p style="margin-top: 10px; color: var(--ion-color-medium); font-size: small" [innerHTML]="error.moreInfo.description"></p>
