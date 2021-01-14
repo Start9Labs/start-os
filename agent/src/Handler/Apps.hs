@@ -740,6 +740,7 @@ storeAppToAvailablePreview s@StoreApp {..} installed = AppAvailablePreview
     (storeAppVersionInfoVersion $ extract storeAppVersions)
     storeAppDescriptionShort
     installed
+    storeAppTimestamp
 
 type AsInstalled :: Bool -> Type
 newtype AsInstalled a = AsInstalled { unAsInstalled :: SBool a }
