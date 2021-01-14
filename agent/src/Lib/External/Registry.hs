@@ -135,6 +135,7 @@ parseAppData = do
         storeAppVersions         <- ad .: "version-info" >>= \case
             []       -> fail "No Valid Version Info"
             (x : xs) -> pure $ x :| xs
+        storeAppTimestamp <- ad .: "timestamp"
         pure StoreApp { .. }
 
 getAppVersionForSpec :: (Has RegistryUrl sig m, Has (Error S9Error) sig m, MonadIO m)

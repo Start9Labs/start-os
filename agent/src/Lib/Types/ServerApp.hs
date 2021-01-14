@@ -20,6 +20,7 @@ data StoreApp = StoreApp
     , storeAppDescriptionLong  :: Text
     , storeAppIconUrl          :: Text
     , storeAppVersions         :: NonEmpty StoreAppVersionInfo
+    , storeAppTimestamp        :: UTCTime
     }
     deriving (Eq, Show)
 

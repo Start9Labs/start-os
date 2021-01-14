@@ -28,6 +28,7 @@ data AppAvailablePreview = AppAvailablePreview
     , appAvailablePreviewVersionLatest    :: Version
     , appAvailablePreviewDescriptionShort :: Text
     , appAvailablePreviewInstallInfo      :: Maybe (Version, AppStatus)
+    , appAvailablePreviewTimestamp        :: UTCTime
     }
     deriving (Eq, Show)
 instance ToJSON AppAvailablePreview where
@@ -36,6 +37,7 @@ instance ToJSON AppAvailablePreview where
         , "descriptionShort" .= appAvailablePreviewDescriptionShort
         , "versionInstalled" .= (fst <$> appAvailablePreviewInstallInfo)
         , "status" .= (snd <$> appAvailablePreviewInstallInfo)
+        , "latestVersionTimestamp" .= appAvailablePreviewTimestamp
         ]
 
 data AppInstalledPreview = AppInstalledPreview
