@@ -142,6 +142,7 @@ instance ToJSON AppInstalledFull where
         , "iconURL" .= appBaseIconUrl appInstalledFullBase
         , "versionInstalled" .= appInstalledFullVersionInstalled
         , "status" .= appInstalledFullStatus
+        , "uninstallWarning" .= appInstalledFullUninstallWarning
         ]
 
 data AppVersionInfo = AppVersionInfo
@@ -155,6 +156,7 @@ instance ToJSON AppVersionInfo where
         [ "version" .= appVersionInfoVersion
         , "releaseNotes" .= appVersionInfoReleaseNotes
         , "serviceRequirements" .= appVersionInfoDependencyRequirements
+        , "installWarning" .= appVersionInfoInstallWarning
         ]
 
 data ApiDependencyViolation
