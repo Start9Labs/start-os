@@ -29,6 +29,7 @@ export abstract class ApiService {
   abstract getNotifications (page: number, perPage: number): Promise<S9Notification[]>
   abstract deleteNotification (id: string): Promise<Unit>
   abstract updateAgent (thing: any): Promise<Unit>
+  abstract acknowledgeOSWelcome (): Promise<Unit>
   abstract getAvailableApps (): Promise<AppAvailablePreview[]>
   abstract getAvailableApp (appId: string): Promise<AppAvailableFull>
   abstract getAvailableAppVersionSpecificInfo (appId: string, versionSpec: string): Promise<AppAvailableVersionSpecificInfo>

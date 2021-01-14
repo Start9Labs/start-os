@@ -17,6 +17,7 @@ export interface ApiServer {
   }
   ssh: SSHFingerprint[]
   serverId: string
+  welcomeAck: boolean
 }
 
 /** APPS **/
