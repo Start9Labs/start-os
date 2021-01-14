@@ -28,6 +28,7 @@ export interface AppAvailableVersionSpecificInfo {
   releaseNotes: string
   serviceRequirements: AppDependency[]
   versionViewing: string
+  installWarning?: string
 }
 // installed
 
@@ -42,6 +43,7 @@ export interface AppInstalledFull extends AppInstalledPreview {
   lastBackup: string | null
   configuredRequirements: AppDependency[] | null // null if not yet configured
   hasFetchedFull: boolean
+  uninstallWarning?: string
 }
 // dependencies
 
