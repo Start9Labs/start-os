@@ -2344,7 +2344,7 @@ dependencies = [
 [[package]]
 name = "tokio-tar"
 version = "0.3.0"
-source = "git+https://github.com/dr-bonez/tokio-tar.git#1ba710f344ddb2a5b4d98bb96c905195c3cd9d43"
+source = "git+https://github.com/dr-bonez/tokio-tar.git?rev=1ba710f3#1ba710f344ddb2a5b4d98bb96c905195c3cd9d43"
 dependencies = [
  "filetime",
  "futures-core",

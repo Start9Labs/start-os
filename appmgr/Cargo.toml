@@ -1,8 +1,8 @@
 [package]
-name = "appmgr"
-version = "0.2.8"
 authors = ["Aiden McClelland <me@drbonez.dev>"]
 edition = "2018"
+name = "appmgr"
+version = "0.2.8"
 
 [lib]
 name = "appmgrlib"
@@ -18,19 +18,19 @@ portable = []
 production = []
 
 [dependencies]
-emver = { version = "0.1.0", features = ["serde"] }
 argonautica = "0.2.0"
 async-trait = "0.1.42"
 base32 = "0.4.0"
 clap = "2.33"
 ed25519-dalek = "1.0.1"
+emver = {version = "0.1.0", features = ["serde"]}
 failure = "0.1.8"
 file-lock = "1.1"
 futures = "0.3.8"
 git-version = "0.3.4"
 itertools = "0.9.0"
 lazy_static = "1.4"
-linear-map = { version = "1.2", features = ["serde_impl"] }
+linear-map = {version = "1.2", features = ["serde_impl"]}
 log = "0.4.11"
 openssl = "0.10.30"
 pest = "2.1"
@@ -38,13 +38,13 @@ pest_derive = "2.1"
 prettytable-rs = "0.8.0"
 rand = "0.7.3"
 regex = "1.4.2"
-reqwest = { version = "0.10.9", features = ["stream", "json"] }
+reqwest = {version = "0.10.9", features = ["stream", "json"]}
 rpassword = "5.0.0"
-serde = { version = "1.0.118", features = ["derive", "rc"] }
-serde_yaml = "0.8.14"
+serde = {version = "1.0.118", features = ["derive", "rc"]}
 serde_cbor = "0.11.1"
 serde_json = "1.0.59"
+serde_yaml = "0.8.14"
 simple-logging = "2.0"
-tokio = { version = "0.3.5", features = ["full"] }
+tokio = {version = "0.3.5", features = ["full"]}
 tokio-compat-02 = "0.1.2"
-tokio-tar = { version = "0.3.0", git = "https://github.com/dr-bonez/tokio-tar.git" }
+tokio-tar = {version = "0.3.0", git = "https://github.com/dr-bonez/tokio-tar.git", rev = "1ba710f3"}
