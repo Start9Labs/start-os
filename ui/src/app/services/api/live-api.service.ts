@@ -83,7 +83,12 @@ export class LiveApiService extends ApiService {
   }
 
   async getAvailableApps (): Promise<AppAvailablePreview[]> {
-    return this.authRequest<ReqRes.GetAppsAvailableRes>({ method: Method.GET, url: '/apps/store' })
+    const res = await this.authRequest<ReqRes.GetAppsAvailableRes>({ method: Method.GET, url: '/apps/store' })
+    return res.map(a => {
+      const latestVersionTimestamp = new Date(a.latestVersionTimestamp)
+      if (isNaN(latestVersionTimestamp as any)) throw new Error(`Invalid latestVersionTimestamp ${a.latestVersionTimestamp}`)
+      return { ...a, latestVersionTimestamp }
+    })
   }
 
   async getAvailableApp (appId: string): Promise<AppAvailableFull> {
