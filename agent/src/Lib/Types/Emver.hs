@@ -56,6 +56,8 @@ instance Show Version where
         let postfix = if q == 0 then "" else '.' : show q in show x <> "." <> show y <> "." <> show z <> postfix
 instance IsString Version where
     fromString s = either error id $ Atto.parseOnly parseVersion (T.pack s)
+instance Read Version where
+    readsPrec i = 
 
 -- | A change in the value found at 'major' implies a breaking change in the API that this version number describes
 major :: Version -> Word
