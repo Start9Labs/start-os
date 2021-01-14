@@ -1,14 +1,23 @@
 use std::path::Path;
 
 use argonautica::{Hasher, Verifier};
+use emver::Version;
 use futures::try_join;
 use futures::TryStreamExt;
+use serde::Serialize;
 
-use crate::apps;
 use crate::util::from_yaml_async_reader;
+use crate::util::to_yaml_async_writer;
 use crate::util::Invoke;
+use crate::version::VersionT;
 use crate::Error;
 use crate::ResultExt;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Metadata {
+    pub app_version: Version,
+    pub os_version: &'static Version,
+}
 
 pub async fn create_backup<P: AsRef<Path>>(
     path: P,
@@ -21,6 +30,7 @@ pub async fn create_backup<P: AsRef<Path>>(
         crate::error::FILESYSTEM_ERROR,
         "Backup Path Must Be Directory"
     );
+    let metadata_path = path.join("metadata.yaml");
     let pw_path = path.join("password");
     let data_path = path.join("data");
     let tor_path = path.join("tor");
@@ -55,6 +65,16 @@ pub async fn create_backup<P: AsRef<Path>>(
         f.write_all(hash.as_bytes()).await?;
         f.flush().await?;
     }
+
+    let info = crate::apps::info(app_id).await?;
+    to_yaml_async_writer(
+        tokio::fs::File::create(metadata_path).await?,
+        &Metadata {
+            app_version: info.version,
+            os_version: crate::version::Current::new().semver(),
+        },
+    )
+    .await?;
 
     let status = crate::apps::status(app_id, false).await?;
     let exclude = if volume_path.is_dir() {
@@ -124,6 +144,7 @@ pub async fn restore_backup<P: AsRef<Path>>(
         crate::error::FILESYSTEM_ERROR,
         "Backup Path Must Be Directory"
     );
+    let metadata_path = path.join("metadata.yaml");
     let pw_path = path.join("password");
     let data_path = path.join("data");
     let tor_path = path.join("tor");
@@ -181,11 +202,20 @@ pub async fn restore_backup<P: AsRef<Path>>(
     );
 
     // Fix the tor address in apps.yaml
-    let mut yhdl = apps::list_info_mut().await?;
+    let mut yhdl = crate::apps::list_info_mut().await?;
     if let Some(app_info) = yhdl.get_mut(app_id) {
         app_info.tor_address = Some(crate::tor::read_tor_address(app_id, None).await?);
     }
     yhdl.commit().await?;
+
+    tokio::fs::copy(
+        metadata_path,
+        Path::new(crate::VOLUMES)
+            .join(app_id)
+            .join("start9")
+            .join("restore.yaml"),
+    )
+    .await?;
 
     // Attempt to configure the service with the config coming from restoration
     let cfg_path = Path::new(crate::VOLUMES)
