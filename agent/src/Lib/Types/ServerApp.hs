@@ -24,16 +24,18 @@ data StoreApp = StoreApp
     deriving (Eq, Show)
 
 data StoreAppVersionInfo = StoreAppVersionInfo
-    { storeAppVersionInfoVersion      :: Version
-    , storeAppVersionInfoReleaseNotes :: Text
+    { storeAppVersionInfoVersion        :: Version
+    , storeAppVersionInfoReleaseNotes   :: Text
+    , storeAppVersionInfoInstallWarning :: Maybe Text
     }
     deriving (Eq, Show)
 instance Ord StoreAppVersionInfo where
     compare = compare `on` storeAppVersionInfoVersion
 instance FromJSON StoreAppVersionInfo where
     parseJSON = withObject "Store App Version Info" $ \o -> do
-        storeAppVersionInfoVersion      <- o .: "version"
-        storeAppVersionInfoReleaseNotes <- o .: "release-notes"
+        storeAppVersionInfoVersion        <- o .: "version"
+        storeAppVersionInfoReleaseNotes   <- o .: "release-notes"
+        storeAppVersionInfoInstallWarning <- o .: "install-warning"
         pure StoreAppVersionInfo { .. }
 instance ToJSON StoreAppVersionInfo where
     toJSON StoreAppVersionInfo {..} =

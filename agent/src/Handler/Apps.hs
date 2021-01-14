@@ -210,6 +210,7 @@ getAvailableAppByIdLogic appId = do
         , appAvailableFullReleaseNotes           = storeAppVersionInfoReleaseNotes latest
         , appAvailableFullDependencyRequirements = HM.elems dependencyRequirements
         , appAvailableFullVersions               = storeAppVersionInfoVersion <$> storeAppVersions
+        , appAvailableFullInstallWarning         = storeAppVersionInfoInstallWarning latest
         }
 
 getAppLogsByIdR :: AppId -> Handler (JSONResponse [Text])
@@ -286,6 +287,7 @@ getInstalledAppByIdLogic appId = do
                 , appInstalledFullLastBackup             = backupTime
                 , appInstalledFullTorAddress             = Nothing
                 , appInstalledFullConfiguredRequirements = []
+                , appInstalledFullUninstallWarning       = Nothing
                 }
     serverApps <- AppMgr2.list [AppMgr2.flags|-s -d|]
     let remapped = remapAppMgrInfo jobCache serverApps
@@ -293,6 +295,7 @@ getInstalledAppByIdLogic appId = do
     let
         installed = do
             (status, version, AppMgr2.InfoRes {..}) <- hoistMaybe (HM.lookup appId remapped)
+            manifest' <- lift $ LAsync.async $ AppMgr2.infoResManifest <<$>> AppMgr2.info [AppMgr2.flags|-M|] appId
             instructions'                           <- lift $ LAsync.async $ AppMgr2.instructions appId
             requirements                            <- LAsync.runConcurrently $ flip
                 HML.traverseWithKey
@@ -312,16 +315,19 @@ getInstalledAppByIdLogic appId = do
                             (HM.lookup depId installCache $> AppStatusTmp Installing)
                                 <|> (view _1 <$> HM.lookup depId remapped)
                     pure $ dependencyInfoToDependencyRequirement (AsInstalled STrue) (base, depStatus, depInfo)
+            manifest     <- lift $ LAsync.wait manifest'
             instructions <- lift $ LAsync.wait instructions'
             backupTime   <- lift $ LAsync.wait backupTime'
-            pure AppInstalledFull { appInstalledFullBase = AppBase appId infoResTitle (iconUrl appId version)
-                                  , appInstalledFullStatus                 = status
-                                  , appInstalledFullVersionInstalled       = version
-                                  , appInstalledFullInstructions           = instructions
-                                  , appInstalledFullLastBackup             = backupTime
-                                  , appInstalledFullTorAddress             = infoResTorAddress
-                                  , appInstalledFullConfiguredRequirements = HM.elems requirements
-                                  }
+            pure AppInstalledFull
+                { appInstalledFullBase                   = AppBase appId infoResTitle (iconUrl appId version)
+                , appInstalledFullStatus                 = status
+                , appInstalledFullVersionInstalled       = version
+                , appInstalledFullInstructions           = instructions
+                , appInstalledFullLastBackup             = backupTime
+                , appInstalledFullTorAddress             = infoResTorAddress
+                , appInstalledFullConfiguredRequirements = HM.elems requirements
+                , appInstalledFullUninstallWarning       = manifest >>= AppManifest.appManifestUninstallWarning
+                }
     runMaybeT (installing <|> installed) `orThrowM` NotFoundE "appId" (show appId)
 
 postUninstallAppR :: AppId -> Handler (JSONResponse (WithBreakages ()))
@@ -645,6 +651,7 @@ getAvailableAppVersionInfoLogic appId appVersionSpec = do
     pure AppVersionInfo { appVersionInfoVersion                = storeAppVersionInfoVersion
                         , appVersionInfoReleaseNotes           = storeAppVersionInfoReleaseNotes
                         , appVersionInfoDependencyRequirements = HM.elems requirements
+                        , appVersionInfoInstallWarning         = storeAppVersionInfoInstallWarning
                         }
 
 postAutoconfigureR :: AppId -> AppId -> Handler (JSONResponse (WithBreakages AutoconfigureChangesRes))
