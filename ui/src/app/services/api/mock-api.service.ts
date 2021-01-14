@@ -11,6 +11,7 @@ import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppInst
 //@TODO consider moving to test folders.
 @Injectable()
 export class MockApiService extends ApiService {
+  welcomeAck = false
   constructor (
     private readonly appModel: AppModel,
     private readonly serverModel: ServerModel,
@@ -32,7 +33,8 @@ export class MockApiService extends ApiService {
   }
 
   async getServer (): Promise<ApiServer> {
-    return mockGetServer()
+    const res = await mockGetServer()
+    return { ...res, welcomeAck: this.welcomeAck }
   }
 
   async ejectExternalDisk (): Promise<Unit> {
@@ -113,6 +115,12 @@ export class MockApiService extends ApiService {
 
   async uninstallApp (appId: string, dryRun: boolean): Promise<{ breakages: DependentBreakage[] }> {
     return mockUninstallApp()
+  }
+
+  async acknowledgeOSWelcome () {
+    await pauseFor(2000)
+    this.welcomeAck = true
+    return {  }
   }
 
   async startApp (appId: string): Promise<EmptyResponse> {
@@ -396,6 +404,7 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
   versionInstalled: '0.2.8',
   status: ServerStatus.RUNNING,
   alternativeRegistryUrl: 'beta-registry.start9labs.com',
+  welcomeAck: true,
   specs: {
     'Tor Address': 'nfsnjkcnaskjnlkasnfahj7dh23fdnieqwjdnhjewbfijendiueqwbd.onion',
     'CPU': 'Broadcom BCM2711, Quad core Cortex-A72 (ARM v8) 64-bit SoC @ 1.5GHz',

@@ -3,6 +3,7 @@ import { ConfigService } from 'src/app/services/config.service'
 import { ToastController, NavController, ModalController } from '@ionic/angular'
 import { ServerModel, S9Server } from '../models/server-model'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
+import { ApiService } from './api/api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -14,6 +15,7 @@ export class SyncNotifier {
     private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
     private readonly serverModel: ServerModel,
+    private readonly apiService: ApiService,
   ) { }
 
   async handleSpecial (server: Readonly<S9Server>): Promise<void> {
@@ -57,18 +59,24 @@ export class SyncNotifier {
     this.serverModel.update(updates)
   }
 
-  private async handleOSWelcome(server: Readonly<S9Server>) {
-    if (server.welcomeSeen || server.versionInstalled !== this.config.version) return
+  osWelcomeOpen = false
+  private async handleOSWelcome (server: Readonly<S9Server>) {
+    if (server.welcomeAck || server.versionInstalled !== this.config.version || this.osWelcomeOpen) return
 
     const modal = await this.modalCtrl.create({
       backdropDismiss: false,
       component: OSWelcomePage,
       presentingElement: await this.modalCtrl.getTop(),
       componentProps: {
-        version: server.versionInstalled
+        version: server.versionInstalled,
       },
     })
+    this.osWelcomeOpen = true
 
+    modal.onWillDismiss().then(() => {
+      this.osWelcomeOpen = false
+      return this.apiService.acknowledgeOSWelcome()
+    })
     await modal.present()
   }
 }
