@@ -3,15 +3,16 @@ module Lib.Types.Emver.Orphans where
 
 import           Startlude
 
+import           Control.Monad.Fail
 import           Data.Aeson
-
-import           Lib.Types.Emver
+import qualified Data.Attoparsec.Text          as Atto
+import qualified Data.Text                     as T
 import           Database.Persist
 import           Database.Persist.Sql
-import qualified Data.Attoparsec.Text          as Atto
-import           Control.Monad.Fail
-import qualified Data.Text                     as T
+import           Web.HttpApiData
 import           Yesod.Core.Dispatch
+
+import           Lib.Types.Emver
 
 instance ToJSON Version where
     toJSON = String . show
@@ -38,3 +39,10 @@ instance PersistFieldSql Version where
 instance PathPiece VersionRange where
     toPathPiece   = show
     fromPathPiece = hush . Atto.parseOnly parseRange
+
+instance FromHttpApiData Version where
+    parseUrlPiece = first toS . Atto.parseOnly parseVersion
+
+instance PathPiece Version where
+    toPathPiece   = show
+    fromPathPiece = hush . Atto.parseOnly parseVersion
