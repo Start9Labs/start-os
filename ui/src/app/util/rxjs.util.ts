@@ -1,4 +1,4 @@
-import { Observable, from, interval, race, OperatorFunction, Observer, BehaviorSubject } from 'rxjs'
+import { Observable, from, interval, race, OperatorFunction, Observer, BehaviorSubject, Subject } from 'rxjs'
 import { take, map, switchMap, delay, tap } from 'rxjs/operators'
 
 export function fromAsync$<S, T> (async: (s: S) => Promise<T>, s: S): Observable<T>

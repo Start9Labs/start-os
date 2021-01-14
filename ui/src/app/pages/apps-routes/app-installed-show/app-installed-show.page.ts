@@ -267,6 +267,7 @@ export class AppInstalledShowPage extends Cleanup {
         id: app.id,
         title: app.title,
         version: app.versionInstalled,
+        uninstallWarning: app.uninstallWarning,
       }),
     )
 

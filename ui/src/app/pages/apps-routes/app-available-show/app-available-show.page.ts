@@ -61,6 +61,8 @@ export class AppAvailableShowPage extends Cleanup {
     this.appId = this.route.snapshot.paramMap.get('appId') as string
 
     this.cleanup(
+      // new version always includes dependencies, but not vice versa
+      this.$newVersionLoading$.subscribe(this.$dependenciesLoading$),
       markAsLoadingDuring$(this.$loading$,
         from(this.apiService.getAvailableApp(this.appId)).pipe(
           tap(app => this.$app$ = initPropertySubject(app)),
@@ -133,7 +135,7 @@ export class AppAvailableShowPage extends Cleanup {
             const previousVersion = this.$app$.versionViewing.getValue()
             this.$app$.versionViewing.next(version)
             markAsLoadingDuring$(
-              this.$newVersionLoading$, this.syncVersionSpecificInfo(`=${version}`)
+              this.$newVersionLoading$, this.syncVersionSpecificInfo(`=${version}`),
             )
             .subscribe({
               error: e => {
@@ -158,6 +160,7 @@ export class AppAvailableShowPage extends Cleanup {
         title: app.title,
         version: app.versionViewing,
         serviceRequirements: app.serviceRequirements,
+        installWarning: app.installWarning,
       }),
     )
     if (cancelled) return
@@ -172,6 +175,7 @@ export class AppAvailableShowPage extends Cleanup {
       title: app.title,
       version: app.versionViewing,
       serviceRequirements: app.serviceRequirements,
+      installWarning: app.installWarning,
     }
 
     switch (action) {

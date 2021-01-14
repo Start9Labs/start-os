@@ -38,9 +38,12 @@ export class DependenciesComponent implements OnInit, Loadable, Colorable {
   label: string
   $color$ = new BehaviorSubject('medium')
 
-  constructor (private readonly popoverController: PopoverController) { }
+  constructor (private readonly popoverController: PopoverController) {
+    console.log('dependencies')
+   }
 
   load () {
+    console.log('loading dependencies')
     this.$color$.next(this.$color$.getValue())
   }
 

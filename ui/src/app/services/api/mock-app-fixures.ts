@@ -92,6 +92,7 @@ export const cupsI: AppInstalledFull = {
   instructions: 'some instructions',
   lastBackup: new Date().toISOString(),
   ui: true,
+  uninstallWarning: 'This is A GREAT APP man, I just don\'t know',
   configuredRequirements: [
     toServiceRequirement(lightningI,
       {
@@ -201,6 +202,7 @@ export const thunderA: AppAvailableFull = {
   descriptionLong: 'Thunder is an innovative payment network and new kind of money. Thunder utilizes a robust p2p network to garner decentralized consensus.',
   versions: ['0.8.0', '0.8.1', '1.0.0', '1.0.1'],
   versionViewing: '1.0.1',
+  installWarning: 'Oooooh you really might want to think twice about installing this...',
   serviceRequirements: [
     toServiceRequirement(bitcoinA, {
       optional: null,
@@ -275,7 +277,7 @@ export const bitwardenA: AppAvailableFull = {
 
 export const mockApiAppAvailableFull: { [appId: string]: AppAvailableFull; } = {
   bitcoind: bitcoinA,
-  lightning: lightningA,
+  'c-lightning': lightningA,
   btcPay: btcPayA,
   thunder: thunderA,
   cups: cupsA,

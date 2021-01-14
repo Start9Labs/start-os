@@ -1,8 +1,5 @@
 import { Component, Input, OnInit } from '@angular/core'
-import { BehaviorSubject, from, Subject } from 'rxjs'
-import { takeUntil } from 'rxjs/operators'
-import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
-import { capitalizeFirstLetter } from 'src/app/util/misc.util'
+import { BehaviorSubject, Subject } from 'rxjs'
 import { Colorable, Loadable } from '../loadable'
 import { WizardAction } from '../wizard-types'
 
@@ -18,50 +15,13 @@ export class DeveloperNotesComponent implements OnInit, Loadable, Colorable {
   }
 
   $loading$ = new BehaviorSubject(false)
-  $color$ = new BehaviorSubject('medium')
+  $color$ = new BehaviorSubject('warning')
   $cancel$ = new Subject<void>()
 
-  load () {}
+  load () { }
 
   constructor () { }
   ngOnInit () {
-    switch (this.params.action) {
-      case 'install':
-        this.summary = `Installation of ${this.params.title} is now in progress. You will receive a notification when the installation has completed.`
-        this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('primary')
-        this.successText = 'In Progress'
-        break
-      case 'downgrade':
-        this.summary = `Downgrade for ${this.params.title} is now in progress. You will receive a notification when the downgrade has completed.`
-        this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('primary')
-        this.successText = 'In Progress'
-        break
-      case 'update':
-        this.summary = `Update for ${this.params.title} is now in progress. You will receive a notification when the update has completed.`
-        this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('primary')
-        this.successText = 'In Progress'
-        break
-      case 'uninstall':
-        this.summary = `${capitalizeFirstLetter(this.params.title)} has been successfully uninstalled.`
-        this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('success')
-        this.successText = 'Success'
-        break
-      case 'stop':
-        this.summary = `${capitalizeFirstLetter(this.params.title)} has been successfully stopped.`
-        this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('success')
-        this.successText = 'Success'
-        break
-      case 'configure':
-        this.summary = `New config for ${this.params.title} has been successfully saved.`
-        this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('success')
-        this.successText = 'Success'
-        break
-    }
+    console.log('Developer Notes', this.params)
   }
 }
