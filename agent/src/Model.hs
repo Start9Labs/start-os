@@ -59,4 +59,7 @@ BackupRecord sql=backup
 IconDigest
     Id AppId
     tag (Digest MD5)
+
+WelcomeAck
+    Id Version
 |]
