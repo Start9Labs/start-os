@@ -53,6 +53,7 @@ export class AppModel extends MapSubject<AppInstalledFull> {
     if (!toWatch) return of(undefined)
 
     return toWatch.status.pipe(
+      filter(s => s !== AppStatus.UNREACHABLE && s !== AppStatus.UNKNOWN),
       pairwise(),
       filter( ([old, _]) => old === AppStatus.INSTALLING ),
       take(1),
@@ -60,12 +61,13 @@ export class AppModel extends MapSubject<AppInstalledFull> {
     )
   }
 
-  // when an app is installing
+  // when an app is backing up
   watchForBackup (appId: string): Observable<string | undefined> {
     const toWatch = super.watch(appId)
     if (!toWatch) return of(undefined)
 
     return toWatch.status.pipe(
+      filter(s => s !== AppStatus.UNREACHABLE && s !== AppStatus.UNKNOWN),
       pairwise(),
       filter( ([old, _]) => old === AppStatus.CREATING_BACKUP),
       take(1),
