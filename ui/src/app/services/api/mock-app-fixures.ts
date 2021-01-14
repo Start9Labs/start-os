@@ -1,5 +1,7 @@
 import { AppStatus } from '../../models/app-model'
 import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppDependency, BaseApp, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
+import { modulateTime } from 'src/app/util/misc.util'
+
 export function toAvailablePreview (f: AppAvailableFull): AppAvailablePreview {
   return {
     id: f.id,
@@ -9,6 +11,7 @@ export function toAvailablePreview (f: AppAvailableFull): AppAvailablePreview {
     descriptionShort: f.descriptionShort,
     iconURL: f.iconURL,
     versionLatest: f.versionLatest,
+    latestVersionTimestamp: f.latestVersionTimestamp,
   }
 }
 
@@ -122,6 +125,7 @@ export const cupsI: AppInstalledFull = {
 }
 
 export const bitcoinA: AppAvailableFull = {
+  latestVersionTimestamp: modulateTime(new Date(), 5 , 'seconds'),
   id: 'bitcoind',
   versionLatest: '0.19.1.1',
   versionInstalled: '0.19.0',
@@ -137,6 +141,7 @@ export const bitcoinA: AppAvailableFull = {
 }
 
 export const lightningA: AppAvailableFull = {
+  latestVersionTimestamp: modulateTime(new Date(), 4 , 'seconds'),
   id: 'c-lightning',
   versionLatest: '1.0.1',
   versionInstalled: null,
@@ -160,6 +165,7 @@ export const lightningA: AppAvailableFull = {
 }
 
 export const btcPayA: AppAvailableFull = {
+  latestVersionTimestamp: modulateTime(new Date(), 3 , 'seconds'),
   id: 'btcPay',
   versionLatest: '1.0.1',
   versionInstalled: '1.0.1',
@@ -183,6 +189,7 @@ export const btcPayA: AppAvailableFull = {
 }
 
 export const thunderA: AppAvailableFull = {
+  latestVersionTimestamp: modulateTime(new Date(), 2 , 'seconds'),
   id: 'thunder',
   versionLatest: '1.0.1',
   versionInstalled: null,
@@ -230,6 +237,7 @@ export const cupsA: AppAvailableFull = {
   id: 'cups',
   versionLatest: '2.1.0',
   versionInstalled: '2.1.0',
+  latestVersionTimestamp: new Date(),
   status: AppStatus.RUNNING,
   title: 'Cups Messenger',
   descriptionShort: 'P2P encrypted messaging over Tor.',
@@ -245,6 +253,7 @@ export const bitwardenA: AppAvailableFull = {
   id: 'bitwarden',
   versionLatest: '0.1.1',
   versionInstalled: null,
+  latestVersionTimestamp: modulateTime(new Date(), 1 , 'seconds'),
   status: null,
   title: 'Bitwarden',
   descriptionShort: `Self-hosted password manager`,
