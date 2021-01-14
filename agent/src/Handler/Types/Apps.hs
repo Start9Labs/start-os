@@ -72,6 +72,7 @@ data AppAvailableFull = AppAvailableFull
     , appAvailableFullDescriptionShort       :: Text
     , appAvailableFullDescriptionLong        :: Text
     , appAvailableFullReleaseNotes           :: Text
+    , appAvailableFullInstallWarning         :: Maybe Text
     , appAvailableFullDependencyRequirements :: [Full AppDependencyRequirement]
     , appAvailableFullVersions               :: NonEmpty Version
     }
@@ -128,6 +129,7 @@ data AppInstalledFull = AppInstalledFull
     , appInstalledFullInstructions           :: Maybe Text
     , appInstalledFullLastBackup             :: Maybe UTCTime
     , appInstalledFullConfiguredRequirements :: [Stripped AppDependencyRequirement]
+    , appInstalledFullUninstallWarning       :: Maybe Text
     }
 instance ToJSON AppInstalledFull where
     toJSON AppInstalledFull {..} = object
@@ -146,6 +148,7 @@ data AppVersionInfo = AppVersionInfo
     { appVersionInfoVersion                :: Version
     , appVersionInfoReleaseNotes           :: Text
     , appVersionInfoDependencyRequirements :: [Full AppDependencyRequirement]
+    , appVersionInfoInstallWarning         :: Maybe Text
     }
 instance ToJSON AppVersionInfo where
     toJSON AppVersionInfo {..} = object
