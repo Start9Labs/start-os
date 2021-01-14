@@ -89,7 +89,6 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
     ])
     await this.slideContainer.lockSwipes(true)
     this.slideContainer.update()
-    // this.currentSlide.load()
   }
 }
 
