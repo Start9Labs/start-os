@@ -10,8 +10,8 @@
 <ion-content>
   <ion-slides *ngIf="!($error$ | async)" id="slide-show" style="--bullet-background: white" pager="false">
     <ion-slide *ngFor="let slide of params.slideDefinitions">
-      <developer-notes #components *ngIf="slide.selector === 'developer=notes'" [params]="slide.params"></dependencies>
       <dependencies #components *ngIf="slide.selector === 'dependencies'" [params]="slide.params"></dependencies>
+      <developer-notes #components *ngIf="slide.selector === 'developer-notes'" [params]="slide.params"></developer-notes>
       <dependents #components *ngIf="slide.selector === 'dependents'" [params]="slide.params" [finished]="finished"></dependents>
       <complete #components *ngIf="slide.selector === 'complete'" [params]="slide.params" [finished]="finished"></complete>
     </ion-slide>

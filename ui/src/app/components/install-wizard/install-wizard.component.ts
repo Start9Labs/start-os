@@ -81,10 +81,15 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
   private async slide () {
     if (this.slideComponents[this.slideIndex + 1] === undefined) { return this.finished({ final: true }) }
     this.slideIndex += 1
-    await this.slideContainer.lockSwipes(false)
-    await Promise.all([this.contentContainer.scrollToTop(), this.slideContainer.slideNext()])
-    await this.slideContainer.lockSwipes(true)
     this.currentSlide.load()
+    await this.slideContainer.lockSwipes(false)
+    await Promise.all([
+      this.contentContainer.scrollToTop(),
+      this.slideContainer.slideNext(500),
+    ])
+    await this.slideContainer.lockSwipes(true)
+    this.slideContainer.update()
+    // this.currentSlide.load()
   }
 }
 

@@ -73,6 +73,7 @@ export class MockApiService extends ApiService {
   }
 
   async getAvailableApp (appId: string): Promise<AppAvailableFull> {
+    console.log('getAvilableApp', appId)
     // throw new Error('Some horrible horrible error message gosh its awful')
     return mockGetAvailableApp(appId)
       .then(res => {
