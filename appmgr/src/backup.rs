@@ -14,6 +14,7 @@ use crate::Error;
 use crate::ResultExt;
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Metadata {
     pub app_version: Version,
     pub os_version: &'static Version,
