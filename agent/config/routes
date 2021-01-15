@@ -8,6 +8,7 @@
 
 /v0/name                              NameR                    PATCH
 
+/v0/welcome/#Version                  WelcomeR                 POST
 /v0/specs                             SpecsR                   GET
 /v0/metrics                           MetricsR                 GET
 

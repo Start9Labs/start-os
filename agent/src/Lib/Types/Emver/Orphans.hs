@@ -32,17 +32,19 @@ instance FromJSON VersionRange where
 instance PersistField Version where
     toPersistValue   = toPersistValue @Text . show
     fromPersistValue = first T.pack . Atto.parseOnly parseVersion <=< fromPersistValue
-
 instance PersistFieldSql Version where
     sqlType _ = SqlString
+instance FromHttpApiData Version where
+    parseUrlPiece = first toS . Atto.parseOnly parseVersion
+instance ToHttpApiData Version where
+    toUrlPiece = show
+
+instance PathPiece Version where
+    toPathPiece   = show
+    fromPathPiece = hush . Atto.parseOnly parseVersion
 
 instance PathPiece VersionRange where
     toPathPiece   = show
     fromPathPiece = hush . Atto.parseOnly parseRange
 
-instance FromHttpApiData Version where
-    parseUrlPiece = first toS . Atto.parseOnly parseVersion
 
-instance PathPiece Version where
-    toPathPiece   = show
-    fromPathPiece = hush . Atto.parseOnly parseVersion
