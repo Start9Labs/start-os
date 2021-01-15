@@ -37,9 +37,9 @@ pub struct ManifestV0 {
     pub description: Description,
     pub release_notes: String,
     #[serde(default)]
-    pub install_warning: Option<String>,
+    pub install_alert: Option<String>,
     #[serde(default)]
-    pub uninstall_warning: Option<String>,
+    pub uninstall_alert: Option<String>,
     #[serde(default)]
     pub has_instructions: bool,
     #[serde(default = "emver::VersionRange::any")]
