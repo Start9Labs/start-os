@@ -46,5 +46,3 @@ instance PathPiece Version where
 instance PathPiece VersionRange where
     toPathPiece   = show
     fromPathPiece = hush . Atto.parseOnly parseRange
-
-
