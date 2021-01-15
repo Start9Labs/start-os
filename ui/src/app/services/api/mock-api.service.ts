@@ -117,7 +117,7 @@ export class MockApiService extends ApiService {
     return mockUninstallApp()
   }
 
-  async acknowledgeOSWelcome () {
+  async acknowledgeOSWelcome (version: string) {
     await pauseFor(2000)
     this.welcomeAck = true
     return {  }

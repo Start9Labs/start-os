@@ -37,8 +37,8 @@ export class LiveApiService extends ApiService {
     return this.authRequest<ReqRes.GetServerRes>({ method: Method.GET, url: '/', readTimeout: timeout })
   }
 
-  async acknowledgeOSWelcome (): Promise<Unit> {
-    return this.authRequest<Unit>({ method: Method.POST, url: '/welcome' })
+  async acknowledgeOSWelcome (version: string): Promise<Unit> {
+    return this.authRequest<Unit>({ method: Method.POST, url: `/welcome/${version}` })
   }
 
   async getVersionLatest (): Promise<ReqRes.GetVersionLatestRes> {

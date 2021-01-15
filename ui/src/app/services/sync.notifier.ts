@@ -75,7 +75,7 @@ export class SyncNotifier {
 
     modal.onWillDismiss().then(() => {
       this.osWelcomeOpen = false
-      return this.apiService.acknowledgeOSWelcome()
+      return this.apiService.acknowledgeOSWelcome(this.config.version)
     })
     await modal.present()
   }
