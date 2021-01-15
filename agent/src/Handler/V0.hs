@@ -8,7 +8,7 @@ import           Control.Carrier.Lift           ( runM )
 import           Data.Aeson
 import           Data.IORef
 import qualified Data.Text                     as T
-import           Database.Persist
+import           Database.Persist              as Persist
 import           Yesod.Core.Handler
 import           Yesod.Persist.Core
 import           Yesod.Core.Json
@@ -56,6 +56,8 @@ getServerR = handleS9ErrT $ do
     ssh                    <- readFromPath settings sshKeysFilePath >>= parseSshKeys
     wifi                   <- WpaSupplicant.runWlan0 $ liftA2 WifiList WpaSupplicant.getCurrentNetwork WpaSupplicant.listNetworks
     specs                  <- getSpecs settings
+    welcomeAck <- fmap isJust . lift . runDB . Persist.get $ WelcomeAckKey agentVersion
+
     let sid = T.drop 7 $ specsNetworkId specs
 
     jsonEncode ServerRes { serverId                     = specsNetworkId specs
@@ -68,6 +70,7 @@ getServerR = handleS9ErrT $ do
                          , serverSsh                    = ssh
                          , serverAlternativeRegistryUrl = alternativeRegistryUrl
                          , serverSpecs                  = specs
+                         , serverWelcomeAck             = welcomeAck
                          }
     where
         parseSshKeys :: Text -> S9ErrT Handler [SshKeyFingerprint]
