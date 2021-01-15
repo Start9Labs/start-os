@@ -114,9 +114,9 @@ export class WizardBaker {
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
-      uninstallWarning ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
-        action, developerNotes: uninstallWarning,
-      }} : undefined,
+      { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Continue', params: {
+        action, developerNotes: uninstallWarning || defaultUninstallationWarning(title) },
+      },
       { selector: 'dependents', cancelButton: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, nextButton: 'Uninstall', params: {
         action, verb: 'uninstalling', title, fetchBreakages: () => this.apiService.uninstallApp(id, true).then( ({ breakages }) => breakages ),
       }},
@@ -172,3 +172,4 @@ function validate<T> (t: T, test: (t: T) => Boolean, desc: string) {
 }
 
 const exists = t => !!t
+const defaultUninstallationWarning = serviceName => `Uninstalling ${ serviceName } will result in the deletion of its data.`
