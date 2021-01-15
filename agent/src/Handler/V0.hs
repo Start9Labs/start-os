@@ -30,6 +30,7 @@ import           Lib.SystemPaths
 import           Lib.Ssh
 import           Lib.Tor
 import           Lib.Types.Core
+import           Lib.Types.Emver
 import           Model
 import           Settings
 import           Util.Function
@@ -75,6 +76,9 @@ getServerR = handleS9ErrT $ do
             case traverse fingerprint keys of
                 Left  e  -> throwE $ InvalidSshKeyE (toS e)
                 Right as -> pure $ uncurry3 SshKeyFingerprint <$> as
+
+postWelcomeR :: Version -> Handler ()
+postWelcomeR version = runDB $ repsert (WelcomeAckKey version) WelcomeAck
 
 getSpecs :: MonadIO m => AppSettings -> S9ErrT m SpecsRes
 getSpecs settings = do
