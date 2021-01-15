@@ -36,6 +36,7 @@ data ServerRes = ServerRes
     , serverSsh                    :: [SshKeyFingerprint]
     , serverAlternativeRegistryUrl :: Maybe Text
     , serverSpecs                  :: SpecsRes
+    , serverWelcomeAck             :: Bool
     }
     deriving (Eq, Show)
 
@@ -57,6 +58,7 @@ instance ToJSON ServerRes where
         , "ssh" .= serverSsh
         , "alternativeRegistryUrl" .= serverAlternativeRegistryUrl
         , "specs" .= serverSpecs
+        , "welcomeAck" .= serverWelcomeAck
         ]
 instance ToTypedContent ServerRes where
     toTypedContent = toTypedContent . toJSON
