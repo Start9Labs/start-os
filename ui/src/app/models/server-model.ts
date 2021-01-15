@@ -106,6 +106,7 @@ export class ServerModel {
       ssh: [],
       notifications: [],
       welcomeAck: true,
+      autoCheckUpdates: true,
     })
   }
 }
@@ -124,6 +125,7 @@ export interface S9Server {
   ssh: SSHFingerprint[]
   notifications: S9Notification[]
   welcomeAck: boolean
+  autoCheckUpdates: boolean
 }
 
 export interface S9Notification {
