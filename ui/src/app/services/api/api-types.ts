@@ -18,6 +18,7 @@ export interface ApiServer {
   ssh: SSHFingerprint[]
   serverId: string
   welcomeAck: boolean
+  autoCheckUpdates: boolean
 }
 
 /** APPS **/

@@ -28,7 +28,7 @@ export abstract class ApiService {
   abstract getServerMetrics (): Promise<ReqRes.GetServerMetricsRes>
   abstract getNotifications (page: number, perPage: number): Promise<S9Notification[]>
   abstract deleteNotification (id: string): Promise<Unit>
-  abstract updateAgent (thing: any): Promise<Unit>
+  abstract updateAgent (version: any): Promise<Unit>
   abstract acknowledgeOSWelcome (version: string): Promise<Unit>
   abstract getAvailableApps (): Promise<AppAvailablePreview[]>
   abstract getAvailableApp (appId: string): Promise<AppAvailableFull>

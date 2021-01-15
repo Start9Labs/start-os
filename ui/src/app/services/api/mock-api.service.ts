@@ -12,6 +12,7 @@ import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppInst
 @Injectable()
 export class MockApiService extends ApiService {
   welcomeAck = false
+
   constructor (
     private readonly appModel: AppModel,
     private readonly serverModel: ServerModel,
@@ -34,7 +35,10 @@ export class MockApiService extends ApiService {
 
   async getServer (): Promise<ApiServer> {
     const res = await mockGetServer()
-    return { ...res, welcomeAck: this.welcomeAck }
+    return {
+      ...res,
+      welcomeAck: this.welcomeAck,
+    }
   }
 
   async ejectExternalDisk (): Promise<Unit> {
@@ -402,9 +406,11 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
   serverId: 'start9-mockxyzab',
   name: 'Embassy:12345678',
   versionInstalled: '0.2.8',
+  versionLatest: '0.2.9',
   status: ServerStatus.RUNNING,
   alternativeRegistryUrl: 'beta-registry.start9labs.com',
   welcomeAck: true,
+  autoCheckUpdates: true,
   specs: {
     'Tor Address': 'nfsnjkcnaskjnlkasnfahj7dh23fdnieqwjdnhjewbfijendiueqwbd.onion',
     'CPU': 'Broadcom BCM2711, Quad core Cortex-A72 (ARM v8) 64-bit SoC @ 1.5GHz',
