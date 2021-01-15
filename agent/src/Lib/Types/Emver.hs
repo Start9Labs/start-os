@@ -57,7 +57,9 @@ instance Show Version where
 instance IsString Version where
     fromString s = either error id $ Atto.parseOnly parseVersion (T.pack s)
 instance Read Version where
-    readsPrec i = 
+    readsPrec _ s = case Atto.parseOnly parseVersion (T.pack s) of
+        Left _ -> []
+        Right a -> [(a, "")]
 
 -- | A change in the value found at 'major' implies a breaking change in the API that this version number describes
 major :: Version -> Word
