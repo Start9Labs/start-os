@@ -56,7 +56,7 @@ getServerR = handleS9ErrT $ do
     ssh                    <- readFromPath settings sshKeysFilePath >>= parseSshKeys
     wifi                   <- WpaSupplicant.runWlan0 $ liftA2 WifiList WpaSupplicant.getCurrentNetwork WpaSupplicant.listNetworks
     specs                  <- getSpecs settings
-    welcomeAck <- fmap isJust . lift . runDB . Persist.get $ WelcomeAckKey agentVersion
+    welcomeAck             <- fmap isJust . lift . runDB . Persist.get $ WelcomeAckKey agentVersion
 
     let sid = T.drop 7 $ specsNetworkId specs
 
