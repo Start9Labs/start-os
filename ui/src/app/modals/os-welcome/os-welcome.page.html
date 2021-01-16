@@ -6,27 +6,29 @@
       </ion-button>
     </ion-buttons>
     <ion-title >
-      <ion-label style="font-size: 20px;" class="ion-text-wrap">Welcome to {{ version }}</ion-label>
+      <ion-label style="font-size: 20px;" class="ion-text-wrap">Welcome to EmbassyOS {{ version }}!</ion-label>
     </ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
-  <div>
-    <h2>Overview</h2>
-    <p>
-      0.2.8 is a small but important update designed to enhance awareness around potential pitfalls of using certain services.
-      It introduces warnings for installing, uninstalling, backing up, and restoring backups of stateful services such as LND or c-lightning.
-      0.2.8 also draws a distinction between services that can be launched inside the browser and those that are designed to run in the background.
-    </p>
-  </div>
+  <h2>Highlights</h2>
+  <p>
+    0.2.8 is a small but important update designed to enhance awareness around potential pitfalls of using certain services.
+    It introduces warnings for installing, uninstalling, backing up, and restoring backups of stateful services such as LND or c-lightning.
+    0.2.8 introduces automatic checks for updates, a setting that can be enabled or disabled in your Embassy config, and it also draws a distinction between services that are designed to be launched inside the browser and those that are designed to run in the background.
+  </p>
 
   <div style="margin-top: 30px">
-    <h5 style="color: var(--ion-color-danger)">Critical - Read Carefully</h5>
+    <h5 style="color: var(--ion-color-danger)">Important</h5>
     <p>
-      If you have LND or c-lightning installed, it is critical that you update them to the latest version. 
-      An oversight in Start9’s USB backups system has created a situation where restoring a LND or c-lightning backup can result in permanent loss of channel funds.
-      To be clear, <ion-text style="font-weight: 'bold';">DO NOT</ion-text> attempt to restore a LND or c-lightning backup until you have updated these services to the latest versions.
+      If you have LND or c-lightning installed, please update them to the latest versions. 
+      An oversight in Start9’s USB backups system has created a situation where <b>restoring</b> a LND or c-lightning backup could potentially result in permanent loss of channel funds.
+      To be clear, <ion-text style="font-weight: 'bold';">DO NOT</ion-text> attempt to <b>restore</b> a LND or c-lightning backup until you have updated to the latest versions.
     </p>
   </div>
+  
+  <ion-button style="text-align: right; margin-top:12px;" fill="outline" (click)="dismiss()">
+    Close
+  </ion-button>
 </ion-content>

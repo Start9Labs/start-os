@@ -110,7 +110,7 @@ export class ServerShowPage {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Confirm',
-      message: `Update EmbassyOS to ${versionLatest}?`,
+      message: `Update EmbassyOS to version ${versionLatest}?`,
       buttons: [
         {
           text: 'Cancel',

@@ -133,7 +133,7 @@ export class SyncNotifier {
     const alert = await this.alertCtrl.create({
       backdropDismiss: true,
       header: 'New EmbassyOS Version!',
-      message: `Update to EmbassyOS, version ${versionLatest}?`,
+      message: `Update EmbassyOS to version ${versionLatest}?`,
       buttons: [
         {
           text: 'Not now',

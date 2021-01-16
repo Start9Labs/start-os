@@ -21,13 +21,6 @@
   </ion-item>
 
   <ion-item-group>
-    <ion-item-divider style="margin-top: 0px;">Description</ion-item-divider>
-    <ion-item lines="none">
-      <ion-label class="ion-text-wrap">
-        <h2><ion-text color="medium">Add SSH keys to your Embassy to gain root access from the command line.</ion-text></h2>
-      </ion-label>
-    </ion-item>
-
     <ion-item-divider>Saved Keys</ion-item-divider>
     <ion-item *ngFor="let fingerprint of server.ssh | async">
       <ion-label class="ion-text-wrap">
