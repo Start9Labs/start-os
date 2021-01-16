@@ -418,7 +418,7 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
     'WiFI': '2.4 GHz and 5.0 GHz IEEE 802.11ac wireless, Bluetooth 5.0, BLE',
     'Ethernet': 'Gigabit',
     'Disk': '512 GB Flash (280 GB available)',
-    'Embassy OS Version': '0.1.0.1',
+    'EmbassyOS Version': '0.1.0.1',
   },
   wifi: {
     ssids: ['Goosers', 'Atlantic City'],
