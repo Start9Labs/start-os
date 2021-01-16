@@ -23,8 +23,8 @@ export class UpdateOsBannerComponent {
 
   async confirmUpdate (versionLatest: string) {
     const alert = await this.alertCtrl.create({
-      header: `Update Embassy OS`,
-      message: `Are you sure you want to update your Embassy OS to version ${versionLatest}?`,
+      header: `Update EmbassyOS`,
+      message: `Update EmbassyOS to version ${versionLatest}?`,
       buttons: [
         {
           text: 'Cancel',

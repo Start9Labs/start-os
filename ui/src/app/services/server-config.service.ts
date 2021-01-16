@@ -52,6 +52,17 @@ export class ServerConfigService {
           return this.apiService.patchServerConfig('name', val).then(() => this.serverModel.update({ name: val }))
         },
       },
+      autoCheckUpdates: {
+        spec: {
+          type: 'boolean',
+          name: 'Auto Check for Updates',
+          description: 'On launch, EmabssyOS will automatically check for updates of itself and your installed services. Updating still requires user approval and action. No updates will ever be performed automatically.',
+          default: true,
+        },
+        saveFn: (val: string) => {
+          return this.apiService.patchServerConfig('autoCheckUpdates', val).then(() => this.serverModel.update({ name: val }))
+        },
+      },
       // password: {
       //   spec: {
       //     type: 'string',
