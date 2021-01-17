@@ -63,19 +63,21 @@ export class SyncNotifier {
   private async handleOSWelcome (server: Readonly<S9Server>) {
     if (server.welcomeAck || server.versionInstalled !== this.config.version || this.osWelcomeOpen) return
 
-    const modal = await this.modalCtrl.create({
-      backdropDismiss: false,
-      component: OSWelcomePage,
-      presentingElement: await this.modalCtrl.getTop(),
-      componentProps: {
-        version: server.versionInstalled,
-      },
-    })
     this.osWelcomeOpen = true
+    const [modal, _] = await Promise.all([
+      this.modalCtrl.create({
+        backdropDismiss: false,
+        component: OSWelcomePage,
+        presentingElement: await this.modalCtrl.getTop(),
+        componentProps: {
+          version: server.versionInstalled,
+        },
+      }),
+      this.apiService.acknowledgeOSWelcome(this.config.version),
+    ])
 
     modal.onWillDismiss().then(() => {
       this.osWelcomeOpen = false
-      return this.apiService.acknowledgeOSWelcome(this.config.version)
     })
     await modal.present()
   }
