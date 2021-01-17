@@ -188,6 +188,9 @@ agentTorHiddenServicePrivateKeyPath = agentTorHiddenServiceDirectory <> "/hs_ed2
 serverNamePath :: SystemPath
 serverNamePath = "/root/agent/name.txt"
 
+autoCheckUpdatesPath :: SystemPath
+autoCheckUpdatesPath = "/root/agent/.autoCheckUpdates"
+
 altRegistryUrlPath :: SystemPath
 altRegistryUrlPath = "/root/agent/alt_registry_url.txt"
 

@@ -109,8 +109,23 @@ newtype NullablePatchReq = NullablePatchReq { mpatchValue :: Maybe Text } derivi
 instance FromJSON NullablePatchReq where
     parseJSON = withObject "Nullable Patch Request" $ \o -> NullablePatchReq <$> o .:? "value"
 
+newtype BoolPatchReq = BoolPatchReq { bpatchValue :: Bool } deriving (Eq, Show)
+
+instance FromJSON BoolPatchReq where
+  parseJSON = withObject "Patch Request" $ \o -> BoolPatchReq <$> o .: "value"
+
 patchNameR :: Handler ()
 patchNameR = patchFile serverNamePath
+
+patchAutoCheckUpdatesR :: Handler ()
+patchAutoCheckUpdatesR = do
+  settings <- getsYesod appSettings
+  BoolPatchReq val <- requireCheckJsonBody
+  runM $
+    injectFilesystemBaseFromContext settings $
+      if val
+        then writeSystemPath autoCheckUpdatesPath ""
+        else deleteSystemPath autoCheckUpdatesPath
 
 patchFile :: SystemPath -> Handler ()
 patchFile path = do
