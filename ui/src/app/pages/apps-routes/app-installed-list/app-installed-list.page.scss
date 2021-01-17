@@ -66,14 +66,28 @@
 }
 
 .launch-button-transparent {
+  // position: absolute;
+  // z-index: 1;
+  // --border-radius: 100px;
+  // width: 42px;
+  // height: 42px;
+  // right: -5px;
+  // top: -5px;
+  // --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
   position: absolute;
-  z-index: 1;
-  --border-radius: 100px;
-  width: 42px;
-  height: 42px;
-  right: -5px;
-  top: -5px;
-  --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
+    /* z-index: 1; */
+    --border-radius: 0px;
+    width: 45px;
+    /* height: 42px; */
+    height: 100%;
+    right: -5px;
+    --box-shadow: none;
+    /* top: -5px; */
+    border-style: outset;
+    border-width: 0px 0px 0px 0px;
+    border-color: #2a2a2a;
+    margin: 0px;
+    --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
 }
 
 .launch-button-off {
