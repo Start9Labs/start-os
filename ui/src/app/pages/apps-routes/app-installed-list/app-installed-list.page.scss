@@ -90,10 +90,52 @@
     --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
 }
 
+.launch-button-triangle {
+  // position: absolute;
+  // --border-radius: 0px;
+  width: 0px;
+  height: 0px;
+  right: 0px;
+  // --box-shadow: none;
+  /* top: -5px; */
+  // border-style: outset;
+  // border-width: 0px 0px 0px 0px;
+  // border-color: #2a2a2a;
+  margin: 0px;
+  // --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
+  border-style: solid;
+    border-width: 0 72px 73px 0;
+    border-color: blue;
+    /* border-width: 40px 80px 40px 0; */
+    border-color: transparent #007bff transparent transparent;
+}
+
 .launch-button-off {
   --background: transparent;
   --box-shadow: none;
+  border-color: transparent;
   ion-icon {
     color: var(--ion-color-medium);
   }
+}
+
+.launch-container {
+  position: absolute;
+  // --border-radius: 0px;
+  width: 55%;
+  height: 55%;
+  right: 0px;
+  top: 0px;
+  // --box-shadow: none;
+  /* top: -5px; */
+  // border-style: outset;
+  // border-width: 0px 0px 0px 0px;
+  // border-color: #2a2a2a;
+  margin: 0px;
+  // --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
+  // border-style: solid;
+    // border-width: 0 72px 73px 0;
+    // border-color: blue;
+    /* border-width: 40px 80px 40px 0; */
+    // border-color: transparent #007bff transparent transparent;
 }

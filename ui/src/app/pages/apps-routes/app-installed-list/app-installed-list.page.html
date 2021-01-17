@@ -24,19 +24,30 @@
         <ion-col *ngFor="let app of apps" sizeXs="4" sizeSm="3" sizeMd="2" sizeLg="2">
           <ng-container *ngIf="{ tor: app.subject.torAddress | async, status: app.subject.status | async, ui: app.subject.ui | async, iconURL: app.subject.iconURL | async | iconParse, title: app.subject.title | async } as vars"  >
           
+          
+
           <ion-card class="installed-card" [class.installed-card-on]="vars.status === 'RUNNING'" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
-            <ion-button
+            <div class="launch-container" *ngIf="vars.ui && !isConsulate" [disabled]="vars.status !== AppStatus.RUNNING || !isTor" (click)="launchUiTab(vars.tor)">
+              <div class="launch-button-triangle">
+
+              </div>
+              <!-- <ion-button>
+
+              </ion-button> -->
+            </div>
+
+            <!-- <ion-button
             *ngIf="vars.ui && !isConsulate"
             [disabled]="vars.status !== AppStatus.RUNNING || !isTor"
             [class.launch-button-off]="vars.status !== AppStatus.RUNNING || !isTor"
-            class="launch-button-transparent"
+            class="launch-button-triangle"
             (click)="launchUiTab(vars.tor)"
           >
             <ion-icon style="position: absolute;
             top: 6px;
             right: -1px;
             width: 13px;" name="rocket-outline"></ion-icon>
-          </ion-button>
+          </ion-button> -->
 
             <img style="position: absolute" class="main-img" [src]="vars.iconURL" [alt]="app.subject.title | async" />
             <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
