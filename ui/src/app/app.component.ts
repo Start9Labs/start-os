@@ -48,7 +48,7 @@ export class AppComponent {
       icon: 'notifications-outline',
     },
     {
-      title: 'External Drives',
+      title: 'Backup drives',
       url: '/drives',
       icon: 'albums-outline',
     },
