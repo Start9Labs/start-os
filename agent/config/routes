@@ -7,6 +7,7 @@
 /v0                                   ServerR                  GET PATCH
 
 /v0/name                              NameR                    PATCH
+/v0/autoCheckUpdates                  AutoCheckUpdatesR        PATCH
 
 /v0/welcome/#Version                  WelcomeR                 POST
 /v0/specs                             SpecsR                   GET
