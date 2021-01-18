@@ -31,6 +31,7 @@ data ServerRes = ServerRes
     , serverStatus                 :: Maybe AppStatus
     , serverStatusAt               :: UTCTime
     , serverVersionInstalled       :: Version
+    , serverVersionLatest          :: Maybe Version
     , serverNotifications          :: [Entity Notification]
     , serverWifi                   :: WifiList
     , serverSsh                    :: [SshKeyFingerprint]
@@ -52,7 +53,7 @@ instance ToJSON ServerRes where
             Nothing   -> String "UPDATING"
             Just stat -> toJSON stat
         , "versionInstalled" .= serverVersionInstalled
-        , "versionLatest" .= Null
+        , "versionLatest" .= serverVersionLatest
         , "notifications" .= serverNotifications
         , "wifi" .= serverWifi
         , "ssh" .= serverSsh

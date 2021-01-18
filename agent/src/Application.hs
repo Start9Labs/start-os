@@ -113,6 +113,7 @@ makeFoundation appSettings = do
     appSelfUpdateSpecification  <- newEmptyMVar
     appIsUpdating               <- newIORef Nothing
     appIsUpdateFailed           <- newIORef Nothing
+    appOSVersionLatest          <- newIORef Nothing
     appBackgroundJobs           <- newTVarIO (JobCache HM.empty)
     def                         <- getDefaultProcDevMetrics
     appProcDevMomentCache       <- newIORef (now, mempty, def)
