@@ -74,7 +74,7 @@ data AppAvailableFull = AppAvailableFull
     , appAvailableFullDescriptionShort       :: Text
     , appAvailableFullDescriptionLong        :: Text
     , appAvailableFullReleaseNotes           :: Text
-    , appAvailableFullInstallWarning         :: Maybe Text
+    , appAvailableFullInstallAlert           :: Maybe Text
     , appAvailableFullDependencyRequirements :: [Full AppDependencyRequirement]
     , appAvailableFullVersions               :: NonEmpty Version
     }
@@ -131,7 +131,7 @@ data AppInstalledFull = AppInstalledFull
     , appInstalledFullInstructions           :: Maybe Text
     , appInstalledFullLastBackup             :: Maybe UTCTime
     , appInstalledFullConfiguredRequirements :: [Stripped AppDependencyRequirement]
-    , appInstalledFullUninstallWarning       :: Maybe Text
+    , appInstalledFullUninstallAlert         :: Maybe Text
     }
 instance ToJSON AppInstalledFull where
     toJSON AppInstalledFull {..} = object
@@ -144,21 +144,21 @@ instance ToJSON AppInstalledFull where
         , "iconURL" .= appBaseIconUrl appInstalledFullBase
         , "versionInstalled" .= appInstalledFullVersionInstalled
         , "status" .= appInstalledFullStatus
-        , "uninstallWarning" .= appInstalledFullUninstallWarning
+        , "uninstallAlert" .= appInstalledFullUninstallAlert
         ]
 
 data AppVersionInfo = AppVersionInfo
     { appVersionInfoVersion                :: Version
     , appVersionInfoReleaseNotes           :: Text
     , appVersionInfoDependencyRequirements :: [Full AppDependencyRequirement]
-    , appVersionInfoInstallWarning         :: Maybe Text
+    , appVersionInfoInstallAlert           :: Maybe Text
     }
 instance ToJSON AppVersionInfo where
     toJSON AppVersionInfo {..} = object
         [ "version" .= appVersionInfoVersion
         , "releaseNotes" .= appVersionInfoReleaseNotes
         , "serviceRequirements" .= appVersionInfoDependencyRequirements
-        , "installWarning" .= appVersionInfoInstallWarning
+        , "installAlert" .= appVersionInfoInstallAlert
         ]
 
 data ApiDependencyViolation
