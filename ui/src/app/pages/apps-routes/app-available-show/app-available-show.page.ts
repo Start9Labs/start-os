@@ -160,7 +160,7 @@ export class AppAvailableShowPage extends Cleanup {
         title: app.title,
         version: app.versionViewing,
         serviceRequirements: app.serviceRequirements,
-        installWarning: app.installWarning,
+        installAlert: app.installAlert,
       }),
     )
     if (cancelled) return
@@ -175,7 +175,7 @@ export class AppAvailableShowPage extends Cleanup {
       title: app.title,
       version: app.versionViewing,
       serviceRequirements: app.serviceRequirements,
-      installWarning: app.installWarning,
+      installAlert: app.installAlert,
     }
 
     switch (action) {
