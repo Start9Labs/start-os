@@ -52,68 +52,32 @@
   margin: 9px;
 }
 
-.launch-button-opaque {
-  position: absolute;
-  z-index: 1;
-  --border-radius: 100px;
-  width: 42px;
-  height: 42px;
-  right: -5px;
-  top: -5px;
-  --background: #2b2a2b //linear-gradient(120deg, rgb(35, 178, 251, 0.7), transparent);
-  box-shadow: 0 0 4px 2px rgb(91 200 255);
-  border-radius: 100px;
-}
-
-.launch-button-transparent {
-  // position: absolute;
-  // z-index: 1;
-  // --border-radius: 100px;
-  // width: 42px;
-  // height: 42px;
-  // right: -5px;
-  // top: -5px;
-  // --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
-  position: absolute;
-    /* z-index: 1; */
-    --border-radius: 0px;
-    width: 45px;
-    /* height: 42px; */
-    height: 100%;
-    right: -5px;
-    --box-shadow: none;
-    /* top: -5px; */
-    border-style: outset;
-    border-width: 0px 0px 0px 0px;
-    border-color: #2a2a2a;
-    margin: 0px;
-    --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
-}
-
 .launch-button-triangle {
-  // position: absolute;
-  // --border-radius: 0px;
   width: 0px;
   height: 0px;
   right: 0px;
-  // --box-shadow: none;
-  /* top: -5px; */
-  // border-style: outset;
-  // border-width: 0px 0px 0px 0px;
-  // border-color: #2a2a2a;
   margin: 0px;
-  // --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
+
   border-style: solid;
-    border-width: 0 72px 73px 0;
-    border-color: blue;
-    /* border-width: 40px 80px 40px 0; */
-    border-color: transparent #007bff transparent transparent;
+  border-width: 22px;
+  border-color: rgb(70 193 255 / 75%) rgb(70 193 255 / 75%) transparent transparent;
+  &:hover {
+    border-color: rgb(70 193 255) rgb(70 193 255) transparent transparent;
+  }
+  ion-icon {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    color: white;
+  }
 }
 
-.launch-button-off {
-  --background: transparent;
-  --box-shadow: none;
+.disabled {
+  pointer-events: none;
   border-color: transparent;
+  &:hover {
+    border-color: transparent;
+  }
   ion-icon {
     color: var(--ion-color-medium);
   }
@@ -121,21 +85,7 @@
 
 .launch-container {
   position: absolute;
-  // --border-radius: 0px;
-  width: 55%;
-  height: 55%;
   right: 0px;
   top: 0px;
-  // --box-shadow: none;
-  /* top: -5px; */
-  // border-style: outset;
-  // border-width: 0px 0px 0px 0px;
-  // border-color: #2a2a2a;
   margin: 0px;
-  // --background: linear-gradient(200deg, rgb(35, 178, 251, 1), rgb(35, 178, 251, 0.25));
-  // border-style: solid;
-    // border-width: 0 72px 73px 0;
-    // border-color: blue;
-    /* border-width: 40px 80px 40px 0; */
-    // border-color: transparent #007bff transparent transparent;
 }
