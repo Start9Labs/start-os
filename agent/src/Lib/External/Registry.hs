@@ -36,6 +36,7 @@ import           Lib.SystemPaths
 import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Lib.Types.ServerApp
+import           Data.Time.ISO8601              ( parseISO8601 )
 
 newtype AppManifestRes = AppManifestRes
     { storeApps :: [StoreApp] } deriving (Eq, Show)
@@ -135,7 +136,7 @@ parseAppData = do
         storeAppVersions         <- ad .: "version-info" >>= \case
             []       -> fail "No Valid Version Info"
             (x : xs) -> pure $ x :| xs
-        storeAppTimestamp <- ad .: "timestamp"
+        storeAppTimestamp <- ad .: "timestamp" >>= maybe (fail "Invalid ISO8601 Timestamp") pure . parseISO8601
         pure StoreApp { .. }
 
 getAppVersionForSpec :: (Has RegistryUrl sig m, Has (Error S9Error) sig m, MonadIO m)
