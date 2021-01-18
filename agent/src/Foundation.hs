@@ -58,6 +58,7 @@ import           Settings
 -- keep settings and values requiring initialization before your application
 -- starts running, such as database connections. Every handler will have
 -- access to the data present here.
+data OsVersionCache = OsVersionCache { osVersion :: Version, lastChecked :: UTCTime }
 
 data AgentCtx = AgentCtx
     { appSettings                 :: AppSettings
@@ -68,6 +69,7 @@ data AgentCtx = AgentCtx
     , appWebServerThreadId        :: IORef (Maybe ThreadId)
     , appIsUpdating               :: IORef (Maybe Version)
     , appIsUpdateFailed           :: IORef (Maybe S9Error)
+    , appOSVersionLatest          :: IORef (Maybe OsVersionCache)
     , appProcDevMomentCache       :: IORef (UTCTime, ProcDevMomentStats, ProcDevMetrics)
     , appSelfUpdateSpecification  :: MVar VersionRange
     , appBackgroundJobs           :: TVar JobCache
