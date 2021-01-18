@@ -277,6 +277,16 @@ pub async fn set_svc(
     let ip = hidden_services.add(name.to_owned(), service);
     log::info!("Adding Tor hidden service {} to {}.", name, ETC_TOR_RC);
     write_services(&hidden_services).await?;
+    let addr_path = Path::new(HIDDEN_SERVICE_DIR_ROOT)
+        .join(format!("app-{}", name))
+        .join("hostname");
+    tokio::fs::remove_file(addr_path).await.or_else(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            Ok(())
+        } else {
+            Err(e)
+        }
+    })?;
     hidden_services.commit().await?;
     log::info!("Reloading Tor.");
     let svc_exit = std::process::Command::new("service")
