@@ -4,6 +4,7 @@ module Handler.V0 where
 
 import           Startlude               hiding ( runReader )
 
+import           Control.Carrier.Error.Either
 import           Control.Carrier.Lift           ( runM )
 import           Data.Aeson
 import           Data.IORef
@@ -20,8 +21,10 @@ import           Handler.Types.V0.Specs
 import           Handler.Types.V0.Ssh
 import           Handler.Types.V0.Base
 import           Handler.Types.V0.Wifi
+import           Lib.Algebra.State.RegistryUrl
 import           Lib.Error
 import           Lib.External.Metrics.Df
+import qualified Lib.External.Registry         as Reg
 import           Lib.External.Specs.CPU
 import           Lib.External.Specs.Memory
 import qualified Lib.External.WpaSupplicant    as WpaSupplicant
@@ -38,7 +41,8 @@ import           Util.Function
 
 getServerR :: Handler (JsonEncoding ServerRes)
 getServerR = handleS9ErrT $ do
-    settings   <- getsYesod appSettings
+    agentCtx   <- getYesod
+    let settings = appSettings agentCtx
     now        <- liftIO getCurrentTime
     isUpdating <- getsYesod appIsUpdating >>= liftIO . readIORef
 
@@ -57,6 +61,7 @@ getServerR = handleS9ErrT $ do
     wifi                   <- WpaSupplicant.runWlan0 $ liftA2 WifiList WpaSupplicant.getCurrentNetwork WpaSupplicant.listNetworks
     specs                  <- getSpecs settings
     welcomeAck             <- fmap isJust . lift . runDB . Persist.get $ WelcomeAckKey agentVersion
+    versionLatest          <- getOSVersionLatest agentCtx
 
     let sid = T.drop 7 $ specsNetworkId specs
 
@@ -71,6 +76,7 @@ getServerR = handleS9ErrT $ do
                          , serverAlternativeRegistryUrl = alternativeRegistryUrl
                          , serverSpecs                  = specs
                          , serverWelcomeAck             = welcomeAck
+                         , serverVersionLatest           = versionLatest
                          }
     where
         parseSshKeys :: Text -> S9ErrT Handler [SshKeyFingerprint]
@@ -140,3 +146,35 @@ patchNullableFile path = do
     runM $ injectFilesystemBaseFromContext settings $ case mVal of
         Just val -> writeSystemPath path $ T.strip val
         Nothing  -> deleteSystemPath path
+
+expirationOsVersionLatest :: Num a => a
+expirationOsVersionLatest = 60
+
+getOSVersionLatest :: MonadIO m => AgentCtx -> m (Maybe Version)
+getOSVersionLatest ctx = do
+    now <- liftIO getCurrentTime
+    let osVersionCache = appOSVersionLatest ctx
+    mCache <- liftIO . readIORef $ osVersionCache
+
+    case mCache of
+        Nothing -> repopulateCache ctx
+        Just cache -> if diffUTCTime now (lastChecked cache) >= expirationOsVersionLatest
+            then repopulateCache ctx
+            else pure . Just $ osVersion cache
+
+repopulateCache :: MonadIO m => AgentCtx -> m (Maybe Version)
+repopulateCache ctx = do
+    let osVersionCache = appOSVersionLatest ctx
+    let s = appSettings ctx
+    eitherV <- interp s $ Reg.getLatestAgentVersion
+
+    case eitherV of
+        Left error -> do
+            putStrLn $ "Repopulate OS Version Cache exception: " <> (show error :: Text)
+            fmap (fmap osVersion) . liftIO . readIORef $ osVersionCache
+        Right v -> do
+            res <- OsVersionCache v <$> liftIO getCurrentTime
+            liftIO $ writeIORef osVersionCache (Just res)
+            pure . Just $ osVersion res
+    where interp s = liftIO . runError @S9Error . injectFilesystemBaseFromContext s . runRegistryUrlIOC
+
