@@ -47,11 +47,11 @@ export class AppComponent {
       url: '/notifications',
       icon: 'notifications-outline',
     },
-    {
-      title: 'Backup drives',
-      url: '/drives',
-      icon: 'albums-outline',
-    },
+    // {
+    //   title: 'Backup drives',
+    //   url: '/drives',
+    //   icon: 'albums-outline',
+    // },
   ]
 
   constructor (
