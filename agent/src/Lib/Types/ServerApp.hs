@@ -36,7 +36,7 @@ instance FromJSON StoreAppVersionInfo where
     parseJSON = withObject "Store App Version Info" $ \o -> do
         storeAppVersionInfoVersion      <- o .: "version"
         storeAppVersionInfoReleaseNotes <- o .: "release-notes"
-        storeAppVersionInfoInstallAlert <- o .: "install-alert"
+        storeAppVersionInfoInstallAlert <- o .:? "install-alert"
         pure StoreAppVersionInfo { .. }
 instance ToJSON StoreAppVersionInfo where
     toJSON StoreAppVersionInfo {..} =
