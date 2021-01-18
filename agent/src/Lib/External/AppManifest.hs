@@ -60,7 +60,7 @@ data AppManifest where
                     , appManifestAssets :: [AssetMapping]
                     , appManifestOnionVersion :: OnionVersion
                     , appManifestDependencies :: HM.HashMap AppId VersionRange
-                    , appManifestUninstallWarning :: Maybe Text
+                    , appManifestUninstallAlert :: Maybe Text
                     } -> AppManifest
 
 uiAvailable :: AppManifest -> Bool
@@ -68,19 +68,19 @@ uiAvailable AppManifest {..} = isJust $ HM.lookup 80 appManifestPortMapping
 
 instance FromJSON AppManifest where
     parseJSON = withObject "App Manifest " $ \o -> do
-        appManifestId               <- o .: "id"
-        appManifestVersion          <- o .: "version"
-        appManifestTitle            <- o .: "title"
-        appManifestDescShort        <- o .: "description" >>= (.: "short")
-        appManifestDescLong         <- o .: "description" >>= (.: "long")
-        appManifestReleaseNotes     <- o .: "release-notes"
-        appManifestPortMapping      <- o .: "ports" >>= fmap HM.fromList . traverse parsePortMapping
-        appManifestImageType        <- o .: "image" >>= (.: "type")
-        appManifestMount            <- o .: "mount"
-        appManifestAssets           <- o .: "assets" >>= traverse parseJSON
-        appManifestOnionVersion     <- o .: "hidden-service-version"
-        appManifestDependencies     <- o .:? "dependencies" .!= HM.empty >>= traverse parseDepInfo
-        appManifestUninstallWarning <- o .:? "uninstall-warning"
+        appManifestId             <- o .: "id"
+        appManifestVersion        <- o .: "version"
+        appManifestTitle          <- o .: "title"
+        appManifestDescShort      <- o .: "description" >>= (.: "short")
+        appManifestDescLong       <- o .: "description" >>= (.: "long")
+        appManifestReleaseNotes   <- o .: "release-notes"
+        appManifestPortMapping    <- o .: "ports" >>= fmap HM.fromList . traverse parsePortMapping
+        appManifestImageType      <- o .: "image" >>= (.: "type")
+        appManifestMount          <- o .: "mount"
+        appManifestAssets         <- o .: "assets" >>= traverse parseJSON
+        appManifestOnionVersion   <- o .: "hidden-service-version"
+        appManifestDependencies   <- o .:? "dependencies" .!= HM.empty >>= traverse parseDepInfo
+        appManifestUninstallAlert <- o .:? "uninstall-alert"
         pure $ AppManifest { .. }
         where
             parsePortMapping = withObject "Port Mapping" $ \o -> liftA2 (,) (o .: "tor") (o .: "internal")

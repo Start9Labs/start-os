@@ -210,7 +210,7 @@ getAvailableAppByIdLogic appId = do
         , appAvailableFullReleaseNotes           = storeAppVersionInfoReleaseNotes latest
         , appAvailableFullDependencyRequirements = HM.elems dependencyRequirements
         , appAvailableFullVersions               = storeAppVersionInfoVersion <$> storeAppVersions
-        , appAvailableFullInstallWarning         = storeAppVersionInfoInstallWarning latest
+        , appAvailableFullInstallAlert           = storeAppVersionInfoInstallAlert latest
         }
 
 getAppLogsByIdR :: AppId -> Handler (JSONResponse [Text])
@@ -287,7 +287,7 @@ getInstalledAppByIdLogic appId = do
                 , appInstalledFullLastBackup             = backupTime
                 , appInstalledFullTorAddress             = Nothing
                 , appInstalledFullConfiguredRequirements = []
-                , appInstalledFullUninstallWarning       = Nothing
+                , appInstalledFullUninstallAlert         = Nothing
                 }
     serverApps <- AppMgr2.list [AppMgr2.flags|-s -d|]
     let remapped = remapAppMgrInfo jobCache serverApps
@@ -318,16 +318,15 @@ getInstalledAppByIdLogic appId = do
             manifest     <- lift $ LAsync.wait manifest'
             instructions <- lift $ LAsync.wait instructions'
             backupTime   <- lift $ LAsync.wait backupTime'
-            pure AppInstalledFull
-                { appInstalledFullBase                   = AppBase appId infoResTitle (iconUrl appId version)
-                , appInstalledFullStatus                 = status
-                , appInstalledFullVersionInstalled       = version
-                , appInstalledFullInstructions           = instructions
-                , appInstalledFullLastBackup             = backupTime
-                , appInstalledFullTorAddress             = infoResTorAddress
-                , appInstalledFullConfiguredRequirements = HM.elems requirements
-                , appInstalledFullUninstallWarning       = manifest >>= AppManifest.appManifestUninstallWarning
-                }
+            pure AppInstalledFull { appInstalledFullBase = AppBase appId infoResTitle (iconUrl appId version)
+                                  , appInstalledFullStatus                 = status
+                                  , appInstalledFullVersionInstalled       = version
+                                  , appInstalledFullInstructions           = instructions
+                                  , appInstalledFullLastBackup             = backupTime
+                                  , appInstalledFullTorAddress             = infoResTorAddress
+                                  , appInstalledFullConfiguredRequirements = HM.elems requirements
+                                  , appInstalledFullUninstallAlert = manifest >>= AppManifest.appManifestUninstallAlert
+                                  }
     runMaybeT (installing <|> installed) `orThrowM` NotFoundE "appId" (show appId)
 
 postUninstallAppR :: AppId -> Handler (JSONResponse (WithBreakages ()))
@@ -651,7 +650,7 @@ getAvailableAppVersionInfoLogic appId appVersionSpec = do
     pure AppVersionInfo { appVersionInfoVersion                = storeAppVersionInfoVersion
                         , appVersionInfoReleaseNotes           = storeAppVersionInfoReleaseNotes
                         , appVersionInfoDependencyRequirements = HM.elems requirements
-                        , appVersionInfoInstallWarning         = storeAppVersionInfoInstallWarning
+                        , appVersionInfoInstallAlert           = storeAppVersionInfoInstallAlert
                         }
 
 postAutoconfigureR :: AppId -> AppId -> Handler (JSONResponse (WithBreakages AutoconfigureChangesRes))
