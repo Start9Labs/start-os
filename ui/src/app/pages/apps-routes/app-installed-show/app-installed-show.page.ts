@@ -102,7 +102,7 @@ export class AppInstalledShowPage extends Cleanup {
     }
   }
 
-  async launchUiTab (e) {
+  async launchUiTab () {
     let uiAddress = this.app.torAddress.getValue()
     uiAddress = uiAddress.startsWith('http') ? uiAddress : `http://${uiAddress}`
     return window.open(uiAddress, '_blank')
