@@ -9,9 +9,9 @@ export class WizardBaker {
   constructor (private readonly apiService: ApiService, private readonly appModel: AppModel) { }
 
   install (values: {
-    id: string, title: string, version: string, serviceRequirements: AppDependency[], installWarning?: string
+    id: string, title: string, version: string, serviceRequirements: AppDependency[], installAlert?: string
   }): InstallWizardComponent['params'] {
-    const { id, title, version, serviceRequirements, installWarning } = values
+    const { id, title, version, serviceRequirements, installAlert } = values
 
     validate(id, exists, 'missing id')
     validate(title, exists, 'missing title')
@@ -22,8 +22,8 @@ export class WizardBaker {
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
-      installWarning ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
-        action, developerNotes: installWarning,
+      installAlert ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
+        action, developerNotes: installAlert,
       }} : undefined,
       { selector: 'dependencies', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Install', params: {
         action, title, version, serviceRequirements,
@@ -38,9 +38,9 @@ export class WizardBaker {
   }
 
   update (values: {
-    id: string, title: string, version: string, serviceRequirements: AppDependency[], installWarning?: string
+    id: string, title: string, version: string, serviceRequirements: AppDependency[], installAlert?: string
   }): InstallWizardComponent['params'] {
-    const { id, title, version, serviceRequirements, installWarning } = values
+    const { id, title, version, serviceRequirements, installAlert } = values
 
     validate(id, exists, 'missing id')
     validate(title, exists, 'missing title')
@@ -51,8 +51,8 @@ export class WizardBaker {
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
-      installWarning ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
-        action, developerNotes: installWarning,
+      installAlert ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
+        action, developerNotes: installAlert,
       }} : undefined,
       { selector: 'dependencies', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Update', params: {
         action, title, version, serviceRequirements,
@@ -70,9 +70,9 @@ export class WizardBaker {
   }
 
   downgrade (values: {
-    id: string, title: string, version: string, serviceRequirements: AppDependency[], installWarning?: string
+    id: string, title: string, version: string, serviceRequirements: AppDependency[], installAlert?: string
   }): InstallWizardComponent['params'] {
-    const { id, title, version, serviceRequirements, installWarning } = values
+    const { id, title, version, serviceRequirements, installAlert } = values
 
     validate(id, exists, 'missing id')
     validate(title, exists, 'missing title')
@@ -83,8 +83,8 @@ export class WizardBaker {
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
-      installWarning ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
-        action, developerNotes: installWarning,
+      installAlert ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
+        action, developerNotes: installAlert,
       }} : undefined,
       { selector: 'dependencies', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Downgrade', params: {
         action, title, version, serviceRequirements,
@@ -102,9 +102,9 @@ export class WizardBaker {
   }
 
   uninstall (values: {
-    id: string, title: string, version: string, uninstallWarning?: string
+    id: string, title: string, version: string, uninstallAlert?: string
   }): InstallWizardComponent['params'] {
-    const { id, title, version, uninstallWarning } = values
+    const { id, title, version, uninstallAlert } = values
 
     validate(id, exists, 'missing id')
     validate(title, exists, 'missing title')
@@ -115,7 +115,7 @@ export class WizardBaker {
 
     const slideDefinitions: SlideDefinition[] = [
       { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Continue', params: {
-        action, developerNotes: uninstallWarning || defaultUninstallationWarning(title) },
+        action, developerNotes: uninstallAlert || defaultUninstallationWarning(title) },
       },
       { selector: 'dependents', cancelButton: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, nextButton: 'Uninstall', params: {
         action, verb: 'uninstalling', title, fetchBreakages: () => this.apiService.uninstallApp(id, true).then( ({ breakages }) => breakages ),
