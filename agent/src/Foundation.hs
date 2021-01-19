@@ -69,7 +69,7 @@ data AgentCtx = AgentCtx
     , appWebServerThreadId        :: IORef (Maybe ThreadId)
     , appIsUpdating               :: IORef (Maybe Version)
     , appIsUpdateFailed           :: IORef (Maybe S9Error)
-    , appOSVersionLatest          :: IORef (Maybe OsVersionCache)
+    , appOsVersionLatest          :: IORef (Maybe OsVersionCache)
     , appProcDevMomentCache       :: IORef (UTCTime, ProcDevMomentStats, ProcDevMetrics)
     , appSelfUpdateSpecification  :: MVar VersionRange
     , appBackgroundJobs           :: TVar JobCache
