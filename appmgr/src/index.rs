@@ -30,6 +30,7 @@ pub struct VersionInfo {
     pub release_notes: String,
     pub os_version_required: VersionRange,
     pub os_version_recommended: VersionRange,
+    pub install_alert: Option<String>,
 }
 
 const NULL_VERSION: Version = Version::new(0, 0, 0, 0);
@@ -52,6 +53,7 @@ impl AppIndex {
                 release_notes: manifest.release_notes,
                 os_version_required: manifest.os_version_required,
                 os_version_recommended: manifest.os_version_recommended,
+                install_alert: manifest.install_alert,
             });
             entry
                 .version_info
@@ -68,6 +70,7 @@ impl AppIndex {
                         release_notes: manifest.release_notes,
                         os_version_required: manifest.os_version_required,
                         os_version_recommended: manifest.os_version_recommended,
+                        install_alert: manifest.install_alert,
                     }],
                     icon_type: "png".to_owned(), // TODO
                 },
