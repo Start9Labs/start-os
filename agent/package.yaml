@@ -84,7 +84,6 @@ dependencies:
 - regex-compat # TODO: trim this dep
 - shell-conduit
 - singletons
-- socks
 - stm
 - streaming
 - streaming-bytestring
