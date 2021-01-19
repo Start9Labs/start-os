@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core'
 import { NavController } from '@ionic/angular'
-import { BehaviorSubject, combineLatest, forkJoin, interval, NextObserver, Observable, Observer, of } from 'rxjs'
+import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, concatMap, distinctUntilChanged, filter, map, take, tap } from 'rxjs/operators'
 import { ServerModel, ServerStatus } from '../models/server-model'
-import { exists } from '../util/misc.util'
+import { traceWheel } from '../util/misc.util'
 import { ApiService } from './api/api.service'
 import { Emver } from './emver.service'
 
@@ -23,17 +23,19 @@ export class OsUpdateService {
     private readonly serverModel: ServerModel,
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
-  ) {
-  }
+  ) { }
 
   // emits everytime autoCheckUpdates becomes (or is) true
   autoCheck$ (): Observable<string> {
     return this.serverModel.watch().autoCheckUpdates.pipe(
+      traceWheel('auto check updates 1'),
       distinctUntilChanged(),
       filter(check => check),
+      traceWheel('auto check updates 2'),
       concatMap(() => this.apiService.getVersionLatest()),
+      traceWheel('getVersionLatest'),
       map(({ canUpdate, versionLatest }) => canUpdate ? versionLatest : undefined),
-      tap(vl => this.$updateAvailable$.next(vl)),
+      tap(this.$updateAvailable$),
     )
   }
 
@@ -49,7 +51,7 @@ export class OsUpdateService {
         return of(undefined)
       }),
       // cache the result for components to learn update available without having to have called this method
-      tap(vl => this.$updateAvailable$.next(vl)),
+      tap(this.$updateAvailable$),
     ).toPromise()
   }
 
