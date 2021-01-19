@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
+import { exists } from 'src/app/util/misc.util'
 import { AppDependency, DependentBreakage, AppInstalledPreview } from '../../models/app-types'
 import { ApiService } from '../../services/api/api.service'
 import { InstallWizardComponent, SlideDefinition, TopbarParams } from './install-wizard.component'
@@ -171,5 +172,5 @@ function validate<T> (t: T, test: (t: T) => Boolean, desc: string) {
   }
 }
 
-const exists = t => !!t
+
 const defaultUninstallationWarning = serviceName => `Uninstalling ${ serviceName } will result in the deletion of its data.`

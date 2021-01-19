@@ -3,6 +3,7 @@ import { ServerModel, ServerStatus } from './models/server-model'
 import { Storage } from '@ionic/storage'
 import { SyncDaemon } from './services/sync.service'
 import { AuthService, AuthState } from './services/auth.service'
+import { GlobalAlertsNotifier } from './services/startup-alerts.notifier'
 import { ApiService } from './services/api/api.service'
 import { Router } from '@angular/router'
 import { BehaviorSubject, Observable } from 'rxjs'
@@ -65,6 +66,7 @@ export class AppComponent {
     private readonly alertCtrl: AlertController,
     private readonly loader: LoaderService,
     private readonly emver: Emver,
+    private readonly globalAlertsNotifier: GlobalAlertsNotifier,
     readonly splitPane: SplitPaneTracker,
   ) {
     // set dark theme
@@ -79,6 +81,7 @@ export class AppComponent {
     await this.storage.ready()
     await this.authService.restoreCache()
     await this.emver.init()
+    this.globalAlertsNotifier.init()
 
     this.authService.listen({
       [AuthState.VERIFIED]: async () => {
