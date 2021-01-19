@@ -3,6 +3,7 @@ import { NavController } from '@ionic/angular'
 import { BehaviorSubject, combineLatest, forkJoin, interval, NextObserver, Observable, Observer, of } from 'rxjs'
 import { catchError, concatMap, distinctUntilChanged, filter, map, take, tap } from 'rxjs/operators'
 import { ServerModel, ServerStatus } from '../models/server-model'
+import { exists } from '../util/misc.util'
 import { ApiService } from './api/api.service'
 import { Emver } from './emver.service'
 
@@ -13,16 +14,8 @@ export class OsUpdateService {
   // holds version latest if update available, undefined if not.
   private readonly $updateAvailable$ = new BehaviorSubject<string>(undefined)
 
-  // same as above, but we only update this as a result of auto check
-  // this is because we only pop update alert when it comes from an auto check, not the checkForUpdates() call
-  private readonly $updateAvailableFromAutoCheck$ = new BehaviorSubject<string>(undefined)
-
   watchForUpdateAvailable$ (): Observable<undefined | string> {
     return this.$updateAvailable$.asObservable().pipe(distinctUntilChanged())
-  }
-
-  watchForAutoCheckUpdateAvailable$ (): Observable<undefined | string> {
-    return this.$updateAvailableFromAutoCheck$.asObservable().pipe(distinctUntilChanged())
   }
 
   constructor (
@@ -31,21 +24,16 @@ export class OsUpdateService {
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
   ) {
-    // watch auto check flag and versionLatest for possible update
-    this.autoCheck$().subscribe(this.$updateAvailableFromAutoCheck$)
-
-    // if update is available from auto check, then it's available (not vice versa)
-    this.$updateAvailableFromAutoCheck$.subscribe(this.$updateAvailable$)
   }
 
-
-  private autoCheck$ (): Observable<string> {
-    const { autoCheckUpdates } = this.serverModel.watch()
-    return combineLatest([autoCheckUpdates, interval(5000)]).pipe(
-      filter( ([check, _]) => check),
+  // emits everytime autoCheckUpdates becomes (or is) true
+  autoCheck$ (): Observable<string> {
+    return this.serverModel.watch().autoCheckUpdates.pipe(
+      distinctUntilChanged(),
+      filter(check => check),
       concatMap(() => this.apiService.getVersionLatest()),
-      filter( ({ canUpdate }) => canUpdate),
-      map(({ versionLatest }) => versionLatest),
+      map(({ canUpdate, versionLatest }) => canUpdate ? versionLatest : undefined),
+      tap(vl => this.$updateAvailable$.next(vl)),
     )
   }
 
@@ -61,7 +49,7 @@ export class OsUpdateService {
         return of(undefined)
       }),
       // cache the result for components to learn update available without having to have called this method
-      tap(updateAvailable => this.$updateAvailable$.next(updateAvailable)),
+      tap(vl => this.$updateAvailable$.next(vl)),
     ).toPromise()
   }
 

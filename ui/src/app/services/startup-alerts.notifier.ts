@@ -35,7 +35,7 @@ export class GlobalAlertsNotifier {
     const { welcomeAck, versionInstalled } = this.server.watch()
 
     return combineLatest([ welcomeAck, versionInstalled ]).pipe(
-      filter( ([wa, vi]) => !!vi && !wa),
+      filter( ([wa, vi]) => vi && !wa),
       take(1), // we will check and show welcome message at most once per app instance
       concatMap(([_, vi]) => iif(
         () => vi === this.config.version,
@@ -47,9 +47,9 @@ export class GlobalAlertsNotifier {
 
   private autoUpdateCheck$ (): Observable<void> {
     // this emits iff autoCheck is on and update available
-    return this.osUpdateService.watchForAutoCheckUpdateAvailable$().pipe(
+    return this.osUpdateService.autoCheck$().pipe(
       filter(exists),
-      concatMap(async (vl) => {
+      concatMap(async vl => {
         const { update } = await this.presentAlertNewOS(vl)
         if (update) {
           return this.loader.displayDuringP(
