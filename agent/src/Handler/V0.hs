@@ -153,7 +153,7 @@ expirationOsVersionLatest = 60
 getOsVersionLatest :: MonadIO m => AgentCtx -> m (Maybe Version)
 getOsVersionLatest ctx = do
     now <- liftIO getCurrentTime
-    let osVersionCache = appOSVersionLatest ctx
+    let osVersionCache = appOsVersionLatest ctx
     mCache <- liftIO . readIORef $ osVersionCache
 
     case mCache of
@@ -164,7 +164,7 @@ getOsVersionLatest ctx = do
 
 repopulateCache :: MonadIO m => AgentCtx -> m (Maybe Version)
 repopulateCache ctx = do
-    let osVersionCache = appOSVersionLatest ctx
+    let osVersionCache = appOsVersionLatest ctx
     let s              = appSettings ctx
     eitherV <- interp s $ Reg.getLatestAgentVersion
 
