@@ -41,6 +41,8 @@ pub struct ManifestV0 {
     #[serde(default)]
     pub uninstall_alert: Option<String>,
     #[serde(default)]
+    pub restore_alert: Option<String>,
+    #[serde(default)]
     pub has_instructions: bool,
     #[serde(default = "emver::VersionRange::any")]
     pub os_version_required: emver::VersionRange,
