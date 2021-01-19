@@ -41,7 +41,7 @@ import           Util.Function
 
 getServerR :: Handler (JsonEncoding ServerRes)
 getServerR = handleS9ErrT $ do
-    agentCtx   <- getYesod
+    agentCtx <- getYesod
     let settings = appSettings agentCtx
     now        <- liftIO getCurrentTime
     isUpdating <- getsYesod appIsUpdating >>= liftIO . readIORef
@@ -58,10 +58,12 @@ getServerR = handleS9ErrT $ do
     alternativeRegistryUrl <- runM $ injectFilesystemBaseFromContext settings $ readSystemPath altRegistryUrlPath
     name                   <- runM $ injectFilesystemBaseFromContext settings $ readSystemPath serverNamePath
     ssh                    <- readFromPath settings sshKeysFilePath >>= parseSshKeys
-    wifi                   <- WpaSupplicant.runWlan0 $ liftA2 WifiList WpaSupplicant.getCurrentNetwork WpaSupplicant.listNetworks
+    wifi <- WpaSupplicant.runWlan0 $ liftA2 WifiList WpaSupplicant.getCurrentNetwork WpaSupplicant.listNetworks
     specs                  <- getSpecs settings
     welcomeAck             <- fmap isJust . lift . runDB . Persist.get $ WelcomeAckKey agentVersion
-    versionLatest          <- getOSVersionLatest agentCtx
+    versionLatest          <- liftIO $ (try @SomeException $ getOSVersionLatest agentCtx) >>= \case
+        Left  e -> (putStrLn @Text $ "Error fetching latest OS Version: " <> show e) $> Nothing
+        Right a -> pure a
 
     let sid = T.drop 7 $ specsNetworkId specs
 
@@ -76,7 +78,7 @@ getServerR = handleS9ErrT $ do
                          , serverAlternativeRegistryUrl = alternativeRegistryUrl
                          , serverSpecs                  = specs
                          , serverWelcomeAck             = welcomeAck
-                         , serverVersionLatest           = versionLatest
+                         , serverVersionLatest          = versionLatest
                          }
     where
         parseSshKeys :: Text -> S9ErrT Handler [SshKeyFingerprint]
@@ -118,18 +120,16 @@ instance FromJSON NullablePatchReq where
 newtype BoolPatchReq = BoolPatchReq { bpatchValue :: Bool } deriving (Eq, Show)
 
 instance FromJSON BoolPatchReq where
-  parseJSON = withObject "Patch Request" $ \o -> BoolPatchReq <$> o .: "value"
+    parseJSON = withObject "Patch Request" $ \o -> BoolPatchReq <$> o .: "value"
 
 patchNameR :: Handler ()
 patchNameR = patchFile serverNamePath
 
 patchAutoCheckUpdatesR :: Handler ()
 patchAutoCheckUpdatesR = do
-  settings <- getsYesod appSettings
-  BoolPatchReq val <- requireCheckJsonBody
-  runM $
-    injectFilesystemBaseFromContext settings $
-      if val
+    settings         <- getsYesod appSettings
+    BoolPatchReq val <- requireCheckJsonBody
+    runM $ injectFilesystemBaseFromContext settings $ if val
         then writeSystemPath autoCheckUpdatesPath ""
         else deleteSystemPath autoCheckUpdatesPath
 
@@ -157,7 +157,7 @@ getOSVersionLatest ctx = do
     mCache <- liftIO . readIORef $ osVersionCache
 
     case mCache of
-        Nothing -> repopulateCache ctx
+        Nothing    -> repopulateCache ctx
         Just cache -> if diffUTCTime now (lastChecked cache) >= expirationOsVersionLatest
             then repopulateCache ctx
             else pure . Just $ osVersion cache
@@ -165,7 +165,7 @@ getOSVersionLatest ctx = do
 repopulateCache :: MonadIO m => AgentCtx -> m (Maybe Version)
 repopulateCache ctx = do
     let osVersionCache = appOSVersionLatest ctx
-    let s = appSettings ctx
+    let s              = appSettings ctx
     eitherV <- interp s $ Reg.getLatestAgentVersion
 
     case eitherV of
