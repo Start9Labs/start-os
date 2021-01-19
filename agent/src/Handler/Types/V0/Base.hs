@@ -31,15 +31,13 @@ data ServerRes = ServerRes
     , serverStatus                 :: Maybe AppStatus
     , serverStatusAt               :: UTCTime
     , serverVersionInstalled       :: Version
-    , serverVersionLatest          :: Maybe Version
-    , serverNotifications          :: [Entity Notification]
+    , serverNotifications          :: [ Entity Notification ]
     , serverWifi                   :: WifiList
-    , serverSsh                    :: [SshKeyFingerprint]
+    , serverSsh                    :: [ SshKeyFingerprint ]
     , serverAlternativeRegistryUrl :: Maybe Text
     , serverSpecs                  :: SpecsRes
     , serverWelcomeAck             :: Bool
-    }
-    deriving (Eq, Show)
+    } deriving (Eq, Show)
 
 type JsonEncoding a = Encoding
 jsonEncode :: (Monad m, ToJSON a) => a -> m (JsonEncoding a)
@@ -53,7 +51,6 @@ instance ToJSON ServerRes where
             Nothing   -> String "UPDATING"
             Just stat -> toJSON stat
         , "versionInstalled" .= serverVersionInstalled
-        , "versionLatest" .= serverVersionLatest
         , "notifications" .= serverNotifications
         , "wifi" .= serverWifi
         , "ssh" .= serverSsh
