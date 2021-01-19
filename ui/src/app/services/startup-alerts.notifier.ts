@@ -70,17 +70,20 @@ export class GlobalAlertsNotifier {
   }
 
   private async presentOsWelcome (vi: string): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      backdropDismiss: false,
-      component: OSWelcomePage,
-      presentingElement: await this.modalCtrl.getTop(),
-      componentProps: { version: vi },
+    return new Promise(async resolve => {
+      const modal = await this.modalCtrl.create({
+        backdropDismiss: false,
+        component: OSWelcomePage,
+        presentingElement: await this.modalCtrl.getTop(),
+        componentProps: { version: vi },
+      })
+      //kick this off async
+      this.apiService.acknowledgeOSWelcome(this.config.version).catch(e => {
+        console.error(`Unable to acknowledge OS welcome`, e)
+      })
+      await modal.present()
+      modal.onWillDismiss().then(() => resolve())
     })
-    //kick this off async
-    this.apiService.acknowledgeOSWelcome(this.config.version).catch(e => {
-      console.error(`Unable to acknowledge OS welcome`, e)
-    })
-    await modal.present()
   }
 
   private async presentAlertNewApps () {

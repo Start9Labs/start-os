@@ -1,15 +1,12 @@
 import { Injectable } from '@angular/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { ToastController, NavController, ModalController, AlertController } from '@ionic/angular'
-import { ServerModel, S9Server, ServerStatus } from '../models/server-model'
+import { ServerModel, S9Server } from '../models/server-model'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { ApiService } from './api/api.service'
 import { Emver } from './emver.service'
 import { LoaderService } from './loader.service'
 import { OsUpdateService } from './os-update.service'
-import { filter, take, tap } from 'rxjs/operators'
-import { exists } from '../util/misc.util'
-
 @Injectable({
   providedIn: 'root',
 })
@@ -32,8 +29,6 @@ export class SyncNotifier {
 
   async handleSpecial (server: Readonly<S9Server>): Promise<void> {
     this.handleNotifications(server)
-    this.handleOSWelcome(server)
-    if (!this.displayedWelcomeMessage) this.handleUpdateCheck(server)
   }
 
   private async handleNotifications (server: Readonly<S9Server>) {
@@ -71,34 +66,7 @@ export class SyncNotifier {
     await toast.present()
     this.serverModel.update(updates)
   }
-
-  private async handleOSWelcome (server: Readonly<S9Server>) {
-    if (server.welcomeAck || server.versionInstalled !== this.config.version || this.displayedWelcomeMessage) return
-
-    this.displayedWelcomeMessage = true
-
-    const modal = await this.modalCtrl.create({
-      backdropDismiss: false,
-      component: OSWelcomePage,
-      presentingElement: await this.modalCtrl.getTop(),
-      componentProps: {
-        version: server.versionInstalled,
-      },
-    })
-
-    modal.onDidDismiss().then(() => {
-      this.apiService.acknowledgeOSWelcome(this.config.version)
-      this.handleUpdateCheck(server)
-    })
-    await modal.present()
-  }
 }
-
-// @TODO: remove
-function debugSync (...desc: any[]) {
-  console.log(`sync: `, ...desc)
-}
-
 
 // return new Promise(async resolve => {
 //   const confirm = await this.alertController.create({
