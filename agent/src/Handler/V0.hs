@@ -61,7 +61,7 @@ getServerR = handleS9ErrT $ do
     wifi <- WpaSupplicant.runWlan0 $ liftA2 WifiList WpaSupplicant.getCurrentNetwork WpaSupplicant.listNetworks
     specs                  <- getSpecs settings
     welcomeAck             <- fmap isJust . lift . runDB . Persist.get $ WelcomeAckKey agentVersion
-    versionLatest          <- liftIO $ (try @SomeException $ getOSVersionLatest agentCtx) >>= \case
+    versionLatest          <- liftIO $ (try @SomeException $ getOsVersionLatest agentCtx) >>= \case
         Left  e -> (putStrLn @Text $ "Error fetching latest OS Version: " <> show e) $> Nothing
         Right a -> pure a
 
@@ -150,8 +150,8 @@ patchNullableFile path = do
 expirationOsVersionLatest :: Num a => a
 expirationOsVersionLatest = 60
 
-getOSVersionLatest :: MonadIO m => AgentCtx -> m (Maybe Version)
-getOSVersionLatest ctx = do
+getOsVersionLatest :: MonadIO m => AgentCtx -> m (Maybe Version)
+getOsVersionLatest ctx = do
     now <- liftIO getCurrentTime
     let osVersionCache = appOSVersionLatest ctx
     mCache <- liftIO . readIORef $ osVersionCache
