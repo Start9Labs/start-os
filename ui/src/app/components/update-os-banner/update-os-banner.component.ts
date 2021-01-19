@@ -16,7 +16,7 @@ export class UpdateOsBannerComponent {
     private readonly alertCtrl: AlertController,
     private readonly loader: LoaderService,
   ) {
-    this.updateAvailable$ = this.osUpdateService.watchForUpdateAvailable()
+    this.updateAvailable$ = this.osUpdateService.watchForUpdateAvailable$()
   }
 
   ngOnInit () { }

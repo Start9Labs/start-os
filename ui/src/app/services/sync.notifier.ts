@@ -6,6 +6,9 @@ import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { ApiService } from './api/api.service'
 import { Emver } from './emver.service'
 import { LoaderService } from './loader.service'
+import { OsUpdateService } from './os-update.service'
+import { filter, take, tap } from 'rxjs/operators'
+import { exists } from '../util/misc.util'
 
 @Injectable({
   providedIn: 'root',
@@ -24,6 +27,7 @@ export class SyncNotifier {
     private readonly apiService: ApiService,
     private readonly loader: LoaderService,
     private readonly emver: Emver,
+    private readonly osUpdateService: OsUpdateService,
   ) { }
 
   async handleSpecial (server: Readonly<S9Server>): Promise<void> {
@@ -87,88 +91,6 @@ export class SyncNotifier {
       this.handleUpdateCheck(server)
     })
     await modal.present()
-  }
-
-  private async handleUpdateCheck (server: Readonly<S9Server>) {
-    debugSync('handleUpdateCheck', server)
-    if (!server.autoCheckUpdates || this.checkedForUpdates) return
-
-    this.checkedForUpdates = true
-    debugSync('handleUpdateCheck', 'checkedForUpdates=true')
-    if (server.versionLatest && this.emver.compare(server.versionInstalled, server.versionLatest) === -1) {
-      debugSync('handleUpdateCheck', 'OS Update')
-      // if cancel selected, move on to newApps
-      const { update } = await this.presentAlertNewOS(server.versionLatest)
-      debugSync('handleUpdateCheck', 'OS Update', 'response', update)
-      if (update) {
-        return this.updateEmbassyOS(server.versionLatest).catch(e => alert(e))
-      }
-    }
-
-    try {
-      debugSync('handleUpdateCheck', 'Apps Check')
-
-      const availableApps = await this.apiService.getAvailableApps()
-      if (!!availableApps.find(app => this.emver.compare(app.versionInstalled, app.versionLatest) === -1)) {
-        debugSync('handleUpdateCheck', 'Apps Check', 'new apps found')
-        return this.presentAlertNewApps()
-      }
-    } catch (e) {
-      console.error(`Exception checking for new apps: `, e)
-    }
-  }
-
-  private async presentAlertNewApps () {
-    const alert = await this.alertCtrl.create({
-      backdropDismiss: true,
-      header: 'Updates Available!',
-      message: 'New service updates are available in the Marketplace.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'View in Marketplace',
-          handler: () => {
-            return this.navCtrl.navigateForward('/services/marketplace')
-          },
-        },
-      ],
-    })
-
-    await alert.present()
-  }
-
-  private async presentAlertNewOS (versionLatest: string): Promise<{ cancel?: true, update?: true }> {
-    return new Promise(async resolve => {
-      const alert = await this.alertCtrl.create({
-        backdropDismiss: true,
-        header: 'New EmbassyOS Version!',
-        message: `Update EmbassyOS to version ${versionLatest}?`,
-        buttons: [
-          {
-            text: 'Not now',
-            role: 'cancel',
-            handler: () => resolve({ cancel: true }),
-          },
-          {
-            text: 'Update',
-            handler: () => resolve({ update: true }),
-          },
-        ],
-      })
-      await alert.present()
-    })
-  }
-
-  private async updateEmbassyOS (versionLatest: string) {
-    this.loader
-      .displayDuringAsync(async () => {
-        await this.apiService.updateAgent(versionLatest)
-        this.serverModel.update({ status: ServerStatus.UPDATING })
-      })
-      .catch(e => alert(e))
   }
 }
 
