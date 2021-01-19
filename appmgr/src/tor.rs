@@ -217,7 +217,7 @@ pub async fn read_tor_key(
     version: HiddenServiceVersion,
     timeout: Option<Duration>,
 ) -> Result<String, Error> {
-    log::info!("Retrieving Tor hidden service address for {}.", name);
+    log::info!("Retrieving Tor hidden service key for {}.", name);
     let addr_path = Path::new(HIDDEN_SERVICE_DIR_ROOT)
         .join(format!("app-{}", name))
         .join(match version {
@@ -287,6 +287,7 @@ pub async fn set_svc(
             Err(e)
         }
     })?;
+    nix::unistd::sync();
     hidden_services.commit().await?;
     log::info!("Reloading Tor.");
     let svc_exit = std::process::Command::new("service")

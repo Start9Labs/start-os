@@ -51,6 +51,7 @@ dependencies = [
  "lazy_static",
  "linear-map",
  "log",
+ "nix 0.19.1",
  "openssl",
  "pest",
  "pest_derive",
@@ -601,7 +602,7 @@ dependencies = [
  "gcc",
  "libc",
  "mktemp",
- "nix",
+ "nix 0.11.1",
 ]
 
 [[package]]
@@ -1308,6 +1309,18 @@ dependencies = [
  "cfg-if 0.1.10",
  "libc",
  "void",
+]
+
+[[package]]
+name = "nix"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2ccba0cfe4fdf15982d1674c69b1fd80bad427d293849982668dfe454bd61f2"
+dependencies = [
+ "bitflags",
+ "cc",
+ "cfg-if 1.0.0",
+ "libc",
 ]
 
 [[package]]
