@@ -4,7 +4,7 @@ import { combineLatest, EMPTY, iif, Observable, of } from 'rxjs'
 import { concatMap, filter, take } from 'rxjs/operators'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { ServerModel } from '../models/server-model'
-import { exists } from '../util/misc.util'
+import { exists, traceWheel } from '../util/misc.util'
 import { ApiService } from './api/api.service'
 import { ConfigService } from './config.service'
 import { LoaderService } from './loader.service'
@@ -25,8 +25,8 @@ export class GlobalAlertsNotifier {
   }
 
   init () {
-    of({ }).pipe(
-      concatMap(() => this.osWelcome$()),
+    console.log('init')
+    this.osWelcome$().pipe(
       concatMap(() => this.autoUpdateCheck$()),
     ).subscribe()
   }
@@ -35,10 +35,11 @@ export class GlobalAlertsNotifier {
     const { welcomeAck, versionInstalled } = this.server.watch()
 
     return combineLatest([ welcomeAck, versionInstalled ]).pipe(
-      filter( ([wa, vi]) => vi && !wa),
+      filter( ([_, vi]) => !!vi),
+      traceWheel('osWelcome'),
       take(1), // we will check and show welcome message at most once per app instance
-      concatMap(([_, vi]) => iif(
-        () => vi === this.config.version,
+      concatMap(([wa, vi]) => iif(
+        () => !wa && vi === this.config.version,
         this.presentOsWelcome(vi),
         EMPTY,
       )),
@@ -48,6 +49,7 @@ export class GlobalAlertsNotifier {
   private autoUpdateCheck$ (): Observable<void> {
     // this emits iff autoCheck is on and update available
     return this.osUpdateService.autoCheck$().pipe(
+      traceWheel('autoUpdateCheck'),
       filter(exists),
       concatMap(async vl => {
         const { update } = await this.presentAlertNewOS(vl)
