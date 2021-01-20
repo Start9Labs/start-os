@@ -2,8 +2,7 @@ import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { ServerModel } from 'src/app/models/server-model'
 import { ApiService } from 'src/app/services/api/api.service'
-import { LoaderService } from 'src/app/services/loader.service'
-import { pauseFor } from 'src/app/util/misc.util'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'os-welcome',
@@ -19,12 +18,15 @@ export class OSWelcomePage {
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
     private readonly serverModel: ServerModel,
+    private readonly config: ConfigService,
   ) { }
 
+  // autoCheckUpdates default must be false when upgrading to 0.2.8
   async dismiss () {
     this.apiService
         .patchServerConfig('autoCheckUpdates', this.autoCheckUpdates)
         .then(() => this.serverModel.update({ autoCheckUpdates: this.autoCheckUpdates }))
+        .then(() => this.apiService.acknowledgeOSWelcome(this.config.version))
         .catch(console.error),
 
     this.modalCtrl.dismiss({ autoCheckUpdates: this.autoCheckUpdates })
