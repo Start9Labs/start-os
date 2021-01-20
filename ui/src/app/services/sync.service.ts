@@ -54,7 +54,7 @@ export class SyncDaemon {
 
     switch (serverRes.result) {
       case 'resolve': {
-        this.serverModel.update(serverRes.value, now)
+        this.serverModel.sync(serverRes.value, now)
         break
       }
       case 'reject': {

@@ -167,6 +167,7 @@ export class MockApiService extends ApiService {
   }
 
   async patchServerConfig (attr: string, value: any): Promise<EmptyResponse> {
+    console.log('huh', attr, value)
     await mockPatchServerConfig()
     this.serverModel.update({ [attr]: value })
     return { }
@@ -409,7 +410,7 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
   versionLatest: '0.2.9',
   status: ServerStatus.RUNNING,
   alternativeRegistryUrl: 'beta-registry.start9labs.com',
-  welcomeAck: true,
+  welcomeAck: false,
   autoCheckUpdates: true,
   specs: {
     'Tor Address': 'nfsnjkcnaskjnlkasnfahj7dh23fdnieqwjdnhjewbfijendiueqwbd.onion',
