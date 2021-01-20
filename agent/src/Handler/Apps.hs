@@ -288,6 +288,7 @@ getInstalledAppByIdLogic appId = do
                 , appInstalledFullTorAddress             = Nothing
                 , appInstalledFullConfiguredRequirements = []
                 , appInstalledFullUninstallAlert         = Nothing
+                , appInstalledFullRestoreAlert           = Nothing
                 }
     serverApps <- AppMgr2.list [AppMgr2.flags|-s -d|]
     let remapped = remapAppMgrInfo jobCache serverApps
@@ -325,7 +326,8 @@ getInstalledAppByIdLogic appId = do
                                   , appInstalledFullLastBackup             = backupTime
                                   , appInstalledFullTorAddress             = infoResTorAddress
                                   , appInstalledFullConfiguredRequirements = HM.elems requirements
-                                  , appInstalledFullUninstallAlert = manifest >>= AppManifest.appManifestUninstallAlert
+                                  , appInstalledFullUninstallAlert         = manifest >>= AppManifest.appManifestUninstallAlert
+                                  , appInstalledFullRestoreAlert           = manifest >>= AppManifest.appManifestRestoreAlert
                                   }
     runMaybeT (installing <|> installed) `orThrowM` NotFoundE "appId" (show appId)
 

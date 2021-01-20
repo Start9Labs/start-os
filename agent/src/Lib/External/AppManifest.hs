@@ -61,6 +61,7 @@ data AppManifest where
                     , appManifestOnionVersion :: OnionVersion
                     , appManifestDependencies :: HM.HashMap AppId VersionRange
                     , appManifestUninstallAlert :: Maybe Text
+                    , appManifestRestoreAlert   :: Maybe Text
                     } -> AppManifest
 
 uiAvailable :: AppManifest -> Bool
@@ -81,6 +82,7 @@ instance FromJSON AppManifest where
         appManifestOnionVersion   <- o .: "hidden-service-version"
         appManifestDependencies   <- o .:? "dependencies" .!= HM.empty >>= traverse parseDepInfo
         appManifestUninstallAlert <- o .:? "uninstall-alert"
+        appManifestRestoreAlert   <- o .:? "restore-alert"
         pure $ AppManifest { .. }
         where
             parsePortMapping = withObject "Port Mapping" $ \o -> liftA2 (,) (o .: "tor") (o .: "internal")
