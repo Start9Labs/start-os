@@ -91,6 +91,7 @@ instance ToJSON AppAvailableFull where
             , "versions" .= appAvailableFullVersions
             , "releaseNotes" .= appAvailableFullReleaseNotes
             , "serviceRequirements" .= appAvailableFullDependencyRequirements
+            , "installAlert" .= appAvailableFullInstallAlert
             ]
         )
 
