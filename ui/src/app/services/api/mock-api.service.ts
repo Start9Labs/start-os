@@ -167,7 +167,6 @@ export class MockApiService extends ApiService {
   }
 
   async patchServerConfig (attr: string, value: any): Promise<EmptyResponse> {
-    console.log('huh', attr, value)
     await mockPatchServerConfig()
     this.serverModel.update({ [attr]: value })
     return { }
