@@ -1,16 +1,23 @@
 import { Injectable } from '@angular/core'
-import { Subject, BehaviorSubject } from 'rxjs'
+import { Subject, BehaviorSubject, Observable } from 'rxjs'
 import { PropertySubject, peekProperties, initPropertySubject } from '../util/property-subject.util'
 import { AppModel } from './app-model'
 import { ConfigService } from 'src/app/services/config.service'
 import { Storage } from '@ionic/storage'
-import { throttleTime, delay } from 'rxjs/operators'
+import { throttleTime, delay, filter, map } from 'rxjs/operators'
 import { StorageKeys } from './storage-keys'
+import { exists } from '../util/misc.util'
 
+export enum ServerModelState {
+  BOOT,
+  LOCALSTORAGE,
+  LIVE,
+}
 @Injectable({
   providedIn: 'root',
 })
 export class ServerModel {
+  $modelState$ = new BehaviorSubject(ServerModelState.BOOT)
   lastUpdateTimestamp: Date
   $delta$ = new Subject<void>()
   private embassy: PropertySubject<S9Server>
@@ -26,6 +33,7 @@ export class ServerModel {
     ).subscribe(() => {
       this.commitCache()
     })
+    this.$modelState$.subscribe(s => console.log('model state', s))
   }
 
   // client fxns
@@ -37,7 +45,19 @@ export class ServerModel {
     return peekProperties(this.embassy)
   }
 
-  update (update: Partial<S9Server>, timestamp: Date = new Date()): void {
+  nextState (s: ServerModelState) {
+    this.$modelState$.subscribe(s2 => {
+      if (s > s2) this.$modelState$.next(s)
+    })
+  }
+
+  sync (update: Partial<S9Server>, timestamp: Date = new Date()): void {
+    return this.update(update, timestamp, ServerModelState.LIVE)
+  }
+
+  update (update: Partial<S9Server>, timestamp: Date = new Date(), src?: ServerModelState): void {
+    console.log('updating:', update)
+    console.log('present:', this.peek())
     if (this.lastUpdateTimestamp > timestamp) return
 
     if (update.versionInstalled && (update.versionInstalled !== this.config.version) && this.embassy.status.getValue() === ServerStatus.RUNNING) {
@@ -59,6 +79,7 @@ export class ServerModel {
       },
     )
     this.$delta$.next()
+    if (src) this.$modelState$.next(src)
     this.lastUpdateTimestamp = timestamp
   }
 
@@ -77,7 +98,7 @@ export class ServerModel {
 
   async restoreCache (): Promise<void> {
     const emb = await this.storage.get(StorageKeys.SERVER_CACHE_KEY)
-    if (emb && emb.versionInstalled === this.config.version) this.update(emb)
+    if (emb && emb.versionInstalled === this.config.version) this.update(emb, new Date(), ServerModelState.LOCALSTORAGE)
   }
 
   // server state change
@@ -110,7 +131,6 @@ export class ServerModel {
     })
   }
 }
-
 export interface S9Server {
   serverId: string
   name: string
