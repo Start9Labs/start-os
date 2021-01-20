@@ -12,10 +12,6 @@
       <ion-item *ngIf="$error$ | async as e" lines="none" style="--background: var(--ion-background-color);">
         <ion-label style="font-size: small" color="danger" class="ion-text-wrap">{{e}}</ion-label>
       </ion-item>
-      <ion-item lines="none" style="--background: var(--ion-background-color)">
-        <ion-label class="ion-text-wrap" color="medium" style="font-size: small">Eject drive when backup complete?</ion-label>
-        <ion-checkbox color="primary" checked slot="end" [(ngModel)]="eject"></ion-checkbox>
-      </ion-item>
     </div>
     <div style="display: flex; justify-content: flex-end; align-items: center;">
       <ion-button fill="clear" color="medium" (click)="cancel()">

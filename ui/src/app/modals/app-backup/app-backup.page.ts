@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { ModalController, AlertController, LoadingController, IonicSafeString, ToastController } from '@ionic/angular'
+import { ModalController, AlertController, LoadingController, ToastController } from '@ionic/angular'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { ApiService } from 'src/app/services/api/api.service'
@@ -98,7 +98,8 @@ export class AppBackupPage {
     m.onWillDismiss().then(res => {
       const data = res.data
       if (data.cancel) return
-      return this.create(disk, partition, data.password, data.eject)
+      // we hard code the 'eject' last argument to be false, until ejection is an option in the UI.
+      return this.create(disk, partition, data.password, false)
     })
 
     return await m.present()
