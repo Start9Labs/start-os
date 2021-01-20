@@ -35,7 +35,7 @@ export class GlobalAlertsNotifier {
       ),
       concatMap(
         () => this.osUpdateAlertNeeded$().pipe(
-          switchMap(vl => vl ? this.presentUpdateDailogues(vl) : of({ })),
+          concatMap(vl => vl ? this.presentUpdateDailogues(vl) : of({ })),
         ),
       ),
     ).subscribe()
