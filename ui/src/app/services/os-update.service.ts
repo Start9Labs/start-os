@@ -1,9 +1,8 @@
 import { Injectable } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
-import { catchError, concatMap, distinctUntilChanged, filter, map, take, tap } from 'rxjs/operators'
+import { catchError, concatMap, distinctUntilChanged, map, take, tap } from 'rxjs/operators'
 import { ServerModel, ServerStatus } from '../models/server-model'
-import { traceWheel } from '../util/misc.util'
 import { ApiService } from './api/api.service'
 import { Emver } from './emver.service'
 
@@ -25,22 +24,16 @@ export class OsUpdateService {
     private readonly navCtrl: NavController,
   ) { }
 
-  // emits everytime autoCheckUpdates becomes (or is) true
-  autoCheck$ (): Observable<string> {
-    return this.serverModel.watch().autoCheckUpdates.pipe(
-      traceWheel('auto check updates 1'),
-      distinctUntilChanged(),
-      filter(check => check),
-      traceWheel('auto check updates 2'),
-      concatMap(() => this.apiService.getVersionLatest()),
-      traceWheel('getVersionLatest'),
-      map(({ canUpdate, versionLatest }) => canUpdate ? versionLatest : undefined),
-      tap(this.$updateAvailable$),
+  // emits the latest version or re-checks to see if there's a new latest version
+  checkWhenNotAvailable$ (): Observable<undefined | string> {
+    return this.$updateAvailable$.pipe(
+      take(1),
+      concatMap(vl => vl ? of(vl) : this.checkForUpdates$()),
     )
   }
 
-  // can call this imperatively and take the return value as gospel, or watch the $updateAvailable$ subject for the same info.
-  checkForUpdates (): Promise<undefined | string> {
+  // can sub to this imperatively and take the return value as gospel, or watch the $updateAvailable$ subject for the same info.
+  checkForUpdates$ (): Observable<undefined | string> {
     return forkJoin([
       this.serverModel.watch().versionInstalled.pipe(take(1)),
       this.apiService.getVersionLatest(),
@@ -52,7 +45,7 @@ export class OsUpdateService {
       }),
       // cache the result for components to learn update available without having to have called this method
       tap(this.$updateAvailable$),
-    ).toPromise()
+    )
   }
 
   async checkForAppsUpdate (): Promise<boolean> {
