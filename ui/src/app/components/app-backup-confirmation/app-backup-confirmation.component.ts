@@ -1,5 +1,5 @@
 import { Component, Input, OnInit } from '@angular/core'
-import { IonicSafeString, ModalController } from '@ionic/angular'
+import { ModalController } from '@ionic/angular'
 import { BehaviorSubject } from 'rxjs'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { DiskPartition } from 'src/app/models/server-model'
@@ -13,6 +13,8 @@ export class AppBackupConfirmationComponent implements OnInit {
   unmasked = false
   password: string
   $error$: BehaviorSubject<string> = new BehaviorSubject('')
+
+  // pass this through the modalCtrl once ejecting disks is an option in the UI.
   eject = true
   message: string
 
@@ -28,7 +30,7 @@ export class AppBackupConfirmationComponent implements OnInit {
     this.unmasked = !this.unmasked
   }
 
-  cancel() {
+  cancel () {
     this.modalCtrl.dismiss({ cancel: true })
   }
 
@@ -37,7 +39,7 @@ export class AppBackupConfirmationComponent implements OnInit {
       this.$error$.next('Password must be at least 12 characters in length.')
       return
     }
-    const { password, eject } = this
-    this.modalCtrl.dismiss({ password, eject })
+    const { password } = this
+    this.modalCtrl.dismiss({ password })
   }
 }
