@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core'
 import { AlertController, ModalController, NavController } from '@ionic/angular'
-import { combineLatest, EMPTY, iif, Observable, of } from 'rxjs'
-import { concatMap, filter, take } from 'rxjs/operators'
+import { combineLatest, Observable, of } from 'rxjs'
+import { concatMap, filter, map, switchMap, take } from 'rxjs/operators'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { ServerModel } from '../models/server-model'
-import { exists, traceWheel } from '../util/misc.util'
+import { exists } from '../util/misc.util'
 import { ApiService } from './api/api.service'
 import { ConfigService } from './config.service'
 import { LoaderService } from './loader.service'
@@ -26,49 +26,55 @@ export class GlobalAlertsNotifier {
 
   init () {
     console.log('init')
-    this.osWelcome$().pipe(
-      concatMap(() => this.autoUpdateCheck$()),
+    of({ }).pipe(
+      concatMap(
+        () => this.welcomeNeeded$().pipe(
+          take(1), // we only show welcome at most once per app instance
+          concatMap(vi => vi ? this.presentOsWelcome(vi) : of({ })),
+        ),
+      ),
+      concatMap(
+        () => this.osUpdateAlertNeeded$().pipe(
+          switchMap(vl => vl ? this.presentUpdateDailogues(vl) : of({ })),
+        ),
+      ),
     ).subscribe()
   }
 
-  private osWelcome$ (): Observable<void> {
+  // emits versionInstalled when welcomeAck is false and f.e and b.e have same version
+  private welcomeNeeded$ (): Observable<string | undefined> {
     const { welcomeAck, versionInstalled } = this.server.watch()
 
     return combineLatest([ welcomeAck, versionInstalled ]).pipe(
-      filter( ([_, vi]) => !!vi),
-      traceWheel('osWelcome'),
-      take(1), // we will check and show welcome message at most once per app instance
-      concatMap(([wa, vi]) => iif(
-        () => !wa && vi === this.config.version,
-        this.presentOsWelcome(vi),
-        EMPTY,
-      )),
+      filter(([_, vi]) => !!vi),
+      map(([wa, vi]) => !wa && vi === this.config.version ? vi : undefined),
     )
   }
 
-  private autoUpdateCheck$ (): Observable<void> {
-    // this emits iff autoCheck is on and update available
-    return this.osUpdateService.autoCheck$().pipe(
-      traceWheel('autoUpdateCheck'),
-      filter(exists),
-      concatMap(async vl => {
-        const { update } = await this.presentAlertNewOS(vl)
-        if (update) {
-          return this.loader.displayDuringP(
-            this.osUpdateService.updateEmbassyOS(vl),
-          ).catch(e => alert(e))
-        }
-
-        try {
-          const newApps = await this.osUpdateService.checkForAppsUpdate()
-          if (newApps) {
-            return this.presentAlertNewApps()
-          }
-        } catch (e) {
-          console.error(`Exception checking for new apps: `, e)
-        }
-      }),
+  // emits versionLatest whenever autoCheckUpdates becomes true and checkForUpdates yields a new version
+  private osUpdateAlertNeeded$ (): Observable<string | undefined> {
+    return this.server.watch().autoCheckUpdates.pipe(
+      filter(exists), //
+      concatMap(() => this.osUpdateService.checkForUpdates$()),
     )
+  }
+
+  private async presentUpdateDailogues (vl : string): Promise<any> {
+    const { update } = await this.presentAlertNewOS(vl)
+    if (update) {
+      return this.loader.displayDuringP(
+        this.osUpdateService.updateEmbassyOS(vl),
+      ).catch(e => alert(e))
+    }
+
+    try {
+      const newApps = await this.osUpdateService.checkForAppsUpdate()
+      if (newApps) {
+        return this.presentAlertNewApps()
+      }
+    } catch (e) {
+      console.error(`Exception checking for new apps: `, e)
+    }
   }
 
   private async presentOsWelcome (vi: string): Promise<void> {

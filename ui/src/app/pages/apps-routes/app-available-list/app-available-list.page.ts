@@ -35,7 +35,7 @@ export class AppAvailableListPage {
 
     markAsLoadingDuringP(this.$loading$, Promise.all([
       this.getApps(),
-      this.osUpdateService.checkForUpdates(), // checks for an os update, banner component renders conditionally
+      this.osUpdateService.checkWhenNotAvailable$().toPromise(), // checks for an os update, banner component renders conditionally
       pauseFor(600),
     ]))
   }

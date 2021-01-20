@@ -67,7 +67,7 @@ export module ReqRes {
   export type PostLoginRes = Unit
   export type GetCheckAuthRes = { }
   export type GetServerRes = ApiServer
-  export type GetVersionLatestRes = { versionLatest: string, canUpdate: boolean }
+  export type GetVersionLatestRes = { versionLatest: string, canUpdate: boolean } // canUpdate not supported at least at 0.2.8
   export type GetServerMetricsRes = ServerMetrics
   export type GetAppAvailableRes = ApiAppAvailableFull
   export type GetAppAvailableVersionInfoRes = AppAvailableVersionSpecificInfo
