@@ -1,12 +1,11 @@
 import { Injectable } from '@angular/core'
-import { Subject, BehaviorSubject, Observable } from 'rxjs'
+import { Subject, BehaviorSubject } from 'rxjs'
 import { PropertySubject, peekProperties, initPropertySubject } from '../util/property-subject.util'
 import { AppModel } from './app-model'
 import { ConfigService } from 'src/app/services/config.service'
 import { Storage } from '@ionic/storage'
-import { throttleTime, delay, filter, map } from 'rxjs/operators'
+import { throttleTime, delay } from 'rxjs/operators'
 import { StorageKeys } from './storage-keys'
-import { exists } from '../util/misc.util'
 
 export enum ServerModelState {
   BOOT,
@@ -51,13 +50,7 @@ export class ServerModel {
     })
   }
 
-  sync (update: Partial<S9Server>, timestamp: Date = new Date()): void {
-    return this.update(update, timestamp, ServerModelState.LIVE)
-  }
-
-  update (update: Partial<S9Server>, timestamp: Date = new Date(), src?: ServerModelState): void {
-    console.log('updating:', update)
-    console.log('present:', this.peek())
+  update (update: Partial<S9Server>, timestamp: Date = new Date()): void {
     if (this.lastUpdateTimestamp > timestamp) return
 
     if (update.versionInstalled && (update.versionInstalled !== this.config.version) && this.embassy.status.getValue() === ServerStatus.RUNNING) {
@@ -79,7 +72,6 @@ export class ServerModel {
       },
     )
     this.$delta$.next()
-    if (src) this.$modelState$.next(src)
     this.lastUpdateTimestamp = timestamp
   }
 
@@ -98,7 +90,7 @@ export class ServerModel {
 
   async restoreCache (): Promise<void> {
     const emb = await this.storage.get(StorageKeys.SERVER_CACHE_KEY)
-    if (emb && emb.versionInstalled === this.config.version) this.update(emb, new Date(), ServerModelState.LOCALSTORAGE)
+    if (emb && emb.versionInstalled === this.config.version) this.update(emb, new Date())
   }
 
   // server state change
