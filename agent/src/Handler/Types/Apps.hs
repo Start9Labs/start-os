@@ -132,6 +132,7 @@ data AppInstalledFull = AppInstalledFull
     , appInstalledFullLastBackup             :: Maybe UTCTime
     , appInstalledFullConfiguredRequirements :: [Stripped AppDependencyRequirement]
     , appInstalledFullUninstallAlert         :: Maybe Text
+    , appInstalledFullRestoreAlert           :: Maybe Text
     }
 instance ToJSON AppInstalledFull where
     toJSON AppInstalledFull {..} = object
@@ -145,6 +146,7 @@ instance ToJSON AppInstalledFull where
         , "versionInstalled" .= appInstalledFullVersionInstalled
         , "status" .= appInstalledFullStatus
         , "uninstallAlert" .= appInstalledFullUninstallAlert
+        , "restoreAlert" .= appInstalledFullRestoreAlert
         ]
 
 data AppVersionInfo = AppVersionInfo
