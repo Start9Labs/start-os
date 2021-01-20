@@ -58,7 +58,7 @@ getServerR = handleS9ErrT $ do
     wifi <- WpaSupplicant.runWlan0 $ liftA2 WifiList WpaSupplicant.getCurrentNetwork WpaSupplicant.listNetworks
     specs                  <- getSpecs settings
     welcomeAck             <- fmap isJust . lift . runDB . Persist.get $ WelcomeAckKey agentVersion
-    autoCheckUpdates       <- runM $ injectFilesystemBaseFromContext settings $ existsSystemPath autoCheckUpdatesPath
+    autoCheckUpdates       <- runM $ injectFilesystemBaseFromContext settings $ fmap not (existsSystemPath disableAutoCheckUpdatesPath)
 
     let sid = T.drop 7 $ specsNetworkId specs
 
@@ -125,8 +125,8 @@ patchAutoCheckUpdatesR = do
     settings         <- getsYesod appSettings
     BoolPatchReq val <- requireCheckJsonBody
     runM $ injectFilesystemBaseFromContext settings $ if val
-        then writeSystemPath autoCheckUpdatesPath ""
-        else deleteSystemPath autoCheckUpdatesPath
+        then deleteSystemPath disableAutoCheckUpdatesPath
+        else writeSystemPath disableAutoCheckUpdatesPath ""
 
 patchFile :: SystemPath -> Handler ()
 patchFile path = do
