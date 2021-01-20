@@ -80,6 +80,11 @@ readSystemPath path = do
         $       (Just <$> readFile (toS loadPath))
         `catch` (\(e :: IOException) -> if isDoesNotExistError e then pure Nothing else throwIO e)
 
+existsSystemPath :: (HasFilesystemBase sig m, MonadIO m) => SystemPath -> m Bool
+existsSystemPath path = do
+    checkPath <- getAbsoluteLocationFor path
+    liftIO . doesPathExist $ toS checkPath
+
 -- like the above, but throws IO error if file not found
 readSystemPath' :: (HasFilesystemBase sig m, MonadIO m) => SystemPath -> m Text
 readSystemPath' path = do
