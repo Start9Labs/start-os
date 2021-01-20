@@ -45,6 +45,7 @@ export interface AppInstalledFull extends AppInstalledPreview {
   configuredRequirements: AppDependency[] | null // null if not yet configured
   hasFetchedFull: boolean
   uninstallAlert?: string
+  restoreAlert?: string
 }
 // dependencies
 
