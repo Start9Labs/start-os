@@ -19,18 +19,14 @@ export class OSWelcomePage {
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
     private readonly serverModel: ServerModel,
-    private readonly loader: LoaderService,
   ) { }
 
   async dismiss () {
-    await this.loader.displayDuringP(
-      this.apiService
+    this.apiService
         .patchServerConfig('autoCheckUpdates', this.autoCheckUpdates)
         .then(() => this.serverModel.update({ autoCheckUpdates: this.autoCheckUpdates }))
-        .then(() => pauseFor(600000))
         .catch(console.error),
-    ).then(
-      () => this.modalCtrl.dismiss({ autoCheckUpdates: this.autoCheckUpdates })
-    )
+
+    this.modalCtrl.dismiss({ autoCheckUpdates: this.autoCheckUpdates })
   }
 }

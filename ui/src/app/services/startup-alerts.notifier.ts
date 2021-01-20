@@ -1,98 +1,79 @@
 import { Injectable } from '@angular/core'
 import { AlertController, ModalController, NavController } from '@ionic/angular'
-import { combineLatest, Observable, of } from 'rxjs'
-import { concatMap, debounceTime, distinctUntilChanged, filter, map, switchMap, take } from 'rxjs/operators'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
-import { ServerModel, ServerModelState } from '../models/server-model'
-import { exists, traceWheel } from '../util/misc.util'
+import { S9Server } from '../models/server-model'
 import { ApiService } from './api/api.service'
 import { ConfigService } from './config.service'
+import { Emver } from './emver.service'
 import { LoaderService } from './loader.service'
 import { OsUpdateService } from './os-update.service'
 
 @Injectable({ providedIn: 'root' })
-export class GlobalAlertsNotifier {
+export class StartupAlertsNotifier {
   constructor (
-    private readonly osUpdateService: OsUpdateService,
     private readonly alertCtrl: AlertController,
     private readonly navCtrl: NavController,
     private readonly loader: LoaderService,
     private readonly config: ConfigService,
     private readonly modalCtrl: ModalController,
-    private readonly server: ServerModel,
     private readonly apiService: ApiService,
-  ) {
+    private readonly emver: Emver,
+    private readonly osUpdateService: OsUpdateService,
+  ) { }
+
+  displayedWelcomeMessage = false
+  checkedForUpdates = false
+  welcomeSetAutoUpdateCheck = false
+
+  async handleSpecial (server: Readonly<S9Server>): Promise<void> {
+    this.handleOSWelcome(server)
+    if (!this.displayedWelcomeMessage) this.handleUpdateCheck(server)
   }
 
-  init () {
-    console.log('init')
-    of({ }).pipe(
-      concatMap(
-        () => this.welcomeNeeded$().pipe(
-          take(1), // we only show welcome at most once per app instance
-          concatMap(vi => vi ? this.presentOsWelcome(vi) : of({ })),
-        ),
-      ),
-      concatMap(
-        () => this.osUpdateAlertNeeded$().pipe(
-          concatMap(vl => vl ? this.presentUpdateDailogues(vl) : of({ })),
-        ),
-      ),
-    ).subscribe()
+  private async handleOSWelcome (server: Readonly<S9Server>) {
+    if (server.welcomeAck || server.versionInstalled !== this.config.version || this.displayedWelcomeMessage) return
+
+    this.displayedWelcomeMessage = true
+
+    const modal = await this.modalCtrl.create({
+      backdropDismiss: false,
+      component: OSWelcomePage,
+      presentingElement: await this.modalCtrl.getTop(),
+      componentProps: {
+        version: server.versionInstalled,
+      },
+    })
+
+    modal.onDidDismiss().then(res => {
+      this.welcomeSetAutoUpdateCheck = res.data.autoCheckUpdates
+      this.apiService.acknowledgeOSWelcome(this.config.version)
+      this.handleUpdateCheck(server)
+    })
+    await modal.present()
   }
 
-  // emits versionInstalled when welcomeAck is false and f.e and b.e have same version
-  private welcomeNeeded$ (): Observable<string | undefined> {
-    const { welcomeAck, versionInstalled } = this.server.watch()
+  private async handleUpdateCheck (server: Readonly<S9Server>) {
+    if (this.displayedWelcomeMessage && !this.welcomeSetAutoUpdateCheck) return
+    if (!this.displayedWelcomeMessage && (!server.autoCheckUpdates || this.checkedForUpdates)) return
 
-    return combineLatest([ this.server.$modelState$, welcomeAck, versionInstalled ]).pipe(
-      filter(([ms, _, vi]) => ms === ServerModelState.LIVE && !!vi),
-      map(([_, wa, vi]) => !wa && vi === this.config.version ? vi : undefined),
-    )
-  }
-
-  // emits versionLatest whenever autoCheckUpdates becomes true and checkForUpdates yields a new version
-  private osUpdateAlertNeeded$ (): Observable<string | undefined> {
-    return this.server.watch().autoCheckUpdates.pipe(
-      distinctUntilChanged(),
-      filter(exists), //
-      concatMap(() => this.osUpdateService.checkForUpdates$()),
-    )
-  }
-
-  private async presentUpdateDailogues (vl : string): Promise<any> {
-    const { update } = await this.presentAlertNewOS(vl)
-    if (update) {
-      return this.loader.displayDuringP(
-        this.osUpdateService.updateEmbassyOS(vl),
-      ).catch(e => alert(e))
+    this.checkedForUpdates = true
+    if (this.osUpdateService.updateIsAvailable(server.versionInstalled, server.versionLatest)) {
+      const { update } = await this.presentAlertNewOS(server.versionLatest)
+      if (update) {
+        return this.loader
+          .displayDuringP(this.osUpdateService.updateEmbassyOS(server.versionLatest))
+          .catch(e => alert(e))
+      }
     }
 
     try {
-      const newApps = await this.osUpdateService.checkForAppsUpdate()
-      if (newApps) {
+      const availableApps = await this.apiService.getAvailableApps()
+      if (!!availableApps.find(app => this.emver.compare(app.versionInstalled, app.versionLatest) === -1)) {
         return this.presentAlertNewApps()
       }
     } catch (e) {
       console.error(`Exception checking for new apps: `, e)
     }
-  }
-
-  private async presentOsWelcome (vi: string): Promise<void> {
-    return new Promise(async resolve => {
-      const modal = await this.modalCtrl.create({
-        backdropDismiss: false,
-        component: OSWelcomePage,
-        presentingElement: await this.modalCtrl.getTop(),
-        componentProps: { version: vi },
-      })
-      //kick this off async
-      this.apiService.acknowledgeOSWelcome(this.config.version).catch(e => {
-        console.error(`Unable to acknowledge OS welcome`, e)
-      })
-      await modal.present()
-      modal.onDidDismiss().then(() => resolve())
-    })
   }
 
   private async presentAlertNewApps () {

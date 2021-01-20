@@ -6,6 +6,7 @@ import { AppModel } from '../models/app-model'
 import { SyncNotifier } from './sync.notifier'
 import { BehaviorSubject, Observable, of, from, Subject, EMPTY } from 'rxjs'
 import { switchMap, concatMap, catchError, delay, tap } from 'rxjs/operators'
+import { StartupAlertsNotifier } from './startup-alerts.notifier'
 
 @Injectable({
   providedIn: 'root',
@@ -22,6 +23,7 @@ export class SyncDaemon {
     private readonly serverModel: ServerModel,
     private readonly appModel: AppModel,
     private readonly syncNotifier: SyncNotifier,
+    private readonly startupAlertsNotifier: StartupAlertsNotifier,
   ) {
     this.$sync$.pipe(
       switchMap(go => go
@@ -36,6 +38,7 @@ export class SyncDaemon {
   sync (): Observable<void> {
     return from(this.getServerAndApps()).pipe(
       concatMap(() => this.syncNotifier.handleSpecial(this.serverModel.peek())),
+      concatMap(() => this.startupAlertsNotifier.handleSpecial(this.serverModel.peek())),
       tap(() => this.$synced$.next()),
       catchError(e => of(console.error(`Exception in sync service`, e))),
     )
@@ -54,7 +57,7 @@ export class SyncDaemon {
 
     switch (serverRes.result) {
       case 'resolve': {
-        this.serverModel.sync(serverRes.value, now)
+        this.serverModel.update(serverRes.value, now)
         break
       }
       case 'reject': {

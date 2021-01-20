@@ -48,6 +48,17 @@ export class OsUpdateService {
     )
   }
 
+  updateIsAvailable (vi: string, vl: string): boolean {
+    if (!vi || !vl) return false
+    if (this.emver.compare(vi, vl) === -1) {
+      this.$updateAvailable$.next(vl)
+      return true
+    } else {
+      this.$updateAvailable$.next(undefined)
+      return false
+    }
+  }
+
   async checkForAppsUpdate (): Promise<boolean> {
     const availableApps = await this.apiService.getAvailableApps()
     return !!availableApps.find(app => this.emver.compare(app.versionInstalled, app.versionLatest) === -1)
