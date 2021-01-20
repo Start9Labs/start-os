@@ -56,6 +56,7 @@ export const bitcoinI: AppInstalledFull = {
   configuredRequirements: [],
   hasFetchedFull: true,
   ui: false,
+  restoreAlert: 'if you restore this app horrible things will happen to the people you love.'
 }
 
 export const lightningI: AppInstalledFull = {
