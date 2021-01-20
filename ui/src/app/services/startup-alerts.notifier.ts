@@ -23,7 +23,6 @@ export class StartupAlertsNotifier {
 
   displayedWelcomeMessage = false
   checkedForUpdates = false
-  welcomeSetAutoUpdateCheck = false
 
   async handleSpecial (server: Readonly<S9Server>): Promise<void> {
     this.handleOSWelcome(server)
@@ -44,17 +43,11 @@ export class StartupAlertsNotifier {
       },
     })
 
-    modal.onDidDismiss().then(res => {
-      this.welcomeSetAutoUpdateCheck = res.data.autoCheckUpdates
-      this.apiService.acknowledgeOSWelcome(this.config.version)
-      this.handleUpdateCheck(server)
-    })
     await modal.present()
   }
 
   private async handleUpdateCheck (server: Readonly<S9Server>) {
-    if (this.displayedWelcomeMessage && !this.welcomeSetAutoUpdateCheck) return
-    if (!this.displayedWelcomeMessage && (!server.autoCheckUpdates || this.checkedForUpdates)) return
+    if (!server.autoCheckUpdates || this.checkedForUpdates) return
 
     this.checkedForUpdates = true
     if (this.osUpdateService.updateIsAvailable(server.versionInstalled, server.versionLatest)) {
