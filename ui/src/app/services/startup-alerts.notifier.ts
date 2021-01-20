@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core'
 import { AlertController, ModalController, NavController } from '@ionic/angular'
 import { combineLatest, Observable, of } from 'rxjs'
-import { concatMap, filter, map, switchMap, take } from 'rxjs/operators'
+import { concatMap, debounceTime, distinctUntilChanged, filter, map, switchMap, take } from 'rxjs/operators'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
-import { ServerModel } from '../models/server-model'
-import { exists } from '../util/misc.util'
+import { ServerModel, ServerModelState } from '../models/server-model'
+import { exists, traceWheel } from '../util/misc.util'
 import { ApiService } from './api/api.service'
 import { ConfigService } from './config.service'
 import { LoaderService } from './loader.service'
@@ -45,15 +45,16 @@ export class GlobalAlertsNotifier {
   private welcomeNeeded$ (): Observable<string | undefined> {
     const { welcomeAck, versionInstalled } = this.server.watch()
 
-    return combineLatest([ welcomeAck, versionInstalled ]).pipe(
-      filter(([_, vi]) => !!vi),
-      map(([wa, vi]) => !wa && vi === this.config.version ? vi : undefined),
+    return combineLatest([ this.server.$modelState$, welcomeAck, versionInstalled ]).pipe(
+      filter(([ms, _, vi]) => ms === ServerModelState.LIVE && !!vi),
+      map(([_, wa, vi]) => !wa && vi === this.config.version ? vi : undefined),
     )
   }
 
   // emits versionLatest whenever autoCheckUpdates becomes true and checkForUpdates yields a new version
   private osUpdateAlertNeeded$ (): Observable<string | undefined> {
     return this.server.watch().autoCheckUpdates.pipe(
+      distinctUntilChanged(),
       filter(exists), //
       concatMap(() => this.osUpdateService.checkForUpdates$()),
     )
@@ -90,7 +91,7 @@ export class GlobalAlertsNotifier {
         console.error(`Unable to acknowledge OS welcome`, e)
       })
       await modal.present()
-      modal.onWillDismiss().then(() => resolve())
+      modal.onDidDismiss().then(() => resolve())
     })
   }
 
