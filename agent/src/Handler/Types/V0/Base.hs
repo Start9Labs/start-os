@@ -37,6 +37,7 @@ data ServerRes = ServerRes
     , serverAlternativeRegistryUrl :: Maybe Text
     , serverSpecs                  :: SpecsRes
     , serverWelcomeAck             :: Bool
+    , serverAutoCheckUpdates       :: Bool
     } deriving (Eq, Show)
 
 type JsonEncoding a = Encoding
@@ -57,6 +58,7 @@ instance ToJSON ServerRes where
         , "alternativeRegistryUrl" .= serverAlternativeRegistryUrl
         , "specs" .= serverSpecs
         , "welcomeAck" .= serverWelcomeAck
+        , "autoCheckUpdates" .= serverAutoCheckUpdates
         ]
 instance ToTypedContent ServerRes where
     toTypedContent = toTypedContent . toJSON

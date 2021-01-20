@@ -58,6 +58,7 @@ getServerR = handleS9ErrT $ do
     wifi <- WpaSupplicant.runWlan0 $ liftA2 WifiList WpaSupplicant.getCurrentNetwork WpaSupplicant.listNetworks
     specs                  <- getSpecs settings
     welcomeAck             <- fmap isJust . lift . runDB . Persist.get $ WelcomeAckKey agentVersion
+    autoCheckUpdates       <- runM $ injectFilesystemBaseFromContext settings $ existsSystemPath autoCheckUpdatesPath
 
     let sid = T.drop 7 $ specsNetworkId specs
 
@@ -72,6 +73,7 @@ getServerR = handleS9ErrT $ do
                          , serverAlternativeRegistryUrl = alternativeRegistryUrl
                          , serverSpecs                  = specs
                          , serverWelcomeAck             = welcomeAck
+                         , serverAutoCheckUpdates       = autoCheckUpdates
                          }
     where
         parseSshKeys :: Text -> S9ErrT Handler [SshKeyFingerprint]
