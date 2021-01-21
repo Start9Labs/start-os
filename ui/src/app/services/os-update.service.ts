@@ -38,7 +38,7 @@ export class OsUpdateService {
       this.serverModel.watch().versionInstalled.pipe(take(1)),
       this.apiService.getVersionLatest(),
     ]).pipe(
-      map(([vi, vl]) => updateIsAvailable(this.emver, vi, vl.versionLatest)),
+      map(([vi, vl]) => this.updateIsAvailable(vi, vl.versionLatest) ? vl : undefined),
       catchError(e => {
         console.error(`OsUpdateService Error: ${e}`)
         return of(undefined)
@@ -59,20 +59,10 @@ export class OsUpdateService {
     }
   }
 
-  async checkForAppsUpdate (): Promise<boolean> {
-    const availableApps = await this.apiService.getAvailableApps()
-    return !!availableApps.find(app => this.emver.compare(app.versionInstalled, app.versionLatest) === -1)
-  }
-
   async updateEmbassyOS (versionLatest: string): Promise<void> {
     await this.apiService.updateAgent(versionLatest)
     this.serverModel.update({ status: ServerStatus.UPDATING })
     this.$updateAvailable$.next(undefined)
     await this.navCtrl.navigateRoot('/embassy')
   }
-}
-
-function updateIsAvailable (e: Emver, vi: string, vl: string): string | undefined {
-  if (!vi || !vl) return undefined
-  return e.compare(vi, vl) === -1 ? vl : undefined
 }
