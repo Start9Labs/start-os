@@ -39,7 +39,7 @@ export class StartupAlertsNotifier {
         c.hasRun = true
         if (!checkRes) return
         const displayRes = await previousDisplay
-        if (c.shouldRun(server) && !!displayRes) return c.display(checkRes)
+        if (displayRes) return c.display(checkRes)
       }, Promise.resolve(true))
   }
 
@@ -103,8 +103,7 @@ export class StartupAlertsNotifier {
 
       await modal.present()
       modal.onWillDismiss().then(res => {
-        s = Object.assign(s, res.data)
-        return resolve(true)
+        return resolve(res.data)
       })
     })
   }
