@@ -38,7 +38,7 @@ export class OsUpdateService {
       this.serverModel.watch().versionInstalled.pipe(take(1)),
       this.apiService.getVersionLatest(),
     ]).pipe(
-      map(([vi, vl]) => this.updateIsAvailable(vi, vl.versionLatest) ? vl : undefined),
+      map(([vi, vl]) => this.updateIsAvailable(vi, vl.versionLatest) ? vl.versionLatest : undefined),
       catchError(e => {
         console.error(`OsUpdateService Error: ${e}`)
         return of(undefined)

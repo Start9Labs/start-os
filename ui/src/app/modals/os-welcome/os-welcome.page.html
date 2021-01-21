@@ -1,10 +1,5 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button (click)="dismiss()">
-        <ion-icon slot="icon-only" name="close"></ion-icon>
-      </ion-button>
-    </ion-buttons>
     <ion-title >
       <ion-label style="font-size: 20px;" class="ion-text-wrap">Welcome to {{ version }}!</ion-label>
     </ion-title>
@@ -22,7 +17,7 @@
       </p>
       <p>
         0.2.8 also introduces automatic checks for OS updates. With this enabled, each time you visit your embassy you will be notified if a new OS version is available. This setting can be edited in your Embassy Config page.
-        <ion-item style="--border-radius: var(--icon-border-radius); margin-top: 15px">
+        <ion-item lines="none" style="--border-radius: var(--icon-border-radius); margin-top: 15px">
           <ion-label>Auto Check for Updates</ion-label>
           <ion-toggle slot="end" [(ngModel)]="autoCheckUpdates"></ion-toggle>
         </ion-item>

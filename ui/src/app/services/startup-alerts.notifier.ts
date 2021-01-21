@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core'
 import { AlertController, ModalController, NavController } from '@ionic/angular'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { S9Server } from '../models/server-model'
+import { displayEmver } from '../pipes/emver.pipe'
 import { ApiService } from './api/api.service'
 import { ConfigService } from './config.service'
 import { Emver } from './emver.service'
@@ -129,7 +130,7 @@ export class StartupAlertsNotifier {
       const alert = await this.alertCtrl.create({
         backdropDismiss: true,
         header: 'New EmbassyOS Version!',
-        message: `Update EmbassyOS to version ${versionLatest}?`,
+        message: `Update EmbassyOS to version ${displayEmver(versionLatest)}?`,
         buttons: [
           {
             text: 'Not now',
