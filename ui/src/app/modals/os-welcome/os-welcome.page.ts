@@ -17,7 +17,6 @@ export class OSWelcomePage {
   constructor (
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
-    private readonly serverModel: ServerModel,
     private readonly config: ConfigService,
   ) { }
 
@@ -25,10 +24,9 @@ export class OSWelcomePage {
   async dismiss () {
     this.apiService
         .patchServerConfig('autoCheckUpdates', this.autoCheckUpdates)
-        .then(() => this.serverModel.update({ autoCheckUpdates: this.autoCheckUpdates }))
         .then(() => this.apiService.acknowledgeOSWelcome(this.config.version))
-        .catch(console.error),
+        .catch(console.error)
 
-    this.modalCtrl.dismiss({ autoCheckUpdates: this.autoCheckUpdates })
+    return this.modalCtrl.dismiss({ autoCheckUpdates: this.autoCheckUpdates })
   }
 }

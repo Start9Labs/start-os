@@ -22,43 +22,71 @@ export class StartupAlertsNotifier {
   ) { }
 
   displayedWelcomeMessage = false
-  checkedForUpdates = false
+  checkedOSForUpdates = false
+  checkedAppsForUpdates = false
 
   async handleSpecial (server: Readonly<S9Server>): Promise<void> {
-    this.handleOSWelcome(server)
-    if (!this.displayedWelcomeMessage) this.handleUpdateCheck(server)
-  }
-
-  private async handleOSWelcome (server: Readonly<S9Server>) {
-    if (server.welcomeAck || server.versionInstalled !== this.config.version || this.displayedWelcomeMessage) return
-
-    this.displayedWelcomeMessage = true
-
-    const modal = await this.modalCtrl.create({
-      backdropDismiss: false,
-      component: OSWelcomePage,
-      presentingElement: await this.modalCtrl.getTop(),
-      componentProps: {
-        version: server.versionInstalled,
-      },
-    })
-
-    await modal.present()
-  }
-
-  private async handleUpdateCheck (server: Readonly<S9Server>) {
-    if (!server.autoCheckUpdates || this.checkedForUpdates) return
-
-    this.checkedForUpdates = true
-    if (this.osUpdateService.updateIsAvailable(server.versionInstalled, server.versionLatest)) {
-      const { update } = await this.presentAlertNewOS(server.versionLatest)
-      if (update) {
-        return this.loader
-          .displayDuringP(this.osUpdateService.updateEmbassyOS(server.versionLatest))
-          .catch(e => alert(e))
-      }
+    if (this.needsWelcomeMessage(server)) {
+      await this.handleOSWelcome(server)
+      if (this.needsAppsCheck(server)) await this.handleAppsCheck()
     }
 
+    if (this.needsOSCheck(server)) {
+      const thereIsANewOs = await this.handleOSCheck(server)
+      if (thereIsANewOs) return
+      if (this.needsAppsCheck(server)) await this.handleAppsCheck()
+    }
+  }
+
+  needsWelcomeMessage (server: S9Server): boolean {
+    return !server.welcomeAck && server.versionInstalled === this.config.version && !this.displayedWelcomeMessage
+  }
+
+  needsAppsCheck (server: S9Server): boolean {
+    return server.autoCheckUpdates && !this.checkedAppsForUpdates
+  }
+
+  needsOSCheck (server: S9Server): boolean {
+    return server.autoCheckUpdates && !this.checkedOSForUpdates
+  }
+
+  private async handleOSWelcome (server: Readonly<S9Server>): Promise<void> {
+    this.displayedWelcomeMessage = true
+
+    return new Promise(async resolve => {
+      const modal = await this.modalCtrl.create({
+        backdropDismiss: false,
+        component: OSWelcomePage,
+        presentingElement: await this.modalCtrl.getTop(),
+        componentProps: {
+          version: server.versionInstalled,
+        },
+      })
+
+      await modal.present()
+      modal.onWillDismiss().then(() => resolve())
+    })
+  }
+
+  // returns whether there is a new OS available or not
+  private async handleOSCheck (server: Readonly<S9Server>): Promise<boolean> {
+    this.checkedOSForUpdates = true
+
+    const { versionLatest } = await this.apiService.getVersionLatest()
+    if (this.osUpdateService.updateIsAvailable(server.versionInstalled, versionLatest)) {
+      const { update } = await this.presentAlertNewOS(server.versionLatest)
+      if (update) {
+        await this.loader.displayDuringP(
+          this.osUpdateService.updateEmbassyOS(versionLatest),
+          ).catch(e => alert(e))
+      }
+      return true
+    }
+    return false
+  }
+
+  private async handleAppsCheck () {
+    this.checkedAppsForUpdates = true
     try {
       const availableApps = await this.apiService.getAvailableApps()
       if (!!availableApps.find(app => this.emver.compare(app.versionInstalled, app.versionLatest) === -1)) {
@@ -69,26 +97,29 @@ export class StartupAlertsNotifier {
     }
   }
 
-  private async presentAlertNewApps () {
-    const alert = await this.alertCtrl.create({
-      backdropDismiss: true,
-      header: 'Updates Available!',
-      message: 'New service updates are available in the Marketplace.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'View in Marketplace',
-          handler: () => {
-            return this.navCtrl.navigateForward('/services/marketplace')
+  private async presentAlertNewApps (): Promise<void> {
+    return new Promise(async resolve => {
+      const alert = await this.alertCtrl.create({
+        backdropDismiss: true,
+        header: 'Updates Available!',
+        message: 'New service updates are available in the Marketplace.',
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
           },
-        },
-      ],
-    })
+          {
+            text: 'View in Marketplace',
+            handler: () => {
+              return this.navCtrl.navigateForward('/services/marketplace')
+            },
+          },
+        ],
+      })
 
-    await alert.present()
+      alert.onWillDismiss().then(() => resolve())
+      await alert.present()
+    })
   }
 
   private async presentAlertNewOS (versionLatest: string): Promise<{ cancel?: true, update?: true }> {
