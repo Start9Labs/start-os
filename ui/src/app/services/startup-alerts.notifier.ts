@@ -27,8 +27,9 @@ export class StartupAlertsNotifier {
 
   async handleSpecial (server: Readonly<S9Server>): Promise<void> {
     if (this.needsWelcomeMessage(server)) {
-      await this.handleOSWelcome(server)
-      if (this.needsAppsCheck(server)) await this.handleAppsCheck()
+      const serverUpdates = await this.handleOSWelcome(server)
+      if (this.needsAppsCheck({ ...server, ...serverUpdates })) await this.handleAppsCheck()
+      return
     }
 
     if (this.needsOSCheck(server)) {
@@ -43,6 +44,7 @@ export class StartupAlertsNotifier {
   }
 
   needsAppsCheck (server: S9Server): boolean {
+    console.log('server', server)
     return server.autoCheckUpdates && !this.checkedAppsForUpdates
   }
 
@@ -50,7 +52,7 @@ export class StartupAlertsNotifier {
     return server.autoCheckUpdates && !this.checkedOSForUpdates
   }
 
-  private async handleOSWelcome (server: Readonly<S9Server>): Promise<void> {
+  private async handleOSWelcome (server: Readonly<S9Server>): Promise<Partial<S9Server>> {
     this.displayedWelcomeMessage = true
 
     return new Promise(async resolve => {
@@ -64,7 +66,7 @@ export class StartupAlertsNotifier {
       })
 
       await modal.present()
-      modal.onWillDismiss().then(() => resolve())
+      modal.onWillDismiss().then(res => resolve(res.data))
     })
   }
 
@@ -74,7 +76,7 @@ export class StartupAlertsNotifier {
 
     const { versionLatest } = await this.apiService.getVersionLatest()
     if (this.osUpdateService.updateIsAvailable(server.versionInstalled, versionLatest)) {
-      const { update } = await this.presentAlertNewOS(server.versionLatest)
+      const { update } = await this.presentAlertNewOS(versionLatest)
       if (update) {
         await this.loader.displayDuringP(
           this.osUpdateService.updateEmbassyOS(versionLatest),
