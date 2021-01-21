@@ -28,6 +28,8 @@ export class OSWelcomePage {
         .then(() => this.apiService.acknowledgeOSWelcome(this.config.version))
         .catch(console.error)
 
-    return this.modalCtrl.dismiss({ autoCheckUpdates: this.autoCheckUpdates })
+    // return false to skip subsequent alert modals
+    // return true to show subsequent alert modals
+    return this.modalCtrl.dismiss(this.autoCheckUpdates)
   }
 }
