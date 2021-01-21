@@ -3,6 +3,7 @@ import { OsUpdateService } from 'src/app/services/os-update.service'
 import { Observable } from 'rxjs'
 import { AlertController } from '@ionic/angular'
 import { LoaderService } from 'src/app/services/loader.service'
+import { displayEmver } from 'src/app/pipes/emver.pipe'
 
 @Component({
   selector: 'update-os-banner',
@@ -24,7 +25,7 @@ export class UpdateOsBannerComponent {
   async confirmUpdate (versionLatest: string) {
     const alert = await this.alertCtrl.create({
       header: `Update EmbassyOS`,
-      message: `Update EmbassyOS to version ${versionLatest}?`,
+      message: `Update EmbassyOS to version ${displayEmver(versionLatest)}?`,
       buttons: [
         {
           text: 'Cancel',
