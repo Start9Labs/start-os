@@ -26,81 +26,105 @@ export class StartupAlertsNotifier {
   checkedOSForUpdates = false
   checkedAppsForUpdates = false
 
-  async handleSpecial (server: Readonly<S9Server>): Promise<void> {
-    if (this.needsWelcomeMessage(server)) {
-      const serverUpdates = await this.handleOSWelcome(server)
-      if (this.needsAppsCheck({ ...server, ...serverUpdates })) await this.handleAppsCheck()
-      return
-    }
-
-    if (this.needsOSCheck(server)) {
-      const thereIsANewOs = await this.handleOSCheck(server)
-      if (thereIsANewOs) return
-      if (this.needsAppsCheck(server)) await this.handleAppsCheck()
-    }
+  // So. This takes our three checks and filters down to those that should run.
+  // Then, the reduce fires, quickly iterating through yielding a promise (acc) to the next element
+  // Each promise fires more or less concurrently, so each c.check(server) is run concurrently
+  // Then, since we await acc before c.display(res), each promise executing gets hung awaiting the display of the previous run
+  async runChecks (server: Readonly<S9Server>): Promise<void> {
+    await this.checks
+      .filter(c => c.shouldRun(server) && !c.hasRun)
+      .reduce(async (previousDisplay, c) => {
+        let checkRes
+        try {
+          checkRes = await c.check(server)
+        } catch (e) {
+          return console.error(`Exception in ${c.name} check:`, e)
+        }
+        c.hasRun = true
+        if (!checkRes) return
+        const displayRes = await previousDisplay
+        if (c.shouldRun(server) && !!displayRes) return c.display(checkRes)
+      }, Promise.resolve(true))
   }
 
-  needsWelcomeMessage (server: S9Server): boolean {
-    return !server.welcomeAck && server.versionInstalled === this.config.version && !this.displayedWelcomeMessage
+  welcome: Check<S9Server> = {
+    name: 'welcome',
+    shouldRun: s => this.shouldRunOsWelcome(s),
+    check: async s => s,
+    display: s => this.displayOsWelcome(s),
+    hasRun: false,
+  }
+  osUpdate: Check<string | undefined> = {
+    name: 'osUpdate',
+    shouldRun: s => this.shouldRunOsUpdateCheck(s),
+    check: s => this.osUpdateCheck(s),
+    display: vl => this.displayOsUpdateCheck(vl),
+    hasRun: false,
+  }
+  apps: Check<boolean> = {
+    name: 'apps',
+    shouldRun: s => this.shouldRunAppsCheck(s),
+    check: () => this.appsCheck(),
+    display: () => this.displayAppsCheck(),
+    hasRun: false,
   }
 
-  needsAppsCheck (server: S9Server): boolean {
-    return server.autoCheckUpdates && !this.checkedAppsForUpdates
+  checks: Check<any>[] = [this.welcome, this.apps, this.osUpdate]
+
+  private shouldRunOsWelcome (s: S9Server): boolean {
+    return !s.welcomeAck && s.versionInstalled === this.config.version
   }
 
-  needsOSCheck (server: S9Server): boolean {
-    return server.autoCheckUpdates && !this.checkedOSForUpdates
+  private shouldRunAppsCheck (server: S9Server): boolean {
+    return server.autoCheckUpdates
   }
 
-  private async handleOSWelcome (server: Readonly<S9Server>): Promise<Partial<S9Server>> {
-    this.displayedWelcomeMessage = true
+  private shouldRunOsUpdateCheck (server: S9Server): boolean {
+    return server.autoCheckUpdates
+  }
 
+
+  private async osUpdateCheck (s: Readonly<S9Server>): Promise<string | undefined> {
+    const { versionLatest } = await this.apiService.getVersionLatest()
+    return this.osUpdateService.updateIsAvailable(s.versionInstalled, versionLatest) ? versionLatest : undefined
+  }
+
+  private async appsCheck (): Promise<boolean> {
+    const availableApps = await this.apiService.getAvailableApps()
+    return !!availableApps.find(app => this.emver.compare(app.versionInstalled, app.versionLatest) === -1)
+  }
+
+  private async displayOsWelcome (s: Readonly<S9Server>): Promise<boolean> {
     return new Promise(async resolve => {
       const modal = await this.modalCtrl.create({
         backdropDismiss: false,
         component: OSWelcomePage,
         presentingElement: await this.modalCtrl.getTop(),
         componentProps: {
-          version: server.versionInstalled,
+          version: s.versionInstalled,
         },
       })
 
       await modal.present()
-      modal.onWillDismiss().then(res => resolve(res.data))
+      modal.onWillDismiss().then(res => {
+        s = Object.assign(s, res.data)
+        return resolve(true)
+      })
     })
   }
 
-  // returns whether there is a new OS available or not
-  private async handleOSCheck (server: Readonly<S9Server>): Promise<boolean> {
-    this.checkedOSForUpdates = true
-
-    const { versionLatest } = await this.apiService.getVersionLatest()
-    if (this.osUpdateService.updateIsAvailable(server.versionInstalled, versionLatest)) {
-      const { update } = await this.presentAlertNewOS(versionLatest)
-      if (update) {
-        await this.loader.displayDuringP(
-          this.osUpdateService.updateEmbassyOS(versionLatest),
-          ).catch(e => alert(e))
-      }
-      return true
+  private async displayOsUpdateCheck (versionLatest: string | undefined): Promise<boolean> {
+    const { update } = await this.presentAlertNewOS(versionLatest)
+    if (update) {
+      await this.loader.displayDuringP(
+        this.osUpdateService.updateEmbassyOS(versionLatest),
+        ).catch(e => alert(e))
+      return false
     }
-    return false
+    return true
   }
 
-  private async handleAppsCheck () {
-    this.checkedAppsForUpdates = true
-
-    try {
-      const availableApps = await this.apiService.getAvailableApps()
-      if (!!availableApps.find(app => this.emver.compare(app.versionInstalled, app.versionLatest) === -1)) {
-        return this.presentAlertNewApps()
-      }
-    } catch (e) {
-      console.error(`Exception checking for new apps: `, e)
-    }
-  }
-
-  private async presentAlertNewApps (): Promise<void> {
+  private async displayAppsCheck (): Promise<boolean> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
         backdropDismiss: true,
@@ -110,17 +134,17 @@ export class StartupAlertsNotifier {
           {
             text: 'Cancel',
             role: 'cancel',
+            handler: () => resolve(true),
           },
           {
             text: 'View in Marketplace',
             handler: () => {
-              return this.navCtrl.navigateForward('/services/marketplace')
+              return this.navCtrl.navigateForward('/services/marketplace').then(() => resolve(false))
             },
           },
         ],
       })
 
-      alert.onWillDismiss().then(() => resolve())
       await alert.present()
     })
   }
@@ -146,4 +170,18 @@ export class StartupAlertsNotifier {
       await alert.present()
     })
   }
+}
+
+type Check<T> = {
+  // validates whether a check should run based on server properties
+  shouldRun: (s: S9Server) => boolean
+  // executes a check, often requiring api call. It should return a false-y value if there should be no display.
+  check: (s: S9Server) => Promise<T>
+  // display an alert based on the result of the check.
+  // return false if subsequent modals should be cancelled
+  display: (a: T) => Promise<boolean>
+  // tracks if this check has run in this app instance.
+  hasRun: boolean
+  // for logging purposes
+  name: string
 }
