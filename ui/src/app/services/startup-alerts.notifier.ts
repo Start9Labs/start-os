@@ -87,6 +87,7 @@ export class StartupAlertsNotifier {
 
   private async handleAppsCheck () {
     this.checkedAppsForUpdates = true
+
     try {
       const availableApps = await this.apiService.getAvailableApps()
       if (!!availableApps.find(app => this.emver.compare(app.versionInstalled, app.versionLatest) === -1)) {

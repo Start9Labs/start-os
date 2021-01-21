@@ -17,13 +17,15 @@ export class OSWelcomePage {
   constructor (
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
+    private readonly serverModel: ServerModel,
     private readonly config: ConfigService,
   ) { }
 
-  // autoCheckUpdates default must be false when upgrading to 0.2.8
+  // autoCheckUpdates default must be false when upgrading to
   async dismiss () {
     this.apiService
         .patchServerConfig('autoCheckUpdates', this.autoCheckUpdates)
+        .then(() => this.serverModel.update({ autoCheckUpdates: this.autoCheckUpdates }))
         .then(() => this.apiService.acknowledgeOSWelcome(this.config.version))
         .catch(console.error)
 
