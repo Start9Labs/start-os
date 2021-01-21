@@ -21,7 +21,6 @@ export class OSWelcomePage {
     private readonly config: ConfigService,
   ) { }
 
-  // autoCheckUpdates default must be false when upgrading to
   async dismiss () {
     this.apiService
         .patchServerConfig('autoCheckUpdates', this.autoCheckUpdates)
