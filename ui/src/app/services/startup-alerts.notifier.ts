@@ -44,7 +44,6 @@ export class StartupAlertsNotifier {
   }
 
   needsAppsCheck (server: S9Server): boolean {
-    console.log('server', server)
     return server.autoCheckUpdates && !this.checkedAppsForUpdates
   }
 
