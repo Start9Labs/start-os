@@ -22,10 +22,6 @@ export class StartupAlertsNotifier {
     private readonly osUpdateService: OsUpdateService,
   ) { }
 
-  displayedWelcomeMessage = false
-  checkedOSForUpdates = false
-  checkedAppsForUpdates = false
-
   // So. This takes our three checks and filters down to those that should run.
   // Then, the reduce fires, quickly iterating through yielding a promise (acc) to the next element
   // Each promise fires more or less concurrently, so each c.check(server) is run concurrently
@@ -69,7 +65,7 @@ export class StartupAlertsNotifier {
     hasRun: false,
   }
 
-  checks: Check<any>[] = [this.welcome, this.apps, this.osUpdate]
+  checks: Check<any>[] = [this.welcome, this.osUpdate, this.apps]
 
   private shouldRunOsWelcome (s: S9Server): boolean {
     return !s.welcomeAck && s.versionInstalled === this.config.version
@@ -178,7 +174,7 @@ type Check<T> = {
   // executes a check, often requiring api call. It should return a false-y value if there should be no display.
   check: (s: S9Server) => Promise<T>
   // display an alert based on the result of the check.
-  // return false if subsequent modals should be cancelled
+  // return false if subsequent modals should not be displayed
   display: (a: T) => Promise<boolean>
   // tracks if this check has run in this app instance.
   hasRun: boolean
