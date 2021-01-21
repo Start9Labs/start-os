@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
+import { AlertController, IonicSafeString, ModalController, NavController } from '@ionic/angular'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { S9Server } from '../models/server-model'
 import { displayEmver } from '../pipes/emver.pipe'
@@ -28,7 +28,7 @@ export class StartupAlertsNotifier {
   // Then, since we await acc before c.display(res), each promise executing gets hung awaiting the display of the previous run
   async runChecks (server: Readonly<S9Server>): Promise<void> {
     await this.checks
-      .filter(c => c.shouldRun(server) && !c.hasRun)
+      .filter(c => !c.hasRun && c.shouldRun(server))
       .reduce(async (previousDisplay, c) => {
         let checkRes
         try {
@@ -37,8 +37,8 @@ export class StartupAlertsNotifier {
           return console.error(`Exception in ${c.name} check:`, e)
         }
         c.hasRun = true
-        if (!checkRes) return true
         const displayRes = await previousDisplay
+        if (!checkRes) return true
         if (displayRes) return c.display(checkRes)
       }, Promise.resolve(true))
   }
@@ -124,7 +124,13 @@ export class StartupAlertsNotifier {
       const alert = await this.alertCtrl.create({
         backdropDismiss: true,
         header: 'Updates Available!',
-        message: 'New service updates are available in the Marketplace.',
+        message: new IonicSafeString(
+          `<div style="display: flex; flex-direction: column; justify-content: space-around; min-height: 100px">
+            <div>New service updates are available in the Marketplace.</div>
+            <div style="font-size:x-small">You can disable these checks in your Embassy Config</div>
+          </div>
+          `
+        ),
         buttons: [
           {
             text: 'Cancel',
@@ -149,7 +155,13 @@ export class StartupAlertsNotifier {
       const alert = await this.alertCtrl.create({
         backdropDismiss: true,
         header: 'New EmbassyOS Version!',
-        message: `Update EmbassyOS to version ${displayEmver(versionLatest)}?`,
+        message: new IonicSafeString(
+          `<div style="display: flex; flex-direction: column; justify-content: space-around; min-height: 100px">
+            <div>Update EmbassyOS to version ${displayEmver(versionLatest)}?</div>
+            <div style="font-size:x-small">You can disable these checks in your Embassy Config</div>
+          </div>
+          `
+        ),
         buttons: [
           {
             text: 'Not now',
