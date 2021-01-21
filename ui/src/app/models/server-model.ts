@@ -7,16 +7,10 @@ import { Storage } from '@ionic/storage'
 import { throttleTime, delay } from 'rxjs/operators'
 import { StorageKeys } from './storage-keys'
 
-export enum ServerModelState {
-  BOOT,
-  LOCALSTORAGE,
-  LIVE,
-}
 @Injectable({
   providedIn: 'root',
 })
 export class ServerModel {
-  $modelState$ = new BehaviorSubject(ServerModelState.BOOT)
   lastUpdateTimestamp: Date
   $delta$ = new Subject<void>()
   private embassy: PropertySubject<S9Server>
@@ -32,7 +26,6 @@ export class ServerModel {
     ).subscribe(() => {
       this.commitCache()
     })
-    this.$modelState$.subscribe(s => console.log('model state', s))
   }
 
   // client fxns
@@ -42,12 +35,6 @@ export class ServerModel {
 
   peek (): S9Server {
     return peekProperties(this.embassy)
-  }
-
-  nextState (s: ServerModelState) {
-    this.$modelState$.subscribe(s2 => {
-      if (s > s2) this.$modelState$.next(s)
-    })
   }
 
   update (update: Partial<S9Server>, timestamp: Date = new Date()): void {
@@ -90,7 +77,7 @@ export class ServerModel {
 
   async restoreCache (): Promise<void> {
     const emb = await this.storage.get(StorageKeys.SERVER_CACHE_KEY)
-    if (emb && emb.versionInstalled === this.config.version) this.update(emb, new Date())
+    if (emb && emb.versionInstalled === this.config.version) this.update(emb)
   }
 
   // server state change
