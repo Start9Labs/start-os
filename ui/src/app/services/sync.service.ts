@@ -38,7 +38,7 @@ export class SyncDaemon {
   sync (): Observable<void> {
     return from(this.getServerAndApps()).pipe(
       concatMap(() => this.syncNotifier.handleSpecial(this.serverModel.peek())),
-      concatMap(() => this.startupAlertsNotifier.handleSpecial(this.serverModel.peek())),
+      concatMap(() => this.startupAlertsNotifier.runChecks(this.serverModel.peek())),
       tap(() => this.$synced$.next()),
       catchError(e => of(console.error(`Exception in sync service`, e))),
     )
