@@ -21,4 +21,4 @@ getAgentHiddenServiceUrlMaybe = fmap T.strip <$> readSystemPath agentTorHiddenSe
 -- | 'newTorManager' currently assumes the tor client lives on the localhost. The port comes in over an argument.
 -- If this is insufficient in the future, feel free to parameterize the host.
 newTorManager :: Word16 -> IO Manager
-newTorManager = newTlsManagerWith . mkManagerSettings def . Just . SockSettingsSimple "127.0.0.1" . fromIntegral
+newTorManager = newManager . mkManagerSettings def . Just . SockSettingsSimple "127.0.0.1" . fromIntegral
