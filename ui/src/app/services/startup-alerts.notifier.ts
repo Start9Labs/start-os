@@ -37,7 +37,7 @@ export class StartupAlertsNotifier {
           return console.error(`Exception in ${c.name} check:`, e)
         }
         c.hasRun = true
-        if (!checkRes) return
+        if (!checkRes) return true
         const displayRes = await previousDisplay
         if (displayRes) return c.display(checkRes)
       }, Promise.resolve(true))
