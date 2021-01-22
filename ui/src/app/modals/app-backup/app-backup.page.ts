@@ -20,6 +20,7 @@ export class AppBackupPage {
   loading = true
   error: string
   allPartitionsMounted: boolean
+  defaultRestoreAlert: string
 
   constructor (
     private readonly modalCtrl: ModalController,
@@ -31,6 +32,7 @@ export class AppBackupPage {
   ) { }
 
   ngOnInit () {
+    this.defaultRestoreAlert = `Restoring ${this.app.title} will overwrite its current data.`
     return this.getExternalDisks().then(() => this.loading = false)
   }
 

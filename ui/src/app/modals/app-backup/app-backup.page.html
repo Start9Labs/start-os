@@ -27,7 +27,7 @@
   <ion-spinner *ngIf="loading" class="center" name="lines" color="warning"></ion-spinner>
 
   <ng-container *ngIf="!loading">
-    <ion-item *ngIf="type === 'restore' && app.restoreAlert as restore" class="notifier-item" style="box-shadow: 0 0 5px 1px var(--ion-color-danger); margin-bottom: 40px">
+    <ion-item *ngIf="type === 'restore' && (app.restoreAlert || defaultRestoreAlert) as restore" class="notifier-item" style="box-shadow: 0 0 5px 1px var(--ion-color-danger); margin-bottom: 40px">
       <ion-label class="ion-text-wrap">
         <h2 style="display: flex; align-items: center; margin-bottom: 3px;">
           <ion-icon style="margin-right: 5px;" slot="start" color="danger" slot="start" name="warning-outline"></ion-icon>
