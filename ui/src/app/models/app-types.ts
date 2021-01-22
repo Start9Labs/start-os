@@ -14,7 +14,7 @@ export interface BaseApp {
 export interface AppAvailablePreview extends BaseApp {
   versionLatest: string
   descriptionShort: string
-  latestVersionTimestamp: Date
+  latestVersionTimestamp: Date //used for sorting AAL
 }
 
 export type AppAvailableFull =

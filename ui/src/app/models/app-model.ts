@@ -61,7 +61,7 @@ export class AppModel extends MapSubject<AppInstalledFull> {
     )
   }
 
-  // when an app is backing up
+  // TODO: EJECT-DISKS: we can use this to watch for an app completing its backup process.
   watchForBackup (appId: string): Observable<string | undefined> {
     const toWatch = super.watch(appId)
     if (!toWatch) return of(undefined)

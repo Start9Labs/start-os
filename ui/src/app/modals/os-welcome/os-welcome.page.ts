@@ -28,7 +28,7 @@ export class OSWelcomePage {
         .then(() => this.apiService.acknowledgeOSWelcome(this.config.version))
         .catch(console.error)
 
-    // return false to skip subsequent alert modals
+    // return false to skip subsequent alert modals (e.g. check for updates modals)
     // return true to show subsequent alert modals
     return this.modalCtrl.dismiss(this.autoCheckUpdates)
   }

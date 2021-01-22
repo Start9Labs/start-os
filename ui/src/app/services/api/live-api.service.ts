@@ -65,6 +65,7 @@ export class LiveApiService extends ApiService {
     return this.authRequest<ReqRes.GetExternalDisksRes>({ method: Method.GET, url: `/disks` })
   }
 
+  // TODO: EJECT-DISKS
   async ejectExternalDisk (logicalName: string): Promise<Unit> {
     return this.authRequest({ method: Method.POST, url: `/disks/eject`, data: { logicalName } })
   }

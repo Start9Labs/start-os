@@ -14,7 +14,7 @@ export class AppBackupConfirmationComponent implements OnInit {
   password: string
   $error$: BehaviorSubject<string> = new BehaviorSubject('')
 
-  // pass this through the modalCtrl once ejecting disks is an option in the UI.
+  // TODO: EJECT-DISKS pass this through the modalCtrl once ejecting disks is an option in the UI.
   eject = true
   message: string
 

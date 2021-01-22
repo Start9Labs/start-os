@@ -22,13 +22,15 @@ export class StartupAlertsNotifier {
     private readonly osUpdateService: OsUpdateService,
   ) { }
 
-  // So. This takes our three checks and filters down to those that should run.
-  // Then, the reduce fires, quickly iterating through yielding a promise (acc) to the next element
+  // This takes our three checks and filters down to those that should run.
+  // Then, the reduce fires, quickly iterating through yielding a promise (previousDisplay) to the next element
   // Each promise fires more or less concurrently, so each c.check(server) is run concurrently
-  // Then, since we await acc before c.display(res), each promise executing gets hung awaiting the display of the previous run
+  // Then, since we await previoudDisplay before c.display(res), each promise executing gets hung awaiting the display of the previous run
   async runChecks (server: Readonly<S9Server>): Promise<void> {
     await this.checks
       .filter(c => !c.hasRun && c.shouldRun(server))
+      // returning true in the below block means to continue to next modal
+      // returning false means to skip all subsequent modals
       .reduce(async (previousDisplay, c) => {
         let checkRes: any
         try {
