@@ -11,7 +11,7 @@ import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppInst
 //@TODO consider moving to test folders.
 @Injectable()
 export class MockApiService extends ApiService {
-  welcomeAck = false
+  welcomeAck = true
 
   constructor (
     private readonly appModel: AppModel,
@@ -409,8 +409,8 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
   versionLatest: '0.2.9',
   status: ServerStatus.RUNNING,
   alternativeRegistryUrl: 'beta-registry.start9labs.com',
-  welcomeAck: false,
-  autoCheckUpdates: true,
+  welcomeAck: true,
+  autoCheckUpdates: false,
   specs: {
     'Tor Address': 'nfsnjkcnaskjnlkasnfahj7dh23fdnieqwjdnhjewbfijendiueqwbd.onion',
     'CPU': 'Broadcom BCM2711, Quad core Cortex-A72 (ARM v8) 64-bit SoC @ 1.5GHz',

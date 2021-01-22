@@ -129,7 +129,7 @@
         <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
       </ion-content>
       <ion-input></ion-input>
-      <ion-input type="password" value="getdots"></ion-input>
+      <ion-input *ngIf="untilLoaded" type="password" value="getdots"></ion-input>
       <ion-item></ion-item>
       <ion-item-divider></ion-item-divider>
       <ion-item-group></ion-item-group>
@@ -148,6 +148,7 @@
       <ion-spinner name="dots"></ion-spinner>
       <ion-spinner name="lines"></ion-spinner>
       <ion-text></ion-text>
+      <ion-text style="font-weight: bold">load bold</ion-text>
       <ion-textarea></ion-textarea>
       <ion-title></ion-title>
       <ion-toast></ion-toast>
