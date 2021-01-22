@@ -76,7 +76,9 @@ export class AppComponent {
     this.init()
   }
 
-  ionViewDidEnter(){
+  ionViewDidEnter () {
+    // weird bug where a browser grabbed the value 'getdots' from the app.component.html preload input field.
+    // this removes that field after prleloading occurs.
     pauseFor(500).then(() => this.untilLoaded = false)
   }
 

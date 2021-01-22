@@ -1,12 +1,6 @@
 import { Injectable } from '@angular/core'
-import { ConfigService } from 'src/app/services/config.service'
-import { ToastController, NavController, ModalController, AlertController } from '@ionic/angular'
+import { ToastController, NavController } from '@ionic/angular'
 import { ServerModel, S9Server } from '../models/server-model'
-import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
-import { ApiService } from './api/api.service'
-import { Emver } from './emver.service'
-import { LoaderService } from './loader.service'
-import { OsUpdateService } from './os-update.service'
 @Injectable({
   providedIn: 'root',
 })
@@ -15,16 +9,9 @@ export class SyncNotifier {
   checkedForUpdates = false
 
   constructor (
-    private readonly config: ConfigService,
     private readonly toastCtrl: ToastController,
-    private readonly modalCtrl: ModalController,
-    private readonly alertCtrl: AlertController,
     private readonly navCtrl: NavController,
     private readonly serverModel: ServerModel,
-    private readonly apiService: ApiService,
-    private readonly loader: LoaderService,
-    private readonly emver: Emver,
-    private readonly osUpdateService: OsUpdateService,
   ) { }
 
   async handleSpecial (server: Readonly<S9Server>): Promise<void> {
@@ -67,41 +54,3 @@ export class SyncNotifier {
     this.serverModel.update(updates)
   }
 }
-
-// return new Promise(async resolve => {
-//   const confirm = await this.alertController.create({
-//     cssClass: 'alert-demo',
-//     header: 'Warning',
-//     message: `<h6>This is a <i>hosted</i> instance of Burn After Reading.</h6>
-//               <p>Since you are not the server operator, you can never be 100% certain that your data are private or secure.</p>
-//               <p>You can run your own, private instance with the click of a button using the Start9 Embassy.</p>`,
-//     buttons: [
-//       {
-//         text: 'Run my Own',
-//         handler: () => {
-//           const a = document.createElement('a')
-//           const site = (this.config.isConsulate || !this.config.isTor) ? 'https://start9labs.com' : 'http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion/'
-//           a.href = site
-//           a.target = '_blank'
-//           pauseFor(500).then(() => a.click())
-//           return resolve()
-//         },
-//       },
-//       {
-//         text: 'Use Demo',
-//         role: 'cancel',
-//         handler: () => resolve(),
-//       },
-//     ],
-//   })
-
-//   await confirm.present()
-
-//   const alert = document.getElementsByClassName('alert-demo').item(0)
-//   this.cleanup(
-//     fromEvent(alert, 'keyup')
-//     .pipe(filter((k: KeyboardEvent) => isEnter(k)))
-//     .subscribe(() => confirm.dismiss()),
-//   )
-// })
-// }

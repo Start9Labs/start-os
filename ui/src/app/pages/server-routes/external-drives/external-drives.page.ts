@@ -5,6 +5,7 @@ import { DiskInfo } from 'src/app/models/server-model'
 import { markAsLoadingDuringP } from 'src/app/services/loader.service'
 import { BehaviorSubject } from 'rxjs'
 import { AlertController } from '@ionic/angular'
+// TODO: EJECT-DISKS
 
 type Ejectable<T> = T & { $ejecting$: BehaviorSubject<boolean> }
 

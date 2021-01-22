@@ -100,7 +100,7 @@ export class AppBackupPage {
     m.onWillDismiss().then(res => {
       const data = res.data
       if (data.cancel) return
-      // we hard code the 'eject' last argument to be false, until ejection is an option in the UI.
+      // TODO: EJECT-DISKS we hard code the 'eject' last argument to be false, until ejection is an option in the UI. When it is, add it to the data object above ^
       return this.create(disk, partition, data.password, false)
     })
 

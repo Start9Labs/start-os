@@ -1,3 +1,4 @@
+<!-- TODO: EJECT-DISKS -->
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
@@ -16,16 +17,14 @@
   </ion-refresher>
 
   <ion-item-group>
-    <!-- <ion-list> -->
-      <ion-item *ngFor="let d of disks; let i = index">
-        <ion-icon slot="start" name="save-outline"></ion-icon>
-        <ion-label>{{d.logicalname}} ({{ d.size }})</ion-label>
-        <ion-button *ngIf="!(d.$ejecting$ | async)" slot="end" fill="clear" color="medium" (click)="ejectDisk(i)">
-          <ion-icon color="primary" class="icon" src="/assets/icon/eject.svg"></ion-icon>
-        </ion-button>
-        <ion-spinner *ngIf="d.$ejecting$ | async" name="lines" color="medium"></ion-spinner>
-      </ion-item>
-    <!-- </ion-list> -->
+    <ion-item *ngFor="let d of disks; let i = index">
+      <ion-icon slot="start" name="save-outline"></ion-icon>
+      <ion-label>{{d.logicalname}} ({{ d.size }})</ion-label>
+      <ion-button *ngIf="!(d.$ejecting$ | async)" slot="end" fill="clear" color="medium" (click)="ejectDisk(i)">
+        <ion-icon color="primary" class="icon" src="/assets/icon/eject.svg"></ion-icon>
+      </ion-button>
+      <ion-spinner *ngIf="d.$ejecting$ | async" name="lines" color="medium"></ion-spinner>
+    </ion-item>
   </ion-item-group>
 </ion-content>
 
