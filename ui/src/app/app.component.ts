@@ -3,7 +3,6 @@ import { ServerModel, ServerStatus } from './models/server-model'
 import { Storage } from '@ionic/storage'
 import { SyncDaemon } from './services/sync.service'
 import { AuthService, AuthState } from './services/auth.service'
-import { StartupAlertsNotifier } from './services/startup-alerts.notifier'
 import { ApiService } from './services/api/api.service'
 import { Router } from '@angular/router'
 import { BehaviorSubject, Observable } from 'rxjs'
@@ -14,6 +13,7 @@ import { LoaderService } from './services/loader.service'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { LoadingOptions } from '@ionic/core'
+import { pauseFor } from './util/misc.util'
 
 @Component({
   selector: 'app-root',
@@ -27,6 +27,7 @@ export class AppComponent {
   serverName$ : Observable<string>
   serverBadge$: Observable<number>
   selectedIndex = 0
+  untilLoaded = true
   appPages = [
     {
       title: 'Services',
@@ -66,7 +67,6 @@ export class AppComponent {
     private readonly alertCtrl: AlertController,
     private readonly loader: LoaderService,
     private readonly emver: Emver,
-    private readonly globalAlertsNotifier: StartupAlertsNotifier,
     readonly splitPane: SplitPaneTracker,
   ) {
     // set dark theme
@@ -74,6 +74,10 @@ export class AppComponent {
     this.serverName$ = this.serverModel.watch().name
     this.serverBadge$ = this.serverModel.watch().badge
     this.init()
+  }
+
+  ionViewDidEnter(){
+    pauseFor(500).then(() => this.untilLoaded = false)
   }
 
   async init () {
@@ -182,7 +186,7 @@ export class AppComponent {
     await alert.present()
   }
 
-  splitPaneVisible (e) {
+  splitPaneVisible (e: any) {
     this.splitPane.$menuFixedOpenOnLeft$.next(e.detail.visible)
   }
 }

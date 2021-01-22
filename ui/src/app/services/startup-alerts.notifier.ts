@@ -30,14 +30,16 @@ export class StartupAlertsNotifier {
     await this.checks
       .filter(c => !c.hasRun && c.shouldRun(server))
       .reduce(async (previousDisplay, c) => {
-        let checkRes
+        let checkRes: any
         try {
           checkRes = await c.check(server)
         } catch (e) {
-          return console.error(`Exception in ${c.name} check:`, e)
+          console.error(`Exception in ${c.name} check:`, e)
+          return true
         }
         c.hasRun = true
         const displayRes = await previousDisplay
+
         if (!checkRes) return true
         if (displayRes) return c.display(checkRes)
       }, Promise.resolve(true))
