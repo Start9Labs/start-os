@@ -19,6 +19,7 @@ import { InformationPopoverComponent } from 'src/app/components/information-popo
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { ConfigService } from 'src/app/services/config.service'
+import { ServerModel } from 'src/app/models/server-model'
 
 @Component({
   selector: 'app-installed-show',
@@ -31,6 +32,7 @@ export class AppInstalledShowPage extends Cleanup {
 
   $error$ = new BehaviorSubject<string>('')
   app: PropertySubject<AppInstalledFull> = { } as any
+  lanAddress = ''
   appId: string
   AppStatus = AppStatus
   showInstructions = false
@@ -57,6 +59,7 @@ export class AppInstalledShowPage extends Cleanup {
     private readonly appModel: AppModel,
     private readonly popoverController: PopoverController,
     private readonly emver: Emver,
+    private readonly serverModel: ServerModel,
     config: ConfigService,
   ) {
     super()
@@ -66,6 +69,8 @@ export class AppInstalledShowPage extends Cleanup {
 
   async ngOnInit () {
     this.appId = this.route.snapshot.paramMap.get('appId') as string
+    const server = this.serverModel.peek()
+    this.lanAddress = `https://${this.appId}.${server.serverId}.local`
 
     this.cleanup(
       markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId))
@@ -103,8 +108,13 @@ export class AppInstalledShowPage extends Cleanup {
   }
 
   async launchUiTab () {
-    let uiAddress = this.app.torAddress.getValue()
-    uiAddress = uiAddress.startsWith('http') ? uiAddress : `http://${uiAddress}`
+    let uiAddress: string
+    if (this.isTor) {
+      const torAddress = this.app.torAddress.getValue()
+      uiAddress = torAddress.startsWith('http') ? torAddress : `http://${torAddress}`
+    } else {
+      uiAddress = this.lanAddress
+    }
     return window.open(uiAddress, '_blank')
   }
 
