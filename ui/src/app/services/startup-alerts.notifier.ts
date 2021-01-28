@@ -83,7 +83,6 @@ export class StartupAlertsNotifier {
     return server.autoCheckUpdates
   }
 
-
   private async osUpdateCheck (s: Readonly<S9Server>): Promise<string | undefined> {
     const { versionLatest } = await this.apiService.getVersionLatest()
     return this.osUpdateService.updateIsAvailable(s.versionInstalled, versionLatest) ? versionLatest : undefined
@@ -91,7 +90,9 @@ export class StartupAlertsNotifier {
 
   private async appsCheck (): Promise<boolean> {
     const availableApps = await this.apiService.getAvailableApps()
-    return !!availableApps.find(app => this.emver.compare(app.versionInstalled, app.versionLatest) === -1)
+    return !!availableApps.find(
+      app => app.versionInstalled && this.emver.compare(app.versionInstalled, app.versionLatest) === -1,
+    )
   }
 
   private async displayOsWelcome (s: Readonly<S9Server>): Promise<boolean> {
