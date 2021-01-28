@@ -24,7 +24,6 @@ impl VersionT for Version {
             "/etc/nginx/sites-enabled/start9-services.conf",
         )
         .await?;
-        log::info!("Reloading Nginx.");
         let svc_exit = std::process::Command::new("service")
             .args(&["nginx", "reload"])
             .status()?;
@@ -40,6 +39,20 @@ impl VersionT for Version {
         Ok(())
     }
     async fn down(&self) -> Result<(), Error> {
+        tokio::fs::remove_file("/etc/nginx/sites-enabled/start9-services.conf").await?;
+        tokio::fs::remove_file(crate::tor::ETC_NGINX_SERVICES_CONF).await?;
+        let svc_exit = std::process::Command::new("service")
+            .args(&["nginx", "reload"])
+            .status()?;
+        crate::ensure_code!(
+            svc_exit.success(),
+            crate::error::GENERAL_ERROR,
+            "Failed to Reload Nginx: {}",
+            svc_exit
+                .code()
+                .or_else(|| { svc_exit.signal().map(|a| 128 + a) })
+                .unwrap_or(0)
+        );
         Ok(())
     }
 }
