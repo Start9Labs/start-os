@@ -1,8 +1,8 @@
 server {{
     listen 443 ssl;
     server_name {app_id}.{hostname}.local;
-    ssl_certificate /etc/nginx/ssl/start9-e634fbec-local.crt.pem;
-    ssl_certificate_key /etc/nginx/ssl/start9-e634fbec-local.key.pem;
+    ssl_certificate /etc/nginx/ssl/{hostname}-local.crt.pem;
+    ssl_certificate_key /etc/nginx/ssl/{hostname}-local.key.pem;
     location / {{
         proxy_pass http://{app_ip}:80/;
         proxy_set_header Host $host;
