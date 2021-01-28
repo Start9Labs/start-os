@@ -93,14 +93,24 @@
 
     <ng-container *ngIf="app && app.id && vars.status !== 'INSTALLING'">
       <ion-item-group class="ion-padding-bottom">
-        <ion-item-divider>Tor Address</ion-item-divider>
-        <ion-item lines="none">
-          <ion-label style="display: flex; justify-content: space-between; align-items: center;" class="ion-text-wrap">
-            <p style="color: var(--ion-color-dark)">{{ vars.torAddress }}</p>
-            <ion-button slot="end" fill="clear" (click)="copyTor()">
-              <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
-            </ion-button>
+        <ion-item-divider>Addresses</ion-item-divider>
+        <ion-item>
+          <ion-label class="ion-text-wrap">
+            <h2>Tor Address</h2>
+            <p>{{ vars.torAddress }}</p>
           </ion-label>
+          <ion-button slot="end" fill="clear" (click)="copyTor()">
+            <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
+          </ion-button>
+        </ion-item>
+        <ion-item lines="none">
+          <ion-label class="ion-text-wrap">
+            <h2>LAN Address</h2>
+            <p>{{ lanAddress }}</p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" (click)="copyTor()">
+            <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
+          </ion-button>
         </ion-item>
 
         <ion-item-divider>Backups</ion-item-divider>

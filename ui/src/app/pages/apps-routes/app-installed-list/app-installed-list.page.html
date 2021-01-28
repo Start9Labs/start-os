@@ -26,7 +26,7 @@
 
           <ion-card class="installed-card" [class.installed-card-on]="vars.status === 'RUNNING'" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
             <div class="launch-container" *ngIf="vars.ui && !isConsulate">
-              <div class="launch-button-triangle"  (click)="launchUiTab(vars.tor, $event)" [class.disabled]="vars.status !== AppStatus.RUNNING || !isTor">
+              <div class="launch-button-triangle"  (click)="launchUiTab(vars.tor, app.id, $event)" [class.disabled]="vars.status !== AppStatus.RUNNING || !isTor">
                 <ion-icon class="launch-button-triangle-icon" name="globe-outline"></ion-icon>
               </div>
             </div>
