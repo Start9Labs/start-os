@@ -19,6 +19,8 @@ pub struct PortMapping {
 
 pub const ETC_TOR_RC: &'static str = "/etc/tor/torrc";
 pub const HIDDEN_SERVICE_DIR_ROOT: &'static str = "/var/lib/tor";
+pub const ETC_HOSTNAME: &'static str = "/etc/hostname";
+pub const ETC_NGINX_SERVICES_CONF: &'static str = "/etc/nginx/sites-available/start9-services.conf";
 
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -176,6 +178,34 @@ pub async fn write_services(hidden_services: &ServicesMap) -> Result<(), Error> 
         }
         f.write_all(b"\n").await?;
     }
+    write_lan_services(hidden_services).await?; // I know this doesn't belong here
+    Ok(())
+}
+
+pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Error> {
+    let hostname = tokio::fs::read_to_string(ETC_HOSTNAME).await?;
+    let mut f = tokio::fs::File::create(ETC_NGINX_SERVICES_CONF).await?;
+    for (name, service) in &hidden_services.map {
+        if service
+            .ports
+            .iter()
+            .filter(|p| p.internal == 80)
+            .next()
+            .is_none()
+        {
+            continue;
+        }
+        f.write_all(
+            format!(
+                include_str!("nginx.conf.template"),
+                hostname = hostname,
+                app_id = name,
+                app_ip = service.ip,
+            )
+            .as_bytes(),
+        )
+        .await?;
+    }
     Ok(())
 }
 
@@ -302,6 +332,19 @@ pub async fn set_svc(
             .or_else(|| { svc_exit.signal().map(|a| 128 + a) })
             .unwrap_or(0)
     );
+    log::info!("Reloading Nginx.");
+    let svc_exit = std::process::Command::new("service")
+        .args(&["nginx", "reload"])
+        .status()?;
+    crate::ensure_code!(
+        svc_exit.success(),
+        crate::error::GENERAL_ERROR,
+        "Failed to Reload Nginx: {}",
+        svc_exit
+            .code()
+            .or_else(|| { svc_exit.signal().map(|a| 128 + a) })
+            .unwrap_or(0)
+    );
     Ok((
         ip,
         if is_listening {
@@ -343,6 +386,19 @@ pub async fn rm_svc(name: &str) -> Result<(), Error> {
         crate::error::GENERAL_ERROR,
         "Failed to Reload Tor: {}",
         svc_exit.code().unwrap_or(0)
+    );
+    log::info!("Reloading Nginx.");
+    let svc_exit = std::process::Command::new("service")
+        .args(&["nginx", "reload"])
+        .status()?;
+    crate::ensure_code!(
+        svc_exit.success(),
+        crate::error::GENERAL_ERROR,
+        "Failed to Reload Nginx: {}",
+        svc_exit
+            .code()
+            .or_else(|| { svc_exit.signal().map(|a| 128 + a) })
+            .unwrap_or(0)
     );
     Ok(())
 }

@@ -24,8 +24,9 @@ mod v0_2_5;
 mod v0_2_6;
 mod v0_2_7;
 mod v0_2_8;
+mod v0_2_9;
 
-pub use v0_2_8::Version as Current;
+pub use v0_2_9::Version as Current;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -46,6 +47,7 @@ enum Version {
     V0_2_6(Wrapper<v0_2_6::Version>),
     V0_2_7(Wrapper<v0_2_7::Version>),
     V0_2_8(Wrapper<v0_2_8::Version>),
+    V0_2_9(Wrapper<v0_2_9::Version>),
     Other(emver::Version),
 }
 
@@ -156,6 +158,7 @@ pub async fn init() -> Result<(), failure::Error> {
             Version::V0_2_6(v) => v.0.migrate_to(&Current::new()).await?,
             Version::V0_2_7(v) => v.0.migrate_to(&Current::new()).await?,
             Version::V0_2_8(v) => v.0.migrate_to(&Current::new()).await?,
+            Version::V0_2_9(v) => v.0.migrate_to(&Current::new()).await?,
             Version::Other(_) => (),
             // TODO find some way to automate this?
         }
@@ -172,7 +175,8 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         .collect();
     let url = format!("{}/appmgr?spec={}", &*crate::SYS_REGISTRY_URL, req_str);
     log::info!("Fetching new version from {}", url);
-    let response = reqwest::get(&url).compat()
+    let response = reqwest::get(&url)
+        .compat()
         .await
         .with_code(crate::error::NETWORK_ERROR)?
         .error_for_status()
@@ -244,6 +248,7 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         Version::V0_2_6(v) => Current::new().migrate_to(&v.0).await?,
         Version::V0_2_7(v) => Current::new().migrate_to(&v.0).await?,
         Version::V0_2_8(v) => Current::new().migrate_to(&v.0).await?,
+        Version::V0_2_9(v) => Current::new().migrate_to(&v.0).await?,
         Version::Other(_) => (),
         // TODO find some way to automate this?
     };
