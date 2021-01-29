@@ -410,7 +410,7 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
   status: ServerStatus.RUNNING,
   alternativeRegistryUrl: 'beta-registry.start9labs.com',
   welcomeAck: true,
-  autoCheckUpdates: false,
+  autoCheckUpdates: true,
   specs: {
     'Tor Address': 'nfsnjkcnaskjnlkasnfahj7dh23fdnieqwjdnhjewbfijendiueqwbd.onion',
     'CPU': 'Broadcom BCM2711, Quad core Cortex-A72 (ARM v8) 64-bit SoC @ 1.5GHz',
@@ -440,7 +440,10 @@ const mockApiServer: () => ReqRes.GetServerRes = () => ({
 
 const mockVersionLatest: ReqRes.GetVersionLatestRes = {
   versionLatest: '15.2.8.6',
-  canUpdate: true,
+  releaseNotes: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent aliquet, sapien sit amet pretium lacinia, neque tortor consectetur nunc, non volutpat lectus neque in leo. Curabitur a odio eleifend, placerat purus non, aliquet nulla. Aliquam eget lacinia lectus. Aliquam gravida elit eu magna pretium, non interdum tortor vulputate. Ut ac tortor vel tellus blandit malesuada ac ac tortor. Integer tincidunt est quam, non convallis sapien vehicula sed. Donec ullamcorper convallis massa, nec euismod enim tempus vitae. In condimentum semper pulvinar. Sed viverra est id lectus tincidunt, et malesuada eros malesuada.
+  Curabitur scelerisque eu mauris eget dapibus. In egestas est sit amet nisi cursus iaculis. Mauris consequat pharetra ex, vitae sollicitudin tortor viverra id. Suspendisse lacinia justo id tincidunt feugiat. Nunc risus elit, viverra vel vestibulum ac, varius vel eros. Nam at tellus tempor, semper metus et, tristique elit. Vivamus a dui sit amet orci tincidunt tincidunt. Cras ut velit pretium, euismod dolor non, pulvinar lorem. Praesent dignissim eros quis tortor bibendum, nec convallis libero viverra. Aenean sit amet massa maximus eros congue pellentesque ac nec massa. Nam feugiat felis mi, a aliquet enim porta eget.
+  Phasellus pellentesque magna vel elit malesuada elementum. Curabitur maximus scelerisque vulputate. Duis facilisis et nisi sed facilisis. Ut consectetur odio tortor, vitae elementum velit scelerisque eget. Maecenas bibendum, massa eu bibendum rhoncus, turpis ex condimentum elit, vel pulvinar ex mi sed urna. Etiam ac erat lectus. Suspendisse dignissim massa tortor. Donec ac dolor in tortor faucibus scelerisque. Nullam et lacus eros. Cras eget sapien nec felis condimentum tincidunt. Praesent ac ante dui. Nam euismod nunc neque, et scelerisque erat efficitur nec. Aenean efficitur tincidunt nulla, ac tempor leo blandit sed. Duis sed tellus quis ante consequat ornare nec vitae eros. Praesent ultrices nunc ut lacus tincidunt finibus. Praesent at eros non est commodo ultricies.
+  Curabitur eu felis convallis, lobortis nulla laoreet, commodo lacus. Vestibulum at sapien sed metus tincidunt vulputate. Donec cursus augue non sapien imperdiet cursus. Aliquam pellentesque ligula id magna blandit rutrum. Aliquam mattis ipsum leo, nec pharetra lectus tristique eu. Duis egestas mollis aliquam. Duis aliquet dictum risus, quis dictum mauris finibus id.`,
 }
 
 const mockApiServerMetrics: ReqRes.GetServerMetricsRes = {

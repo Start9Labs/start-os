@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core'
+import { Component, Input, NgZone, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core'
 import { IonContent, IonSlides, ModalController } from '@ionic/angular'
 import { BehaviorSubject, combineLatest, Subscription } from 'rxjs'
 import { map } from 'rxjs/operators'
@@ -7,7 +7,7 @@ import { capitalizeFirstLetter } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
 import { DependenciesComponent } from './dependencies/dependencies.component'
 import { DependentsComponent } from './dependents/dependents.component'
-import { DeveloperNotesComponent } from './developer-notes/developer-notes.component'
+import { DeveloperNotesComponent } from './notes/notes.component'
 import { Colorable, Loadable } from './loadable'
 import { WizardAction } from './wizard-types'
 
@@ -50,7 +50,7 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
   $currentColor$: BehaviorSubject<string> = new BehaviorSubject('medium')
   $error$ = new BehaviorSubject(undefined)
 
-  constructor (private readonly modalController: ModalController) { super() }
+  constructor (private readonly modalController: ModalController, private readonly zone: NgZone) { super() }
   ngOnInit () { }
 
   ngAfterViewInit () {
@@ -80,15 +80,17 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
 
   private async slide () {
     if (this.slideComponents[this.slideIndex + 1] === undefined) { return this.finished({ final: true }) }
-    this.slideIndex += 1
-    this.currentSlide.load()
-    await this.slideContainer.lockSwipes(false)
-    await Promise.all([
-      this.contentContainer.scrollToTop(),
-      this.slideContainer.slideNext(500),
-    ])
-    await this.slideContainer.lockSwipes(true)
-    this.slideContainer.update()
+    this.zone.run(async () => {
+      this.slideIndex += 1
+      this.currentSlide.load()
+      await this.slideContainer.lockSwipes(false)
+      await Promise.all([
+        this.contentContainer.scrollToTop(),
+        this.slideContainer.slideNext(500),
+      ])
+      await this.slideContainer.lockSwipes(true)
+      // this.slideContainer.update()
+    })
   }
 }
 
@@ -114,7 +116,7 @@ export type SlideDefinition = SlideCommon & (
     selector: 'complete',
     params: CompleteComponent['params']
   } | {
-    selector: 'developer-notes',
+    selector: 'notes',
     params: DeveloperNotesComponent['params']
   }
 )
