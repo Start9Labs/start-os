@@ -1,13 +1,13 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { DeveloperNotesComponent } from './notes.component'
+import { NotesComponent } from './notes.component'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule } from '@angular/router'
 import { SharingModule } from 'src/app/modules/sharing.module'
 
 @NgModule({
   declarations: [
-    DeveloperNotesComponent,
+    NotesComponent,
   ],
   imports: [
     CommonModule,
@@ -15,6 +15,6 @@ import { SharingModule } from 'src/app/modules/sharing.module'
     RouterModule.forChild([]),
     SharingModule,
   ],
-  exports: [DeveloperNotesComponent],
+  exports: [NotesComponent],
 })
-export class DeveloperNotesComponentModule { }
+export class NotesComponentModule { }

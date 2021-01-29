@@ -8,7 +8,7 @@ import { WizardAction } from '../wizard-types'
   templateUrl: './notes.component.html',
   styleUrls: ['../install-wizard.component.scss'],
 })
-export class DeveloperNotesComponent implements OnInit, Loadable, Colorable {
+export class NotesComponent implements OnInit, Loadable, Colorable {
   @Input() params: {
     action: WizardAction
     notes: string
