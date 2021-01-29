@@ -81,6 +81,13 @@
         </ion-item>
       </ng-container>
 
+      <ion-item-divider style="color: var(--ion-color-primary); font-weight: bold;">Release Notes</ion-item-divider>
+      <ion-item lines="none" button details="true" [disabled]="" (click)="presentModalReleaseNotes()" [disabled]="$newVersionLoading$ | async">
+        <ion-icon slot="start" name="newspaper-outline" color="medium"></ion-icon>
+        <ion-label *ngIf="!($newVersionLoading$ | async)"><ion-text style="font-weight: bold;" color="medium">New in {{ vars.versionViewing | displayEmver }}</ion-text></ion-label>
+        <ion-spinner style="display: block; margin: auto;" name="lines" color="dark" *ngIf="$newVersionLoading$ | async"></ion-spinner>
+      </ion-item>
+
       <ion-item-divider class="divider">Description</ion-item-divider>
       <ion-item lines="none">
         <ion-label class="ion-text-wrap">
@@ -88,13 +95,6 @@
             <h5>{{ vars.descriptionLong }}</h5>
           </ion-text>
         </ion-label>
-      </ion-item>
-
-      <ion-item-divider>Release Notes</ion-item-divider>
-      <ion-item lines="none" button details="true" [disabled]="" (click)="presentModalReleaseNotes()" [disabled]="$newVersionLoading$ | async">
-        <ion-icon slot="start" name="newspaper-outline" color="medium"></ion-icon>
-        <ion-label *ngIf="!($newVersionLoading$ | async)"><ion-text color="medium">New in {{ vars.versionViewing | displayEmver }}</ion-text></ion-label>
-        <ion-spinner style="display: block; margin: auto;" name="lines" color="dark" *ngIf="$newVersionLoading$ | async"></ion-spinner>
       </ion-item>
 
       <ng-container *ngIf="(vars.serviceRequirements)?.length">

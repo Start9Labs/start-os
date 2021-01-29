@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { LoadingOptions } from '@ionic/core'
 import { ServerModel, ServerStatus } from 'src/app/models/server-model'
-import { AlertController } from '@ionic/angular'
+import { AlertController, ModalController } from '@ionic/angular'
 import { S9Server } from 'src/app/models/server-model'
 import { ApiService } from 'src/app/services/api/api.service'
 import { SyncDaemon } from 'src/app/services/sync.service'
@@ -10,6 +10,8 @@ import { PropertySubject, toObservable } from 'src/app/util/property-subject.uti
 import { doForAtLeast } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
 import { Emver } from 'src/app/services/emver.service'
+import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
+import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 
 @Component({
   selector: 'server-show',
@@ -35,6 +37,8 @@ export class ServerShowPage {
     private readonly apiService: ApiService,
     private readonly syncDaemon: SyncDaemon,
     private readonly emver: Emver,
+    private readonly modalCtrl: ModalController,
+    private readonly wizardBaker: WizardBaker,
   ) { }
 
   async ngOnInit () {
@@ -83,9 +87,9 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      const { versionLatest } = await this.apiService.getVersionLatest()
+      const { versionLatest, releaseNotes } = await this.apiService.getVersionLatest()
       if (this.emver.compare(this.server.versionInstalled.getValue(), versionLatest) === -1) {
-        this.presentAlertUpdate(versionLatest)
+        this.presentAlertUpdate(versionLatest, releaseNotes)
       } else {
         this.presentAlertUpToDate()
       }
@@ -106,7 +110,7 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertUpdate (versionLatest: string) {
+  async presentAlertUpdate (versionLatest: string, releaseNotes: string) {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Confirm',
@@ -119,7 +123,7 @@ export class ServerShowPage {
         {
           text: 'Update',
           handler: () => {
-            this.updateEmbassyOS(versionLatest)
+            this.updateEmbassyOS(versionLatest, releaseNotes)
           },
         },
       ],
@@ -171,17 +175,18 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  private async updateEmbassyOS (versionLatest: string) {
-    this.loader
-        .displayDuringAsync(async () => {
-          await this.apiService.updateAgent(versionLatest)
-          this.serverModel.update({ status: ServerStatus.UPDATING })
-          // hides the "Update Embassy to..." button for this intance of the component
-          this.updatingFreeze = true
-          this.updating = true
-          setTimeout(() => this.updatingFreeze = false, 8000)
-        })
-        .catch(e => this.setError(e))
+  private async updateEmbassyOS (versionLatest: string, releaseNotes: string) {
+    const { cancelled } = await wizardModal(
+      this.modalCtrl,
+      this.wizardBaker.updateOS({
+        version: versionLatest,
+        releaseNotes: releaseNotes,
+      }),
+    )
+    if (cancelled) return
+    this.updatingFreeze = true
+    this.updating = true
+    setTimeout(() => this.updatingFreeze = false, 8000)
   }
 
   private async restart () {

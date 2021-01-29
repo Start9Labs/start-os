@@ -8,12 +8,13 @@ import { Emver } from './emver.service'
 
 
 // call checkForUpdates in marketplace pages, can subscribe globally however
+type UpdateAvailable = { versionLatest: string, releaseNotes: string}
 @Injectable({ providedIn: 'root' })
 export class OsUpdateService {
   // holds version latest if update available, undefined if not.
-  private readonly $updateAvailable$ = new BehaviorSubject<string>(undefined)
+  private readonly $updateAvailable$ = new BehaviorSubject<UpdateAvailable>(undefined)
 
-  watchForUpdateAvailable$ (): Observable<undefined | string> {
+  watchForUpdateAvailable$ (): Observable<undefined | UpdateAvailable> {
     return this.$updateAvailable$.asObservable().pipe(distinctUntilChanged())
   }
 
@@ -25,7 +26,7 @@ export class OsUpdateService {
   ) { }
 
   // emits the latest version or re-checks to see if there's a new latest version
-  checkWhenNotAvailable$ (): Observable<undefined | string> {
+  checkWhenNotAvailable$ (): Observable<undefined | UpdateAvailable> {
     return this.$updateAvailable$.pipe(
       take(1),
       concatMap(vl => vl ? of(vl) : this.checkForUpdates$()),
@@ -33,12 +34,12 @@ export class OsUpdateService {
   }
 
   // can sub to this imperatively and take the return value as gospel, or watch the $updateAvailable$ subject for the same info.
-  checkForUpdates$ (): Observable<undefined | string> {
+  checkForUpdates$ (): Observable<undefined | UpdateAvailable> {
     return forkJoin([
       this.serverModel.watch().versionInstalled.pipe(take(1)),
       this.apiService.getVersionLatest(),
     ]).pipe(
-      map(([vi, vl]) => this.updateIsAvailable(vi, vl.versionLatest) ? vl.versionLatest : undefined),
+      map(([vi, vl]) => this.updateIsAvailable(vi, vl) ? vl : undefined),
       catchError(e => {
         console.error(`OsUpdateService Error: ${e}`)
         return of(undefined)
@@ -48,9 +49,9 @@ export class OsUpdateService {
     )
   }
 
-  updateIsAvailable (vi: string, vl: string): boolean {
+  updateIsAvailable (vi: string, vl: UpdateAvailable): boolean {
     if (!vi || !vl) return false
-    if (this.emver.compare(vi, vl) === -1) {
+    if (this.emver.compare(vi, vl.versionLatest) === -1) {
       this.$updateAvailable$.next(vl)
       return true
     } else {
