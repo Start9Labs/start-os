@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core'
 import { AlertController, IonicSafeString, ModalController, NavController } from '@ionic/angular'
+import { wizardModal } from '../components/install-wizard/install-wizard.component'
+import { WizardBaker } from '../components/install-wizard/prebaked-wizards'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { S9Server } from '../models/server-model'
 import { displayEmver } from '../pipes/emver.pipe'
-import { ApiService } from './api/api.service'
+import { ApiService, ReqRes } from './api/api.service'
 import { ConfigService } from './config.service'
 import { Emver } from './emver.service'
-import { LoaderService } from './loader.service'
 import { OsUpdateService } from './os-update.service'
 
 @Injectable({ providedIn: 'root' })
@@ -14,12 +15,12 @@ export class StartupAlertsNotifier {
   constructor (
     private readonly alertCtrl: AlertController,
     private readonly navCtrl: NavController,
-    private readonly loader: LoaderService,
     private readonly config: ConfigService,
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
     private readonly emver: Emver,
     private readonly osUpdateService: OsUpdateService,
+    private readonly wizardBaker: WizardBaker,
   ) { }
 
   // This takes our three checks and filters down to those that should run.
@@ -54,7 +55,7 @@ export class StartupAlertsNotifier {
     display: s => this.displayOsWelcome(s),
     hasRun: false,
   }
-  osUpdate: Check<string | undefined> = {
+  osUpdate: Check<ReqRes.GetVersionLatestRes | undefined> = {
     name: 'osUpdate',
     shouldRun: s => this.shouldRunOsUpdateCheck(s),
     check: s => this.osUpdateCheck(s),
@@ -83,9 +84,9 @@ export class StartupAlertsNotifier {
     return server.autoCheckUpdates
   }
 
-  private async osUpdateCheck (s: Readonly<S9Server>): Promise<string | undefined> {
-    const { versionLatest } = await this.apiService.getVersionLatest()
-    return this.osUpdateService.updateIsAvailable(s.versionInstalled, versionLatest) ? versionLatest : undefined
+  private async osUpdateCheck (s: Readonly<S9Server>): Promise<ReqRes.GetVersionLatestRes | undefined> {
+    const res = await this.apiService.getVersionLatest()
+    return this.osUpdateService.updateIsAvailable(s.versionInstalled, res) ? res : undefined
   }
 
   private async appsCheck (): Promise<boolean> {
@@ -113,12 +114,17 @@ export class StartupAlertsNotifier {
     })
   }
 
-  private async displayOsUpdateCheck (versionLatest: string | undefined): Promise<boolean> {
-    const { update } = await this.presentAlertNewOS(versionLatest)
+  private async displayOsUpdateCheck (res: ReqRes.GetVersionLatestRes): Promise<boolean> {
+    const { update } = await this.presentAlertNewOS(res.versionLatest)
     if (update) {
-      await this.loader.displayDuringP(
-        this.osUpdateService.updateEmbassyOS(versionLatest),
-        ).catch(e => alert(e))
+      const { cancelled } = await wizardModal(
+        this.modalCtrl,
+        this.wizardBaker.updateOS({
+          version: res.versionLatest,
+          releaseNotes: res.releaseNotes,
+        }),
+      )
+      if (cancelled) return true
       return false
     }
     return true
@@ -134,7 +140,7 @@ export class StartupAlertsNotifier {
             <div>New service updates are available in the Marketplace.</div>
             <div style="font-size:x-small">You can disable these checks in your Embassy Config</div>
           </div>
-          `
+          `,
         ),
         buttons: [
           {
@@ -165,7 +171,7 @@ export class StartupAlertsNotifier {
             <div>Update EmbassyOS to version ${displayEmver(versionLatest)}?</div>
             <div style="font-size:x-small">You can disable these checks in your Embassy Config</div>
           </div>
-          `
+          `,
         ),
         buttons: [
           {

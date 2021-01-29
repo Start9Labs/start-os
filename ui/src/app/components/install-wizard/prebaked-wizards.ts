@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
+import { OsUpdateService } from 'src/app/services/os-update.service'
 import { exists } from 'src/app/util/misc.util'
 import { AppDependency, DependentBreakage, AppInstalledPreview } from '../../models/app-types'
 import { ApiService } from '../../services/api/api.service'
@@ -7,7 +8,11 @@ import { InstallWizardComponent, SlideDefinition, TopbarParams } from './install
 
 @Injectable({ providedIn: 'root' })
 export class WizardBaker {
-  constructor (private readonly apiService: ApiService, private readonly appModel: AppModel) { }
+  constructor (
+    private readonly apiService: ApiService,
+    private readonly updateService: OsUpdateService,
+    private readonly appModel: AppModel
+  ) { }
 
   install (values: {
     id: string, title: string, version: string, serviceRequirements: AppDependency[], installAlert?: string
@@ -23,8 +28,8 @@ export class WizardBaker {
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
-      installAlert ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
-        action, developerNotes: installAlert,
+      installAlert ? { selector: 'notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
+        action, notes: installAlert, title: 'Warning', titleColor: 'warning',
       }} : undefined,
       { selector: 'dependencies', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Install', params: {
         action, title, version, serviceRequirements,
@@ -52,8 +57,8 @@ export class WizardBaker {
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
-      installAlert ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
-        action, developerNotes: installAlert,
+      installAlert ? { selector: 'notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
+        action, notes: installAlert, title: 'Warning', titleColor: 'warning',
       }} : undefined,
       { selector: 'dependencies', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Update', params: {
         action, title, version, serviceRequirements,
@@ -65,6 +70,29 @@ export class WizardBaker {
         action, verb: 'beginning update for', title, executeAction: () => this.apiService.installApp(id, version).then(app => {
           this.appModel.update({ id: app.id, status: AppStatus.INSTALLING })
         }),
+      }},
+    ]
+    return { toolbar, slideDefinitions: slideDefinitions.filter(exists) }
+  }
+
+  updateOS (values: {
+    version: string, releaseNotes: string
+  }): InstallWizardComponent['params'] {
+    const { version, releaseNotes } = values
+
+    validate(version, exists, 'missing version')
+    validate(releaseNotes, exists, 'missing updateMessage')
+
+    const action = 'update'
+    const title = 'EmbassyOS'
+    const toolbar: TopbarParams  = { action, title, version }
+
+    const slideDefinitions: SlideDefinition[] = [
+      { selector: 'notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Update OS', params: {
+        action, notes: releaseNotes, title: 'Release Notes', titleColor: 'dark',
+      }},
+      { selector: 'complete', finishButton: 'Dismiss', cancelButton: { whileLoading: { } }, params: {
+        action, verb: 'beginning update for', title, executeAction: () => this.updateService.updateEmbassyOS(version),
       }},
     ]
     return { toolbar, slideDefinitions: slideDefinitions.filter(exists) }
@@ -84,8 +112,8 @@ export class WizardBaker {
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
-      installAlert ? { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
-        action, developerNotes: installAlert,
+      installAlert ? { selector: 'notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Next', params: {
+        action, notes: installAlert, title: 'Warning', titleColor: 'warning',
       }} : undefined,
       { selector: 'dependencies', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Downgrade', params: {
         action, title, version, serviceRequirements,
@@ -115,8 +143,8 @@ export class WizardBaker {
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
-      { selector: 'developer-notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Continue', params: {
-        action, developerNotes: uninstallAlert || defaultUninstallationWarning(title) },
+      { selector: 'notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Continue', params: {
+        action, notes: uninstallAlert || defaultUninstallationWarning(title), title: 'Warning', titleColor: 'warning' },
       },
       { selector: 'dependents', cancelButton: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, nextButton: 'Uninstall', params: {
         action, verb: 'uninstalling', title, fetchBreakages: () => this.apiService.uninstallApp(id, true).then( ({ breakages }) => breakages ),

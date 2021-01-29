@@ -1,9 +1,10 @@
 import { Component } from '@angular/core'
 import { OsUpdateService } from 'src/app/services/os-update.service'
 import { Observable } from 'rxjs'
-import { AlertController } from '@ionic/angular'
-import { LoaderService } from 'src/app/services/loader.service'
-import { displayEmver } from 'src/app/pipes/emver.pipe'
+import { ModalController } from '@ionic/angular'
+import { WizardBaker } from '../install-wizard/prebaked-wizards'
+import { wizardModal } from '../install-wizard/install-wizard.component'
+import { ReqRes } from 'src/app/services/api/api.service'
 
 @Component({
   selector: 'update-os-banner',
@@ -11,38 +12,24 @@ import { displayEmver } from 'src/app/pipes/emver.pipe'
   styleUrls: ['./update-os-banner.component.scss'],
 })
 export class UpdateOsBannerComponent {
-  updateAvailable$: Observable<undefined | string>
+  updateAvailable$: Observable<undefined | ReqRes.GetVersionLatestRes>
   constructor (
     private readonly osUpdateService: OsUpdateService,
-    private readonly alertCtrl: AlertController,
-    private readonly loader: LoaderService,
+    private readonly modalCtrl: ModalController,
+    private readonly wizardBaker: WizardBaker,
   ) {
     this.updateAvailable$ = this.osUpdateService.watchForUpdateAvailable$()
   }
 
   ngOnInit () { }
 
-  async confirmUpdate (versionLatest: string) {
-    const alert = await this.alertCtrl.create({
-      header: `Update EmbassyOS`,
-      message: `Update EmbassyOS to version ${displayEmver(versionLatest)}?`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Update',
-          handler: () => this.update(versionLatest),
-        },
-      ],
-    })
-    await alert.present()
-  }
-
-  private async update (versionLatest: string) {
-    return this.loader.displayDuringP(
-      this.osUpdateService.updateEmbassyOS(versionLatest),
+  async confirmUpdate (res: ReqRes.GetVersionLatestRes) {
+    await wizardModal(
+      this.modalCtrl,
+      this.wizardBaker.updateOS({
+        version: res.versionLatest,
+        releaseNotes: res.releaseNotes,
+      }),
     )
   }
 }

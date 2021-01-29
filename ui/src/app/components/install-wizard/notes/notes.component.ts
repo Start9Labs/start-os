@@ -4,24 +4,24 @@ import { Colorable, Loadable } from '../loadable'
 import { WizardAction } from '../wizard-types'
 
 @Component({
-  selector: 'developer-notes',
-  templateUrl: './developer-notes.component.html',
+  selector: 'notes',
+  templateUrl: './notes.component.html',
   styleUrls: ['../install-wizard.component.scss'],
 })
 export class DeveloperNotesComponent implements OnInit, Loadable, Colorable {
   @Input() params: {
     action: WizardAction
-    developerNotes: string
+    notes: string
+    title: string
+    titleColor: string
   }
 
   $loading$ = new BehaviorSubject(false)
-  $color$ = new BehaviorSubject('warning')
+  $color$ = new BehaviorSubject('light')
   $cancel$ = new Subject<void>()
 
   load () { }
 
   constructor () { }
-  ngOnInit () {
-    console.log('Developer Notes', this.params)
-  }
+  ngOnInit () { this.$color$.next(this.params.titleColor) }
 }

@@ -115,7 +115,7 @@ export interface S9Server {
   name: string
   origin: string
   versionInstalled: string
-  versionLatest: string | undefined
+  versionLatest: string | undefined // not on the api as of 0.2.8
   status: ServerStatus
   badge: number
   alternativeRegistryUrl: string | null
