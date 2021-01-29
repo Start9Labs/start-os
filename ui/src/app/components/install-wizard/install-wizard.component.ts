@@ -7,7 +7,7 @@ import { capitalizeFirstLetter } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
 import { DependenciesComponent } from './dependencies/dependencies.component'
 import { DependentsComponent } from './dependents/dependents.component'
-import { DeveloperNotesComponent } from './notes/notes.component'
+import { NotesComponent } from './notes/notes.component'
 import { Colorable, Loadable } from './loadable'
 import { WizardAction } from './wizard-types'
 
@@ -89,7 +89,6 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
         this.slideContainer.slideNext(500),
       ])
       await this.slideContainer.lockSwipes(true)
-      // this.slideContainer.update()
     })
   }
 }
@@ -117,7 +116,7 @@ export type SlideDefinition = SlideCommon & (
     params: CompleteComponent['params']
   } | {
     selector: 'notes',
-    params: DeveloperNotesComponent['params']
+    params: NotesComponent['params']
   }
 )
 
