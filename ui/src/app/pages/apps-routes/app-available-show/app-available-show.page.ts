@@ -4,8 +4,8 @@ import { AppAvailableFull, AppAvailableVersionSpecificInfo } from 'src/app/model
 import { ApiService } from 'src/app/services/api/api.service'
 import { AlertController, ModalController, NavController, PopoverController } from '@ionic/angular'
 import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
-import { BehaviorSubject, combineLatest, from, merge, Observable, of } from 'rxjs'
-import { catchError, concatMap, delay, filter, skip, switchMap, tap } from 'rxjs/operators'
+import { BehaviorSubject, from, Observable, of } from 'rxjs'
+import { catchError, concatMap, filter, switchMap, tap } from 'rxjs/operators'
 import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
@@ -13,7 +13,6 @@ import { AppModel } from 'src/app/models/app-model'
 import { initPropertySubject, peekProperties, PropertySubject } from 'src/app/util/property-subject.util'
 import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
-import { AppReleaseNotesPage } from 'src/app/modals/app-release-notes/app-release-notes.page'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 
@@ -187,20 +186,6 @@ export class AppAvailableShowPage extends Cleanup {
           this.wizardBaker.downgrade(value),
         ).then(({ cancelled }) => cancelled || this.navCtrl.back())
     }
-  }
-
-  async presentModalReleaseNotes () {
-    const { releaseNotes, versionViewing } = peekProperties(this.$app$)
-
-    const modal = await this.modalCtrl.create({
-      component: AppReleaseNotesPage,
-      componentProps: {
-        releaseNotes,
-        version: versionViewing,
-      },
-    })
-
-    await modal.present()
   }
 
   private fetchRecommendation (): Observable<any> {

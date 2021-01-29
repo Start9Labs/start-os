@@ -12,7 +12,6 @@ import { RecommendationButtonComponentModule } from 'src/app/components/recommen
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
 import { ErrorMessageComponentModule } from 'src/app/components/error-message/error-message.component.module'
 import { InformationPopoverComponentModule } from 'src/app/components/information-popover/information-popover.component.module'
-import { AppReleaseNotesPageModule } from 'src/app/modals/app-release-notes/app-release-notes.module'
 
 const routes: Routes = [
   {
@@ -35,7 +34,6 @@ const routes: Routes = [
     InstallWizardComponentModule,
     ErrorMessageComponentModule,
     InformationPopoverComponentModule,
-    AppReleaseNotesPageModule,
   ],
   declarations: [AppAvailableShowPage],
 })
