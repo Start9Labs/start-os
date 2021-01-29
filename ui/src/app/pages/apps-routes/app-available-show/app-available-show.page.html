@@ -81,10 +81,11 @@
         </ion-item>
       </ng-container>
 
-      <ion-item-divider style="color: var(--ion-color-primary); font-weight: bold;">Release Notes</ion-item-divider>
-      <ion-item lines="none" button details="true" [disabled]="" (click)="presentModalReleaseNotes()" [disabled]="$newVersionLoading$ | async">
-        <ion-icon slot="start" name="newspaper-outline" color="medium"></ion-icon>
-        <ion-label *ngIf="!($newVersionLoading$ | async)"><ion-text style="font-weight: bold;" color="medium">New in {{ vars.versionViewing | displayEmver }}</ion-text></ion-label>
+      <ion-item-divider style="color: var(--ion-color-dark); font-weight: bold;">New in {{ vars.versionViewing | displayEmver }}</ion-item-divider>
+      <ion-item lines="none">
+        <ion-label *ngIf="!($newVersionLoading$ | async)" style="display: flex; align-items: center; justify-content: space-between;" class="ion-text-wrap" >
+          <div id='release-notes'color="dark" [innerHTML]="vars.releaseNotes | markdown"></div>
+        </ion-label>
         <ion-spinner style="display: block; margin: auto;" name="lines" color="dark" *ngIf="$newVersionLoading$ | async"></ion-spinner>
       </ion-item>
 
