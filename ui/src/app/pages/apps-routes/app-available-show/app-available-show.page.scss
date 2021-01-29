@@ -1,21 +1,6 @@
-// .recommendation-container {
-//   margin-top: 3px;
-//   display: grid;
-//   grid-template-columns: auto auto;
-//   justify-content: start;
-//   grid-column-gap: 5px;
-//   align-items: center;
-// }
-
 .recommendation-text {
   font-style: italic;
 }
-
-// @media (min-width:1000px) {
-//   .recommendation-text {
-//     font-size: small;
-//   }
-// }
 
 .recommendation-error {
   color: var(--ion-color-danger);
@@ -31,4 +16,9 @@
   font-size: medium;
   padding-left: 10px;
   font-weight: unset;
+}
+
+#release-notes {
+  overflow: auto;
+  max-height: 160px;
 }

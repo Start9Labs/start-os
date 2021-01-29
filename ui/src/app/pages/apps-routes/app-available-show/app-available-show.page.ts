@@ -4,8 +4,8 @@ import { AppAvailableFull, AppAvailableVersionSpecificInfo } from 'src/app/model
 import { ApiService } from 'src/app/services/api/api.service'
 import { AlertController, ModalController, NavController, PopoverController } from '@ionic/angular'
 import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
-import { BehaviorSubject, from, Observable, of } from 'rxjs'
-import { catchError, concatMap, filter, switchMap, tap } from 'rxjs/operators'
+import { BehaviorSubject, combineLatest, from, merge, Observable, of } from 'rxjs'
+import { catchError, concatMap, delay, filter, skip, switchMap, tap } from 'rxjs/operators'
 import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
@@ -38,8 +38,6 @@ export class AppAvailableShowPage extends Cleanup {
   recommendation: Recommendation | null = null
 
   serviceDependencyDefintion = '<span style="font-style: italic">Service Dependencies</span> are other services that this service recommends or requires in order to run.'
-
-  showMoreReleaseNotes = false
 
   constructor (
     private readonly route: ActivatedRoute,
