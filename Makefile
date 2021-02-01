@@ -23,8 +23,7 @@ buster.img:
 	mv 2020-08-20-raspios-buster-armhf-lite.img buster.img
 
 product_key:
-	echo "X\c" > product_key
-	cat /dev/random | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key
+	cat /dev/random | base32 | head -c11 | tr '[:upper:]' '[:lower:]' > product_key
 
 appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr: $(APPMGR_SRC)
 	docker run --rm -it -v ~/.cargo/registry:/root/.cargo/registry -v "$(shell pwd)":/home/rust/src start9/rust-arm-cross:latest sh -c "(cd appmgr && cargo build --release --features=production)"
