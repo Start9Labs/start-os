@@ -3,7 +3,7 @@ import { IonContent, IonSlides, ModalController } from '@ionic/angular'
 import { BehaviorSubject, combineLatest, Subscription } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { Cleanup } from 'src/app/util/cleanup'
-import { capitalizeFirstLetter } from 'src/app/util/misc.util'
+import { capitalizeFirstLetter, pauseFor } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
 import { DependenciesComponent } from './dependencies/dependencies.component'
 import { DependentsComponent } from './dependents/dependents.component'
@@ -81,13 +81,12 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
   private async slide () {
     if (this.slideComponents[this.slideIndex + 1] === undefined) { return this.finished({ final: true }) }
     this.zone.run(async () => {
+      this.slideComponents[this.slideIndex + 1].load()
+      await pauseFor(50)
       this.slideIndex += 1
-      this.currentSlide.load()
       await this.slideContainer.lockSwipes(false)
-      await Promise.all([
-        this.contentContainer.scrollToTop(),
-        this.slideContainer.slideNext(500),
-      ])
+      await this.contentContainer.scrollToTop()
+      await this.slideContainer.slideNext(500)
       await this.slideContainer.lockSwipes(true)
     })
   }
