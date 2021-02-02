@@ -19,12 +19,16 @@
     </ion-item>
 
     <ion-item-group>
-      <!-- TODO: Tor address needs a copy button. -->
       <ion-item *ngFor="let spec of (server.specs | async) | keyvalue : asIsOrder" [class.break-all]="spec.key === 'Tor Address'">
-        <ion-label class="ion-text-wrap">
-          <h2>{{ spec.key }}</h2>
-          <p *ngIf="spec.value | isValidEmver">{{ spec.value | displayEmver }}</p>
-          <p *ngIf="!(spec.value | isValidEmver)">{{ spec.value }}</p>
+        <ion-label class="ion-text-wrap" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2>{{ spec.key }}</h2>
+            <p *ngIf="spec.value | isValidEmver">{{ spec.value | displayEmver }}</p>
+            <p *ngIf="!(spec.value | isValidEmver)">{{ spec.value }}</p>
+          </div>
+          <ion-button *ngIf="spec.key === 'Tor Address'" fill="clear" (click)="copyTor()">
+            <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
+          </ion-button>
         </ion-label>
       </ion-item>
     </ion-item-group>
