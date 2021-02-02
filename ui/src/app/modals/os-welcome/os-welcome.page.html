@@ -8,30 +8,11 @@
 
 <ion-content class="ion-padding">
   <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%">
-    <div>
-      <h2>Highlights</h2>
-      <p>
-        0.2.8 is a small but important update designed to enhance awareness around potential pitfalls of using certain services.
-        It introduces warnings for installing, uninstalling, backing up, and restoring backups of stateful services such as LND or c-lightning.
-        Additionally, it draws a distinction between services that are designed to be launched inside the browser and those that are designed to run in the background
-      </p>
-      <p>
-        0.2.8 also introduces automatic update checks. With this enabled, each time you visit your embassy you will be notified if new Embassy OS or service versions are available. This setting can be edited in your Embassy Config page.
-        <ion-item lines="none" style="--border-radius: var(--icon-border-radius); margin-top: 15px">
-          <ion-label>Auto Check for Updates</ion-label>
-          <ion-toggle slot="end" [(ngModel)]="autoCheckUpdates"></ion-toggle>
-        </ion-item>
-      </p>
-
-      <div style="margin-top: 30px">
-        <h5 style="color: var(--ion-color-danger)">Important</h5>
-        <p>
-          If you have LND or c-lightning installed, please update them to the latest versions. 
-          An oversight in Start9’s USB backups system has created a situation where <b>restoring</b> a LND or c-lightning backup could potentially result in permanent loss of channel funds.
-          To be clear, <ion-text style="font-weight: 'bold';">DO NOT</ion-text> attempt to <b>restore</b> a LND or c-lightning backup until you have updated to the latest versions.
-        </p>
-      </div>
-    </div>
+    <h2>Highlights</h2>
+    <p>
+      0.2.9 introduces LAN support for services running on the Embassy. A service's LAN address (.local URL) can be accessed while connected to the same network.
+      This is useful for two reasons: (1) LAN connections are significantly faster than Tor, and (2) if the Tor network is experiencing connectivity issues, you will not be locked out of your services.
+    </p>
 
     <div class="close-button">
       <ion-button fill="outline" (click)="dismiss()">
