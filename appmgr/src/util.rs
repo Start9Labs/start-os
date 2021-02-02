@@ -156,10 +156,6 @@ impl PersistenceFile {
                     .await
                     .with_context(|e| format!("{}.lock: {}", path.path().display(), e))
                     .with_code(crate::error::FILESYSTEM_ERROR)?;
-                tokio::fs::remove_file(format!("{}.lock", path.path().display()))
-                    .await
-                    .with_context(|e| format!("{}.lock: {}", path.path().display(), e))
-                    .with_code(crate::error::FILESYSTEM_ERROR)?;
             }
 
             Ok(())
