@@ -320,14 +320,14 @@ getInstalledAppByIdLogic appId = do
             instructions <- lift $ LAsync.wait instructions'
             backupTime   <- lift $ LAsync.wait backupTime'
             pure AppInstalledFull { appInstalledFullBase = AppBase appId infoResTitle (iconUrl appId version)
-                                  , appInstalledFullStatus                 = status
-                                  , appInstalledFullVersionInstalled       = version
-                                  , appInstalledFullInstructions           = instructions
-                                  , appInstalledFullLastBackup             = backupTime
-                                  , appInstalledFullTorAddress             = infoResTorAddress
+                                  , appInstalledFullStatus = status
+                                  , appInstalledFullVersionInstalled = version
+                                  , appInstalledFullInstructions = instructions
+                                  , appInstalledFullLastBackup = backupTime
+                                  , appInstalledFullTorAddress = infoResTorAddress
                                   , appInstalledFullConfiguredRequirements = HM.elems requirements
-                                  , appInstalledFullUninstallAlert         = manifest >>= AppManifest.appManifestUninstallAlert
-                                  , appInstalledFullRestoreAlert           = manifest >>= AppManifest.appManifestRestoreAlert
+                                  , appInstalledFullUninstallAlert = manifest >>= AppManifest.appManifestUninstallAlert
+                                  , appInstalledFullRestoreAlert = manifest >>= AppManifest.appManifestRestoreAlert
                                   }
     runMaybeT (installing <|> installed) `orThrowM` NotFoundE "appId" (show appId)
 
@@ -360,7 +360,7 @@ postUninstallAppLogic appId dryrun revert = do
         Just CreatingBackup  -> throwError (TemporarilyForbiddenE appId "uninstall" (show CreatingBackup))
         Just RestoringBackup -> throwError (TemporarilyForbiddenE appId "uninstall" (show RestoringBackup))
         _                    -> pure ()
-    let flags = if coerce dryrun then Left dryrun else Right (AppMgr2.Purge True, revert)
+    let flags = (if coerce dryrun then Left dryrun else Right (AppMgr2.Purge True), revert)
     AppMgr2.AppDifferential {..} <- AppMgr2.remove flags appId
     when (not $ coerce dryrun) $ for_ appDifferentialNeedsRestart postRestartServerAppLogic
     bs <-

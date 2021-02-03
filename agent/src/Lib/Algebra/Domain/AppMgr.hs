@@ -252,7 +252,7 @@ data AppMgr (m :: Type -> Type) k where
     -- Logs ::_
     -- Notifications ::_
     -- Pack ::_
-    Remove ::Either DryRun (Purge, CleanupConfig) -> AppId -> AppMgr m AppDifferential
+    Remove ::(Either DryRun Purge, CleanupConfig) -> AppId -> AppMgr m AppDifferential
     Restart ::AppId -> AppMgr m ()
     -- SelfUpdate ::_
     -- Semver ::_
@@ -366,13 +366,14 @@ instance (Has (Error S9Error) sig m, Algebra sig m, MonadIO m) => Algebra (AppMg
                     Right x -> pure x
                 ExitFailure n -> throwError $ AppMgrE "list" n
             pure $ ctx $> res
-        (L (Remove dryorpurge appId)) -> do
-            let args = "remove" : case dryorpurge of
+        (L (Remove (dryorpurge, CleanupConfig cleanup) appId)) -> do
+            let addCleanup = if cleanup then ("--cleanup-config" :) else id
+            let
+                args = "remove" : addCleanup case dryorpurge of
                     Left (DryRun True ) -> ["--dry-run", show appId, "--json"]
                     Left (DryRun False) -> [show appId, "--json"]
-                    Right (Purge purge, CleanupConfig cleanup) ->
-                        let addPurge   = if purge then ("--purge" :) else id
-                            addCleanup = if cleanup then ("--cleanup-config" :) else id
+                    Right (Purge purge) ->
+                        let addPurge = if purge then ("--purge" :) else id
                         in  addPurge . addCleanup $ [show appId, "--json"]
             (ec, out) <- readProcessInheritStderr "appmgr" args ""
             res       <- case ec of
