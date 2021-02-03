@@ -15,11 +15,13 @@ import           Lib.Types.Emver
 import           Model
 
 data VersionLatestRes = VersionLatestRes
-    { versionLatestVersion :: Version
+    { versionLatestVersion      :: Version
+    , versionLatestReleaseNotes :: Maybe Text
     }
     deriving (Eq, Show)
 instance ToJSON VersionLatestRes where
-    toJSON VersionLatestRes {..} = object $ ["versionLatest" .= versionLatestVersion]
+    toJSON VersionLatestRes {..} =
+        object $ ["versionLatest" .= versionLatestVersion, "releaseNotes" .= versionLatestReleaseNotes]
 instance ToTypedContent VersionLatestRes where
     toTypedContent = toTypedContent . toJSON
 instance ToContent VersionLatestRes where
@@ -31,14 +33,15 @@ data ServerRes = ServerRes
     , serverStatus                 :: Maybe AppStatus
     , serverStatusAt               :: UTCTime
     , serverVersionInstalled       :: Version
-    , serverNotifications          :: [ Entity Notification ]
+    , serverNotifications          :: [Entity Notification]
     , serverWifi                   :: WifiList
-    , serverSsh                    :: [ SshKeyFingerprint ]
+    , serverSsh                    :: [SshKeyFingerprint]
     , serverAlternativeRegistryUrl :: Maybe Text
     , serverSpecs                  :: SpecsRes
     , serverWelcomeAck             :: Bool
     , serverAutoCheckUpdates       :: Bool
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
 type JsonEncoding a = Encoding
 jsonEncode :: (Monad m, ToJSON a) => a -> m (JsonEncoding a)

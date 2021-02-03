@@ -480,7 +480,7 @@ replaceDerivativeCerts :: (HasFilesystemBase sig m, Fused.Has (Error S9Error) si
 replaceDerivativeCerts = do
     sid <- getStart9AgentHostname
     let hostname = sid <> ".local"
-    tor            <- getAgentHiddenServiceUrl
+    torAddr        <- getAgentHiddenServiceUrl
 
     caKeyPath      <- toS <$> getAbsoluteLocationFor rootCaKeyPath
     caConfPath     <- toS <$> getAbsoluteLocationFor rootCaOpenSslConfPath
@@ -531,7 +531,7 @@ replaceDerivativeCerts = do
                           , duration          = 365
                           }
         hostname
-        tor
+        torAddr
     liftIO $ do
         putStrLn @Text "openssl logs"
         putStrLn @Text "exit code: "

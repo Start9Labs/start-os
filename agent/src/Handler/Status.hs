@@ -40,8 +40,7 @@ getVersionR = pure . AppVersionRes $ agentVersion
 getVersionLatestR :: Handler VersionLatestRes
 getVersionLatestR = handleS9ErrT $ do
     s <- getsYesod appSettings
-    v <- interp s $ Reg.getLatestAgentVersion
-    pure $ VersionLatestRes v
+    uncurry VersionLatestRes <$> interp s Reg.getLatestAgentVersion
     where interp s = ExceptT . liftIO . runError . injectFilesystemBaseFromContext s . runRegistryUrlIOC
 
 

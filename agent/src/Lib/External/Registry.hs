@@ -150,12 +150,13 @@ getAppVersionForSpec appId spec = do
         v <- o .: "version"
         pure v
 
-getLatestAgentVersion :: (Has RegistryUrl sig m, Has (Error S9Error) sig m, MonadIO m) => m Version
+getLatestAgentVersion :: (Has RegistryUrl sig m, Has (Error S9Error) sig m, MonadIO m) => m (Version, Maybe Text)
 getLatestAgentVersion = do
     val <- registryRequest agentVersionPath
     parseOrThrow agentVersionPath val $ withObject "version response" $ \o -> do
-        v <- o .: "version"
-        pure v
+        v  <- o .: "version"
+        rn <- o .:? "release-notes"
+        pure (v, rn)
     where agentVersionPath = "sys/version/agent"
 
 getLatestAgentVersionForSpec :: (Has RegistryUrl sig m, Has (Lift IO) sig m, Has (Error S9Error) sig m)
