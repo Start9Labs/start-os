@@ -14,6 +14,7 @@
       <notes #components *ngIf="slide.selector === 'notes'" [params]="slide.params"></notes>
       <dependents #components *ngIf="slide.selector === 'dependents'" [params]="slide.params" [finished]="finished"></dependents>
       <complete #components *ngIf="slide.selector === 'complete'" [params]="slide.params" [finished]="finished"></complete>
+      <config-reverts #components *ngIf="slide.selector === 'config-reverts'" [params]="slide.params" [finished]="finished"></config-reverts>
     </ion-slide>
   </ion-slides>
 

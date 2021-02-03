@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { OsUpdateService } from 'src/app/services/os-update.service'
 import { exists } from 'src/app/util/misc.util'
-import { AppDependency, DependentBreakage, AppInstalledPreview } from '../../models/app-types'
+import { AppDependency, DependentBreakage, AppInstalledPreview, ConfigReverts } from '../../models/app-types'
 import { ApiService } from '../../services/api/api.service'
 import { InstallWizardComponent, SlideDefinition, TopbarParams } from './install-wizard.component'
 
@@ -142,12 +142,21 @@ export class WizardBaker {
     const action = 'uninstall'
     const toolbar: TopbarParams  = { action, title, version }
 
+    let configReverts: ConfigReverts = {  }
+    let dependentsNextButton = 'Uninstall'
     const slideDefinitions: SlideDefinition[] = [
       { selector: 'notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Continue', params: {
         action, notes: uninstallAlert || defaultUninstallationWarning(title), title: 'Warning', titleColor: 'warning' },
       },
       { selector: 'dependents', cancelButton: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, nextButton: 'Uninstall', params: {
-        action, verb: 'uninstalling', title, fetchBreakages: () => this.apiService.uninstallApp(id, true).then( ({ breakages }) => breakages ),
+        action, verb: 'uninstalling', title, fetchBreakages: () => this.apiService.uninstallApp(id, true).then( ({ breakages, changes }) => { 
+          configReverts = changes
+          if(configReverts) dependentsNextButton = 'Continue'
+          return breakages
+        }),
+      }},
+      { selector: 'config-reverts', cancelButton: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, nextButton: 'Continue Uninstall', params: {
+        fetchReverts: () => this.apiService.uninstallApp(id, true, true).then( ({ changes }) => changes ),
       }},
       { selector: 'complete', finishButton: 'Dismiss', cancelButton: { whileLoading: { } }, params: {
         action, verb: 'uninstalling', title, executeAction: () => this.apiService.uninstallApp(id).then(() => this.appModel.delete(id)),

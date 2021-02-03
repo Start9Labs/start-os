@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { HttpService, Method, HttpOptions } from '../http.service'
 import { AppModel, AppStatus } from '../../models/app-model'
-import { AppAvailablePreview, AppAvailableFull, AppInstalledFull, AppInstalledPreview, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
+import { AppAvailablePreview, AppAvailableFull, AppInstalledFull, AppInstalledPreview, DependentBreakage, AppAvailableVersionSpecificInfo, ConfigReverts } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerModel, DiskInfo } from '../../models/server-model'
 import { ApiService, ReqRes  } from './api.service'
 import { ApiServer, Unit } from './api-types'
@@ -9,7 +9,7 @@ import { HttpErrorResponse } from '@angular/common/http'
 import { isUnauthorized } from 'src/app/util/web.util'
 import { Replace } from 'src/app/util/types.util'
 import { AppMetrics, parseMetricsPermissive } from 'src/app/util/metrics.util'
-import { modulateTime } from 'src/app/util/misc.util'
+import { exists, modulateTime } from 'src/app/util/misc.util'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -136,8 +136,10 @@ export class LiveApiService extends ApiService {
       .then(res => ({ ...res, hasFetchedFull: false }))
   }
 
-  async uninstallApp (appId: string, dryRun: boolean = false): Promise<{ breakages: DependentBreakage[] }> {
-    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/uninstall${dryRunParam(dryRun, true)}`, readTimeout: 60000 })
+  async uninstallApp (appId: string, dryRun: boolean = false, revertDependencyConfigs: boolean = false): Promise<{ breakages: DependentBreakage[], changes: ConfigReverts }> {
+    const params = [dryRun && `dryRun`, revertDependencyConfigs && `revertDependencyConfigs`].filter(exists)
+    const paramString = params.length > 0 ? `?` + params.join('&') : ''
+    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/uninstall${paramString}`, readTimeout: 60000 })
   }
 
   async startApp (appId: string): Promise<Unit> {

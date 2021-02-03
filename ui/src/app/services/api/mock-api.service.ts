@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { AppStatus, AppModel } from '../../models/app-model'
-import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
+import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ConfigReverts } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerStatus, ServerModel, DiskInfo } from '../../models/server-model'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService, ReqRes } from './api.service'
@@ -117,7 +117,7 @@ export class MockApiService extends ApiService {
     return mockInstallApp(appId)
   }
 
-  async uninstallApp (appId: string, dryRun: boolean): Promise<{ breakages: DependentBreakage[] }> {
+  async uninstallApp (appId: string, dryRun: boolean): Promise<{ breakages: DependentBreakage[], changes: ConfigReverts }> {
     return mockUninstallApp()
   }
 
@@ -291,7 +291,7 @@ async function mockInstallApp (appId: string): Promise<AppInstalledFull & { brea
   return { ...mockApiAppInstalledFull[appId], hasFetchedFull: true, ...mockAppDependentBreakages }
 }
 
-async function mockUninstallApp (): Promise< { breakages: DependentBreakage[] } > {
+async function mockUninstallApp (): Promise< { breakages: DependentBreakage[], changes: ConfigReverts } > {
   await pauseFor(1000)
   return mockAppDependentBreakages
 }

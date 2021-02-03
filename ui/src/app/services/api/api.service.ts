@@ -1,5 +1,5 @@
 import { Rules } from '../../models/app-model'
-import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
+import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ConfigReverts } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerMetrics, DiskInfo } from '../../models/server-model'
 import { Subject, Observable } from 'rxjs'
 import { Unit, ApiServer, ApiAppInstalledFull, ApiAppConfig, ApiAppAvailableFull } from './api-types'
@@ -40,7 +40,7 @@ export abstract class ApiService {
   abstract getAppConfig (appId: string): Promise<{ spec: ConfigSpec, config: object, rules: Rules[]}>
   abstract getAppLogs (appId: string, params?: ReqRes.GetAppLogsReq): Promise<string[]>
   abstract installApp (appId: string, version: string, dryRun?: boolean): Promise<AppInstalledFull & { breakages: DependentBreakage[] }  >
-  abstract uninstallApp (appId: string, dryRun?: boolean): Promise<{ breakages: DependentBreakage[] }>
+  abstract uninstallApp (appId: string, dryRun?: boolean, revertDependencyChanges?: boolean): Promise<{ breakages: DependentBreakage[], changes: ConfigReverts }>
   abstract startApp (appId: string): Promise<Unit>
   abstract stopApp (appId: string, dryRun?: boolean): Promise<{ breakages: DependentBreakage[] }>
   abstract restartApp (appId: string): Promise<Unit>

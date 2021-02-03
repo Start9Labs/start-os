@@ -7,6 +7,7 @@ import { capitalizeFirstLetter, pauseFor } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
 import { DependenciesComponent } from './dependencies/dependencies.component'
 import { DependentsComponent } from './dependents/dependents.component'
+import { ConfigRevertsComponent } from './config-reverts/config-reverts.component'
 import { NotesComponent } from './notes/notes.component'
 import { Colorable, Loadable } from './loadable'
 import { WizardAction } from './wizard-types'
@@ -116,6 +117,9 @@ export type SlideDefinition = SlideCommon & (
   } | {
     selector: 'notes',
     params: NotesComponent['params']
+  } | {
+    selector: 'config-reverts',
+    params: ConfigRevertsComponent['params']
   }
 )
 
