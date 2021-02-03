@@ -7,9 +7,7 @@ import           Network.HTTP.Client
 import           Network.Connection
 
 import           Lib.SystemPaths
-import           Network.HTTP.Client.TLS        ( mkManagerSettings
-                                                , newTlsManagerWith
-                                                )
+import           Network.HTTP.Client.TLS        ( mkManagerSettings )
 import           Data.Default
 
 getAgentHiddenServiceUrl :: (HasFilesystemBase sig m, MonadIO m) => m Text
