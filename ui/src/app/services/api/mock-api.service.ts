@@ -11,7 +11,7 @@ import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppInst
 //@TODO consider moving to test folders.
 @Injectable()
 export class MockApiService extends ApiService {
-  welcomeAck = true
+  welcomeAck = false
 
   constructor (
     private readonly appModel: AppModel,
