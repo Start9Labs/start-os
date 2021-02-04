@@ -1,6 +1,6 @@
 manifest-version: 0
 app-id: start9-ambassador
-app-version: 0.2.8
+app-version: 0.2.9
 uri-rewrites:
     - =/api -> http://{{start9-ambassador}}:5959/authenticate
     - /api/ -> http://{{start9-ambassador}}:5959/
