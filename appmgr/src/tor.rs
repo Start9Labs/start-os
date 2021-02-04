@@ -199,7 +199,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
         f.write_all(
             format!(
                 include_str!("nginx.conf.template"),
-                hostname = hostname,
+                hostname = hostname.trim(),
                 app_id = name,
                 app_ip = service.ip,
             )
