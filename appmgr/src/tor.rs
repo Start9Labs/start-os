@@ -178,7 +178,8 @@ pub async fn write_services(hidden_services: &ServicesMap) -> Result<(), Error> 
         }
         f.write_all(b"\n").await?;
     }
-    write_lan_services(hidden_services).await?; // I know this doesn't belong here
+    write_lan_services(hidden_services).await?; // I know this doesn't belong here, should be abstracted along with `write_services`.
+                                                // This whole module should be refactored as its no longer just managing tor.
     Ok(())
 }
 
@@ -206,6 +207,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
         )
         .await?;
     }
+
     Ok(())
 }
 
