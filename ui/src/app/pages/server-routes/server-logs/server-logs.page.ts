@@ -1,5 +1,4 @@
 import { Component, ViewChild } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
 import { IonContent } from '@ionic/angular'
 import { pauseFor } from 'src/app/util/misc.util'
