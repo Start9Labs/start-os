@@ -68,10 +68,10 @@ hidden-service-version: v3
 
 spec :: Spec
 spec = do
-    describe "parsing app manifest ports" $ do
-        it "should yield true for cups 0.2.3" $ do
-            res <- decodeThrow @IO @(AppManifest 0) cups023Manifest
-            uiAvailable res `shouldBe` True
-        it "should yield false for cups 0.2.3 Mod" $ do
-            res <- decodeThrow @IO @(AppManifest 0) cups023ManifestModNoUI
-            uiAvailable res `shouldBe` False
+  describe "parsing app manifest ports" $ do
+    it "should yield true for cups 0.2.3" $ do
+      res <- decodeThrow @IO @AppManifest cups023Manifest
+      uiAvailable res `shouldBe` True
+    it "should yield false for cups 0.2.3 Mod" $ do
+      res <- decodeThrow @IO @AppManifest cups023ManifestModNoUI
+      uiAvailable res `shouldBe` False
