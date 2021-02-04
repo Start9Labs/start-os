@@ -113,6 +113,10 @@ export class MockApiService extends ApiService {
     return mockGetAppLogs()
   }
 
+  async getServerLogs (): Promise<string> {
+    return mockGetServerLogs()
+  }
+
   async installApp (appId: string, version: string, dryRun: boolean): Promise<AppInstalledFull & { breakages: DependentBreakage[] }> {
     return mockInstallApp(appId)
   }
@@ -269,6 +273,11 @@ async function mockGetInstalledApps (): Promise<AppInstalledPreview[]> {
 async function mockGetAppLogs (): Promise<ReqRes.GetAppLogsRes> {
   await pauseFor(1000)
   return mockApiAppLogs
+}
+
+async function mockGetServerLogs (): Promise<ReqRes.GetServerLogsRes> {
+  await pauseFor(1000)
+  return mockApiServerLogs.join('\n')
 }
 
 async function mockGetAppMetrics (): Promise<ReqRes.GetAppMetricsRes> {
@@ -526,6 +535,91 @@ const mockApiExternalDisks: DiskInfo[] = [
 ]
 
 const mockApiAppLogs: string[] = [
+  '****** START *****',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:20:30.872Z - Hash: 2b2e5abb3cba2164aea0',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1244ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:21:01.685Z - Hash: bb3f5d0e11f2cd2dd57b',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1185ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:23:13.812Z - Hash: 9342e11e6b8e16ad2f70',
+  '[ng] 114 unchanged chunks',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:20:30.872Z - Hash: 2b2e5abb3cba2164aea0',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1244ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:21:01.685Z - Hash: bb3f5d0e11f2cd2dd57b',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1185ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:23:13.812Z - Hash: 9342e11e6b8e16ad2f70',
+  '[ng] 114 unchanged chunks',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:20:30.872Z - Hash: 2b2e5abb3cba2164aea0',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1244ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:21:01.685Z - Hash: bb3f5d0e11f2cd2dd57b',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1185ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:23:13.812Z - Hash: 9342e11e6b8e16ad2f70',
+  '[ng] 114 unchanged chunks',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:20:30.872Z - Hash: 2b2e5abb3cba2164aea0',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1244ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:21:01.685Z - Hash: bb3f5d0e11f2cd2dd57b',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1185ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:23:13.812Z - Hash: 9342e11e6b8e16ad2f70',
+  '[ng] 114 unchanged chunks',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:20:30.872Z - Hash: 2b2e5abb3cba2164aea0',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1244ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:21:01.685Z - Hash: bb3f5d0e11f2cd2dd57b',
+  '[ng] 114 unchanged chunks',
+  '[ng] chunk {app-logs-app-logs-module} app-logs-app-logs-module.js, app-logs-app-logs-module.js.map (app-logs-app-logs-module) 7.86 kB  [rendered]',
+  '[ng] Time: 1185ms',
+  '[ng] ℹ ｢wdm｣: Compiled successfully.',
+  '[ng] ℹ ｢wdm｣: Compiling...',
+  '[ng] Date: 2019-12-26T14:23:13.812Z - Hash: 9342e11e6b8e16ad2f70',
+  '[ng] 114 unchanged chunks',
+  '****** FINISH *****',
+]
+
+const mockApiServerLogs: string[] = [
   '****** START *****',
   '[ng] ℹ ｢wdm｣: Compiled successfully.',
   '[ng] ℹ ｢wdm｣: Compiling...',

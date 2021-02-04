@@ -123,6 +123,10 @@ export class LiveApiService extends ApiService {
     return this.authRequest<ReqRes.GetAppLogsRes>( { method: Method.GET, url: `/apps/${appId}/logs`, params: params as any })
   }
 
+  async getServerLogs (): Promise<string> {
+    return this.authRequest<ReqRes.GetServerLogsRes>( { method: Method.GET, url: `/logs` })
+  }
+
   async getAppMetrics (appId: string): Promise<AppMetrics> {
     return this.authRequest<ReqRes.GetAppMetricsRes | string>( { method: Method.GET, url: `/apps/${appId}/metrics` })
       .then(parseMetricsPermissive)
