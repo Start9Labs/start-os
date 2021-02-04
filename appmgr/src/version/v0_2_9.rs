@@ -23,7 +23,14 @@ impl VersionT for Version {
             crate::tor::ETC_NGINX_SERVICES_CONF,
             "/etc/nginx/sites-enabled/start9-services.conf",
         )
-        .await?;
+        .await
+        .or_else(|e| {
+            if e.kind() == std::io::ErrorKind::AlreadyExists {
+                Ok(())
+            } else {
+                Err(e)
+            }
+        })?;
         let svc_exit = std::process::Command::new("service")
             .args(&["nginx", "reload"])
             .status()?;
