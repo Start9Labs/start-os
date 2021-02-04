@@ -12,24 +12,17 @@ import { ConfigService } from 'src/app/services/config.service'
 export class OSWelcomePage {
   @Input() version: string
 
-  autoCheckUpdates = true
-
   constructor (
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
-    private readonly serverModel: ServerModel,
     private readonly config: ConfigService,
   ) { }
 
   async dismiss () {
-    this.apiService
-        .patchServerConfig('autoCheckUpdates', this.autoCheckUpdates)
-        .then(() => this.serverModel.update({ autoCheckUpdates: this.autoCheckUpdates }))
-        .then(() => this.apiService.acknowledgeOSWelcome(this.config.version))
-        .catch(console.error)
+    this.apiService.acknowledgeOSWelcome(this.config.version).catch(console.error)
 
     // return false to skip subsequent alert modals (e.g. check for updates modals)
     // return true to show subsequent alert modals
-    return this.modalCtrl.dismiss(this.autoCheckUpdates)
+    return this.modalCtrl.dismiss(true)
   }
 }
