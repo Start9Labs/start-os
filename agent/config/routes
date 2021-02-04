@@ -13,6 +13,7 @@
 /v0/specs                             SpecsR                   GET
 /v0/metrics                           MetricsR                 GET
 
+/v0/logs                              LogsR                    GET
 /v0/sshKeys                           SshKeysR                 GET POST
 /v0/sshKeys/#Text                     SshKeyByFingerprintR     DELETE
 /v0/password                          PasswordR                PATCH
