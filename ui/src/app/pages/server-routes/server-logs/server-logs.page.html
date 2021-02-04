@@ -1,0 +1,22 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Logs</ion-title>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button (click)="getLogs()" color="primary">
+        <ion-icon name="refresh-outline"></ion-icon>
+      </ion-button>
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding" color="light">
+  <ion-item *ngIf="error" style="margin-bottom: 16px;">
+    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+  </ion-item>
+  <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
+  <p style="white-space: pre-line;">{{ logs }}</p>
+</ion-content>

@@ -19,6 +19,11 @@ const routes: Routes = [
     loadChildren: () => import('./server-metrics/server-metrics.module').then(m => m.ServerMetricsPageModule),
   },
   {
+    path: 'logs',
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./server-logs/server-logs.module').then(m => m.ServerLogsPageModule),
+  },
+  {
     path: 'config',
     canActivate: [AuthGuard],
     loadChildren: () => import('./server-config/server-config.module').then(m => m.ServerConfigPageModule),
