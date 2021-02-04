@@ -28,6 +28,11 @@ import           Lib.SystemPaths         hiding ( (</>) )
 import           Lib.Tor
 import           Settings
 import           Control.Carrier.Lift           ( runM )
+import           System.Process
+import qualified UnliftIO
+import           System.FileLock
+import           Yesod.Core.Content             ( typePlain )
+import           Conduit
 
 getVersionR :: Handler AppVersionRes
 getVersionR = pure . AppVersionRes $ agentVersion
@@ -69,3 +74,9 @@ patchServerR = do
 getGitR :: Handler Text
 getGitR = pure $embedGitRevision
 
+getLogsR :: Handler TypedContent
+getLogsR = do
+    let debugLock = "/root/agent/tmp/debug.lock"
+    UnliftIO.bracket (liftIO $ lockFile debugLock Exclusive) (liftIO . unlockFile) $ const $ do
+        liftIO $ callCommand "journalctl -u agent --since \"1 hour ago\" > /root/agent/tmp/debug.log"
+        respondSource typePlain $ sourceFile "/root/agent/tmp/debug.log" .| awaitForever sendChunkBS
