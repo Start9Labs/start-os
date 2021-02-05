@@ -39,11 +39,11 @@
 
       <!-- cancel button if loading/not loading -->
       <ion-button slot="start" *ngIf="v.loading && v.bar.cancel.whileLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline" color="medium">
-        <ion-text *ngIf="cancel.text as t">{{t}}</ion-text>
+        <ion-text *ngIf="cancel.text" [class.smaller-text]="cancel.text > 16">{{cancel.text}}</ion-text>
         <ion-icon *ngIf="!cancel.text" name="close-outline"></ion-icon>
       </ion-button>
       <ion-button slot="start" *ngIf="!v.loading && v.bar.cancel.afterLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline" color="medium">
-        <ion-text *ngIf="cancel.text as t">{{t}}</ion-text>
+        <ion-text *ngIf="cancel.text" [class.smaller-text]="cancel.text > 16">{{cancel.text}}</ion-text>
         <ion-icon *ngIf="!cancel.text" name="close-outline"></ion-icon>
       </ion-button>
 
