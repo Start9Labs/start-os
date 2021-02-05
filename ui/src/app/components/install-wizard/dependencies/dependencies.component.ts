@@ -5,7 +5,7 @@ import { AppStatus } from 'src/app/models/app-model'
 import { AppDependency, DependencyViolationSeverity, getViolationSeverity } from 'src/app/models/app-types'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { InformationPopoverComponent } from '../../information-popover/information-popover.component'
-import { Colorable, Loadable } from '../loadable'
+import { Loadable } from '../loadable'
 import { WizardAction } from '../wizard-types'
 
 @Component({
@@ -13,7 +13,7 @@ import { WizardAction } from '../wizard-types'
   templateUrl: './dependencies.component.html',
   styleUrls: ['../install-wizard.component.scss'],
 })
-export class DependenciesComponent implements OnInit, Loadable, Colorable {
+export class DependenciesComponent implements OnInit, Loadable {
   @Input() params: {
     action: WizardAction,
     title: string,

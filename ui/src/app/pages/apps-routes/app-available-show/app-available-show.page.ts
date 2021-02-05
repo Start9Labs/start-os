@@ -15,6 +15,7 @@ import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
+import { pauseFor } from 'src/app/util/misc.util'
 
 @Component({
   selector: 'app-available-show',
@@ -160,6 +161,7 @@ export class AppAvailableShowPage extends Cleanup {
       }),
     )
     if (cancelled) return
+    await pauseFor(250)
     this.navCtrl.back()
   }
 
@@ -174,18 +176,16 @@ export class AppAvailableShowPage extends Cleanup {
       installAlert: app.installAlert,
     }
 
-    switch (action) {
-      case 'update':
-        return wizardModal(
-          this.modalCtrl,
-          this.wizardBaker.update(value),
-        ).then(({ cancelled }) => cancelled || this.navCtrl.back())
-      case 'downgrade':
-        return wizardModal(
-          this.modalCtrl,
-          this.wizardBaker.downgrade(value),
-        ).then(({ cancelled }) => cancelled || this.navCtrl.back())
-    }
+    const { cancelled } = await wizardModal(
+      this.modalCtrl,
+      action === 'update' ?
+        this.wizardBaker.update(value) :
+        this.wizardBaker.downgrade(value),
+    )
+
+    if (cancelled) return
+    await pauseFor(250)
+    this.navCtrl.back()
   }
 
   private fetchRecommendation (): Observable<any> {

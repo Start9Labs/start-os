@@ -4,7 +4,7 @@ import { takeUntil, tap } from 'rxjs/operators'
 import { DependentBreakage } from 'src/app/models/app-types'
 import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { capitalizeFirstLetter } from 'src/app/util/misc.util'
-import { Colorable, Loadable } from '../loadable'
+import { Loadable } from '../loadable'
 import { WizardAction } from '../wizard-types'
 
 @Component({
@@ -12,7 +12,7 @@ import { WizardAction } from '../wizard-types'
   templateUrl: './dependents.component.html',
   styleUrls: ['../install-wizard.component.scss'],
 })
-export class DependentsComponent implements OnInit, Loadable, Colorable {
+export class DependentsComponent implements OnInit, Loadable {
   @Input() params: {
     title: string,
     action: WizardAction, //Are you sure you want to *uninstall*...,
@@ -20,7 +20,12 @@ export class DependentsComponent implements OnInit, Loadable, Colorable {
     fetchBreakages: () => Promise<DependentBreakage[]>,
     skipConfirmationDialogue?: boolean
   }
-  @Input() finished: (info: { error?: Error, cancelled?: true, final?: true }) => Promise<any>
+  @Input() transitions: {
+    cancel: () => void
+    next: () => void
+    final: () => void
+    error: (e: Error) => void
+  }
 
 
   dependentBreakages: DependentBreakage[]
@@ -46,13 +51,13 @@ export class DependentsComponent implements OnInit, Loadable, Colorable {
             this.longMessage = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title} will cause the following services to STOP running. Starting them again will require additional actions.`
             this.$color$.next('warning')
           } else if (this.params.skipConfirmationDialogue) {
-            this.finished({ })
+            this.transitions.next()
           } else {
             this.longMessage = `No other services installed on your Embassy will be affected by this action.`
             this.$color$.next('success')
           }
         },
-        error: (e: Error) => this.finished({ error: new Error(`Fetching dependent service information failed: ${e.message || e}`) }),
+        error: (e: Error) => this.transitions.error(new Error(`Fetching dependent service information failed: ${e.message || e}`)),
       },
     )
   }
