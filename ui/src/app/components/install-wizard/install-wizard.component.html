@@ -9,11 +9,12 @@
 
 <ion-content>
   <ion-slides *ngIf="!($error$ | async)" id="slide-show" style="--bullet-background: white" pager="false">
-    <ion-slide *ngFor="let slide of params.slideDefinitions">
-      <dependencies #components *ngIf="slide.selector === 'dependencies'" [params]="slide.params"></dependencies>
-      <notes #components *ngIf="slide.selector === 'notes'" [params]="slide.params"></notes>
-      <dependents #components *ngIf="slide.selector === 'dependents'" [params]="slide.params" [finished]="finished"></dependents>
-      <complete #components *ngIf="slide.selector === 'complete'" [params]="slide.params" [finished]="finished"></complete>
+    <ion-slide *ngFor="let def of params.slideDefinitions">
+      <!-- We can pass [transitions]="transitions" into the component if logic within the component needs to trigger a transition (not just bottom bar) -->
+      <dependencies #components *ngIf="def.slide.selector === 'dependencies'" [params]="def.slide.params"></dependencies>
+      <notes        #components *ngIf="def.slide.selector === 'notes'"        [params]="def.slide.params"></notes>
+      <dependents   #components *ngIf="def.slide.selector === 'dependents'"   [params]="def.slide.params" [transitions]="transitions"></dependents>
+      <complete     #components *ngIf="def.slide.selector === 'complete'"     [params]="def.slide.params" [transitions]="transitions"></complete>
     </ion-slide>
   </ion-slides>
 
@@ -34,20 +35,31 @@
 
 <ion-footer>
   <ion-toolbar style="padding: 8px;">
-    <ng-container *ngIf="!($error$ | async)">
-      <ion-button slot="start" *ngIf="($anythingLoading$ | async) && currentSlideDef.cancelButton.whileLoading as cancel" (click)="finished({ cancelled: true })" class="toolbar-button" fill="outline" color="medium">
+    <ng-container *ngIf="!($initializing$ | async) && !($error$ | async) && { loading: currentSlide.$loading$ | async, bar: currentBottomBar} as v">
+
+      <!-- cancel button if loading/not loading -->
+      <ion-button slot="start" *ngIf="v.loading && v.bar.cancel.whileLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline" color="medium">
         <ion-text *ngIf="cancel.text as t">{{t}}</ion-text>
         <ion-icon *ngIf="!cancel.text" name="close-outline"></ion-icon>
       </ion-button>
-      <ion-button slot="start" *ngIf="!($anythingLoading$ | async) && currentSlideDef.cancelButton.afterLoading as cancel" (click)="finished({ cancelled: true })" class="toolbar-button" fill="outline" color="medium">
+      <ion-button slot="start" *ngIf="!v.loading && v.bar.cancel.afterLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline" color="medium">
         <ion-text *ngIf="cancel.text as t">{{t}}</ion-text>
         <ion-icon *ngIf="!cancel.text" name="close-outline"></ion-icon>
       </ion-button>
-      <ion-button slot="end" *ngIf="!($anythingLoading$ | async) && currentSlideDef.nextButton as nextButton" (click)="finished({})" fill="outline" class="toolbar-button" color="primary"><ion-text [class.smaller-text]="nextButton.length > 16">{{nextButton}}</ion-text></ion-button>
-      <ion-button slot="end" *ngIf="!($anythingLoading$ | async) && currentSlideDef.finishButton as finishButton" (click)="finished({ final: true })" fill="outline" class="toolbar-button" color="primary"><ion-text [class.smaller-text]="finishButton.length > 16">{{finishButton}}</ion-text></ion-button>
+
+      <!-- next button -->
+      <ion-button slot="end" *ngIf="!v.loading && v.bar.next as next" (click)="transitions.next()" fill="outline" class="toolbar-button" color="primary">
+        <ion-text [class.smaller-text]="next.length > 16">{{next}}</ion-text>
+      </ion-button>
+
+      <!-- finish button -->
+      <ion-button slot="end" *ngIf="!v.loading && v.bar.finish as finish" (click)="transitions.final()" fill="outline" class="toolbar-button" color="primary">
+        <ion-text [class.smaller-text]="finish.length > 16">{{finish}}</ion-text>
+      </ion-button>
+
     </ng-container>
     <ng-container *ngIf="$error$ | async">
-      <ion-button slot="start" (click)="finished({ final: true })" style="text-transform: capitalize; font-weight: bolder;" color="danger">Dismiss</ion-button>
+      <ion-button slot="start" (click)="transitions.final()" style="text-transform: capitalize; font-weight: bolder;" color="danger">Dismiss</ion-button>
     </ng-container>
   </ion-toolbar>
 </ion-footer>
