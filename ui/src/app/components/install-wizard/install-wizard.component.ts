@@ -1,6 +1,6 @@
 import { Component, Input, NgZone, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core'
 import { IonContent, IonSlides, ModalController } from '@ionic/angular'
-import { BehaviorSubject, from, Observable, of } from 'rxjs'
+import { BehaviorSubject } from 'rxjs'
 import { Cleanup } from 'src/app/util/cleanup'
 import { capitalizeFirstLetter, pauseFor } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
@@ -9,7 +9,6 @@ import { DependentsComponent } from './dependents/dependents.component'
 import { NotesComponent } from './notes/notes.component'
 import { Loadable } from './loadable'
 import { WizardAction } from './wizard-types'
-import { concatMap, switchMap } from 'rxjs/operators'
 
 @Component({
   selector: 'install-wizard',
@@ -25,7 +24,7 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
 
   // content container so we can scroll to top between slide transitions
   @ViewChild(IonContent) contentContainer: IonContent
-  // slide container gives us hook into transitioning slides
+  // slide container gives us hook into ion-slide, allowing for slide transitions
   @ViewChild(IonSlides) slideContainer: IonSlides
 
   //a slide component gives us hook into a slide. Allows us to call load when slide comes into view
@@ -36,11 +35,6 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
   private slideIndex = 0
   get currentSlide (): Loadable {
     return this.slideComponents[this.slideIndex]
-  }
-  get currentSlideLoading$ (): Observable<boolean> {
-    return this.$initializing$.pipe(switchMap(
-      i => i ? of(true) : this.currentSlide.$loading$,
-    ))
   }
   get currentBottomBar (): SlideDefinition['bottomBar'] {
     return this.params.slideDefinitions[this.slideIndex].bottomBar
@@ -63,27 +57,28 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
   }
 
   // process bottom bar buttons
-  private transition = (info: { error?: Error, cancelled?: true, final?: true }) => {
-    if (info.cancelled) this.currentSlide.$cancel$.next()
-    if (info.final || info.cancelled) return this.modalController.dismiss(info)
-    if (info.error) return this.$error$.next(capitalizeFirstLetter(info.error.message))
+  private transition = (info: { next: any } | { error: Error } | { cancelled: true } | { final: true }) => {
+    const i = info as { next?: any, error?: Error, cancelled?: true, final?: true }
+    if (i.cancelled) this.currentSlide.$cancel$.next()
+    if (i.final || i.cancelled) return this.modalController.dismiss(i)
+    if (i.error) return this.$error$.next(capitalizeFirstLetter(i.error.message))
 
-    this.moveToNextSlide()
+    this.moveToNextSlide(i.next)
   }
 
-  // bottom bar button callbacks
+  // bottom bar button callbacks. Pass this into components if they need to trigger slide transitions independent of the bottom bar clicks
   transitions = {
+    next: (prevResult: any) => this.transition({ next: prevResult || this.currentSlide.result }),
     cancel: () => this.transition({ cancelled: true }),
-    next: () => this.transition({ }),
     final: () => this.transition({ final: true }),
-    error: e => this.transition({ error: e }),
+    error: (e: Error) => this.transition({ error: e }),
   }
 
-  private async moveToNextSlide () {
+  private async moveToNextSlide (prevResult?: any) {
     if (this.slideComponents[this.slideIndex + 1] === undefined) { return this.transition({ final: true }) }
     this.zone.run(async () => {
-      this.slideComponents[this.slideIndex + 1].load()
-      await pauseFor(50)
+      this.slideComponents[this.slideIndex + 1].load(prevResult)
+      await pauseFor(50) // give the load ^ opportunity to propogate into slide before sliding it into view
       this.slideIndex += 1
       await this.slideContainer.lockSwipes(false)
       await this.contentContainer.scrollToTop()
@@ -105,6 +100,7 @@ export interface SlideDefinition {
       afterLoading?: { text?: string },
       whileLoading?: { text?: string }
     }
+    // indicates the existence of next or finish buttons (should only have one)
     next?: string
     finish?: string
   }
