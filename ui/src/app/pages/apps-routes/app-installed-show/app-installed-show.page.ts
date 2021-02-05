@@ -182,6 +182,19 @@ export class AppInstalledShowPage extends Cleanup {
     await toast.present()
   }
 
+  async copyLan () {
+    let message = ''
+    await copyToClipboard(this.lanAddress).then(success => { message = success ? 'copied to clipboard!' :  'failed to copy' })
+
+    const toast = await this.toastCtrl.create({
+      header: message,
+      position: 'bottom',
+      duration: 1000,
+      cssClass: 'notification-toast',
+    })
+    await toast.present()
+  }
+
   async stop (): Promise<void> {
     const app = peekProperties(this.app)
 
