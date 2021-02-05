@@ -3,7 +3,7 @@ import { BehaviorSubject, from, Subject } from 'rxjs'
 import { takeUntil } from 'rxjs/operators'
 import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { capitalizeFirstLetter } from 'src/app/util/misc.util'
-import { Colorable, Loadable } from '../loadable'
+import { Loadable } from '../loadable'
 import { WizardAction } from '../wizard-types'
 
 @Component({
@@ -11,7 +11,7 @@ import { WizardAction } from '../wizard-types'
   templateUrl: './complete.component.html',
   styleUrls: ['../install-wizard.component.scss'],
 })
-export class CompleteComponent implements OnInit, Loadable, Colorable {
+export class CompleteComponent implements OnInit, Loadable {
   @Input() params: {
     action: WizardAction
     verb: string //loader verb: '*stopping* ...'
@@ -20,7 +20,13 @@ export class CompleteComponent implements OnInit, Loadable, Colorable {
     skipCompletionDialogue?: boolean
   }
 
-  @Input() finished: (info: { error?: Error, cancelled?: true, final?: true }) => Promise<any>
+  @Input() transitions: {
+    cancel: () => void
+    next: () => void
+    final: () => void
+    error: (e: Error) => void
+  }
+
 
   $loading$ = new BehaviorSubject(false)
   $color$ = new BehaviorSubject('medium')
@@ -32,8 +38,8 @@ export class CompleteComponent implements OnInit, Loadable, Colorable {
 
   load () {
     markAsLoadingDuring$(this.$loading$, from(this.params.executeAction())).pipe(takeUntil(this.$cancel$)).subscribe(
-      { error: e => this.finished({ error: new Error(`${this.params.action} failed: ${e.message || e}`) }),
-        complete: () => this.params.skipCompletionDialogue && this.finished( { final: true} ),
+      { error: e => this.transitions.error(new Error(`${this.params.action} failed: ${e.message || e}`)),
+        complete: () => this.params.skipCompletionDialogue && this.transitions.final(),
       },
     )
   }
