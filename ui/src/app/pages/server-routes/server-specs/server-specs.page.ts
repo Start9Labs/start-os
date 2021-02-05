@@ -5,7 +5,7 @@ import { ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { PropertySubject } from 'src/app/util/property-subject.util'
 import { ModelPreload } from 'src/app/models/model-preload'
-import { LoaderService, markAsLoadingDuring$ } from 'src/app/services/loader.service'
+import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { BehaviorSubject } from 'rxjs'
 
 @Component({

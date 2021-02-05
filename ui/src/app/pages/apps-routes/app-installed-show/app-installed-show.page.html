@@ -103,7 +103,7 @@
             <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
           </ion-button>
         </ion-item>
-        <ion-item lines="none">
+        <ion-item *ngIf="vars.ui" lines="none">
           <ion-label class="ion-text-wrap">
             <h2>LAN Address</h2>
             <p>{{ lanAddress }}</p>
