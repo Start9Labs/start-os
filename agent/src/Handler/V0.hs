@@ -93,6 +93,7 @@ getSpecs settings = do
     specsDisk       <- fmap show . metricDiskSize <$> getDfMetrics
     specsNetworkId  <- runM $ injectFilesystemBaseFromContext settings getStart9AgentHostname
     specsTorAddress <- runM $ injectFilesystemBaseFromContext settings getAgentHiddenServiceUrl
+    specsLanAddress <- fmap (<> ".local") <$> runM $ injectFilesystemBaseFromContext settings getStart9AgentHostname
 
     let specsAgentVersion = agentVersion
     pure $ SpecsRes { .. }
