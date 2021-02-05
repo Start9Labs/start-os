@@ -83,7 +83,7 @@
             <ion-icon color="medium" name="information-circle-outline">
             </ion-icon>
           </ion-button>
-          <ion-button  [disabled]="vars.status !== 'RUNNING' ||  !isTor" class="launch-button" [class.launch-button-off]="vars.status !== 'RUNNING' || !isTor" (click)="launchUiTab()">
+          <ion-button [disabled]="vars.status !== 'RUNNING'" class="launch-button" [class.launch-button-off]="vars.status !== 'RUNNING'" (click)="launchUiTab()">
             <ion-icon style="position: absolute; z-index: 1; left: 0;" name="globe-outline"></ion-icon>
             <ion-text>LAUNCH</ion-text>
           </ion-button>
@@ -108,7 +108,7 @@
             <h2>LAN Address</h2>
             <p>{{ lanAddress }}</p>
           </ion-label>
-          <ion-button slot="end" fill="clear" (click)="copyTor()">
+          <ion-button slot="end" fill="clear" (click)="copyLan()">
             <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
           </ion-button>
         </ion-item>
