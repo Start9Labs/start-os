@@ -52,6 +52,7 @@ getSpecsR = handleS9ErrT $ do
     specsDisk       <- fmap show . metricDiskSize <$> getDfMetrics
     specsNetworkId  <- lift . runM . injectFilesystemBaseFromContext settings $ getStart9AgentHostname
     specsTorAddress <- lift . runM . injectFilesystemBaseFromContext settings $ getAgentHiddenServiceUrl
+    specsLanAddress <- fmap ( <> ".local" ) . lift . runM . injectFilesystemBaseFromContext settings $ getStart9AgentHostname
 
     let specsAgentVersion = agentVersion
     returnJsonEncoding SpecsRes { .. }

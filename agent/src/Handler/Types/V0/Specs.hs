@@ -16,6 +16,7 @@ data SpecsRes = SpecsRes
     , specsNetworkId    :: Text
     , specsAgentVersion :: Version
     , specsTorAddress   :: Text
+    , specsLanAddress   :: Text
     }
     deriving (Eq, Show)
 
@@ -23,6 +24,7 @@ instance ToJSON SpecsRes where
     toJSON SpecsRes {..} = object
         [ "EmbassyOS Version" .= specsAgentVersion
         , "Tor Address" .= specsTorAddress
+        , "LAN Address" .= specsLanAddress
         , "Network ID" .= specsNetworkId
         , "CPU" .= specsCPU
         , "Memory" .= specsMem
@@ -33,6 +35,7 @@ instance ToJSON SpecsRes where
             . fold
             $ [ "EmbassyOS Version" .= specsAgentVersion
               , "Tor Address" .= specsTorAddress
+              , "LAN Address" .= specsLanAddress
               , "Network ID" .= specsNetworkId
               , "CPU" .= specsCPU
               , "Memory" .= specsMem
