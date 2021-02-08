@@ -1,3 +1,4 @@
 {
-  "useMocks": false
+  "useMocks": false,
+  "skipStartupAlerts": false
 }

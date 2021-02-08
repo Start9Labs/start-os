@@ -3,6 +3,7 @@ set -e
 
 echo "turn off mocks"
 echo "$( jq '.useMocks = false' use-mocks.json )" > use-mocks.json
+echo "$( jq '.runStartupAlerts = true' use-mocks.json )" > use-mocks.json
 
 echo "FILTER: rm -rf www"
 rm -rf www

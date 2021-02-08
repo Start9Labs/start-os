@@ -14,6 +14,7 @@ export class ConfigService {
     root: '', // empty will default to same origin
   }
 
+  skipStartupAlerts  = require('../../../use-mocks.json').skipStartupAlerts
   isConsulateIos     = window['platform'] === 'ios'
   isConsulateAndroid = window['platform'] === 'android'
 
