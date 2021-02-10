@@ -41,6 +41,18 @@ export class MockApiService extends ApiService {
     }
   }
 
+  testCounter = 0
+  async testConnection (): Promise<true> {
+    console.log('testing connection')
+    this.testCounter ++
+    await pauseFor(1000)
+    if (this.testCounter > 5) {
+      return true
+    } else {
+      throw new Error('Not Connected')
+    }
+  }
+
   async ejectExternalDisk (): Promise<Unit> {
     await pauseFor(2000)
     return { }
@@ -142,6 +154,10 @@ export class MockApiService extends ApiService {
     await mockStopApp()
     if (!dryRun) this.appModel.update({ id: appId, status: AppStatus.STOPPED })
     return mockAppDependentBreakages
+  }
+
+  async toggleAppLAN (appId: string, toggle: 'enable' | 'disable'): Promise<Unit> {
+    return {  }
   }
 
   async restartApp (appId: string): Promise<Unit> {

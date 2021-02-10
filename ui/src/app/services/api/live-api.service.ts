@@ -5,11 +5,13 @@ import { AppAvailablePreview, AppAvailableFull, AppInstalledFull, AppInstalledPr
 import { S9Notification, SSHFingerprint, ServerModel, DiskInfo } from '../../models/server-model'
 import { ApiService, ReqRes  } from './api.service'
 import { ApiServer, Unit } from './api-types'
-import { HttpErrorResponse } from '@angular/common/http'
+import { HttpClient, HttpErrorResponse } from '@angular/common/http'
 import { isUnauthorized } from 'src/app/util/web.util'
 import { Replace } from 'src/app/util/types.util'
 import { AppMetrics, parseMetricsPermissive } from 'src/app/util/metrics.util'
 import { modulateTime } from 'src/app/util/misc.util'
+import { Observable, of, throwError } from 'rxjs'
+import { catchError, mapTo } from 'rxjs/operators'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -19,6 +21,10 @@ export class LiveApiService extends ApiService {
     private readonly appModel: AppModel,
     private readonly serverModel: ServerModel,
   ) { super() }
+
+  testConnection (url: string): Promise<true> {
+    return this.http.raw.get(url).pipe(mapTo(true as true), catchError(e => catchHttpStatusError(e))).toPromise()
+  }
 
   // Used to check whether password or key is valid. If so, it will be used implicitly by all other calls.
   async getCheckAuth (): Promise<Unit> {
@@ -214,6 +220,10 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async toggleAppLAN (appId: string, toggle: 'enable' | 'disable'): Promise<Unit> {
+    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/lan/${toggle}` })
+  }
+
   async addSSHKey (sshKey: string): Promise<Unit> {
     const data: ReqRes.PostAddSSHKeyReq = {
       sshKey,
@@ -275,3 +285,11 @@ const dryRunParam = (dryRun: boolean, first: boolean) => {
   return first ? `?dryrun` : `&dryrun`
 }
 
+function catchHttpStatusError (error: HttpErrorResponse): Observable<true> {
+  if (error.error instanceof ErrorEvent) {
+    // A client-side or network error occurred. Handle it accordingly.
+    return throwError('Not Connected')
+  } else {
+    return of(true)
+  }
+}

@@ -24,6 +24,8 @@ export function toInstalledPreview (f: AppInstalledFull): AppInstalledPreview {
     iconURL: f.iconURL,
     torAddress: f.torAddress,
     ui: f.ui,
+    lanAddress: f.lanAddress,
+    lanEnabled: f.lanEnabled,
   }
 }
 
@@ -47,8 +49,10 @@ export function toServiceBreakage (f: BaseApp): DependentBreakage {
 export const bitcoinI: AppInstalledFull = {
   id: 'bitcoind',
   versionInstalled: '0.18.1',
+  lanAddress: 'bitcoinLan.local',
+  lanEnabled: true,
   title: 'Bitcoin Core',
-  torAddress: 'sample-bitcoin-tor-address-and-some-more-tor-address.onion',
+  torAddress: '4acth47i6kxnvkewtm6q7ib2s3ufpo5sqbsnzjpbi7utijcltosqemad.onion',
   status: AppStatus.STOPPED,
   iconURL: 'assets/img/service-icons/bitcoind.png',
   instructions: 'some instructions',
@@ -61,10 +65,12 @@ export const bitcoinI: AppInstalledFull = {
 
 export const lightningI: AppInstalledFull = {
   id: 'c-lightning',
+  lanAddress: 'lightningLan.local',
+  lanEnabled: true,
   status: AppStatus.RUNNING,
   title: 'C Lightning',
   versionInstalled: '1.0.0',
-  torAddress: 'sample-bitcoin-tor-address-and-some-more-tor-address.onion',
+  torAddress: '4acth47i6kxnvkewtm6q7ib2s3ufpo5sqbsnzjpbi7utijcltosqemad.onion',
   iconURL: 'assets/img/service-icons/bitwarden.png',
   instructions: 'some instructions',
   lastBackup: new Date().toISOString(),
@@ -84,6 +90,8 @@ export const lightningI: AppInstalledFull = {
 
 export const cupsI: AppInstalledFull = {
   id: 'cups',
+  lanAddress: 'cupsLan.local',
+  lanEnabled: false,
   versionInstalled: '2.1.0',
   title: 'Cups Messenger',
   torAddress: 'sample-cups-tor-address.onion',
