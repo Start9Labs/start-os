@@ -6,11 +6,11 @@ import { copyToClipboard } from 'src/app/util/web.util'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { ModelPreload } from 'src/app/models/model-preload'
-import { chill, modulateTime, pauseFor, traceWheel } from 'src/app/util/misc.util'
+import { chill, modulateTime, pauseFor } from 'src/app/util/misc.util'
 import { PropertySubject, peekProperties } from 'src/app/util/property-subject.util'
 import { AppBackupPage } from 'src/app/modals/app-backup/app-backup.page'
 import { LoaderService, markAsLoadingDuring$, markAsLoadingDuringP } from 'src/app/services/loader.service'
-import { BehaviorSubject, combineLatest, from, fromEvent, merge, Observable, of, Subject } from 'rxjs'
+import { BehaviorSubject, combineLatest, from, merge, Observable, of, Subject } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { catchError, concatMap, delay, filter, map, retryWhen, switchMap, take, tap } from 'rxjs/operators'
@@ -31,7 +31,6 @@ export class AppInstalledShowPage extends Cleanup {
 
   $error$ = new BehaviorSubject<string>('')
   app: PropertySubject<AppInstalledFull> = { } as any
-  lanAddress = ''
   appId: string
   AppStatus = AppStatus
   showInstructions = false
@@ -46,7 +45,7 @@ export class AppInstalledShowPage extends Cleanup {
   dependencyDefintion = () => `<span style="font-style: italic">Dependencies</span> are other services which must be installed, configured appropriately, and started in order to start ${this.app.title.getValue()}`
   launchDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. If a service does not have this button, you must access it using another interface, such as a mobile app, desktop app, or another service on the Embassy. Please view the instructions for a service for details on how to use it.</p>`
   launchOffDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. Get your service running in order to launch!</p>`
-  launchLocalDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. Visit your Embassy at its Tor address to launch this service!</p>`
+  launchLocalDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. To launch this service over LAN, enable the toggle below by your service's LAN Address.</p>`
 
   @ViewChild(IonContent) content: IonContent
 
@@ -80,9 +79,13 @@ export class AppInstalledShowPage extends Cleanup {
           concatMap(app =>
             merge(
               this.syncWhenDependencyInstalls(),
-              combineLatest([app.status, app.lanEnabled, this.$lanConnected$, this.$testingLanConnection$]).pipe(
-                filter(([ s, enabled, connected, connecting ]) => s === AppStatus.RUNNING && enabled && !connected && !connecting),
-                concatMap(() => this.testLanConnection()),
+              combineLatest([app.lanEnabled, this.$lanConnected$, app.status, this.$testingLanConnection$]).pipe(
+                filter(([_, __, s, alreadyConnecting]) => s === AppStatus.RUNNING && !alreadyConnecting),
+                concatMap(([enabled, connected]) => {
+                  if (enabled && !connected) return markAsLoadingDuring$(this.$testingLanConnection$, this.testLanConnection())
+                  if (!enabled && connected) return of(this.$lanConnected$.next(false))
+                  return of()
+                }),
               ),
             ),
           ), //must be final in stack
@@ -119,12 +122,13 @@ export class AppInstalledShowPage extends Cleanup {
   ionViewDidEnter () {
     markAsLoadingDuringP(this.$loadingDependencies$, this.getApp())
     this.cleanup(
-      combineLatest([this.$lanToggled$, this.app.lanEnabled]).pipe(
+      combineLatest([this.$lanToggled$, this.app.lanEnabled, this.$testingLanConnection$]).pipe(
+        filter(([_, __, alreadyLoading]) => !alreadyLoading),
         map(([e, _]) => [(e as any).detail.checked, _]),
         // if the app is already in the desired state, we bail
         // this can happen because ionChange triggers when the [checked] value changes
         filter(([uiEnabled, appEnabled]) => (uiEnabled && !appEnabled) || (!uiEnabled && appEnabled)),
-        map(enabled => enabled
+        map(([enabled]) => enabled
           ? this.enableLan().pipe(concatMap(() => this.testLanConnection()))
           : this.disableLan(),
         ),
@@ -162,7 +166,8 @@ export class AppInstalledShowPage extends Cleanup {
       const torAddress = this.app.torAddress.getValue()
       uiAddress = torAddress.startsWith('http') ? torAddress : `http://${torAddress}`
     } else {
-      uiAddress = this.lanAddress
+      const lanAddress = this.app.lanAddress.getValue()
+      uiAddress = lanAddress.startsWith('http') ? lanAddress : `http://${lanAddress}`
     }
     return window.open(uiAddress, '_blank')
   }
@@ -232,8 +237,9 @@ export class AppInstalledShowPage extends Cleanup {
   }
 
   async copyLan () {
+    const app = peekProperties(this.app)
     let message = ''
-    await copyToClipboard(this.lanAddress).then(success => { message = success ? 'copied to clipboard!' :  'failed to copy' })
+    await copyToClipboard(app.lanAddress).then(success => { message = success ? 'copied to clipboard!' :  'failed to copy' })
 
     const toast = await this.toastCtrl.create({
       header: message,
