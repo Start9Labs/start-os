@@ -1,5 +1,12 @@
 import { Injectable } from '@angular/core'
 
+const { useMocks, mockOver, skipStartupAlerts } = require('../../../use-mocks.json') as UseMocks
+
+type UseMocks = {
+  useMocks: boolean
+  mockOver: 'tor' | 'lan'
+  skipStartupAlerts: boolean
+}
 @Injectable({
   providedIn: 'root',
 })
@@ -8,17 +15,18 @@ export class ConfigService {
   version = require('../../../package.json').version
 
   api = {
-    useMocks: require('../../../use-mocks.json').useMocks,
+    useMocks,
     url: '/api',
     version: '/v0',
     root: '', // empty will default to same origin
   }
 
+  skipStartupAlerts  = skipStartupAlerts
   isConsulateIos     = window['platform'] === 'ios'
   isConsulateAndroid = window['platform'] === 'android'
 
   isTor () : boolean {
-    return this.api.useMocks || this.origin.endsWith('.onion')
+    return (this.api.useMocks && mockOver === 'tor') || this.origin.endsWith('.onion')
   }
 }
 

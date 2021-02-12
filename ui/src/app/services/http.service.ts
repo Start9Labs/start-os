@@ -13,6 +13,10 @@ export class HttpService {
     private readonly config: ConfigService,
   ) { }
 
+  get raw () : HttpClient {
+    return this.http
+  }
+
   async serverRequest<T> (options: HttpOptions, overrides: Partial<{ version: string }> = { }): Promise<T> {
     options.url = leadingSlash(`${this.config.api.url}${exists(overrides.version) ? overrides.version : this.config.api.version}${options.url}`)
     if ( this.config.api.root && this.config.api.root !== '' ) {

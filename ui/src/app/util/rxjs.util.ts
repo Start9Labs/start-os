@@ -1,5 +1,5 @@
 import { Observable, from, interval, race, OperatorFunction, Observer, BehaviorSubject } from 'rxjs'
-import { take, map, switchMap, delay, tap } from 'rxjs/operators'
+import { take, map, switchMap, delay, tap, concatMap } from 'rxjs/operators'
 
 export function fromAsync$<S, T> (async: (s: S) => Promise<T>, s: S): Observable<T>
 export function fromAsync$<T> (async: () => Promise<T>): Observable<T>
@@ -50,4 +50,16 @@ export function onCooldown<T> (cooldown: number, o: () => Observable<T>): Observ
       ),
     ),
   )
+}
+
+
+export function bindPipe<T, S1> (o: Observable<T>, then: (t: T) => Observable<S1>): Observable<S1>
+export function bindPipe<T, S1, S2> (o: Observable<T>, then1: (t: T) => Observable<S1>, then2: (s: S1) => Observable<S2>): Observable<S2>
+export function bindPipe<T, S1, S2, S3> (o: Observable<T>, then1: (t: T) => Observable<S1>, then2: (s: S1) => Observable<S2>, then3: (s: S2) => Observable<S3>): Observable<S3>
+export function bindPipe<T, S1, S2, S3, S4> (o: Observable<T>, then1: (t: T) => Observable<S1>, then2: (s: S1) => Observable<S2>, then3: (s: S2) => Observable<S3>, then4: (s: S3) => Observable<S4>): Observable<S4>
+export function bindPipe<T> (o: Observable<T>, ...thens: ((t: any) => Observable<any>)[]): Observable<any> {
+  const concatted = thens.map(m => concatMap(m))
+  return concatted.reduce( (acc, next) => {
+    return acc.pipe(next)
+  }, o)
 }
