@@ -1,5 +1,5 @@
 import { AppStatus } from '../../models/app-model'
-import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppDependency, BaseApp, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
+import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppDependency, BaseApp, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ConfigReverts } from '../../models/app-types'
 import { modulateTime } from 'src/app/util/misc.util'
 import { ApiAppInstalledFull } from './api-types'
 
@@ -312,9 +312,19 @@ export const mockApiAppAvailableVersionInfo: AppAvailableVersionSpecificInfo = {
   versionViewing: '0.2.0',
 }
 
-export const mockAppDependentBreakages: { breakages: DependentBreakage[] } = {
+export const mockAppDependentBreakages: { breakages: DependentBreakage[], changes: ConfigReverts } = {
   breakages: [
     toServiceBreakage(bitcoinI),
     toServiceBreakage(cupsA),
   ],
+  changes: {
+    'bitcoind': {
+      'some': 'value',
+      'someOther': [1, 2, 3],
+    },
+    'someService': {
+      'some': 'value',
+      'someOther': [1, 2, 3],
+    },
+  },
 }

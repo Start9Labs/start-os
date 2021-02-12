@@ -140,3 +140,5 @@ export type DependencyViolation =
   { name: 'incompatible-version' } |
   { name: 'incompatible-config'; ruleViolations: string[]; } |
   { name: 'incompatible-status'; status: AppStatus; }
+
+  export type ConfigReverts = { [appId: string]: object }

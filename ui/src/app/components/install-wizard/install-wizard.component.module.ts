@@ -8,6 +8,7 @@ import { DependenciesComponentModule } from './dependencies/dependencies.compone
 import { DependentsComponentModule } from './dependents/dependents.component.module'
 import { CompleteComponentModule } from './complete/complete.component.module'
 import { NotesComponentModule } from './notes/notes.component.module'
+import { ConfigRevertsComponentModule } from './config-reverts/config-reverts.component.module'
 
 @NgModule({
   declarations: [
@@ -22,6 +23,7 @@ import { NotesComponentModule } from './notes/notes.component.module'
     DependentsComponentModule,
     CompleteComponentModule,
     NotesComponentModule,
+    ConfigRevertsComponentModule,
   ],
   exports: [InstallWizardComponent],
 })

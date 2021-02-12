@@ -11,10 +11,11 @@
   <ion-slides *ngIf="!($error$ | async)" id="slide-show" style="--bullet-background: white" pager="false">
     <ion-slide *ngFor="let def of params.slideDefinitions">
       <!-- We can pass [transitions]="transitions" into the component if logic within the component needs to trigger a transition (not just bottom bar) -->
-      <dependencies #components *ngIf="def.slide.selector === 'dependencies'" [params]="def.slide.params"></dependencies>
-      <notes        #components *ngIf="def.slide.selector === 'notes'"        [params]="def.slide.params"></notes>
-      <dependents   #components *ngIf="def.slide.selector === 'dependents'"   [params]="def.slide.params" [transitions]="transitions"></dependents>
-      <complete     #components *ngIf="def.slide.selector === 'complete'"     [params]="def.slide.params" [transitions]="transitions"></complete>
+      <dependencies   #components *ngIf="def.slide.selector === 'dependencies'"   [params]="def.slide.params"></dependencies>
+      <notes          #components *ngIf="def.slide.selector === 'notes'"          [params]="def.slide.params"></notes>
+      <dependents     #components *ngIf="def.slide.selector === 'dependents'"     [params]="def.slide.params" [transitions]="transitions"></dependents>
+      <complete       #components *ngIf="def.slide.selector === 'complete'"       [params]="def.slide.params" [transitions]="transitions"></complete>
+      <config-reverts #components *ngIf="def.slide.selector === 'config-reverts'" [params]="def.slide.params" [transitions]="transitions"></config-reverts>
     </ion-slide>
   </ion-slides>
 

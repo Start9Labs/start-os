@@ -16,7 +16,7 @@ export class CompleteComponent implements OnInit, Loadable {
     action: WizardAction
     verb: string //loader verb: '*stopping* ...'
     title: string
-    executeAction: () => Promise<any>
+    executeAction: (previousResult: any) => Promise<any>
     skipCompletionDialogue?: boolean
   }
 
@@ -36,8 +36,8 @@ export class CompleteComponent implements OnInit, Loadable {
   summary: string
   successText: string
 
-  load () {
-    markAsLoadingDuring$(this.$loading$, from(this.params.executeAction())).pipe(takeUntil(this.$cancel$)).subscribe(
+  load (previousResult: any) {
+    markAsLoadingDuring$(this.$loading$, from(this.params.executeAction(previousResult))).pipe(takeUntil(this.$cancel$)).subscribe(
       { error: e => this.transitions.error(new Error(`${this.params.action} failed: ${e.message || e}`)),
         complete: () => this.params.skipCompletionDialogue && this.transitions.final(),
       },

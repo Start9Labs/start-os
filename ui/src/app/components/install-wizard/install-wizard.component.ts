@@ -6,6 +6,7 @@ import { capitalizeFirstLetter, pauseFor } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
 import { DependenciesComponent } from './dependencies/dependencies.component'
 import { DependentsComponent } from './dependents/dependents.component'
+import { ConfigRevertsComponent } from './config-reverts/config-reverts.component'
 import { NotesComponent } from './notes/notes.component'
 import { Loadable } from './loadable'
 import { WizardAction } from './wizard-types'
@@ -87,13 +88,13 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
     })
   }
 }
-
 export interface SlideDefinition {
   slide:
-    { selector: 'dependencies', params: DependenciesComponent['params'] } |
-    { selector: 'dependents', params: DependentsComponent['params'] } |
-    { selector: 'complete', params: CompleteComponent['params'] } |
-    { selector: 'notes', params: NotesComponent['params'] }
+    { selector: 'dependencies',   params: DependenciesComponent['params'] } |
+    { selector: 'dependents',     params: DependentsComponent['params'] } |
+    { selector: 'complete',       params: CompleteComponent['params'] } |
+    { selector: 'notes',          params: NotesComponent['params'] } |
+    { selector: 'config-reverts', params: ConfigRevertsComponent['params'] }
   bottomBar: {
     cancel: {
       // indicates the existence of a cancel button, and whether to have text or an icon 'x' by default.

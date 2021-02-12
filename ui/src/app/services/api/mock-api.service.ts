@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { AppStatus, AppModel } from '../../models/app-model'
-import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction } from '../../models/app-types'
+import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction, ConfigReverts } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerStatus, ServerModel, DiskInfo } from '../../models/server-model'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService, ReqRes } from './api.service'
@@ -160,7 +160,8 @@ export class MockApiService extends ApiService {
       })
   }
 
-  async uninstallApp (appId: string, dryRun: boolean): Promise<{ breakages: DependentBreakage[] }> {
+  async uninstallApp (appId: string, dryRun: boolean, revertConfigs: boolean): Promise< { breakages: DependentBreakage[], changes: ConfigReverts } > {
+    console.log('mock uninstall: ', appId, dryRun, revertConfigs)
     return mockUninstallApp()
   }
 
@@ -278,7 +279,7 @@ export class MockApiService extends ApiService {
   }
 
   private isLaunchable (app: ApiAppInstalledPreview): boolean {
-    return !this.config.isConsulate && 
+    return !this.config.isConsulate &&
       app.status === AppStatus.RUNNING &&
       (
         (app.torAddress && app.torUi && this.config.isTor()) ||
@@ -373,7 +374,8 @@ async function mockInstallApp (appId: string): Promise<ApiAppInstalledFull & { b
   return { ...mockApiAppInstalledFull[appId], ...mockAppDependentBreakages }
 }
 
-async function mockUninstallApp (): Promise< { breakages: DependentBreakage[] } > {
+async function mockUninstallApp (): Promise< { breakages: DependentBreakage[], changes: ConfigReverts } > {
+
   await pauseFor(1000)
   return mockAppDependentBreakages
 }

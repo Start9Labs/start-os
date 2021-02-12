@@ -244,15 +244,24 @@ export class WizardBaker {
       { slide: {
           selector: 'dependents',
           params: {
-            action, verb: 'uninstalling', title, fetchBreakages: () => this.apiService.uninstallApp(id, true).then( ({ breakages }) => breakages ),
+            action, verb: 'uninstalling', title, fetchBreakages: () => this.apiService.uninstallApp(id, true, false).then( ({ breakages }) => breakages ),
           },
         },
         bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Uninstall' },
       },
       { slide: {
+          selector: 'config-reverts',
+          params: {
+            title,
+            fetchReverts: () => this.apiService.uninstallApp(id, true, true).then( ({ changes }) => changes),
+          },
+        },
+        bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Continue Uninstall' },
+      },
+      { slide: {
           selector: 'complete',
           params: {
-            action, verb: 'uninstalling', title, executeAction: () => this.apiService.uninstallApp(id).then(() => this.appModel.delete(id)),
+            action, verb: 'uninstalling', title, executeAction: revertConfigs => this.apiService.uninstallApp(id, false, revertConfigs).then(() => this.appModel.delete(id)),
           },
         },
         bottomBar: { finish: 'Dismiss', cancel: { whileLoading: { } } },
