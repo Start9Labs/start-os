@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { AppStatus, AppModel } from '../../models/app-model'
-import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
+import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerStatus, ServerModel, DiskInfo } from '../../models/server-model'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService, ReqRes } from './api.service'
@@ -227,6 +227,20 @@ export class MockApiService extends ApiService {
 
   async shutdownServer (): Promise<EmptyResponse> {
     return mockShutdownServer()
+  }
+
+  async serviceAction (appId: string, action: ServiceAction): Promise<ReqRes.ServiceActionResponse> {
+    console.log('service action', appId, action)
+    await pauseFor(1000)
+    return {
+      jsonrpc: '2.0',
+      id: '0',
+      // result: 'Congrats! you did ' + action.name,
+      error: {
+        code: 1,
+        message: 'woooo that was bad bad bad',
+      },
+    }
   }
 }
 

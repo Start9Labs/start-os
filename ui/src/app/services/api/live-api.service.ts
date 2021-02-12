@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { HttpService, Method, HttpOptions } from '../http.service'
 import { AppModel, AppStatus } from '../../models/app-model'
-import { AppAvailablePreview, AppAvailableFull, AppInstalledFull, AppInstalledPreview, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
+import { AppAvailablePreview, AppAvailableFull, AppInstalledFull, AppInstalledPreview, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerModel, DiskInfo } from '../../models/server-model'
 import { ApiService, ReqRes  } from './api.service'
 import { ApiServer, Unit } from './api-types'
@@ -12,6 +12,7 @@ import { AppMetrics, parseMetricsPermissive } from 'src/app/util/metrics.util'
 import { modulateTime } from 'src/app/util/misc.util'
 import { Observable, of, throwError } from 'rxjs'
 import { catchError, mapTo } from 'rxjs/operators'
+import * as uuid from 'uuid'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -264,6 +265,15 @@ export class LiveApiService extends ApiService {
 
   async shutdownServer (): Promise<Unit> {
     return this.authRequest({ method: Method.POST, url: '/shutdown', readTimeout: 60000 })
+  }
+
+  async serviceAction (appId: string, s: ServiceAction): Promise<ReqRes.ServiceActionResponse> {
+    const data: ReqRes.ServiceActionRequest = {
+      jsonrpc: '2.0',
+      id: uuid.v4(),
+      method: s.id,
+    }
+    return this.authRequest({ method: Method.POST, url: `apps/${appId}/actions`, data })
   }
 
   private async authRequest<T> (opts: HttpOptions, overrides: Partial<{ version: string }> = { }): Promise<T> {

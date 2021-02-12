@@ -1,0 +1,40 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Actions</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top" *ngIf='{
+  status: app.status | async,
+  actions: app.actions | async
+} as vars'>
+  <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
+
+  <ng-container *ngIf="!($loading$ | async)">
+    <ion-item *ngIf="error" style="margin-bottom: 16px;">
+      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+    </ion-item>
+
+    <!-- actions -->
+    <ion-item-group *ngIf="vars.actions.length">
+      <ion-item class="service-action-button" button *ngFor="let action of vars.actions" (click)="handleAction(action)" [detail]="action.allowedStatuses.includes(vars.status)" [disabled]="!action.allowedStatuses.includes(vars.status)" >
+        <ion-label class="ion-text-wrap">
+          <h3>{{action.name}}</h3>
+          <p style="color: var(--ion-color-medium)" *ngIf="!action.allowedStatuses.includes(vars.status)">Service must be:
+            {{action.allowedStatuses.join(', ')}}
+          </p>
+        </ion-label>
+        <ion-text slot="end" color="medium" *ngIf="!action.allowedStatuses.includes(vars.status)">
+          DISABLED
+        </ion-text>
+      </ion-item>
+    </ion-item-group>
+
+  </ng-container>
+</ion-content>

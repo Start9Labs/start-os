@@ -13,7 +13,7 @@ import { LoaderService, markAsLoadingDuring$, markAsLoadingDuringP } from 'src/a
 import { BehaviorSubject, combineLatest, from, merge, Observable, of, Subject } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { catchError, concatMap, delay, filter, map, retryWhen, switchMap, take, tap } from 'rxjs/operators'
+import { catchError, concatMap, delay, distinctUntilChanged, filter, map, retryWhen, switchMap, take, tap } from 'rxjs/operators'
 import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
@@ -79,6 +79,7 @@ export class AppInstalledShowPage extends Cleanup {
           concatMap(app =>
             merge(
               this.syncWhenDependencyInstalls(),
+              // new lan info from sync daemon
               combineLatest([app.lanEnabled, this.$lanConnected$, app.status, this.$testingLanConnection$]).pipe(
                 filter(([_, __, s, alreadyConnecting]) => s === AppStatus.RUNNING && !alreadyConnecting),
                 concatMap(([enabled, connected]) => {
@@ -86,6 +87,22 @@ export class AppInstalledShowPage extends Cleanup {
                   if (!enabled && connected) return of(this.$lanConnected$.next(false))
                   return of()
                 }),
+              ),
+              // toggle lan
+              combineLatest([this.$lanToggled$, app.lanEnabled, this.$testingLanConnection$]).pipe(
+                distinctUntilChanged(([toggled1], [toggled2]) => toggled1 !== toggled2),
+                filter(([_, __, alreadyLoading]) => !alreadyLoading),
+                map(([e, _]) => [(e as any).detail.checked, _]),
+                // if the app is already in the desired state, we bail
+                // this can happen because ionChange triggers when the [checked] value changes
+                filter(([uiEnabled, appEnabled]) => (uiEnabled && !appEnabled) || (!uiEnabled && appEnabled)),
+                map(([enabled]) => enabled
+                  ? this.enableLan().pipe(concatMap(() => this.testLanConnection()))
+                  : this.disableLan(),
+                ),
+                concatMap(o => markAsLoadingDuring$(this.$testingLanConnection$, o).pipe(
+                  catchError(e => this.setError(e)),
+                )),
               ),
             ),
           ), //must be final in stack
@@ -121,22 +138,6 @@ export class AppInstalledShowPage extends Cleanup {
   $lanToggled$ = new Subject()
   ionViewDidEnter () {
     markAsLoadingDuringP(this.$loadingDependencies$, this.getApp())
-    this.cleanup(
-      combineLatest([this.$lanToggled$, this.app.lanEnabled, this.$testingLanConnection$]).pipe(
-        filter(([_, __, alreadyLoading]) => !alreadyLoading),
-        map(([e, _]) => [(e as any).detail.checked, _]),
-        // if the app is already in the desired state, we bail
-        // this can happen because ionChange triggers when the [checked] value changes
-        filter(([uiEnabled, appEnabled]) => (uiEnabled && !appEnabled) || (!uiEnabled && appEnabled)),
-        map(([enabled]) => enabled
-          ? this.enableLan().pipe(concatMap(() => this.testLanConnection()))
-          : this.disableLan(),
-        ),
-        concatMap(o => markAsLoadingDuring$(this.$testingLanConnection$, o).pipe(
-          catchError(e => this.setError(e)),
-        )),
-      ).subscribe({ error: e => console.error(e) }),
-    )
   }
 
   async doRefresh (event: any) {
