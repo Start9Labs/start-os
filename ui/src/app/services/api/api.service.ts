@@ -20,6 +20,7 @@ export abstract class ApiService {
     this.$unauthorizedApiResponse$.next()
   }
 
+  abstract testConnection (url: string): Promise<true>
   abstract getCheckAuth (): Promise<Unit> // Throws an error on failed auth.
   abstract postLogin (password: string): Promise<Unit> // Throws an error on failed auth.
   abstract postLogout (): Promise<Unit> // Throws an error on failed auth.
@@ -28,6 +29,7 @@ export abstract class ApiService {
   abstract getServerMetrics (): Promise<ReqRes.GetServerMetricsRes>
   abstract getNotifications (page: number, perPage: number): Promise<S9Notification[]>
   abstract deleteNotification (id: string): Promise<Unit>
+  abstract toggleAppLAN (appId: string, toggle: 'enable' | 'disable'): Promise<Unit>
   abstract updateAgent (version: any): Promise<Unit>
   abstract acknowledgeOSWelcome (version: string): Promise<Unit>
   abstract getAvailableApps (): Promise<AppAvailablePreview[]>

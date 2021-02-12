@@ -21,7 +21,30 @@ export class StartupAlertsNotifier {
     private readonly emver: Emver,
     private readonly osUpdateService: OsUpdateService,
     private readonly wizardBaker: WizardBaker,
-  ) { }
+  ) {
+    const welcome: Check<S9Server> = {
+      name: 'welcome',
+      shouldRun: s => this.shouldRunOsWelcome(s),
+      check: async s => s,
+      display: s => this.displayOsWelcome(s),
+      hasRun: this.config.skipStartupAlerts,
+    }
+    const osUpdate: Check<ReqRes.GetVersionLatestRes | undefined> = {
+      name: 'osUpdate',
+      shouldRun: s => this.shouldRunOsUpdateCheck(s),
+      check: s => this.osUpdateCheck(s),
+      display: vl => this.displayOsUpdateCheck(vl),
+      hasRun: this.config.skipStartupAlerts,
+    }
+    const apps: Check<boolean> = {
+      name: 'apps',
+      shouldRun: s => this.shouldRunAppsCheck(s),
+      check: () => this.appsCheck(),
+      display: () => this.displayAppsCheck(),
+      hasRun: this.config.skipStartupAlerts,
+    }
+    this.checks = [welcome, osUpdate, apps]
+  }
 
   // This takes our three checks and filters down to those that should run.
   // Then, the reduce fires, quickly iterating through yielding a promise (previousDisplay) to the next element
@@ -48,29 +71,7 @@ export class StartupAlertsNotifier {
       }, Promise.resolve(true))
   }
 
-  welcome: Check<S9Server> = {
-    name: 'welcome',
-    shouldRun: s => this.shouldRunOsWelcome(s),
-    check: async s => s,
-    display: s => this.displayOsWelcome(s),
-    hasRun: false,
-  }
-  osUpdate: Check<ReqRes.GetVersionLatestRes | undefined> = {
-    name: 'osUpdate',
-    shouldRun: s => this.shouldRunOsUpdateCheck(s),
-    check: s => this.osUpdateCheck(s),
-    display: vl => this.displayOsUpdateCheck(vl),
-    hasRun: false,
-  }
-  apps: Check<boolean> = {
-    name: 'apps',
-    shouldRun: s => this.shouldRunAppsCheck(s),
-    check: () => this.appsCheck(),
-    display: () => this.displayAppsCheck(),
-    hasRun: false,
-  }
-
-  checks: Check<any>[] = [this.welcome, this.osUpdate, this.apps]
+  checks: Check<any>[]
 
   private shouldRunOsWelcome (s: S9Server): boolean {
     return !s.welcomeAck && s.versionInstalled === this.config.version

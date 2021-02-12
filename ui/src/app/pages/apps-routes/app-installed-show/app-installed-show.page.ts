@@ -6,21 +6,20 @@ import { copyToClipboard } from 'src/app/util/web.util'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { ModelPreload } from 'src/app/models/model-preload'
-import { chill, pauseFor } from 'src/app/util/misc.util'
+import { chill, modulateTime, pauseFor } from 'src/app/util/misc.util'
 import { PropertySubject, peekProperties } from 'src/app/util/property-subject.util'
 import { AppBackupPage } from 'src/app/modals/app-backup/app-backup.page'
 import { LoaderService, markAsLoadingDuring$, markAsLoadingDuringP } from 'src/app/services/loader.service'
-import { BehaviorSubject, Observable, of } from 'rxjs'
+import { BehaviorSubject, combineLatest, from, merge, Observable, of, Subject } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { catchError, concatMap, filter, switchMap, tap } from 'rxjs/operators'
+import { catchError, concatMap, delay, filter, map, retryWhen, switchMap, take, tap } from 'rxjs/operators'
 import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { ConfigService } from 'src/app/services/config.service'
-import { ServerModel } from 'src/app/models/server-model'
-
+import { squash } from 'src/app/util/rxjs.util'
 @Component({
   selector: 'app-installed-show',
   templateUrl: './app-installed-show.page.html',
@@ -32,17 +31,21 @@ export class AppInstalledShowPage extends Cleanup {
 
   $error$ = new BehaviorSubject<string>('')
   app: PropertySubject<AppInstalledFull> = { } as any
-  lanAddress = ''
   appId: string
   AppStatus = AppStatus
   showInstructions = false
   isConsulate: boolean
   isTor: boolean
 
+  // true iff service lan address has been tested and is accessible
+  $lanConnected$: BehaviorSubject<boolean> = new BehaviorSubject(false)
+  // true during service lan address testing
+  $testingLanConnection$: BehaviorSubject<boolean> = new BehaviorSubject(false)
+
   dependencyDefintion = () => `<span style="font-style: italic">Dependencies</span> are other services which must be installed, configured appropriately, and started in order to start ${this.app.title.getValue()}`
   launchDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. If a service does not have this button, you must access it using another interface, such as a mobile app, desktop app, or another service on the Embassy. Please view the instructions for a service for details on how to use it.</p>`
   launchOffDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. Get your service running in order to launch!</p>`
-  launchLocalDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. Visit your Embassy at its Tor address to launch this service!</p>`
+  launchLocalDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. To launch this service over LAN, enable the toggle below by your service's LAN Address.</p>`
 
   @ViewChild(IonContent) content: IonContent
 
@@ -59,7 +62,6 @@ export class AppInstalledShowPage extends Cleanup {
     private readonly appModel: AppModel,
     private readonly popoverController: PopoverController,
     private readonly emver: Emver,
-    private readonly serverModel: ServerModel,
     config: ConfigService,
   ) {
     super()
@@ -69,21 +71,72 @@ export class AppInstalledShowPage extends Cleanup {
 
   async ngOnInit () {
     this.appId = this.route.snapshot.paramMap.get('appId') as string
-    const server = this.serverModel.peek()
-    this.lanAddress = `https://${this.appId}.${server.serverId}.local`
 
     this.cleanup(
       markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId))
         .pipe(
           tap(app => this.app = app),
-          concatMap(() => this.syncWhenDependencyInstalls()), //must be final in stack
-          catchError(e => of(this.setError(e))),
+          concatMap(app =>
+            merge(
+              this.syncWhenDependencyInstalls(),
+              combineLatest([app.lanEnabled, this.$lanConnected$, app.status, this.$testingLanConnection$]).pipe(
+                filter(([_, __, s, alreadyConnecting]) => s === AppStatus.RUNNING && !alreadyConnecting),
+                concatMap(([enabled, connected]) => {
+                  if (enabled && !connected) return markAsLoadingDuring$(this.$testingLanConnection$, this.testLanConnection())
+                  if (!enabled && connected) return of(this.$lanConnected$.next(false))
+                  return of()
+                }),
+              ),
+            ),
+          ), //must be final in stack
+          catchError(e => this.setError(e)),
         ).subscribe(),
     )
   }
 
+  testLanConnection () : Observable<void> {
+    if (!this.app.lanAddress) return of()
+
+    return this.app.lanAddress.pipe(
+      switchMap(la => this.apiService.testConnection(la)),
+      retryWhen(errors => errors.pipe(delay(2500), take(20))),
+      catchError(() => of(false)),
+      take(1),
+      map(connected => this.$lanConnected$.next(connected)),
+    )
+  }
+
+  enableLan (): Observable<void> {
+    return from(this.apiService.toggleAppLAN(this.appId, 'enable')).pipe(squash)
+  }
+
+  disableLan (): Observable<void> {
+    return from(this.apiService.toggleAppLAN(this.appId, 'disable')).pipe(
+      map(() => this.appModel.update({ id: this.appId, lanEnabled: false }), modulateTime(new Date(), 10, 'seconds')),
+      map(() => this.$lanConnected$.next(false)),
+      squash,
+    )
+  }
+
+  $lanToggled$ = new Subject()
   ionViewDidEnter () {
     markAsLoadingDuringP(this.$loadingDependencies$, this.getApp())
+    this.cleanup(
+      combineLatest([this.$lanToggled$, this.app.lanEnabled, this.$testingLanConnection$]).pipe(
+        filter(([_, __, alreadyLoading]) => !alreadyLoading),
+        map(([e, _]) => [(e as any).detail.checked, _]),
+        // if the app is already in the desired state, we bail
+        // this can happen because ionChange triggers when the [checked] value changes
+        filter(([uiEnabled, appEnabled]) => (uiEnabled && !appEnabled) || (!uiEnabled && appEnabled)),
+        map(([enabled]) => enabled
+          ? this.enableLan().pipe(concatMap(() => this.testLanConnection()))
+          : this.disableLan(),
+        ),
+        concatMap(o => markAsLoadingDuring$(this.$testingLanConnection$, o).pipe(
+          catchError(e => this.setError(e)),
+        )),
+      ).subscribe({ error: e => console.error(e) }),
+    )
   }
 
   async doRefresh (event: any) {
@@ -113,7 +166,8 @@ export class AppInstalledShowPage extends Cleanup {
       const torAddress = this.app.torAddress.getValue()
       uiAddress = torAddress.startsWith('http') ? torAddress : `http://${torAddress}`
     } else {
-      uiAddress = this.lanAddress
+      const lanAddress = this.app.lanAddress.getValue()
+      uiAddress = lanAddress.startsWith('http') ? lanAddress : `http://${lanAddress}`
     }
     return window.open(uiAddress, '_blank')
   }
@@ -183,8 +237,9 @@ export class AppInstalledShowPage extends Cleanup {
   }
 
   async copyLan () {
+    const app = peekProperties(this.app)
     let message = ''
-    await copyToClipboard(this.lanAddress).then(success => { message = success ? 'copied to clipboard!' :  'failed to copy' })
+    await copyToClipboard(app.lanAddress).then(success => { message = success ? 'copied to clipboard!' :  'failed to copy' })
 
     const toast = await this.toastCtrl.create({
       header: message,
@@ -324,8 +379,9 @@ export class AppInstalledShowPage extends Cleanup {
     return await popover.present()
   }
 
-  private setError (e: Error) {
+  private setError (e: Error): Observable<void> {
     this.$error$.next(e.message)
+    return of()
   }
 
   private clearError () {

@@ -20,10 +20,13 @@
      hasFetchedFull: app.hasFetchedFull | async,
      iconURL: app.iconURL | async,
      title: app.title | async,
-     ui: app.ui | async
+     ui: app.ui | async,
+     lanAddress: app.lanAddress | async,
+     lanEnabled: app.lanEnabled | async,
+     launchDisabled: (app.status | async) !== 'RUNNING' || (!isTor && !($lanConnected$ | async)),
+     testingLanConnection: $testingLanConnection$ | async
   } as vars" class="ion-padding-bottom">
   <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
-
   <ng-container *ngIf="!($loading$ | async)">
     <ion-refresher *ngIf="app && app.id" slot="fixed" (ionRefresh)="doRefresh($event)">
       <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
@@ -83,7 +86,7 @@
             <ion-icon color="medium" name="information-circle-outline">
             </ion-icon>
           </ion-button>
-          <ion-button [disabled]="vars.status !== 'RUNNING'" class="launch-button" [class.launch-button-off]="vars.status !== 'RUNNING'" (click)="launchUiTab()">
+          <ion-button [disabled]="vars.launchDisabled" class="launch-button" [class.launch-button-off]="vars.launchDisabled" (click)="launchUiTab()">
             <ion-icon style="position: absolute; z-index: 1; left: 0;" name="globe-outline"></ion-icon>
             <ion-text>LAUNCH</ion-text>
           </ion-button>
@@ -97,20 +100,16 @@
         <ion-item>
           <ion-label class="ion-text-wrap">
             <h2>Tor Address</h2>
-            <p>{{ vars.torAddress }}</p>
+            <p><a (click)="copyTor()">{{ vars.torAddress }} <ion-icon name="copy-outline" class="tiny-icon"></ion-icon></a></p>
           </ion-label>
-          <ion-button slot="end" fill="clear" (click)="copyTor()">
-            <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
-          </ion-button>
         </ion-item>
         <ion-item *ngIf="vars.ui" lines="none">
           <ion-label class="ion-text-wrap">
             <h2>LAN Address</h2>
-            <p>{{ lanAddress }}</p>
+            <p><a (click)="copyLan()">{{ vars.lanAddress }} <ion-icon name="copy-outline" class="tiny-icon"></ion-icon></a></p>
           </ion-label>
-          <ion-button slot="end" fill="clear" (click)="copyLan()">
-            <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
-          </ion-button>
+          <ion-toggle *ngIf="!vars.testingLanConnection" (ionChange)="$lanToggled$.next($event)" [checked]="vars.lanEnabled" slot="end" fill="clear" class="lan-toggle" [disabled]="vars.status !== 'RUNNING'"></ion-toggle>
+          <ion-spinner slot="end" *ngIf="vars.testingLanConnection" name="lines" color="medium"></ion-spinner>
         </ion-item>
 
         <ion-item-divider>Backups</ion-item-divider>
