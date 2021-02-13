@@ -56,6 +56,7 @@ export interface ServiceAction {
     id: string,
     name: string,
     description: string,
+    warning?: string
     allowedStatuses: AppStatus[]
 }
 export interface AppDependency extends InstalledAppDependency {

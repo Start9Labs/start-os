@@ -41,7 +41,7 @@ export class AppActionsPage extends Cleanup {
     if (action.allowedStatuses.includes(this.app.status.getValue())) {
       const alert = await this.alertCtrl.create({
         header: 'Confirm',
-        message: `Are you sure you want to execute action "${action.name}"?`,
+        message: `Are you sure you want to execute action "${action.name}"? ${action.warning}`,
         buttons: [
           {
             text: 'Cancel',
