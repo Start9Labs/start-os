@@ -1,9 +1,3 @@
-#### Notes:
-* Currently EmbassyOS uses `registry.start9labs.com` and `beta-registry.start9labs.com` to pull important package/payload info (ie. nothing weird to worry about) so probably best for the privacy-paranoid to use a VPN (for example: the *Marketplace* is pulled from a YAML file located at `https://registry.start9labs.com/apps`)
-
-___
-
-### Required Steps:
 
 1. Flash [Raspberry Pi OS Lite](https://www.raspberrypi.org/software/operating-systems/) to a microSD and configure your raspi to boot from SSD/NVMe USDB drive
    1. After flashing, create an empty text file called `ssh` in the `boot` partition of the microSD, then proceed with booting the raspi with the flashed microSD (check your router for the IP assigned to your raspi)
@@ -163,13 +157,10 @@ ___
       4. Change `appmgr: appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr` to `appmgr: appmgr/target/release/appmgr`
       5. Change `lifeline: lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline` to `lifeline: lifeline/target/release/lifeline`
 
-   1. Edit `make_image.sh`
+   1. Prep `make_image.sh`
       ```
       chmod +x ~/embassy-os/make_image.sh
-      nano ~/embassy-os/make_image.sh
       ```
-      1. Change `appmgr/target/armv7-unknown-linux-musleabihf/release/appmgr` to `appmgr/target/release/appmgr`
-      2. Change `lifeline/target/armv7-unknown-linux-musleabihf/release/lifeline` to `lifeline/target/release/lifeline`
    
    1. Build the `embassy.img`
       ```
