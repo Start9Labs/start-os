@@ -2,7 +2,7 @@ import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService, isRpcFailure, isRpcSuccess } from 'src/app/services/api/api.service'
 import { BehaviorSubject } from 'rxjs'
-import { AlertController, IonicSafeString } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
 import { ModelPreload } from 'src/app/models/model-preload'
 import { LoaderService, markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { ServiceAction, AppInstalledFull } from 'src/app/models/app-types'
@@ -38,27 +38,33 @@ export class AppActionsPage extends Cleanup {
   }
 
   async handleAction (action: ServiceAction) {
-    const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
-      header: `Are you sure you want to ${action.name}?`,
-      message: new IonicSafeString(`
-        <p>${action.description}</p>
-      `),
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: `Go`,
-          handler: () => {
-            this.executeAction(action)
-
+    if (action.allowedStatuses.includes(this.app.status.getValue())) {
+      const alert = await this.alertCtrl.create({
+        header: 'Confirm',
+        message: `Are you sure you want to execute action "${action.name}"?`,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
           },
-        },
-      ],
-    })
-    await alert.present()
+          {
+            text: 'Execute',
+            handler: () => {
+              this.executeAction(action)
+            },
+          },
+        ],
+      })
+      await alert.present()
+    } else {
+      const alert = await this.alertCtrl.create({
+        header: 'Forbidden',
+        message: `Action "${action.name}" can only be executed when service is ${action.allowedStatuses.join(', ')}`,
+        buttons: ['OK'],
+        cssClass: 'alert-error-message',
+      })
+      await alert.present()
+    }
   }
 
   private async executeAction (action: ServiceAction) {
@@ -67,10 +73,9 @@ export class AppActionsPage extends Cleanup {
     )
     if (isRpcFailure(res)) {
       const successAlert = await this.alertCtrl.create({
-        header: `${action.name} failed with code ${res.error.code}`,
-        message: new IonicSafeString(`
-          <p>${res.error.message}</p>
-        `),
+        header: 'Execution Failed',
+        message: `Error code ${res.error.code}. ${res.error.message}`,
+        buttons: ['OK'],
         cssClass: 'alert-error-message',
       })
       return await successAlert.present()
@@ -78,8 +83,10 @@ export class AppActionsPage extends Cleanup {
 
     if (isRpcSuccess(res)) {
       const successAlert = await this.alertCtrl.create({
-        header: `${action.name}`,
-        message: new IonicSafeString(`${res.result}`),
+        header: 'Execution Complete',
+        message: res.result,
+        buttons: ['OK'],
+        cssClass: 'alert-success-message',
       })
       return await successAlert.present()
     }

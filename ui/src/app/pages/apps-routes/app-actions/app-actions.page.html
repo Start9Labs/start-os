@@ -10,29 +10,33 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top" *ngIf='{
-  status: app.status | async,
-  actions: app.actions | async
-} as vars'>
+<ion-content class="ion-padding-top">
   <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
 
-  <ng-container *ngIf="!($loading$ | async)">
+  <ng-container *ngIf="!($loading$ | async) && {
+    title: app.title | async,
+    versionInstalled: app.versionInstalled | async,
+    status: app.status | async,
+    actions: app.actions | async
+  } as vars">
     <ion-item *ngIf="error" style="margin-bottom: 16px;">
       <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
     </ion-item>
 
+    <!-- no metrics -->
+    <ion-item *ngIf="!vars.actions.length">
+      <ion-label class="ion-text-wrap">
+        <p>No Actions for {{ vars.title }} {{ vars.versionInstalled }}.</p>
+      </ion-label>
+    </ion-item>
+
     <!-- actions -->
-    <ion-item-group *ngIf="vars.actions.length">
-      <ion-item class="service-action-button" button *ngFor="let action of vars.actions" (click)="handleAction(action)" [detail]="action.allowedStatuses.includes(vars.status)" [disabled]="!action.allowedStatuses.includes(vars.status)" >
+    <ion-item-group>
+      <ion-item button *ngFor="let action of vars.actions" (click)="handleAction(action)" >
         <ion-label class="ion-text-wrap">
-          <h3>{{action.name}}</h3>
-          <p style="color: var(--ion-color-medium)" *ngIf="!action.allowedStatuses.includes(vars.status)">Service must be:
-            {{action.allowedStatuses.join(', ')}}
-          </p>
+          <h2><ion-text color="primary">{{ action.name }}</ion-text><ion-icon *ngIf="!(action.allowedStatuses | includes: vars.status)" color="danger" name="close-outline"></ion-icon></h2>
+          <p><ion-text color="dark">{{ action.description }}</ion-text></p>
         </ion-label>
-        <ion-text slot="end" color="medium" *ngIf="!action.allowedStatuses.includes(vars.status)">
-          DISABLED
-        </ion-text>
       </ion-item>
     </ion-item-group>
 
