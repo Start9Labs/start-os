@@ -160,8 +160,8 @@ ___
       1. Under `embassy.img` remove: `appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr`
       2. Under `embassy.img` remove: `lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline`
       3. Comment out the `docker` lines below `appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr` and `lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline`
-      4. Set `appmgr: appmgr/target/release/appmgr`
-      5. Set `lifeline: lifeline/target/release/lifeline`
+      4. Change `appmgr: appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr` to `appmgr: appmgr/target/release/appmgr`
+      5. Change `lifeline: lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline` to `lifeline: lifeline/target/release/lifeline`
 
    1. Edit `make_image.sh`
       ```
@@ -170,37 +170,6 @@ ___
       ```
       1. Change `appmgr/target/armv7-unknown-linux-musleabihf/release/appmgr` to `appmgr/target/release/appmgr`
       2. Change `lifeline/target/armv7-unknown-linux-musleabihf/release/lifeline` to `lifeline/target/release/lifeline`
-      3. Right after line `mount "${loopdev}p1" "${boot_mountpoint}"` add the following lines:
-         ```
-         mkdir -p "${root_mountpoint}/root/agent"
-         mkdir -p "${root_mountpoint}/etc/docker"
-         ```
-      4. Change:
-         * from:
-         ```
-         cp setup.service /etc/systemd/system/setup.service
-         cp lifeline/lifeline.service /etc/systemd/system/lifeline.service
-         cp agent/config/agent.service /etc/systemd/system/agent.service
-         ```
-         * to:
-         ```
-         cp setup.service "${root_mountpoint}/etc/systemd/system/setup.service"
-         cp lifeline/lifeline.service "${root_mountpoint}/etc/systemd/system/lifeline.service"
-         cp agent/config/agent.service "${root_mountpoint}/etc/systemd/system/agent.service"
-         ```
-      5. Fix `dtoverlay`:
-         * Change:
-         ```
-         cat "${boot_mountpoint}/config.txt" | grep -v "dtoverlay=pwm-2chan" > "${boot_mountpoint}/config.txt.tmp"
-         echo "dtoverlay=pwm-2chan" >> "${boot_mountpoint}/config.txt.tmp"
-         ```
-         * to:
-         ```
-         cp "${boot_mountpoint}/config.txt" "${boot_mountpoint}/config.txt.backup"
-         cat "${boot_mountpoint}/config.txt" | grep -v "dtoverlay=" > "${boot_mountpoint}/config.txt.tmp"
-         echo "dtoverlay=pwm-2chan" >> "${boot_mountpoint}/config.txt.tmp"
-         mv "${boot_mountpoint}/config.txt.tmp" "${boot_mountpoint}/config.txt"
-         ```
    
    1. Build the `embassy.img`
       ```
