@@ -103,13 +103,18 @@
             <p><a (click)="copyTor()">{{ vars.torAddress }} <ion-icon name="copy-outline" class="tiny-icon"></ion-icon></a></p>
           </ion-label>
         </ion-item>
-        <ion-item *ngIf="vars.ui" lines="none">
+        <ion-item *ngIf="vars.lanAddress" lines="none">
           <ion-label class="ion-text-wrap">
             <h2>LAN Address</h2>
-            <p><a (click)="copyLan()">{{ vars.lanAddress }} <ion-icon name="copy-outline" class="tiny-icon"></ion-icon></a></p>
+            <p>
+              <a (click)="copyLan()">{{ vars.lanAddress }} <ion-icon name="copy-outline" class="tiny-icon"></ion-icon></a>
+            </p>
+            <p *ngIf="vars.testingLanConnection" style="display: flex; align-items: center; font-size: x-small">
+              <ion-text color="dark">Testing Connection</ion-text>
+              <ion-spinner style="height: 15px; margin-left: 5px;" name="dots" color="dark"></ion-spinner>
+            </p>
           </ion-label>
-          <ion-toggle *ngIf="!vars.testingLanConnection" (ionChange)="$lanToggled$.next($event)" [checked]="vars.lanEnabled" slot="end" fill="clear" class="lan-toggle" [disabled]="vars.status !== 'RUNNING'"></ion-toggle>
-          <ion-spinner slot="end" *ngIf="vars.testingLanConnection" name="lines" color="medium"></ion-spinner>
+          <ion-toggle (ionChange)="$lanToggled$.next($event)" [checked]="vars.lanEnabled" slot="end" class="lan-toggle" [disabled]="vars.status !== 'RUNNING' || vars.testingLanConnection"></ion-toggle>          
         </ion-item>
 
         <ion-item-divider>Backups</ion-item-divider>

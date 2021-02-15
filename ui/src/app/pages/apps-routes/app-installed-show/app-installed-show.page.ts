@@ -6,7 +6,7 @@ import { copyToClipboard } from 'src/app/util/web.util'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { ModelPreload } from 'src/app/models/model-preload'
-import { chill, modulateTime, pauseFor } from 'src/app/util/misc.util'
+import { chill, modulateTime, pauseFor, traceWheel } from 'src/app/util/misc.util'
 import { PropertySubject, peekProperties } from 'src/app/util/property-subject.util'
 import { AppBackupPage } from 'src/app/modals/app-backup/app-backup.page'
 import { LoaderService, markAsLoadingDuring$, markAsLoadingDuringP } from 'src/app/services/loader.service'
@@ -83,6 +83,8 @@ export class AppInstalledShowPage extends Cleanup {
               combineLatest([app.lanEnabled, this.$lanConnected$, app.status, this.$testingLanConnection$]).pipe(
                 filter(([_, __, s, alreadyConnecting]) => s === AppStatus.RUNNING && !alreadyConnecting),
                 concatMap(([enabled, connected]) => {
+                  // console.log('enabled', enabled)
+                  // console.log('connected', connected)
                   if (enabled && !connected) return markAsLoadingDuring$(this.$testingLanConnection$, this.testLanConnection())
                   if (!enabled && connected) return of(this.$lanConnected$.next(false))
                   return of()
@@ -90,19 +92,23 @@ export class AppInstalledShowPage extends Cleanup {
               ),
               // toggle lan
               combineLatest([this.$lanToggled$, app.lanEnabled, this.$testingLanConnection$]).pipe(
-                distinctUntilChanged(([toggled1], [toggled2]) => toggled1 !== toggled2),
                 filter(([_, __, alreadyLoading]) => !alreadyLoading),
                 map(([e, _]) => [(e as any).detail.checked, _]),
+                distinctUntilChanged(([toggled1], [toggled2]) => toggled1 === toggled2),
                 // if the app is already in the desired state, we bail
                 // this can happen because ionChange triggers when the [checked] value changes
                 filter(([uiEnabled, appEnabled]) => (uiEnabled && !appEnabled) || (!uiEnabled && appEnabled)),
-                map(([enabled]) => enabled
-                  ? this.enableLan().pipe(concatMap(() => this.testLanConnection()))
-                  : this.disableLan(),
-                ),
-                concatMap(o => markAsLoadingDuring$(this.$testingLanConnection$, o).pipe(
-                  catchError(e => this.setError(e)),
-                )),
+                concatMap( ([enabled]) => {
+                  let o: Observable<void>
+                  if (enabled) {
+                    o = this.enableLan().pipe(concatMap(() => this.testLanConnection()))
+                  } else {
+                    o = this.disableLan()
+                  }
+                  return markAsLoadingDuring$(this.$testingLanConnection$, o).pipe(
+                    catchError(e => this.setError(e)),
+                  )
+                }),
               ),
             ),
           ), //must be final in stack
@@ -119,6 +125,7 @@ export class AppInstalledShowPage extends Cleanup {
       retryWhen(errors => errors.pipe(delay(2500), take(20))),
       catchError(() => of(false)),
       take(1),
+      traceWheel('lan connected test'),
       map(connected => this.$lanConnected$.next(connected)),
     )
   }
