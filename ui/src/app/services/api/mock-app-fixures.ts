@@ -53,6 +53,7 @@ export const bitcoinI: AppInstalledFull = {
   lanEnabled: true,
   title: 'Bitcoin Core',
   torAddress: '4acth47i6kxnvkewtm6q7ib2s3ufpo5sqbsnzjpbi7utijcltosqemad.onion',
+  startAlert: 'Bitcoind could take a loooooong time to start. Please be patient.',
   status: AppStatus.STOPPED,
   iconURL: 'assets/img/service-icons/bitcoind.png',
   instructions: 'some instructions',

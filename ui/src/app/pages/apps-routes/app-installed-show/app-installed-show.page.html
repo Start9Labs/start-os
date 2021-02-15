@@ -74,7 +74,7 @@
           <ion-button  *ngIf="vars.status === AppStatus.BROKEN_DEPENDENCIES" expand="block" fill="outline" (click)="scrollToRequirements()">
             Fix
           </ion-button>
-          <ion-button *ngIf="vars.status === AppStatus.STOPPED" expand="block" fill="outline" (click)="start()">
+          <ion-button *ngIf="vars.status === AppStatus.STOPPED" expand="block" fill="outline" (click)="tryStart()">
             Start
           </ion-button>
         </ion-label>

@@ -286,15 +286,13 @@ export class AppInstalledShowPage extends Cleanup {
     }).catch(e => this.setError(e))
   }
 
-  async start (): Promise<void> {
+  async tryStart (): Promise<void> {
     const app = peekProperties(this.app)
-    this.loader.of({
-      message: `Starting ${app.title}...`,
-      spinner: 'lines',
-      cssClass: 'loader',
-    }).displayDuringP(
-      this.apiService.startApp(this.appId),
-    ).catch(e => this.setError(e))
+    if (app.startAlert) {
+      this.presentAlertStart(app)
+    } else {
+      this.start(app)
+    }
   }
 
   async presentModalBackup (type: 'create' | 'restore') {
@@ -385,6 +383,36 @@ export class AppInstalledShowPage extends Cleanup {
       },
     })
     return await popover.present()
+  }
+
+  private async presentAlertStart (app: AppInstalledFull): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'Warning',
+      message: app.startAlert,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Start',
+          handler: () => {
+            this.start(app)
+          },
+        },
+      ],
+    })
+    await alert.present()
+  }
+
+  private async start (app: AppInstalledFull): Promise<void> {
+    this.loader.of({
+      message: `Starting ${app.title}...`,
+      spinner: 'lines',
+      cssClass: 'loader',
+    }).displayDuringP(
+      this.apiService.startApp(this.appId),
+    ).catch(e => this.setError(e))
   }
 
   private setError (e: Error): Observable<void> {
