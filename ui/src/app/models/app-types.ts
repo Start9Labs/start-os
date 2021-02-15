@@ -46,6 +46,7 @@ export interface AppInstalledFull extends AppInstalledPreview {
   lastBackup: string | null
   configuredRequirements: AppDependency[] | null // null if not yet configured
   hasFetchedFull: boolean
+  startAlert?: string
   uninstallAlert?: string
   restoreAlert?: string
   actions: Actions
