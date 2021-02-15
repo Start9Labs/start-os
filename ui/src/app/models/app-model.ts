@@ -149,6 +149,7 @@ function emptyAppInstalledFull (): Omit<AppInstalledFull, keyof AppInstalledPrev
     lastBackup: null,
     configuredRequirements: null,
     hasFetchedFull: false,
+    actions: [],
   }
 }
 

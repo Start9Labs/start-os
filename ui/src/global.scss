@@ -221,8 +221,14 @@ ion-popover {
 }
 
 .alert-error-message {
-  .alert-message {
+  .alert-title {
     color: var(--ion-color-danger);
+  }
+}
+
+.alert-success-message {
+  .alert-title {
+    color: var(--ion-color-success);
   }
 }
 

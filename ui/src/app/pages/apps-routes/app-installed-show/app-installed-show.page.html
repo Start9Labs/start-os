@@ -150,6 +150,11 @@
           <ion-icon slot="start" name="information-circle-outline" color="primary"></ion-icon>
           <ion-label><ion-text color="primary">Properties</ion-text></ion-label>
         </ion-item>
+        <!-- actions -->
+        <ion-item [routerLink]="['actions']">
+          <ion-icon slot="start" name="flash-outline" color="primary"></ion-icon>
+          <ion-label><ion-text color="primary">Actions</ion-text></ion-label>
+        </ion-item>
         <!-- logs -->
         <ion-item [disabled]="vars.status === AppStatus.INSTALLING" [routerLink]="['logs']">
           <ion-icon slot="start" name="newspaper-outline" color="primary"></ion-icon>
@@ -157,7 +162,7 @@
         </ion-item>
         <!-- marketplace -->
         <ion-item lines="none" [routerLink]="['/services', 'marketplace', appId]">
-          <ion-icon slot="start" name="cart-outline" color="primary"></ion-icon>
+          <ion-icon slot="start" name="storefront-outline" color="primary"></ion-icon>
           <ion-label><ion-text color="primary">Marketplace Listing</ion-text></ion-label>
         </ion-item>
 

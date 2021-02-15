@@ -1,5 +1,5 @@
 import { Rules } from '../../models/app-model'
-import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
+import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerMetrics, DiskInfo } from '../../models/server-model'
 import { Subject, Observable } from 'rxjs'
 import { Unit, ApiServer, ApiAppInstalledFull, ApiAppConfig, ApiAppAvailableFull } from './api-types'
@@ -51,7 +51,7 @@ export abstract class ApiService {
   abstract restoreAppBackup (appId: string, logicalname: string, password?: string): Promise<Unit>
   abstract stopAppBackup (appId: string): Promise<Unit>
   abstract patchAppConfig (app: AppInstalledPreview, config: object, dryRun?: boolean): Promise<{ breakages: DependentBreakage[] }>
-  abstract postConfigureDependency (dependencyId: string, dependentId: string, dryRun?: boolean): Promise< {config: object, breakages: DependentBreakage[] }>
+  abstract postConfigureDependency (dependencyId: string, dependentId: string, dryRun?: boolean): Promise< { config: object, breakages: DependentBreakage[] }>
   abstract patchServerConfig (attr: string, value: any): Promise<Unit>
   abstract wipeAppData (app: AppInstalledPreview): Promise<Unit>
   abstract addSSHKey (sshKey: string): Promise<Unit>
@@ -62,12 +62,30 @@ export abstract class ApiService {
   abstract restartServer (): Promise<Unit>
   abstract shutdownServer (): Promise<Unit>
   abstract ejectExternalDisk (logicalName: string): Promise<Unit>
+  abstract serviceAction (appId: string, serviceAction: ServiceAction): Promise<ReqRes.ServiceActionResponse>
+}
+
+export function isRpcFailure<Error, Result> (arg: { error: Error } | { result: Result}): arg is { error: Error } {
+  return !!(arg as any).error
+}
+
+export function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result}): arg is { result: Result } {
+  return !!(arg as any).result
 }
 
 export module ReqRes {
   export type GetVersionRes = { version: string }
   export type PostLoginReq = { password: string }
   export type PostLoginRes = Unit
+  export type ServiceActionRequest = {
+    jsonrpc: '2.0',
+    id: string,
+    method: string
+  }
+  export type ServiceActionResponse = {
+    jsonrpc: '2.0',
+    id: string
+  } & ({ error: { code: number, message: string } } | { result : string })
   export type GetCheckAuthRes = { }
   export type GetServerRes = ApiServer
   export type GetVersionLatestRes = { versionLatest: string, releaseNotes: string }
