@@ -66,3 +66,9 @@
   --handle-width: 0.9em;
   --handle-height: 0.9em;
 }
+
+.item-interactive-disabled:not(.item-multiple-inputs) ion-label {
+  cursor: default;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}

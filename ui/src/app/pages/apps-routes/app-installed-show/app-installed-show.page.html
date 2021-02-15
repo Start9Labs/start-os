@@ -109,9 +109,9 @@
             <p>
               <a (click)="copyLan()">{{ vars.lanAddress }} <ion-icon name="copy-outline" class="tiny-icon"></ion-icon></a>
             </p>
-            <p *ngIf="vars.testingLanConnection" style="display: flex; align-items: center; font-size: x-small">
-              <ion-text color="dark">Testing Connection</ion-text>
-              <ion-spinner style="height: 15px; margin-left: 5px;" name="dots" color="dark"></ion-spinner>
+            <p *ngIf="vars.testingLanConnection" style="display: flex; align-items: center; font-size: x-small; margin-top: 2px">
+              <ion-text color="warning">Testing Connection</ion-text>
+              <ion-spinner style="height: 15px; margin-left: 5px;" name="dots" color="warning"></ion-spinner>
             </p>
           </ion-label>
           <ion-toggle (ionChange)="$lanToggled$.next($event)" [checked]="vars.lanEnabled" slot="end" class="lan-toggle" [disabled]="vars.status !== 'RUNNING' || vars.testingLanConnection"></ion-toggle>          

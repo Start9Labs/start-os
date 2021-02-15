@@ -13,13 +13,13 @@ import { LoaderService, markAsLoadingDuring$, markAsLoadingDuringP } from 'src/a
 import { BehaviorSubject, combineLatest, from, merge, Observable, of, Subject } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { catchError, concatMap, delay, distinctUntilChanged, filter, map, retryWhen, switchMap, take, tap } from 'rxjs/operators'
+import { catchError, concatMap, delay, distinctUntilChanged, filter, map, mergeMap, retryWhen, switchMap, take, tap } from 'rxjs/operators'
 import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { ConfigService } from 'src/app/services/config.service'
-import { squash } from 'src/app/util/rxjs.util'
+import { concatObservableValues, squash } from 'src/app/util/rxjs.util'
 @Component({
   selector: 'app-installed-show',
   templateUrl: './app-installed-show.page.html',
@@ -79,42 +79,38 @@ export class AppInstalledShowPage extends Cleanup {
           concatMap(app =>
             merge(
               this.syncWhenDependencyInstalls(),
-              // new lan info from sync daemon
-              combineLatest([app.lanEnabled, this.$lanConnected$, app.status, this.$testingLanConnection$]).pipe(
-                filter(([_, __, s, alreadyConnecting]) => s === AppStatus.RUNNING && !alreadyConnecting),
-                concatMap(([enabled, connected]) => {
-                  // console.log('enabled', enabled)
-                  // console.log('connected', connected)
+              // new lan info or status info from sync daemon
+              combineLatest([app.lanEnabled, app.status]).pipe(
+                concatObservableValues<boolean, AppStatus, boolean, boolean>([this.$lanConnected$, this.$testingLanConnection$]),
+                concatMap(([enabled, status, connected, alreadyConnecting]) => {
+                  if (status !== AppStatus.RUNNING) return of(this.$lanConnected$.next(false))
+                  if (alreadyConnecting) return of()
                   if (enabled && !connected) return markAsLoadingDuring$(this.$testingLanConnection$, this.testLanConnection())
                   if (!enabled && connected) return of(this.$lanConnected$.next(false))
                   return of()
                 }),
               ),
               // toggle lan
-              combineLatest([this.$lanToggled$, app.lanEnabled, this.$testingLanConnection$]).pipe(
-                filter(([_, __, alreadyLoading]) => !alreadyLoading),
-                map(([e, _]) => [(e as any).detail.checked, _]),
-                distinctUntilChanged(([toggled1], [toggled2]) => toggled1 === toggled2),
-                // if the app is already in the desired state, we bail
-                // this can happen because ionChange triggers when the [checked] value changes
-                filter(([uiEnabled, appEnabled]) => (uiEnabled && !appEnabled) || (!uiEnabled && appEnabled)),
-                concatMap( ([enabled]) => {
-                  let o: Observable<void>
-                  if (enabled) {
-                    o = this.enableLan().pipe(concatMap(() => this.testLanConnection()))
-                  } else {
-                    o = this.disableLan()
-                  }
-                  return markAsLoadingDuring$(this.$testingLanConnection$, o).pipe(
-                    catchError(e => this.setError(e)),
-                  )
+              this.$lanToggled$.pipe(
+                map(toggleEvent => (toggleEvent as any).detail.checked),
+                concatObservableValues([app.lanEnabled, this.$testingLanConnection$]),
+                traceWheel('toggle'),
+                map( ([uiEnabled, appEnabled, alreadyConnecting]) => {
+                  if (!alreadyConnecting && uiEnabled && !appEnabled) return this.enableLan().pipe(concatMap(() => this.testLanConnection()))
+                  if (!alreadyConnecting && !uiEnabled) return this.disableLan()  //do this even if app already disabled because of appModel update timeout hack.
+                  return of()
                 }),
+                concatMap((o: Observable<void>) => this.testLanLoader(o)),
               ),
             ),
           ), //must be final in stack
           catchError(e => this.setError(e)),
         ).subscribe(),
     )
+  }
+
+  testLanLoader (o: Observable<void>): Observable<void> {
+    return markAsLoadingDuring$(this.$testingLanConnection$, o).pipe(catchError(e => this.setError(e)))
   }
 
   testLanConnection () : Observable<void> {
