@@ -45,8 +45,8 @@ export class MockApiService extends ApiService {
   async testConnection (): Promise<true> {
     console.log('testing connection')
     this.testCounter ++
-    await pauseFor(10000000)
-    if (this.testCounter > 3) {
+    await pauseFor(500)
+    if (this.testCounter > 2) {
       return true
     } else {
       throw new Error('Not Connected')

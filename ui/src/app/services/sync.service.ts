@@ -15,9 +15,6 @@ export class SyncDaemon {
   private readonly syncInterval = 5000
   private readonly $sync$  = new BehaviorSubject(false)
 
-  // emits on every successful sync
-  private readonly $synced$ = new Subject<void>()
-
   constructor (
     private readonly apiService: ApiService,
     private readonly serverModel: ServerModel,
@@ -39,13 +36,8 @@ export class SyncDaemon {
     return from(this.getServerAndApps()).pipe(
       concatMap(() => this.syncNotifier.handleSpecial(this.serverModel.peek())),
       concatMap(() => this.startupAlertsNotifier.runChecks(this.serverModel.peek())),
-      tap(() => this.$synced$.next()),
       catchError(e => of(console.error(`Exception in sync service`, e))),
     )
-  }
-
-  watchSynced (): Observable<void> {
-    return this.$synced$.asObservable()
   }
 
   private async getServerAndApps (): Promise<void> {
