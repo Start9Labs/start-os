@@ -39,24 +39,6 @@ export class EmverDisplayPipe implements PipeTransform {
   }
 }
 
-@Pipe({
-    name: 'isValidEmver',
-})
-export class EmverIsValidPipe implements PipeTransform {
-  constructor () { }
-
-  transform (version: string): boolean {
-    return isValidEmver(version)
-  }
-}
-
-export function isValidEmver (version: string): boolean {
-  const vs = version.split('.')
-  if (vs.length < 3 || vs.length > 5) return false
-  if (!vs.every(v => !isNaN(parseFloat(v)))) return false
-  return true
-}
-
 export function displayEmver (version: string): string {
   const vs = version.split('.')
   if (vs.length === 4) return `${vs[0]}.${vs[1]}.${vs[2]}~${vs[3]}`

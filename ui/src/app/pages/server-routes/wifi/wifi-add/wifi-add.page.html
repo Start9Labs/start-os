@@ -34,13 +34,13 @@
   <ion-grid style="margin-top: 40px;">
     <ion-row>
       <ion-col size="6">
-        <ion-button [disabled]="!ssid" expand="block" fill="outline" color="primary" (click)="add()">
-          Save for Later
+        <ion-button class="ion-text-wrap" [disabled]="!ssid" expand="block" fill="outline" color="primary" (click)="save()">
+          <p>Save</p>
         </ion-button>
       </ion-col>
       <ion-col size="6">
-        <ion-button [disabled]="!ssid" expand="block" fill="outline" color="primary" (click)="addAndConnect()">
-          Save and Connect Now
+        <ion-button class="ion-text-wrap" [disabled]="!ssid" expand="block" fill="outline" color="primary" (click)="saveAndConnect()">
+          <p>Save & Connect</p>
         </ion-button>
       </ion-col>
     </ion-row>

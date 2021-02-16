@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ServerMetrics } from 'src/app/models/server-model'
+import { ServerMetrics } from 'src/app/services/api/api-types'
 import { ApiService } from 'src/app/services/api/api.service'
 import { pauseFor } from 'src/app/util/misc.util'
 
@@ -18,15 +18,11 @@ export class ServerMetricsPage {
     private readonly apiService: ApiService,
   ) { }
 
-  async ngOnInit () {
-    await Promise.all([
-      this.getMetrics(),
-      pauseFor(600),
-    ])
-
-    this.loading = false
-
-    this.startDaemon()
+  ngOnInit () {
+    this.getMetrics().then(() => {
+      this.loading = false
+      this.startDaemon()
+    })
   }
 
   ngOnDestroy () {
@@ -47,7 +43,7 @@ export class ServerMetricsPage {
 
   async getMetrics (): Promise<void> {
     try {
-      const metrics = await this.apiService.getServerMetrics()
+      const metrics = await this.apiService.getServerMetrics({ })
       Object.keys(metrics).forEach(outerKey => {
         if (!this.metrics[outerKey]) {
           this.metrics[outerKey] = metrics[outerKey]

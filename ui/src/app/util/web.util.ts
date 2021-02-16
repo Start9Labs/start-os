@@ -1,5 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http'
-
 export async function copyToClipboard (str: string): Promise<boolean> {
   if (window.isSecureContext) {
     return navigator.clipboard.writeText(str)
@@ -21,12 +19,4 @@ export async function copyToClipboard (str: string): Promise<boolean> {
     document.body.removeChild(el)
     return copy
   }
-}
-
-export function isUnauthorized (e: HttpErrorResponse): boolean {
-  return !!e.status && 401 === e.status
-}
-
-export function isBadRequest (e: HttpErrorResponse): boolean {
-  return !!e.status && 400 === e.status
 }

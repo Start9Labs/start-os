@@ -1,16 +1,16 @@
 import { displayUniqueBy } from '../src/app/app-config/config-cursor'
 
-function assert(predicate: boolean, message: string) {
+function assert (predicate: boolean, message: string) {
     if (!predicate) {
         throw new Error('Assertion Failed: ' + message)
     }
 }
 
-function assertEq(a: any, b: any, message: string) {
+function assertEq (a: any, b: any, message: string) {
     assert(a === b, message)
 }
 
-function test() {
+function test () {
     assertEq(
         displayUniqueBy(
             'foo',
@@ -28,22 +28,22 @@ function test() {
                 },
                 nullByDefault: false,
                 nullable: false,
-                uniqueBy: 'foo'
+                uniqueBy: 'foo',
             },
             {
                 foo: 'foo-val',
-            }
+            },
         ),
         'Foo',
-        'base string uses name mapping'
+        'base string uses name mapping',
     )
     assertEq(
         displayUniqueBy(
             {
                 any: [
                     'foo',
-                    'bar'
-                ]
+                    'bar',
+                ],
             },
             {
                 type: 'object',
@@ -69,25 +69,25 @@ function test() {
                 uniqueBy: {
                     any: [
                         'foo',
-                        'bar'
-                    ]
-                }
+                        'bar',
+                    ],
+                },
             },
             {
                 foo: 'foo-val',
                 bar: 'bar-val',
-            }
+            },
         ),
         'Foo and Bar',
-        '`any` must be joined with `and`'
+        '`any` must be joined with `and`',
     )
     assertEq(
         displayUniqueBy(
             {
                 all: [
                     'foo',
-                    'bar'
-                ]
+                    'bar',
+                ],
             },
             {
                 type: 'object',
@@ -113,17 +113,17 @@ function test() {
                 uniqueBy: {
                     all: [
                         'foo',
-                        'bar'
-                    ]
-                }
+                        'bar',
+                    ],
+                },
             },
             {
                 foo: 'foo-val',
                 bar: 'bar-val',
-            }
+            },
         ),
         'Foo or Bar',
-        '`all` must be joined with `or`'
+        '`all` must be joined with `or`',
     )
     assertEq(
         displayUniqueBy(
@@ -133,10 +133,10 @@ function test() {
                     {
                         all: [
                             'bar',
-                            'baz'
-                        ]
-                    }
-                ]
+                            'baz',
+                        ],
+                    },
+                ],
             },
             {
                 type: 'object',
@@ -162,7 +162,7 @@ function test() {
                         nullable: true,
                         copyable: false,
                         masked: false,
-                    }
+                    },
                 },
                 nullByDefault: false,
                 nullable: false,
@@ -172,20 +172,20 @@ function test() {
                         {
                             all: [
                                 'bar',
-                                'baz'
-                            ]
-                        }
-                    ]
-                }
+                                'baz',
+                            ],
+                        },
+                    ],
+                },
             },
             {
                 foo: 'foo-val',
                 bar: 'bar-val',
                 baz: 'baz-val',
-            }
+            },
         ),
         'Foo and (Bar or Baz)',
-        '`any` of `all` is correct'
+        '`any` of `all` is correct',
     )
     assertEq(
         displayUniqueBy(
@@ -195,10 +195,10 @@ function test() {
                     {
                         all: [
                             'bar',
-                            'baz'
-                        ]
-                    }
-                ]
+                            'baz',
+                        ],
+                    },
+                ],
             },
             {
                 type: 'union',
@@ -208,8 +208,8 @@ function test() {
                     name: 'Variant',
                     variantNames: {
                         'variant-a': 'Variant A',
-                        'variant-b': 'Variant B'
-                    }
+                        'variant-b': 'Variant B',
+                    },
                 },
                 variants: {
                     'variant-a': {
@@ -233,9 +233,9 @@ function test() {
                             nullable: true,
                             copyable: false,
                             masked: false,
-                        }
+                        },
                     },
-                    'variant-b': {},
+                    'variant-b': { },
                 },
                 uniqueBy: {
                     any: [
@@ -243,10 +243,10 @@ function test() {
                         {
                             all: [
                                 'bar',
-                                'baz'
-                            ]
-                        }
-                    ]
+                                'baz',
+                            ],
+                        },
+                    ],
                 },
                 default: 'variant-a',
             },
@@ -255,9 +255,9 @@ function test() {
                 foo: 'foo-val',
                 bar: 'bar-val',
                 baz: 'baz-val',
-            }
+            },
         ),
         'Foo and (Bar or Baz)',
-        'union is correct'
+        'union is correct',
     )
 }

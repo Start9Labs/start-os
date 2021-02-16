@@ -1,10 +1,9 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { BehaviorSubject } from 'rxjs'
-import { AppInstalledFull } from 'src/app/models/app-types'
-import { ModelPreload } from 'src/app/models/model-preload'
-import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
-import { peekProperties } from 'src/app/util/property-subject.util'
+import { concatMap, take, tap } from 'rxjs/operators'
+import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { ApiService } from 'src/app/services/api/api.service'
+import { Method } from 'src/app/services/http.service'
 
 @Component({
   selector: 'app-instructions',
@@ -12,25 +11,34 @@ import { peekProperties } from 'src/app/util/property-subject.util'
   styleUrls: ['./app-instructions.page.scss'],
 })
 export class AppInstructionsPage {
-  $loading$ = new BehaviorSubject(true)
+  instructions: string
+  loading = true
   error = ''
-  app: AppInstalledFull = { } as any
-  appId: string
 
   constructor (
     private readonly route: ActivatedRoute,
-    private readonly preload: ModelPreload,
+    private readonly apiService: ApiService,
+    private readonly patch: PatchDbModel,
   ) { }
 
   async ngOnInit () {
-    this.appId = this.route.snapshot.paramMap.get('appId') as string
-
-    markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId)).subscribe({
-      next: app => this.app = peekProperties(app),
-      error: e => {
-        console.error(e)
+    const pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.patch.watch$('package-data', pkgId)
+    .pipe(
+      concatMap(pkg => this.apiService.getStatic(pkg['static-files'].instructions)),
+      tap(instructions => {
+        console.log(instructions)
+        this.instructions = instructions
+      }),
+      take(1),
+    )
+    .subscribe(
+      () => { this.loading = false },
+      e => {
         this.error = e.message
+        this.loading = false
       },
-    })
+      () => console.log('COMPLETE'),
+    )
   }
 }
