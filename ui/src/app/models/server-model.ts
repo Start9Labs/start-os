@@ -6,7 +6,6 @@ import { ConfigService } from 'src/app/services/config.service'
 import { Storage } from '@ionic/storage'
 import { throttleTime, delay } from 'rxjs/operators'
 import { StorageKeys } from './storage-keys'
-
 @Injectable({
   providedIn: 'root',
 })
