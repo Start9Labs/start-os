@@ -14,8 +14,8 @@ export class NotesComponent implements OnInit, Loadable {
     titleColor: string
   }
 
-  $loading$ = new BehaviorSubject(false)
-  $cancel$ = new Subject<void>()
+  loading$ = new BehaviorSubject(false)
+  cancel$ = new Subject<void>()
 
   load () { }
 

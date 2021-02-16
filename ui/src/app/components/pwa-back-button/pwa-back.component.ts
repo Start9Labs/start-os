@@ -1,5 +1,6 @@
 import { Component } from '@angular/core'
-import { PwaBackService } from 'src/app/services/pwa-back.service'
+import { NavController } from '@ionic/angular'
+
 @Component({
   selector: 'pwa-back-button',
   templateUrl: './pwa-back.component.html',
@@ -7,10 +8,10 @@ import { PwaBackService } from 'src/app/services/pwa-back.service'
 })
 export class PwaBackComponent {
   constructor (
-    private readonly pwaBack: PwaBackService,
+    private readonly nav: NavController,
   ) {  }
 
   navigateBack () {
-    return this.pwaBack.back()
+    return this.nav.back()
   }
 }

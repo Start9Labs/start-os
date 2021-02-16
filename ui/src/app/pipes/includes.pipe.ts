@@ -4,7 +4,7 @@ import { Pipe, PipeTransform } from '@angular/core'
     name: 'includes',
 })
 export class IncludesPipe implements PipeTransform {
-  transform<T> (set: T[], val: T): boolean {
-    return set.includes(val)
+  transform<T> (list: T[], val: T): boolean {
+    return list.includes(val)
   }
 }

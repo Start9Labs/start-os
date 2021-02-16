@@ -1,0 +1,74 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Properties</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <ion-spinner *ngIf="loading; else loaded" class="center" name="lines" color="warning"></ion-spinner>
+
+  <ng-template #loaded>
+    <ng-container *ngIf="patch.watch$('package-data', pkgId) | ngrxPush as pkg">
+      <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+        <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
+      </ion-refresher>
+  
+      <ion-item *ngIf="error" style="margin-bottom: 16px;">
+        <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+      </ion-item>
+  
+      <!-- not running -->
+      <ion-item *ngIf="pkg.installed.status.main.status !== FeStatus.Running" class="ion-margin-bottom">
+        <ion-label class="ion-text-wrap">
+          <p><ion-text color="warning">Service not running. Information on this page could be inaccurate.</ion-text></p>
+        </ion-label>
+      </ion-item>
+
+      <!-- no properties -->
+      <ion-item *ngIf="(hasProperties$ | ngrxPush) === false">
+        <ion-label class="ion-text-wrap">
+          <p>No properties.</p>
+        </ion-label>
+      </ion-item>
+  
+      <!-- properties -->
+      <ion-item-group *ngIf="(hasProperties$ | ngrxPush) === true">
+        <div *ngFor="let prop of properties$ | ngrxPush | keyvalue: asIsOrder">
+          <!-- object -->
+          <ion-item button detail="true" *ngIf="prop.value.type === 'object'" (click)="goToNested(prop.key)">
+            <ion-button *ngIf="prop.value.description" class="help-button" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
+              <ion-icon size="small" slot="icon-only" name="help-circle-outline"></ion-icon>
+            </ion-button>
+            <ion-label class="ion-text-wrap">
+              <h2>{{ prop.key }}</h2>
+            </ion-label>
+          </ion-item>
+          <!-- not object -->
+          <ion-item *ngIf="prop.value.type === 'string'">
+            <ion-button *ngIf="prop.value.description" class="help-button" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
+              <ion-icon size="small" slot="icon-only" name="help-circle-outline"></ion-icon>
+            </ion-button>
+            <ion-label class="ion-text-wrap">
+              <h2>{{ prop.key }}</h2>
+              <p>{{ prop.value.masked && !unmasked[prop.key] ? (prop.value.value | mask ) : (prop.value.value | truncateEnd : 100) }}</p>
+            </ion-label>
+            <div slot="end" *ngIf="prop.value.copyable || prop.value.qr">
+              <ion-button *ngIf="prop.value.masked" fill="clear" (click)="toggleMask(prop.key)">
+                <ion-icon slot="icon-only" [name]="unmasked[prop.key] ? 'eye-off-outline' : 'eye-outline'" [color]="unmasked[prop.key] ? 'danger' : 'primary'" size="small"></ion-icon>
+              </ion-button>
+              <ion-button *ngIf="prop.value.qr" fill="clear" (click)="showQR(prop.value.value)">
+                <ion-icon slot="icon-only" name="qr-code-outline" size="small" color="primary"></ion-icon>
+              </ion-button>
+              <ion-button *ngIf="prop.value.copyable" fill="clear" (click)="copy(prop.value.value)">
+                <ion-icon slot="icon-only" name="copy-outline" size="small" color="primary"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-item>
+        </div>
+      </ion-item-group>
+    </ng-container>
+  </ng-template>
+</ion-content>

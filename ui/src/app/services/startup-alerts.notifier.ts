@@ -3,15 +3,14 @@ import { AlertController, IonicSafeString, ModalController, NavController } from
 import { wizardModal } from '../components/install-wizard/install-wizard.component'
 import { WizardBaker } from '../components/install-wizard/prebaked-wizards'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
-import { S9Server } from '../models/server-model'
 import { displayEmver } from '../pipes/emver.pipe'
-import { V1Status } from './api/api-types'
-import { ApiService, ReqRes } from './api/api.service'
+import { ApiService } from './api/api.service'
+import { RR } from './api/api-types'
 import { ConfigService } from './config.service'
 import { Emver } from './emver.service'
 import { OsUpdateService } from './os-update.service'
 
-@Injectable({ providedIn: 'root' })
+@Injectable({providedIn: 'root' })
 export class StartupAlertsNotifier {
   constructor (
     private readonly alertCtrl: AlertController,
@@ -35,13 +34,6 @@ export class StartupAlertsNotifier {
       shouldRun: s => this.shouldRunOsUpdateCheck(s),
       check: s => this.osUpdateCheck(s),
       display: vl => this.displayOsUpdateCheck(vl),
-      hasRun: this.config.skipStartupAlerts,
-    }
-    const v1StatusUpdate: Check<V1Status> = {
-      name: 'v1Status',
-      shouldRun: s => this.shouldRunOsUpdateCheck(s),
-      check: () => this.v1StatusCheck(),
-      display: s => this.displayV1Check(s),
       hasRun: this.config.skipStartupAlerts,
     }
     const apps: Check<boolean> = {

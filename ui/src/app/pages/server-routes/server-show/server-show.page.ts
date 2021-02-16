@@ -1,14 +1,10 @@
 import { Component } from '@angular/core'
 import { LoadingOptions } from '@ionic/core'
-import { ServerModel, ServerStatus } from 'src/app/models/server-model'
-import { AlertController } from '@ionic/angular'
-import { S9Server } from 'src/app/models/server-model'
+import { AlertController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { SyncDaemon } from 'src/app/services/sync.service'
-import { Subscription, Observable } from 'rxjs'
-import { PropertySubject, toObservable } from 'src/app/util/property-subject.util'
-import { doForAtLeast } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
+import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { ServerStatus } from 'src/app/models/patch-db/data-model'
 
 @Component({
   selector: 'server-show',
@@ -16,65 +12,15 @@ import { LoaderService } from 'src/app/services/loader.service'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  error = ''
-  s9Host$: Observable<string>
-
-  server: PropertySubject<S9Server>
-  currentServer: S9Server
-
-  subsToTearDown: Subscription[] = []
-
-  updatingFreeze = false
-  updating = false
+  ServerStatus = ServerStatus
 
   constructor (
-    private readonly serverModel: ServerModel,
     private readonly alertCtrl: AlertController,
     private readonly loader: LoaderService,
     private readonly apiService: ApiService,
-    private readonly syncDaemon: SyncDaemon,
+    private readonly modalCtrl: ModalController,
+    public readonly patch: PatchDbModel,
   ) { }
-
-  async ngOnInit () {
-    this.server = this.serverModel.watch()
-    this.subsToTearDown.push(
-      // serverUpdateSubscription
-      this.server.status.subscribe(status => {
-        if (status === ServerStatus.UPDATING) {
-          this.updating = true
-        } else {
-          if (!this.updatingFreeze) { this.updating = false }
-        }
-      }),
-      // currentServerSubscription
-      toObservable(this.server).subscribe(currentServerProperties => {
-        this.currentServer = currentServerProperties
-      }),
-    )
-  }
-
-  ionViewDidEnter () {
-    this.error = ''
-  }
-
-  ngOnDestroy () {
-    this.subsToTearDown.forEach(s => s.unsubscribe())
-  }
-
-  async doRefresh (event: any) {
-    await doForAtLeast([this.getServerAndApps()], 600)
-    event.target.complete()
-  }
-
-  async getServerAndApps (): Promise<void> {
-    try {
-      this.syncDaemon.sync()
-      this.error = ''
-    } catch (e) {
-      console.error(e)
-      this.error = e.message
-    }
-  }
 
   async presentAlertRestart () {
     const alert = await this.alertCtrl.create({
@@ -122,27 +68,26 @@ export class ServerShowPage {
 
   private async restart () {
     this.loader
-      .of(LoadingSpinner(`Restarting ${this.currentServer.name}...`))
+      .of(LoadingSpinner(`Restarting...`))
       .displayDuringAsync( async () => {
-          this.serverModel.markUnreachable()
-          await this.apiService.restartServer()
+        // this.serverModel.markUnreachable()
+        await this.apiService.restartServer({ })
       })
       .catch(e => this.setError(e))
   }
 
   private async shutdown () {
     this.loader
-      .of(LoadingSpinner(`Shutting down ${this.currentServer.name}...`))
+      .of(LoadingSpinner(`Shutting down...`))
       .displayDuringAsync( async () => {
-        this.serverModel.markUnreachable()
-        await this.apiService.shutdownServer()
+        // this.serverModel.markUnreachable()
+        await this.apiService.shutdownServer({ })
       })
       .catch(e => this.setError(e))
   }
 
   setError (e: Error) {
     console.error(e)
-    this.error = e.message
   }
 }
 

@@ -1,10 +1,8 @@
-import { Component, Input, NgZone, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core'
+import { Component, Input, NgZone, QueryList, ViewChild, ViewChildren } from '@angular/core'
 import { IonContent, IonSlides, ModalController } from '@ionic/angular'
 import { BehaviorSubject } from 'rxjs'
-import { Cleanup } from 'src/app/util/cleanup'
 import { capitalizeFirstLetter, pauseFor } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
-import { DependenciesComponent } from './dependencies/dependencies.component'
 import { DependentsComponent } from './dependents/dependents.component'
 import { NotesComponent } from './notes/notes.component'
 import { Loadable } from './loadable'
@@ -15,7 +13,7 @@ import { WizardAction } from './wizard-types'
   templateUrl: './install-wizard.component.html',
   styleUrls: ['./install-wizard.component.scss'],
 })
-export class InstallWizardComponent extends Cleanup implements OnInit {
+export class InstallWizardComponent {
   @Input() params: {
     // defines each slide along with bottom bar
     slideDefinitions: SlideDefinition[]
@@ -40,11 +38,13 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
     return this.params.slideDefinitions[this.slideIndex].bottomBar
   }
 
-  $initializing$ = new BehaviorSubject(true)
-  $error$ = new BehaviorSubject(undefined)
+  initializing$ = new BehaviorSubject(true)
+  error$ = new BehaviorSubject(undefined)
 
-  constructor (private readonly modalController: ModalController, private readonly zone: NgZone) { super() }
-  ngOnInit () { }
+  constructor (
+    private readonly modalController: ModalController,
+    private readonly zone: NgZone,
+  ) { }
 
   ngAfterViewInit () {
     this.currentSlide.load()
@@ -53,15 +53,15 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
   }
 
   ionViewDidEnter () {
-    this.$initializing$.next(false)
+    this.initializing$.next(false)
   }
 
   // process bottom bar buttons
   private transition = (info: { next: any } | { error: Error } | { cancelled: true } | { final: true }) => {
     const i = info as { next?: any, error?: Error, cancelled?: true, final?: true }
-    if (i.cancelled) this.currentSlide.$cancel$.next()
+    if (i.cancelled) this.currentSlide.cancel$.next()
     if (i.final || i.cancelled) return this.modalController.dismiss(i)
-    if (i.error) return this.$error$.next(capitalizeFirstLetter(i.error.message))
+    if (i.error) return this.error$.next(capitalizeFirstLetter(i.error.message))
 
     this.moveToNextSlide(i.next)
   }
@@ -90,7 +90,6 @@ export class InstallWizardComponent extends Cleanup implements OnInit {
 
 export interface SlideDefinition {
   slide:
-    { selector: 'dependencies', params: DependenciesComponent['params'] } |
     { selector: 'dependents', params: DependentsComponent['params'] } |
     { selector: 'complete', params: CompleteComponent['params'] } |
     { selector: 'notes', params: NotesComponent['params'] }

@@ -1,12 +1,4 @@
 <div style="position: relative; margin-right: 1vh;">
-  <ion-icon
-    *ngIf="(badge$ | async) && !(menuFixedOpen$ | async)"
-    size="medium"
-    color="dark"
-    [class.ios-badge]="isIos"
-    [class.md-badge]="!isIos"
-    name="alert-outline"
-  >
-  </ion-icon>
+  <ion-badge mode="md" class="md-badge" *ngIf="(badge$ | ngrxPush) && !(menuFixedOpen$ | ngrxPush)" color="danger">{{ badge$ | ngrxPush }}</ion-badge>
   <ion-menu-button color="dark"></ion-menu-button>
 </div>

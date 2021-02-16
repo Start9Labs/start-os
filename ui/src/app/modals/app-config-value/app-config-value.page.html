@@ -71,7 +71,7 @@
       <p *ngIf="rangeDescription">
         <ion-text color="medium">{{ rangeDescription }}</ion-text>
       </p>
-      <p *ngIf="spec.default">
+      <p *ngIf="spec.default !== undefined">
         <ion-text color="medium">
           <p>Default: {{ defaultDescription }} <ion-icon style="padding-left: 8px;" name="refresh-outline" color="primary" (click)="refreshDefault()"></ion-icon></p>
           <p *ngIf="spec.type === 'number' && spec.units">Units: {{ spec.units }}</p>
