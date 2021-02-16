@@ -2,11 +2,18 @@ import { Injectable } from '@angular/core'
 import { AppStatus } from '../models/app-model'
 import { ApiAppInstalledPreview } from './api/api-types'
 
-const { useMocks, mockOver, skipStartupAlerts } = require('../../../use-mocks.json') as UseMocks
+const { patchDb, maskAs, useMocks, skipStartupAlerts } = require('../../../ui-config.json') as UiConfig
 
-type UseMocks = {
-  useMocks: boolean
-  mockOver: 'tor' | 'lan'
+type UiConfig = {
+  patchDb: {
+    http  : { type: 'mock' } | { type: 'live', url: string }
+    source:
+        { type: 'poll', cooldown: number  /* in ms */ }
+      | { type: 'ws', url: string, version: number }
+  }
+
+  useMocks: boolean //@TODO 0.3.0: Deprecated, remove for 0.3.0
+  maskAs: 'tor' | 'lan' | 'none'
   skipStartupAlerts: boolean
 }
 @Injectable({
@@ -16,8 +23,10 @@ export class ConfigService {
   origin = removePort(removeProtocol(window.origin))
   version = require('../../../package.json').version
 
+  patchDb = patchDb
+
   api = {
-    useMocks,
+    useMocks: useMocks,
     url: '/api',
     version: '/v0',
     root: '', // empty will default to same origin
@@ -27,7 +36,7 @@ export class ConfigService {
   isConsulate        = window['platform'] === 'ios'
 
   isTor () : boolean {
-    return (this.api.useMocks && mockOver === 'tor') || this.origin.endsWith('.onion')
+    return (this.api.useMocks && maskAs === 'tor') || this.origin.endsWith('.onion')
   }
 
   hasUI (app: ApiAppInstalledPreview): boolean {
@@ -35,7 +44,7 @@ export class ConfigService {
   }
 
   isLaunchable (app: ApiAppInstalledPreview): boolean {
-    return !this.isConsulate && 
+    return !this.isConsulate &&
       app.status === AppStatus.RUNNING &&
       (
         (app.torAddress && app.torUi && this.isTor()) ||

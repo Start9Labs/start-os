@@ -1,20 +1,20 @@
 import { Injectable } from "@angular/core";
-import { initPatchDb, PatchDB, RxStore, Store } from "patch-db-client";
-import { BehaviorSubject, combineLatest, Observable, of, Subscription } from "rxjs";
-import { filter, map, switchMap } from "rxjs/operators";
-import { DeepPartial, exists } from "../util/misc.util";
+import { initPatchDb, PatchDB, PatchDbConfig, Store } from "patch-db-client";
+import { BehaviorSubject, combineLatest, Observable, Subscription } from "rxjs";
+import { filter, map } from "rxjs/operators";
+import { exists } from "../../util/misc.util";
 import { DataModel } from "./data-model";
 import { LocalStorageBootstrap } from "./local-storage-bootstrap";
 
 @Injectable({
   providedIn: 'root'
 })
-export class PatchDBClient {
+export class PatchDbModel {
   private patchDb: PatchDB<DataModel>
   private store: Store<DataModel>
   private syncSub: Subscription
 
-  constructor(private readonly storage: Storage) { }
+  constructor(private readonly conf: PatchDbConfig<DataModel>) {}
 
   get peek(): DataModel { return this.store.peek }
   watch(): Observable<DataModel>;
@@ -54,15 +54,9 @@ export class PatchDBClient {
   }
 
   async init() {
-    await this.storage.ready()
     if(this.patchDb || this.store) return console.warn('Cannot re-init patchDbModel')
 
-    const { patchDb, store } = await initPatchDb<DataModel>({
-      source: undefined as any,
-      http: undefined as any,
-      store: undefined as any,
-      bootstrap: new LocalStorageBootstrap(this.storage),
-    })
+    const { patchDb, store } = await initPatchDb<DataModel>(this.conf)
     this.patchDb = patchDb
     this.store = store
 

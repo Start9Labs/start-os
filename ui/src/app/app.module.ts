@@ -8,6 +8,7 @@ import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
 import { ApiService } from './services/api/api.service'
 import { ApiServiceFactory } from './services/api/api.service.factory'
+import { PatchDbModelFactory } from './models/patch-db/patch-db-model.factory'
 import { AppModel } from './models/app-model'
 import { HttpService } from './services/http.service'
 import { ServerModel } from './models/server-model'
@@ -16,6 +17,7 @@ import { QRCodeModule } from 'angularx-qrcode'
 import { APP_CONFIG_COMPONENT_MAPPING } from './modals/app-config-injectable/modal-injectable-token'
 import { appConfigComponents } from './modals/app-config-injectable/modal-injectable-value';
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
+import { PatchDbModel } from './models/patch-db/patch-db-model'
 
 @NgModule({
   declarations: [AppComponent],
@@ -32,6 +34,7 @@ import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     { provide: ApiService, useFactory: ApiServiceFactory, deps: [ConfigService, HttpService, AppModel, ServerModel] },
+    { provide: PatchDbModel, useFactory: PatchDbModelFactory, deps: [ConfigService] },
     { provide: APP_CONFIG_COMPONENT_MAPPING, useValue: appConfigComponents },
   ],
   bootstrap: [AppComponent],

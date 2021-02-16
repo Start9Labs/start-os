@@ -1,0 +1,16 @@
+{
+  "patchDb": {
+    "http": {
+      "type": "mock"
+    },
+    "source": {
+      "type": "poll",
+      "cooldown": 5000
+    }
+  },
+
+  "useMocks": true,
+
+  "maskAs": "lan",
+  "skipStartupAlerts": false
+}
