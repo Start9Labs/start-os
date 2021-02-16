@@ -10,8 +10,8 @@ import { ConfigService } from 'src/app/services/config.service'
   styleUrls: ['./lan.page.scss'],
 })
 export class LANPage {
-  torDocs = 'docs.privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion/user-manuals/embassyos/general/secure-lan'
-  lanDocs = 'docs.start9labs.com/user-manuals/embassyos/general/secure-lan'
+  torDocs = 'docs.privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion/user-manual/general/secure-lan'
+  lanDocs = 'docs.start9labs.com/user-manual/general/secure-lan'
 
   lanAddress: string
   isTor: boolean
