@@ -1864,6 +1864,9 @@ mod test {
             hidden_service_version: crate::tor::HiddenServiceVersion::V3,
             dependencies: deps,
             extra: LinearMap::new(),
+            install_alert: None,
+            restore_alert: None,
+            uninstall_alert: None,
         })
         .unwrap();
         let config = spec

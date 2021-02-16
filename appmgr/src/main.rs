@@ -450,6 +450,19 @@ async fn inner_main() -> Result<(), Error> {
                 .subcommand(SubCommand::with_name("reload").about("Reloads the tor configuration")),
         )
         .subcommand(
+            SubCommand::with_name("lan")
+                .about("Configures LAN services")
+                .subcommand(
+                    SubCommand::with_name("enable")
+                        .about("Publishes the LAN address for the service over avahi")
+                        .arg(
+                            Arg::with_name("ID")
+                                .help("ID of the application to publish the LAN address for")
+                                .required(true),
+                        ),
+                ),
+        )
+        .subcommand(
             SubCommand::with_name("info")
                 .about("Prints information about an installed app")
                 .arg(
@@ -1176,6 +1189,12 @@ async fn inner_main() -> Result<(), Error> {
             _ => {
                 println!("{}", sub_m.usage());
                 std::process::exit(1);
+            }
+        },
+        #[cfg(not(feature = "portable"))]
+        ("lan", Some(sub_m)) => match sub_m.subcommand() {
+            ("enable", Some(sub_sub_m)) => {
+                crate::lan::enable_lan(sub_sub_m.value_of("ID").unwrap(), None).await?
             }
         },
         #[cfg(not(feature = "portable"))]
