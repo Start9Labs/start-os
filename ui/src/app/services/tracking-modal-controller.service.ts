@@ -4,7 +4,7 @@ import { ModalController } from '@ionic/angular'
 import { ModalOptions } from '@ionic/core'
 import { APP_CONFIG_COMPONENT_MAPPING } from '../modals/app-config-injectable/modal-injectable-token'
 import { AppConfigComponentMapping } from '../modals/app-config-injectable/modal-injectable-type'
-import { ValueSpec } from '../app-config/config-types'
+import { ValueSpec } from '../pkg-config/config-types'
 
 @Injectable({
   providedIn: 'root',
@@ -42,7 +42,6 @@ export class TrackingModalController {
       Object.values(this.modals).map(m => m.dismiss()),
     )
   }
-
 
   dismiss (val?: any): Promise<boolean> {
     return this.modalCtrl.dismiss(val)

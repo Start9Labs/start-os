@@ -1,17 +1,18 @@
-.ios-badge {
-  background-color: var(--ion-color-start9);
-  position: absolute;
-  top: 1px;
-  left: 62%;
-  border-radius: 5px;
-  z-index: 1;
-}
+// .ios-badge {
+//   background-color: var(--ion-color-start9);
+//   position: absolute;
+//   top: 1px;
+//   left: 62%;
+//   border-radius: 5px;
+//   z-index: 1;
+// }
 
 .md-badge {
   background-color: var(--ion-color-start9);
   position: absolute;
-  top: -2px;
+  top: -8px;
   left: 56%;
   border-radius: 5px;
   z-index: 1;
+  font-size: 80%;
 }

@@ -1,8 +1,7 @@
-import { Component, Input, OnInit } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { Router } from '@angular/router'
 import { PopoverController } from '@ionic/angular'
 import { filter, take } from 'rxjs/operators'
-import { Cleanup } from 'src/app/util/cleanup'
 import { capitalizeFirstLetter } from 'src/app/util/misc.util'
 import { InformationPopoverComponent } from '../information-popover/information-popover.component'
 
@@ -11,12 +10,13 @@ import { InformationPopoverComponent } from '../information-popover/information-
   templateUrl: './recommendation-button.component.html',
   styleUrls: ['./recommendation-button.component.scss'],
 })
-export class RecommendationButtonComponent extends Cleanup implements OnInit {
+export class RecommendationButtonComponent {
   @Input() rec: Recommendation
   @Input() raise?: { id: string }
-  constructor (private readonly router: Router, private readonly popoverController: PopoverController) {
-    super()
-  }
+  constructor (
+    private readonly router: Router,
+    private readonly popoverController: PopoverController,
+  ) { }
 
   ngOnInit () {
     if (!this.raise) return
@@ -41,7 +41,7 @@ export class RecommendationButtonComponent extends Cleanup implements OnInit {
       componentProps: {
         information: `
           <div style="font-size: medium; font-style: italic; margin: 5px 0px;">
-            ${capitalizeFirstLetter(this.rec.title)} Installation Recommendations
+            ${capitalizeFirstLetter(this.rec.dependentTitle)} Installation Recommendations
           </div>
           <div>
             ${this.rec.description}
@@ -57,10 +57,9 @@ export class RecommendationButtonComponent extends Cleanup implements OnInit {
 }
 
 export type Recommendation = {
-  title: string
-  appId: string
-  iconURL: string,
-  description: string,
-  versionSpec?: string
-  whyDependency?: string
+  dependentId: string
+  dependentTitle: string
+  dependentIcon: string,
+  description: string
+  version?: string
 }

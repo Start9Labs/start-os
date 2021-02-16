@@ -1,9 +1,7 @@
 import { Component } from '@angular/core'
-import { ServerModel } from '../../models/server-model'
 import { Observable } from 'rxjs'
-import { map } from 'rxjs/operators'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
-import { isPlatform } from '@ionic/angular'
+import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 
 @Component({
   selector: 'badge-menu-button',
@@ -12,16 +10,14 @@ import { isPlatform } from '@ionic/angular'
 })
 
 export class BadgeMenuComponent {
-  badge$: Observable<boolean>
+  badge$: Observable<number>
   menuFixedOpen$: Observable<boolean>
-  isIos: boolean
 
   constructor (
-    private readonly serverModel: ServerModel,
     private readonly splitPane: SplitPaneTracker,
+    private readonly patch: PatchDbModel,
   ) {
-    this.menuFixedOpen$ = this.splitPane.$menuFixedOpenOnLeft$.asObservable()
-    this.badge$ = this.serverModel.watch().badge.pipe(map(i => i > 0))
-    this.isIos = isPlatform('ios')
+    this.menuFixedOpen$ = this.splitPane.menuFixedOpenOnLeft$.asObservable()
+    this.badge$ = this.patch.watch$('server-info', 'unread-notification-count')
   }
 }

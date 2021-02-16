@@ -48,3 +48,19 @@
   --border-radius: 10px;
   margin: 12px 10px;
 }
+
+.dep-badge {
+  position: absolute; width: 2.5vh;
+  height: 2.5vh;
+  border-radius: 50px;
+  left: -1vh;
+  top: -1vh;
+}
+
+.dep-issue {
+  background: radial-gradient(var(--ion-color-warning) 40%, transparent)
+}
+
+.dep-sat {
+  background: radial-gradient(var(--ion-color-success) 40%, transparent)
+}

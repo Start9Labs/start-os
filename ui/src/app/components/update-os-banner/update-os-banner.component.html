@@ -1,5 +1,0 @@
-<ion-item button lines="none" *ngIf="updateAvailable$ | async as res" (click)="confirmUpdate(res)">
-  <ion-label>
-    New EmbassyOS Version {{res.versionLatest | displayEmver}} Available!
-  </ion-label>
-</ion-item>

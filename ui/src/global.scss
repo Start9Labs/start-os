@@ -88,8 +88,17 @@
 
 .notification-toast {
   --background: var(--ion-color-light);
-  --button-color: var(--ion-color-primary);
+  --button-color: var(--ion-color-dark);
   --border-color: var(--ion-color-warning);
+  --border-style: solid;
+  --border-width: 1px;
+  --color: white;
+}
+
+.notification-toast-error {
+  --background: var(--ion-color-light);
+  --button-color: var(--ion-color-dark);
+  --border-color: var(--ion-color-danger);
   --border-style: solid;
   --border-width: 1px;
   --color: white;
@@ -111,10 +120,6 @@
 ion-title {
   font-family: 'Montserrat';
   font-weight: unset;
-}
-
-ion-item {
-  --border-width: 0;
 }
 
 ion-textarea {
@@ -281,17 +286,8 @@ ion-avatar {
   --inner-border-width: 0;
 }
 
-.full-page-spinner { 
-  min-height: 80vh;
-  align-items: center;
-  color: white;
-  margin: 0px 30px;
-  display: grid;
-  grid-template-rows: 35% 15%;
-}
-
-.recommendation-item {
-  margin: 10px;
+.rec-item {
+  margin: 20px;
   border-style: solid;
   border-width: 1px;
   border-style: groove;
@@ -306,4 +302,24 @@ ion-item-divider {
   font-size: medium;
   padding-left: 10px;
   font-weight: unset;
+}
+
+.dots {
+  vertical-align: middle;
+  margin-left: 8px;
+}
+
+.dots-small {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.dots-medium {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.dependency-item {
+  --padding-start: 20px;
+  --padding-end: 2px;
 }

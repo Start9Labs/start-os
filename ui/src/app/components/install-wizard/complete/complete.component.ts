@@ -28,17 +28,18 @@ export class CompleteComponent implements OnInit, Loadable {
   }
 
 
-  $loading$ = new BehaviorSubject(false)
-  $color$ = new BehaviorSubject('medium')
-  $cancel$ = new Subject<void>()
+  loading$ = new BehaviorSubject(false)
+  color$ = new BehaviorSubject('medium')
+  cancel$ = new Subject<void>()
 
   label: string
   summary: string
   successText: string
 
   load () {
-    markAsLoadingDuring$(this.$loading$, from(this.params.executeAction())).pipe(takeUntil(this.$cancel$)).subscribe(
-      { error: e => this.transitions.error(new Error(`${this.params.action} failed: ${e.message || e}`)),
+    markAsLoadingDuring$(this.loading$, from(this.params.executeAction())).pipe(takeUntil(this.cancel$)).subscribe(
+      {
+        error: e => this.transitions.error(new Error(`${this.params.action} failed: ${e.message || e}`)),
         complete: () => this.params.skipCompletionDialogue && this.transitions.final(),
       },
     )
@@ -50,37 +51,37 @@ export class CompleteComponent implements OnInit, Loadable {
       case 'install':
         this.summary = `Installation of ${this.params.title} is now in progress. You will receive a notification when the installation has completed.`
         this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('primary')
+        this.color$.next('primary')
         this.successText = 'In Progress'
         break
       case 'downgrade':
         this.summary = `Downgrade for ${this.params.title} is now in progress. You will receive a notification when the downgrade has completed.`
         this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('primary')
+        this.color$.next('primary')
         this.successText = 'In Progress'
         break
       case 'update':
         this.summary = `Update for ${this.params.title} is now in progress. You will receive a notification when the update has completed.`
         this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('primary')
+        this.color$.next('primary')
         this.successText = 'In Progress'
         break
       case 'uninstall':
         this.summary = `${capitalizeFirstLetter(this.params.title)} has been successfully uninstalled.`
         this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('success')
+        this.color$.next('success')
         this.successText = 'Success'
         break
       case 'stop':
         this.summary = `${capitalizeFirstLetter(this.params.title)} has been successfully stopped.`
         this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('success')
+        this.color$.next('success')
         this.successText = 'Success'
         break
       case 'configure':
         this.summary = `New config for ${this.params.title} has been successfully saved.`
         this.label = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
-        this.$color$.next('success')
+        this.color$.next('success')
         this.successText = 'Success'
         break
     }

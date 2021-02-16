@@ -5,12 +5,24 @@
   padding: 1px 0px 1.5px 0px;
 }
 
-.instructions-card {
-  --background: linear-gradient(45deg, #101010 16%, var(--ion-color-medium) 150%);
-  margin: 16px 10px;
+.scrollable {
+  overflow: auto;
+  white-space: nowrap;
+  background-color: var(--ion-color-light);
+  margin-bottom: 16px;
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Hide scrollbar for IE, Edge and Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
-.available-card {
+.eos-card {
   --background: linear-gradient(45deg, #101010 16%, var(--ion-color-danger) 150%);
   margin: 16px 10px;
+  cursor: pointer;
 }
