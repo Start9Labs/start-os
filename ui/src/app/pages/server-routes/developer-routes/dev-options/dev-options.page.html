@@ -9,18 +9,14 @@
 
 <ion-content class="ion-padding-top">
 
-  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
-    <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
-  </ion-refresher>
-
-  <ion-item-group>
-    <ion-item button [routerLink]="['ssh-keys']">
+  <ion-item-group *ngrxLet="patch.watch$('server-info') as server">
+    <ion-item detail="true" button [routerLink]="['ssh-keys']">
       <ion-label>SSH Keys</ion-label>
     </ion-item>
-    <!-- <ion-item button (click)="presentModalValueEdit('alternativeRegistryUrl')">
-      <ion-label>Alt Marketplace</ion-label>
-      <ion-note slot="end">{{ server.alternativeRegistryUrl | async }}</ion-note>
-    </ion-item> -->
+    <ion-item button (click)="presentModalValueEdit('registry', server.registry)">
+      <ion-label>Marketplace URL</ion-label>
+      <ion-note slot="end">{{ server.registry }}</ion-note>
+    </ion-item>
   </ion-item-group>
 
 </ion-content>

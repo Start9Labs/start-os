@@ -3,7 +3,6 @@ import { NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { WifiService } from '../wifi.service'
 import { LoaderService } from 'src/app/services/loader.service'
-import { ServerModel } from 'src/app/models/server-model'
 
 @Component({
   selector: 'wifi-add',
@@ -22,18 +21,22 @@ export class WifiAddPage {
     private readonly apiService: ApiService,
     private readonly loader: LoaderService,
     private readonly wifiService: WifiService,
-    private readonly serverModel: ServerModel,
   ) { }
 
-  async add (): Promise<void> {
+  async save (): Promise<void> {
     this.error = ''
     this.loader.of({
       message: 'Saving...',
       spinner: 'lines',
       cssClass: 'loader',
-    }).displayDuringAsync( async () => {
-      await this.apiService.addWifi(this.ssid, this.password, this.countryCode, false)
-      this.wifiService.addWifi(this.ssid)
+    }).displayDuringAsync(async () => {
+      await this.apiService.addWifi({
+        ssid: this.ssid,
+        password: this.password,
+        country: this.countryCode,
+        priority: 0,
+        connect: false,
+      })
       this.navCtrl.back()
     }).catch(e => {
       console.error(e)
@@ -41,23 +44,25 @@ export class WifiAddPage {
     })
   }
 
-  async addAndConnect (): Promise<void> {
+  async saveAndConnect (): Promise<void> {
     this.error = ''
     this.loader.of({
       message: 'Connecting. This could take while...',
       spinner: 'lines',
       cssClass: 'loader',
-    }).displayDuringAsync( async () => {
-      const current = this.serverModel.peek().wifi.current
-      await this.apiService.addWifi(this.ssid, this.password, this.countryCode, true)
-      const success = await this.wifiService.confirmWifi(this.ssid)
-      if (success) {
-        this.navCtrl.back()
-        this.wifiService.presentAlertSuccess(this.ssid, current)
-      } else {
-        this.wifiService.presentToastFail()
-      }
-    }).catch (e => {
+    }).displayDuringAsync(async () => {
+      await this.apiService.addWifi({
+        ssid: this.ssid,
+        password: this.password,
+        country: this.countryCode,
+        priority: 0,
+        connect: true,
+      })
+      const success = this.wifiService.confirmWifi(this.ssid)
+        if (success) {
+          this.navCtrl.back()
+        }
+      }).catch (e => {
       console.error(e)
       this.error = e.message
     })

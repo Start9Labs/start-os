@@ -1,36 +1,41 @@
 import { Injectable } from '@angular/core'
 import { CanActivate, Router, CanActivateChild } from '@angular/router'
+import { tap } from 'rxjs/operators'
 import { AuthState, AuthService } from '../services/auth.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthGuard implements CanActivate, CanActivateChild {
+  authState: AuthState
+
   constructor (
     private readonly authService: AuthService,
     private readonly router: Router,
-  ) { }
+  ) {
+    this.authService.watch$()
+    .pipe(
+      tap(auth => this.authState = auth),
+    ).subscribe()
+  }
 
   canActivate (): boolean {
-    return this.runCheck()
+    return this.runAuthCheck()
   }
 
   canActivateChild (): boolean {
-    return this.runCheck()
+    return this.runAuthCheck()
   }
 
-  private runCheck (): boolean {
-    const state = this.authService.peek()
-
-    switch (state){
-      case AuthState.VERIFIED: return true
-      case AuthState.UNVERIFIED: return this.toAuthenticate()
-      case AuthState.INITIALIZING: return this.toAuthenticate()
+  private runAuthCheck (): boolean {
+    switch (this.authState){
+      case AuthState.VERIFIED:
+        return true
+      case AuthState.UNVERIFIED:
+      // @TODO could initializing cause a loop?
+      case AuthState.INITIALIZING:
+        this.router.navigate(['/auth'], { replaceUrl: true })
+        return false
     }
-  }
-
-  private toAuthenticate () {
-    this.router.navigate(['/authenticate'], { replaceUrl: true })
-    return false
   }
 }

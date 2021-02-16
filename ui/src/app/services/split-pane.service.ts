@@ -5,6 +5,5 @@ import { Injectable } from '@angular/core'
   providedIn: 'root',
 })
 export class SplitPaneTracker {
-  $menuFixedOpenOnLeft$: BehaviorSubject<boolean> = new BehaviorSubject(false)
-  constructor () { }
+  menuFixedOpenOnLeft$: BehaviorSubject<boolean> = new BehaviorSubject(false)
 }

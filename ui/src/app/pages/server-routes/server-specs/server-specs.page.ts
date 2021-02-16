@@ -1,11 +1,7 @@
 import { Component } from '@angular/core'
-import { S9Server } from 'src/app/models/server-model'
 import { ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
-import { PropertySubject } from 'src/app/util/property-subject.util'
-import { ModelPreload } from 'src/app/models/model-preload'
-import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
-import { BehaviorSubject } from 'rxjs'
+import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 
 @Component({
   selector: 'server-specs',
@@ -13,28 +9,15 @@ import { BehaviorSubject } from 'rxjs'
   styleUrls: ['./server-specs.page.scss'],
 })
 export class ServerSpecsPage {
-  server: PropertySubject<S9Server> = { } as any
-  error = ''
-  $loading$ = new BehaviorSubject(true)
 
   constructor (
     private readonly toastCtrl: ToastController,
-    private readonly preload: ModelPreload,
+    public readonly patch: PatchDbModel,
   ) { }
 
-  async ngOnInit () {
-    markAsLoadingDuring$(this.$loading$, this.preload.server()).subscribe({
-      next: s => this.server = s,
-      error: e => {
-        console.error(e)
-        this.error = e.message
-      },
-    })
-  }
-
-  async copyTor () {
+  async copy (address: string) {
     let message = ''
-    await copyToClipboard((this.server.specs.getValue()['Tor Address'] as string).trim() || '')
+    await copyToClipboard(address || '')
       .then(success => { message = success ? 'copied to clipboard!' : 'failed to copy'})
 
     const toast = await this.toastCtrl.create({

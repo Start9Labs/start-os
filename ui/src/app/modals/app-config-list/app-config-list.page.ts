@@ -1,10 +1,10 @@
 import { Component, Input } from '@angular/core'
 import { AlertController } from '@ionic/angular'
-import { Annotations, Range } from '../../app-config/config-utilities'
+import { Annotations, Range } from '../../pkg-config/config-utilities'
 import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
-import { ConfigCursor } from 'src/app/app-config/config-cursor'
-import { ValueSpecList, isValueSpecListOf } from 'src/app/app-config/config-types'
-import { ModalPresentable } from 'src/app/app-config/modal-presentable'
+import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
+import { ValueSpecList, isValueSpecListOf } from 'src/app/pkg-config/config-types'
+import { ModalPresentable } from 'src/app/pkg-config/modal-presentable'
 
 @Component({
   selector: 'app-config-list',
@@ -106,7 +106,7 @@ export class AppConfigListPage extends ModalPresentable {
 
   async presentAlertDelete (key: number, e: Event) {
     e.stopPropagation()
-    
+
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Caution',

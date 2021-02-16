@@ -1,6 +1,5 @@
 import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { ServerModel } from 'src/app/models/server-model'
 import { ApiService } from 'src/app/services/api/api.service'
 import { ConfigService } from 'src/app/services/config.service'
 
@@ -19,7 +18,7 @@ export class OSWelcomePage {
   ) { }
 
   async dismiss () {
-    this.apiService.acknowledgeOSWelcome(this.config.version).catch(console.error)
+    this.apiService.setDbValue({ pointer: '/welcome-ack', value: this.config.version }).catch(console.error)
 
     // return false to skip subsequent alert modals (e.g. check for updates modals)
     // return true to show subsequent alert modals
