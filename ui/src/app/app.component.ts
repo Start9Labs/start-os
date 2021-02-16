@@ -14,6 +14,7 @@ import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { LoadingOptions } from '@ionic/core'
 import { pauseFor } from './util/misc.util'
+import { PatchDBClient } from './models/patch-db-model'
 
 @Component({
   selector: 'app-root',
@@ -67,6 +68,7 @@ export class AppComponent {
     private readonly alertCtrl: AlertController,
     private readonly loader: LoaderService,
     private readonly emver: Emver,
+    private readonly patchDbModel: PatchDBClient,
     readonly splitPane: SplitPaneTracker,
   ) {
     // set dark theme
