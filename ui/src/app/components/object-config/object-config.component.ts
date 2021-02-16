@@ -1,9 +1,9 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core'
-import { Annotation, Annotations } from '../../app-config/config-utilities'
+import { Annotation, Annotations } from '../../pkg-config/config-utilities'
 import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
-import { ConfigCursor } from 'src/app/app-config/config-cursor'
-import { ModalPresentable } from 'src/app/app-config/modal-presentable'
-import { ValueSpecOf, ValueSpec } from 'src/app/app-config/config-types'
+import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
+import { ModalPresentable } from 'src/app/pkg-config/modal-presentable'
+import { ValueSpecOf, ValueSpec } from 'src/app/pkg-config/config-types'
 import { MaskPipe } from 'src/app/pipes/mask.pipe'
 
 @Component({

@@ -7,22 +7,14 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top">
+<ion-content class="ion-padding">
+  <ion-spinner *ngIf="loading; else loaded" class="center" name="lines" color="warning"></ion-spinner>
 
-  <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
-
-  <ng-container *ngIf="!($loading$ | async)">
-
-    <ion-item *ngIf="!app.instructions">
-      <ion-label class="ion-text-wrap">
-        <p>No instructions for {{ app.title }} {{ app.versionInstalled }}.</p>
-      </ion-label>
+  <ng-template #loaded>
+    <ion-item *ngIf="error" style="margin-bottom: 16px;">
+      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
     </ion-item>
 
-    <div style="
-      padding-left: var(--ion-padding,16px);
-      padding-right: var(--ion-padding,16px);
-      padding-bottom: var(--ion-padding,16px);
-    " *ngIf="app.instructions" [innerHTML]="app.instructions | markdown"></div>
-  </ng-container>
+    <div *ngIf="instructions" class="instuctions-padding" [innerHTML]="instructions | markdown"></div>
+  </ng-template>
 </ion-content>

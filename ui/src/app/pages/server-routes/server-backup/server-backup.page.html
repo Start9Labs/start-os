@@ -1,0 +1,69 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Create Backup</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="doRefresh()" color="primary">
+        <ion-icon slot="icon-only" name="reload-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+
+  <ion-item *ngIf="error" style="margin-bottom: 16px;">
+    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+  </ion-item>
+
+  <ion-item class="ion-margin-bottom">
+    <ion-label class="ion-text-wrap">
+      <p><ion-text color="dark">About</ion-text></p>
+      <p>
+        Select a location to back up your Embassy. Because are diff-based, so your first backup will likely take much longer than subsequent backups.
+      </p>
+      <br />
+      <p>
+        During backup, your Embassy will be unusable.
+      </p>
+    </ion-label>
+  </ion-item>
+
+  <ion-spinner *ngIf="loading; else loaded" name="lines" color="warning" class="center"></ion-spinner>
+
+  <ng-template #loaded>
+
+    <ion-item *ngIf="allPartitionsMounted">
+      <ion-text *ngIf="type === 'create'" class="ion-text-wrap" color="warning">No partitions available. To begin a backup, insert a storage device into your Embassy.</ion-text>
+      <ion-text *ngIf="type === 'restore'" class="ion-text-wrap" color="warning">No partitions available. Insert the storage device containing the backup you wish to restore.</ion-text>
+    </ion-item>
+
+    <ion-card *ngFor="let disk of disks | keyvalue">
+      <ion-card-header>
+        <ion-card-title>
+          {{ disk.value.size }}
+        </ion-card-title>
+        <ion-card-subtitle>
+          {{ disk.key }}
+        </ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item-group>
+          <ion-item button *ngFor="let partition of disk.value.partitions | keyvalue" [disabled]="partition.value['is-mounted']" (click)="presentModal(partition.key, partition.value)">
+            <ion-icon slot="start" name="save-outline"></ion-icon>
+            <ion-label>
+              <h2>{{ partition.value.label || partition.key }} ({{ partition.value.size || 'unknown size' }})</h2>
+              <p *ngIf="!partition.value['is-mounted']; else unavailable"><ion-text color="success">Available</ion-text></p>
+              <ng-template #unavailable>
+                <p><ion-text color="danger">Unavailable</ion-text></p>
+              </ng-template>
+            </ion-label>
+          </ion-item>
+        </ion-item-group>
+      </ion-card-content>
+    </ion-card>
+  </ng-template>
+
+</ion-content>

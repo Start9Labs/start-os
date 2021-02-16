@@ -1,8 +1,9 @@
 import { Component } from '@angular/core'
-import { ServerModel, S9Notification } from 'src/app/models/server-model'
 import { ApiService } from 'src/app/services/api/api.service'
-import { pauseFor } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
+import { ServerNotification, ServerNotifications } from 'src/app/services/api/api-types'
+import { AlertController } from '@ionic/angular'
+
 @Component({
   selector: 'notifications',
   templateUrl: 'notifications.page.html',
@@ -11,33 +12,25 @@ import { LoaderService } from 'src/app/services/loader.service'
 export class NotificationsPage {
   error = ''
   loading = true
-  notifications: S9Notification[] = []
+  notifications: ServerNotifications = []
   page = 1
   needInfinite = false
   readonly perPage = 20
 
   constructor (
-    private readonly serverModel: ServerModel,
     private readonly apiService: ApiService,
     private readonly loader: LoaderService,
+    private readonly alertCtrl: AlertController,
   ) { }
 
   async ngOnInit () {
-    const [notifications] = await Promise.all([
-      this.getNotifications(),
-      pauseFor(600),
-    ])
-    this.notifications = notifications
-    this.serverModel.update({ badge: 0 })
+    this.notifications = await this.getNotifications()
     this.loading = false
   }
 
   async doRefresh (e: any) {
     this.page = 1
-    await Promise.all([
-      this.getNotifications(),
-      pauseFor(600),
-    ])
+    this.notifications = await this.getNotifications(),
     e.target.complete()
   }
 
@@ -47,10 +40,10 @@ export class NotificationsPage {
     e.target.complete()
   }
 
-  async getNotifications (): Promise<S9Notification[]> {
-    let notifications: S9Notification[] = []
+  async getNotifications (): Promise<ServerNotifications> {
+    let notifications: ServerNotifications = []
     try {
-      notifications = await this.apiService.getNotifications(this.page, this.perPage)
+      notifications = await this.apiService.getNotifications({ page: this.page, 'per-page': this.perPage })
       this.needInfinite = notifications.length >= this.perPage
       this.page++
       this.error = ''
@@ -62,29 +55,13 @@ export class NotificationsPage {
     }
   }
 
-  getColor (notification: S9Notification): string {
-    const char = notification.code.charAt(0)
-    switch (char) {
-      case '0':
-        return 'primary'
-      case '1':
-        return 'success'
-      case '2':
-        return 'warning'
-      case '3':
-        return 'danger'
-      default:
-        return ''
-    }
-  }
-
-  async remove (notificationId: string, index: number): Promise<void> {
+  async remove (id: string, index: number): Promise<void> {
     this.loader.of({
       message: 'Deleting...',
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringP(
-      this.apiService.deleteNotification(notificationId).then(() => {
+      this.apiService.deleteNotification({ id }).then(() => {
         this.notifications.splice(index, 1)
         this.error = ''
       }),
@@ -92,6 +69,46 @@ export class NotificationsPage {
       console.error(e)
       this.error = e.message
     })
+  }
+
+  async viewBackupReport (notification: ServerNotification<1>) {
+    const data = notification.data
+
+    const embassyFailed = !!data.server.error
+    const packagesFailed = Object.entries(data.packages).some(([_, val]) => val.error)
+
+    let message: string
+
+    if (embassyFailed || packagesFailed) {
+      message = 'There was an issue backing up one or more items. Click "Retry" to retry ONLY the items that failed.'
+    } else {
+      message = 'All items were successfully backed up'
+    }
+
+    const buttons: any[] = [ // why can't I import AlertButton?
+      {
+        text: 'Dismiss',
+        role: 'cancel',
+      },
+    ]
+
+    if (embassyFailed || packagesFailed) {
+      buttons.push({
+        text: 'Retry',
+        handler: () => {
+          console.log('retry backup')
+        },
+      })
+    }
+
+
+    const alert = await this.alertCtrl.create({
+      header: 'Backup Report',
+      message,
+      buttons,
+    })
+
+    await alert.present()
   }
 }
 

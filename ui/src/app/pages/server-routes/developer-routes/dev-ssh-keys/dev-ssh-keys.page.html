@@ -8,22 +8,19 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-
-  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
-    <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
-  </ion-refresher>
-
-  <ion-item *ngIf="error" style="margin-bottom: 16px;">
+  <ion-item *ngIf="error" class="ion-margin-bottom">
     <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
   </ion-item>
 
+  <ion-spinner *ngIf="loading" class="center" name="lines" color="warning"></ion-spinner>
+
   <ion-item-group>
     <ion-item-divider>Saved Keys</ion-item-divider>
-    <ion-item *ngFor="let fingerprint of server.ssh | async">
+    <ion-item *ngFor="let ssh of sshService.watch$() | ngrxPush | keyvalue : asIsOrder">
       <ion-label class="ion-text-wrap">
-        {{ fingerprint.alg }} {{ fingerprint.hash }} {{ fingerprint.hostname }}
+        {{ ssh.value.alg }} {{ ssh.key }} {{ ssh.value.hostname }}
       </ion-label>
-      <ion-button slot="end" fill="clear" (click)="presentAlertDelete(fingerprint)">
+      <ion-button slot="end" fill="clear" (click)="presentAlertDelete(ssh.key)">
         <ion-icon slot="icon-only" name="close-outline" color="medium"></ion-icon>
       </ion-button>
     </ion-item>

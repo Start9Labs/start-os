@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { Annotation } from '../app-config/config-utilities'
+import { Annotation } from '../pkg-config/config-utilities'
 
 @Pipe({
   name: 'annotationStatus',

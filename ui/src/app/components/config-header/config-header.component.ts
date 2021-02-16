@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { ValueSpec } from 'src/app/app-config/config-types'
+import { ValueSpec } from 'src/app/pkg-config/config-types'
 
 @Component({
   selector: 'config-header',

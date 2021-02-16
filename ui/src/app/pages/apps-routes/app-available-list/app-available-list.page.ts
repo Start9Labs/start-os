@@ -1,14 +1,11 @@
-import { Component, NgZone } from '@angular/core'
+import { Component } from '@angular/core'
 import { ApiService } from 'src/app/services/api/api.service'
-import { AppModel } from 'src/app/models/app-model'
-import { AppAvailablePreview, AppInstalledPreview } from 'src/app/models/app-types'
-import { pauseFor } from 'src/app/util/misc.util'
-import { PropertySubjectId, initPropertySubject } from 'src/app/util/property-subject.util'
-import { Subscription, BehaviorSubject, combineLatest } from 'rxjs'
-import { take } from 'rxjs/operators'
-import { markAsLoadingDuringP } from 'src/app/services/loader.service'
-import { OsUpdateService } from 'src/app/services/os-update.service'
-import { V1Status } from 'src/app/services/api/api-types'
+import { MarketplaceData, MarketplaceEOS, AvailablePreview } from 'src/app/services/api/api-types'
+import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
+import { ModalController } from '@ionic/angular'
+import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
+import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { PackageState } from 'src/app/models/patch-db/data-model'
 
 @Component({
   selector: 'app-available-list',
@@ -16,83 +13,93 @@ import { V1Status } from 'src/app/services/api/api-types'
   styleUrls: ['./app-available-list.page.scss'],
 })
 export class AppAvailableListPage {
-  $loading$ = new BehaviorSubject(true)
+  pageLoading = true
+  pkgsLoading = true
   error = ''
-  installedAppDeltaSubscription: Subscription
-  apps: PropertySubjectId<AppAvailablePreview>[] = []
-  appsInstalled: PropertySubjectId<AppInstalledPreview>[] = []
-  v1Status: V1Status = { status: 'nothing', version: '' }
+
+  category = 'featured'
+  query: string
+
+  data: MarketplaceData
+  eos: MarketplaceEOS
+  pkgs: AvailablePreview[] = []
+
+  PackageState = PackageState
+
+  page = 1
+  needInfinite = false
+  readonly perPage = 20
 
   constructor (
     private readonly apiService: ApiService,
-    private readonly appModel: AppModel,
-    private readonly zone: NgZone,
-    private readonly osUpdateService: OsUpdateService,
+    private readonly modalCtrl: ModalController,
+    private readonly wizardBaker: WizardBaker,
+    public patch: PatchDbModel,
   ) { }
 
   async ngOnInit () {
-    this.installedAppDeltaSubscription = this.appModel
-      .watchDelta('update')
-      .subscribe(({ id }) => this.mergeInstalledProps(id))
-
-    markAsLoadingDuringP(this.$loading$, Promise.all([
-      this.getApps(),
-      this.checkV1Status(),
-      this.osUpdateService.checkWhenNotAvailable$().toPromise(), // checks for an os update, banner component renders conditionally
-      pauseFor(600),
-    ]))
-  }
-
-  ionViewDidEnter () {
-    this.appModel.getContents().forEach(appInstalled => this.mergeInstalledProps(appInstalled.id))
-  }
-
-  async checkV1Status () {
     try {
-      this.v1Status = await this.apiService.checkV1Status()
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  mergeInstalledProps (appInstalledId: string) {
-    const appAvailable  = this.apps.find(app => app.id === appInstalledId)
-    if (!appAvailable) return
-
-    const app = this.appModel.watch(appInstalledId)
-    combineLatest([app.status, app.versionInstalled])
-      .pipe(take(1))
-      .subscribe(([status, versionInstalled]) => {
-        this.zone.run(() => {
-          appAvailable.subject.status.next(status)
-          appAvailable.subject.versionInstalled.next(versionInstalled)
-        })
-      })
-  }
-
-  ngOnDestroy () {
-    this.installedAppDeltaSubscription.unsubscribe()
-  }
-
-  async doRefresh (e: any) {
-    await Promise.all([
-      this.getApps(),
-      pauseFor(600),
-    ])
-    e.target.complete()
-  }
-
-  async getApps (): Promise<void> {
-    try {
-      this.apps = await this.apiService.getAvailableApps().then(apps =>
-        apps
-          .sort( (a1, a2) => a2.latestVersionTimestamp.getTime() - a1.latestVersionTimestamp.getTime())
-          .map(a => ({ id: a.id, subject: initPropertySubject(a) })),
-      )
-      this.appModel.getContents().forEach(appInstalled => this.mergeInstalledProps(appInstalled.id))
+      const [data, eos, pkgs] = await Promise.all([
+        this.apiService.getMarketplaceData({ }),
+        this.apiService.getEos({ }),
+        this.getPkgs(),
+      ])
+      this.data = data
+      this.eos = eos
+      this.pkgs = pkgs
     } catch (e) {
       console.error(e)
       this.error = e.message
+    } finally {
+      this.pageLoading = false
+      this.pkgsLoading = false
     }
+  }
+
+  async doInfinite (e: any): Promise<void> {
+    const pkgs = await this.getPkgs()
+    this.pkgs = this.pkgs.concat(pkgs)
+    e.target.complete()
+  }
+
+  async search (e?: any): Promise<void> {
+    this.query = e.target.value || undefined
+    this.page = 1
+    this.pkgs = await this.getPkgs()
+  }
+
+  async updateEos (): Promise<void> {
+    await wizardModal(
+      this.modalCtrl,
+      this.wizardBaker.updateOS({
+        version: this.eos.version,
+        releaseNotes: this.eos.notes,
+      }),
+    )
+  }
+
+  private async getPkgs (): Promise<AvailablePreview[]> {
+    this.pkgsLoading = true
+    try {
+      const pkgs = await this.apiService.getAvailableList({
+        category: this.category,
+        query: this.query,
+        page: this.page,
+        'per-page': this.perPage,
+      })
+      this.needInfinite = pkgs.length >= this.perPage
+      this.page++
+      return pkgs
+    } catch (e) {
+      console.error(e)
+      this.error = e.message
+    } finally {
+      this.pkgsLoading = false
+    }
+  }
+
+  async switchCategory (category: string): Promise<void> {
+    this.category = category
+    this.pkgs = await this.getPkgs()
   }
 }

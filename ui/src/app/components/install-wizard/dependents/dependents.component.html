@@ -1,5 +1,5 @@
 <div>
-  <div *ngIf="!($loading$ | async)" class="slide-content">
+  <div *ngIf="!(loading$ | ngrxPush)" class="slide-content">
     <div style="margin-top: 25px;">
       <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
         <ion-label color="warning" style="font-size: xx-large; font-weight: bold;"
@@ -26,7 +26,7 @@
           *ngFor="let dep of dependentBreakages"
         >
           <ion-avatar style="position: relative; height: 4vh; width: 4vh" slot="start">
-            <img [src]="dep.iconURL | iconParse" />
+            <img [src]="dep.iconURL" />
           </ion-avatar>
           <ion-label>
               <h5>{{dep.title}}</h5>
@@ -35,7 +35,7 @@
       </div>
     </div>
   </div>
-  <div *ngIf="$loading$ | async" class="center-spinner">
+  <div *ngIf="loading$ | ngrxPush" class="center-spinner">
     <ion-spinner color="warning" name="lines"></ion-spinner>
     <ion-label class="long-message">Checking for installed services which depend on {{params.title}}...</ion-label>
   </div>

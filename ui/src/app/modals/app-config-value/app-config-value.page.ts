@@ -1,10 +1,10 @@
 import { Component, Input } from '@angular/core'
-import { getDefaultConfigValue, getDefaultDescription, Range } from 'src/app/app-config/config-utilities'
+import { getDefaultConfigValue, getDefaultDescription, Range } from 'src/app/pkg-config/config-utilities'
 import { AlertController, ToastController } from '@ionic/angular'
 import { LoaderService } from 'src/app/services/loader.service'
 import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
-import { ConfigCursor } from 'src/app/app-config/config-cursor'
-import { ValueSpecOf } from 'src/app/app-config/config-types'
+import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
+import { ValueSpecOf } from 'src/app/pkg-config/config-types'
 import { copyToClipboard } from 'src/app/util/web.util'
 
 @Component({

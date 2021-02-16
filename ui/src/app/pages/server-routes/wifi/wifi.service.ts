@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core'
 import { AlertController, ToastController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
-import { pauseFor } from 'src/app/util/misc.util'
-import { ServerModel } from 'src/app/models/server-model'
+import { merge, Observable, timer } from 'rxjs'
+import { filter, map, take, tap } from 'rxjs/operators'
+import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 
 @Injectable({
   providedIn: 'root',
@@ -10,53 +10,39 @@ import { ServerModel } from 'src/app/models/server-model'
 export class WifiService {
 
   constructor (
-    private readonly apiService: ApiService,
     private readonly toastCtrl: ToastController,
     private readonly alertCtrl: AlertController,
-    private readonly serverModel: ServerModel,
+    private readonly patch: PatchDbModel,
   ) { }
 
-  addWifi (ssid: string): void {
-    const wifi = this.serverModel.peek().wifi
-    this.serverModel.update({ wifi: { ...wifi, ssids: [...new Set([ssid, ...wifi.ssids])] } })
+  confirmWifi (ssid: string): Observable<boolean> {
+    const success$ = this.patch.watch$('server-info', 'wifi', 'connected')
+    .pipe(
+      filter(connected => connected === ssid),
+      tap(connected => this.presentAlertSuccess(connected)),
+      map(_ => true),
+    )
+
+    const timer$ = timer(20000)
+    .pipe(
+      map(_ => false),
+      tap(_ => this.presentToastFail()),
+    )
+
+    return merge(success$, timer$).pipe(take(1))
   }
 
-  removeWifi (ssid: string): void {
-    const wifi = this.serverModel.peek().wifi
-    this.serverModel.update({ wifi: { ...wifi, ssids: wifi.ssids.filter(s => s !== ssid) } })
+  private async presentAlertSuccess (ssid: string): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: `Connected to "${ssid}"`,
+      message: 'Note. It may take several minutes to an hour for your Embassy to reconnect over Tor.',
+      buttons: ['OK'],
+    })
+
+    await alert.present()
   }
 
-  async confirmWifi (ssid: string): Promise<boolean> {
-    const timeout = 4000
-    const maxAttempts = 5
-    let attempts = 0
-
-    while (attempts < maxAttempts) {
-      try {
-        const start = new Date().valueOf()
-        const { current, ssids } = (await this.apiService.getServer(timeout)).wifi
-        const end = new Date().valueOf()
-        if (current === ssid) {
-          this.serverModel.update({ wifi: { current, ssids } })
-          break
-        } else {
-          attempts++
-          const diff = end - start
-          await pauseFor(Math.max(2000, timeout - diff))
-          if (attempts === maxAttempts) {
-            this.serverModel.update({ wifi: { current, ssids } })
-          }
-        }
-      } catch (e) {
-        attempts++
-        console.error(e)
-      }
-    }
-
-    return this.serverModel.peek().wifi.current === ssid
-  }
-
-  async presentToastFail (): Promise<void> {
+  private async presentToastFail (): Promise<void> {
     const toast = await this.toastCtrl.create({
       header: 'Failed to connect:',
       message: `Check credentials and try again`,
@@ -71,20 +57,9 @@ export class WifiService {
           },
         },
       ],
-      cssClass: 'notification-toast',
+      cssClass: 'notification-toast-error',
     })
 
     await toast.present()
-  }
-
-  async presentAlertSuccess (current: string, old?: string): Promise<void> {
-    let message = 'Note. It may take a while for your Embassy to reconnect over Tor, upward of a few hours. Unplugging the device and plugging it back in may help, but it may also just need time. You may also need to hard refresh your browser cache.'
-    const alert = await this.alertCtrl.create({
-      header: `Connected to "${current}"`,
-      message: old ? message : 'You may now unplug your Embassy from Ethernet.<br /></br />' + message,
-      buttons: ['OK'],
-    })
-
-    await alert.present()
   }
 }

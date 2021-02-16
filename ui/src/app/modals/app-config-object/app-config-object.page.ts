@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { ModalController, AlertController } from '@ionic/angular'
-import { ConfigCursor } from 'src/app/app-config/config-cursor'
-import { ValueSpecObject } from 'src/app/app-config/config-types'
+import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
+import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 
 @Component({
   selector: 'app-config-object',

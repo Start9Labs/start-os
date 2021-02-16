@@ -21,6 +21,8 @@ const routes: Routes = [
     PwaBackComponentModule,
     SharingModule,
   ],
-  declarations: [AppInstructionsPage],
+  declarations: [
+    AppInstructionsPage,
+  ],
 })
 export class AppInstructionsPageModule { }

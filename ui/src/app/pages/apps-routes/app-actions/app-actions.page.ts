@@ -1,49 +1,37 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService, isRpcFailure, isRpcSuccess } from 'src/app/services/api/api.service'
-import { BehaviorSubject } from 'rxjs'
+import { ApiService } from 'src/app/services/api/api.service'
 import { AlertController } from '@ionic/angular'
-import { ModelPreload } from 'src/app/models/model-preload'
-import { LoaderService, markAsLoadingDuring$ } from 'src/app/services/loader.service'
-import { ServiceAction, AppInstalledFull } from 'src/app/models/app-types'
-import { PropertySubject } from 'src/app/util/property-subject.util'
-import { map } from 'rxjs/operators'
-import { Cleanup } from 'src/app/util/cleanup'
-import { AppStatus } from 'src/app/models/app-model'
+import { LoaderService } from 'src/app/services/loader.service'
 import { HttpErrorResponse } from '@angular/common/http'
+import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { Action, InstalledPackageDataEntry, PackageMainStatus } from 'src/app/models/patch-db/data-model'
 
 @Component({
   selector: 'app-actions',
   templateUrl: './app-actions.page.html',
   styleUrls: ['./app-actions.page.scss'],
 })
-export class AppActionsPage extends Cleanup {
-  error = ''
-  $loading$ = new BehaviorSubject(true)
-  appId: string
-  app: PropertySubject<AppInstalledFull>
+export class AppActionsPage {
+  pkgId: string
 
-  constructor(
+  constructor (
     private readonly route: ActivatedRoute,
     private readonly apiService: ApiService,
     private readonly alertCtrl: AlertController,
-    private readonly preload: ModelPreload,
     private readonly loaderService: LoaderService,
-  ) { super() }
+    public readonly patch: PatchDbModel,
+  ) { }
 
-  ngOnInit() {
-    this.appId = this.route.snapshot.paramMap.get('appId')
-
-    markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId)).pipe(
-      map(app => this.app = app),
-    ).subscribe({ error: e => this.error = e.message })
+  ngOnInit () {
+    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
   }
 
-  async handleAction(action: ServiceAction) {
-    if (action.allowedStatuses.includes(this.app.status.getValue())) {
+  async handleAction (pkg: InstalledPackageDataEntry, action: { key: string, value: Action }) {
+    if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(pkg.status.main.status)) {
       const alert = await this.alertCtrl.create({
         header: 'Confirm',
-        message: `Are you sure you want to execute action "${action.name}"? ${action.warning ? action.warning : ""}`,
+        message: `Are you sure you want to execute action "${action.value.name}"? ${action.value.warning || ''}`,
         buttons: [
           {
             text: 'Cancel',
@@ -52,7 +40,7 @@ export class AppActionsPage extends Cleanup {
           {
             text: 'Execute',
             handler: () => {
-              this.executeAction(action)
+              this.executeAction(pkg.manifest.id, action.key)
             },
           },
         ],
@@ -83,25 +71,19 @@ export class AppActionsPage extends Cleanup {
     }
   }
 
-  private async executeAction(action: ServiceAction) {
+  private async executeAction (pkgId: string, actionId: string) {
     try {
       const res = await this.loaderService.displayDuringP(
-        this.apiService.serviceAction(this.appId, action),
+        this.apiService.executePackageAction({ id: pkgId, 'action-id': actionId }),
       )
 
-      if (isRpcFailure(res)) {
-        this.presentAlertActionFail(res.error.code, res.error.message)
-      }
-
-      if (isRpcSuccess(res)) {
-        const successAlert = await this.alertCtrl.create({
-          header: 'Execution Complete',
-          message: res.result.split('\n').join('</br ></br />'),
-          buttons: ['OK'],
-          cssClass: 'alert-success-message',
-        })
-        return await successAlert.present()
-      }
+      const successAlert = await this.alertCtrl.create({
+        header: 'Execution Complete',
+        message: res.message.split('\n').join('</br ></br />'),
+        buttons: ['OK'],
+        cssClass: 'alert-success-message',
+      })
+      return await successAlert.present()
     } catch (e) {
       if (e instanceof HttpErrorResponse) {
         this.presentAlertActionFail(e.status, e.message)
@@ -111,7 +93,7 @@ export class AppActionsPage extends Cleanup {
     }
   }
 
-  private async presentAlertActionFail(code: number, message: string): Promise<void> {
+  private async presentAlertActionFail (code: number, message: string): Promise<void> {
     const failureAlert = await this.alertCtrl.create({
       header: 'Execution Failed',
       message: `Error code ${code}. ${message}`,

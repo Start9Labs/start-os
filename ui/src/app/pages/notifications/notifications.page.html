@@ -36,15 +36,19 @@
     <ion-item *ngFor="let not of notifications; let i = index">
       <ion-label class="ion-text-wrap">
         <h2>
-          <ion-text [color]="getColor(not)"><b>{{ not.title }}</b></ion-text>
+          <ion-text [color]="not | notificationColor"><b>{{ not.title }}</b></ion-text>
         </h2>
-        <h2 class="notification-message">{{ not.message }}</h2>
-        <p>{{ not.createdAt | date: 'short' }}</p>
+        <h2 class="notification-message">
+          {{ not.message }}
+          <a *ngIf="not.code === 1" style="text-decoration: none;" (click)="viewBackupReport(not)">
+            View Report
+          </a>
+        </h2>
         <p>
-          <a style="text-decoration: none;"
-            [routerLink]="['/services', 'installed', not.appId]">{{ not.appId }}</a>
-          <span> - </span>
-          Code: {{ not.code }}
+          {{ not['created-at'] | date: 'short' }}
+          <a *ngIf="not['package-id'] as pkgId" style="text-decoration: none;" [routerLink]="['/services', 'installed', not['package-id']]">
+            - {{ not['package-id'] }} 
+          </a>
         </p>
       </ion-label>
       <ion-button slot="end" fill="clear" (click)="remove(not.id, i)">

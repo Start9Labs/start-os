@@ -1,21 +1,22 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { AppStatus } from '../models/app-model'
-import { AppStatusRendering } from '../util/status-rendering'
+import { PackageDataEntry } from '../models/patch-db/data-model'
+import { ConnectionState } from '../services/connection.service'
+import { renderPkgStatus } from '../services/pkg-status-rendering.service'
 
 @Pipe({
   name: 'displayBulb',
 })
 export class DisplayBulbPipe implements PipeTransform {
 
-  transform (status: AppStatus, d: DisplayBulb): boolean {
-    switch (AppStatusRendering[status].color) {
-      case 'danger': return d === 'red'
-      case 'success': return d === 'green'
-      case 'warning': return d === 'yellow'
-      default: return d === 'off'
+  transform (pkg: PackageDataEntry, bulb: DisplayBulb, connection: ConnectionState): boolean {
+    const { color } = renderPkgStatus(pkg, connection)
+    switch (color) {
+      case 'danger': return bulb === 'red'
+      case 'success': return bulb === 'green'
+      case 'warning': return bulb === 'yellow'
+      default: return bulb === 'off'
     }
   }
-
 }
 
 type DisplayBulb = 'off' | 'red' | 'green' | 'yellow'

@@ -8,11 +8,6 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-
-  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
-    <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
-  </ion-refresher>
-
   <ion-item *ngIf="error">
     <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
   </ion-item>
@@ -20,21 +15,20 @@
   <ion-item-group>
     <ion-item>
       <ion-label class="ion-text-wrap">
-        <ion-text color="dark">By providing your Embassy with WiFi credentials for one or more networks, you can remove the Ethernet cable and place your Embassy anywhere.</ion-text>
+        <p style="padding-bottom: 6px;">About</p>
+        <h2>Embassy will automatically connect to available networks, allowing you to remove the Ethernet cable.</h2>
         <br />
-        <br />
-        <ion-text color="warning">Warning!</ion-text>
-        <br />
-        <br />
-        <ion-text color="dark">Connecting, disconnecting, or changing WiFi networks can cause your Embassy and its services to become unreachable for up to an hour. Please be patient.</ion-text>
+        <h2>Connecting, disconnecting, or changing WiFi networks can cause your Embassy and its services to become unreachable for up to an hour. Please be patient.</h2>
       </ion-label>
     </ion-item>
 
     <ion-item-divider>Saved Networks</ion-item-divider>
-    <ion-item button detail="false" *ngFor="let ssid of (server.wifi | async)?.ssids" (click)="presentAction(ssid)">
-      <ion-label>{{ ssid }}</ion-label>
-      <ion-icon *ngIf="ssid === (server.wifi | async).current" name="wifi" color="success"></ion-icon>
-    </ion-item>
+    <ng-container *ngIf="patch.watch$('server-info', 'wifi') | ngrxPush as wifi">
+      <ion-item button detail="false" *ngFor="let ssid of wifi.ssids" (click)="presentAction(ssid, wifi)">
+        <ion-label>{{ ssid }}</ion-label>
+        <ion-icon *ngIf="ssid === wifi.connected" name="wifi" color="success"></ion-icon>
+      </ion-item>
+    </ng-container>
   </ion-item-group>
 
   <ion-fab vertical="bottom" horizontal="end" slot="fixed">
