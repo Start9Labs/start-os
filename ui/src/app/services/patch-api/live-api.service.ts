@@ -11,6 +11,8 @@ import { AppMetrics, parseMetricsPermissive } from 'src/app/util/metrics.util'
 import { Observable, of, throwError } from 'rxjs'
 import { catchError, mapTo } from 'rxjs/operators'
 import * as uuid from 'uuid'
+import { SeqPatch, SeqReplace } from 'patch-db-client'
+import { DataModel } from 'src/app/models/patch-db/data-model'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -18,8 +20,13 @@ export class LiveApiService extends ApiService {
     private readonly http: HttpService,
   ) { super() }
 
-  testConnection (url: string): Promise<true> {
-    return this.http.raw.get(url).pipe(mapTo(true as true), catchError(catchHttpStatusError)).toPromise()
+  async getUpdates(startSequence: number, finishSequence?: number): Promise<SeqPatch[]> {
+    const queryParams = `start=${startSequence}` + (finishSequence ? `&finish=${finishSequence}` : ``)
+    return this.authRequest({ method: Method.GET, url: `/revisions?${queryParams}` })
+  }
+
+  async getDump(): Promise<SeqReplace<DataModel>> {
+    return this.authRequest({ method: Method.GET, url: `/revisions?dump` })
   }
 
   // Used to check whether password or key is valid. If so, it will be used implicitly by all other calls.
@@ -39,10 +46,6 @@ export class LiveApiService extends ApiService {
     return this.authRequest<any>({ method: Method.GET, url: '/', readTimeout: timeout })
   }
 
-  async acknowledgeOSWelcomeRaw (version: string): PatchPromise<Unit> {
-    return this.authRequest({ method: Method.POST, url: `/welcome/${version}` })
-  }
-
   async getVersionLatest (): Promise<ReqRes.GetVersionLatestRes> {
     return this.authRequest({ method: Method.GET, url: '/versionLatest' }, { version: '' })
   }
@@ -59,7 +62,7 @@ export class LiveApiService extends ApiService {
     return this.authRequest({ method: Method.GET, url: `/notifications`, params })
   }
 
-  async deleteNotification (id: string): Promise<Unit> {
+  async deleteNotificationRaw (id: string): PatchPromise<Unit> {
     return this.authRequest({ method: Method.DELETE, url: `/notifications/${id}` })
   }
 
@@ -113,6 +116,11 @@ export class LiveApiService extends ApiService {
       .then(app => ({ ...app, hasFetchedFull: true }))
   }
 
+  async getAppMetrics (appId: string): Promise<AppMetrics> {
+    return this.authRequest<ReqRes.GetAppMetricsRes | string>( { method: Method.GET, url: `/apps/${appId}/metrics` })
+      .then(parseMetricsPermissive)
+  }
+
   async getInstalledApps (): Promise<AppInstalledPreview[]> {
     return this.authRequest<ReqRes.GetAppsInstalledRes>({ method: Method.GET, url: `/apps/installed` })
   }
@@ -129,9 +137,12 @@ export class LiveApiService extends ApiService {
     return this.authRequest<ReqRes.GetServerLogsRes>( { method: Method.GET, url: `/logs` })
   }
 
-  async getAppMetrics (appId: string): Promise<AppMetrics> {
-    return this.authRequest<ReqRes.GetAppMetricsRes | string>( { method: Method.GET, url: `/apps/${appId}/metrics` })
-      .then(parseMetricsPermissive)
+  async testConnection (url: string): Promise<true> {
+    return this.http.raw.get(url).pipe(mapTo(true as true), catchError(catchHttpStatusError)).toPromise()
+  }
+
+  async acknowledgeOSWelcomeRaw (version: string): PatchPromise<Unit> {
+    return this.authRequest({ method: Method.POST, url: `/welcome/${version}` })
   }
 
   async installAppRaw (appId: string, version: string, dryRun: boolean = false): PatchPromise<AppInstalledFull & { breakages: DependentBreakage[] }> {

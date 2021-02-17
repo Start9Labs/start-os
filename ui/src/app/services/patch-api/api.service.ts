@@ -5,21 +5,27 @@ import { Subject, Observable } from 'rxjs'
 import { Unit, ApiServer, ReqRes } from './api-types'
 import { AppMetrics } from 'src/app/util/metrics.util'
 import { ConfigSpec } from 'src/app/app-config/config-types'
-import { SeqUpdate, Source } from 'patch-db-client'
+import { Http, SeqReplace, SeqUpdate, Source } from 'patch-db-client'
 import { DataModel } from 'src/app/models/patch-db/data-model'
 import { filter } from 'rxjs/operators'
 
-export type PatchPromise<T> = Promise<{ response: T, patch: SeqUpdate<DataModel> }>
+export type PatchPromise<T> = Promise<{ response: T, patch?: SeqUpdate<DataModel> }>
 
-export abstract class ApiService implements Source<DataModel>{
-  private readonly patch = new Subject<SeqUpdate<DataModel>>()
+export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
+  protected readonly patch = new Subject<SeqUpdate<DataModel>>()
   private syncing = true
 
-  watch(): Observable<SeqUpdate<DataModel>> {
+  /** PatchDb Source interface. Post/Patch requests provide a source of patches to the db. */
+  // sequenceStream is not used by the live api, but is overriden by the mock
+  watch(sequenceStream?: Observable<number>): Observable<SeqUpdate<DataModel>> {
     return this.patch.asObservable().pipe(filter(() => this.syncing))
   }
   start(): void { this.syncing = true }
   stop(): void { this.syncing = false }
+
+  /** PatchDb Http interface. We can use the apiService to poll for patches or fetch db dumps */
+  abstract getUpdates(startSequence: number, finishSequence?: number): Promise<SeqUpdate<DataModel>[]> 
+  abstract getDump(): Promise<SeqReplace<DataModel>>
 
   private $unauthorizedApiResponse$: Subject<{ }> = new Subject()
   constructor(){}
@@ -35,14 +41,13 @@ export abstract class ApiService implements Source<DataModel>{
     this.$unauthorizedApiResponse$.next()
   }
 
-  abstract testConnection (url: string): Promise<true>
   abstract getCheckAuth (): Promise<Unit> // Throws an error on failed auth.
   abstract postLogin (password: string): Promise<Unit> // Throws an error on failed auth.
   abstract postLogout (): Promise<Unit> // Throws an error on failed auth.
+  abstract getServer (): Promise<ApiServer>
   abstract getVersionLatest (): Promise<ReqRes.GetVersionLatestRes>
   abstract getServerMetrics (): Promise<ReqRes.GetServerMetricsRes>
   abstract getNotifications (page: number, perPage: number): Promise<S9Notification[]>
-  abstract deleteNotification (id: string): Promise<Unit>
   abstract getAvailableApps (): Promise<AppAvailablePreview[]>
   abstract getAvailableApp (appId: string): Promise<AppAvailableFull>
   abstract getAvailableAppVersionSpecificInfo (appId: string, versionSpec: string): Promise<AppAvailableVersionSpecificInfo>
@@ -53,9 +58,12 @@ export abstract class ApiService implements Source<DataModel>{
   abstract getAppConfig (appId: string): Promise<{ spec: ConfigSpec, config: object, rules: Rules[]}>
   abstract getAppLogs (appId: string, params?: ReqRes.GetAppLogsReq): Promise<string[]>
   abstract getServerLogs (): Promise<string>
-  abstract getServer (): Promise<ApiServer>
+  abstract testConnection (url: string): Promise<true>
 
   /** Any request which mutates state will return a PatchPromise: a patch to state along with the standard response. The syncResponse helper function syncs the patch and returns the response*/
+  abstract deleteNotificationRaw (id: string): PatchPromise<Unit>
+  deleteNotification = this.syncResponse(this.deleteNotificationRaw)
+
   protected abstract toggleAppLANRaw (appId: string, toggle: 'enable' | 'disable'): PatchPromise<Unit>
   toggleAppLAN = this.syncResponse(this.toggleAppLANRaw)
 
@@ -129,15 +137,15 @@ export abstract class ApiService implements Source<DataModel>{
   serviceAction = this.syncResponse(this.serviceActionRaw)
 
   // helper allowing quick decoration to sync a patch and return a resposne.
-  private syncResponse<T extends (...args: any[]) => PatchPromise<any>>(f: T): (...args: Parameters<T>) => ToPromise<ReturnType<T>> {
+  private syncResponse<T extends (...args: any[]) => PatchPromise<any>>(f: T): (...args: Parameters<T>) => ExtractResultPromise<ReturnType<T>> {
     return (...a) => f(a).then(({ response, patch }) => {
-      this.patch.next(patch)
+      if(patch) this.patch.next(patch)
       return response
     }) as any
   }
 }
 // used for type inference in syncResponse
-type ToPromise<T extends PatchPromise<any>> = T extends PatchPromise<infer R> ? Promise<R> : any
+type ExtractResultPromise<T extends PatchPromise<any>> = T extends PatchPromise<infer R> ? Promise<R> : any
 
 
 export function isRpcFailure<Error, Result> (arg: { error: Error } | { result: Result}): arg is { error: Error } {

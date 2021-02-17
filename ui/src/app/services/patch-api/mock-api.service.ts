@@ -3,15 +3,28 @@ import { AppStatus, AppModel } from '../../models/app-model'
 import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerStatus, ServerModel, DiskInfo } from '../../models/server-model'
 import { pauseFor } from '../../util/misc.util'
-import { ApiService, ReqRes } from './api.service'
+import { ApiService, PatchPromise, ReqRes } from './api.service'
 import { ApiServer, Unit as EmptyResponse, Unit } from './api-types'
 import { AppMetrics, AppMetricsVersioned, parseMetricsPermissive } from 'src/app/util/metrics.util'
 import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppInstalledFull, mockAppDependentBreakages, toInstalledPreview } from './mock-app-fixures'
+import { filter, map } from 'rxjs/operators'
+import { Observable } from 'rxjs'
+import { PatchOp, SeqUpdate } from 'patch-db-client'
+import { DataModel } from 'src/app/models/patch-db/data-model'
+import { concatObservableValues } from 'src/app/util/rxjs.util'
 
 //@TODO consider moving to test folders.
 @Injectable()
 export class MockApiService extends ApiService {
   welcomeAck = false
+
+  // every time a patch is returned from the mock, we override its sequence to be 1 more than the last sequence in the patch-db as provided by `o`.
+  watch(sequenceStream: Observable<number>): Observable<SeqUpdate<DataModel>> {
+    return super.watch().pipe(
+      concatObservableValues([sequenceStream]),
+      map( ([update, sequence]) => ({ ...update, id: sequence + 1 }) )
+    )
+  }
 
   constructor (
     private readonly appModel: AppModel,
@@ -28,7 +41,7 @@ export class MockApiService extends ApiService {
     return {  }
   }
 
-  async postConfigureDependency (dependencyId: string, dependentId: string, dryRun?: boolean): Promise<{ config: object, breakages: DependentBreakage[] }> {
+  async postConfigureDependencyRaw (dependencyId: string, dependentId: string, dryRun?: boolean): PatchPromise<{ config: object, breakages: DependentBreakage[] }> {
     await pauseFor(2000)
     throw new Error ('some misc backend error ohh we forgot to make this endpoint or something')
   }
@@ -53,9 +66,9 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async ejectExternalDisk (): Promise<Unit> {
+  async ejectExternalDiskRaw (): PatchPromise<Unit> {
     await pauseFor(2000)
-    return { }
+    return { response: { } }
   }
 
   async getCheckAuth (): Promise<ReqRes.GetCheckAuthRes> {
@@ -74,16 +87,18 @@ export class MockApiService extends ApiService {
     return mockGetNotifications()
   }
 
-  async deleteNotification (id: string): Promise<EmptyResponse> {
-    return mockDeleteNotification()
+  async deleteNotificationRaw (id: string): PatchPromise<EmptyResponse> {
+    await pauseFor(1000)
+    return { response: { } }
   }
 
   async getExternalDisks (): Promise<DiskInfo[]> {
     return mockGetExternalDisks()
   }
 
-  async updateAgent (thing: any): Promise<EmptyResponse> {
-    return mockPostUpdateAgent()
+  async updateAgentRaw (thing: any): PatchPromise<EmptyResponse> {
+    await pauseFor(1000)
+    return { response: { } }
   }
 
   async getAvailableApps (): Promise<AppAvailablePreview[]> {
@@ -129,8 +144,14 @@ export class MockApiService extends ApiService {
     return mockGetServerLogs()
   }
 
-  async installApp (appId: string, version: string, dryRun: boolean): Promise<AppInstalledFull & { breakages: DependentBreakage[] }> {
-    return mockInstallApp(appId)
+  async installAppRaw (appId: string, version: string, dryRun: boolean): PatchPromise<AppInstalledFull & { breakages: DependentBreakage[] }> {
+    await pauseFor(1000)
+    const response = { ...mockApiAppInstalledFull[appId], hasFetchedFull: true, ...mockAppDependentBreakages }
+    const patch: SeqUpdate<DataModel> = {
+      id: 0,
+      patch: [{ op: PatchOp.ADD, path: `/apps/${appId}`, value: response }]
+    }
+    return { response, patch }
   }
 
   async uninstallApp (appId: string, dryRun: boolean): Promise<{ breakages: DependentBreakage[] }> {
