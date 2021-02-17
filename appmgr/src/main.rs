@@ -820,6 +820,16 @@ async fn inner_main() -> Result<(), Error> {
         )
         .subcommand(
             SubCommand::with_name("repair-app-status").about("Restarts crashed apps"), // TODO: remove
+        )
+        .subcommand(
+            SubCommand::with_name("actions")
+                .about("Perform an action for a service")
+                .arg(
+                    Arg::with_name("SERVICE")
+                        .help("ID of the service to perform an action on")
+                        .required(true),
+                )
+                .arg(Arg::with_name("ACTION").help("ID of the action to perform")),
         );
 
     let matches = app.clone().get_matches();
@@ -1546,6 +1556,34 @@ async fn inner_main() -> Result<(), Error> {
         #[cfg(not(feature = "portable"))]
         ("repair-app-status", _) => {
             control::repair_app_status().await?;
+        }
+        #[cfg(not(feature = "portable"))]
+        ("actions", Some(sub_m)) => {
+            use yajrc::{GenericRpcMethod, RpcResponse};
+
+            let man = apps::manifest(sub_m.value_of("SERVICE").unwrap()).await?;
+            let action_id = sub_m.value_of("ACTION").unwrap();
+            println!(
+                "{}",
+                serde_json::to_string(&RpcResponse::<GenericRpcMethod>::from_result(
+                    man.actions
+                        .iter()
+                        .filter(|a| &a.id == &action_id)
+                        .next()
+                        .ok_or_else(|| {
+                            failure::format_err!(
+                                "action {} does not exist for {}",
+                                action_id,
+                                man.id
+                            )
+                        })
+                        .with_code(error::NOT_FOUND)?
+                        .perform(&man.id)
+                        .await
+                        .map(serde_json::Value::String)
+                ))
+                .with_code(error::SERDE_ERROR)?
+            )
         }
         ("pack", Some(sub_m)) => {
             pack(
