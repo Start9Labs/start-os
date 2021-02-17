@@ -18,6 +18,7 @@ import { APP_CONFIG_COMPONENT_MAPPING } from './modals/app-config-injectable/mod
 import { appConfigComponents } from './modals/app-config-injectable/modal-injectable-value';
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
 import { PatchDbModel } from './models/patch-db/patch-db-model'
+import { LocalStorageBootstrap } from './models/patch-db/local-storage-bootstrap'
 
 @NgModule({
   declarations: [AppComponent],
@@ -32,9 +33,10 @@ import { PatchDbModel } from './models/patch-db/patch-db-model'
     OSWelcomePageModule,
   ],
   providers: [
+    Storage,
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
-    { provide: ApiService, useFactory: ApiServiceFactory, deps: [ConfigService, HttpService, AppModel, ServerModel] },
-    { provide: PatchDbModel, useFactory: PatchDbModelFactory, deps: [ConfigService] },
+    { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService, AppModel, ServerModel] },
+    { provide: PatchDbModel, useFactory: PatchDbModelFactory, deps: [ConfigService, LocalStorageBootstrap] },
     { provide: APP_CONFIG_COMPONENT_MAPPING, useValue: appConfigComponents },
   ],
   bootstrap: [AppComponent],

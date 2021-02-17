@@ -10,6 +10,7 @@ import { S9Server, ServerModel, ServerStatus } from 'src/app/models/server-model
 import { SyncDaemon } from 'src/app/services/sync.service'
 import { Cleanup } from 'src/app/util/cleanup'
 import { ConfigService } from 'src/app/services/config.service'
+import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 
 @Component({
   selector: 'app-installed-list',
@@ -42,6 +43,7 @@ export class AppInstalledListPage extends Cleanup {
     private readonly preload: ModelPreload,
     private readonly syncDaemon: SyncDaemon,
     private readonly config: ConfigService,
+    private readonly pm: PatchDbModel,
   ) {
     super()
   }
@@ -54,7 +56,6 @@ export class AppInstalledListPage extends Cleanup {
     this.server = this.serverModel.watch()
     this.apps = []
     this.cleanup(
-
       // serverUpdateSubscription
       this.server.status.subscribe(status => {
         if (status === ServerStatus.UPDATING) {

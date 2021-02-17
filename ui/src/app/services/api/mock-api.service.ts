@@ -489,7 +489,7 @@ const mockApiNotifications: ReqRes.GetNotificationsRes = [
   },
 ]
 
-const mockApiServer: () => ReqRes.GetServerRes = () => ({
+export const mockApiServer: () => ReqRes.GetServerRes = () => ({
   serverId: 'start9-mockxyzab',
   name: 'Embassy:12345678',
   versionInstalled: '0.2.11',

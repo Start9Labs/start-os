@@ -4,7 +4,6 @@ import { BehaviorSubject, combineLatest, Observable, Subscription } from "rxjs";
 import { filter, map } from "rxjs/operators";
 import { exists } from "../../util/misc.util";
 import { DataModel } from "./data-model";
-import { LocalStorageBootstrap } from "./local-storage-bootstrap";
 
 @Injectable({
   providedIn: 'root'
@@ -13,6 +12,11 @@ export class PatchDbModel {
   private patchDb: PatchDB<DataModel>
   private store: Store<DataModel>
   private syncSub: Subscription
+  /* overlays allow the FE to override the patch-db values for FE behavior not represented in the BE. For example, the server status of 'Unreachable' is set with
+    `patchDbModel.overlay({ expired: () => true, value: 'UNREACHABLE' }, 'server', 'status')`
+    And will expire as soon as a genuine server status emits from the BE.
+  */
+  private readonly overlays: { [path: string]: BehaviorSubject<{ value: any, expired: (newValue: any) => boolean }>} = { }
 
   constructor(private readonly conf: PatchDbConfig<DataModel>) {}
 
@@ -30,7 +34,7 @@ export class PatchDbModel {
     return combineLatest([overlay, base]).pipe(
       map(([o, b]) => {
         if(!o) return b
-        if(o.shouldExpire(b)) {
+        if(o.expired(b)) {
           this.clearOverlay(...args)
           return b
         } else {
@@ -40,22 +44,21 @@ export class PatchDbModel {
     )
   }
 
-  private readonly overlays: { [path: string]: BehaviorSubject<{ value: any, shouldExpire: (newValue: any) => boolean }>} = { }
-  setOverlay(shouldExpire: (newValue: any) => boolean, value: any, ...path: (string | number)[]) {
-    this.getOverlay(...path).next({ shouldExpire, value })
+  setOverlay(args: { expired: (newValue: any) => boolean, value: any }, ...path: (string | number)[]) {
+    this.getOverlay(...path).next(args)
   }
-  getOverlay(...path: (string | number)[]): BehaviorSubject<{ value: any, shouldExpire: (newValue: any) => boolean } | undefined> {
+  private getOverlay(...path: (string | number)[]): BehaviorSubject<{ value: any, expired: (newValue: any) => boolean } | undefined> {
     const singlePath = '/' + path.join('/')
     this.overlays[singlePath] = this.overlays[singlePath] || new BehaviorSubject(undefined)
     return this.overlays[singlePath]
   }
-  clearOverlay(...path: (string | number)[]): void {
+  private clearOverlay(...path: (string | number)[]): void {
     this.getOverlay(...path).next(undefined)
   }
 
   async init() {
     if(this.patchDb || this.store) return console.warn('Cannot re-init patchDbModel')
-
+    await this.conf.bootstrap.init()
     const { patchDb, store } = await initPatchDb<DataModel>(this.conf)
     this.patchDb = patchDb
     this.store = store

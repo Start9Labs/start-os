@@ -68,7 +68,7 @@ export class AppComponent {
     private readonly alertCtrl: AlertController,
     private readonly loader: LoaderService,
     private readonly emver: Emver,
-    private readonly patchDbModel: PatchDbModel,
+    private readonly pm: PatchDbModel,
     readonly splitPane: SplitPaneTracker,
   ) {
     // set dark theme
@@ -87,6 +87,7 @@ export class AppComponent {
   async init () {
     let fromFresh = true
     await this.storage.ready()
+    await this.pm.init()
     await this.authService.restoreCache()
     await this.emver.init()
 

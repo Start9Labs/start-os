@@ -3,20 +3,23 @@ import { ConfigService } from "src/app/services/config.service"
 import { DataModel } from "./data-model"
 import { LocalStorageBootstrap } from "./local-storage-bootstrap"
 import { PatchDbModel } from "./patch-db-model"
+import { MockPatchDbHttp } from "./mock-http"
 
 export function PatchDbModelFactory (
-  config: ConfigService['patchDb'],
+  config: ConfigService,
   bootstrap: LocalStorageBootstrap,
 ): PatchDbModel {
+  const { http : httpC, source : sourceC } = config.patchDb
+
   let http: Http<DataModel>
-  switch(config.http.type) {
+  switch(httpC.type) {
     case 'mock': http = new MockPatchDbHttp(); break;
-    case 'live': http = new LivePatchDbHttp(config.http.url)
+    case 'live': http = new LivePatchDbHttp(httpC.url)
   }
   let source: Source<DataModel>
-  switch(config.source.type) {
-    case 'poll': source = new PollSource({ ...config.source }, http); break;
-    case 'ws': source = new WebsocketSource({ ...config.source }); break
+  switch(sourceC.type) {
+    case 'poll': source = new PollSource({ ...sourceC }, http); break;
+    case 'ws': source = new WebsocketSource({ ...sourceC }); break
   }
 
   const store = new RxStore<DataModel>({} as any)

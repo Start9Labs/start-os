@@ -1,7 +1,7 @@
 import { BootstrapCache } from "patch-db-client";
 import { DataModel } from "./data-model";
 import { Injectable } from '@angular/core'
-
+import { Storage } from '@ionic/storage'
 @Injectable({
   providedIn: 'root',
 })
@@ -19,5 +19,9 @@ export class LocalStorageBootstrap implements BootstrapCache<DataModel> {
 
   restoreCache(): Promise<{ sequence: number; cache: DataModel }> {
     return this.storage.get(LocalStorageBootstrap.CONTENT_KEY)
+  }
+
+  init(): Promise<void> {
+    return this.storage.ready().then(() => {})
   }
 }

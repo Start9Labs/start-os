@@ -2,6 +2,7 @@ import { AppStatus } from '../../models/app-model'
 import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppDependency, BaseApp, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
 import { modulateTime } from 'src/app/util/misc.util'
 import { ApiAppInstalledFull } from './api-types'
+import { S9Server, ServerStatus } from 'src/app/models/server-model'
 
 export function toAvailablePreview (f: AppAvailableFull): AppAvailablePreview {
   return {
@@ -66,7 +67,7 @@ export const bitcoinI: ApiAppInstalledFull = {
   restoreAlert: 'if you restore this app horrible things will happen to the people you love.',
   actions: [
     { id: 'sync-chain', name: 'Sync Chain', description: 'this will sync with the chain like from Avatar', allowedStatuses: [ AppStatus.RUNNING, AppStatus.RUNNING, AppStatus.RUNNING, AppStatus.RUNNING ]},
-    { id: 'off-sync-chain', name: 'Off Sync Chain', description: 'this will off sync with the chain like from Avatar', allowedStatuses: [ AppStatus.STOPPED ]}
+    { id: 'off-sync-chain', name: 'Off Sync Chain', description: 'this will off sync with the chain like from Avatar', allowedStatuses: [ AppStatus.STOPPED ]},
   ],
 }
 
@@ -316,5 +317,44 @@ export const mockAppDependentBreakages: { breakages: DependentBreakage[] } = {
   breakages: [
     toServiceBreakage(bitcoinI),
     toServiceBreakage(cupsA),
+  ],
+}
+
+export const mockServer: S9Server = {
+  origin: 'start9-abcdefg.local',
+  badge: 0,
+  notifications: [],
+  serverId: 'start9-mockxyzab',
+  name: 'Embassy:12345678',
+  versionInstalled: '0.2.9',
+  versionLatest: '0.2.10',
+  status: ServerStatus.RUNNING,
+  alternativeRegistryUrl: 'beta-registry.start9labs.com',
+  welcomeAck: true,
+  autoCheckUpdates: true,
+  specs: {
+    'Tor Address': 'nfsnjkcnaskjnlkasnfahj7dh23fdnieqwjdnhjewbfijendiueqwbd.onion',
+    'CPU': 'Broadcom BCM2711, Quad core Cortex-A72 (ARM v8) 64-bit SoC @ 1.5GHz',
+    'RAM': '4GB LPDDR4-2400 SDRAM',
+    'WiFI': '2.4 GHz and 5.0 GHz IEEE 802.11ac wireless, Bluetooth 5.0, BLE',
+    'Ethernet': 'Gigabit',
+    'Disk': '512 GB Flash (280 GB available)',
+    'EmbassyOS Version': '0.1.0.1',
+  },
+  wifi: {
+    ssids: ['Goosers', 'Atlantic City'],
+    current: 'Goosers',
+  },
+  ssh: [
+    {
+      alg: 'ed25519',
+      hash: '28:d2:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53',
+      hostname: 'aaron key',
+    },
+    {
+      alg: 'ed25519',
+      hash: '12:f8:7e:78:61:b4:bf:e2:de:24:15:96:4e:d4:72:53',
+      hostname: 'matt macbook pro',
+    },
   ],
 }
