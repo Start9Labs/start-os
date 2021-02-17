@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use linear_map::LinearMap;
 
+use crate::actions::Action;
 use crate::dependencies::Dependencies;
 use crate::tor::HiddenServiceVersion;
 use crate::tor::PortMapping;
@@ -63,6 +64,8 @@ pub struct ManifestV0 {
     pub hidden_service_version: HiddenServiceVersion,
     #[serde(default)]
     pub dependencies: Dependencies,
+    #[serde(default)]
+    pub actions: Vec<Action>,
     #[serde(flatten)]
     pub extra: LinearMap<String, serde_yaml::Value>,
 }
