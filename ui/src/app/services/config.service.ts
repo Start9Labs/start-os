@@ -2,17 +2,17 @@ import { Injectable } from '@angular/core'
 import { AppStatus } from '../models/app-model'
 import { ApiAppInstalledPreview } from './api/api-types'
 
-const { patchDb, maskAs, useMocks, skipStartupAlerts } = require('../../../ui-config.json') as UiConfig
+const { patchDb, maskAs, api, skipStartupAlerts } = require('../../../ui-config.json') as UiConfig
 
+// patchDb.type === 'ws' and api.mocks === true presently does not work. Mocks are intended to be used with poll.
 type UiConfig = {
-  patchDb: {
-    http  : { type: 'mock' } | { type: 'live', url: string }
-    source:
-        { type: 'poll', cooldown: number  /* in ms */ }
-      | { type: 'ws', url: string, version: number }
+  patchDb: { type: 'poll', cooldown: number  /* in ms */ } | { type: 'ws', url: string, version: number }
+  api: {
+    mocks: boolean
+    url: string
+    version: string
+    root: string
   }
-
-  useMocks: boolean //@TODO 0.3.0: Deprecated, remove for 0.3.0
   maskAs: 'tor' | 'lan' | 'none'
   skipStartupAlerts: boolean
 }
@@ -24,19 +24,17 @@ export class ConfigService {
   version = require('../../../package.json').version
 
   patchDb = patchDb
-
-  api = {
-    useMocks: useMocks,
-    url: '/api',
-    version: '/v0',
-    root: '', // empty will default to same origin
-  }
+  api = api
 
   skipStartupAlerts  = skipStartupAlerts
   isConsulate        = window['platform'] === 'ios'
 
   isTor () : boolean {
-    return (this.api.useMocks && maskAs === 'tor') || this.origin.endsWith('.onion')
+    return (maskAs === 'tor') || this.origin.endsWith('.onion')
+  }
+
+  isLan () : boolean {
+    return (maskAs === 'lan') || this.origin.endsWith('.local')
   }
 
   hasUI (app: ApiAppInstalledPreview): boolean {

@@ -1,16 +1,14 @@
 {
   "patchDb": {
-    "http": {
-      "type": "mock"
-    },
-    "source": {
-      "type": "poll",
-      "cooldown": 5000
-    }
+    "type": "poll",
+    "cooldown": 5000
   },
-
-  "useMocks": true,
-
+  "api": {
+    "mocks": true,
+    "url": "/api",
+    "version": "/v0",
+    "root": ""
+  },
   "maskAs": "lan",
   "skipStartupAlerts": false
 }

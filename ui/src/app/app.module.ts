@@ -8,6 +8,9 @@ import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
 import { ApiService } from './services/api/api.service'
 import { ApiServiceFactory } from './services/api/api.service.factory'
+
+import { ApiService as PatchApiService } from './services/patch-api/api.service'
+import { ApiServiceFactory as PatchApiServiceFactory } from './services/patch-api/api.service.factory'
 import { PatchDbModelFactory } from './models/patch-db/patch-db-model.factory'
 import { AppModel } from './models/app-model'
 import { HttpService } from './services/http.service'
@@ -36,7 +39,8 @@ import { LocalStorageBootstrap } from './models/patch-db/local-storage-bootstrap
     Storage,
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService, AppModel, ServerModel] },
-    { provide: PatchDbModel, useFactory: PatchDbModelFactory, deps: [ConfigService, LocalStorageBootstrap] },
+    { provide: PatchApiService , useFactory: PatchApiServiceFactory, deps: [ConfigService, HttpService] },
+    { provide: PatchDbModel, useFactory: PatchDbModelFactory, deps: [ConfigService, LocalStorageBootstrap, PatchApiService] },
     { provide: APP_CONFIG_COMPONENT_MAPPING, useValue: appConfigComponents },
   ],
   bootstrap: [AppComponent],

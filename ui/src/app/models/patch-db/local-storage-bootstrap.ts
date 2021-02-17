@@ -18,7 +18,7 @@ export class LocalStorageBootstrap implements BootstrapCache<DataModel> {
   }
 
   restoreCache(): Promise<{ sequence: number; cache: DataModel }> {
-    return this.storage.get(LocalStorageBootstrap.CONTENT_KEY)
+    return this.storage.get(LocalStorageBootstrap.CONTENT_KEY).then(drudged => drudged || { sequence: 0, cache: { } })
   }
 
   init(): Promise<void> {

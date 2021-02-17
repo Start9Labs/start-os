@@ -1,30 +1,23 @@
-import { Http, LiveHttp as LivePatchDbHttp, PollSource, RxStore, Source, WebsocketSource } from "patch-db-client"
+import { PollSource, RxStore, Source, WebsocketSource } from "patch-db-client"
 import { ConfigService } from "src/app/services/config.service"
 import { DataModel } from "./data-model"
 import { LocalStorageBootstrap } from "./local-storage-bootstrap"
 import { PatchDbModel } from "./patch-db-model"
-import { MockPatchDbHttp } from "./mock-http"
-import { ImperativeSource } from "./imperative-source"
+import { ApiService } from "src/app/services/patch-api/api.service"
 
 export function PatchDbModelFactory (
   config: ConfigService,
   bootstrap: LocalStorageBootstrap,
-  imperativeSource: ImperativeSource,
+  api: ApiService,
 ): PatchDbModel {
-  const { http : httpC, source : sourceC } = config.patchDb
-
-  let http: Http<DataModel>
-  switch(httpC.type) {
-    case 'mock': http = new MockPatchDbHttp(); break;
-    case 'live': http = new LivePatchDbHttp(httpC.url)
-  }
+  const patch = config.patchDb
 
   let source: Source<DataModel>
-  switch(sourceC.type) {
-    case 'poll': source = new PollSource({ ...sourceC }, http); break;
-    case 'ws': source = new WebsocketSource({ ...sourceC }); break
+  switch(patch.type) {
+    case 'poll': source = new PollSource({ ...patch }, api); break;
+    case 'ws': source = new WebsocketSource({ ...patch }); break
   }
 
   const store = new RxStore<DataModel>({} as any)
-  return new PatchDbModel({ store, http, sources: [source, imperativeSource], bootstrap })
+  return new PatchDbModel({ store, http: api, sources: [source, api], bootstrap })
 }

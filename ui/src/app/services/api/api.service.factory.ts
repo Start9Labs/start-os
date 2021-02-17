@@ -6,7 +6,7 @@ import { ServerModel } from 'src/app/models/server-model'
 import { ConfigService } from '../config.service'
 
 export function ApiServiceFactory (config: ConfigService, http: HttpService, appModel: AppModel, serverModel: ServerModel) {
-  if (config.api.useMocks) {
+  if (config.api.mocks) {
     return new MockApiService(appModel, serverModel, config)
   } else {
     return new LiveApiService(http, appModel, serverModel, config)
