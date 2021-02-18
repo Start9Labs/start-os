@@ -79,6 +79,8 @@ import           Lib.Types.ServerApp
 import           Model
 import           Settings
 import           Crypto.Hash
+import qualified Data.Text                     as Text
+import           Lib.Types.NetAddress
 
 pureLog :: Show a => a -> Handler a
 pureLog = liftA2 (*>) ($logInfo . show) pure
@@ -231,6 +233,7 @@ cached action = do
 getInstalledAppsLogic :: (Has (Reader AgentCtx) sig m, Has AppMgr2.AppMgr sig m, MonadIO m) => m [AppInstalledPreview]
 getInstalledAppsLogic = do
     jobCache <- asks appBackgroundJobs >>= liftIO . readTVarIO
+    lanCache <- asks appLanThreads >>= liftIO . readTVarIO
     let installCache = installInfo . fst <$> inspect SInstalling jobCache
     serverApps <- AppMgr2.list [AppMgr2.flags|-s -d -m|]
     let remapped           = remapAppMgrInfo jobCache serverApps
@@ -244,6 +247,7 @@ getInstalledAppsLogic = do
                 , appInstalledPreviewStatus           = AppStatusTmp Installing
                 , appInstalledPreviewVersionInstalled = storeAppVersionInfoVersion
                 , appInstalledPreviewTorAddress       = Nothing
+                , appInstalledPreviewLanAddress       = Nothing
                 , appInstalledPreviewUi               = False
                 }
         installedPreviews = flip
@@ -254,6 +258,13 @@ getInstalledAppsLogic = do
                 , appInstalledPreviewStatus           = s
                 , appInstalledPreviewVersionInstalled = v
                 , appInstalledPreviewTorAddress       = infoResTorAddress
+                , appInstalledPreviewLanAddress       = if appId `HM.member` lanCache
+                                                            then
+                                                                LanAddress
+                                                                .   (".onion" `Text.replace` ".local")
+                                                                .   unTorAddress
+                                                                <$> infoResTorAddress
+                                                            else Nothing
                 , appInstalledPreviewUi               = AppManifest.uiAvailable infoResManifest
                 }
 
@@ -286,6 +297,7 @@ getInstalledAppByIdLogic appId = do
                 , appInstalledFullInstructions           = Nothing
                 , appInstalledFullLastBackup             = backupTime
                 , appInstalledFullTorAddress             = Nothing
+                , appInstalledFullLanAddress             = Nothing
                 , appInstalledFullConfiguredRequirements = []
                 , appInstalledFullUninstallAlert         = Nothing
                 , appInstalledFullRestoreAlert           = Nothing
@@ -319,15 +331,21 @@ getInstalledAppByIdLogic appId = do
             manifest     <- lift $ LAsync.wait manifest'
             instructions <- lift $ LAsync.wait instructions'
             backupTime   <- lift $ LAsync.wait backupTime'
+            lans         <- asks appLanThreads
+            lanEnabled   <- liftIO $ HM.member appId <$> readTVarIO lans
+            let lanAddress = if lanEnabled
+                    then LanAddress . (".onion" `Text.replace` ".local") . unTorAddress <$> infoResTorAddress
+                    else Nothing
             pure AppInstalledFull { appInstalledFullBase = AppBase appId infoResTitle (iconUrl appId version)
                                   , appInstalledFullStatus                 = status
                                   , appInstalledFullVersionInstalled       = version
                                   , appInstalledFullInstructions           = instructions
                                   , appInstalledFullLastBackup             = backupTime
                                   , appInstalledFullTorAddress             = infoResTorAddress
+                                  , appInstalledFullLanAddress             = lanAddress
                                   , appInstalledFullConfiguredRequirements = HM.elems requirements
-                                  , appInstalledFullUninstallAlert         = manifest >>= AppManifest.appManifestUninstallAlert
-                                  , appInstalledFullRestoreAlert           = manifest >>= AppManifest.appManifestRestoreAlert
+                                  , appInstalledFullUninstallAlert = manifest >>= AppManifest.appManifestUninstallAlert
+                                  , appInstalledFullRestoreAlert = manifest >>= AppManifest.appManifestRestoreAlert
                                   }
     runMaybeT (installing <|> installed) `orThrowM` NotFoundE "appId" (show appId)
 
@@ -769,3 +787,25 @@ dependencyInfoToDependencyRequirement asInstalled (base, status, AppMgr2.Depende
             let appDependencyRequirementReasonOptional = dependencyInfoReasonOptional
                 appDependencyRequirementDefault        = dependencyInfoRequired
             in  AppDependencyRequirement { .. }
+
+postEnableLanR :: AppId -> Handler ()
+postEnableLanR = intoHandler . postEnableLanLogic
+
+postEnableLanLogic :: (Has (Reader AgentCtx) sig m, Has AppMgr2.AppMgr sig m, MonadBaseControl IO m, MonadIO m)
+                   => AppId
+                   -> m ()
+postEnableLanLogic appId = do
+    cache  <- asks appLanThreads
+    action <- const () <<$>> LAsync.async (AppMgr2.lanEnable appId) -- unconditionally drops monad state from the action
+    liftIO $ atomically $ modifyTVar' cache (HM.insert appId action)
+
+postDisableLanR :: AppId -> Handler ()
+postDisableLanR = intoHandler . postDisableLanLogic
+
+postDisableLanLogic :: (Has (Reader AgentCtx) sig m, MonadBaseControl IO m, MonadIO m) => AppId -> m ()
+postDisableLanLogic appId = do
+    cache  <- asks appLanThreads
+    action <- liftIO . atomically $ stateTVar cache $ \s -> (HM.lookup appId s, HM.delete appId s)
+    case action of
+        Nothing -> pure () -- Nothing to do here
+        Just x  -> LAsync.cancel x

@@ -45,6 +45,7 @@ data AppInstalledPreview = AppInstalledPreview
     , appInstalledPreviewStatus           :: AppStatus
     , appInstalledPreviewVersionInstalled :: Version
     , appInstalledPreviewTorAddress       :: Maybe TorAddress
+    , appInstalledPreviewLanAddress       :: Maybe LanAddress
     , appInstalledPreviewUi               :: Bool
     }
     deriving (Eq, Show)
@@ -129,6 +130,7 @@ data AppInstalledFull = AppInstalledFull
     , appInstalledFullStatus                 :: AppStatus
     , appInstalledFullVersionInstalled       :: Version
     , appInstalledFullTorAddress             :: Maybe TorAddress
+    , appInstalledFullLanAddress             :: Maybe LanAddress
     , appInstalledFullInstructions           :: Maybe Text
     , appInstalledFullLastBackup             :: Maybe UTCTime
     , appInstalledFullConfiguredRequirements :: [Stripped AppDependencyRequirement]

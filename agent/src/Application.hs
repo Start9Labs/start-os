@@ -118,6 +118,7 @@ makeFoundation appSettings = do
     def                         <- getDefaultProcDevMetrics
     appProcDevMomentCache       <- newIORef (now, mempty, def)
     appLastTorRestart           <- newIORef now
+    appLanThreads               <- newTVarIO HM.empty
 
     -- We need a log function to create a connection pool. We need a connection
     -- pool to create our foundation. And we need our foundation to get a
