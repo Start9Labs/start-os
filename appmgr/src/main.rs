@@ -1194,7 +1194,14 @@ async fn inner_main() -> Result<(), Error> {
         #[cfg(not(feature = "portable"))]
         ("lan", Some(sub_m)) => match sub_m.subcommand() {
             ("enable", Some(sub_sub_m)) => {
-                crate::lan::enable_lan(sub_sub_m.value_of("ID").unwrap(), None).await?
+                crate::lan::enable_lan(&crate::lan::AppId {
+                    un_app_id: sub_sub_m.value_of("ID").unwrap().to_owned(),
+                })
+                .await?
+            }
+            _ => {
+                println!("{}", sub_m.usage());
+                std::process::exit(1);
             }
         },
         #[cfg(not(feature = "portable"))]

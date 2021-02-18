@@ -1,9 +1,10 @@
 use std::path::Path;
 
-use argonautica::{Hasher, Verifier};
+use argon2::Config;
 use emver::Version;
 use futures::try_join;
 use futures::TryStreamExt;
+use rand::Rng;
 use serde::Serialize;
 
 use crate::util::from_yaml_async_reader;
@@ -46,10 +47,7 @@ pub async fn create_backup<P: AsRef<Path>>(
         let mut hash = String::new();
         f.read_to_string(&mut hash).await?;
         crate::ensure_code!(
-            Verifier::new()
-                .with_password(password)
-                .with_hash(hash)
-                .verify()
+            argon2::verify_encoded(&hash, password.as_bytes())
                 .with_code(crate::error::INVALID_BACKUP_PASSWORD)?,
             crate::error::INVALID_BACKUP_PASSWORD,
             "Invalid Backup Decryption Password"
@@ -58,10 +56,8 @@ pub async fn create_backup<P: AsRef<Path>>(
     {
         // save password
         use tokio::io::AsyncWriteExt;
-
-        let mut hasher = Hasher::default();
-        hasher.opt_out_of_secret_key(true);
-        let hash = hasher.with_password(password).hash().no_code()?;
+        let salt = rand::thread_rng().gen::<[u8; 32]>();
+        let hash = argon2::hash_encoded(password.as_bytes(), &salt, &Config::default()).unwrap(); // this is safe because apparently the API was poorly designed
         let mut f = tokio::fs::File::create(pw_path).await?;
         f.write_all(hash.as_bytes()).await?;
         f.flush().await?;
@@ -160,10 +156,7 @@ pub async fn restore_backup<P: AsRef<Path>>(
         let mut hash = String::new();
         f.read_to_string(&mut hash).await?;
         crate::ensure_code!(
-            Verifier::new()
-                .with_password(password)
-                .with_hash(hash)
-                .verify()
+            argon2::verify_encoded(&hash, password.as_bytes())
                 .with_code(crate::error::INVALID_BACKUP_PASSWORD)?,
             crate::error::INVALID_BACKUP_PASSWORD,
             "Invalid Backup Decryption Password"

@@ -4,7 +4,7 @@ use futures::future::pending;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AppId {
-    un_app_id: String,
+    pub un_app_id: String,
 }
 
 pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
