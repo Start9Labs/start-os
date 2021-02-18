@@ -65,9 +65,8 @@ data InfoRes a = InfoRes
           :: Include
               (Either_ (DefaultEqSym1 'OnlyDependencies) (ElemSym1 'IncludeDependencies) a)
               (HM.HashMap AppId DependencyInfo)
-    , infoResManifest
-          :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) AppManifest
-    , infoResStatus :: Include (Either_ (DefaultEqSym1 'OnlyStatus) (ElemSym1 'IncludeStatus) a) AppContainerStatus
+    , infoResManifest :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) AppManifest
+    , infoResStatus   :: Include (Either_ (DefaultEqSym1 'OnlyStatus) (ElemSym1 'IncludeStatus) a) AppContainerStatus
     }
 instance SingI (a :: Either OnlyInfoFlag [IncludeInfoFlag]) => FromJSON (InfoRes a) where
     parseJSON = withObject "AppMgr Info/List Response" $ \o -> do
@@ -270,6 +269,7 @@ data AppMgr (m :: Type -> Type) k where
     -- Tor ::_
     Update ::DryRun -> AppId -> Maybe VersionRange -> AppMgr m BreakageMap
     -- Verify ::_
+    LanEnable ::AppId -> AppMgr m ()
 makeSmartConstructors ''AppMgr
 
 newtype AppMgrCliC m a = AppMgrCliC { runAppMgrCliC :: m a }
@@ -421,7 +421,8 @@ instance (Has (Error S9Error) sig m, Algebra sig m, MonadIO m) => Algebra (AppMg
                 ExitFailure 6 ->
                     throwError $ NotFoundE "appId@version" ([i|#{appId}#{maybe "" (('@':) . show) version}|])
                 ExitFailure n -> throwError $ AppMgrE (toS $ String.unwords args) n
-        R other -> AppMgrCliC $ alg (runAppMgrCliC . hdl) other ctx
+        (L (LanEnable appId)) -> readProcessInheritStderr "appmgr" ["lan", "enable", show appId] "" $> ctx
+        R other               -> AppMgrCliC $ alg (runAppMgrCliC . hdl) other ctx
         where
             versionSpec :: (IsString a, Semigroup a, ConvertText String a) => Maybe VersionRange -> a -> a
             versionSpec v = case v of
