@@ -39,6 +39,8 @@
 /v0/apps/#AppId/backup/stop           StopBackupR              POST
 /v0/apps/#AppId/backup/restore        RestoreBackupR           POST
 /v0/apps/#AppId/autoconfig/#AppId     AutoconfigureR           POST
+/v0/apps/#AppId/lan/enable            EnableLanR               POST
+/v0/apps/#AppId/lan/disable           DisableLanR              POST
 
 /v0/disks                             DisksR                   GET
 /v0/disks/eject                       EjectR                   POST
