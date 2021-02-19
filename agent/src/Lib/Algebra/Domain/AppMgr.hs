@@ -270,6 +270,7 @@ data AppMgr (m :: Type -> Type) k where
     Update ::DryRun -> AppId -> Maybe VersionRange -> AppMgr m BreakageMap
     -- Verify ::_
     LanEnable ::AppId -> AppMgr m ()
+    Action ::AppId -> Text -> AppMgr m (HM.HashMap Text Value)
 makeSmartConstructors ''AppMgr
 
 newtype AppMgrCliC m a = AppMgrCliC { runAppMgrCliC :: m a }
@@ -421,8 +422,17 @@ instance (Has (Error S9Error) sig m, Algebra sig m, MonadIO m) => Algebra (AppMg
                 ExitFailure 6 ->
                     throwError $ NotFoundE "appId@version" ([i|#{appId}#{maybe "" (('@':) . show) version}|])
                 ExitFailure n -> throwError $ AppMgrE (toS $ String.unwords args) n
-        (L (LanEnable appId)) -> readProcessInheritStderr "appmgr" ["lan", "enable", show appId] "" $> ctx
-        R other               -> AppMgrCliC $ alg (runAppMgrCliC . hdl) other ctx
+        (L (LanEnable appId    )) -> readProcessInheritStderr "appmgr" ["lan", "enable", show appId] "" $> ctx
+        (L (Action appId action)) -> do
+            let args = ["actions", show appId, toS action]
+            (ec, out) <- readProcessInheritStderr "appmgr" args ""
+            case ec of
+                ExitSuccess -> case eitherDecodeStrict out of
+                    Left  e -> throwError $ AppMgrParseE (toS $ String.unwords args) (decodeUtf8 out) e
+                    Right x -> pure $ ctx $> x
+                ExitFailure 6 -> throwError $ NotFoundE "appId" (show appId)
+                ExitFailure n -> throwError $ AppMgrE (toS $ String.unwords args) n
+        R other -> AppMgrCliC $ alg (runAppMgrCliC . hdl) other ctx
         where
             versionSpec :: (IsString a, Semigroup a, ConvertText String a) => Maybe VersionRange -> a -> a
             versionSpec v = case v of
