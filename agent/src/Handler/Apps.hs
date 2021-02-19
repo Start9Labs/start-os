@@ -303,6 +303,7 @@ getInstalledAppByIdLogic appId = do
                 , appInstalledFullConfiguredRequirements = []
                 , appInstalledFullUninstallAlert         = Nothing
                 , appInstalledFullRestoreAlert           = Nothing
+                , appInstalledFullActions                = []
                 }
     serverApps <- AppMgr2.list [AppMgr2.flags|-s -d|]
     let remapped = remapAppMgrInfo jobCache serverApps
@@ -339,15 +340,16 @@ getInstalledAppByIdLogic appId = do
                     then LanAddress . (".onion" `Text.replace` ".local") . unTorAddress <$> infoResTorAddress
                     else Nothing
             pure AppInstalledFull { appInstalledFullBase = AppBase appId infoResTitle (iconUrl appId version)
-                                  , appInstalledFullStatus                 = status
-                                  , appInstalledFullVersionInstalled       = version
-                                  , appInstalledFullInstructions           = instructions
-                                  , appInstalledFullLastBackup             = backupTime
-                                  , appInstalledFullTorAddress             = infoResTorAddress
-                                  , appInstalledFullLanAddress             = lanAddress
+                                  , appInstalledFullStatus = status
+                                  , appInstalledFullVersionInstalled = version
+                                  , appInstalledFullInstructions = instructions
+                                  , appInstalledFullLastBackup = backupTime
+                                  , appInstalledFullTorAddress = infoResTorAddress
+                                  , appInstalledFullLanAddress = lanAddress
                                   , appInstalledFullConfiguredRequirements = HM.elems requirements
                                   , appInstalledFullUninstallAlert = manifest >>= AppManifest.appManifestUninstallAlert
                                   , appInstalledFullRestoreAlert = manifest >>= AppManifest.appManifestRestoreAlert
+                                  , appInstalledFullActions = fromMaybe [] $ AppManifest.appManifestActions <$> manifest
                                   }
     runMaybeT (installing <|> installed) `orThrowM` NotFoundE "appId" (show appId)
 

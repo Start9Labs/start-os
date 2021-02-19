@@ -14,6 +14,7 @@ import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Lib.Types.Emver.Orphans        ( )
 import           Lib.Types.NetAddress
+import qualified Lib.External.AppManifest      as Manifest
 data AppBase = AppBase
     { appBaseId      :: AppId
     , appBaseTitle   :: Text
@@ -137,6 +138,7 @@ data AppInstalledFull = AppInstalledFull
     , appInstalledFullConfiguredRequirements :: [Stripped AppDependencyRequirement]
     , appInstalledFullUninstallAlert         :: Maybe Text
     , appInstalledFullRestoreAlert           :: Maybe Text
+    , appInstalledFullActions                :: [Manifest.Action]
     }
 instance ToJSON AppInstalledFull where
     toJSON AppInstalledFull {..} = object
@@ -152,6 +154,7 @@ instance ToJSON AppInstalledFull where
         , "status" .= appInstalledFullStatus
         , "uninstallAlert" .= appInstalledFullUninstallAlert
         , "restoreAlert" .= appInstalledFullRestoreAlert
+        , "actions" .= appInstalledFullActions
         ]
 
 data AppVersionInfo = AppVersionInfo

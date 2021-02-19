@@ -29,7 +29,7 @@ import qualified Data.String                   as String
 import           Lib.Algebra.Domain.AppMgr.Types
 import           Lib.Algebra.Domain.AppMgr.TH
 import           Lib.Error
-import           Lib.External.AppManifest
+import qualified Lib.External.AppManifest      as Manifest
 import           Lib.TyFam.ConditionalData
 import           Lib.Types.Core                 ( AppId(..)
                                                 , AppContainerStatus(..)
@@ -65,8 +65,9 @@ data InfoRes a = InfoRes
           :: Include
               (Either_ (DefaultEqSym1 'OnlyDependencies) (ElemSym1 'IncludeDependencies) a)
               (HM.HashMap AppId DependencyInfo)
-    , infoResManifest :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) AppManifest
-    , infoResStatus   :: Include (Either_ (DefaultEqSym1 'OnlyStatus) (ElemSym1 'IncludeStatus) a) AppContainerStatus
+    , infoResManifest
+          :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) Manifest.AppManifest
+    , infoResStatus :: Include (Either_ (DefaultEqSym1 'OnlyStatus) (ElemSym1 'IncludeStatus) a) AppContainerStatus
     }
 instance SingI (a :: Either OnlyInfoFlag [IncludeInfoFlag]) => FromJSON (InfoRes a) where
     parseJSON = withObject "AppMgr Info/List Response" $ \o -> do

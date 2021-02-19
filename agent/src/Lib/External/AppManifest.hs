@@ -47,6 +47,32 @@ instance FromJSON AssetMapping where
         assetMappingOverwrite <- o .: "overwrite"
         pure $ AssetMapping { .. }
 
+data Action = Action
+    { actionId              :: Text
+    , actionName            :: Text
+    , actionDescription     :: Text
+    , actionWarning         :: Maybe Text
+    , actionAllowedStatuses :: [AppContainerStatus]
+    }
+instance FromJSON Action where
+    parseJSON = withObject "AppAction" $ \o -> do
+        actionId              <- o .: "id"
+        actionName            <- o .: "name"
+        actionDescription     <- o .: "description"
+        actionWarning         <- o .:? "warning"
+        actionAllowedStatuses <- o .: "allowed-statuses"
+        pure Action { .. }
+instance ToJSON Action where
+    toJSON Action {..} =
+        object
+            $  [ "id" .= actionId
+               , "name" .= actionName
+               , "description" .= actionDescription
+               , "allowedStatuses" .= actionAllowedStatuses
+               ]
+            <> maybeToList (("warning" .=) <$> actionWarning)
+
+
 data AppManifest where
      AppManifest ::{ appManifestId :: AppId
                     , appManifestVersion :: Version
@@ -62,6 +88,7 @@ data AppManifest where
                     , appManifestDependencies :: HM.HashMap AppId VersionRange
                     , appManifestUninstallAlert :: Maybe Text
                     , appManifestRestoreAlert   :: Maybe Text
+                    , appManifestActions :: [Action]
                     } -> AppManifest
 
 uiAvailable :: AppManifest -> Bool
@@ -83,6 +110,7 @@ instance FromJSON AppManifest where
         appManifestDependencies   <- o .:? "dependencies" .!= HM.empty >>= traverse parseDepInfo
         appManifestUninstallAlert <- o .:? "uninstall-alert"
         appManifestRestoreAlert   <- o .:? "restore-alert"
+        appManifestActions        <- o .: "actions"
         pure $ AppManifest { .. }
         where
             parsePortMapping = withObject "Port Mapping" $ \o -> liftA2 (,) (o .: "tor") (o .: "internal")
