@@ -10,14 +10,15 @@ export function PatchDbModelFactory (
   bootstrap: LocalStorageBootstrap,
   api: ApiService,
 ): PatchDbModel {
-  const patch = config.patchDb
+  const { patchDb : { usePollOverride, poll, websocket, timeoutForMissingPatch }, isConsulate } = config
 
   let source: Source<DataModel>
-  switch (patch.type) {
-    case 'poll': source = new PollSource({ ...patch }, api); break
-    case 'ws': source = new WebsocketSource({ ...patch }); break
+  if (isConsulate || usePollOverride) {
+    source = new PollSource({ ...poll }, api)
+  } else {
+    source = new WebsocketSource({ ...websocket })
   }
 
   const store = new RxStore<DataModel>({ } as any)
-  return new PatchDbModel({ store, http: api, sources: [source, api], bootstrap })
+  return new PatchDbModel({ store, http: api, sources: [source, api], bootstrap, timeoutForMissingPatch })
 }

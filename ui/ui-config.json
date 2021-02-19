@@ -1,7 +1,14 @@
 {
   "patchDb": {
-    "type": "poll",
-    "cooldown": 5000
+    "timeoutForMissingPatch": 5000,
+    "poll": {
+      "cooldown": 5000
+    },
+    "websocker": {
+      "url": "",
+      "version": 0
+    },
+    "usePollOverride": true
   },
   "api": {
     "mocks": true,
