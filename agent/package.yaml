@@ -65,6 +65,7 @@ dependencies:
 - http-types
 - interpolate
 - iso8601-time
+- json-rpc
 - lens
 - lens-aeson
 - lifted-async

@@ -81,6 +81,8 @@ import           Settings
 import           Crypto.Hash
 import qualified Data.Text                     as Text
 import           Lib.Types.NetAddress
+import qualified Network.JSONRPC               as JSONRPC
+import           Data.Aeson.Types               ( parseMaybe )
 
 pureLog :: Show a => a -> Handler a
 pureLog = liftA2 (*>) ($logInfo . show) pure
@@ -809,3 +811,20 @@ postDisableLanLogic appId = do
     case action of
         Nothing -> pure () -- Nothing to do here
         Just x  -> LAsync.cancel x
+postActionR :: AppId -> Handler (JSONResponse JSONRPC.Response)
+postActionR appId = do
+    req <- requireCheckJsonBody
+    fmap JSONResponse . intoHandler $ postActionLogic appId req
+
+postActionLogic :: (Has (Error S9Error) sig m, Has AppMgr2.AppMgr sig m)
+                => AppId
+                -> JSONRPC.Request
+                -> m JSONRPC.Response
+postActionLogic appId (JSONRPC.Request { getReqMethod, getReqId }) = do
+    hm <- AppMgr2.action appId getReqMethod
+    case (HM.lookup "result" hm, HM.lookup "error" hm >>= parseMaybe parseJSON) of
+        (Just v , _      ) -> pure (JSONRPC.Response JSONRPC.V2 v getReqId)
+        (_      , Just e ) -> pure (JSONRPC.ResponseError JSONRPC.V2 e getReqId)
+        (Nothing, Nothing) -> throwError
+            $ AppMgrParseE "action" (decodeUtf8 . LBS.toStrict $ encode (Object hm)) "Invalid JSONRPC Response"
+postActionLogic _ r = throwError $ InvalidRequestE (toJSON r) "Invalid JSONRPC Request"
