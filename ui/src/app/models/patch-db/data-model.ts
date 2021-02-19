@@ -1,5 +1,5 @@
-import { AppInstalledFull } from "../app-types";
-import { S9Server } from "../server-model";
+import { AppInstalledFull } from '../app-types'
+import { S9Server } from '../server-model'
 
 export type DataModel = {
   server: S9Server

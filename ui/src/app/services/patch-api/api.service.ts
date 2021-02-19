@@ -17,18 +17,18 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   /** PatchDb Source interface. Post/Patch requests provide a source of patches to the db. */
   // sequenceStream is not used by the live api, but is overriden by the mock
-  watch(sequenceStream?: Observable<number>): Observable<SeqUpdate<DataModel>> {
+  watch (sequenceStream?: Observable<number>): Observable<SeqUpdate<DataModel>> {
     return this.patch.asObservable().pipe(filter(() => this.syncing))
   }
-  start(): void { this.syncing = true }
-  stop(): void { this.syncing = false }
+  start (): void { this.syncing = true }
+  stop (): void { this.syncing = false }
 
   /** PatchDb Http interface. We can use the apiService to poll for patches or fetch db dumps */
-  abstract getUpdates(startSequence: number, finishSequence?: number): Promise<SeqUpdate<DataModel>[]> 
-  abstract getDump(): Promise<SeqReplace<DataModel>>
+  abstract getUpdates (startSequence: number, finishSequence?: number): Promise<SeqUpdate<DataModel>[]>
+  abstract getDump (): Promise<SeqReplace<DataModel>>
 
   private $unauthorizedApiResponse$: Subject<{ }> = new Subject()
-  constructor(){}
+  constructor () { }
 
   watch401$ (): Observable<{ }> {
     return this.$unauthorizedApiResponse$.asObservable()
@@ -61,7 +61,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   abstract testConnection (url: string): Promise<true>
 
   /** Any request which mutates state will return a PatchPromise: a patch to state along with the standard response. The syncResponse helper function syncs the patch and returns the response*/
-  abstract deleteNotificationRaw (id: string): PatchPromise<Unit>
+  protected abstract deleteNotificationRaw (id: string): PatchPromise<Unit>
   deleteNotification = this.syncResponse(this.deleteNotificationRaw)
 
   protected abstract toggleAppLANRaw (appId: string, toggle: 'enable' | 'disable'): PatchPromise<Unit>
@@ -137,9 +137,9 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   serviceAction = this.syncResponse(this.serviceActionRaw)
 
   // helper allowing quick decoration to sync a patch and return a resposne.
-  private syncResponse<T extends (...args: any[]) => PatchPromise<any>>(f: T): (...args: Parameters<T>) => ExtractResultPromise<ReturnType<T>> {
+  private syncResponse<T extends (...args: any[]) => PatchPromise<any>> (f: T): (...args: Parameters<T>) => ExtractResultPromise<ReturnType<T>> {
     return (...a) => f(a).then(({ response, patch }) => {
-      if(patch) this.patch.next(patch)
+      if (patch) this.patch.next(patch)
       return response
     }) as any
   }
