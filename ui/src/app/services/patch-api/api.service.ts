@@ -1,30 +1,32 @@
-import { Rules } from '../../models/app-model'
+import { AppStatus, Rules } from '../../models/app-model'
 import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, DiskInfo } from '../../models/server-model'
 import { Subject, Observable } from 'rxjs'
 import { Unit, ApiServer, ReqRes } from './api-types'
 import { AppMetrics } from 'src/app/util/metrics.util'
 import { ConfigSpec } from 'src/app/app-config/config-types'
-import { Http, SeqReplace, SeqUpdate, Source } from 'patch-db-client'
+import { Http, PatchOp, SeqReplace, SeqUpdate, SeqUpdateReal, Source, TempSeqUpdate } from 'patch-db-client'
 import { DataModel } from 'src/app/models/patch-db/data-model'
 import { filter } from 'rxjs/operators'
+import * as uuid from 'uuid'
+
 
 export type PatchPromise<T> = Promise<{ response: T, patch?: SeqUpdate<DataModel> }>
 
 export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
-  protected readonly patch = new Subject<SeqUpdate<DataModel>>()
+  protected readonly sync = new Subject<SeqUpdate<DataModel>>()
   private syncing = true
 
   /** PatchDb Source interface. Post/Patch requests provide a source of patches to the db. */
-  // sequenceStream is not used by the live api, but is overriden by the mock
-  watch (sequenceStream?: Observable<number>): Observable<SeqUpdate<DataModel>> {
-    return this.patch.asObservable().pipe(filter(() => this.syncing))
+  // sequenceStream '_' is not used by the live api, but is overriden by the mock
+  watch (_?: Observable<number>): Observable<SeqUpdate<DataModel>> {
+    return this.sync.asObservable().pipe(filter(() => this.syncing))
   }
   start (): void { this.syncing = true }
   stop (): void { this.syncing = false }
 
   /** PatchDb Http interface. We can use the apiService to poll for patches or fetch db dumps */
-  abstract getUpdates (startSequence: number, finishSequence?: number): Promise<SeqUpdate<DataModel>[]>
+  abstract getUpdates (startSequence: number, finishSequence?: number): Promise<SeqUpdateReal<DataModel>[]>
   abstract getDump (): Promise<SeqReplace<DataModel>>
 
   private $unauthorizedApiResponse$: Subject<{ }> = new Subject()
@@ -73,8 +75,15 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   protected abstract acknowledgeOSWelcomeRaw (version: string): PatchPromise<Unit>
   acknowledgeOSWelcome = this.syncResponse(this.acknowledgeOSWelcomeRaw)
 
-  protected abstract installAppRaw (appId: string, version: string, dryRun?: boolean): PatchPromise<AppInstalledFull & { breakages: DependentBreakage[] }  >
-  installApp = this.syncResponse(this.installAppRaw)
+  protected abstract installAppRaw (appId: string, version: string, dryRun?: boolean): PatchPromise<AppInstalledFull & { breakages: DependentBreakage[] }>
+  // An example of making a temp patch to the store when the request is made. syncResponse handles the expiration logic.
+  installApp = this.syncResponse(this.installAppRaw, (appId, _, dryRun) => {
+    if (dryRun) return undefined
+
+    //Unfortunately, this 'path' is not type safe.
+    //We could consider a helper function with type safe path parameters like 'watch'?
+    return { expiredBy: uuid.v4(), patch: [{ op: PatchOp.REPLACE, path: `apps/${appId}/status`, value: AppStatus.INSTALLING }] } as TempSeqUpdate
+  })
 
   protected abstract uninstallAppRaw (appId: string, dryRun?: boolean): PatchPromise<{ breakages: DependentBreakage[] }>
   uninstallApp = this.syncResponse(this.uninstallAppRaw)
@@ -136,12 +145,26 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   protected abstract serviceActionRaw (appId: string, serviceAction: ServiceAction): PatchPromise<ReqRes.ServiceActionResponse>
   serviceAction = this.syncResponse(this.serviceActionRaw)
 
-  // helper allowing quick decoration to sync a patch and return a resposne.
-  private syncResponse<T extends (...args: any[]) => PatchPromise<any>> (f: T): (...args: Parameters<T>) => ExtractResultPromise<ReturnType<T>> {
-    return (...a) => f(a).then(({ response, patch }) => {
-      if (patch) this.patch.next(patch)
-      return response
-    }) as any
+  // Helper allowing quick decoration to sync the response patch and return the response contents.
+  // Pass in a tempUpdate function which returns a TempSeqUpdate correspodning to a temporary state change you'd like to enact prior
+  // to request and expired when request terminates.
+  private syncResponse<T extends (...args: any[]) => PatchPromise<any>> (f: T, tempUpdate?: (...args: Parameters<T>) => TempSeqUpdate | undefined): (...args: Parameters<T>) => ExtractResultPromise<ReturnType<T>> {
+    return (...a) => {
+      let responseExpires = undefined
+      if (tempUpdate) {
+        const tempPatch = tempUpdate(...a)
+        if (tempPatch) {
+          responseExpires = tempPatch.expiredBy
+          this.sync.next(tempPatch)
+        }
+      }
+
+      return f(a).then(({ response, patch }) => {
+        if (responseExpires) patch = { ...patch, expires: responseExpires }
+        if (patch) this.sync.next(patch)
+        return response
+      }) as any
+   }
   }
 }
 // used for type inference in syncResponse
