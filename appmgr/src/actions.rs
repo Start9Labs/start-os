@@ -15,6 +15,9 @@ pub struct Action {
     pub id: String,
     pub name: String,
     pub description: String,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warning: Option<String>,
     pub allowed_statuses: LinearSet<DockerStatus>,
     pub command: Vec<String>,
 }
