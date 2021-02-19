@@ -54,6 +54,7 @@ instance ToJSON AppInstalledPreview where
         [ "status" .= appInstalledPreviewStatus
         , "versionInstalled" .= appInstalledPreviewVersionInstalled
         , "torAddress" .= (unTorAddress <$> appInstalledPreviewTorAddress)
+        , "lanAddress" .= (unLanAddress <$> appInstalledPreviewLanAddress)
         , "ui" .= appInstalledPreviewUi
         ]
 
@@ -143,6 +144,7 @@ instance ToJSON AppInstalledFull where
         , "lastBackup" .= appInstalledFullLastBackup
         , "configuredRequirements" .= appInstalledFullConfiguredRequirements
         , "torAddress" .= (unTorAddress <$> appInstalledFullTorAddress)
+        , "lanAddress" .= (unLanAddress <$> appInstalledFullLanAddress)
         , "id" .= appBaseId appInstalledFullBase
         , "title" .= appBaseTitle appInstalledFullBase
         , "iconURL" .= appBaseIconUrl appInstalledFullBase
