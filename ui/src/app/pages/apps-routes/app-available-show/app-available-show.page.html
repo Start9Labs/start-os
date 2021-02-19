@@ -54,6 +54,9 @@
     </ion-button>
 
     <div *ngIf="vars.versionInstalled && vars.status !== 'INSTALLING' ">
+      <ion-button *ngIf="vars.versionInstalled" class="main-action-button" expand="block" fill="outline" [routerLink]="['/services', 'installed', vars.id]">
+        Go to Service
+      </ion-button>
       <ion-button *ngIf="installedStatus === 'installed-below'" class="main-action-button" expand="block" fill="outline" color="success" (click)="update('update')">
         Update to {{ vars.versionViewing | displayEmver }}
       </ion-button>
