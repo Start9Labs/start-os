@@ -9,6 +9,7 @@ import { Subscription, Observable } from 'rxjs'
 import { PropertySubject, toObservable } from 'src/app/util/property-subject.util'
 import { doForAtLeast } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
+import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 
 @Component({
   selector: 'server-show',
@@ -20,6 +21,7 @@ export class ServerShowPage {
   s9Host$: Observable<string>
 
   server: PropertySubject<S9Server>
+  serverName: Observable<string>
   currentServer: S9Server
 
   subsToTearDown: Subscription[] = []
@@ -33,10 +35,14 @@ export class ServerShowPage {
     private readonly loader: LoaderService,
     private readonly apiService: ApiService,
     private readonly syncDaemon: SyncDaemon,
+    // call watch directly in the html?
+    public readonly patchDbModel: PatchDbModel,
   ) { }
 
   async ngOnInit () {
     this.server = this.serverModel.watch()
+    this.serverName = this.patchDbModel.watch('server', 'name')
+
     this.subsToTearDown.push(
       // serverUpdateSubscription
       this.server.status.subscribe(status => {
