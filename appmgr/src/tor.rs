@@ -12,9 +12,43 @@ use crate::util::{PersistencePath, YamlUpdateHandle};
 use crate::{Error, ResultExt as _};
 
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LanOptions {
+    Standard,
+    Custom { port: u16 },
+}
+
+#[derive(Debug, Clone, Copy, serde::Serialize)]
 pub struct PortMapping {
     pub internal: u16,
     pub tor: u16,
+    pub lan: Option<LanOptions>, // only for http interfaces
+}
+impl<'de> serde::de::Deserialize<'de> for PortMapping {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        pub struct PortMappingIF {
+            pub internal: u16,
+            pub tor: u16,
+            #[serde(default)]
+            pub lan: Option<LanOptions>,
+        }
+        let input_format: PortMappingIF = serde::de::Deserialize::deserialize(deserializer)?;
+        Ok(PortMapping {
+            internal: input_format.internal,
+            tor: input_format.tor,
+            lan: if let Some(lan) = input_format.lan {
+                Some(lan)
+            } else if input_format.tor == 80 {
+                Some(LanOptions::Standard)
+            } else {
+                None
+            },
+        })
+    }
 }
 
 pub const ETC_TOR_RC: &'static str = "/etc/tor/torrc";
@@ -184,28 +218,49 @@ pub async fn write_services(hidden_services: &ServicesMap) -> Result<(), Error> 
 }
 
 pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Error> {
-    let hostname = tokio::fs::read_to_string(ETC_HOSTNAME).await?;
     let mut f = tokio::fs::File::create(ETC_NGINX_SERVICES_CONF).await?;
     for (name, service) in &hidden_services.map {
-        if service
-            .ports
-            .iter()
-            .filter(|p| p.internal == 80)
-            .next()
-            .is_none()
-        {
-            continue;
-        }
-        f.write_all(
-            format!(
-                include_str!("nginx.conf.template"),
-                hostname = hostname.trim(),
-                app_id = name,
-                app_ip = service.ip,
-            )
-            .as_bytes(),
+        let hostname = tokio::fs::read_to_string(
+            Path::new(HIDDEN_SERVICE_DIR_ROOT)
+                .join(format!("app-{}", name))
+                .join("hostname"),
         )
         .await?;
+        let hostname_str = hostname
+            .trim()
+            .strip_suffix(".onion")
+            .ok_or_else(|| failure::format_err!("invalid tor hostname"))
+            .no_code()?;
+        for mapping in &service.ports {
+            match &mapping.lan {
+                Some(LanOptions::Standard) => {
+                    f.write_all(
+                        format!(
+                            include_str!("nginx-standard.conf.template"),
+                            hostname = hostname_str,
+                            app_ip = service.ip,
+                            internal_port = mapping.internal,
+                        )
+                        .as_bytes(),
+                    )
+                    .await?
+                }
+                Some(LanOptions::Custom { port }) => {
+                    f.write_all(
+                        format!(
+                            include_str!("nginx.conf.template"),
+                            hostname = hostname_str,
+                            app_ip = service.ip,
+                            port = port,
+                            internal_port = mapping.internal,
+                        )
+                        .as_bytes(),
+                    )
+                    .await?
+                }
+                None => (),
+            }
+        }
     }
 
     Ok(())
