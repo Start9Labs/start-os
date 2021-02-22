@@ -22,7 +22,9 @@ pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
     let lan_address_ptr =
         std::ffi::CString::new(lan_address).expect("Could not cast lan address to c string");
     unsafe {
+        println!("1");
         let simple_poll = avahi_sys::avahi_simple_poll_new();
+        println!("2");
         let poll = avahi_sys::avahi_simple_poll_get(simple_poll);
         let mut stack_err = 0;
         let err_c: *mut i32 = &mut stack_err;
@@ -33,10 +35,20 @@ pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
             std::ptr::null_mut(),
             err_c,
         );
+        println!("5");
         let group =
             avahi_sys::avahi_entry_group_new(avahi_client, Some(noop), std::ptr::null_mut());
-        let hostname = avahi_sys::avahi_client_get_host_name_fqdn(avahi_client);
-        let hostname_len = libc::strlen(hostname);
+        println!("6");
+        let hostname_raw = avahi_sys::avahi_client_get_host_name_fqdn(avahi_client);
+        let hostname_bytes = dbg!(std::ffi::CStr::from_ptr(hostname_raw)).to_bytes_with_nul();
+        const HOSTNAME_LEN: usize = 1 + 15 + 1 + 5;
+        assert_eq!(hostname_bytes.len(), HOSTNAME_LEN); // leading byte, main address, dot, "local"
+        let mut hostname_buf = [0; HOSTNAME_LEN + 1];
+        hostname_buf[1..].copy_from_slice(hostname_bytes);
+        // assume fixed length prefix on hostname due to local address
+        hostname_buf[0] = 15; // set the prefix length to 15 for the main address
+        hostname_buf[16] = 5; // set the prefix length to 5 for "local"
+        dbg!(hostname_buf);
         let _ = avahi_sys::avahi_entry_group_add_record(
             group,
             avahi_sys::AVAHI_IF_UNSPEC,
@@ -47,10 +59,12 @@ pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
             avahi_sys::AVAHI_DNS_CLASS_IN as u16,
             avahi_sys::AVAHI_DNS_TYPE_CNAME as u16,
             avahi_sys::AVAHI_DEFAULT_TTL,
-            hostname.cast(),
-            hostname_len,
+            hostname_buf.as_ptr().cast(),
+            hostname_buf.len(),
         );
+        println!("9");
         avahi_sys::avahi_entry_group_commit(group);
+        println!("10");
         ctrlc::set_handler(move || {
             // please the borrow checker with the below semantics
             // avahi_sys::avahi_entry_group_free(group);
@@ -59,6 +73,7 @@ pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
             std::process::exit(0);
         })
         .expect("Error setting signal handler");
+        println!("11");
     }
     pending().await
 }
