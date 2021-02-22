@@ -18,13 +18,10 @@ pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
         .ok_or_else(|| failure::format_err!("Invalid Tor Address: {:?}", tor_address))?
         .to_owned()
         + ".local";
-    println!("{}", lan_address);
     let lan_address_ptr =
         std::ffi::CString::new(lan_address).expect("Could not cast lan address to c string");
     unsafe {
-        println!("1");
         let simple_poll = avahi_sys::avahi_simple_poll_new();
-        println!("2");
         let poll = avahi_sys::avahi_simple_poll_get(simple_poll);
         let mut stack_err = 0;
         let err_c: *mut i32 = &mut stack_err;
@@ -35,14 +32,12 @@ pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
             std::ptr::null_mut(),
             err_c,
         );
-        println!("5");
         let group =
             avahi_sys::avahi_entry_group_new(avahi_client, Some(noop), std::ptr::null_mut());
-        println!("6");
         let hostname_raw = avahi_sys::avahi_client_get_host_name_fqdn(avahi_client);
         let hostname_bytes = dbg!(std::ffi::CStr::from_ptr(hostname_raw)).to_bytes_with_nul();
-        const HOSTNAME_LEN: usize = 1 + 15 + 1 + 5;
-        assert_eq!(hostname_bytes.len(), HOSTNAME_LEN); // leading byte, main address, dot, "local"
+        const HOSTNAME_LEN: usize = 1 + 15 + 1 + 5; // leading byte, main address, dot, "local"
+        debug_assert_eq!(hostname_bytes.len(), HOSTNAME_LEN);
         let mut hostname_buf = [0; HOSTNAME_LEN + 1];
         hostname_buf[1..].copy_from_slice(hostname_bytes);
         // assume fixed length prefix on hostname due to local address
@@ -62,9 +57,8 @@ pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
             hostname_buf.as_ptr().cast(),
             hostname_buf.len(),
         );
-        println!("9");
         avahi_sys::avahi_entry_group_commit(group);
-        println!("10");
+        println!("{:?}", lan_address_ptr);
         ctrlc::set_handler(move || {
             // please the borrow checker with the below semantics
             // avahi_sys::avahi_entry_group_free(group);
@@ -73,7 +67,6 @@ pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
             std::process::exit(0);
         })
         .expect("Error setting signal handler");
-        println!("11");
     }
     pending().await
 }
