@@ -53,16 +53,18 @@
       Install
     </ion-button>
 
-    <div *ngIf="vars.versionInstalled && vars.status !== 'INSTALLING' ">
+    <div *ngIf="vars.versionInstalled">
       <ion-button class="main-action-button" expand="block" fill="outline" [routerLink]="['/services', 'installed', vars.id]">
         Go to Service
       </ion-button>
-      <ion-button *ngIf="installedStatus === 'installed-below'" class="main-action-button" expand="block" fill="outline" color="success" (click)="update('update')">
-        Update to {{ vars.versionViewing | displayEmver }}
-      </ion-button>
-      <ion-button *ngIf="installedStatus === 'installed-above'" class="main-action-button" expand="block" fill="outline" color="warning" (click)="update('downgrade')">
-        Downgrade to {{ vars.versionViewing | displayEmver }}
-      </ion-button>
+      <div *ngIf="vars.status !== 'INSTALLING' ">
+        <ion-button *ngIf="installedStatus === 'installed-below'" class="main-action-button" expand="block" fill="outline" color="success" (click)="update('update')">
+          Update to {{ vars.versionViewing | displayEmver }}
+        </ion-button>
+        <ion-button *ngIf="installedStatus === 'installed-above'" class="main-action-button" expand="block" fill="outline" color="warning" (click)="update('downgrade')">
+          Downgrade to {{ vars.versionViewing | displayEmver }}
+        </ion-button>
+      </div>
     </div>
 
     <ion-item-group>
