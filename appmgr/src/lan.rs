@@ -24,7 +24,8 @@ pub async fn enable_lan(app_id: &AppId) -> Result<(), Error> {
     unsafe {
         let simple_poll = avahi_sys::avahi_simple_poll_new();
         let poll = avahi_sys::avahi_simple_poll_get(simple_poll);
-        let err_c = Box::into_raw(Box::new(0)) as *mut i32;
+        let mut stack_err = 0;
+        let err_c: *mut i32 = &mut stack_err;
         let avahi_client = avahi_sys::avahi_client_new(
             poll,
             avahi_sys::AvahiClientFlags::AVAHI_CLIENT_NO_FAIL,
