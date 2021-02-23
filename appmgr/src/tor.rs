@@ -8,7 +8,7 @@ use failure::ResultExt as _;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 
-use crate::util::{PersistencePath, YamlUpdateHandle};
+use crate::util::{Invoke, PersistencePath, YamlUpdateHandle};
 use crate::{Error, ResultExt as _};
 
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
@@ -34,14 +34,14 @@ impl<'de> serde::de::Deserialize<'de> for PortMapping {
             pub internal: u16,
             pub tor: u16,
             #[serde(default)]
-            pub lan: Option<LanOptions>,
+            pub lan: Option<Option<LanOptions>>,
         }
         let input_format: PortMappingIF = serde::de::Deserialize::deserialize(deserializer)?;
         Ok(PortMapping {
             internal: input_format.internal,
             tor: input_format.tor,
             lan: if let Some(lan) = input_format.lan {
-                Some(lan)
+                lan
             } else if input_format.tor == 80 {
                 Some(LanOptions::Standard)
             } else {
@@ -219,10 +219,10 @@ pub async fn write_services(hidden_services: &ServicesMap) -> Result<(), Error> 
 
 pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Error> {
     let mut f = tokio::fs::File::create(ETC_NGINX_SERVICES_CONF).await?;
-    for (name, service) in &hidden_services.map {
+    for (app_id, service) in &hidden_services.map {
         let hostname = tokio::fs::read_to_string(
             Path::new(HIDDEN_SERVICE_DIR_ROOT)
-                .join(format!("app-{}", name))
+                .join(format!("app-{}", app_id))
                 .join("hostname"),
         )
         .await?;
@@ -234,12 +234,81 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
         for mapping in &service.ports {
             match &mapping.lan {
                 Some(LanOptions::Standard) => {
+                    let base_path = PersistencePath::from_ref("apps").join(&app_id);
+                    let key_path = base_path.join("cert-local.key.pem").path();
+                    if tokio::fs::metadata(&key_path).await.is_err() {
+                        tokio::process::Command::new("openssl")
+                            .arg("ecparam")
+                            .arg("-genkey")
+                            .arg("-name")
+                            .arg("prime256v1")
+                            .arg("-noout")
+                            .arg("-out")
+                            .arg(&key_path)
+                            .invoke("OpenSSL GenKey")
+                            .await?;
+                    }
+                    let conf_path = base_path.join("cert-local.csr.conf").path();
+                    if tokio::fs::metadata(&conf_path).await.is_err() {
+                        tokio::fs::write(
+                            &conf_path,
+                            format!(
+                                include_str!("cert-local.csr.conf.template"),
+                                hostname = hostname_str
+                            ),
+                        )
+                        .await?;
+                    }
+                    let req_path = base_path.join("cert-local.csr").path();
+                    if tokio::fs::metadata(&req_path).await.is_err() {
+                        tokio::process::Command::new("openssl")
+                            .arg("req")
+                            .arg("-config")
+                            .arg(&conf_path)
+                            .arg("-key")
+                            .arg(&key_path)
+                            .arg("-new")
+                            .arg("-addext")
+                            .arg(format!(
+                                "subjectAltName=DNS:{hostname}.local",
+                                hostname = hostname_str
+                            ))
+                            .arg("-out")
+                            .arg(&req_path)
+                            .invoke("OpenSSL Req")
+                            .await?;
+                    }
+                    let cert_path = base_path.join("cert-local.crt.pem").path();
+                    if tokio::fs::metadata(&cert_path).await.is_err() {
+                        tokio::process::Command::new("openssl")
+                            .arg("ca")
+                            .arg("-batch")
+                            .arg("-config")
+                            .arg("/root/agent/ca/intermediate/openssl.conf")
+                            .arg("-rand_serial")
+                            .arg("-keyfile")
+                            .arg("/root/agent/ca/intermediate/private/embassy-int-ca.key.pem")
+                            .arg("-cert")
+                            .arg("/root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem")
+                            .arg("-extensions")
+                            .arg("server_cert")
+                            .arg("-days")
+                            .arg("365")
+                            .arg("-notext")
+                            .arg("-in")
+                            .arg(&req_path)
+                            .arg("-out")
+                            .arg(&cert_path)
+                            .invoke("OpenSSL GenKey")
+                            .await?;
+                    }
                     f.write_all(
                         format!(
                             include_str!("nginx-standard.conf.template"),
                             hostname = hostname_str,
                             app_ip = service.ip,
                             internal_port = mapping.internal,
+                            app_id = app_id,
                         )
                         .as_bytes(),
                     )
