@@ -18,18 +18,21 @@ portable = []
 production = []
 
 [dependencies]
-argonautica = "0.2.0"
 async-trait = "0.1.42"
+avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", branch = "feature/dynamic-linking", features = ["dynamic"] }
 base32 = "0.4.0"
 clap = "2.33"
+ctrlc = "3.1.7"
 ed25519-dalek = "1.0.1"
 emver = { version = "0.1.0", features = ["serde"] }
 failure = "0.1.8"
 file-lock = "1.1"
 futures = "0.3.8"
 git-version = "0.3.4"
+http = "0.2.3"
 itertools = "0.9.0"
 lazy_static = "1.4"
+libc = "0.2.86"
 linear-map = { version = "1.2", features = ["serde_impl"] }
 log = "0.4.11"
 nix = "0.19.1"
@@ -41,6 +44,8 @@ rand = "0.7.3"
 regex = "1.4.2"
 reqwest = { version = "0.10.9", features = ["stream", "json"] }
 rpassword = "5.0.0"
+rust-argon2 = "0.8.3"
+scopeguard = "1.1" # because avahi-sys fucks your shit up
 serde = { version = "1.0.118", features = ["derive", "rc"] }
 serde_cbor = "0.11.1"
 serde_json = "1.0.59"
