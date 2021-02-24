@@ -399,7 +399,6 @@ async fn inner_main() -> Result<(), Error> {
                 .about("Removes an installed app")
                 .arg(
                     Arg::with_name("purge")
-                        .short("p")
                         .long("purge")
                         .help("Deletes all application data"),
                 )
