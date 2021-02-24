@@ -110,7 +110,7 @@ instance FromJSON AppManifest where
         appManifestDependencies   <- o .:? "dependencies" .!= HM.empty >>= traverse parseDepInfo
         appManifestUninstallAlert <- o .:? "uninstall-alert"
         appManifestRestoreAlert   <- o .:? "restore-alert"
-        appManifestActions        <- o .: "actions"
+        appManifestActions        <- o .:? "actions"
         pure $ AppManifest { .. }
         where
             parsePortMapping = withObject "Port Mapping" $ \o -> liftA2 (,) (o .: "tor") (o .: "internal")
