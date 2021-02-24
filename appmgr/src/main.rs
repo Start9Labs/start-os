@@ -399,7 +399,6 @@ async fn inner_main() -> Result<(), Error> {
                 .about("Removes an installed app")
                 .arg(
                     Arg::with_name("purge")
-                        .short("p")
                         .long("purge")
                         .help("Deletes all application data"),
                 )
@@ -448,6 +447,19 @@ async fn inner_main() -> Result<(), Error> {
                         ),
                 )
                 .subcommand(SubCommand::with_name("reload").about("Reloads the tor configuration")),
+        )
+        .subcommand(
+            SubCommand::with_name("lan")
+                .about("Configures LAN services")
+                .subcommand(
+                    SubCommand::with_name("enable")
+                        .about("Publishes the LAN address for the service over avahi")
+                        .arg(
+                            Arg::with_name("ID")
+                                .help("ID of the application to publish the LAN address for")
+                                .required(true),
+                        ),
+                ),
         )
         .subcommand(
             SubCommand::with_name("info")
@@ -1182,6 +1194,19 @@ async fn inner_main() -> Result<(), Error> {
             }
             ("reload", Some(_)) => {
                 crate::tor::reload().await?;
+            }
+            _ => {
+                println!("{}", sub_m.usage());
+                std::process::exit(1);
+            }
+        },
+        #[cfg(not(feature = "portable"))]
+        ("lan", Some(sub_m)) => match sub_m.subcommand() {
+            ("enable", Some(sub_sub_m)) => {
+                crate::lan::enable_lan(&crate::lan::AppId {
+                    un_app_id: sub_sub_m.value_of("ID").unwrap().to_owned(),
+                })
+                .await?
             }
             _ => {
                 println!("{}", sub_m.usage());

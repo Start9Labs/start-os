@@ -1,0 +1,10 @@
+[req]
+default_bits = 4096
+default_md = sha256
+distinguished_name = req_distinguished_name
+prompt = no
+
+[req_distinguished_name]
+CN = {hostname}.local
+O = Start9 Labs
+OU = Embassy

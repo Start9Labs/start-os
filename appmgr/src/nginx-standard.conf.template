@@ -1,0 +1,15 @@
+server {{
+    listen 443 ssl;
+    server_name {hostname}.local;
+    ssl_certificate /root/appmgr/apps/{app_id}/cert-local.crt.pem;
+    ssl_certificate_key /root/appmgr/apps/{app_id}/cert-local.key.pem;
+    location / {{
+        proxy_pass http://{app_ip}:{internal_port}/;
+        proxy_set_header Host $host;
+    }}
+}}
+server {{
+    listen 80;
+    server_name {hostname}.local;
+    return 301 https://$host$request_uri;
+}}
