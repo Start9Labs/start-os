@@ -88,7 +88,7 @@ data AppManifest where
                     , appManifestDependencies :: HM.HashMap AppId VersionRange
                     , appManifestUninstallAlert :: Maybe Text
                     , appManifestRestoreAlert   :: Maybe Text
-                    , appManifestActions :: [Action]
+                    , appManifestActions :: Maybe [Action]
                     } -> AppManifest
 
 uiAvailable :: AppManifest -> Bool
