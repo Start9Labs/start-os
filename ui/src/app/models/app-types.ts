@@ -34,8 +34,8 @@ export interface AppAvailableVersionSpecificInfo {
 // installed
 
 export interface AppInstalledPreview extends BaseApp {
-  lanAddress: string
-  lanEnabled: boolean
+  lanAddress?: string
+  lanEnabled?: boolean
   torAddress: string
   versionInstalled: string
   ui: boolean
