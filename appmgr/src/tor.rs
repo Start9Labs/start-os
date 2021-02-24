@@ -302,6 +302,32 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .invoke("OpenSSL GenKey")
                             .await?;
                     }
+                    let fullchain_path = base_path.join("cert-local.fullchain.crt.pem");
+                    if !fullchain_path.exists().await {
+                        let mut fullchain_file = fullchain_path.write(None).await?;
+                        tokio::io::copy(
+                            &mut tokio::fs::File::open(&cert_path).await?,
+                            &mut *fullchain_file,
+                        )
+                        .await?;
+                        tokio::io::copy(
+                            &mut tokio::fs::File::open(
+                                "/root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem",
+                            )
+                            .await?,
+                            &mut *fullchain_file,
+                        )
+                        .await?;
+                        tokio::io::copy(
+                            &mut tokio::fs::File::open(
+                                "/root/agent/ca/certs/embassy-int-ca.crt.pem",
+                            )
+                            .await?,
+                            &mut *fullchain_file,
+                        )
+                        .await?;
+                        fullchain_file.commit().await?;
+                    }
                     f.write_all(
                         format!(
                             include_str!("nginx-standard.conf.template"),
