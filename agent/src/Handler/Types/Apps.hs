@@ -47,6 +47,7 @@ data AppInstalledPreview = AppInstalledPreview
     , appInstalledPreviewVersionInstalled :: Version
     , appInstalledPreviewTorAddress       :: Maybe TorAddress
     , appInstalledPreviewLanAddress       :: Maybe LanAddress
+    , appInstalledPreviewLanEnabled       :: Maybe Bool
     , appInstalledPreviewUi               :: Bool
     }
     deriving (Eq, Show)
@@ -56,6 +57,7 @@ instance ToJSON AppInstalledPreview where
         , "versionInstalled" .= appInstalledPreviewVersionInstalled
         , "torAddress" .= (unTorAddress <$> appInstalledPreviewTorAddress)
         , "lanAddress" .= (unLanAddress <$> appInstalledPreviewLanAddress)
+        , "lanEnabled" .= appInstalledPreviewLanEnabled
         , "ui" .= appInstalledPreviewUi
         ]
 
@@ -133,6 +135,7 @@ data AppInstalledFull = AppInstalledFull
     , appInstalledFullVersionInstalled       :: Version
     , appInstalledFullTorAddress             :: Maybe TorAddress
     , appInstalledFullLanAddress             :: Maybe LanAddress
+    , appInstalledFullLanEnabled             :: Maybe Bool
     , appInstalledFullInstructions           :: Maybe Text
     , appInstalledFullLastBackup             :: Maybe UTCTime
     , appInstalledFullConfiguredRequirements :: [Stripped AppDependencyRequirement]
@@ -147,6 +150,7 @@ instance ToJSON AppInstalledFull where
         , "configuredRequirements" .= appInstalledFullConfiguredRequirements
         , "torAddress" .= (unTorAddress <$> appInstalledFullTorAddress)
         , "lanAddress" .= (unLanAddress <$> appInstalledFullLanAddress)
+        , "lanEnabled" .= appInstalledFullLanEnabled
         , "id" .= appBaseId appInstalledFullBase
         , "title" .= appBaseTitle appInstalledFullBase
         , "iconURL" .= appBaseIconUrl appInstalledFullBase

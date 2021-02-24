@@ -250,25 +250,22 @@ getInstalledAppsLogic = do
                 , appInstalledPreviewVersionInstalled = storeAppVersionInfoVersion
                 , appInstalledPreviewTorAddress       = Nothing
                 , appInstalledPreviewLanAddress       = Nothing
+                , appInstalledPreviewLanEnabled       = Nothing
                 , appInstalledPreviewUi               = False
                 }
         installedPreviews = flip
             HML.mapWithKey
             remapped
-            \appId (s, v, AppMgr2.InfoRes {..}) -> AppInstalledPreview
-                { appInstalledPreviewBase             = AppBase appId infoResTitle (iconUrl appId v)
-                , appInstalledPreviewStatus           = s
-                , appInstalledPreviewVersionInstalled = v
-                , appInstalledPreviewTorAddress       = infoResTorAddress
-                , appInstalledPreviewLanAddress       = if appId `HM.member` lanCache
-                                                            then
-                                                                LanAddress
-                                                                .   (".onion" `Text.replace` ".local")
-                                                                .   unTorAddress
-                                                                <$> infoResTorAddress
-                                                            else Nothing
-                , appInstalledPreviewUi               = AppManifest.uiAvailable infoResManifest
-                }
+            \appId (s, v, AppMgr2.InfoRes {..}) ->
+                let lanAddress = LanAddress . (".onion" `Text.replace` ".local") . unTorAddress <$> infoResTorAddress
+                in  AppInstalledPreview { appInstalledPreviewBase = AppBase appId infoResTitle (iconUrl appId v)
+                                        , appInstalledPreviewStatus           = s
+                                        , appInstalledPreviewVersionInstalled = v
+                                        , appInstalledPreviewTorAddress       = infoResTorAddress
+                                        , appInstalledPreviewLanAddress       = lanAddress
+                                        , appInstalledPreviewLanEnabled       = lanAddress $> HM.member appId lanCache
+                                        , appInstalledPreviewUi               = AppManifest.uiAvailable infoResManifest
+                                        }
 
     pure $ HML.elems $ HML.union installingPreviews installedPreviews
 
@@ -300,6 +297,7 @@ getInstalledAppByIdLogic appId = do
                 , appInstalledFullLastBackup             = backupTime
                 , appInstalledFullTorAddress             = Nothing
                 , appInstalledFullLanAddress             = Nothing
+                , appInstalledFullLanEnabled             = Nothing
                 , appInstalledFullConfiguredRequirements = []
                 , appInstalledFullUninstallAlert         = Nothing
                 , appInstalledFullRestoreAlert           = Nothing
@@ -334,11 +332,8 @@ getInstalledAppByIdLogic appId = do
             manifest     <- lift $ LAsync.wait manifest'
             instructions <- lift $ LAsync.wait instructions'
             backupTime   <- lift $ LAsync.wait backupTime'
-            lans         <- asks appLanThreads
-            lanEnabled   <- liftIO $ HM.member appId <$> readTVarIO lans
-            let lanAddress = if lanEnabled
-                    then LanAddress . (".onion" `Text.replace` ".local") . unTorAddress <$> infoResTorAddress
-                    else Nothing
+            lanCache     <- asks appLanThreads >>= liftIO . readTVarIO
+            let lanAddress = LanAddress . (".onion" `Text.replace` ".local") . unTorAddress <$> infoResTorAddress
             pure AppInstalledFull { appInstalledFullBase = AppBase appId infoResTitle (iconUrl appId version)
                                   , appInstalledFullStatus = status
                                   , appInstalledFullVersionInstalled = version
@@ -346,6 +341,7 @@ getInstalledAppByIdLogic appId = do
                                   , appInstalledFullLastBackup = backupTime
                                   , appInstalledFullTorAddress = infoResTorAddress
                                   , appInstalledFullLanAddress = lanAddress
+                                  , appInstalledFullLanEnabled = lanAddress $> HM.member appId lanCache
                                   , appInstalledFullConfiguredRequirements = HM.elems requirements
                                   , appInstalledFullUninstallAlert = manifest >>= AppManifest.appManifestUninstallAlert
                                   , appInstalledFullRestoreAlert = manifest >>= AppManifest.appManifestRestoreAlert
@@ -800,6 +796,7 @@ postEnableLanLogic :: (Has (Reader AgentCtx) sig m, Has AppMgr2.AppMgr sig m, Mo
                    -> m ()
 postEnableLanLogic appId = do
     cache  <- asks appLanThreads
+
     action <- const () <<$>> LAsync.async (AppMgr2.lanEnable appId) -- unconditionally drops monad state from the action
     liftIO $ atomically $ modifyTVar' cache (HM.insert appId action)
 
