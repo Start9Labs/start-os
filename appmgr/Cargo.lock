@@ -2136,8 +2136,8 @@ version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9be73a2caec27583d0046ef3796c3794f868a5bc813db689eed00c7631275cd1"
 dependencies = [
- "proc-macro2 1.0.24",
- "quote 1.0.7",
+ "proc-macro2",
+ "quote",
  "syn",
 ]
 
@@ -2606,6 +2606,7 @@ dependencies = [
 [[package]]
 name = "yajrc"
 version = "0.1.0"
+source = "git+https://github.com/dr-bonez/yajrc#5a8df137808608accb69e78635fb6d70c4b1c2dc"
 dependencies = [
  "anyhow",
  "serde",
