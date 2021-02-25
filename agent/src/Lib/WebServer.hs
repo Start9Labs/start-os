@@ -45,6 +45,7 @@ import           Handler.Backups
 import           Handler.Hosts
 import           Handler.Icons
 import           Handler.Login
+import           Handler.Network
 import           Handler.Notifications
 import           Handler.PasswordUpdate
 import           Handler.PowerOff
