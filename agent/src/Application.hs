@@ -25,6 +25,7 @@ where
 
 import           Startlude               hiding (runReader)
 
+import           Control.Carrier.Lift           ( runM )
 import           Control.Concurrent.STM.TVar    ( newTVarIO )
 import           Control.Monad.Logger
 import           Control.Effect.Labelled        ( Labelled, runLabelled )
@@ -54,24 +55,23 @@ import           Yesod.Persist.Core
 import           Constants
 import qualified Daemon.AppNotifications       as AppNotifications
 import           Daemon.RefreshProcDev
+import qualified Daemon.SslRenew as SSLRenew
+import           Daemon.TorHealth
 import           Daemon.ZeroConf
 import           Foundation
+import qualified Lib.Algebra.Domain.AppMgr as AppMgr2
 import           Lib.Algebra.State.RegistryUrl
+import           Lib.Background
 import           Lib.Database
+import           Lib.Error
 import           Lib.External.Metrics.ProcDev
 import           Lib.SelfUpdate
 import           Lib.Sound
 import           Lib.SystemPaths
+import           Lib.Tor                        ( newTorManager )
 import           Lib.WebServer
 import           Model
 import           Settings
-import Lib.Background
-import qualified Daemon.SslRenew as SSLRenew
-import Lib.Tor (newTorManager)
-import Daemon.TorHealth
-import qualified Lib.Algebra.Domain.AppMgr as AppMgr2
-import Control.Carrier.Lift (runM)
-import Lib.Error
 
 appMain :: IO ()
 appMain = do
