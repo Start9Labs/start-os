@@ -50,6 +50,7 @@ import           Control.Monad.Trans.Control    ( defaultLiftBaseWith
                                                 , MonadBaseControl(..)
                                                 )
 import qualified Data.ByteString.Char8         as C8
+import           System.Process
 
 
 type InfoRes :: Either OnlyInfoFlag [IncludeInfoFlag] -> Type
@@ -270,7 +271,7 @@ data AppMgr (m :: Type -> Type) k where
     -- Tor ::_
     Update ::DryRun -> AppId -> Maybe VersionRange -> AppMgr m BreakageMap
     -- Verify ::_
-    LanEnable ::AppId -> AppMgr m ()
+    LanEnable ::AppMgr m ()
     Action ::AppId -> Text -> AppMgr m (HM.HashMap Text Value)
 makeSmartConstructors ''AppMgr
 
@@ -423,7 +424,7 @@ instance (Has (Error S9Error) sig m, Algebra sig m, MonadIO m) => Algebra (AppMg
                 ExitFailure 6 ->
                     throwError $ NotFoundE "appId@version" ([i|#{appId}#{maybe "" (('@':) . show) version}|])
                 ExitFailure n -> throwError $ AppMgrE (toS $ String.unwords args) n
-        (L (LanEnable appId    )) -> readProcessInheritStderr "appmgr" ["lan", "enable", show appId] "" $> ctx
+        (L LanEnable            ) -> liftIO $ callProcess "appmgr" ["lan", "enable"] $> ctx
         (L (Action appId action)) -> do
             let args = ["actions", show appId, toS action]
             (ec, out) <- readProcessInheritStderr "appmgr" args ""

@@ -33,8 +33,10 @@ import           Control.Effect.Labelled        ( HasLabelled
 import           Control.Lens            hiding ( (??) )
 import           Control.Monad.Logger
 import           Control.Monad.Trans.Control    ( MonadBaseControl )
+import           Crypto.Hash
 import           Data.Aeson
 import           Data.Aeson.Lens
+import           Data.Aeson.Types               ( parseMaybe )
 import qualified Data.ByteString.Lazy          as LBS
 import           Data.IORef
 import qualified Data.HashMap.Lazy             as HML
@@ -45,12 +47,13 @@ import           Data.Singletons.Prelude.Bool   ( SBool(..)
                                                 , If
                                                 )
 import           Data.Singletons.Prelude.List   ( Elem )
-
+import qualified Data.Text                     as Text
 import           Database.Persist
 import           Database.Persist.Sql           ( ConnectionPool )
 import           Database.Persist.Sqlite        ( runSqlPool )
 import           Exinst
 import           Network.HTTP.Types
+import qualified Network.JSONRPC               as JSONRPC
 import           Yesod.Core.Content
 import           Yesod.Core.Json
 import           Yesod.Core.Handler      hiding ( cached )
@@ -60,6 +63,7 @@ import           Yesod.Persist.Core
 import           Foundation
 import           Handler.Backups
 import           Handler.Icons
+import           Handler.Network
 import           Handler.Types.Apps
 import           Handler.Util
 import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
@@ -75,14 +79,10 @@ import           Lib.SystemPaths
 import           Lib.TyFam.ConditionalData
 import           Lib.Types.Core
 import           Lib.Types.Emver
+import           Lib.Types.NetAddress
 import           Lib.Types.ServerApp
 import           Model
 import           Settings
-import           Crypto.Hash
-import qualified Data.Text                     as Text
-import           Lib.Types.NetAddress
-import qualified Network.JSONRPC               as JSONRPC
-import           Data.Aeson.Types               ( parseMaybe )
 
 pureLog :: Show a => a -> Handler a
 pureLog = liftA2 (*>) ($logInfo . show) pure
@@ -235,7 +235,6 @@ cached action = do
 getInstalledAppsLogic :: (Has (Reader AgentCtx) sig m, Has AppMgr2.AppMgr sig m, MonadIO m) => m [AppInstalledPreview]
 getInstalledAppsLogic = do
     jobCache <- asks appBackgroundJobs >>= liftIO . readTVarIO
-    lanCache <- asks appLanThreads >>= liftIO . readTVarIO
     let installCache = installInfo . fst <$> inspect SInstalling jobCache
     serverApps <- AppMgr2.list [AppMgr2.flags|-s -d -m|]
     let remapped           = remapAppMgrInfo jobCache serverApps
@@ -250,7 +249,6 @@ getInstalledAppsLogic = do
                 , appInstalledPreviewVersionInstalled = storeAppVersionInfoVersion
                 , appInstalledPreviewTorAddress       = Nothing
                 , appInstalledPreviewLanAddress       = Nothing
-                , appInstalledPreviewLanEnabled       = Nothing
                 , appInstalledPreviewUi               = False
                 }
         installedPreviews = flip
@@ -263,7 +261,6 @@ getInstalledAppsLogic = do
                                         , appInstalledPreviewVersionInstalled = v
                                         , appInstalledPreviewTorAddress       = infoResTorAddress
                                         , appInstalledPreviewLanAddress       = lanAddress
-                                        , appInstalledPreviewLanEnabled       = lanAddress $> HM.member appId lanCache
                                         , appInstalledPreviewUi               = AppManifest.uiAvailable infoResManifest
                                         }
 
@@ -297,7 +294,6 @@ getInstalledAppByIdLogic appId = do
                 , appInstalledFullLastBackup             = backupTime
                 , appInstalledFullTorAddress             = Nothing
                 , appInstalledFullLanAddress             = Nothing
-                , appInstalledFullLanEnabled             = Nothing
                 , appInstalledFullConfiguredRequirements = []
                 , appInstalledFullUninstallAlert         = Nothing
                 , appInstalledFullRestoreAlert           = Nothing
@@ -332,7 +328,6 @@ getInstalledAppByIdLogic appId = do
             manifest     <- lift $ LAsync.wait manifest'
             instructions <- lift $ LAsync.wait instructions'
             backupTime   <- lift $ LAsync.wait backupTime'
-            lanCache     <- asks appLanThreads >>= liftIO . readTVarIO
             let lanAddress = LanAddress . (".onion" `Text.replace` ".local") . unTorAddress <$> infoResTorAddress
             pure AppInstalledFull { appInstalledFullBase = AppBase appId infoResTitle (iconUrl appId version)
                                   , appInstalledFullStatus = status
@@ -341,7 +336,6 @@ getInstalledAppByIdLogic appId = do
                                   , appInstalledFullLastBackup = backupTime
                                   , appInstalledFullTorAddress = infoResTorAddress
                                   , appInstalledFullLanAddress = lanAddress
-                                  , appInstalledFullLanEnabled = lanAddress $> HM.member appId lanCache
                                   , appInstalledFullConfiguredRequirements = HM.elems requirements
                                   , appInstalledFullUninstallAlert = manifest >>= AppManifest.appManifestUninstallAlert
                                   , appInstalledFullRestoreAlert = manifest >>= AppManifest.appManifestRestoreAlert
@@ -379,7 +373,9 @@ postUninstallAppLogic appId dryrun = do
     breakageIds <- HM.keys . AppMgr2.unBreakageMap <$> AppMgr2.remove flags appId
     bs <- pure (traverse (hydrate $ (AppMgr2.infoResTitle &&& AppMgr2.infoResVersion) <$> serverApps) breakageIds)
         `orThrowM` InternalE "Reported app breakage for app that isn't installed, contact support"
-    when (not $ coerce dryrun) $ clearIcon appId
+    when (not $ coerce dryrun) $ do
+        clearIcon appId
+        postResetLanLogic
     pure $ WithBreakages bs ()
 
 type InstallResponse :: Bool -> Type
@@ -483,6 +479,7 @@ postInstallNewAppLogic appId appVersion dryrun = do
                                  (void $ Notifications.emit k infoResVersion (Notifications.RestartFailed e))
                                  pool
                 )
+            postResetLanLogic
 
 
 postStartServerAppR :: AppId -> Handler ()
@@ -788,28 +785,6 @@ dependencyInfoToDependencyRequirement asInstalled (base, status, AppMgr2.Depende
                 appDependencyRequirementDefault        = dependencyInfoRequired
             in  AppDependencyRequirement { .. }
 
-postEnableLanR :: AppId -> Handler ()
-postEnableLanR = intoHandler . postEnableLanLogic
-
-postEnableLanLogic :: (Has (Reader AgentCtx) sig m, Has AppMgr2.AppMgr sig m, MonadBaseControl IO m, MonadIO m)
-                   => AppId
-                   -> m ()
-postEnableLanLogic appId = do
-    cache  <- asks appLanThreads
-
-    action <- const () <<$>> LAsync.async (AppMgr2.lanEnable appId) -- unconditionally drops monad state from the action
-    liftIO $ atomically $ modifyTVar' cache (HM.insert appId action)
-
-postDisableLanR :: AppId -> Handler ()
-postDisableLanR = intoHandler . postDisableLanLogic
-
-postDisableLanLogic :: (Has (Reader AgentCtx) sig m, MonadBaseControl IO m, MonadIO m) => AppId -> m ()
-postDisableLanLogic appId = do
-    cache  <- asks appLanThreads
-    action <- liftIO . atomically $ stateTVar cache $ \s -> (HM.lookup appId s, HM.delete appId s)
-    case action of
-        Nothing -> pure () -- Nothing to do here
-        Just x  -> LAsync.cancel x
 postActionR :: AppId -> Handler (JSONResponse JSONRPC.Response)
 postActionR appId = do
     req <- requireCheckJsonBody

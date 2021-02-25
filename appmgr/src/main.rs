@@ -464,6 +464,14 @@ async fn inner_main() -> Result<(), Error> {
                 .subcommand(SubCommand::with_name("reload").about("Reloads the tor configuration")),
         )
         .subcommand(
+            SubCommand::with_name("lan")
+                .about("Configures LAN services")
+                .subcommand(
+                    SubCommand::with_name("enable")
+                        .about("Publishes the LAN address for all services over avahi"),
+                ),
+        )
+        .subcommand(
             SubCommand::with_name("info")
                 .about("Prints information about an installed app")
                 .arg(
@@ -1205,12 +1213,7 @@ async fn inner_main() -> Result<(), Error> {
         #[cfg(feature = "avahi")]
         #[cfg(not(feature = "portable"))]
         ("lan", Some(sub_m)) => match sub_m.subcommand() {
-            ("enable", Some(sub_sub_m)) => {
-                crate::lan::enable_lan(&crate::lan::AppId {
-                    un_app_id: sub_sub_m.value_of("ID").unwrap().to_owned(),
-                })
-                .await?
-            }
+            ("enable", _) => crate::lan::enable_lan().await?,
             _ => {
                 println!("{}", sub_m.usage());
                 std::process::exit(1);
