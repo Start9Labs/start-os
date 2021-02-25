@@ -453,12 +453,7 @@ async fn inner_main() -> Result<(), Error> {
                 .about("Configures LAN services")
                 .subcommand(
                     SubCommand::with_name("enable")
-                        .about("Publishes the LAN address for the service over avahi")
-                        .arg(
-                            Arg::with_name("ID")
-                                .help("ID of the application to publish the LAN address for")
-                                .required(true),
-                        ),
+                        .about("Publishes the LAN address for the service over avahi"),
                 ),
         )
         .subcommand(
@@ -1202,12 +1197,7 @@ async fn inner_main() -> Result<(), Error> {
         },
         #[cfg(not(feature = "portable"))]
         ("lan", Some(sub_m)) => match sub_m.subcommand() {
-            ("enable", Some(sub_sub_m)) => {
-                crate::lan::enable_lan(&crate::lan::AppId {
-                    un_app_id: sub_sub_m.value_of("ID").unwrap().to_owned(),
-                })
-                .await?
-            }
+            ("enable", _) => crate::lan::enable_lan().await?,
             _ => {
                 println!("{}", sub_m.usage());
                 std::process::exit(1);
