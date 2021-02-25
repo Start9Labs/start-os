@@ -75,7 +75,7 @@ data AgentCtx = AgentCtx
     , appBackgroundJobs           :: TVar JobCache
     , appIconTags                 :: TVar (HM.HashMap AppId (Digest MD5))
     , appLastTorRestart           :: IORef UTCTime
-    , appLanThreads               :: TVar (HM.HashMap AppId (Async ()))
+    , appLanThread                :: MVar ThreadId
     }
 
 setWebProcessThreadId :: ThreadId -> AgentCtx -> IO ()

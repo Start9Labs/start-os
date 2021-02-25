@@ -69,6 +69,9 @@ import Lib.Background
 import qualified Daemon.SslRenew as SSLRenew
 import Lib.Tor (newTorManager)
 import Daemon.TorHealth
+import qualified Lib.Algebra.Domain.AppMgr as AppMgr2
+import Control.Carrier.Lift (runM)
+import Lib.Error
 
 appMain :: IO ()
 appMain = do
@@ -118,7 +121,7 @@ makeFoundation appSettings = do
     def                         <- getDefaultProcDevMetrics
     appProcDevMomentCache       <- newIORef (now, mempty, def)
     appLastTorRestart           <- newIORef now
-    appLanThreads               <- newTVarIO HM.empty
+    appLanThread                <- forkIO (void . runM . runExceptT @S9Error . AppMgr2.runAppMgrCliC $ AppMgr2.lanEnable) >>= newMVar
 
     -- We need a log function to create a connection pool. We need a connection
     -- pool to create our foundation. And we need our foundation to get a
