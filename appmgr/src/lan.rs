@@ -25,7 +25,7 @@ pub async fn enable_lan() -> Result<(), Error> {
         let group =
             avahi_sys::avahi_entry_group_new(avahi_client, Some(noop), std::ptr::null_mut());
         let hostname_raw = avahi_sys::avahi_client_get_host_name_fqdn(avahi_client);
-        let hostname_bytes = dbg!(std::ffi::CStr::from_ptr(hostname_raw)).to_bytes_with_nul();
+        let hostname_bytes = std::ffi::CStr::from_ptr(hostname_raw).to_bytes_with_nul();
         const HOSTNAME_LEN: usize = 1 + 15 + 1 + 5; // leading byte, main address, dot, "local"
         debug_assert_eq!(hostname_bytes.len(), HOSTNAME_LEN);
         let mut hostname_buf = [0; HOSTNAME_LEN + 1];
