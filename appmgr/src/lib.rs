@@ -31,6 +31,7 @@ pub mod error;
 pub mod index;
 pub mod inspect;
 pub mod install;
+#[cfg(feature = "avahi")]
 pub mod lan;
 pub mod logs;
 pub mod manifest;

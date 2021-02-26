@@ -162,6 +162,21 @@ async fn inner_main() -> Result<(), Error> {
                 ),
         );
 
+    #[cfg(feature = "avahi")]
+    let app = app.subcommand(
+        SubCommand::with_name("lan")
+            .about("Configures LAN services")
+            .subcommand(
+                SubCommand::with_name("enable")
+                    .about("Publishes the LAN address for the service over avahi")
+                    .arg(
+                        Arg::with_name("ID")
+                            .help("ID of the application to publish the LAN address for")
+                            .required(true),
+                    ),
+            ),
+    );
+
     #[cfg(not(feature = "portable"))]
     let mut app = app
         .subcommand(
@@ -447,19 +462,6 @@ async fn inner_main() -> Result<(), Error> {
                         ),
                 )
                 .subcommand(SubCommand::with_name("reload").about("Reloads the tor configuration")),
-        )
-        .subcommand(
-            SubCommand::with_name("lan")
-                .about("Configures LAN services")
-                .subcommand(
-                    SubCommand::with_name("enable")
-                        .about("Publishes the LAN address for the service over avahi")
-                        .arg(
-                            Arg::with_name("ID")
-                                .help("ID of the application to publish the LAN address for")
-                                .required(true),
-                        ),
-                ),
         )
         .subcommand(
             SubCommand::with_name("info")
@@ -1200,6 +1202,7 @@ async fn inner_main() -> Result<(), Error> {
                 std::process::exit(1);
             }
         },
+        #[cfg(feature = "avahi")]
         #[cfg(not(feature = "portable"))]
         ("lan", Some(sub_m)) => match sub_m.subcommand() {
             ("enable", Some(sub_sub_m)) => {

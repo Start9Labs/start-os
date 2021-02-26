@@ -13,13 +13,14 @@ name = "appmgr"
 path = "src/main.rs"
 
 [features]
-default = []
+avahi = ["avahi-sys"]
+default = ["avahi"]
 portable = []
 production = []
 
 [dependencies]
 async-trait = "0.1.42"
-avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", branch = "feature/dynamic-linking", features = ["dynamic"] }
+avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", branch = "feature/dynamic-linking", features = ["dynamic"], optional = true }
 base32 = "0.4.0"
 clap = "2.33"
 ctrlc = "3.1.7"
