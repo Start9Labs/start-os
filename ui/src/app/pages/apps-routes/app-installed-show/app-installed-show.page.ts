@@ -6,20 +6,20 @@ import { copyToClipboard } from 'src/app/util/web.util'
 import { AppModel, AppStatus } from 'src/app/models/app-model'
 import { AppInstalledFull } from 'src/app/models/app-types'
 import { ModelPreload } from 'src/app/models/model-preload'
-import { chill, modulateTime, pauseFor, traceWheel } from 'src/app/util/misc.util'
+import { chill, pauseFor } from 'src/app/util/misc.util'
 import { PropertySubject, peekProperties } from 'src/app/util/property-subject.util'
 import { AppBackupPage } from 'src/app/modals/app-backup/app-backup.page'
 import { LoaderService, markAsLoadingDuring$, markAsLoadingDuringP } from 'src/app/services/loader.service'
-import { BehaviorSubject, combineLatest, from, merge, Observable, of, Subject } from 'rxjs'
+import { BehaviorSubject, Observable, of } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { catchError, concatMap, delay, distinctUntilChanged, filter, map, mergeMap, retryWhen, switchMap, take, tap } from 'rxjs/operators'
+import { catchError, concatMap, filter, switchMap, tap } from 'rxjs/operators'
 import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { ConfigService } from 'src/app/services/config.service'
-import { concatObservableValues, squash } from 'src/app/util/rxjs.util'
+
 @Component({
   selector: 'app-installed-show',
   templateUrl: './app-installed-show.page.html',
@@ -37,15 +37,7 @@ export class AppInstalledShowPage extends Cleanup {
   isConsulate: boolean
   isTor: boolean
 
-  // true iff service lan address has been tested and is accessible
-  $lanConnected$: BehaviorSubject<boolean> = new BehaviorSubject(false)
-  // true during service lan address testing
-  $testingLanConnection$: BehaviorSubject<boolean> = new BehaviorSubject(false)
-
   dependencyDefintion = () => `<span style="font-style: italic">Dependencies</span> are other services which must be installed, configured appropriately, and started in order to start ${this.app.title.getValue()}`
-  launchDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. If a service does not have this button, you must access it using another interface, such as a mobile app, desktop app, or another service on the Embassy. Please view the instructions for a service for details on how to use it.</p>`
-  launchOffDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. Get your service running in order to launch!</p>`
-  launchLocalDefinition = `<span style="font-style: italic">Launch A Service</span> <p>This button appears only for services that can be accessed inside the browser. To launch this service over LAN, enable the toggle below by your service's LAN Address.</p>`
 
   @ViewChild(IonContent) content: IonContent
 
@@ -76,69 +68,12 @@ export class AppInstalledShowPage extends Cleanup {
       markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId))
         .pipe(
           tap(app => this.app = app),
-          concatMap(app =>
-            merge(
-              this.syncWhenDependencyInstalls(),
-              // new lan info or status info from sync daemon
-              combineLatest([app.lanEnabled, app.status]).pipe(
-                concatObservableValues<boolean, AppStatus, boolean, boolean>([this.$lanConnected$, this.$testingLanConnection$]),
-                concatMap(([enabled, status, connected, alreadyConnecting]) => {
-                  if (status !== AppStatus.RUNNING) return of(this.$lanConnected$.next(false))
-                  if (alreadyConnecting) return of()
-                  if (enabled && !connected) return markAsLoadingDuring$(this.$testingLanConnection$, this.testLanConnection())
-                  if (!enabled && connected) return of(this.$lanConnected$.next(false))
-                  return of()
-                }),
-              ),
-              // toggle lan
-              this.$lanToggled$.pipe(
-                map(toggleEvent => (toggleEvent as any).detail.checked),
-                concatObservableValues([app.lanEnabled, this.$testingLanConnection$]),
-                traceWheel('toggle'),
-                map( ([uiEnabled, appEnabled, alreadyConnecting]) => {
-                  if (!alreadyConnecting && uiEnabled && !appEnabled) return this.enableLan().pipe(concatMap(() => this.testLanConnection()))
-                  if (!alreadyConnecting && !uiEnabled) return this.disableLan()  //do this even if app already disabled because of appModel update timeout hack.
-                  return of()
-                }),
-                concatMap((o: Observable<void>) => this.testLanLoader(o)),
-              ),
-            ),
-          ), //must be final in stack
-          catchError(e => this.setError(e)),
+          concatMap(() => this.syncWhenDependencyInstalls()), //must be final in stack
+          catchError(e => of(this.setError(e))),
         ).subscribe(),
     )
   }
 
-  testLanLoader (o: Observable<void>): Observable<void> {
-    return markAsLoadingDuring$(this.$testingLanConnection$, o).pipe(catchError(e => this.setError(e)))
-  }
-
-  testLanConnection () : Observable<void> {
-    if (!this.app.lanAddress) return of()
-
-    return this.app.lanAddress.pipe(
-      switchMap(la => this.apiService.testConnection(la)),
-      retryWhen(errors => errors.pipe(delay(2500), take(20))),
-      catchError(() => of(false)),
-      take(1),
-      traceWheel('lan connected test'),
-      map(connected => this.$lanConnected$.next(connected)),
-    )
-  }
-
-  enableLan (): Observable<void> {
-    return from(this.apiService.toggleAppLAN(this.appId, 'enable')).pipe(squash)
-  }
-
-  disableLan (): Observable<void> {
-    return from(this.apiService.toggleAppLAN(this.appId, 'disable')).pipe(
-      map(() => this.appModel.update({ id: this.appId, lanEnabled: false }), modulateTime(new Date(), 10, 'seconds')),
-      map(() => this.$lanConnected$.next(false)),
-      squash,
-    )
-  }
-
-  $lanToggled$ = new Subject()
   ionViewDidEnter () {
     markAsLoadingDuringP(this.$loadingDependencies$, this.getApp())
   }
@@ -238,7 +173,7 @@ export class AppInstalledShowPage extends Cleanup {
     await toast.present()
   }
 
-  async copyLan () {
+  async copyLAN () {
     const app = peekProperties(this.app)
     let message = ''
     await copyToClipboard(app.lanAddress).then(success => { message = success ? 'copied to clipboard!' :  'failed to copy' })
@@ -351,18 +286,6 @@ export class AppInstalledShowPage extends Cleanup {
 
     if (data.cancelled) return
     return this.navCtrl.navigateRoot('/services/installed')
-  }
-
-  async presentLaunchPopover (status: AppStatus, ev: any) {
-    let desc: string
-    if (!this.isTor) {
-      desc = this.launchLocalDefinition
-    } else if (status !== AppStatus.RUNNING) {
-      desc = this.launchOffDefinition
-    } else {
-      desc = this.launchDefinition
-    }
-    return this.presentPopover(desc, ev)
   }
 
   async presentPopover (information: string, ev: any) {

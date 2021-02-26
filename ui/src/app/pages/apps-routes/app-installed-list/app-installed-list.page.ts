@@ -96,8 +96,6 @@ export class AppInstalledListPage extends Cleanup {
         this.error = e.message
       },
     })
-
-    console.log(this.isTor, this.apps[2].subject.lanEnabled.getValue())
   }
 
   async launchUiTab (id: string, event: Event) {
