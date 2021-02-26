@@ -314,15 +314,26 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             &mut tokio::fs::File::open(
                                 "/root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem",
                             )
-                            .await?,
+                            .await
+                            .with_context(|e| {
+                                format!(
+                                    "{}: /root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem",
+                                    e
+                                )
+                            })
+                            .with_code(crate::error::FILESYSTEM_ERROR)?,
                             &mut *fullchain_file,
                         )
                         .await?;
                         tokio::io::copy(
                             &mut tokio::fs::File::open(
-                                "/root/agent/ca/certs/embassy-int-ca.crt.pem",
+                                "/root/agent/ca/certs/embassy-root-ca.cert.pem",
                             )
-                            .await?,
+                            .await
+                            .with_context(|e| {
+                                format!("{}: /root/agent/ca/certs/embassy-root-ca.cert.pem", e)
+                            })
+                            .with_code(crate::error::FILESYSTEM_ERROR)?,
                             &mut *fullchain_file,
                         )
                         .await?;
