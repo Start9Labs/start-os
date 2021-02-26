@@ -480,6 +480,7 @@ pub async fn set_svc(
             Err(e)
         }
     })?;
+    #[cfg(target_os = "linux")]
     nix::unistd::sync();
     hidden_services.commit().await?;
     log::info!("Reloading Tor.");
