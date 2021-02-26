@@ -27,7 +27,7 @@
             <ion-card class="installed-card" [class.installed-card-on]="vars.status === 'RUNNING'" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
               <div class="launch-container" *ngIf="vars.ui && !isConsulate">
                 <div class="launch-button-triangle"  (click)="launchUiTab(app.id, $event)" [class.disabled]="vars.status !== AppStatus.RUNNING">
-                  <ion-icon name="open-outline"></ion-icon>
+                  <ion-icon name="rocket-outline"></ion-icon>
                 </div>
               </div>
 
