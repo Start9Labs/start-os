@@ -11,7 +11,7 @@
 
 EmbassyOS is a mass-market, graphical operating system designed to facilitate the discovery, installation, configuration, private self-hosting, and reliable operation of open-source software services and applications. It aims to eliminate trust and custodianship from personal computing.
 
-![EmbassyOS image](https://sesoodan.sirv.com/eos.png?w=600)
+![EmbassyOS image](eos.png?w=600)
 
 ## ⚠️ Caution
 Some technologies supported by this software, such as [Lightning](https://lightning.network/), are considered in active development and might experience issues. Do not commit any funds you are not willing to loose. Be #reckless at your own risk. 
