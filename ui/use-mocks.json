@@ -1,5 +1,5 @@
 {
-  "useMocks": true,
-  "mockOver": "lan",
-  "skipStartupAlerts": true
+  "useMocks": false,
+  "mockOver": "tor",
+  "skipStartupAlerts": false
 }

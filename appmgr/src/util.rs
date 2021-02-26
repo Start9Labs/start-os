@@ -137,6 +137,7 @@ impl PersistenceFile {
         if let Some(mut file) = self.file.take() {
             file.flush().await?;
             file.shutdown().await?;
+            file.sync_all().await?;
             drop(file);
         }
         if let Some(path) = self.needs_commit.take() {

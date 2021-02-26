@@ -34,8 +34,7 @@ export interface AppAvailableVersionSpecificInfo {
 // installed
 
 export interface AppInstalledPreview extends BaseApp {
-  lanAddress: string
-  lanEnabled: boolean
+  lanAddress?: string
   torAddress: string
   versionInstalled: string
   ui: boolean
@@ -46,11 +45,20 @@ export interface AppInstalledFull extends AppInstalledPreview {
   lastBackup: string | null
   configuredRequirements: AppDependency[] | null // null if not yet configured
   hasFetchedFull: boolean
+  startAlert?: string
   uninstallAlert?: string
   restoreAlert?: string
+  actions: Actions
 }
-// dependencies
 
+export type Actions = ServiceAction[]
+export interface ServiceAction {
+    id: string,
+    name: string,
+    description: string,
+    warning?: string
+    allowedStatuses: AppStatus[]
+}
 export interface AppDependency extends InstalledAppDependency {
   // explanation of why it *is* optional. null represents it is required.
   optional: string | null

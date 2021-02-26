@@ -31,6 +31,7 @@ pub mod error;
 pub mod index;
 pub mod inspect;
 pub mod install;
+pub mod lan;
 pub mod logs;
 pub mod manifest;
 pub mod pack;

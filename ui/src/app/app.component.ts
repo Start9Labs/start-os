@@ -42,7 +42,7 @@ export class AppComponent {
     {
       title: 'Marketplace',
       url: '/services/marketplace',
-      icon: 'cart-outline',
+      icon: 'storefront-outline',
     },
     {
       title: 'Notifications',

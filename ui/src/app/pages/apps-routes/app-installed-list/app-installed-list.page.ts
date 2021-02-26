@@ -96,19 +96,21 @@ export class AppInstalledListPage extends Cleanup {
         this.error = e.message
       },
     })
-
   }
 
-  async launchUiTab (torAddress: string, id: string, event: Event) {
+  async launchUiTab (id: string, event: Event) {
     event.preventDefault()
     event.stopPropagation()
 
+    const app = this.apps.find(app => app.id === id).subject
+
     let uiAddress: string
     if (this.isTor) {
-      uiAddress = torAddress.startsWith('http') ? torAddress : `http://${torAddress}`
+      uiAddress = `http://${app.torAddress.getValue()}`
     } else {
-      uiAddress = `https://${id}.${this.serverModel.peek().serverId}.local`
+      uiAddress = `https://${app.lanAddress.getValue()}`
     }
+    console.log(uiAddress)
     return window.open(uiAddress, '_blank')
   }
 

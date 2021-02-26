@@ -14,6 +14,7 @@ import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Lib.Types.Emver.Orphans        ( )
 import           Lib.Types.NetAddress
+import qualified Lib.External.AppManifest      as Manifest
 data AppBase = AppBase
     { appBaseId      :: AppId
     , appBaseTitle   :: Text
@@ -45,6 +46,8 @@ data AppInstalledPreview = AppInstalledPreview
     , appInstalledPreviewStatus           :: AppStatus
     , appInstalledPreviewVersionInstalled :: Version
     , appInstalledPreviewTorAddress       :: Maybe TorAddress
+    , appInstalledPreviewLanAddress       :: Maybe LanAddress
+    , appInstalledPreviewLanEnabled       :: Maybe Bool
     , appInstalledPreviewUi               :: Bool
     }
     deriving (Eq, Show)
@@ -53,6 +56,8 @@ instance ToJSON AppInstalledPreview where
         [ "status" .= appInstalledPreviewStatus
         , "versionInstalled" .= appInstalledPreviewVersionInstalled
         , "torAddress" .= (unTorAddress <$> appInstalledPreviewTorAddress)
+        , "lanAddress" .= (unLanAddress <$> appInstalledPreviewLanAddress)
+        , "lanEnabled" .= appInstalledPreviewLanEnabled
         , "ui" .= appInstalledPreviewUi
         ]
 
@@ -129,11 +134,14 @@ data AppInstalledFull = AppInstalledFull
     , appInstalledFullStatus                 :: AppStatus
     , appInstalledFullVersionInstalled       :: Version
     , appInstalledFullTorAddress             :: Maybe TorAddress
+    , appInstalledFullLanAddress             :: Maybe LanAddress
+    , appInstalledFullLanEnabled             :: Maybe Bool
     , appInstalledFullInstructions           :: Maybe Text
     , appInstalledFullLastBackup             :: Maybe UTCTime
     , appInstalledFullConfiguredRequirements :: [Stripped AppDependencyRequirement]
     , appInstalledFullUninstallAlert         :: Maybe Text
     , appInstalledFullRestoreAlert           :: Maybe Text
+    , appInstalledFullActions                :: [Manifest.Action]
     }
 instance ToJSON AppInstalledFull where
     toJSON AppInstalledFull {..} = object
@@ -141,6 +149,8 @@ instance ToJSON AppInstalledFull where
         , "lastBackup" .= appInstalledFullLastBackup
         , "configuredRequirements" .= appInstalledFullConfiguredRequirements
         , "torAddress" .= (unTorAddress <$> appInstalledFullTorAddress)
+        , "lanAddress" .= (unLanAddress <$> appInstalledFullLanAddress)
+        , "lanEnabled" .= appInstalledFullLanEnabled
         , "id" .= appBaseId appInstalledFullBase
         , "title" .= appBaseTitle appInstalledFullBase
         , "iconURL" .= appBaseIconUrl appInstalledFullBase
@@ -148,6 +158,7 @@ instance ToJSON AppInstalledFull where
         , "status" .= appInstalledFullStatus
         , "uninstallAlert" .= appInstalledFullUninstallAlert
         , "restoreAlert" .= appInstalledFullRestoreAlert
+        , "actions" .= appInstalledFullActions
         ]
 
 data AppVersionInfo = AppVersionInfo

@@ -29,7 +29,7 @@ import qualified Data.String                   as String
 import           Lib.Algebra.Domain.AppMgr.Types
 import           Lib.Algebra.Domain.AppMgr.TH
 import           Lib.Error
-import           Lib.External.AppManifest
+import qualified Lib.External.AppManifest      as Manifest
 import           Lib.TyFam.ConditionalData
 import           Lib.Types.Core                 ( AppId(..)
                                                 , AppContainerStatus(..)
@@ -66,7 +66,7 @@ data InfoRes a = InfoRes
               (Either_ (DefaultEqSym1 'OnlyDependencies) (ElemSym1 'IncludeDependencies) a)
               (HM.HashMap AppId DependencyInfo)
     , infoResManifest
-          :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) AppManifest
+          :: Include (Either_ (DefaultEqSym1 'OnlyManifest) (ElemSym1 'IncludeManifest) a) Manifest.AppManifest
     , infoResStatus :: Include (Either_ (DefaultEqSym1 'OnlyStatus) (ElemSym1 'IncludeStatus) a) AppContainerStatus
     }
 instance SingI (a :: Either OnlyInfoFlag [IncludeInfoFlag]) => FromJSON (InfoRes a) where
@@ -270,6 +270,8 @@ data AppMgr (m :: Type -> Type) k where
     -- Tor ::_
     Update ::DryRun -> AppId -> Maybe VersionRange -> AppMgr m BreakageMap
     -- Verify ::_
+    LanEnable ::AppId -> AppMgr m ()
+    Action ::AppId -> Text -> AppMgr m (HM.HashMap Text Value)
 makeSmartConstructors ''AppMgr
 
 newtype AppMgrCliC m a = AppMgrCliC { runAppMgrCliC :: m a }
@@ -420,6 +422,16 @@ instance (Has (Error S9Error) sig m, Algebra sig m, MonadIO m) => Algebra (AppMg
                             Right x -> pure $ ctx $> x
                 ExitFailure 6 ->
                     throwError $ NotFoundE "appId@version" ([i|#{appId}#{maybe "" (('@':) . show) version}|])
+                ExitFailure n -> throwError $ AppMgrE (toS $ String.unwords args) n
+        (L (LanEnable appId    )) -> readProcessInheritStderr "appmgr" ["lan", "enable", show appId] "" $> ctx
+        (L (Action appId action)) -> do
+            let args = ["actions", show appId, toS action]
+            (ec, out) <- readProcessInheritStderr "appmgr" args ""
+            case ec of
+                ExitSuccess -> case eitherDecodeStrict out of
+                    Left  e -> throwError $ AppMgrParseE (toS $ String.unwords args) (decodeUtf8 out) e
+                    Right x -> pure $ ctx $> x
+                ExitFailure 6 -> throwError $ NotFoundE "appId" (show appId)
                 ExitFailure n -> throwError $ AppMgrE (toS $ String.unwords args) n
         R other -> AppMgrCliC $ alg (runAppMgrCliC . hdl) other ctx
         where

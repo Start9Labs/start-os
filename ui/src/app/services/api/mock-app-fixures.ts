@@ -25,7 +25,6 @@ export function toInstalledPreview (f: AppInstalledFull): AppInstalledPreview {
     torAddress: f.torAddress,
     ui: f.ui,
     lanAddress: f.lanAddress,
-    lanEnabled: f.lanEnabled,
   }
 }
 
@@ -50,9 +49,9 @@ export const bitcoinI: AppInstalledFull = {
   id: 'bitcoind',
   versionInstalled: '0.18.1',
   lanAddress: 'bitcoinLan.local',
-  lanEnabled: true,
   title: 'Bitcoin Core',
   torAddress: '4acth47i6kxnvkewtm6q7ib2s3ufpo5sqbsnzjpbi7utijcltosqemad.onion',
+  startAlert: 'Bitcoind could take a loooooong time to start. Please be patient.',
   status: AppStatus.STOPPED,
   iconURL: 'assets/img/service-icons/bitcoind.png',
   instructions: 'some instructions',
@@ -60,13 +59,16 @@ export const bitcoinI: AppInstalledFull = {
   configuredRequirements: [],
   hasFetchedFull: true,
   ui: false,
-  restoreAlert: 'if you restore this app horrible things will happen to the people you love.'
+  restoreAlert: 'if you restore this app horrible things will happen to the people you love.',
+  actions: [
+    { id: 'sync-chain', name: 'Sync Chain', description: 'this will sync with the chain like from Avatar', allowedStatuses: [ AppStatus.RUNNING, AppStatus.RUNNING, AppStatus.RUNNING, AppStatus.RUNNING ]},
+    { id: 'off-sync-chain', name: 'Off Sync Chain', description: 'this will off sync with the chain like from Avatar', allowedStatuses: [ AppStatus.STOPPED ]}
+  ],
 }
 
 export const lightningI: AppInstalledFull = {
   id: 'c-lightning',
   lanAddress: 'lightningLan.local',
-  lanEnabled: true,
   status: AppStatus.RUNNING,
   title: 'C Lightning',
   versionInstalled: '1.0.0',
@@ -86,12 +88,12 @@ export const lightningI: AppInstalledFull = {
   ],
   hasFetchedFull: true,
   ui: true,
+  actions: [],
 }
 
 export const cupsI: AppInstalledFull = {
   id: 'cups',
   lanAddress: 'cupsLan.local',
-  lanEnabled: false,
   versionInstalled: '2.1.0',
   title: 'Cups Messenger',
   torAddress: 'sample-cups-tor-address.onion',
@@ -132,6 +134,7 @@ export const cupsI: AppInstalledFull = {
       }),
   ],
   hasFetchedFull: true,
+  actions: [],
 }
 
 export const bitcoinA: AppAvailableFull = {
