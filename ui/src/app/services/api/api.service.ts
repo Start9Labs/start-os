@@ -63,6 +63,7 @@ export abstract class ApiService {
   abstract shutdownServer (): Promise<Unit>
   abstract ejectExternalDisk (logicalName: string): Promise<Unit>
   abstract serviceAction (appId: string, serviceAction: ServiceAction): Promise<ReqRes.ServiceActionResponse>
+  abstract refreshLAN (): Promise<Unit>
 }
 
 export function isRpcFailure<Error, Result> (arg: { error: Error } | { result: Result}): arg is { error: Error } {

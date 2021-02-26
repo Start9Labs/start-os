@@ -40,7 +40,11 @@
 }
 
 .launch-button {
-  --border-width: 1px;
+  --background: rgb(70 193 255 / 75%);
+  --background-hover: rgb(70 193 255);
+  --background-hover-opacity: 100%;
+  --border-style: none;
+  --color: white;
   --border-radius: 10px;
-  margin: 10px;
+  margin: 12px 10px;
 }

@@ -16,8 +16,6 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { catchError, concatMap, filter, switchMap, tap } from 'rxjs/operators'
 import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
-import { Emver } from 'src/app/services/emver.service'
-import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
@@ -53,7 +51,6 @@ export class AppInstalledShowPage extends Cleanup {
     private readonly wizardBaker: WizardBaker,
     private readonly appModel: AppModel,
     private readonly popoverController: PopoverController,
-    private readonly emver: Emver,
     config: ConfigService,
   ) {
     super()
@@ -107,56 +104,6 @@ export class AppInstalledShowPage extends Cleanup {
       uiAddress = `https://${this.app.lanAddress.getValue()}`
     }
     return window.open(uiAddress, '_blank')
-  }
-
-  async checkForUpdates () {
-    const app = peekProperties(this.app)
-
-    this.loader.of({
-      message: `Checking for updates...`,
-      spinner: 'lines',
-      cssClass: 'loader',
-    }).displayDuringAsync(
-      async () => {
-        const { versionLatest } = await this.apiService.getAvailableApp(this.appId)
-      if (this.emver.compare(versionLatest, app.versionInstalled) === 1) {
-        this.presentAlertUpdate(app, versionLatest)
-      } else {
-        this.presentAlertUpToDate()
-      }
-      },
-    ).catch(e => this.setError(e))
-  }
-
-  async presentAlertUpdate (app: AppInstalledFull, versionLatest: string) {
-    const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
-      header: 'Update Available',
-      message: `New version ${displayEmver(versionLatest)} found for ${app.title}.`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'View in Store',
-          cssClass: 'alert-success',
-          handler: () => {
-            this.navCtrl.navigateForward(['/services', 'marketplace', this.appId])
-          },
-        },
-      ],
-    })
-    await alert.present()
-  }
-
-  async presentAlertUpToDate () {
-    const alert = await this.alertCtrl.create({
-      header: 'Up To Date',
-      message: `You are running the latest version of ${this.app.title.getValue()}!`,
-      buttons: ['OK'],
-    })
-    await alert.present()
   }
 
   async copyTor () {

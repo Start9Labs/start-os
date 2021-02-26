@@ -1,6 +1,5 @@
 import { Component } from '@angular/core'
 import { S9Server } from 'src/app/models/server-model'
-
 import { ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { PropertySubject } from 'src/app/util/property-subject.util'

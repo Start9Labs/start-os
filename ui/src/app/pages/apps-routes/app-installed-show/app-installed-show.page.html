@@ -77,9 +77,8 @@
         </ion-label>
       </ion-item>
 
-      <ion-button *ngIf="vars.status === AppStatus.RUNNING && vars.ui && !isConsulate" class="launch-button" expand="block" fill="outline" (click)="launchUiTab()">
-        <!-- <ion-icon slot="start" name="globe-outline"></ion-icon> -->
-        Launch Web
+      <ion-button size="small" *ngIf="vars.status === AppStatus.RUNNING && vars.ui && !isConsulate" class="launch-button" expand="block" fill="outline" (click)="launchUiTab()">
+        Launch Web Interface
         <ion-icon slot="end" name="open-outline"></ion-icon>
       </ion-button>
 
@@ -87,7 +86,7 @@
 
     <ng-container *ngIf="app && app.id && vars.status !== 'INSTALLING'">
       <ion-item-group class="ion-padding-bottom">
-        <ion-item-divider>Addresses</ion-item-divider>
+        <!-- addresses -->
         <ion-item>
           <ion-label class="ion-text-wrap">
             <h2>Tor Address</h2>
@@ -107,7 +106,8 @@
           </ion-button>
         </ion-item>
 
-        <ion-item-divider>Backups</ion-item-divider>
+        <!-- backups -->
+        <ion-item-divider></ion-item-divider>
         <!-- create backup -->
         <ion-item button [disabled]="[AppStatus.RESTORING_BACKUP, AppStatus.CREATING_BACKUP, AppStatus.INSTALLING, AppStatus.RESTARTING, AppStatus.STOPPING] | includes: vars.status" (click)="presentModalBackup('create')">
           <ion-icon slot="start" name="save-outline" color="primary"></ion-icon>
@@ -124,12 +124,7 @@
           <ion-label><ion-text color="primary">Restore from Backup</ion-text></ion-label>
         </ion-item>
 
-        <ion-item-divider>General</ion-item-divider>
-        <!-- instructions -->
-        <ion-item button details="true" (click)="checkForUpdates()">
-          <ion-icon slot="start" name="refresh-outline" color="primary"></ion-icon>
-          <ion-label><ion-text style="font-weight: 500;" color="primary">Check for Updates</ion-text></ion-label>
-        </ion-item>
+        <ion-item-divider></ion-item-divider>
         <!-- instructions -->
         <ion-item [routerLink]="['instructions']">
           <ion-icon slot="start" name="list-outline" color="primary"></ion-icon>
