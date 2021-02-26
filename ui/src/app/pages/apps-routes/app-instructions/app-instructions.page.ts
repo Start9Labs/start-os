@@ -16,7 +16,6 @@ export class AppInstructionsPage {
   error = ''
   app: AppInstalledFull = { } as any
   appId: string
-  instructions: any
 
   constructor (
     private readonly route: ActivatedRoute,

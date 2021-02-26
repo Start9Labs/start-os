@@ -21,10 +21,7 @@
      iconURL: app.iconURL | async,
      title: app.title | async,
      ui: app.ui | async,
-     lanAddress: app.lanAddress | async,
-     lanEnabled: app.lanEnabled | async,
-     launchDisabled: (app.status | async) !== 'RUNNING' || (!isTor && !($lanConnected$ | async)),
-     testingLanConnection: $testingLanConnection$ | async
+     lanAddress: app.lanAddress | async
   } as vars" class="ion-padding-bottom">
   <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
   <ng-container *ngIf="!($loading$ | async)">
@@ -56,42 +53,36 @@
         </ion-label>
       </ion-item>
 
-      <ion-item class="no-cushion-item" lines=none style="margin-bottom: 10px">
+      <ion-item class="no-cushion-item" lines=none style="margin-bottom: 10px;">
         <ion-label class="status-readout">
           <status size="bold-large" [appStatus]="vars.status"></status>
-          <ion-button  *ngIf="vars.status === AppStatus.NEEDS_CONFIG" expand="block" fill="outline" [routerLink]="['config']">
+          <ion-button *ngIf="vars.status === AppStatus.NEEDS_CONFIG" expand="block" fill="outline" [routerLink]="['config']">
             Configure
           </ion-button>
-          <ion-button  *ngIf="[AppStatus.RUNNING, AppStatus.CRASHED, AppStatus.PAUSED, AppStatus.RESTARTING] | includes: vars.status" expand="block" fill="outline" (click)="stop()">
+          <ion-button *ngIf="[AppStatus.RUNNING, AppStatus.CRASHED, AppStatus.PAUSED, AppStatus.RESTARTING] | includes: vars.status" expand="block" fill="outline" color="danger" (click)="stop()">
             Stop
           </ion-button>
-          <ion-button  *ngIf="vars.status === AppStatus.CREATING_BACKUP" expand="block" fill="outline" (click)="presentAlertStopBackup()">
+          <ion-button *ngIf="vars.status === AppStatus.CREATING_BACKUP" expand="block" fill="outline" (click)="presentAlertStopBackup()">
             Stop Backup
           </ion-button>
-          <ion-button  *ngIf="vars.status === AppStatus.DEAD" expand="block" fill="outline" (click)="uninstall()">
+          <ion-button *ngIf="vars.status === AppStatus.DEAD" expand="block" fill="outline" (click)="uninstall()">
             Force Uninstall
           </ion-button>
-          <ion-button  *ngIf="vars.status === AppStatus.BROKEN_DEPENDENCIES" expand="block" fill="outline" (click)="scrollToRequirements()">
+          <ion-button *ngIf="vars.status === AppStatus.BROKEN_DEPENDENCIES" expand="block" fill="outline" (click)="scrollToRequirements()">
             Fix
           </ion-button>
-          <ion-button *ngIf="vars.status === AppStatus.STOPPED" expand="block" fill="outline" (click)="tryStart()">
+          <ion-button *ngIf="vars.status === AppStatus.STOPPED" expand="block" fill="outline" color="success" (click)="tryStart()">
             Start
           </ion-button>
         </ion-label>
       </ion-item>
 
-      <ion-item class="no-cushion-item" *ngIf="vars.ui && !isConsulate" lines="none">
-        <ion-label style="margin-bottom: 10px; margin-top: 0px; display: flex; justify-content: left; align-items: center;" class="ion-text-wrap">
-          <ion-button fill="clear" size="small" class="launch-explanation-button" (click)="presentLaunchPopover(vars.status, $event)">
-            <ion-icon color="medium" name="information-circle-outline">
-            </ion-icon>
-          </ion-button>
-          <ion-button [disabled]="vars.launchDisabled" class="launch-button" [class.launch-button-off]="vars.launchDisabled" (click)="launchUiTab()">
-            <ion-icon style="position: absolute; z-index: 1; left: 0;" name="globe-outline"></ion-icon>
-            <ion-text>LAUNCH</ion-text>
-          </ion-button>
-        </ion-label>
-      </ion-item>
+      <ion-button *ngIf="vars.status === AppStatus.RUNNING && vars.ui && !isConsulate" class="launch-button" expand="block" fill="outline" (click)="launchUiTab()">
+        <!-- <ion-icon slot="start" name="globe-outline"></ion-icon> -->
+        Launch Web
+        <ion-icon slot="end" name="open-outline"></ion-icon>
+      </ion-button>
+
     </div>
 
     <ng-container *ngIf="app && app.id && vars.status !== 'INSTALLING'">
@@ -100,21 +91,20 @@
         <ion-item>
           <ion-label class="ion-text-wrap">
             <h2>Tor Address</h2>
-            <p><a (click)="copyTor()">{{ vars.torAddress }} <ion-icon name="copy-outline" class="tiny-icon"></ion-icon></a></p>
+            <p>{{ vars.torAddress }}</p>
           </ion-label>
+          <ion-button slot="end" fill="clear" (click)="copyTor()">
+            <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
+          </ion-button>
         </ion-item>
         <ion-item *ngIf="vars.lanAddress" lines="none">
           <ion-label class="ion-text-wrap">
             <h2>LAN Address</h2>
-            <p>
-              <a (click)="copyLan()">{{ vars.lanAddress }} <ion-icon name="copy-outline" class="tiny-icon"></ion-icon></a>
-            </p>
-            <p *ngIf="vars.testingLanConnection" style="display: flex; align-items: center; font-size: x-small; margin-top: 2px">
-              <ion-text color="warning">Testing Connection</ion-text>
-              <ion-spinner style="height: 15px; margin-left: 5px;" name="dots" color="warning"></ion-spinner>
-            </p>
+            <p>{{ vars.lanAddress }}</p>
           </ion-label>
-          <ion-toggle (ionChange)="$lanToggled$.next($event)" [checked]="vars.lanEnabled" slot="end" class="lan-toggle" [disabled]="vars.status !== 'RUNNING' || vars.testingLanConnection"></ion-toggle>          
+          <ion-button slot="end" fill="clear" (click)="copyLAN()">
+            <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
+          </ion-button>
         </ion-item>
 
         <ion-item-divider>Backups</ion-item-divider>
@@ -122,7 +112,7 @@
         <ion-item button [disabled]="[AppStatus.RESTORING_BACKUP, AppStatus.CREATING_BACKUP, AppStatus.INSTALLING, AppStatus.RESTARTING, AppStatus.STOPPING] | includes: vars.status" (click)="presentModalBackup('create')">
           <ion-icon slot="start" name="save-outline" color="primary"></ion-icon>
           <ion-label style="display: flex; flex-direction: column;">
-            <ion-text color="primary">Create new Backup</ion-text>
+            <ion-text color="primary">Create Backup</ion-text>
             <ion-text color="medium" style="font-size: x-small">
               Last Backup: {{vars.lastBackup ? (vars.lastBackup | date: 'short') : 'never'}}
             </ion-text>

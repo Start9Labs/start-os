@@ -22,26 +22,26 @@
     <ion-grid>
       <ion-row>
         <ion-col *ngFor="let app of apps" sizeXs="4" sizeSm="3" sizeMd="2" sizeLg="2">
-          <ng-container *ngIf="{ status: app.subject.status | async, ui: app.subject.ui | async, iconURL: app.subject.iconURL | async | iconParse, title: app.subject.title | async, lanEnabled: app.subject.lanEnabled } as vars"  >
+          <ng-container *ngIf="{ status: app.subject.status | async, ui: app.subject.ui | async, iconURL: app.subject.iconURL | async | iconParse, title: app.subject.title | async } as vars"  >
 
-          <ion-card class="installed-card" [class.installed-card-on]="vars.status === 'RUNNING'" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
-            <div class="launch-container" *ngIf="vars.ui && !isConsulate">
-              <div class="launch-button-triangle"  (click)="launchUiTab(app.id, $event)" [class.disabled]="vars.status !== AppStatus.RUNNING || (!isTor && !vars.lanEnabled)">
-                <ion-icon class="launch-button-triangle-icon" name="globe-outline"></ion-icon>
+            <ion-card class="installed-card" [class.installed-card-on]="vars.status === 'RUNNING'" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
+              <div class="launch-container" *ngIf="vars.ui && !isConsulate">
+                <div class="launch-button-triangle"  (click)="launchUiTab(app.id, $event)" [class.disabled]="vars.status !== AppStatus.RUNNING">
+                  <ion-icon class="launch-button-triangle-icon" name="globe-outline"></ion-icon>
+                </div>
               </div>
-            </div>
 
-            <img style="position: absolute" class="main-img" [src]="vars.iconURL" [alt]="vars.title" />
-            <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
-            <img class="bulb-on"  *ngIf="vars.status | displayBulb: 'green'" src="assets/img/running-bulb.png"/>
-            <img class="bulb-on"  *ngIf="vars.status | displayBulb: 'red'" src="assets/img/issue-bulb.png"/>
-            <img class="bulb-on"  *ngIf="vars.status | displayBulb: 'yellow'" src="assets/img/warning-bulb.png"/>
-            <img class="bulb-off" *ngIf="vars.status | displayBulb: 'off'" src="assets/img/off-bulb.png"/>
-            <ion-card-header>
-              <status [appStatus]="vars.status" size="small"></status>
-              <p>{{ vars.title }}</p>
-            </ion-card-header>
-          </ion-card>
+              <img style="position: absolute" class="main-img" [src]="vars.iconURL" [alt]="vars.title" />
+              <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+              <img class="bulb-on"  *ngIf="vars.status | displayBulb: 'green'" src="assets/img/running-bulb.png"/>
+              <img class="bulb-on"  *ngIf="vars.status | displayBulb: 'red'" src="assets/img/issue-bulb.png"/>
+              <img class="bulb-on"  *ngIf="vars.status | displayBulb: 'yellow'" src="assets/img/warning-bulb.png"/>
+              <img class="bulb-off" *ngIf="vars.status | displayBulb: 'off'" src="assets/img/off-bulb.png"/>
+              <ion-card-header>
+                <status [appStatus]="vars.status" size="small"></status>
+                <p>{{ vars.title }}</p>
+              </ion-card-header>
+            </ion-card>
           </ng-container>
         </ion-col>
       </ion-row>
