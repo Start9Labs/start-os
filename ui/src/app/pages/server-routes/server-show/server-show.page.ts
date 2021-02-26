@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { LoadingOptions } from '@ionic/core'
 import { ServerModel, ServerStatus } from 'src/app/models/server-model'
-import { AlertController, ModalController } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
 import { S9Server } from 'src/app/models/server-model'
 import { ApiService } from 'src/app/services/api/api.service'
 import { SyncDaemon } from 'src/app/services/sync.service'
@@ -9,9 +9,6 @@ import { Subscription, Observable } from 'rxjs'
 import { PropertySubject, toObservable } from 'src/app/util/property-subject.util'
 import { doForAtLeast } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
-import { Emver } from 'src/app/services/emver.service'
-import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
-import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 
 @Component({
   selector: 'server-show',
@@ -36,9 +33,6 @@ export class ServerShowPage {
     private readonly loader: LoaderService,
     private readonly apiService: ApiService,
     private readonly syncDaemon: SyncDaemon,
-    private readonly emver: Emver,
-    private readonly modalCtrl: ModalController,
-    private readonly wizardBaker: WizardBaker,
   ) { }
 
   async ngOnInit () {
@@ -80,55 +74,6 @@ export class ServerShowPage {
       console.error(e)
       this.error = e.message
     }
-  }
-
-  async checkForUpdates (): Promise<void> {
-    const loader = await this.loader.ctrl.create(LoadingSpinner('Checking for updates...'))
-    await loader.present()
-
-    try {
-      const { versionLatest, releaseNotes } = await this.apiService.getVersionLatest()
-      if (this.emver.compare(this.server.versionInstalled.getValue(), versionLatest) === -1) {
-        this.presentAlertUpdate(versionLatest, releaseNotes)
-      } else {
-        this.presentAlertUpToDate()
-      }
-    } catch (e) {
-      console.error(e)
-      this.error = e.message
-    } finally {
-      await loader.dismiss()
-    }
-  }
-
-  async presentAlertUpToDate () {
-    const alert = await this.alertCtrl.create({
-      header: 'Up To Date',
-      message: `You are running the latest version of EmbassyOS!`,
-      buttons: ['OK'],
-    })
-    await alert.present()
-  }
-
-  async presentAlertUpdate (versionLatest: string, releaseNotes: string) {
-    const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
-      header: 'Confirm',
-      message: `Update EmbassyOS to version ${versionLatest}?`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Update',
-          handler: () => {
-            this.updateEmbassyOS(versionLatest, releaseNotes)
-          },
-        },
-      ],
-    })
-    await alert.present()
   }
 
   async presentAlertRestart () {
@@ -175,38 +120,24 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  private async updateEmbassyOS (versionLatest: string, releaseNotes: string) {
-    const { cancelled } = await wizardModal(
-      this.modalCtrl,
-      this.wizardBaker.updateOS({
-        version: versionLatest,
-        releaseNotes: releaseNotes,
-      }),
-    )
-    if (cancelled) return
-    this.updatingFreeze = true
-    this.updating = true
-    setTimeout(() => this.updatingFreeze = false, 8000)
-  }
-
   private async restart () {
     this.loader
-        .of(LoadingSpinner(`Restarting ${this.currentServer.name}...`))
-        .displayDuringAsync( async () => {
-            this.serverModel.markUnreachable()
-            await this.apiService.restartServer()
-        })
-        .catch(e => this.setError(e))
+      .of(LoadingSpinner(`Restarting ${this.currentServer.name}...`))
+      .displayDuringAsync( async () => {
+          this.serverModel.markUnreachable()
+          await this.apiService.restartServer()
+      })
+      .catch(e => this.setError(e))
   }
 
   private async shutdown () {
     this.loader
-        .of(LoadingSpinner(`Shutting down ${this.currentServer.name}...`))
-        .displayDuringAsync( async () => {
-          this.serverModel.markUnreachable()
-          await this.apiService.shutdownServer()
-        })
-        .catch(e => this.setError(e))
+      .of(LoadingSpinner(`Shutting down ${this.currentServer.name}...`))
+      .displayDuringAsync( async () => {
+        this.serverModel.markUnreachable()
+        await this.apiService.shutdownServer()
+      })
+      .catch(e => this.setError(e))
   }
 
   setError (e: Error) {

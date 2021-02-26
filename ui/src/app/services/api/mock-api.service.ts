@@ -242,6 +242,10 @@ export class MockApiService extends ApiService {
       },
     }
   }
+
+  refreshLAN (): Promise<Unit> {
+    return mockRefreshLAN()
+  }
 }
 
 async function mockGetServer (): Promise<ReqRes.GetServerRes> {
@@ -402,6 +406,11 @@ async function mockRestartServer (): Promise<Unit> {
 }
 
 async function mockShutdownServer (): Promise<Unit> {
+  await pauseFor(1000)
+  return { }
+}
+
+async function mockRefreshLAN (): Promise<Unit> {
   await pauseFor(1000)
   return { }
 }

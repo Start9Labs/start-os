@@ -4,9 +4,6 @@
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
     <ion-title>Add Network</ion-title>
-    <ion-buttons slot="end">
-      <badge-menu-button></badge-menu-button>
-    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -38,12 +35,12 @@
     <ion-row>
       <ion-col size="6">
         <ion-button [disabled]="!ssid" expand="block" fill="outline" color="primary" (click)="add()">
-          Add
+          Save for Later
         </ion-button>
       </ion-col>
       <ion-col size="6">
-        <ion-button [disabled]="!ssid" expand="block" fill="outline" color="success" (click)="addAndConnect()">
-          Add and Connect
+        <ion-button [disabled]="!ssid" expand="block" fill="outline" color="primary" (click)="addAndConnect()">
+          Save and Connect Now
         </ion-button>
       </ion-col>
     </ion-row>

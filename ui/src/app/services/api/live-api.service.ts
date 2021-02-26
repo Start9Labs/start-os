@@ -13,6 +13,7 @@ import { modulateTime } from 'src/app/util/misc.util'
 import { Observable, of, throwError } from 'rxjs'
 import { catchError, mapTo } from 'rxjs/operators'
 import * as uuid from 'uuid'
+import { METHODS } from 'http'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -274,6 +275,10 @@ export class LiveApiService extends ApiService {
       method: s.id,
     }
     return this.authRequest({ method: Method.POST, url: `apps/${appId}/actions`, data })
+  }
+
+  async refreshLAN (): Promise<Unit> {
+    return this.authRequest({ method: Method.POST, url: '/network/lan/reset' })
   }
 
   private async authRequest<T> (opts: HttpOptions, overrides: Partial<{ version: string }> = { }): Promise<T> {
