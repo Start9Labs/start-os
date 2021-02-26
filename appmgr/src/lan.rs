@@ -60,7 +60,7 @@ pub async fn enable_lan() -> Result<(), Error> {
                 hostname_buf.as_ptr().cast(),
                 hostname_buf.len(),
             );
-            println!("Published {:?}", lan_address_ptr);
+            log::info!("Published {:?}", lan_address_ptr);
         }
         avahi_sys::avahi_entry_group_commit(group);
         ctrlc::set_handler(move || {
