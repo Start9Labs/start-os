@@ -217,6 +217,13 @@ pub async fn verify(path: &str) -> Result<(), failure::Error> {
     if let Some(shared) = &manifest.shared {
         validate_path(shared)?;
     }
+    for action in &manifest.actions {
+        ensure!(
+            !action.command.is_empty(),
+            "Command Cannot Be Empty: {}",
+            action.id
+        );
+    }
     log::info!("Opening config spec from archive.");
     let config_spec = entries
         .next()

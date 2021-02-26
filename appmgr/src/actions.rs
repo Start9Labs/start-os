@@ -8,6 +8,7 @@ use yajrc::RpcError;
 use crate::apps::DockerStatus;
 
 pub const STATUS_NOT_ALLOWED: i32 = -2;
+pub const INVALID_COMMAND: i32 = -3;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -67,6 +68,11 @@ impl Action {
             cmd
         } else {
             let mut cmd = tokio::process::Command::new("docker");
+            let entrypoint = self.command.get(0).ok_or_else(|| RpcError {
+                code: INVALID_COMMAND,
+                message: "Command Cannot Be Empty".to_owned(),
+                data: None,
+            })?;
             cmd.arg("run")
                 .arg("--rm")
                 .arg("--name")
@@ -78,8 +84,10 @@ impl Action {
                     app_id,
                     man.mount.display()
                 ))
+                .arg("--entrypoint")
+                .arg(entrypoint)
                 .arg(format!("start9/{}", app_id))
-                .args(&self.command);
+                .args(&self.command[1..]);
             // TODO: 0.3.0: net, tor, shm
             cmd
         };
