@@ -453,7 +453,7 @@ async fn inner_main() -> Result<(), Error> {
                 .about("Configures LAN services")
                 .subcommand(
                     SubCommand::with_name("enable")
-                        .about("Publishes the LAN address for the service over avahi"),
+                        .about("Publishes the LAN address for all services over avahi"),
                 ),
         )
         .subcommand(
