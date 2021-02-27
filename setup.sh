@@ -17,5 +17,3 @@ systemctl enable avahi-daemon
 passwd -l root
 passwd -l pi
 sync
-systemctl disable setup.service
-reboot
