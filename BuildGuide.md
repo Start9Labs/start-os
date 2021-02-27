@@ -1,5 +1,12 @@
+##### Initial Notes & Recommendations
+* Due to issues to cross-compile the image from a desktop, this guide will take you step-by-step through the process of compiling EmbassyOS directly on a Raspberry Pi 4 (4GB or 8GB)
+* This process will go faster if you have an SSD/NVMe USB drive available.
+* This build guide does **not** require a large microSD card, especially if your final build wil be used on an SSD/NVMe USB drive.
+* Basic know-how of linux commands and terminal use is recommended.
+* Follow the guide carefully and do not skip any steps.
 
-1. Flash [Raspberry Pi OS Lite](https://www.raspberrypi.org/software/operating-systems/) to a microSD and configure your raspi to boot from SSD/NVMe USDB drive
+#### Build Guide
+1. Flash [Raspberry Pi OS Lite](https://www.raspberrypi.org/software/operating-systems/) to a microSD and configure your raspi to boot from SSD/NVMe USB drive
    1. After flashing, create an empty text file called `ssh` in the `boot` partition of the microSD, then proceed with booting the raspi with the flashed microSD (check your router for the IP assigned to your raspi)
    1. Do the usual initial update/config
       ```
@@ -167,8 +174,7 @@
       cd ~/embassy-os
       make
       
-      #Take note of the generated product_key (recoverable from: /root/agent/product_key):
-      cat product_key
+      #Wait for the "DONE!" message and take note of your product_key
       exit
       ```
 8. Flash the `embassy.img` to a microSD
@@ -183,21 +189,18 @@
    1. Flash `embassy.img` to a microSD (do this before flashing to the SSD/NVMe, to be sure it works)
 
 9. Prepare for initial setup
-   > :information_source: Don't forget to create an empty `ssh` file in `/boot`
    1. Boot raspi using flashed microSD
    1. Connect via SSH with user `pi` and password `raspberry` and use `sudo raspi-config` to change the password
-   1. Make sure you have at least an empty `authorized_keys` file in place (this will prevent errors in EmbassyOS)
-      ```
-      sudo mkdir ~/.ssh
-      sudo touch ~/.ssh/authorized_keys
-      sudo chown $USER: ~/.ssh/authorized_keys
-      ```
    1. Enable services (unit files were only copied over and still need to be enabled)
       > :information_source: Optional: Edit `/root/setup.sh` and comment line `passwd -l pi` (this will allow you to connect to raspi in the event that setup failed)
       ```
-      sudo systemctl enable setup.service
+      #Recommended: Run the /root/setup.sh script instead of depending on the "setup.service"
+      sudo sh /root/setup.sh
+      
+      #sudo systemctl enable setup.service
       sudo systemctl enable lifeline.service
       sudo systemctl enable agent.service
+      
       sudo reboot
       ```
    1. After a few minutes, the raspi should reboot itself and make it's first sounds.
