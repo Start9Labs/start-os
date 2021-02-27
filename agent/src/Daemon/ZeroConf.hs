@@ -18,6 +18,9 @@ import           Lib.ProductKey
 import           Lib.SystemPaths
 
 import           Settings
+import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
+import           Control.Carrier.Lift
+import           Lib.Error
 
 start9AgentServicePrefix :: IsString a => a
 start9AgentServicePrefix = "start9-"
@@ -53,4 +56,10 @@ publishAgentToAvahi = do
         "_http._tcp"
         agentPort
     lift Avahi.reload
+    lift $ threadDelay 10_000_000
+    tid <- asks appLanThread >>= liftIO . takeMVar
+    liftIO $ killThread tid
+    tid' <- liftIO $ forkIO (runM . void . runExceptT @S9Error $ AppMgr2.runAppMgrCliC AppMgr2.lanEnable)
+    asks appLanThread >>= liftIO . flip putMVar tid'
+
 
