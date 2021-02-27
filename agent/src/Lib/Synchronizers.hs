@@ -66,6 +66,7 @@ import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
 import qualified Data.Text                     as T
 import           Control.Effect.Error    hiding ( run )
+import           Handler.Network
 
 
 data Synchronizer = Synchronizer
@@ -423,6 +424,7 @@ syncInstallAppMgr = SyncOp "Install AppMgr" check migrate False
             avs <- asks $ appMgrVersionSpec . appSettings
             av  <- AppMgr.installNewAppMgr avs
             unless (av <|| avs) $ throwE $ AppMgrVersionE av avs
+            postResetLanLogic -- to accommodate 0.2.x -> 0.2.9 where previous appmgr didn't correctly set up lan
 
 syncUpgradeLifeline :: SyncOp
 syncUpgradeLifeline = SyncOp "Upgrade Lifeline" check migrate False
