@@ -1,5 +1,4 @@
 #!/bin/bash
-
 mv buster.img embassy.img
 product_key=$(cat product_key)
 loopdev=$(losetup -f -P embassy.img --show)
@@ -11,6 +10,10 @@ mount "${loopdev}p2" "${root_mountpoint}"
 mount "${loopdev}p1" "${boot_mountpoint}"
 mkdir -p "${root_mountpoint}/root/agent"
 mkdir -p "${root_mountpoint}/etc/docker"
+mkdir -p "${root_mountpoint}/home/pi/.ssh"
+chown -R pi:pi "${root_mountpoint}/home/pi/.ssh"
+echo -n "" > "${root_mountpoint}/home/pi/.ssh/authorized_keys"
+echo -n "" > "${boot_mountpoint}/ssh"
 echo "${product_key}" > "${root_mountpoint}/root/agent/product_key"
 echo -n "start9-" > "${root_mountpoint}/etc/hostname"
 echo -n "${product_key}" | shasum -t -a 256 | cut -c1-8 >> "${root_mountpoint}/etc/hostname"
@@ -38,3 +41,4 @@ rm -r "${root_mountpoint}"
 umount "${boot_mountpoint}"
 rm -r "${boot_mountpoint}"
 losetup -d ${loopdev}
+echo "DONE! Here is your EmbassyOS key: ${product_key}"
