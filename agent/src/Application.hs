@@ -121,7 +121,7 @@ makeFoundation appSettings = do
     def                         <- getDefaultProcDevMetrics
     appProcDevMomentCache       <- newIORef (now, mempty, def)
     appLastTorRestart           <- newIORef now
-    appLanThread                <- forkIO (void . runM . runExceptT @S9Error . AppMgr2.runAppMgrCliC $ AppMgr2.lanEnable) >>= newMVar
+    appLanThread                <- forkIO (sleep 10) >>= newMVar
 
     -- We need a log function to create a connection pool. We need a connection
     -- pool to create our foundation. And we need our foundation to get a
