@@ -80,16 +80,13 @@ export class WizardBaker {
   }): InstallWizardComponent['params'] {
     const { version, releaseNotes } = values
 
-    validate(version, exists, 'missing version')
-    validate(releaseNotes, exists, 'missing updateMessage')
-
     const action = 'update'
     const title = 'EmbassyOS'
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
       { selector: 'notes', cancelButton: { afterLoading: { text: 'Cancel' } }, nextButton: 'Update OS', params: {
-        action, notes: releaseNotes, title: 'Release Notes', titleColor: 'dark',
+        action, notes: releaseNotes || 'No release notes for this version', title: 'Release Notes', titleColor: 'dark',
       }},
       { selector: 'complete', finishButton: 'Dismiss', cancelButton: { whileLoading: { } }, params: {
         action, verb: 'beginning update for', title, executeAction: () => this.updateService.updateEmbassyOS(version),
