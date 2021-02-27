@@ -154,15 +154,6 @@
       cd ~/embassy-os/lifeline && cargo build --release
       /usr/bin/arm-linux-gnueabihf-strip ~/embassy-os/lifeline/target/release/lifeline
       ```
-   1. Edit the `Makefile`
-      ```
-      nano ~/embassy-os/Makefile
-      ```
-      1. Under `embassy.img` remove: `appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr`
-      2. Under `embassy.img` remove: `lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline`
-      3. Comment out the `docker` lines below `appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr` and `lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline`
-      4. Change `appmgr: appmgr/target/armv7-unknown-linux-gnueabihf/release/appmgr` to `appmgr: appmgr/target/release/appmgr`
-      5. Change `lifeline: lifeline/target/armv7-unknown-linux-gnueabihf/release/lifeline` to `lifeline: lifeline/target/release/lifeline`
 
    1. Prep `make_image.sh`
       ```
