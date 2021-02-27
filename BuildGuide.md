@@ -191,13 +191,18 @@
 9. Prepare for initial setup
    1. Boot raspi using flashed microSD
    1. Connect via SSH with user `pi` and password `raspberry` and use `sudo raspi-config` to change the password
-   1. Enable services (unit files were only copied over and still need to be enabled)
-      > :information_source: Optional: Edit `/root/setup.sh` and comment line `passwd -l pi` (this will allow you to connect to raspi in the event that setup failed)
+   1. Prep & run `/root/setup.sh`
+      > :information_source: Here we also remove line `passwd -l pi` (this will allow you to ssh into raspi in the event that setup failed)
       ```
-      #Recommended: Run the /root/setup.sh script instead of depending on the "setup.service"
-      sudo sh /root/setup.sh
+      #We remove specific lines
+      sudo grep -Ev 'systemctl disable setup.service|reboot|passwd -l pi' /root/setup.sh | sudo tee /root/setup.sh.tmp >/dev/null
+      sudo cat /root/setup.sh.tmp | sudo tee /root/setup.sh >/dev/null
       
-      #sudo systemctl enable setup.service
+      #Run setup.sh
+      sudo sh /root/setup.sh
+      ```
+   1. Enable services (unit files were only copied over and still need to be enabled)
+      ```
       sudo systemctl enable lifeline.service
       sudo systemctl enable agent.service
       
