@@ -169,12 +169,9 @@
       exit
       ```
 8. Flash the `embassy.img` to a microSD
-   1. Copy `embassy.img` from the raspi to your PC with sftp
+   1. Copy `embassy.img` from the raspi to your PC with scp
       ```
-      sftp pi@raspi_IP
-      cd embassy-os
-      get embassy.img
-      exit
+      scp pi@raspi_IP:~/embassy-os/embassy.img .
       ```
    1. Connect to raspi again to do `sudo shutdown now`, after a complete shutdown disconnect SSD/NVMe drive
    1. Flash `embassy.img` to a microSD (do this before flashing to the SSD/NVMe, to be sure it works)
