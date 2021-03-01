@@ -25,7 +25,6 @@ where
 
 import           Startlude               hiding (runReader)
 
-import           Control.Carrier.Lift           ( runM )
 import           Control.Concurrent.STM.TVar    ( newTVarIO )
 import           Control.Monad.Logger
 import           Control.Effect.Labelled        ( Labelled, runLabelled )
@@ -59,11 +58,9 @@ import qualified Daemon.SslRenew as SSLRenew
 import           Daemon.TorHealth
 import           Daemon.ZeroConf
 import           Foundation
-import qualified Lib.Algebra.Domain.AppMgr as AppMgr2
 import           Lib.Algebra.State.RegistryUrl
 import           Lib.Background
 import           Lib.Database
-import           Lib.Error
 import           Lib.External.Metrics.ProcDev
 import           Lib.SelfUpdate
 import           Lib.Sound
