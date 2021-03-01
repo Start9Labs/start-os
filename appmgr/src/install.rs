@@ -256,6 +256,19 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
             "Package Name Does Not Match Expected"
         );
     }
+
+    log::info!(
+        "Creating metadata directory: {}/apps/{}",
+        crate::PERSISTENCE_DIR,
+        manifest.id
+    );
+    tokio::fs::create_dir_all(
+        Path::new(crate::PERSISTENCE_DIR)
+            .join("apps")
+            .join(&manifest.id),
+    )
+    .await?;
+
     let (ip, tor_addr, tor_key) = crate::tor::set_svc(
         &manifest.id,
         crate::tor::NewService {
