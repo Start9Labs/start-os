@@ -212,8 +212,6 @@ pub async fn write_services(hidden_services: &ServicesMap) -> Result<(), Error> 
         }
         f.write_all(b"\n").await?;
     }
-    write_lan_services(hidden_services).await?; // I know this doesn't belong here, should be abstracted along with `write_services`.
-                                                // This whole module should be refactored as its no longer just managing tor.
     Ok(())
 }
 
@@ -225,7 +223,9 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                 .join(format!("app-{}", app_id))
                 .join("hostname"),
         )
-        .await?;
+        .await
+        .with_context(|e| format!("{}/app-{}/hostname: {}", HIDDEN_SERVICE_DIR_ROOT, app_id, e))
+        .with_code(crate::error::FILESYSTEM_ERROR)?;
         let hostname_str = hostname
             .trim()
             .strip_suffix(".onion")
@@ -482,7 +482,6 @@ pub async fn set_svc(
     })?;
     #[cfg(target_os = "linux")]
     nix::unistd::sync();
-    hidden_services.commit().await?;
     log::info!("Reloading Tor.");
     let svc_exit = std::process::Command::new("service")
         .args(&["tor", "reload"])
@@ -496,6 +495,17 @@ pub async fn set_svc(
             .or_else(|| { svc_exit.signal().map(|a| 128 + a) })
             .unwrap_or(0)
     );
+    let addr = if is_listening {
+        Some(read_tor_address(name, Some(Duration::from_secs(30))).await?)
+    } else {
+        None
+    };
+    let key = if is_listening {
+        Some(read_tor_key(name, ver, Some(Duration::from_secs(30))).await?)
+    } else {
+        None
+    };
+    write_lan_services(&hidden_services).await?;
     log::info!("Reloading Nginx.");
     let svc_exit = std::process::Command::new("service")
         .args(&["nginx", "reload"])
@@ -509,19 +519,8 @@ pub async fn set_svc(
             .or_else(|| { svc_exit.signal().map(|a| 128 + a) })
             .unwrap_or(0)
     );
-    Ok((
-        ip,
-        if is_listening {
-            Some(read_tor_address(name, Some(Duration::from_secs(30))).await?)
-        } else {
-            None
-        },
-        if is_listening {
-            Some(read_tor_key(name, ver, Some(Duration::from_secs(30))).await?)
-        } else {
-            None
-        },
-    ))
+    hidden_services.commit().await?;
+    Ok((ip, addr, key))
 }
 
 pub async fn rm_svc(name: &str) -> Result<(), Error> {
@@ -540,7 +539,6 @@ pub async fn rm_svc(name: &str) -> Result<(), Error> {
     }
     log::info!("Removing Tor hidden service {} from {}.", name, ETC_TOR_RC);
     write_services(&hidden_services).await?;
-    hidden_services.commit().await?;
     log::info!("Reloading Tor.");
     let svc_exit = std::process::Command::new("service")
         .args(&["tor", "reload"])
@@ -551,6 +549,7 @@ pub async fn rm_svc(name: &str) -> Result<(), Error> {
         "Failed to Reload Tor: {}",
         svc_exit.code().unwrap_or(0)
     );
+    write_lan_services(&hidden_services).await?;
     log::info!("Reloading Nginx.");
     let svc_exit = std::process::Command::new("service")
         .args(&["nginx", "reload"])
@@ -564,6 +563,7 @@ pub async fn rm_svc(name: &str) -> Result<(), Error> {
             .or_else(|| { svc_exit.signal().map(|a| 128 + a) })
             .unwrap_or(0)
     );
+    hidden_services.commit().await?;
     Ok(())
 }
 
