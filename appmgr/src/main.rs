@@ -163,12 +163,13 @@ async fn inner_main() -> Result<(), Error> {
         );
 
     #[cfg(feature = "avahi")]
-    let app = app.subcommand(
+    #[allow(unused_mut)]
+    let mut app = app.subcommand(
         SubCommand::with_name("lan")
             .about("Configures LAN services")
             .subcommand(
                 SubCommand::with_name("enable")
-                    .about("Publishes the LAN addresses for all services")
+                    .about("Publishes the LAN addresses for all services"),
             ),
     );
 
