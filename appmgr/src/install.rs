@@ -262,12 +262,12 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
         crate::PERSISTENCE_DIR,
         manifest.id
     );
-    tokio::fs::create_dir_all(
-        Path::new(crate::PERSISTENCE_DIR)
-            .join("apps")
-            .join(&manifest.id),
-    )
-    .await?;
+    let app_dir = PersistencePath::from_ref("apps").join(&manifest.id);
+    let app_dir_path = app_dir.path();
+    if app_dir_path.exists() {
+        tokio::fs::remove_dir_all(&app_dir_path).await?;
+    }
+    tokio::fs::create_dir_all(&app_dir_path).await?;
 
     let (ip, tor_addr, tor_key) = crate::tor::set_svc(
         &manifest.id,
@@ -283,12 +283,6 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
     log::info!("Creating volume {}/{}.", crate::VOLUMES, manifest.id);
     tokio::fs::create_dir_all(Path::new(crate::VOLUMES).join(&manifest.id)).await?;
 
-    let app_dir = PersistencePath::from_ref("apps").join(&manifest.id);
-    let app_dir_path = app_dir.path();
-    if app_dir_path.exists() {
-        tokio::fs::remove_dir_all(&app_dir_path).await?;
-    }
-    tokio::fs::create_dir_all(&app_dir_path).await?;
     let _lock = app_dir.lock(true).await?;
     log::info!("Saving manifest.");
     let mut manifest_out = app_dir.join("manifest.yaml").write(None).await?;
