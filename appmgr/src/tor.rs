@@ -234,7 +234,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
         for mapping in &service.ports {
             match &mapping.lan {
                 Some(LanOptions::Standard) => {
-                    log::info!("Writing LAN certificates");
+                    log::info!("Writing LAN certificates for {}", app_id);
                     let base_path = PersistencePath::from_ref("apps").join(&app_id);
                     let key_path = base_path.join("cert-local.key.pem").path();
                     if tokio::fs::metadata(&key_path).await.is_err() {
@@ -305,6 +305,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                     }
                     let fullchain_path = base_path.join("cert-local.fullchain.crt.pem");
                     if !fullchain_path.exists().await {
+                        log::info!("Writing fullchain to: {}", fullchain_path.path().display());
                         let mut fullchain_file = fullchain_path.write(None).await?;
                         tokio::io::copy(
                             &mut tokio::fs::File::open(&cert_path).await?,
@@ -339,6 +340,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                         )
                         .await?;
                         fullchain_file.commit().await?;
+                        log::info!("{} written successfully", fullchain_path.path().display());
                     }
                     f.write_all(
                         format!(
