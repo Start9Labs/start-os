@@ -241,6 +241,19 @@ syncInstallExfatUtils = SyncOp "Install exfat-utils" check migrate False
             shell "apt-get update"
             shell "apt-get install -y exfat-utils"
 
+syncInstallLibAvahi :: SyncOp
+syncInstallLibAvahi = SyncOp "Install libavahi-client" check migrate False
+    where
+        check =
+            liftIO
+                $       (run (shell [i|dpkg -l|] $| shell [i|grep libavahi-client3|] $| conduit await) $> False)
+                `catch` \(e :: ProcessException) -> case e of
+                            ProcessException _ (ExitFailure 1) -> pure True
+                            _ -> throwIO e
+        migrate = liftIO . run $ do
+            shell "apt-get update"
+            shell "apt-get install -y libavahi-client3"
+
 syncWriteConf :: Text -> ByteString -> SystemPath -> SyncOp
 syncWriteConf name contents' confLocation = SyncOp [i|Write #{name} Conf|] check migrate False
     where
