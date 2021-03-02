@@ -5,8 +5,6 @@
         {{params.title}}
       </ion-label>
     </div>
-    <div class="long-message">
-    {{params.notes}}
-    </div>
+    <div class="long-message" [innerHTML]="params.notes | markdown"></div>
   </div>
 </div>
