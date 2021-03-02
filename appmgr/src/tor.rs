@@ -349,7 +349,8 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                         )
                         .as_bytes(),
                     )
-                    .await?
+                    .await?;
+                    f.sync_all().await?;
                 }
                 Some(LanOptions::Custom { port }) => {
                     f.write_all(
