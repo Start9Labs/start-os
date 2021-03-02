@@ -234,6 +234,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
         for mapping in &service.ports {
             match &mapping.lan {
                 Some(LanOptions::Standard) => {
+                    log::info!("Writing LAN certificates");
                     let base_path = PersistencePath::from_ref("apps").join(&app_id);
                     let key_path = base_path.join("cert-local.key.pem").path();
                     if tokio::fs::metadata(&key_path).await.is_err() {
