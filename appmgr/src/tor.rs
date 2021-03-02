@@ -299,7 +299,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .arg(&req_path)
                             .arg("-out")
                             .arg(&cert_path)
-                            .invoke("OpenSSL GenKey")
+                            .invoke("OpenSSL CA")
                             .await?;
                     }
                     let fullchain_path = base_path.join("cert-local.fullchain.crt.pem");

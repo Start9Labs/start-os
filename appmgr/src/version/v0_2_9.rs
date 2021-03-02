@@ -46,8 +46,18 @@ impl VersionT for Version {
         Ok(())
     }
     async fn down(&self) -> Result<(), Error> {
-        tokio::fs::remove_file("/etc/nginx/sites-enabled/start9-services.conf").await?;
-        tokio::fs::remove_file(crate::tor::ETC_NGINX_SERVICES_CONF).await?;
+        tokio::fs::remove_file("/etc/nginx/sites-enabled/start9-services.conf")
+            .await
+            .or_else(|e| match e {
+                e if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                e => Err(e),
+            })?;
+        tokio::fs::remove_file(crate::tor::ETC_NGINX_SERVICES_CONF)
+            .await
+            .or_else(|e| match e {
+                e if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                e => Err(e),
+            })?;
         let svc_exit = std::process::Command::new("service")
             .args(&["nginx", "reload"])
             .status()?;
