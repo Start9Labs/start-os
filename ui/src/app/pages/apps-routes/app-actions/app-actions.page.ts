@@ -9,6 +9,8 @@ import { ServiceAction, AppInstalledFull } from 'src/app/models/app-types'
 import { PropertySubject } from 'src/app/util/property-subject.util'
 import { map } from 'rxjs/operators'
 import { Cleanup } from 'src/app/util/cleanup'
+import { AppStatus } from 'src/app/models/app-model'
+import { HttpErrorResponse } from '@angular/common/http'
 
 @Component({
   selector: 'app-actions',
@@ -57,9 +59,20 @@ export class AppActionsPage extends Cleanup {
       })
       await alert.present()
     } else {
+      const joinStatuses = (statuses: AppStatus[]) => {
+        const last = statuses.pop()
+        let s = statuses.join(', ')
+        if (last) {
+          if (statuses.length > 1) { // oxford comma
+            s += ','
+          }
+          s += ` or ${last}`
+        }
+        return s
+      }
       const alert = await this.alertCtrl.create({
         header: 'Forbidden',
-        message: `Action "${action.name}" can only be executed when service is ${action.allowedStatuses.join(', ')}`,
+        message: `Action "${action.name}" can only be executed when service is ${joinStatuses(action.allowedStatuses)}`,
         buttons: ['OK'],
         cssClass: 'alert-error-message',
       })
@@ -72,11 +85,11 @@ export class AppActionsPage extends Cleanup {
       const res = await this.loaderService.displayDuringP(
         this.apiService.serviceAction(this.appId, action),
       )
-  
+
       if (isRpcFailure(res)) {
         this.presentAlertActionFail(res.error.code, res.error.message)
       }
-  
+
       if (isRpcSuccess(res)) {
         const successAlert = await this.alertCtrl.create({
           header: 'Execution Complete',
@@ -87,11 +100,15 @@ export class AppActionsPage extends Cleanup {
         return await successAlert.present()
       }
     } catch (e) {
-      this.presentAlertActionFail(500, e.message)
+      if (e instanceof HttpErrorResponse) {
+        this.presentAlertActionFail(e.status, e.message)
+      } else {
+        this.presentAlertActionFail(-1, e.toString())
+      }
     }
   }
 
-  private async presentAlertActionFail (code: number, message: string): Promise<void> {
+  private async presentAlertActionFail(code: number, message: string): Promise<void> {
     const failureAlert = await this.alertCtrl.create({
       header: 'Execution Failed',
       message: `Error code ${code}. ${message}`,
