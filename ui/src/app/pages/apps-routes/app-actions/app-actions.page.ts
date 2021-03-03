@@ -68,27 +68,36 @@ export class AppActionsPage extends Cleanup {
   }
 
   private async executeAction(action: ServiceAction) {
-    const res = await this.loaderService.displayDuringP(
-      this.apiService.serviceAction(this.appId, action),
-    )
-    if (isRpcFailure(res)) {
-      const successAlert = await this.alertCtrl.create({
-        header: 'Execution Failed',
-        message: `Error code ${res.error.code}. ${res.error.message}`,
-        buttons: ['OK'],
-        cssClass: 'alert-error-message',
-      })
-      return await successAlert.present()
+    try {
+      const res = await this.loaderService.displayDuringP(
+        this.apiService.serviceAction(this.appId, action),
+      )
+  
+      if (isRpcFailure(res)) {
+        this.presentAlertActionFail(res.error.code, res.error.message)
+      }
+  
+      if (isRpcSuccess(res)) {
+        const successAlert = await this.alertCtrl.create({
+          header: 'Execution Complete',
+          message: res.result.split('\n').join('</br ></br />'),
+          buttons: ['OK'],
+          cssClass: 'alert-success-message',
+        })
+        return await successAlert.present()
+      }
+    } catch (e) {
+      this.presentAlertActionFail(500, e.message)
     }
+  }
 
-    if (isRpcSuccess(res)) {
-      const successAlert = await this.alertCtrl.create({
-        header: 'Execution Complete',
-        message: res.result,
-        buttons: ['OK'],
-        cssClass: 'alert-success-message',
-      })
-      return await successAlert.present()
-    }
+  private async presentAlertActionFail (code: number, message: string): Promise<void> {
+    const failureAlert = await this.alertCtrl.create({
+      header: 'Execution Failed',
+      message: `Error code ${code}. ${message}`,
+      buttons: ['OK'],
+      cssClass: 'alert-error-message',
+    })
+    return await failureAlert.present()
   }
 }

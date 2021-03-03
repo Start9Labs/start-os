@@ -274,7 +274,7 @@ export class LiveApiService extends ApiService {
       id: uuid.v4(),
       method: s.id,
     }
-    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/actions`, data })
+    return this.authRequest({ method: Method.POST, url: `/apps/${appId}/actions`, data, readTimeout: 300000 })
   }
 
   async refreshLAN(): Promise<Unit> {
