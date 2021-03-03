@@ -31,7 +31,7 @@ export class ServerLogsPage {
     this.logs = ''
     this.$loading$.next(true)
     try {
-      this.logs = await this.apiService.getServerLogs()
+      this.logs = (await this.apiService.getServerLogs()).join('\n')
       this.error = ''
       setTimeout(async () => await this.content.scrollToBottom(100), 200)
     } catch (e) {
