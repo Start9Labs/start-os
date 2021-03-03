@@ -55,4 +55,4 @@ simple-logging = "2.0"
 tokio = { version = "0.3.5", features = ["full"] }
 tokio-compat-02 = "0.1.2"
 tokio-tar = { version = "0.3.0", git = "https://github.com/dr-bonez/tokio-tar.git", rev = "1ba710f3" }
-yajrc = { version = "0.1.0", git = "https://github.com/dr-bonez/yajrc" }
+yajrc = { version = "0.1.0", git = "https://github.com/dr-bonez/yajrc", rev = "c2952a4a21c50f7be6f8003afa37ee77deb66d56" }

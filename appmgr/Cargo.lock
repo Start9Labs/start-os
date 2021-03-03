@@ -2606,7 +2606,7 @@ dependencies = [
 [[package]]
 name = "yajrc"
 version = "0.1.0"
-source = "git+https://github.com/dr-bonez/yajrc#5a8df137808608accb69e78635fb6d70c4b1c2dc"
+source = "git+https://github.com/dr-bonez/yajrc?rev=c2952a4a21c50f7be6f8003afa37ee77deb66d56#c2952a4a21c50f7be6f8003afa37ee77deb66d56"
 dependencies = [
  "anyhow",
  "serde",
