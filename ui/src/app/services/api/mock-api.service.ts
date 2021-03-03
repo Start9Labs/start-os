@@ -125,7 +125,7 @@ export class MockApiService extends ApiService {
     return mockGetAppLogs()
   }
 
-  async getServerLogs (): Promise<string> {
+  async getServerLogs (): Promise<string[]> {
     return mockGetServerLogs()
   }
 
@@ -658,7 +658,7 @@ const mockApiAppLogs: string[] = [
   '****** FINISH *****',
 ]
 
-const mockApiServerLogs: string = [
+const mockApiServerLogs: string[] = [
   '****** START *****',
   '[ng] ℹ ｢wdm｣: Compiled successfully.',
   '[ng] ℹ ｢wdm｣: Compiling...',
@@ -741,7 +741,7 @@ const mockApiServerLogs: string = [
   '[ng] Date: 2019-12-26T14:23:13.812Z - Hash: 9342e11e6b8e16ad2f70',
   '[ng] 114 unchanged chunks',
   '****** FINISH *****',
-].join('\n')
+]
 
 const mockApiAppMetricsV1: AppMetricsVersioned<2> = {
   version: 2,
