@@ -103,7 +103,7 @@ export class AppActionsPage extends Cleanup {
       if (e instanceof HttpErrorResponse) {
         this.presentAlertActionFail(e.status, e.message)
       } else {
-        this.presentAlertActionFail(-1, e.message)
+        this.presentAlertActionFail(-1, e.message || JSON.stringify(e))
       }
     }
   }
