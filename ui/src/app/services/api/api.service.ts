@@ -39,10 +39,10 @@ export abstract class ApiService {
   abstract getAppMetrics (appId: string): Promise<AppMetrics>
   abstract getInstalledApps (): Promise<AppInstalledPreview[]>
   abstract getExternalDisks (): Promise<DiskInfo[]>
-  abstract getAppConfig (appId: string): Promise<{ spec: ConfigSpec, config: object, rules: Rules[]}>
+  abstract getAppConfig (appId: string): Promise<{ spec: ConfigSpec, config: object, rules: Rules[] }>
   abstract getAppLogs (appId: string, params?: ReqRes.GetAppLogsReq): Promise<string[]>
-  abstract getServerLogs (): Promise<string>
-  abstract installApp (appId: string, version: string, dryRun?: boolean): Promise<AppInstalledFull & { breakages: DependentBreakage[] }  >
+  abstract getServerLogs (): Promise<string[]>
+  abstract installApp (appId: string, version: string, dryRun?: boolean): Promise<AppInstalledFull & { breakages: DependentBreakage[] }>
   abstract uninstallApp (appId: string, dryRun?: boolean): Promise<{ breakages: DependentBreakage[] }>
   abstract startApp (appId: string): Promise<Unit>
   abstract stopApp (appId: string, dryRun?: boolean): Promise<{ breakages: DependentBreakage[] }>
@@ -51,7 +51,7 @@ export abstract class ApiService {
   abstract restoreAppBackup (appId: string, logicalname: string, password?: string): Promise<Unit>
   abstract stopAppBackup (appId: string): Promise<Unit>
   abstract patchAppConfig (app: AppInstalledPreview, config: object, dryRun?: boolean): Promise<{ breakages: DependentBreakage[] }>
-  abstract postConfigureDependency (dependencyId: string, dependentId: string, dryRun?: boolean): Promise< { config: object, breakages: DependentBreakage[] }>
+  abstract postConfigureDependency (dependencyId: string, dependentId: string, dryRun?: boolean): Promise<{ config: object, breakages: DependentBreakage[] }>
   abstract patchServerConfig (attr: string, value: any): Promise<Unit>
   abstract wipeAppData (app: AppInstalledPreview): Promise<Unit>
   abstract addSSHKey (sshKey: string): Promise<Unit>
@@ -66,11 +66,11 @@ export abstract class ApiService {
   abstract refreshLAN (): Promise<Unit>
 }
 
-export function isRpcFailure<Error, Result> (arg: { error: Error } | { result: Result}): arg is { error: Error } {
+export function isRpcFailure<Error, Result> (arg: { error: Error } | { result: Result }): arg is { error: Error } {
   return !!(arg as any).error
 }
 
-export function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result}): arg is { result: Result } {
+export function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result }): arg is { result: Result } {
   return !!(arg as any).result
 }
 
@@ -86,7 +86,7 @@ export module ReqRes {
   export type ServiceActionResponse = {
     jsonrpc: '2.0',
     id: string
-  } & ({ error: { code: number, message: string } } | { result : string })
+  } & ({ error: { code: number, message: string } } | { result: string })
   export type GetCheckAuthRes = { }
   export type GetServerRes = ApiServer
   export type GetVersionLatestRes = { versionLatest: string, releaseNotes: string }
@@ -100,7 +100,7 @@ export module ReqRes {
   export type GetAppLogsReq = { after?: string, before?: string, page?: string, perPage?: string }
   export type GetServerLogsReq = { }
   export type GetAppLogsRes = string[]
-  export type GetServerLogsRes = string
+  export type GetServerLogsRes = string[]
   export type GetAppMetricsRes = AppMetricsVersioned<number>
   export type GetAppsInstalledRes = AppInstalledPreview[]
   export type PostInstallAppReq = { version: string }

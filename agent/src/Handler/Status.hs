@@ -31,8 +31,6 @@ import           Control.Carrier.Lift           ( runM )
 import           System.Process
 import qualified UnliftIO
 import           System.FileLock
-import           Yesod.Core.Content             ( typePlain )
-import           Conduit
 
 getVersionR :: Handler AppVersionRes
 getVersionR = pure . AppVersionRes $ agentVersion
@@ -52,7 +50,8 @@ getSpecsR = handleS9ErrT $ do
     specsDisk       <- fmap show . metricDiskSize <$> getDfMetrics
     specsNetworkId  <- lift . runM . injectFilesystemBaseFromContext settings $ getStart9AgentHostname
     specsTorAddress <- lift . runM . injectFilesystemBaseFromContext settings $ getAgentHiddenServiceUrl
-    specsLanAddress <- fmap ( <> ".local" ) . lift . runM . injectFilesystemBaseFromContext settings $ getStart9AgentHostname
+    specsLanAddress <-
+        fmap (<> ".local") . lift . runM . injectFilesystemBaseFromContext settings $ getStart9AgentHostname
 
     let specsAgentVersion = agentVersion
     returnJsonEncoding SpecsRes { .. }
@@ -74,9 +73,9 @@ patchServerR = do
 getGitR :: Handler Text
 getGitR = pure $embedGitRevision
 
-getLogsR :: Handler TypedContent
+getLogsR :: Handler (JSONResponse [Text])
 getLogsR = do
     let debugLock = "/root/agent/tmp/debug.lock"
     UnliftIO.bracket (liftIO $ lockFile debugLock Exclusive) (liftIO . unlockFile) $ const $ do
         liftIO $ callCommand "journalctl -u agent --since \"1 hour ago\" > /root/agent/tmp/debug.log"
-        respondSource typePlain $ sourceFile "/root/agent/tmp/debug.log" .| awaitForever sendChunkBS
+        liftIO $ JSONResponse . lines <$> readFile "/root/agent/tmp/debug.log"
