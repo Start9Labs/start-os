@@ -235,11 +235,11 @@ export class MockApiService extends ApiService {
     return {
       jsonrpc: '2.0',
       id: '0',
-      // result: 'Congrats! you did ' + action.name,
-      error: {
-        code: 1,
-        message: 'woooo that was bad bad bad',
-      },
+      result: 'Congrats! you did\na new line: ' + action.name,
+      // error: {
+      //   code: 1,
+      //   message: 'woooo that was bad bad bad',
+      // },
     }
   }
 
