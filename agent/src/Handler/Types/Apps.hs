@@ -138,6 +138,7 @@ data AppInstalledFull = AppInstalledFull
     , appInstalledFullConfiguredRequirements :: [Stripped AppDependencyRequirement]
     , appInstalledFullUninstallAlert         :: Maybe Text
     , appInstalledFullRestoreAlert           :: Maybe Text
+    , appInstalledFullStartAlert             :: Maybe Text
     , appInstalledFullActions                :: [Manifest.Action]
     }
 instance ToJSON AppInstalledFull where
@@ -154,6 +155,7 @@ instance ToJSON AppInstalledFull where
         , "status" .= appInstalledFullStatus
         , "uninstallAlert" .= appInstalledFullUninstallAlert
         , "restoreAlert" .= appInstalledFullRestoreAlert
+        , "startAlert" .= appInstalledFullStartAlert
         , "actions" .= appInstalledFullActions
         ]
 

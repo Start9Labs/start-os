@@ -297,6 +297,7 @@ getInstalledAppByIdLogic appId = do
                 , appInstalledFullConfiguredRequirements = []
                 , appInstalledFullUninstallAlert         = Nothing
                 , appInstalledFullRestoreAlert           = Nothing
+                , appInstalledFullStartAlert             = Nothing
                 , appInstalledFullActions                = []
                 }
     serverApps <- AppMgr2.list [AppMgr2.flags|-s -d|]
@@ -339,6 +340,7 @@ getInstalledAppByIdLogic appId = do
                                   , appInstalledFullConfiguredRequirements = HM.elems requirements
                                   , appInstalledFullUninstallAlert = manifest >>= AppManifest.appManifestUninstallAlert
                                   , appInstalledFullRestoreAlert = manifest >>= AppManifest.appManifestRestoreAlert
+                                  , appInstalledFullStartAlert = manifest >>= AppManifest.appManifestStartAlert
                                   , appInstalledFullActions = fromMaybe [] $ AppManifest.appManifestActions <$> manifest
                                   }
     runMaybeT (installing <|> installed) `orThrowM` NotFoundE "appId" (show appId)

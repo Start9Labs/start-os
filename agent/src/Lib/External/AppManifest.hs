@@ -88,6 +88,7 @@ data AppManifest where
                     , appManifestDependencies :: HM.HashMap AppId VersionRange
                     , appManifestUninstallAlert :: Maybe Text
                     , appManifestRestoreAlert   :: Maybe Text
+                    , appManifestStartAlert :: Maybe Text
                     , appManifestActions :: [Action]
                     } -> AppManifest
 
@@ -110,6 +111,7 @@ instance FromJSON AppManifest where
         appManifestDependencies   <- o .:? "dependencies" .!= HM.empty >>= traverse parseDepInfo
         appManifestUninstallAlert <- o .:? "uninstall-alert"
         appManifestRestoreAlert   <- o .:? "restore-alert"
+        appManifestStartAlert     <- o .:? "start-alert"
         appManifestActions        <- o .: "actions"
         pure $ AppManifest { .. }
         where
