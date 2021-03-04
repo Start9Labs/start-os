@@ -106,6 +106,7 @@ sync_0_2_9 = Synchronizer
     [ syncCreateAgentTmp
     , syncCreateSshDir
     , syncRemoveAvahiSystemdDependency
+    , syncInstallLibAvahi
     , syncInstallAppMgr
     , syncFullUpgrade
     , sync32BitKernel
