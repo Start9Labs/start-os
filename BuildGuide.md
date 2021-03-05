@@ -127,19 +127,13 @@
       rustc --version
       cargo --version
       ```
-   1. Install OpenSSL
+   1. Install Dependencies & OpenSSL
       ```
       #Install dependencies
-      sudo apt-get install -y build-essential openssl libssl-dev libc6-dev clang libclang-dev upx
+      sudo apt-get install -y build-essential openssl libssl-dev libc6-dev clang libclang-dev libavahi-client-dev upx
       
       #Compile and install OpenSSL from source
       cd ~/ && wget https://www.openssl.org/source/openssl-1.1.1j.tar.gz && tar xzf openssl-1.1.1j.tar.gz && cd openssl-1.1.1j && MACHINE=armv7 ARCH=arm CC=arm-linux-gnueabihf-gcc ./config shared && MACHINE=armv7 ARCH=arm CC=arm-linux-gnueabihf-gcc make
-      
-      #Set enviroment variables
-      export ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_LIB_DIR=~/openssl-1.1.1j
-      export ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_INCLUDE_DIR=~/openssl-1.1.1j/include
-      export TARGET_CC=arm-linux-gnueabihf-gcc
-      export TARGET_CXX=arm-linux-gnueabihf-g++
       ```
 
 7. Finally, getting to build the **.img**
