@@ -137,7 +137,7 @@ instance FromJSON LanConfiguration where
             standard =
                 withText "Standard Lan" \t -> if t == "standard" then pure Standard else fail "Not Standard Lan Conf"
             custom = withObject "Custom Lan" $ \o -> do
-                Custom <$> o .: "port"
+                Custom <$> (o .: "custom" >>= (.: "port"))
 data PortMapEntry = PortMapEntry
     { portMapEntryInternal :: Word16
     , portMapEntryTor      :: Word16
