@@ -4,8 +4,8 @@ import { AppModel, AppStatus } from '../../models/app-model'
 import { AppAvailablePreview, AppAvailableFull, AppInstalledFull, AppInstalledPreview, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerModel, DiskInfo } from '../../models/server-model'
 import { ApiService, ReqRes } from './api.service'
-import { ApiServer, Unit } from './api-types'
-import { HttpClient, HttpErrorResponse } from '@angular/common/http'
+import { ApiAppInstalledPreview, ApiServer, Unit } from './api-types'
+import { HttpErrorResponse } from '@angular/common/http'
 import { isUnauthorized } from 'src/app/util/web.util'
 import { Replace } from 'src/app/util/types.util'
 import { AppMetrics, parseMetricsPermissive } from 'src/app/util/metrics.util'
@@ -13,7 +13,7 @@ import { modulateTime } from 'src/app/util/misc.util'
 import { Observable, of, throwError } from 'rxjs'
 import { catchError, mapTo } from 'rxjs/operators'
 import * as uuid from 'uuid'
-import { METHODS } from 'http'
+import { ConfigService } from '../config.service'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -22,6 +22,7 @@ export class LiveApiService extends ApiService {
     // TODO remove app + server model from here. updates to state should be done in a separate class wrapping ApiService + App/ServerModel
     private readonly appModel: AppModel,
     private readonly serverModel: ServerModel,
+    private readonly config: ConfigService,
   ) { super() }
 
   testConnection(url: string): Promise<true> {
@@ -116,11 +117,27 @@ export class LiveApiService extends ApiService {
 
   async getInstalledApp(appId: string): Promise<AppInstalledFull> {
     return this.authRequest<ReqRes.GetAppInstalledRes>({ method: Method.GET, url: `/apps/${appId}/installed` })
-      .then(app => ({ ...app, hasFetchedFull: true }))
+      .then(app => {
+        return {
+          ...app,
+          hasFetchedFull: true,
+          hasUI: this.config.hasUI(app),
+          launchable: this.config.isLaunchable(app),
+        }
+      })
   }
 
   async getInstalledApps(): Promise<AppInstalledPreview[]> {
     return this.authRequest<ReqRes.GetAppsInstalledRes>({ method: Method.GET, url: `/apps/installed` })
+      .then(apps => {
+        return apps.map(app => {
+          return {
+            ...app,
+            hasUI: this.config.hasUI(app),
+            launchable: this.config.isLaunchable(app),
+          }
+        })
+      })
   }
 
   async getAppConfig(appId: string): Promise<ReqRes.GetAppConfigRes> {
@@ -145,7 +162,14 @@ export class LiveApiService extends ApiService {
       version,
     }
     return this.authRequest<ReqRes.PostInstallAppRes>({ method: Method.POST, url: `/apps/${appId}/install${dryRunParam(dryRun, true)}`, data })
-      .then(res => ({ ...res, hasFetchedFull: false }))
+      .then(app => {
+        return {
+          ...app,
+          hasFetchedFull: false,
+          hasUI: this.config.hasUI(app),
+          launchable: this.config.isLaunchable(app),
+        }
+      })
   }
 
   async uninstallApp(appId: string, dryRun: boolean = false): Promise<{ breakages: DependentBreakage[] }> {

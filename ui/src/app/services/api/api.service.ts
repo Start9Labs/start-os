@@ -2,7 +2,7 @@ import { Rules } from '../../models/app-model'
 import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerMetrics, DiskInfo } from '../../models/server-model'
 import { Subject, Observable } from 'rxjs'
-import { Unit, ApiServer, ApiAppInstalledFull, ApiAppConfig, ApiAppAvailableFull } from './api-types'
+import { Unit, ApiServer, ApiAppInstalledFull, ApiAppConfig, ApiAppAvailableFull, ApiAppInstalledPreview } from './api-types'
 import { AppMetrics, AppMetricsVersioned } from 'src/app/util/metrics.util'
 import { ConfigSpec } from 'src/app/app-config/config-types'
 
@@ -102,7 +102,7 @@ export module ReqRes {
   export type GetAppLogsRes = string[]
   export type GetServerLogsRes = string[]
   export type GetAppMetricsRes = AppMetricsVersioned<number>
-  export type GetAppsInstalledRes = AppInstalledPreview[]
+  export type GetAppsInstalledRes = ApiAppInstalledPreview[]
   export type PostInstallAppReq = { version: string }
   export type PostInstallAppRes = ApiAppInstalledFull & { breakages: DependentBreakage[] }
   export type PostUpdateAgentReq = { version: string }

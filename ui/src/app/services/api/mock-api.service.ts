@@ -4,9 +4,10 @@ import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalle
 import { S9Notification, SSHFingerprint, ServerStatus, ServerModel, DiskInfo } from '../../models/server-model'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService, ReqRes } from './api.service'
-import { ApiServer, Unit as EmptyResponse, Unit } from './api-types'
+import { ApiAppInstalledFull, ApiAppInstalledPreview, ApiServer, Unit as EmptyResponse, Unit } from './api-types'
 import { AppMetrics, AppMetricsVersioned, parseMetricsPermissive } from 'src/app/util/metrics.util'
 import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppInstalledFull, mockAppDependentBreakages, toInstalledPreview } from './mock-app-fixures'
+import { ConfigService } from '../config.service'
 
 //@TODO consider moving to test folders.
 @Injectable()
@@ -16,6 +17,7 @@ export class MockApiService extends ApiService {
   constructor (
     private readonly appModel: AppModel,
     private readonly serverModel: ServerModel,
+    private readonly config: ConfigService,
   ) {
     super()
   }
@@ -107,6 +109,14 @@ export class MockApiService extends ApiService {
 
   async getInstalledApp (appId: string): Promise<AppInstalledFull> {
     return mockGetInstalledApp(appId)
+      .then(app => {
+        return {
+          ...app,
+          hasFetchedFull: false,
+          hasUI: this.hasUI(app),
+          launchable: this.isLaunchable(app),
+        }
+      })
   }
 
   async getAppMetrics (appId: string): Promise<AppMetrics> {
@@ -115,6 +125,15 @@ export class MockApiService extends ApiService {
 
   async getInstalledApps (): Promise<AppInstalledPreview[]> {
     return mockGetInstalledApps()
+      .then(apps => {
+        return apps.map(app => {
+          return {
+            ...app,
+            hasUI: this.hasUI(app),
+            launchable: this.isLaunchable(app),
+          }
+        })
+      })
   }
 
   async getAppConfig (appId: string): Promise<ReqRes.GetAppConfigRes> {
@@ -131,6 +150,14 @@ export class MockApiService extends ApiService {
 
   async installApp (appId: string, version: string, dryRun: boolean): Promise<AppInstalledFull & { breakages: DependentBreakage[] }> {
     return mockInstallApp(appId)
+      .then(app => {
+        return {
+          ...app,
+          hasFetchedFull: true,
+          hasUI: this.hasUI(app),
+          launchable: this.isLaunchable(app),
+        }
+      })
   }
 
   async uninstallApp (appId: string, dryRun: boolean): Promise<{ breakages: DependentBreakage[] }> {
@@ -230,7 +257,6 @@ export class MockApiService extends ApiService {
   }
 
   async serviceAction (appId: string, action: ServiceAction): Promise<ReqRes.ServiceActionResponse> {
-    console.log('service action', appId, action)
     await pauseFor(1000)
     return {
       jsonrpc: '2.0',
@@ -243,8 +269,21 @@ export class MockApiService extends ApiService {
     }
   }
 
-  refreshLAN (): Promise<Unit> {
+  async refreshLAN (): Promise<Unit> {
     return mockRefreshLAN()
+  }
+
+  private hasUI (app: ApiAppInstalledPreview): boolean {
+    return app.lanUi || app.torUi
+  }
+
+  private isLaunchable (app: ApiAppInstalledPreview): boolean {
+    return !this.config.isConsulate && 
+      app.status === AppStatus.RUNNING &&
+      (
+        (app.torAddress && app.torUi && this.config.isTor()) ||
+        (app.lanAddress && app.lanUi && !this.config.isTor())
+      )
   }
 }
 
@@ -294,12 +333,12 @@ async function mockGetAvailableApps (): Promise<ReqRes.GetAppsAvailableRes> {
   return Object.values(mockApiAppAvailableFull)
 }
 
-async function mockGetInstalledApp (appId: string): Promise<AppInstalledFull> {
+async function mockGetInstalledApp (appId: string): Promise<ReqRes.GetAppInstalledRes> {
   await pauseFor(1000)
-  return { ...mockApiAppInstalledFull[appId], hasFetchedFull: true }
+  return { ...mockApiAppInstalledFull[appId] }
 }
 
-async function mockGetInstalledApps (): Promise<AppInstalledPreview[]> {
+async function mockGetInstalledApps (): Promise<ApiAppInstalledPreview[]> {
   await pauseFor(1000)
   return Object.values(mockApiAppInstalledFull).map(toInstalledPreview).filter(({ versionInstalled}) => !!versionInstalled)
 }
@@ -329,9 +368,9 @@ async function mockGetAppConfig (): Promise<ReqRes.GetAppConfigRes> {
   return mockApiAppConfig
 }
 
-async function mockInstallApp (appId: string): Promise<AppInstalledFull & { breakages: DependentBreakage[] }> {
+async function mockInstallApp (appId: string): Promise<ApiAppInstalledFull & { breakages: DependentBreakage[] }> {
   await pauseFor(1000)
-  return { ...mockApiAppInstalledFull[appId], hasFetchedFull: true, ...mockAppDependentBreakages }
+  return { ...mockApiAppInstalledFull[appId], ...mockAppDependentBreakages }
 }
 
 async function mockUninstallApp (): Promise< { breakages: DependentBreakage[] } > {

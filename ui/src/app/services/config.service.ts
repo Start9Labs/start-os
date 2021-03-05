@@ -1,4 +1,6 @@
 import { Injectable } from '@angular/core'
+import { AppStatus } from '../models/app-model'
+import { ApiAppInstalledPreview } from './api/api-types'
 
 const { useMocks, mockOver, skipStartupAlerts } = require('../../../use-mocks.json') as UseMocks
 
@@ -22,12 +24,25 @@ export class ConfigService {
   }
 
   skipStartupAlerts  = skipStartupAlerts
-  isConsulateIos     = window['platform'] === 'ios'
-  isConsulateAndroid = window['platform'] === 'android'
+  isConsulate        = window['platform'] === 'ios'
 
   isTor () : boolean {
     return (this.api.useMocks && mockOver === 'tor') || this.origin.endsWith('.onion')
   }
+
+  hasUI (app: ApiAppInstalledPreview): boolean {
+    return app.lanUi || app.torUi
+  }
+
+  isLaunchable (app: ApiAppInstalledPreview): boolean {
+    return !this.isConsulate && 
+      app.status === AppStatus.RUNNING &&
+      (
+        (app.torAddress && app.torUi && this.isTor()) ||
+        (app.lanAddress && app.lanUi && !this.isTor())
+      )
+  }
+
 }
 
 function removeProtocol (str: string): string {

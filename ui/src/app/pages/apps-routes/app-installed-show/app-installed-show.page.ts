@@ -32,8 +32,8 @@ export class AppInstalledShowPage extends Cleanup {
   appId: string
   AppStatus = AppStatus
   showInstructions = false
-  isConsulate: boolean
-  isTor: boolean
+
+  hideLAN: boolean
 
   dependencyDefintion = () => `<span style="font-style: italic">Dependencies</span> are other services which must be installed, configured appropriately, and started in order to start ${this.app.title.getValue()}`
 
@@ -51,11 +51,9 @@ export class AppInstalledShowPage extends Cleanup {
     private readonly wizardBaker: WizardBaker,
     private readonly appModel: AppModel,
     private readonly popoverController: PopoverController,
-    config: ConfigService,
+    private readonly config: ConfigService,
   ) {
     super()
-    this.isConsulate = config.isConsulateIos || config.isConsulateAndroid
-    this.isTor = config.isTor()
   }
 
   async ngOnInit () {
@@ -64,8 +62,12 @@ export class AppInstalledShowPage extends Cleanup {
     this.cleanup(
       markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId))
         .pipe(
-          tap(app => this.app = app),
-          concatMap(() => this.syncWhenDependencyInstalls()), //must be final in stack
+          tap(app => {
+            this.app = app
+            const appP = peekProperties(this.app)
+            this.hideLAN = !appP.lanAddress || (appP.id === 'mastodon' && appP.versionInstalled === '3.3.0') // @TODO delete this hack in 0.3.0
+          }),
+          concatMap(() => this.syncWhenDependencyInstalls()), // must be final in stack
           catchError(e => of(this.setError(e))),
         ).subscribe(),
     )
@@ -98,7 +100,7 @@ export class AppInstalledShowPage extends Cleanup {
 
   async launchUiTab () {
     let uiAddress: string
-    if (this.isTor) {
+    if (this.config.isTor()) {
       uiAddress = `http://${this.app.torAddress.getValue()}`
     } else {
       uiAddress = `https://${this.app.lanAddress.getValue()}`

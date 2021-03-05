@@ -22,11 +22,17 @@
     <ion-grid>
       <ion-row>
         <ion-col *ngFor="let app of apps" sizeXs="4" sizeSm="3" sizeMd="2" sizeLg="2">
-          <ng-container *ngIf="{ status: app.subject.status | async, ui: app.subject.ui | async, iconURL: app.subject.iconURL | async | iconParse, title: app.subject.title | async } as vars"  >
+          <ng-container *ngIf="{
+            status: app.subject.status | async,
+            hasUI: app.subject.hasUI | async,
+            launchable: app.subject.launchable | async,
+            iconURL: app.subject.iconURL | async | iconParse,
+            title: app.subject.title | async
+          } as vars">
 
-            <ion-card class="installed-card" [class.installed-card-on]="vars.status === 'RUNNING'" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
-              <div class="launch-container" *ngIf="vars.ui && !isConsulate">
-                <div class="launch-button-triangle"  (click)="launchUiTab(app.id, $event)" [class.disabled]="vars.status !== AppStatus.RUNNING">
+            <ion-card class="installed-card" style="position:relative" [routerLink]="['/services', 'installed', app.id]">
+              <div class="launch-container" *ngIf="vars.hasUI">
+                <div class="launch-button-triangle"  (click)="launchUiTab(app.id, $event)" [class.disabled]="!vars.launchable">
                   <ion-icon name="rocket-outline"></ion-icon>
                 </div>
               </div>

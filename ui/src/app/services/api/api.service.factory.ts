@@ -7,8 +7,8 @@ import { ConfigService } from '../config.service'
 
 export function ApiServiceFactory (config: ConfigService, http: HttpService, appModel: AppModel, serverModel: ServerModel) {
   if (config.api.useMocks) {
-    return new MockApiService(appModel, serverModel)
+    return new MockApiService(appModel, serverModel, config)
   } else {
-    return new LiveApiService(http, appModel, serverModel)
+    return new LiveApiService(http, appModel, serverModel, config)
   }
 }
