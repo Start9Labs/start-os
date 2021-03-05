@@ -5,6 +5,7 @@ apt install -y tor
 apt install -y docker.io
 apt install -y iotop
 apt install -y bmon
+apt install -y libavahi-client3
 apt autoremove -y
 mkdir -p /root/volumes
 mkdir -p /root/tmp/appmgr
