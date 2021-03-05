@@ -71,7 +71,7 @@ export const bitcoinI: ApiAppInstalledFull = {
 }
 
 export const lightningI: ApiAppInstalledFull = {
-  id: 'lightning',
+  id: 'c-lightning',
   lanAddress: 'lightningLan.local',
   status: AppStatus.RUNNING,
   title: 'C Lightning',
