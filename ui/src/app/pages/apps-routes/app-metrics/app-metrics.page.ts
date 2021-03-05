@@ -130,7 +130,6 @@ export class AppMetricsPage {
 
   toggleMask (key: string) {
     this.unmasked[key] = !this.unmasked[key]
-    console.log(this.unmasked)
   }
 
   asIsOrder (a: any, b: any) {

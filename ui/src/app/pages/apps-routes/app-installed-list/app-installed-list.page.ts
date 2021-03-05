@@ -35,19 +35,15 @@ export class AppInstalledListPage extends Cleanup {
   segmentValue: 'services' | 'embassy' = 'services'
 
   showCertDownload : boolean
-  isConsulate: boolean
-  isTor: boolean
 
   constructor (
     private readonly serverModel: ServerModel,
     private readonly appModel: AppModel,
     private readonly preload: ModelPreload,
     private readonly syncDaemon: SyncDaemon,
-    config: ConfigService,
+    private readonly config: ConfigService,
   ) {
     super()
-    this.isConsulate = config.isConsulateAndroid || config.isConsulateIos
-    this.isTor = config.isTor()
   }
 
   ngOnDestroy () {
@@ -105,12 +101,11 @@ export class AppInstalledListPage extends Cleanup {
     const app = this.apps.find(app => app.id === id).subject
 
     let uiAddress: string
-    if (this.isTor) {
+    if (this.config.isTor()) {
       uiAddress = `http://${app.torAddress.getValue()}`
     } else {
       uiAddress = `https://${app.lanAddress.getValue()}`
     }
-    console.log(uiAddress)
     return window.open(uiAddress, '_blank')
   }
 

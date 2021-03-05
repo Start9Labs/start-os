@@ -37,18 +37,23 @@ export interface AppInstalledPreview extends BaseApp {
   lanAddress?: string
   torAddress: string
   versionInstalled: string
-  ui: boolean
+  lanUi: boolean
+  torUi: boolean
+  // FE state only
+  hasUI: boolean
+  launchable: boolean
 }
 
 export interface AppInstalledFull extends AppInstalledPreview {
   instructions: string | null
   lastBackup: string | null
   configuredRequirements: AppDependency[] | null // null if not yet configured
-  hasFetchedFull: boolean
   startAlert?: string
   uninstallAlert?: string
   restoreAlert?: string
   actions: Actions
+  // FE state only
+  hasFetchedFull: boolean
 }
 
 export type Actions = ServiceAction[]

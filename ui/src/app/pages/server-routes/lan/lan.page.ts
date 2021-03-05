@@ -16,10 +16,8 @@ export class LANPage {
   lanDocs = 'docs.start9labs.com/user-manual/general/secure-lan'
 
   lanAddress: string
-  isTor: boolean
   fullDocumentationLink: string
-  isConsulate: boolean
-  lanDisabled: LanSetupIssue = undefined
+  lanDisabled: LanSetupIssue
   readonly lanDisabledExplanation: { [k in LanSetupIssue]: string } = {
     NotDesktop: `We have detected you are on a mobile device. To setup LAN on a mobile device, use the Start9 Setup App.`,
     NotTor: `We have detected you are not using a Tor connection. For security reasons, you must setup LAN over a Tor connection. Please navigate to your Embassy Tor Address and try again.`,
@@ -39,8 +37,6 @@ export class LANPage {
     } else if (!this.config.isTor()) {
       this.lanDisabled = 'NotTor'
     }
-
-    this.isConsulate = this.config.isConsulateIos || this.config.isConsulateAndroid
 
     if (this.config.isTor()) {
       this.fullDocumentationLink = `http://${this.torDocs}`

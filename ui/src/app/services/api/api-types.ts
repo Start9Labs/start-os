@@ -1,5 +1,5 @@
 import { ConfigSpec } from 'src/app/app-config/config-types'
-import { AppAvailableFull, AppInstalledFull } from 'src/app/models/app-types'
+import { AppAvailableFull, AppInstalledFull, AppInstalledPreview } from 'src/app/models/app-types'
 import { Rules } from '../../models/app-model'
 import { SSHFingerprint, ServerStatus, ServerSpecs } from '../../models/server-model'
 
@@ -23,7 +23,9 @@ export interface ApiServer {
 
 /** APPS **/
 export type ApiAppAvailableFull = Omit<AppAvailableFull, 'versionViewing'>
-export type ApiAppInstalledFull = Omit<AppInstalledFull, 'hasFetchedFull'>
+
+export type ApiAppInstalledPreview = Omit<AppInstalledPreview, 'hasUI' | 'launchable'>
+export type ApiAppInstalledFull = Omit<AppInstalledFull, 'hasFetchedFull' | 'hasUI' | 'launchable'>
 
 export interface ApiAppConfig {
   spec: ConfigSpec

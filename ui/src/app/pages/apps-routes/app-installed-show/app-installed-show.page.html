@@ -20,7 +20,8 @@
      hasFetchedFull: app.hasFetchedFull | async,
      iconURL: app.iconURL | async,
      title: app.title | async,
-     ui: app.ui | async,
+     hasUI: app.hasUI | async,
+     launchable: app.launchable | async,
      lanAddress: app.lanAddress | async
   } as vars" class="ion-padding-bottom">
   <ion-spinner *ngIf="$loading$ | async" class="center" name="lines" color="warning"></ion-spinner>
@@ -77,7 +78,7 @@
         </ion-label>
       </ion-item>
 
-      <ion-button size="small" *ngIf="vars.status === AppStatus.RUNNING && vars.ui && !isConsulate" class="launch-button" expand="block" fill="outline" (click)="launchUiTab()">
+      <ion-button size="small" *ngIf="vars.hasUI" [disabled]="!vars.launchable" class="launch-button" expand="block" (click)="launchUiTab()">
         Launch Web Interface
         <ion-icon slot="end" name="rocket-outline"></ion-icon>
       </ion-button>
@@ -96,7 +97,7 @@
             <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
           </ion-button>
         </ion-item>
-        <ion-item *ngIf="vars.lanAddress" lines="none">
+        <ion-item *ngIf="!hideLAN" lines="none">
           <ion-label class="ion-text-wrap">
             <h2>LAN Address</h2>
             <p>{{ vars.lanAddress }}</p>
