@@ -35,12 +35,22 @@ pub async fn enable_lan() -> Result<(), Error> {
         hostname_buf[16] = 5; // set the prefix length to 5 for "local"
 
         for (app_id, app_info) in app_list {
-            let tor_address = app_info.tor_address;
+            let man = crate::apps::manifest(&app_id).await?;
+            if man
+                .ports
+                .iter()
+                .filter(|p| p.lan.is_some())
+                .next()
+                .is_none()
+            {
+                continue;
+            }
+            let tor_address = if let Some(addr) = app_info.tor_address {
+                addr
+            } else {
+                continue;
+            };
             let lan_address = tor_address
-                .as_ref()
-                .ok_or_else(|| {
-                    failure::format_err!("Service {} does not have Tor Address", app_id)
-                })?
                 .strip_suffix(".onion")
                 .ok_or_else(|| failure::format_err!("Invalid Tor Address: {:?}", tor_address))?
                 .to_owned()
