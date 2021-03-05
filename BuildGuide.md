@@ -191,6 +191,7 @@
       sudo reboot
       ```
    1. After a few minutes, the raspi should reboot itself and make it's first sounds.
+      > :information_source: If needed, you can check the `agent` log with: `journalctl -u agent -ef`
       * Short Beep = Raspi finished reboot/startup sequence.
       * Mario "Coin" = EmbassyOS has started.
       * Mario "Death" = Raspi is about to Shutdown/Reboot.
