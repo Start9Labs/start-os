@@ -7,29 +7,29 @@
 {-# LANGUAGE TypeApplications #-}
 module Handler.Apps where
 
-import           Startlude               hiding ( modify
-                                                , execState
+import           Startlude               hiding ( Reader
                                                 , asks
-                                                , Reader
-                                                , runReader
                                                 , catchError
-                                                , forkFinally
                                                 , empty
+                                                , execState
+                                                , forkFinally
+                                                , modify
+                                                , runReader
                                                 )
 
-import           Control.Carrier.Reader
 import           Control.Carrier.Error.Church
 import           Control.Carrier.Lift
+import           Control.Carrier.Reader
 import qualified Control.Concurrent.Async.Lifted
                                                as LAsync
 import qualified Control.Concurrent.Lifted     as Lifted
-import qualified Control.Exception.Lifted      as Lifted
 import           Control.Concurrent.STM.TVar
 import           Control.Effect.Empty    hiding ( guard )
 import           Control.Effect.Labelled        ( HasLabelled
                                                 , Labelled
                                                 , runLabelled
                                                 )
+import qualified Control.Exception.Lifted      as Lifted
 import           Control.Lens            hiding ( (??) )
 import           Control.Monad.Logger
 import           Control.Monad.Trans.Control    ( MonadBaseControl )
@@ -38,13 +38,13 @@ import           Data.Aeson
 import           Data.Aeson.Lens
 import           Data.Aeson.Types               ( parseMaybe )
 import qualified Data.ByteString.Lazy          as LBS
-import           Data.IORef
 import qualified Data.HashMap.Lazy             as HML
 import qualified Data.HashMap.Strict           as HM
+import           Data.IORef
 import qualified Data.List.NonEmpty            as NE
 import           Data.Singletons
-import           Data.Singletons.Prelude.Bool   ( SBool(..)
-                                                , If
+import           Data.Singletons.Prelude.Bool   ( If
+                                                , SBool(..)
                                                 )
 import           Data.Singletons.Prelude.List   ( Elem )
 import qualified Data.Text                     as Text
@@ -55,8 +55,8 @@ import           Exinst
 import           Network.HTTP.Types
 import qualified Network.JSONRPC               as JSONRPC
 import           Yesod.Core.Content
-import           Yesod.Core.Json
 import           Yesod.Core.Handler      hiding ( cached )
+import           Yesod.Core.Json
 import           Yesod.Core.Types               ( JSONResponse(..) )
 import           Yesod.Persist.Core
 
@@ -70,9 +70,9 @@ import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
 import           Lib.Algebra.State.RegistryUrl
 import           Lib.Background
 import           Lib.Error
+import qualified Lib.External.AppManifest      as AppManifest
 import qualified Lib.External.AppMgr           as AppMgr
 import qualified Lib.External.Registry         as Reg
-import qualified Lib.External.AppManifest      as AppManifest
 import           Lib.IconCache
 import qualified Lib.Notifications             as Notifications
 import           Lib.SystemPaths
@@ -249,19 +249,28 @@ getInstalledAppsLogic = do
                 , appInstalledPreviewVersionInstalled = storeAppVersionInfoVersion
                 , appInstalledPreviewTorAddress       = Nothing
                 , appInstalledPreviewLanAddress       = Nothing
-                , appInstalledPreviewUi               = False
+                , appInstalledPreviewTorUi            = False
+                , appInstalledPreviewLanUi            = False
                 }
         installedPreviews = flip
             HML.mapWithKey
             remapped
             \appId (s, v, AppMgr2.InfoRes {..}) ->
-                let lanAddress = LanAddress . (".onion" `Text.replace` ".local") . unTorAddress <$> infoResTorAddress
+                let
+                    mLanAddress = do -- Maybe
+                        addrBase <- infoResTorAddress
+                        let
+                            lanConfs = mapMaybe AppManifest.portMapEntryLan
+                                $ AppManifest.appManifestPortMapping infoResManifest
+                        guard (not . null $ lanConfs)
+                        pure $ LanAddress . (".onion" `Text.replace` ".local") . unTorAddress $ addrBase
                 in  AppInstalledPreview { appInstalledPreviewBase = AppBase appId infoResTitle (iconUrl appId v)
-                                        , appInstalledPreviewStatus           = s
+                                        , appInstalledPreviewStatus = s
                                         , appInstalledPreviewVersionInstalled = v
-                                        , appInstalledPreviewTorAddress       = infoResTorAddress
-                                        , appInstalledPreviewLanAddress       = lanAddress
-                                        , appInstalledPreviewUi               = AppManifest.uiAvailable infoResManifest
+                                        , appInstalledPreviewTorAddress = infoResTorAddress
+                                        , appInstalledPreviewLanAddress = mLanAddress
+                                        , appInstalledPreviewTorUi = AppManifest.torUiAvailable infoResManifest
+                                        , appInstalledPreviewLanUi = AppManifest.lanUiAvailable infoResManifest
                                         }
 
     pure $ HML.elems $ HML.union installingPreviews installedPreviews

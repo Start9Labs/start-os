@@ -47,7 +47,8 @@ data AppInstalledPreview = AppInstalledPreview
     , appInstalledPreviewVersionInstalled :: Version
     , appInstalledPreviewTorAddress       :: Maybe TorAddress
     , appInstalledPreviewLanAddress       :: Maybe LanAddress
-    , appInstalledPreviewUi               :: Bool
+    , appInstalledPreviewTorUi            :: Bool
+    , appInstalledPreviewLanUi            :: Bool
     }
     deriving (Eq, Show)
 instance ToJSON AppInstalledPreview where
@@ -56,7 +57,8 @@ instance ToJSON AppInstalledPreview where
         , "versionInstalled" .= appInstalledPreviewVersionInstalled
         , "torAddress" .= (unTorAddress <$> appInstalledPreviewTorAddress)
         , "lanAddress" .= (unLanAddress <$> appInstalledPreviewLanAddress)
-        , "ui" .= appInstalledPreviewUi
+        , "torUi" .= appInstalledPreviewTorUi
+        , "lanUi" .= appInstalledPreviewLanUi
         ]
 
 data InstallNewAppReq = InstallNewAppReq
