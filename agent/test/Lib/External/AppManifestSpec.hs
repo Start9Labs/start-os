@@ -87,6 +87,11 @@ ports:
   - internal: 80
     tor: 80
     lan: standard
+  - internal: 443
+    tor: 443
+    lan:
+      custom:
+        port: 443
   - internal: 3000
     tor: 3000
     lan: ~
