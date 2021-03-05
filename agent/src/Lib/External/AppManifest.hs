@@ -9,12 +9,12 @@ import           Data.Aeson
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.Yaml                     as Yaml
 
+import           Control.Monad.Fail             ( MonadFail(fail) )
 import           Lib.Error
 import           Lib.SystemPaths
 import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Lib.Types.Emver.Orphans        ( )
-import           Control.Monad.Fail             ( MonadFail(fail) )
 
 data ImageType = ImageTypeTar
     deriving (Eq, Show)
@@ -54,6 +54,7 @@ data Action = Action
     , actionWarning         :: Maybe Text
     , actionAllowedStatuses :: [AppContainerStatus]
     }
+    deriving Show
 instance FromJSON Action where
     parseJSON = withObject "AppAction" $ \o -> do
         actionId              <- o .: "id"
@@ -80,7 +81,7 @@ data AppManifest where
                     , appManifestDescShort :: Text
                     , appManifestDescLong :: Text
                     , appManifestReleaseNotes :: Text
-                    , appManifestPortMapping :: HM.HashMap Word16 Word16
+                    , appManifestPortMapping :: [PortMapEntry]
                     , appManifestImageType :: ImageType
                     , appManifestMount :: FilePath
                     , appManifestAssets :: [AssetMapping]
@@ -91,9 +92,16 @@ data AppManifest where
                     , appManifestStartAlert :: Maybe Text
                     , appManifestActions :: [Action]
                     } -> AppManifest
+deriving instance Show AppManifest
 
-uiAvailable :: AppManifest -> Bool
-uiAvailable AppManifest {..} = isJust $ HM.lookup 80 appManifestPortMapping
+torUiAvailable :: AppManifest -> Bool
+torUiAvailable AppManifest {..} = any (== 80) $ portMapEntryTor <$> appManifestPortMapping
+
+lanUiAvailable :: AppManifest -> Bool
+lanUiAvailable AppManifest {..} = any id $ fmap portMapEntryLan appManifestPortMapping <&> \case
+    Just Standard     -> True
+    Just (Custom 443) -> True
+    _                 -> False
 
 instance FromJSON AppManifest where
     parseJSON = withObject "App Manifest " $ \o -> do
@@ -103,7 +111,7 @@ instance FromJSON AppManifest where
         appManifestDescShort      <- o .: "description" >>= (.: "short")
         appManifestDescLong       <- o .: "description" >>= (.: "long")
         appManifestReleaseNotes   <- o .: "release-notes"
-        appManifestPortMapping    <- o .: "ports" >>= fmap HM.fromList . traverse parsePortMapping
+        appManifestPortMapping    <- o .: "ports"
         appManifestImageType      <- o .: "image" >>= (.: "type")
         appManifestMount          <- o .: "mount"
         appManifestAssets         <- o .: "assets" >>= traverse parseJSON
@@ -114,12 +122,31 @@ instance FromJSON AppManifest where
         appManifestStartAlert     <- o .:? "start-alert"
         appManifestActions        <- o .: "actions"
         pure $ AppManifest { .. }
-        where
-            parsePortMapping = withObject "Port Mapping" $ \o -> liftA2 (,) (o .: "tor") (o .: "internal")
-            parseDepInfo     = withObject "Dep Info" $ (.: "version")
+        where parseDepInfo = withObject "Dep Info" $ (.: "version")
 
 getAppManifest :: (MonadIO m, HasFilesystemBase sig m) => AppId -> S9ErrT m (Maybe AppManifest)
 getAppManifest appId = do
     base <- ask @"filesystemBase"
     ExceptT $ first (ManifestParseE appId) <$> liftIO
         (Yaml.decodeFileEither . toS $ (appMgrAppPath appId <> "manifest.yaml") `relativeTo` base)
+
+data LanConfiguration = Standard | Custom Word16 deriving (Eq, Show)
+instance FromJSON LanConfiguration where
+    parseJSON = liftA2 (<|>) standard custom
+        where
+            standard =
+                withText "Standard Lan" \t -> if t == "standard" then pure Standard else fail "Not Standard Lan Conf"
+            custom = withObject "Custom Lan" $ \o -> do
+                Custom <$> o .: "port"
+data PortMapEntry = PortMapEntry
+    { portMapEntryInternal :: Word16
+    , portMapEntryTor      :: Word16
+    , portMapEntryLan      :: Maybe LanConfiguration
+    }
+    deriving (Eq, Show)
+instance FromJSON PortMapEntry where
+    parseJSON = withObject "Port Map Entry" $ \o -> do
+        portMapEntryInternal <- o .: "internal"
+        portMapEntryTor      <- o .: "tor"
+        portMapEntryLan      <- o .:? "lan"
+        pure PortMapEntry { .. }
