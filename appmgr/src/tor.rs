@@ -33,9 +33,18 @@ impl<'de> serde::de::Deserialize<'de> for PortMapping {
         pub struct PortMappingIF {
             pub internal: u16,
             pub tor: u16,
-            #[serde(default)]
+            #[serde(default, deserialize_with = "deserialize_some")]
             pub lan: Option<Option<LanOptions>>,
         }
+
+        fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+        where
+            T: serde::de::Deserialize<'de>,
+            D: serde::de::Deserializer<'de>,
+        {
+            serde::de::Deserialize::deserialize(deserializer).map(Some)
+        }
+
         let input_format: PortMappingIF = serde::de::Deserialize::deserialize(deserializer)?;
         Ok(PortMapping {
             internal: input_format.internal,
