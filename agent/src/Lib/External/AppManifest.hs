@@ -101,6 +101,7 @@ lanUiAvailable :: AppManifest -> Bool
 lanUiAvailable AppManifest {..} = any id $ fmap portMapEntryLan appManifestPortMapping <&> \case
     Just Standard     -> True
     Just (Custom 443) -> True
+    Just (Custom 80 ) -> True
     _                 -> False
 
 instance FromJSON AppManifest where
