@@ -9,12 +9,12 @@ import           Data.Aeson
 import           Data.Aeson.Flatten
 import           Data.Singletons
 
+import qualified Lib.External.AppManifest      as Manifest
 import           Lib.TyFam.ConditionalData
 import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Lib.Types.Emver.Orphans        ( )
 import           Lib.Types.NetAddress
-import qualified Lib.External.AppManifest      as Manifest
 data AppBase = AppBase
     { appBaseId      :: AppId
     , appBaseTitle   :: Text
@@ -135,6 +135,8 @@ data AppInstalledFull = AppInstalledFull
     , appInstalledFullVersionInstalled       :: Version
     , appInstalledFullTorAddress             :: Maybe TorAddress
     , appInstalledFullLanAddress             :: Maybe LanAddress
+    , appInstalledFullTorUi                  :: Bool
+    , appInstalledFullLanUi                  :: Bool
     , appInstalledFullInstructions           :: Maybe Text
     , appInstalledFullLastBackup             :: Maybe UTCTime
     , appInstalledFullConfiguredRequirements :: [Stripped AppDependencyRequirement]
@@ -150,6 +152,8 @@ instance ToJSON AppInstalledFull where
         , "configuredRequirements" .= appInstalledFullConfiguredRequirements
         , "torAddress" .= (unTorAddress <$> appInstalledFullTorAddress)
         , "lanAddress" .= (unLanAddress <$> appInstalledFullLanAddress)
+        , "torUi" .= appInstalledFullTorUi
+        , "lanUi" .= appInstalledFullLanUi
         , "id" .= appBaseId appInstalledFullBase
         , "title" .= appBaseTitle appInstalledFullBase
         , "iconURL" .= appBaseIconUrl appInstalledFullBase
