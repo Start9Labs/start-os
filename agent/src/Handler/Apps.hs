@@ -303,6 +303,8 @@ getInstalledAppByIdLogic appId = do
                 , appInstalledFullLastBackup             = backupTime
                 , appInstalledFullTorAddress             = Nothing
                 , appInstalledFullLanAddress             = Nothing
+                , appInstalledFullTorUi                  = False
+                , appInstalledFullLanUi                  = False
                 , appInstalledFullConfiguredRequirements = []
                 , appInstalledFullUninstallAlert         = Nothing
                 , appInstalledFullRestoreAlert           = Nothing
@@ -335,22 +337,30 @@ getInstalledAppByIdLogic appId = do
                             (HM.lookup depId installCache $> AppStatusTmp Installing)
                                 <|> (view _1 <$> HM.lookup depId remapped)
                     pure $ dependencyInfoToDependencyRequirement (AsInstalled STrue) (base, depStatus, depInfo)
-            manifest     <- lift $ LAsync.wait manifest'
+            manifest <- (lift $ LAsync.wait manifest') >>= \case
+                Nothing -> throwError $ NotFoundE "manifest" (show appId)
+                Just x  -> pure x
             instructions <- lift $ LAsync.wait instructions'
             backupTime   <- lift $ LAsync.wait backupTime'
-            let lanAddress = LanAddress . (".onion" `Text.replace` ".local") . unTorAddress <$> infoResTorAddress
+            let lanAddress = do
+                    addrBase <- infoResTorAddress
+                    let lanConfs = mapMaybe AppManifest.portMapEntryLan $ AppManifest.appManifestPortMapping manifest
+                    guard (not . null $ lanConfs)
+                    pure $ LanAddress . (".onion" `Text.replace` ".local") . unTorAddress $ addrBase
             pure AppInstalledFull { appInstalledFullBase = AppBase appId infoResTitle (iconUrl appId version)
-                                  , appInstalledFullStatus = status
-                                  , appInstalledFullVersionInstalled = version
-                                  , appInstalledFullInstructions = instructions
-                                  , appInstalledFullLastBackup = backupTime
-                                  , appInstalledFullTorAddress = infoResTorAddress
-                                  , appInstalledFullLanAddress = lanAddress
+                                  , appInstalledFullStatus                 = status
+                                  , appInstalledFullVersionInstalled       = version
+                                  , appInstalledFullInstructions           = instructions
+                                  , appInstalledFullLastBackup             = backupTime
+                                  , appInstalledFullTorAddress             = infoResTorAddress
+                                  , appInstalledFullLanAddress             = lanAddress
+                                  , appInstalledFullTorUi                  = AppManifest.torUiAvailable manifest
+                                  , appInstalledFullLanUi                  = AppManifest.lanUiAvailable manifest
                                   , appInstalledFullConfiguredRequirements = HM.elems requirements
-                                  , appInstalledFullUninstallAlert = manifest >>= AppManifest.appManifestUninstallAlert
-                                  , appInstalledFullRestoreAlert = manifest >>= AppManifest.appManifestRestoreAlert
-                                  , appInstalledFullStartAlert = manifest >>= AppManifest.appManifestStartAlert
-                                  , appInstalledFullActions = fromMaybe [] $ AppManifest.appManifestActions <$> manifest
+                                  , appInstalledFullUninstallAlert = AppManifest.appManifestUninstallAlert manifest
+                                  , appInstalledFullRestoreAlert = AppManifest.appManifestRestoreAlert manifest
+                                  , appInstalledFullStartAlert             = AppManifest.appManifestStartAlert manifest
+                                  , appInstalledFullActions                = AppManifest.appManifestActions manifest
                                   }
     runMaybeT (installing <|> installed) `orThrowM` NotFoundE "appId" (show appId)
 
