@@ -97,12 +97,13 @@
             <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
           </ion-button>
         </ion-item>
-        <ion-item *ngIf="!hideLAN" lines="none">
+        <ion-item lines="none">
           <ion-label class="ion-text-wrap">
             <h2>LAN Address</h2>
-            <p>{{ vars.lanAddress }}</p>
+            <p *ngIf="!hideLAN">{{ vars.lanAddress }}</p>
+            <p *ngIf="hideLAN"><ion-text color="warning">No LAN address for {{ vars.title }} {{ vars.versionInstalled }}</ion-text></p>
           </ion-label>
-          <ion-button slot="end" fill="clear" (click)="copyLAN()">
+          <ion-button *ngIf="!hideLAN" slot="end" fill="clear" (click)="copyLAN()">
             <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
           </ion-button>
         </ion-item>

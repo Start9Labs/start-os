@@ -52,7 +52,7 @@ export function toServiceBreakage (f: BaseApp): DependentBreakage {
 export const bitcoinI: ApiAppInstalledFull = {
   id: 'bitcoind',
   versionInstalled: '0.18.1',
-  lanAddress: 'bitcoinLan.local',
+  lanAddress: undefined,
   title: 'Bitcoin Core',
   torAddress: '4acth47i6kxnvkewtm6q7ib2s3ufpo5sqbsnzjpbi7utijcltosqemad.onion',
   startAlert: 'Bitcoind could take a loooooong time to start. Please be patient.',
