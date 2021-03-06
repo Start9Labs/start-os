@@ -581,18 +581,19 @@ syncRestarterService = SyncOp "Install Restarter Service" check migrate True
             liftIO $ callCommand "systemctl enable restarter.timer"
 
 syncUpgradeTor :: SyncOp
-syncUpgradeTor = SyncOp "Install Tor 0.3.5.12" check migrate False
+syncUpgradeTor = SyncOp "Install Tor 0.3.5.12-1" check migrate False
     where
         check =
             liftIO
-                $ (run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.12|] $| conduit await) $> False
-                  )
+                $       (  run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.12-1|] $| conduit await)
+                        $> False
+                        )
                 `catch` \(e :: ProcessException) -> case e of
                             ProcessException _ (ExitFailure 1) -> pure True
                             _ -> throwIO e
         migrate = liftIO . run $ do
             shell "apt-get update"
-            shell "apt-get upgrade -y tor=0.3.5.12"
+            shell "apt-get upgrade -y tor=0.3.5.12-1"
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
