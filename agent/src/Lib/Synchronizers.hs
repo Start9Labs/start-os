@@ -593,7 +593,7 @@ syncUpgradeTor = SyncOp "Install Tor 0.3.5.12-1" check migrate False
                             _ -> throwIO e
         migrate = liftIO . run $ do
             shell "apt-get update"
-            shell "apt-get upgrade -y tor=0.3.5.12-1"
+            shell "apt-get install -y tor=0.3.5.12-1"
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
