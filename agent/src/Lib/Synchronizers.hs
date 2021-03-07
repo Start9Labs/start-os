@@ -11,9 +11,9 @@ import           Startlude               hiding ( check
 import qualified Startlude.ByteStream          as ByteStream
 import qualified Startlude.ByteStream.Char8    as ByteStream
 
+import           Control.Carrier.Lift           ( runM )
 import qualified Control.Effect.Reader.Labelled
                                                as Fused
-import           Control.Carrier.Lift           ( runM )
 import           Control.Monad.Trans.Reader     ( mapReaderT )
 import           Control.Monad.Trans.Resource
 import           Data.Attoparsec.Text
@@ -21,52 +21,52 @@ import qualified Data.ByteString               as BS
 import qualified Data.ByteString.Char8         as B8
 import qualified Data.Conduit                  as Conduit
 import qualified Data.Conduit.Combinators      as Conduit
-import qualified Data.Conduit.Tar              as Conduit
 import           Data.Conduit.Shell      hiding ( arch
+                                                , hostname
                                                 , patch
                                                 , stream
-                                                , hostname
                                                 )
+import qualified Data.Conduit.Tar              as Conduit
 import           Data.FileEmbed
 import qualified Data.HashMap.Strict           as HM
 import           Data.IORef
 import           Data.String.Interpolate.IsString
 import qualified Data.Yaml                     as Yaml
 import           Exinst
-import           System.FilePath                ( splitPath
+import qualified Streaming.Conduit             as Conduit
+import qualified Streaming.Prelude             as Stream
+import qualified Streaming.Zip                 as Stream
+import           System.Directory
+import           System.FilePath                ( (</>)
                                                 , joinPath
-                                                , (</>)
+                                                , splitPath
                                                 )
 import           System.FilePath.Posix          ( takeDirectory )
-import           System.Directory
 import           System.IO.Error
 import           System.Posix.Files
 import           System.Process                 ( callCommand )
-import qualified Streaming.Prelude             as Stream
-import qualified Streaming.Conduit             as Conduit
-import qualified Streaming.Zip                 as Stream
 
 import           Constants
+import           Control.Effect.Error    hiding ( run )
+import           Daemon.ZeroConf                ( getStart9AgentHostname )
+import qualified Data.Text                     as T
 import           Foundation
+import           Handler.Network
+import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
 import           Lib.ClientManifest
 import           Lib.Error
 import qualified Lib.External.AppMgr           as AppMgr
 import           Lib.External.Registry
 import           Lib.Sound
 import           Lib.Ssl
-import           Lib.Tor
-import           Lib.Types.Core
-import           Lib.Types.NetAddress
-import           Lib.Types.Emver
 import           Lib.SystemCtl
 import           Lib.SystemPaths         hiding ( (</>) )
+import           Lib.Tor
+import           Lib.Types.Core
+import           Lib.Types.Emver
+import           Lib.Types.NetAddress
 import           Settings
 import           Util.File
-import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
-import           Daemon.ZeroConf                ( getStart9AgentHostname )
-import qualified Data.Text                     as T
-import           Control.Effect.Error    hiding ( run )
-import           Handler.Network
 
 
 data Synchronizer = Synchronizer
@@ -115,6 +115,7 @@ sync_0_2_9 = Synchronizer
     , syncInstallDuplicity
     , syncInstallExfatFuse
     , syncInstallExfatUtils
+    , syncUpgradeTor
     , syncInstallAmbassadorUI
     , syncOpenHttpPorts
     , syncUpgradeLifeline
@@ -578,6 +579,21 @@ syncRestarterService = SyncOp "Install Restarter Service" check migrate True
             liftIO $ BS.writeFile (toS $ "/etc/systemd/system/restarter.timer" `relativeTo` base) wantedTimer
             liftIO $ callCommand "systemctl enable restarter.service"
             liftIO $ callCommand "systemctl enable restarter.timer"
+
+syncUpgradeTor :: SyncOp
+syncUpgradeTor = SyncOp "Install Tor 0.3.5.12-1" check migrate False
+    where
+        check =
+            liftIO
+                $       (  run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.12-1|] $| conduit await)
+                        $> False
+                        )
+                `catch` \(e :: ProcessException) -> case e of
+                            ProcessException _ (ExitFailure 1) -> pure True
+                            _ -> throwIO e
+        migrate = liftIO . run $ do
+            shell "apt-get update"
+            shell "apt-get install -y tor=0.3.5.12-1"
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
