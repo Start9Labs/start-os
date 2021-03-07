@@ -116,14 +116,12 @@
    1. Install Rust
       ```
       cd ~/
-      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rust_install.sh
-      chmod +x rust_install.sh
-      ./rust_install.sh
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o- | bash
       
       #Choose option 1
+      source $HOME/.cargo/env
 
-      #Reboot, then check rust & cargo versions
-      sudo reboot
+      #Check rust & cargo versions
       rustc --version
       cargo --version
       ```
