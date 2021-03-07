@@ -142,12 +142,6 @@
       cd ~/embassy-os/lifeline && cargo build --release
       /usr/bin/arm-linux-gnueabihf-strip ~/embassy-os/lifeline/target/release/lifeline
       ```
-
-   1. Prep `make_image.sh`
-      ```
-      chmod +x ~/embassy-os/make_image.sh
-      ```
-   
    1. Build the `embassy.img`
       ```
       cd ~/embassy-os
