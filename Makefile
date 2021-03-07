@@ -26,6 +26,7 @@ UI_SRC := $(shell find ui/src) \
 all: embassy.img
 
 embassy.img: $(EMBASSY_SRC)
+	chmod +x make_image.sh
 	sudo ./make_image.sh
 
 buster.img:
