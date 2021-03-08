@@ -1,117 +1,117 @@
 name: ambassador-agent
-version: 0.2.9
+version: 0.2.10
 
 default-extensions:
-- NoImplicitPrelude
-- BlockArguments
-- ConstraintKinds
-- DataKinds
-- DeriveAnyClass
-- DeriveFunctor
-- DeriveGeneric
-- DerivingStrategies
-- EmptyCase
-- FlexibleContexts
-- FlexibleInstances
-- GADTs
-- GeneralizedNewtypeDeriving
-- InstanceSigs
-- KindSignatures
-- LambdaCase
-- MultiParamTypeClasses
-- MultiWayIf
-- NamedFieldPuns
-- NumericUnderscores
-- OverloadedStrings
-- PolyKinds
-- RankNTypes
-- StandaloneDeriving
-- StandaloneKindSignatures
-- TupleSections
-- TypeApplications
-- TypeFamilies
-- TypeOperators
+  - NoImplicitPrelude
+  - BlockArguments
+  - ConstraintKinds
+  - DataKinds
+  - DeriveAnyClass
+  - DeriveFunctor
+  - DeriveGeneric
+  - DerivingStrategies
+  - EmptyCase
+  - FlexibleContexts
+  - FlexibleInstances
+  - GADTs
+  - GeneralizedNewtypeDeriving
+  - InstanceSigs
+  - KindSignatures
+  - LambdaCase
+  - MultiParamTypeClasses
+  - MultiWayIf
+  - NamedFieldPuns
+  - NumericUnderscores
+  - OverloadedStrings
+  - PolyKinds
+  - RankNTypes
+  - StandaloneDeriving
+  - StandaloneKindSignatures
+  - TupleSections
+  - TypeApplications
+  - TypeFamilies
+  - TypeOperators
 
 dependencies:
-- base >=4.9.1.0 && <5
-- aeson
-- aeson-flatten
-- attoparsec
-- bytestring
-- casing
-- comonad
-- conduit
-- conduit-extra
-- connection
-- containers
-- cryptonite
-- cryptonite-conduit
-- data-default
-- directory
-- errors
-- exceptions
-- exinst
-- fast-logger
-- file-embed
-- filelock
-- filepath
-- fused-effects
-- fused-effects-th
-- git-embed
-- http-api-data
-- http-client
-- http-client-tls
-- http-conduit
-- http-types
-- interpolate
-- iso8601-time
-- json-rpc
-- lens
-- lens-aeson
-- lifted-async
-- lifted-base
-- memory
-- mime-types
-- monad-control
-- monad-logger
-- network
-- persistent
-- persistent-sqlite
-- persistent-template
-- process
-- process-extras
-- protolude
-- resourcet
-- regex-compat # TODO: trim this dep
-- shell-conduit
-- singletons
-- stm
-- streaming
-- streaming-bytestring
-- streaming-conduit
-- streaming-utils
-- tar-conduit
-- template-haskell
-- text >=0.11 && <2.0
-- time
-- transformers
-- transformers-base
-- typed-process
-- unix
-- unliftio # TODO: trim this dep
-- unliftio-core # TODO: trim this dep
-- unordered-containers
-- uuid
-- wai
-- wai-cors
-- wai-extra
-- warp
-- yaml
-- yesod
-- yesod-auth
-- yesod-core
-- yesod-form
-- yesod-persistent
+  - base >=4.9.1.0 && <5
+  - aeson
+  - aeson-flatten
+  - attoparsec
+  - bytestring
+  - casing
+  - comonad
+  - conduit
+  - conduit-extra
+  - connection
+  - containers
+  - cryptonite
+  - cryptonite-conduit
+  - data-default
+  - directory
+  - errors
+  - exceptions
+  - exinst
+  - fast-logger
+  - file-embed
+  - filelock
+  - filepath
+  - fused-effects
+  - fused-effects-th
+  - git-embed
+  - http-api-data
+  - http-client
+  - http-client-tls
+  - http-conduit
+  - http-types
+  - interpolate
+  - iso8601-time
+  - json-rpc
+  - lens
+  - lens-aeson
+  - lifted-async
+  - lifted-base
+  - memory
+  - mime-types
+  - monad-control
+  - monad-logger
+  - network
+  - persistent
+  - persistent-sqlite
+  - persistent-template
+  - process
+  - process-extras
+  - protolude
+  - resourcet
+  - regex-compat # TODO: trim this dep
+  - shell-conduit
+  - singletons
+  - stm
+  - streaming
+  - streaming-bytestring
+  - streaming-conduit
+  - streaming-utils
+  - tar-conduit
+  - template-haskell
+  - text >=0.11 && <2.0
+  - time
+  - transformers
+  - transformers-base
+  - typed-process
+  - unix
+  - unliftio # TODO: trim this dep
+  - unliftio-core # TODO: trim this dep
+  - unordered-containers
+  - uuid
+  - wai
+  - wai-cors
+  - wai-extra
+  - warp
+  - yaml
+  - yesod
+  - yesod-auth
+  - yesod-core
+  - yesod-form
+  - yesod-persistent
 
 flags:
   library-only:
@@ -129,56 +129,56 @@ flags:
 library:
   source-dirs: src
   when:
-  - condition: (flag(dev)) || (flag(library-only))
-    then:
-      cpp-options: -DDEVELOPMENT
-      ghc-options:
-      - -Wall
-      - -Wunused-packages
-      - -fwarn-tabs
-      - -O0
-      - -fdefer-typed-holes
-    else:
-      ghc-options:
-      - -Wall
-      - -Wunused-packages
-      - -fwarn-tabs
-      - -O2
-      - -fdefer-typed-holes
-  - condition: (flag(disable-auth))
-    cpp-options: -DDISABLE_AUTH
+    - condition: (flag(dev)) || (flag(library-only))
+      then:
+        cpp-options: -DDEVELOPMENT
+        ghc-options:
+          - -Wall
+          - -Wunused-packages
+          - -fwarn-tabs
+          - -O0
+          - -fdefer-typed-holes
+      else:
+        ghc-options:
+          - -Wall
+          - -Wunused-packages
+          - -fwarn-tabs
+          - -O2
+          - -fdefer-typed-holes
+    - condition: (flag(disable-auth))
+      cpp-options: -DDISABLE_AUTH
 tests:
   agent-test:
     source-dirs: test
     main: Main.hs
     ghc-options:
-    - -Wall
-    - -fdefer-typed-holes
+      - -Wall
+      - -fdefer-typed-holes
     dependencies:
-    - ambassador-agent
-    - hspec >=2.0.0
-    - hspec-expectations
-    - hedgehog
-    - yesod-test
-    - random
+      - ambassador-agent
+      - hspec >=2.0.0
+      - hspec-expectations
+      - hedgehog
+      - yesod-test
+      - random
     when:
-    - condition: false
-      other-modules: Paths_ambassador_agent
+      - condition: false
+        other-modules: Paths_ambassador_agent
 
 executables:
   agent:
     source-dirs: app
     main: main.hs
     ghc-options:
-    - -Wall
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    - -fdefer-typed-holes
+      - -Wall
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      - -fdefer-typed-holes
     dependencies:
-    - ambassador-agent
+      - ambassador-agent
     when:
-    - buildable: false
-      condition: flag(library-only)
-    - condition: false
-      other-modules: Paths_ambassador_agent
+      - buildable: false
+        condition: flag(library-only)
+      - condition: false
+        other-modules: Paths_ambassador_agent
