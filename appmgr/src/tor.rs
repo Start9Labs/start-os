@@ -250,7 +250,9 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                     let req_path = base_path.join("cert-local.csr").path();
                     let cert_path = base_path.join("cert-local.crt.pem").path();
                     let fullchain_path = base_path.join("cert-local.fullchain.crt.pem");
-                    if !fullchain_path.exists().await {
+                    if !fullchain_path.exists().await
+                        || tokio::fs::metadata(&key_path).await.is_err()
+                    {
                         let mut fullchain_file = fullchain_path.write(None).await?;
                         tokio::process::Command::new("openssl")
                             .arg("ecparam")
