@@ -246,7 +246,14 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                     log::info!("Writing LAN certificates for {}", app_id);
                     let base_path = PersistencePath::from_ref("apps").join(&app_id);
                     let key_path = base_path.join("cert-local.key.pem").path();
-                    if tokio::fs::metadata(&key_path).await.is_err() {
+                    let conf_path = base_path.join("cert-local.csr.conf").path();
+                    let req_path = base_path.join("cert-local.csr").path();
+                    let cert_path = base_path.join("cert-local.crt.pem").path();
+                    let fullchain_path = base_path.join("cert-local.fullchain.crt.pem");
+                    if !fullchain_path.exists().await
+                        || tokio::fs::metadata(&key_path).await.is_err()
+                    {
+                        let mut fullchain_file = fullchain_path.write(None).await?;
                         tokio::process::Command::new("openssl")
                             .arg("ecparam")
                             .arg("-genkey")
@@ -257,9 +264,6 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .arg(&key_path)
                             .invoke("OpenSSL GenKey")
                             .await?;
-                    }
-                    let conf_path = base_path.join("cert-local.csr.conf").path();
-                    if tokio::fs::metadata(&conf_path).await.is_err() {
                         tokio::fs::write(
                             &conf_path,
                             format!(
@@ -268,9 +272,6 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             ),
                         )
                         .await?;
-                    }
-                    let req_path = base_path.join("cert-local.csr").path();
-                    if tokio::fs::metadata(&req_path).await.is_err() {
                         tokio::process::Command::new("openssl")
                             .arg("req")
                             .arg("-config")
@@ -287,9 +288,6 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .arg(&req_path)
                             .invoke("OpenSSL Req")
                             .await?;
-                    }
-                    let cert_path = base_path.join("cert-local.crt.pem").path();
-                    if tokio::fs::metadata(&cert_path).await.is_err() {
                         tokio::process::Command::new("openssl")
                             .arg("ca")
                             .arg("-batch")
@@ -311,11 +309,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .arg(&cert_path)
                             .invoke("OpenSSL CA")
                             .await?;
-                    }
-                    let fullchain_path = base_path.join("cert-local.fullchain.crt.pem");
-                    if !fullchain_path.exists().await {
                         log::info!("Writing fullchain to: {}", fullchain_path.path().display());
-                        let mut fullchain_file = fullchain_path.write(None).await?;
                         tokio::io::copy(
                             &mut tokio::fs::File::open(&cert_path).await?,
                             &mut *fullchain_file,
