@@ -125,6 +125,7 @@ sync_0_2_9 = Synchronizer
     , syncConvertEcdsaCerts
     , syncRestarterService
     , syncInstallEject
+    , syncDropCertificateUniqueness
     ]
 
 syncCreateAgentTmp :: SyncOp
@@ -594,6 +595,20 @@ syncUpgradeTor = SyncOp "Install Tor 0.3.5.12-1" check migrate False
         migrate = liftIO . run $ do
             shell "apt-get update"
             shell "apt-get install -y tor=0.3.5.12-1"
+
+syncDropCertificateUniqueness :: SyncOp
+syncDropCertificateUniqueness = SyncOp "Eliminate OpenSSL unique_subject=yes" check migrate False
+    where
+        uni   = "unique_subject = no\n"
+        check = do
+            base         <- asks $ appFilesystemBase . appSettings
+            contentsRoot <- liftIO . BS.readFile . toS $ (rootCaDirectory <> "index.txt.attr") `relativeTo` base
+            contentsInt  <- liftIO . BS.readFile . toS $ (intermediateCaDirectory <> "index.txt.attr") `relativeTo` base
+            pure $ uni /= contentsRoot || uni /= contentsInt
+        migrate = do
+            base <- asks $ appFilesystemBase . appSettings
+            liftIO $ BS.writeFile (toS $ (rootCaDirectory <> "index.txt.attr") `relativeTo` base) uni
+            liftIO $ BS.writeFile (toS $ (intermediateCaDirectory <> "index.txt.attr") `relativeTo` base) uni
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
