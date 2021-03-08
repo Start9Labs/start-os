@@ -100,8 +100,7 @@
 6. Install requirements for step 7
    1. Install NVM
       ```
-      cd ~/
-      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
+      cd ~/ && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
       #close and re-open connection to raspi and test:
       nvm --version
       ```
@@ -113,10 +112,13 @@
       ```
       npm install -g @ionic/cli
       ```
+   1. Install Dependencies
+      ```
+      sudo apt-get install -y build-essential openssl libssl-dev libc6-dev clang libclang-dev libavahi-client-dev upx ca-certificates
+      ```
    1. Install Rust
       ```
-      cd ~/
-      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o- | bash
+      cd ~/ && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o- | bash
       
       #Choose option 1
       source $HOME/.cargo/env
@@ -124,10 +126,6 @@
       #Check rust & cargo versions
       rustc --version
       cargo --version
-      ```
-   1. Install Dependencies
-      ```
-      sudo apt-get install -y build-essential openssl libssl-dev libc6-dev clang libclang-dev libavahi-client-dev upx
       ```
 
 7. Finally, getting to build the **.img**
