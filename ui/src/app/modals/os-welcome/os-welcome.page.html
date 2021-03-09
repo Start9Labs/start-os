@@ -12,6 +12,10 @@
     <p class="main-content">
       0.2.10 introduces LAN support for services running on the Embassy. A service's LAN address (.local URL) can be accessed while connected to the same network.
       This is useful for two reasons: (1) LAN connections are significantly faster than Tor, and (2) if the Tor network is experiencing connectivity issues, you will not be locked out of your services.
+
+      It also introduces support for services to define one-time actions that are exposed to the user. This
+      can be useful for password resets or other types of operations where doing it through the service UI would be
+      insecure or otherwise undesirable.
     </p>
 
     <div class="close-button">
