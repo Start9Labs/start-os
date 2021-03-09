@@ -12,8 +12,8 @@ import { ApiService } from 'src/app/services/api/api.service'
   styleUrls: ['./lan.page.scss'],
 })
 export class LANPage {
-  torDocs = 'docs.privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion/user-manual/general/secure-lan'
-  lanDocs = 'docs.start9labs.com/user-manual/general/secure-lan'
+  torDocs = 'docs.privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion/user-manual/general/lan-setup'
+  lanDocs = 'docs.start9labs.com/user-manual/general/lan-setup'
 
   lanAddress: string
   fullDocumentationLink: string
@@ -60,6 +60,14 @@ export class LANPage {
     })
   }
 
+  viewInstructions (): void {
+    if (this.config.isConsulate) {
+      this.copyInstructions()
+    } else {
+      window.open(this.fullDocumentationLink, '_blank')
+    }
+  }
+
   async copyLAN (): Promise <void> {
     const message = await copyToClipboard(this.lanAddress).then(success => success ? 'copied to clipboard!' :  'failed to copy')
 
@@ -72,9 +80,9 @@ export class LANPage {
     await toast.present()
   }
 
-  async copyDocumentation (): Promise < void > {
+  async copyInstructions (): Promise < void > {
     const message = await copyToClipboard(this.fullDocumentationLink).then(
-      success => success ? 'copied documentation link to clipboard!' :  'failed to copy',
+      success => success ? 'copied link to clipboard!' :  'failed to copy',
     )
 
     const toast = await this.toastCtrl.create({
