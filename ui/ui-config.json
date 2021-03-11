@@ -4,7 +4,8 @@
     "poll": {
       "cooldown": 5000
     },
-    "websocker": {
+    "websocket": {
+      "type": "ws",
       "url": "",
       "version": 0
     },
@@ -17,5 +18,5 @@
     "root": ""
   },
   "maskAs": "lan",
-  "skipStartupAlerts": false
+  "skipStartupAlerts": true
 }

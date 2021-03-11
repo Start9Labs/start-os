@@ -13,11 +13,13 @@ import { catchError, mapTo } from 'rxjs/operators'
 import * as uuid from 'uuid'
 import { SeqPatch, SeqReplace } from 'patch-db-client'
 import { DataModel } from 'src/app/models/patch-db/data-model'
+import { ConfigService } from '../config.service'
 
 @Injectable()
 export class LiveApiService extends ApiService {
   constructor (
     private readonly http: HttpService,
+    private readonly config: ConfigService,
   ) { super() }
 
   async getUpdates(startSequence: number, finishSequence?: number): Promise<SeqPatch[]> {
@@ -27,11 +29,6 @@ export class LiveApiService extends ApiService {
 
   async getDump(): Promise<SeqReplace<DataModel>> {
     return this.authRequest({ method: Method.GET, url: `/revisions?dump` })
-  }
-
-  // Used to check whether password or key is valid. If so, it will be used implicitly by all other calls.
-  async getCheckAuth (): Promise<Unit> {
-    return this.http.serverRequest<Unit>({ method: Method.GET, url: '/authenticate' }, { version: '' })
   }
 
   async postLogin (password: string): Promise<Unit> {
@@ -113,7 +110,14 @@ export class LiveApiService extends ApiService {
 
   async getInstalledApp (appId: string): Promise<AppInstalledFull> {
     return this.authRequest<ReqRes.GetAppInstalledRes>({ method: Method.GET, url: `/apps/${appId}/installed` })
-      .then(app => ({ ...app, hasFetchedFull: true }))
+      .then(app => {
+        return {
+          ...app,
+          hasFetchedFull: true,
+          hasUI: this.config.hasUI(app),
+          launchable: this.config.isLaunchable(app),
+        }
+      })
   }
 
   async getAppMetrics (appId: string): Promise<AppMetrics> {
@@ -123,6 +127,15 @@ export class LiveApiService extends ApiService {
 
   async getInstalledApps (): Promise<AppInstalledPreview[]> {
     return this.authRequest<ReqRes.GetAppsInstalledRes>({ method: Method.GET, url: `/apps/installed` })
+      .then(apps => {
+        return apps.map(app => {
+          return {
+            ...app,
+            hasUI: this.config.hasUI(app),
+            launchable: this.config.isLaunchable(app),
+          }
+        })
+      })
   }
 
   async getAppConfig ( appId: string): Promise<ReqRes.GetAppConfigRes> {
@@ -135,10 +148,6 @@ export class LiveApiService extends ApiService {
 
   async getServerLogs (): Promise<string> {
     return this.authRequest<ReqRes.GetServerLogsRes>( { method: Method.GET, url: `/logs` })
-  }
-
-  async testConnection (url: string): Promise<true> {
-    return this.http.raw.get(url).pipe(mapTo(true as true), catchError(catchHttpStatusError)).toPromise()
   }
 
   async acknowledgeOSWelcomeRaw (version: string): PatchPromise<Unit> {

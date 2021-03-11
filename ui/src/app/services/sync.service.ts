@@ -4,9 +4,11 @@ import { ApiService } from './api/api.service'
 import { tryAll, pauseFor } from '../util/misc.util'
 import { AppModel } from '../models/app-model'
 import { SyncNotifier } from './sync.notifier'
-import { BehaviorSubject, Observable, of, from, Subject, EMPTY } from 'rxjs'
+import { BehaviorSubject, Observable, of, from, EMPTY } from 'rxjs'
 import { switchMap, concatMap, catchError, delay, tap } from 'rxjs/operators'
 import { StartupAlertsNotifier } from './startup-alerts.notifier'
+import { PatchOp } from 'patch-db-client'
+import { PatchDbModel } from '../models/patch-db/patch-db-model'
 
 @Injectable({
   providedIn: 'root',
@@ -21,6 +23,7 @@ export class SyncDaemon {
     private readonly appModel: AppModel,
     private readonly syncNotifier: SyncNotifier,
     private readonly startupAlertsNotifier: StartupAlertsNotifier,
+    private patchDbModel: PatchDbModel,
   ) {
     this.$sync$.pipe(
       switchMap(go => go
@@ -49,6 +52,12 @@ export class SyncDaemon {
 
     switch (serverRes.result) {
       case 'resolve': {
+        this.patchDbModel.patch([{
+          op: PatchOp.ADD,
+          path: '/server',
+          value: 'test',
+        }])
+        console.log('huh', this.patchDbModel.peek)
         this.serverModel.update(serverRes.value, now)
         break
       }

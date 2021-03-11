@@ -17,11 +17,11 @@ export class LocalStorageBootstrap implements BootstrapCache<DataModel> {
     return this.storage.remove(LocalStorageBootstrap.CONTENT_KEY)
   }
 
-  restoreCache (): Promise<{ sequence: number; cache: DataModel }> {
+  async restoreCache (): Promise<{ sequence: number; cache: DataModel }> {
     return this.storage.get(LocalStorageBootstrap.CONTENT_KEY).then(drudged => drudged || { sequence: 0, cache: { } })
   }
 
-  init (): Promise<void> {
+  async init (): Promise<void> {
     return this.storage.ready().then(() => { })
   }
 }

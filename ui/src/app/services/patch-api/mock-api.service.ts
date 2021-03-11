@@ -4,17 +4,25 @@ import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalle
 import { S9Notification, SSHFingerprint, ServerStatus, DiskInfo } from '../../models/server-model'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService, PatchPromise } from './api.service'
-import { ApiServer, ReqRes, Unit } from './api-types'
+import { ApiAppInstalledFull, ApiAppInstalledPreview, ApiServer, ReqRes, Unit } from './api-types'
 import { AppMetrics, AppMetricsVersioned, parseMetricsPermissive } from 'src/app/util/metrics.util'
-import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppInstalledFull, mockAppDependentBreakages, mockServer, toInstalledPreview } from './mock-app-fixures'
+import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppsInstalledFull, mockAppDependentBreakages, mockServer, toInstalledPreview } from './mock-app-fixures'
 import { Observable, Subscription } from 'rxjs'
 import { PatchOp, SeqReplace, SeqUpdate, SeqUpdateReal } from 'patch-db-client'
 import { DataModel } from 'src/app/models/patch-db/data-model'
+import { ConfigService } from '../config.service'
+
 @Injectable()
 export class MockApiService extends ApiService {
   private sequenceStreamSub: Subscription
   welcomeAck = false
   sequence = 0
+
+  constructor (
+    private readonly config: ConfigService,
+  ) {
+    super()
+  }
 
   // every time a patch is returned from the mock, we override its sequence to be 1 more than the last sequence in the patch-db as provided by `o`.
   watch (sequenceStream: Observable<number>): Observable<SeqUpdate<DataModel>> {
@@ -28,11 +36,27 @@ export class MockApiService extends ApiService {
   }
 
   async getDump (): Promise<SeqReplace<DataModel>> {
+    const apps: AppInstalledFull[] = Object.values(mockApiAppsInstalledFull)
+      .filter(({ versionInstalled }) => !!versionInstalled)
+      .map(app => {
+        return {
+          ...app,
+          hasFetchedFull: false,
+          hasUI: this.config.hasUI(app),
+          launchable: this.config.isLaunchable(app),
+        }
+      })
+    
+    const obj: { [appId: string]: AppInstalledFull } = { }
+    apps.forEach(app => {
+      obj[app.id] = app
+    })
+
     return {
       id: this.nextSequence(),
       value: {
         server: mockServer,
-        apps: mockApiAppInstalledFull,
+        apps: obj,
       },
     }
   }
@@ -63,25 +87,9 @@ export class MockApiService extends ApiService {
     }
   }
 
-  testCounter = 0
-  async testConnection (): Promise<true> {
-    console.log('testing connection')
-    this.testCounter ++
-    await pauseFor(500)
-    if (this.testCounter > 2) {
-      return true
-    } else {
-      throw new Error('Not Connected')
-    }
-  }
-
   async ejectExternalDiskRaw (): PatchPromise<Unit> {
     await pauseFor(2000)
     return { response: { } }
-  }
-
-  async getCheckAuth (): Promise<ReqRes.GetCheckAuthRes> {
-    return { }
   }
 
   async getVersionLatest (): Promise<ReqRes.GetVersionLatestRes> {
@@ -131,6 +139,14 @@ export class MockApiService extends ApiService {
 
   async getInstalledApp (appId: string): Promise<AppInstalledFull> {
     return mockGetInstalledApp(appId)
+    .then(app => {
+      return {
+        ...app,
+        hasFetchedFull: true,
+        hasUI: this.config.hasUI(app),
+        launchable: this.config.isLaunchable(app),
+      }
+    })
   }
 
   async getAppMetrics (appId: string): Promise<AppMetrics> {
@@ -139,6 +155,15 @@ export class MockApiService extends ApiService {
 
   async getInstalledApps (): Promise<AppInstalledPreview[]> {
     return mockGetInstalledApps()
+      .then(apps => {
+        return apps.map(app => {
+          return {
+            ...app,
+            hasUI: this.config.hasUI(app),
+            launchable: this.config.isLaunchable(app),
+          }
+        })
+      })
   }
 
   async getAppConfig (appId: string): Promise<ReqRes.GetAppConfigRes> {
@@ -155,7 +180,14 @@ export class MockApiService extends ApiService {
 
   async installAppRaw (appId: string, version: string, dryRun: boolean): PatchPromise<AppInstalledFull & { breakages: DependentBreakage[] }> {
     await pauseFor(1000)
-    const response = { ...mockApiAppInstalledFull[appId], hasFetchedFull: true, ...mockAppDependentBreakages }
+    const app = mockApiAppsInstalledFull[appId]
+    const response = {
+      ...app,
+      hasFetchedFull: true,
+      hasUI: this.config.hasUI(app),
+      launchable: this.config.isLaunchable(app),
+      ...mockAppDependentBreakages
+    }
     const patch: SeqUpdate<DataModel> = {
       id: this.nextSequence(),
       patch: [{ op: PatchOp.ADD, path: `/apps/${appId}`, value: response }],
@@ -361,14 +393,14 @@ async function mockGetAvailableApps (): Promise<ReqRes.GetAppsAvailableRes> {
   return Object.values(mockApiAppAvailableFull)
 }
 
-async function mockGetInstalledApp (appId: string): Promise<AppInstalledFull> {
+async function mockGetInstalledApp (appId: string): Promise<ApiAppInstalledFull> {
   await pauseFor(1000)
-  return { ...mockApiAppInstalledFull[appId], hasFetchedFull: true }
+  return mockApiAppsInstalledFull[appId]
 }
 
-async function mockGetInstalledApps (): Promise<AppInstalledPreview[]> {
+async function mockGetInstalledApps (): Promise<ApiAppInstalledPreview[]> {
   await pauseFor(1000)
-  return Object.values(mockApiAppInstalledFull).map(toInstalledPreview).filter(({ versionInstalled}) => !!versionInstalled)
+  return Object.values(mockApiAppsInstalledFull).map(toInstalledPreview).filter(({ versionInstalled}) => !!versionInstalled)
 }
 
 async function mockGetAppLogs (): Promise<ReqRes.GetAppLogsRes> {
@@ -383,7 +415,7 @@ async function mockGetServerLogs (): Promise<ReqRes.GetServerLogsRes> {
 
 async function mockGetAppMetrics (): Promise<ReqRes.GetAppMetricsRes> {
   await pauseFor(1000)
-  return mockApiAppMetricsV1
+  return mockApiAppMetricsV1 as any // @TODO why is "as any" this necessary
 }
 
 async function mockGetAvailableAppVersionInfo (): Promise<ReqRes.GetAppAvailableVersionInfoRes> {

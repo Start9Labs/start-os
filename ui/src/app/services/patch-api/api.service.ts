@@ -43,7 +43,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     this.$unauthorizedApiResponse$.next()
   }
 
-  abstract getCheckAuth (): Promise<Unit> // Throws an error on failed auth.
   abstract postLogin (password: string): Promise<Unit> // Throws an error on failed auth.
   abstract postLogout (): Promise<Unit> // Throws an error on failed auth.
   abstract getServer (): Promise<ApiServer>
@@ -60,7 +59,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   abstract getAppConfig (appId: string): Promise<{ spec: ConfigSpec, config: object, rules: Rules[]}>
   abstract getAppLogs (appId: string, params?: ReqRes.GetAppLogsReq): Promise<string[]>
   abstract getServerLogs (): Promise<string>
-  abstract testConnection (url: string): Promise<true>
 
   /** Any request which mutates state will return a PatchPromise: a patch to state along with the standard response. The syncResponse helper function syncs the patch and returns the response*/
   protected abstract deleteNotificationRaw (id: string): PatchPromise<Unit>

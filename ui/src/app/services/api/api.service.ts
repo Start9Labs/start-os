@@ -5,8 +5,7 @@ import { Subject, Observable } from 'rxjs'
 import { Unit, ApiServer, ApiAppInstalledFull, ApiAppConfig, ApiAppAvailableFull, ApiAppInstalledPreview } from './api-types'
 import { AppMetrics, AppMetricsVersioned } from 'src/app/util/metrics.util'
 import { ConfigSpec } from 'src/app/app-config/config-types'
-import * as A from '../patch-api/api.service'
-import * as B from '../patch-api/api.service.factory'
+
 export abstract class ApiService {
   private $unauthorizedApiResponse$: Subject<{ }> = new Subject()
 

@@ -2,6 +2,7 @@ import { AppStatus } from '../../models/app-model'
 import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppDependency, BaseApp, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo } from '../../models/app-types'
 import { modulateTime } from 'src/app/util/misc.util'
 import { S9Server, ServerStatus } from 'src/app/models/server-model'
+import { ApiAppInstalledFull } from '../api/api-types'
 
 export function toAvailablePreview (f: AppAvailableFull): AppAvailablePreview {
   return {
@@ -24,9 +25,11 @@ export function toInstalledPreview (f: AppInstalledFull): AppInstalledPreview {
     title: f.title,
     iconURL: f.iconURL,
     torAddress: f.torAddress,
-    ui: f.ui,
     lanAddress: f.lanAddress,
-    lanEnabled: f.lanEnabled,
+    lanUi: f.lanUi,
+    torUi: f.torUi,
+    hasUI: f.hasUI,
+    launchable: f.launchable,
   }
 }
 
@@ -47,11 +50,10 @@ export function toServiceBreakage (f: BaseApp): DependentBreakage {
   }
 }
 
-export const bitcoinI: AppInstalledFull = {
+export const bitcoinI: ApiAppInstalledFull = {
   id: 'bitcoind',
   versionInstalled: '0.18.1',
-  lanAddress: 'bitcoinLan.local',
-  lanEnabled: true,
+  lanAddress: undefined,
   title: 'Bitcoin Core',
   torAddress: '4acth47i6kxnvkewtm6q7ib2s3ufpo5sqbsnzjpbi7utijcltosqemad.onion',
   startAlert: 'Bitcoind could take a loooooong time to start. Please be patient.',
@@ -60,8 +62,8 @@ export const bitcoinI: AppInstalledFull = {
   instructions: 'some instructions',
   lastBackup: new Date().toISOString(),
   configuredRequirements: [],
-  hasFetchedFull: true,
-  ui: false,
+  lanUi: false,
+  torUi: false,
   restoreAlert: 'if you restore this app horrible things will happen to the people you love.',
   actions: [
     { id: 'sync-chain', name: 'Sync Chain', description: 'this will sync with the chain like from Avatar', allowedStatuses: [ AppStatus.RUNNING, AppStatus.RUNNING, AppStatus.RUNNING, AppStatus.RUNNING ]},
@@ -69,15 +71,14 @@ export const bitcoinI: AppInstalledFull = {
   ],
 }
 
-export const lightningI: AppInstalledFull = {
+export const lightningI: ApiAppInstalledFull = {
   id: 'c-lightning',
   lanAddress: 'lightningLan.local',
-  lanEnabled: true,
   status: AppStatus.RUNNING,
   title: 'C Lightning',
   versionInstalled: '1.0.0',
   torAddress: '4acth47i6kxnvkewtm6q7ib2s3ufpo5sqbsnzjpbi7utijcltosqemad.onion',
-  iconURL: 'assets/img/service-icons/bitwarden.png',
+  iconURL: 'assets/img/service-icons/c-lightning.png',
   instructions: 'some instructions',
   lastBackup: new Date().toISOString(),
   configuredRequirements: [
@@ -90,15 +91,14 @@ export const lightningI: AppInstalledFull = {
         violation: null,
       }),
   ],
-  hasFetchedFull: true,
-  ui: true,
+  lanUi: false,
+  torUi: true,
   actions: [],
 }
 
-export const cupsI: AppInstalledFull = {
+export const cupsI: ApiAppInstalledFull = {
   id: 'cups',
   lanAddress: 'cupsLan.local',
-  lanEnabled: false,
   versionInstalled: '2.1.0',
   title: 'Cups Messenger',
   torAddress: 'sample-cups-tor-address.onion',
@@ -107,7 +107,6 @@ export const cupsI: AppInstalledFull = {
 
   instructions: 'some instructions',
   lastBackup: new Date().toISOString(),
-  ui: true,
   uninstallAlert: 'This is A GREAT APP man, I just don\'t know',
   configuredRequirements: [
     toServiceRequirement(lightningI,
@@ -138,7 +137,8 @@ export const cupsI: AppInstalledFull = {
         violation: { name: 'incompatible-config', ruleViolations: ['bro', 'seriously', 'fix this'] },
       }),
   ],
-  hasFetchedFull: true,
+  lanUi: true,
+  torUi: true,
   actions: [],
 }
 
@@ -301,7 +301,7 @@ export const mockApiAppAvailableFull: { [appId: string]: AppAvailableFull; } = {
   bitwarden: bitwardenA,
 }
 
-export const mockApiAppInstalledFull: { [appId: string]: AppInstalledFull; } = {
+export const mockApiAppsInstalledFull: { [appId: string]: ApiAppInstalledFull; } = {
   bitcoind: bitcoinI,
   cups: cupsI,
   lightning: lightningI,

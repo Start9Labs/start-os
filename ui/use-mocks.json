@@ -1,5 +1,5 @@
 {
-  "useMocks": false,
-   "mockOver": "tor",
-  "skipStartupAlerts": false
+  "useMocks": true,
+  "mockOver": "tor",
+  "skipStartupAlerts": true
 }

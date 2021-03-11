@@ -304,7 +304,7 @@ export const mockApiAppAvailableFull: { [appId: string]: AppAvailableFull; } = {
 export const mockApiAppInstalledFull: { [appId: string]: ApiAppInstalledFull; } = {
   bitcoind: bitcoinI,
   cups: cupsI,
-  lightning: lightningI,
+  'c-lightning': lightningI,
 }
 
 export const mockApiAppAvailableVersionInfo: AppAvailableVersionSpecificInfo = {

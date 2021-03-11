@@ -8,7 +8,6 @@ export abstract class PageCanDeactivate {
 
   @HostListener('window:beforeunload', ['$event'])
   unloadNotification (e: any) {
-    console.log(e)
     if (!this.canDeactivate()) {
       e.returnValue = true
     }

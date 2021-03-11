@@ -1,9 +1,9 @@
-import { Injectable } from '@angular/core';
-import { initPatchDb, PatchDB, PatchDbConfig, Store } from 'patch-db-client';
-import { BehaviorSubject, combineLatest, Subscription } from 'rxjs';
-import { filter, map } from 'rxjs/operators';
-import { exists } from '../../util/misc.util';
-import { DataModel } from './data-model';
+import { Injectable } from '@angular/core'
+import { initPatchDb, PatchDB, PatchDbConfig, PatchDocument, Store } from 'patch-db-client'
+import { BehaviorSubject, combineLatest, Subscription } from 'rxjs'
+import { filter, map } from 'rxjs/operators'
+import { exists } from '../../util/misc.util'
+import { DataModel } from './data-model'
 
 @Injectable({
   providedIn: 'root',
@@ -15,6 +15,7 @@ export class PatchDbModel {
   constructor (private readonly conf: PatchDbConfig<DataModel>) { }
 
   get peek (): DataModel { return this.store.peek }
+
   watch: Store<DataModel>['watch'] = (...args: (string | number)[]) => {
     const overlay = this.getOverlay(...args).pipe(filter(exists))
     const base = (this.store.watch as any)(...args)
@@ -38,14 +39,16 @@ export class PatchDbModel {
   private readonly overlays: { [path: string]: BehaviorSubject<{ value: any, expired: (newValue: any) => boolean }>} = { }
 
   setOverlay (args: { expired: (newValue: any) => boolean, value: any }, ...path: (string | number)[]) {
-    this.watch('apps', 'bitcoind', 'actions')
+    this.watch('apps', 'bitcoind', 'actions') // @TODO why is this here?
     this.getOverlay(...path).next(args)
   }
+
   private getOverlay (...path: (string | number)[]): BehaviorSubject<{ value: any, expired: (newValue: any) => boolean } | undefined> {
     const singlePath = '/' + path.join('/')
     this.overlays[singlePath] = this.overlays[singlePath] || new BehaviorSubject(undefined)
     return this.overlays[singlePath]
   }
+
   private clearOverlay (...path: (string | number)[]): void {
     this.getOverlay(...path).next(undefined)
   }
@@ -64,6 +67,7 @@ export class PatchDbModel {
     this.syncSub.unsubscribe()
     this.syncSub = undefined
   }
+
   start () {
     if (this.syncSub) this.stop()
 
@@ -71,5 +75,9 @@ export class PatchDbModel {
       error: e => console.error('Critical, patch-db-sync sub error', e),
       complete: () => console.error('Critical, patch-db-sync sub complete'),
     })
+  }
+
+  patch (ops: PatchDocument): void {
+    this.store.applyPatchDocument(ops)
   }
 }

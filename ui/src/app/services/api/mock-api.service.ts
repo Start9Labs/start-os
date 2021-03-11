@@ -113,8 +113,8 @@ export class MockApiService extends ApiService {
         return {
           ...app,
           hasFetchedFull: false,
-          hasUI: this.hasUI(app),
-          launchable: this.isLaunchable(app),
+          hasUI: this.config.hasUI(app),
+          launchable: this.config.isLaunchable(app),
         }
       })
   }
@@ -129,8 +129,8 @@ export class MockApiService extends ApiService {
         return apps.map(app => {
           return {
             ...app,
-            hasUI: this.hasUI(app),
-            launchable: this.isLaunchable(app),
+            hasUI: this.config.hasUI(app),
+            launchable: this.config.isLaunchable(app),
           }
         })
       })
@@ -154,8 +154,8 @@ export class MockApiService extends ApiService {
         return {
           ...app,
           hasFetchedFull: true,
-          hasUI: this.hasUI(app),
-          launchable: this.isLaunchable(app),
+          hasUI: this.config.hasUI(app),
+          launchable: this.config.isLaunchable(app),
         }
       })
   }
@@ -272,19 +272,6 @@ export class MockApiService extends ApiService {
   async refreshLAN (): Promise<Unit> {
     return mockRefreshLAN()
   }
-
-  private hasUI (app: ApiAppInstalledPreview): boolean {
-    return app.lanUi || app.torUi
-  }
-
-  private isLaunchable (app: ApiAppInstalledPreview): boolean {
-    return !this.config.isConsulate && 
-      app.status === AppStatus.RUNNING &&
-      (
-        (app.torAddress && app.torUi && this.config.isTor()) ||
-        (app.lanAddress && app.lanUi && !this.config.isTor())
-      )
-  }
 }
 
 async function mockGetServer (): Promise<ReqRes.GetServerRes> {
@@ -355,7 +342,7 @@ async function mockGetServerLogs (): Promise<ReqRes.GetServerLogsRes> {
 
 async function mockGetAppMetrics (): Promise<ReqRes.GetAppMetricsRes> {
   await pauseFor(1000)
-  return mockApiAppMetricsV1
+  return mockApiAppMetricsV1 as any // @TODO why is "as any" this necessary
 }
 
 async function mockGetAvailableAppVersionInfo (): Promise<ReqRes.GetAppAvailableVersionInfoRes> {

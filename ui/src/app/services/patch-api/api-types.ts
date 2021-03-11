@@ -24,7 +24,9 @@ export interface ApiServer {
 
 /** APPS **/
 export type ApiAppAvailableFull = Omit<AppAvailableFull, 'versionViewing'>
-export type ApiAppInstalledFull = Omit<AppInstalledFull, 'hasFetchedFull'>
+
+export type ApiAppInstalledPreview = Omit<AppInstalledPreview, 'hasUI' | 'launchable'>
+export type ApiAppInstalledFull = Omit<AppInstalledFull, 'hasFetchedFull' | 'hasUI' | 'launchable'>
 
 export interface ApiAppConfig {
   spec: ConfigSpec
@@ -65,7 +67,7 @@ export module ReqRes {
   export type GetAppLogsRes = string[]
   export type GetServerLogsRes = string
   export type GetAppMetricsRes = AppMetricsVersioned<number>
-  export type GetAppsInstalledRes = AppInstalledPreview[]
+  export type GetAppsInstalledRes = ApiAppInstalledPreview[]
   export type PostInstallAppReq = { version: string }
   export type PostInstallAppRes = ApiAppInstalledFull & { breakages: DependentBreakage[] }
   export type PostUpdateAgentReq = { version: string }
