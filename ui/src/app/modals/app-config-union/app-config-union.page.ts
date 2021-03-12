@@ -37,6 +37,7 @@ export class AppConfigUnionPage {
   async handleUnionChange () {
     this.value = mapUnionSpec(this.spec, this.value)
     this.objectConfig.annotations = this.objectConfig.cursor.getAnnotations()
+    this.error = this.cursor.checkInvalid()
   }
 
   setSelectOptions () {
