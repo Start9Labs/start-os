@@ -1,7 +1,7 @@
 <ion-header>
   <ion-toolbar>
     <ion-title >
-      <ion-label style="font-size: 20px;" class="ion-text-wrap">Welcome to 0.2.10!</ion-label>
+      <ion-label style="font-size: 20px;" class="ion-text-wrap">Welcome to 0.2.11!</ion-label>
     </ion-title>
   </ion-toolbar>
 </ion-header>
@@ -9,14 +9,14 @@
 <ion-content class="ion-padding">
   <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%">
     <h2>Highlights</h2>
-    <p class="main-content">
-      0.2.10 introduces LAN support for services running on the Embassy. A service's LAN address (.local URL) can be accessed while connected to the same network.
-      This is useful for two reasons: (1) LAN connections are significantly faster than Tor, and (2) if the Tor network is experiencing connectivity issues, you will not be locked out of your services.
-
-      It also introduces support for services to define one-time actions that are exposed to the user. This
-      can be useful for password resets or other types of operations where doing it through the service UI would be
-      insecure or otherwise undesirable.
-    </p>
+    <div class="main-content">
+      <p>0.2.11 Release includes several bugfixes:</p>
+      <ol>
+        <li>Refreshing error messages during configuration changes</li>
+        <li>Starting services with uninstalled optional dependencies</li>
+        <li>Fixed redirect for https</li>
+      </ol>
+    </div>
 
     <div class="close-button">
       <ion-button fill="outline" (click)="dismiss()">
