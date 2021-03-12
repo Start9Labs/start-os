@@ -602,9 +602,17 @@ syncDropCertificateUniqueness = SyncOp "Eliminate OpenSSL unique_subject=yes" ch
         uni   = "unique_subject = no\n"
         check = do
             base         <- asks $ appFilesystemBase . appSettings
-            contentsRoot <- liftIO . BS.readFile . toS $ (rootCaDirectory <> "index.txt.attr") `relativeTo` base
-            contentsInt  <- liftIO . BS.readFile . toS $ (intermediateCaDirectory <> "index.txt.attr") `relativeTo` base
-            pure $ uni /= contentsRoot || uni /= contentsInt
+            contentsRoot <-
+                liftIO
+                $       (fmap Just . BS.readFile . toS $ (rootCaDirectory <> "index.txt.attr") `relativeTo` base)
+                `catch` \(e :: IOException) -> if isDoesNotExistError e then pure Nothing else throwIO e
+            contentsInt <-
+                liftIO
+                $ (fmap Just . BS.readFile . toS $ (intermediateCaDirectory <> "index.txt.attr") `relativeTo` base)
+                `catch` \(e :: IOException) -> if isDoesNotExistError e then pure Nothing else throwIO e
+            case (contentsRoot, contentsInt) of
+                (Just root, Just int) -> pure $ uni /= root || uni /= int
+                _                     -> pure True
         migrate = do
             base <- asks $ appFilesystemBase . appSettings
             liftIO $ BS.writeFile (toS $ (rootCaDirectory <> "index.txt.attr") `relativeTo` base) uni
