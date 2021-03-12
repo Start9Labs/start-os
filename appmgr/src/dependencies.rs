@@ -222,12 +222,19 @@ pub async fn update_binds(dependent_id: &str) -> Result<(), Error> {
             .into_iter()
             .filter(|(_, info)| info.mount_public || info.mount_shared)
             .map(|(id, info)| async {
-                crate::apps::manifest(&id).await.map(|man| (id, info, man))
+                Ok::<_, Error>(if crate::apps::list_info().await?.contains_key(&id) {
+                    let man = crate::apps::manifest(&id).await?;
+                    Some((id, info, man))
+                } else {
+                    None
+                })
             }),
     )
     .await?;
     // i just have a gut feeling this shouldn't be concurrent
-    for (dependency_id, info, dependency_manifest) in dependency_manifests {
+    for (dependency_id, info, dependency_manifest) in
+        dependency_manifests.into_iter().filter_map(|a| a)
+    {
         match (dependency_manifest.public, info.mount_public) {
             (Some(public), true) => {
                 let public_path = Path::new(crate::VOLUMES).join(&dependency_id).join(public);
