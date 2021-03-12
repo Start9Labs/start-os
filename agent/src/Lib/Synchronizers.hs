@@ -126,6 +126,7 @@ sync_0_2_10 = Synchronizer
     , syncRestarterService
     , syncInstallEject
     , syncDropCertificateUniqueness
+    , syncRemoveDefaultNginxCfg
     ]
 
 syncCreateAgentTmp :: SyncOp
@@ -617,6 +618,17 @@ syncDropCertificateUniqueness = SyncOp "Eliminate OpenSSL unique_subject=yes" ch
             base <- asks $ appFilesystemBase . appSettings
             liftIO $ BS.writeFile (toS $ (rootCaDirectory <> "index.txt.attr") `relativeTo` base) uni
             liftIO $ BS.writeFile (toS $ (intermediateCaDirectory <> "index.txt.attr") `relativeTo` base) uni
+
+syncRemoveDefaultNginxCfg :: SyncOp
+syncRemoveDefaultNginxCfg = SyncOp "Remove Default Nginx Configuration" check migrate False
+    where
+        check = do
+            base <- asks $ appFilesystemBase . appSettings
+            liftIO $ doesPathExist (toS $ nginxSitesEnabled "default" `relativeTo` base)
+        migrate = do
+            base <- asks $ appFilesystemBase . appSettings
+            liftIO $ removeFileIfExists (toS $ nginxSitesEnabled "default" `relativeTo` base)
+            liftIO $ systemCtl RestartService "nginx" $> ()
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
