@@ -60,38 +60,66 @@ pub async fn remove(
         log::info!("Destroying mounted volume.");
         log::info!("Unbinding shared filesystem.");
         for (dep, info) in manifest.dependencies.0.iter() {
-            if info.mount_public {
-                crate::disks::unmount(
-                    Path::new(crate::VOLUMES)
-                        .join(name)
-                        .join("start9")
-                        .join("public")
-                        .join(&dep),
-                )
-                .await?;
-            }
-            if info.mount_shared {
-                if let Some(shared) = match crate::apps::manifest(dep).await {
-                    Ok(man) => man.shared,
-                    Err(e) => {
-                        log::error!("Failed to Fetch Dependency Manifest: {}", e);
-                        None
-                    }
-                } {
+            if crate::apps::list_info().await?.contains_key(dep) {
+                let dep_man = crate::apps::manifest(dep).await?;
+                if info.mount_public && dep_man.public.is_some() {
                     let path = Path::new(crate::VOLUMES)
                         .join(name)
                         .join("start9")
-                        .join("shared")
+                        .join("public")
                         .join(&dep);
                     if path.exists() {
                         crate::disks::unmount(&path).await?;
                     }
-                    let path = Path::new(crate::VOLUMES).join(dep).join(&shared).join(name);
-                    if path.exists() {
-                        tokio::fs::remove_dir_all(
-                            Path::new(crate::VOLUMES).join(dep).join(&shared).join(name),
-                        )
-                        .await?;
+                }
+                if info.mount_shared {
+                    if let Some(shared) = dep_man.shared {
+                        let path = Path::new(crate::VOLUMES)
+                            .join(name)
+                            .join("start9")
+                            .join("shared")
+                            .join(&dep);
+                        if path.exists() {
+                            crate::disks::unmount(&path).await?;
+                        }
+                        let path = Path::new(crate::VOLUMES).join(dep).join(&shared).join(name);
+                        if path.exists() {
+                            tokio::fs::remove_dir_all(
+                                Path::new(crate::VOLUMES).join(dep).join(&shared).join(name),
+                            )
+                            .await?;
+                        }
+                    }
+                }
+            }
+        }
+        if manifest.public.is_some() || manifest.shared.is_some() {
+            for dependent in crate::apps::dependents(&manifest.id, false).await? {
+                if let Some(info) = crate::apps::manifest(&dependent)
+                    .await?
+                    .dependencies
+                    .0
+                    .get(&manifest.id)
+                {
+                    if info.mount_public && manifest.public.is_some() {
+                        let path = Path::new(crate::VOLUMES)
+                            .join(name)
+                            .join("start9")
+                            .join("public")
+                            .join(&manifest.id);
+                        if path.exists() {
+                            crate::disks::unmount(&path).await?;
+                        }
+                    }
+                    if info.mount_shared && manifest.shared.is_some() {
+                        let path = Path::new(crate::VOLUMES)
+                            .join(name)
+                            .join("start9")
+                            .join("shared")
+                            .join(&manifest.id);
+                        if path.exists() {
+                            crate::disks::unmount(&path).await?;
+                        }
                     }
                 }
             }
