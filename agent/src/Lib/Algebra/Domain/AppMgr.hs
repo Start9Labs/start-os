@@ -11,8 +11,7 @@ module Lib.Algebra.Domain.AppMgr
     ( module Lib.Algebra.Domain.AppMgr
     , module Lib.Algebra.Domain.AppMgr.Types
     , module Lib.Algebra.Domain.AppMgr.TH
-    )
-where
+    ) where
 
 import           Startlude
 
@@ -26,31 +25,31 @@ import           Data.Singletons.Prelude hiding ( Error )
 import           Data.Singletons.Prelude.Either
 import qualified Data.String                   as String
 
-import           Lib.Algebra.Domain.AppMgr.Types
+import           Control.Monad.Base             ( MonadBase(..) )
+import           Control.Monad.Fail             ( MonadFail(fail) )
+import           Control.Monad.Trans.Class      ( MonadTrans )
+import           Control.Monad.Trans.Control    ( MonadBaseControl(..)
+                                                , MonadTransControl(..)
+                                                , defaultLiftBaseWith
+                                                , defaultRestoreM
+                                                )
+import           Control.Monad.Trans.Resource   ( MonadResource(..) )
+import qualified Data.ByteString.Char8         as C8
+import qualified Data.ByteString.Lazy          as LBS
+import           Data.String.Interpolate.IsString
+                                                ( i )
 import           Lib.Algebra.Domain.AppMgr.TH
+import           Lib.Algebra.Domain.AppMgr.Types
 import           Lib.Error
 import qualified Lib.External.AppManifest      as Manifest
 import           Lib.TyFam.ConditionalData
-import           Lib.Types.Core                 ( AppId(..)
-                                                , AppContainerStatus(..)
+import           Lib.Types.Core                 ( AppContainerStatus(..)
+                                                , AppId(..)
                                                 )
-import           Lib.Types.NetAddress
 import           Lib.Types.Emver
-import           Control.Monad.Trans.Class      ( MonadTrans )
-import qualified Data.ByteString.Lazy          as LBS
-import           System.Process.Typed
-import           Data.String.Interpolate.IsString
-                                                ( i )
-import           Control.Monad.Base             ( MonadBase(..) )
-import           Control.Monad.Fail             ( MonadFail(fail) )
-import           Control.Monad.Trans.Resource   ( MonadResource(..) )
-import           Control.Monad.Trans.Control    ( defaultLiftBaseWith
-                                                , defaultRestoreM
-                                                , MonadTransControl(..)
-                                                , MonadBaseControl(..)
-                                                )
-import qualified Data.ByteString.Char8         as C8
+import           Lib.Types.NetAddress
 import           System.Process
+import           System.Process.Typed
 
 
 type InfoRes :: Either OnlyInfoFlag [IncludeInfoFlag] -> Type
@@ -371,13 +370,16 @@ instance (Has (Error S9Error) sig m, Algebra sig m, MonadIO m) => Algebra (AppMg
         (L (List (SRight flags))) -> do
             let renderedFlags = (genInclusiveFlag <$> fromSing flags) <> ["--json"]
             let args          = "list" : renderedFlags
-            (ec, out) <- readProcessInheritStderr "appmgr" args ""
-            res       <- case ec of
-                ExitSuccess -> case withSingI flags $ eitherDecodeStrict out of
-                    Left  e -> throwError $ AppMgrParseE (toS $ String.unwords args) (decodeUtf8 out) e
-                    Right x -> pure x
-                ExitFailure n -> throwError $ AppMgrE "list" n
-            pure $ ctx $> res
+            let runIt retryCount = do
+                    (ec, out) <- readProcessInheritStderr "appmgr" args ""
+                    case ec of
+                        ExitSuccess -> case withSingI flags $ eitherDecodeStrict out of
+                            Left  e -> throwError $ AppMgrParseE (toS $ String.unwords args) (decodeUtf8 out) e
+                            Right x -> pure $ ctx $> x
+                        ExitFailure 6 ->
+                            if retryCount > 0 then runIt (retryCount - 1) else throwError $ AppMgrE "list" 6
+                        ExitFailure n -> throwError $ AppMgrE "list" n
+            runIt (1 :: Word) -- with 1 retry
         (L (Remove dryorpurge appId)) -> do
             let args = "remove" : case dryorpurge of
                     Left  (DryRun True) -> ["--dry-run", show appId, "--json"]
