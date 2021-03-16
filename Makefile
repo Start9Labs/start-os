@@ -73,4 +73,3 @@ else
 endif
 
 lifeline: $(LIFELINE_RELEASE_SRC)
-
