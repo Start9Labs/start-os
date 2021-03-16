@@ -298,11 +298,11 @@ export class ConfigCursor<T extends ValueType> {
     const mappedCfg = this.mappedConfig()
     if (cfg && mappedCfg && typeof cfg === 'object' && typeof mappedCfg === 'object') {
       const spec = this.spec()
-      let allKeys
+      let allKeys: Set<string>
       if (spec.type === 'union') {
         let unionSpec = spec as  ValueSpecOf<'union'>
         const labelForSelection = unionSpec.tag.id
-        allKeys = new Set([...Object.keys(unionSpec.variants[cfg[labelForSelection]])])
+        allKeys = new Set([labelForSelection, ...Object.keys(unionSpec.variants[cfg[labelForSelection]])])
       } else {
         allKeys = new Set([...Object.keys(cfg), ...Object.keys(mappedCfg)])
       }
