@@ -1,4 +1,5 @@
 use super::*;
+use std::os::unix::process::ExitStatusExt;
 
 const V0_2_11: emver::Version = emver::Version::new(0, 2, 11, 0);
 
