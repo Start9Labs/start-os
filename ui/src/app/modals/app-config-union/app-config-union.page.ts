@@ -19,6 +19,7 @@ export class AppConfigUnionPage {
   spec: ValueSpecUnion
   value: object
   error: string
+  edited: boolean
 
   constructor (
     private readonly modalCtrl: ModalController,
@@ -28,6 +29,7 @@ export class AppConfigUnionPage {
     this.spec = this.cursor.spec()
     this.value = this.cursor.config()
     this.error = this.cursor.checkInvalid()
+    this.edited = this.cursor.seekNext(this.spec.tag.id).isEdited()
   }
 
   async dismiss () {
@@ -38,6 +40,7 @@ export class AppConfigUnionPage {
     this.value = mapUnionSpec(this.spec, this.value)
     this.objectConfig.annotations = this.objectConfig.cursor.getAnnotations()
     this.error = this.cursor.checkInvalid()
+    this.edited = this.cursor.seekNext(this.spec.tag.id).isEdited()
   }
 
   setSelectOptions () {
