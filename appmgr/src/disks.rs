@@ -1,10 +1,11 @@
 use std::path::Path;
 
+use failure::ResultExt as _;
 use futures::future::try_join_all;
 
 use crate::util::Invoke;
 use crate::Error;
-use crate::ResultExt;
+use crate::ResultExt as _;
 
 pub const FSTAB: &'static str = "/etc/fstab";
 
@@ -192,10 +193,14 @@ pub async fn unmount<P: AsRef<Path>>(mount_point: P) -> Result<(), Error> {
     crate::ensure_code!(
         umount_output.status.success(),
         crate::error::FILESYSTEM_ERROR,
-        "Error Unmounting Drive: {}",
+        "Error Unmounting Drive: {}: {}",
+        mount_point.as_ref().display(),
         std::str::from_utf8(&umount_output.stderr).unwrap_or("Unknown Error")
     );
-    tokio::fs::remove_dir_all(mount_point.as_ref()).await?;
+    tokio::fs::remove_dir_all(mount_point.as_ref())
+        .await
+        .with_context(|e| format!("rm {}: {}", mount_point.as_ref().display(), e))
+        .with_code(crate::error::FILESYSTEM_ERROR)?;
     Ok(())
 }
 

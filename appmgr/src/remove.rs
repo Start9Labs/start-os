@@ -1,10 +1,11 @@
-use std::path::Path;
 use crate::failure::ResultExt;
+use std::path::Path;
 
 use linear_map::LinearMap;
 
 use crate::dependencies::{DependencyError, TaggedDependencyError};
 use crate::Error;
+use crate::ResultExt as _;
 
 pub async fn remove(
     name: &str,
@@ -56,13 +57,11 @@ pub async fn remove(
         log::info!("Removing tor hidden service.");
         crate::tor::rm_svc(name).await?;
         log::info!("Removing app metadata.");
-        tokio::fs::remove_dir_all(Path::new(crate::PERSISTENCE_DIR).join("apps").join(name))
-            .await.with_context(|e| {
-                format!(
-                    "remove all dir first failed: {}",
-                    e,
-                )
-            });
+        let metadata_path = Path::new(crate::PERSISTENCE_DIR).join("apps").join(name);
+        tokio::fs::remove_dir_all(&metadata_path)
+            .await
+            .with_context(|e| format!("rm {}: {}", metadata_path.display(), e))
+            .with_code(crate::error::FILESYSTEM_ERROR)?;
         log::info!("Destroying mounted volume.");
         log::info!("Unbinding shared filesystem.");
         for (dep, info) in manifest.dependencies.0.iter() {
@@ -75,12 +74,7 @@ pub async fn remove(
                         .join("public")
                         .join(&dep);
                     if path.exists() {
-                        crate::disks::unmount(&path).await.with_context(|e| {
-                            format!(
-                                "unmount public path failed: {}",
-                                e,
-                            )
-                        });
+                        crate::disks::unmount(&path).await?;
                     }
                 }
                 if info.mount_shared {
@@ -91,24 +85,14 @@ pub async fn remove(
                             .join("shared")
                             .join(&dep);
                         if path.exists() {
-                            crate::disks::unmount(&path).await.with_context(|e| {
-                                format!(
-                                    "unmount shared path failed: {}",
-                                    e,
-                                )
-                            });
+                            crate::disks::unmount(&path).await?;
                         }
                         let path = Path::new(crate::VOLUMES).join(dep).join(&shared).join(name);
                         if path.exists() {
-                            tokio::fs::remove_dir_all(
-                                Path::new(crate::VOLUMES).join(dep).join(&shared).join(name),
-                            )
-                            .await.with_context(|e| {
-                                format!(
-                                    "shared volumes failed: {}",
-                                    e,
-                                )
-                            });
+                            tokio::fs::remove_dir_all(&path)
+                                .await
+                                .with_context(|e| format!("rm {}: {}", path.display(), e))
+                                .with_code(crate::error::FILESYSTEM_ERROR)?;
                         }
                     }
                 }
@@ -145,12 +129,11 @@ pub async fn remove(
                 }
             }
         }
-        tokio::fs::remove_dir_all(Path::new(crate::VOLUMES).join(name)).await.with_context(|e| {
-            format!(
-                "remove dir all failed: {}",
-                e,
-            )
-        });
+        let volume_path = Path::new(crate::VOLUMES).join(name);
+        tokio::fs::remove_dir_all(&volume_path)
+            .await
+            .with_context(|e| format!("rm {}: {}", volume_path.display(), e,))
+            .with_code(crate::error::FILESYSTEM_ERROR)?;
         log::info!("Pruning unused docker images.");
         crate::ensure_code!(
             std::process::Command::new("docker")
