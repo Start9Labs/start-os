@@ -4,5 +4,6 @@ server {{
     location / {{
         proxy_pass http://{app_ip}:{internal_port}/;
         proxy_set_header Host $host;
+        client_max_body_size 0;
     }}
 }}
