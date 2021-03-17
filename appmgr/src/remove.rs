@@ -62,10 +62,10 @@ pub async fn remove(
             .await
             .with_context(|e| format!("rm {}: {}", metadata_path.display(), e))
             .with_code(crate::error::FILESYSTEM_ERROR)?;
-        log::info!("Destroying mounted volume.");
         log::info!("Unbinding shared filesystem.");
+        let installed_apps = crate::apps::list_info().await?;
         for (dep, info) in manifest.dependencies.0.iter() {
-            if crate::apps::list_info().await?.contains_key(dep) {
+            if installed_apps.contains_key(dep) {
                 let dep_man = crate::apps::manifest(dep).await?;
                 if info.mount_public && dep_man.public.is_some() {
                     let path = Path::new(crate::VOLUMES)
@@ -75,6 +75,8 @@ pub async fn remove(
                         .join(&dep);
                     if path.exists() {
                         crate::disks::unmount(&path).await?;
+                    } else {
+                        log::warn!("{} does not exist, skipping...", path.display());
                     }
                 }
                 if info.mount_shared {
@@ -86,6 +88,8 @@ pub async fn remove(
                             .join(&dep);
                         if path.exists() {
                             crate::disks::unmount(&path).await?;
+                        } else {
+                            log::warn!("{} does not exist, skipping...", path.display());
                         }
                         let path = Path::new(crate::VOLUMES).join(dep).join(&shared).join(name);
                         if path.exists() {
@@ -96,6 +100,8 @@ pub async fn remove(
                         }
                     }
                 }
+            } else {
+                log::warn!("{} is not installed, skipping...", dep);
             }
         }
         if manifest.public.is_some() || manifest.shared.is_some() {
@@ -129,6 +135,7 @@ pub async fn remove(
                 }
             }
         }
+        log::info!("Destroying mounted volume.");
         let volume_path = Path::new(crate::VOLUMES).join(name);
         tokio::fs::remove_dir_all(&volume_path)
             .await
