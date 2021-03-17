@@ -154,6 +154,11 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     dst: P1,
     read_only: bool,
 ) -> Result<(), Error> {
+    log::info!(
+        "Binding {} to {}",
+        src.as_ref().display(),
+        dst.as_ref().display()
+    );
     let is_mountpoint = tokio::process::Command::new("mountpoint")
         .arg(dst.as_ref())
         .stdout(std::process::Stdio::null())
@@ -186,6 +191,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
 }
 
 pub async fn unmount<P: AsRef<Path>>(mount_point: P) -> Result<(), Error> {
+    log::info!("Unmounting {}.", mount_point.as_ref().display());
     let umount_output = tokio::process::Command::new("umount")
         .arg(mount_point.as_ref())
         .output()

@@ -132,7 +132,7 @@ pub async fn remove(
         let volume_path = Path::new(crate::VOLUMES).join(name);
         tokio::fs::remove_dir_all(&volume_path)
             .await
-            .with_context(|e| format!("rm {}: {}", volume_path.display(), e,))
+            .with_context(|e| format!("rm {}: {}", volume_path.display(), e))
             .with_code(crate::error::FILESYSTEM_ERROR)?;
         log::info!("Pruning unused docker images.");
         crate::ensure_code!(
