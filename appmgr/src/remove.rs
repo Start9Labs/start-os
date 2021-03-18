@@ -1,9 +1,11 @@
+use crate::failure::ResultExt;
 use std::path::Path;
 
 use linear_map::LinearMap;
 
 use crate::dependencies::{DependencyError, TaggedDependencyError};
 use crate::Error;
+use crate::ResultExt as _;
 
 pub async fn remove(
     name: &str,
@@ -55,76 +57,79 @@ pub async fn remove(
         log::info!("Removing tor hidden service.");
         crate::tor::rm_svc(name).await?;
         log::info!("Removing app metadata.");
-        tokio::fs::remove_dir_all(Path::new(crate::PERSISTENCE_DIR).join("apps").join(name))
-            .await?;
-        log::info!("Destroying mounted volume.");
+        let metadata_path = Path::new(crate::PERSISTENCE_DIR).join("apps").join(name);
+        tokio::fs::remove_dir_all(&metadata_path)
+            .await
+            .with_context(|e| format!("rm {}: {}", metadata_path.display(), e))
+            .with_code(crate::error::FILESYSTEM_ERROR)?;
         log::info!("Unbinding shared filesystem.");
-        for (dep, info) in manifest.dependencies.0.iter() {
-            if crate::apps::list_info().await?.contains_key(dep) {
+        let installed_apps = crate::apps::list_info().await?;
+        for (dep, _) in manifest.dependencies.0.iter() {
+            let path = Path::new(crate::VOLUMES)
+                .join(name)
+                .join("start9")
+                .join("public")
+                .join(&dep);
+            if path.exists() {
+                crate::disks::unmount(&path).await?;
+            } else {
+                log::warn!("{} does not exist, skipping...", path.display());
+            }
+            let path = Path::new(crate::VOLUMES)
+                .join(name)
+                .join("start9")
+                .join("shared")
+                .join(&dep);
+            if path.exists() {
+                crate::disks::unmount(&path).await?;
+            } else {
+                log::warn!("{} does not exist, skipping...", path.display());
+            }
+            if installed_apps.contains_key(dep) {
                 let dep_man = crate::apps::manifest(dep).await?;
-                if info.mount_public && dep_man.public.is_some() {
-                    let path = Path::new(crate::VOLUMES)
-                        .join(name)
-                        .join("start9")
-                        .join("public")
-                        .join(&dep);
+                if let Some(shared) = dep_man.shared {
+                    let path = Path::new(crate::VOLUMES).join(dep).join(&shared).join(name);
                     if path.exists() {
-                        crate::disks::unmount(&path).await?;
+                        tokio::fs::remove_dir_all(&path)
+                            .await
+                            .with_context(|e| format!("rm {}: {}", path.display(), e))
+                            .with_code(crate::error::FILESYSTEM_ERROR)?;
                     }
                 }
-                if info.mount_shared {
-                    if let Some(shared) = dep_man.shared {
-                        let path = Path::new(crate::VOLUMES)
-                            .join(name)
-                            .join("start9")
-                            .join("shared")
-                            .join(&dep);
-                        if path.exists() {
-                            crate::disks::unmount(&path).await?;
-                        }
-                        let path = Path::new(crate::VOLUMES).join(dep).join(&shared).join(name);
-                        if path.exists() {
-                            tokio::fs::remove_dir_all(
-                                Path::new(crate::VOLUMES).join(dep).join(&shared).join(name),
-                            )
-                            .await?;
-                        }
-                    }
-                }
+            } else {
+                log::warn!("{} is not installed, skipping...", dep);
             }
         }
         if manifest.public.is_some() || manifest.shared.is_some() {
-            for dependent in crate::apps::dependents(&manifest.id, false).await? {
-                if let Some(info) = crate::apps::manifest(&dependent)
-                    .await?
-                    .dependencies
-                    .0
-                    .get(&manifest.id)
-                {
-                    if info.mount_public && manifest.public.is_some() {
-                        let path = Path::new(crate::VOLUMES)
-                            .join(name)
-                            .join("start9")
-                            .join("public")
-                            .join(&manifest.id);
-                        if path.exists() {
-                            crate::disks::unmount(&path).await?;
-                        }
-                    }
-                    if info.mount_shared && manifest.shared.is_some() {
-                        let path = Path::new(crate::VOLUMES)
-                            .join(name)
-                            .join("start9")
-                            .join("shared")
-                            .join(&manifest.id);
-                        if path.exists() {
-                            crate::disks::unmount(&path).await?;
-                        }
-                    }
+            for dependent in crate::apps::dependents(name, false).await? {
+                let path = Path::new(crate::VOLUMES)
+                    .join(&dependent)
+                    .join("start9")
+                    .join("public")
+                    .join(name);
+                if path.exists() {
+                    crate::disks::unmount(&path).await?;
+                } else {
+                    log::warn!("{} does not exist, skipping...", path.display());
+                }
+                let path = Path::new(crate::VOLUMES)
+                    .join(dependent)
+                    .join("start9")
+                    .join("shared")
+                    .join(name);
+                if path.exists() {
+                    crate::disks::unmount(&path).await?;
+                } else {
+                    log::warn!("{} does not exist, skipping...", path.display());
                 }
             }
         }
-        tokio::fs::remove_dir_all(Path::new(crate::VOLUMES).join(name)).await?;
+        log::info!("Destroying mounted volume.");
+        let volume_path = Path::new(crate::VOLUMES).join(name);
+        tokio::fs::remove_dir_all(&volume_path)
+            .await
+            .with_context(|e| format!("rm {}: {}", volume_path.display(), e))
+            .with_code(crate::error::FILESYSTEM_ERROR)?;
         log::info!("Pruning unused docker images.");
         crate::ensure_code!(
             std::process::Command::new("docker")

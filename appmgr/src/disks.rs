@@ -1,10 +1,11 @@
 use std::path::Path;
 
+use failure::ResultExt as _;
 use futures::future::try_join_all;
 
 use crate::util::Invoke;
 use crate::Error;
-use crate::ResultExt;
+use crate::ResultExt as _;
 
 pub const FSTAB: &'static str = "/etc/fstab";
 
@@ -153,6 +154,11 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     dst: P1,
     read_only: bool,
 ) -> Result<(), Error> {
+    log::info!(
+        "Binding {} to {}",
+        src.as_ref().display(),
+        dst.as_ref().display()
+    );
     let is_mountpoint = tokio::process::Command::new("mountpoint")
         .arg(dst.as_ref())
         .stdout(std::process::Stdio::null())
@@ -185,6 +191,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
 }
 
 pub async fn unmount<P: AsRef<Path>>(mount_point: P) -> Result<(), Error> {
+    log::info!("Unmounting {}.", mount_point.as_ref().display());
     let umount_output = tokio::process::Command::new("umount")
         .arg(mount_point.as_ref())
         .output()
@@ -192,10 +199,14 @@ pub async fn unmount<P: AsRef<Path>>(mount_point: P) -> Result<(), Error> {
     crate::ensure_code!(
         umount_output.status.success(),
         crate::error::FILESYSTEM_ERROR,
-        "Error Unmounting Drive: {}",
+        "Error Unmounting Drive: {}: {}",
+        mount_point.as_ref().display(),
         std::str::from_utf8(&umount_output.stderr).unwrap_or("Unknown Error")
     );
-    tokio::fs::remove_dir_all(mount_point.as_ref()).await?;
+    tokio::fs::remove_dir_all(mount_point.as_ref())
+        .await
+        .with_context(|e| format!("rm {}: {}", mount_point.as_ref().display(), e))
+        .with_code(crate::error::FILESYSTEM_ERROR)?;
     Ok(())
 }
 
