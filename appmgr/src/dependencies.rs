@@ -188,31 +188,6 @@ pub async fn auto_configure(
     crate::config::configure(dependency, Some(dependency_config), None, dry_run).await
 }
 
-pub async fn update_shared(dependency_id: &str) -> Result<(), Error> {
-    let dependency_manifest = crate::apps::manifest(dependency_id).await?;
-    if let Some(shared) = dependency_manifest.shared {
-        for dependent_id in &crate::apps::dependents(dependency_id, false).await? {
-            let dependent_manifest = crate::apps::manifest(&dependent_id).await?;
-            if dependent_manifest
-                .dependencies
-                .0
-                .get(dependency_id)
-                .ok_or_else(|| failure::format_err!("failed to index dependent: {}", dependent_id))?
-                .mount_shared
-            {
-                tokio::fs::create_dir_all(
-                    Path::new(crate::VOLUMES)
-                        .join(dependency_id)
-                        .join(&shared)
-                        .join(&dependent_id),
-                )
-                .await?;
-            }
-        }
-    }
-    Ok(())
-}
-
 pub async fn update_binds(dependent_id: &str) -> Result<(), Error> {
     let dependent_manifest = crate::apps::manifest(dependent_id).await?;
     let dependency_manifests = futures::future::try_join_all(
