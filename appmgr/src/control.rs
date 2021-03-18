@@ -24,7 +24,6 @@ pub async fn start_app(name: &str, update_metadata: bool) -> Result<(), Error> {
     if status == crate::apps::DockerStatus::Stopped {
         if update_metadata {
             crate::config::configure(name, None, None, false).await?;
-            crate::dependencies::update_shared(name).await?;
             crate::dependencies::update_binds(name).await?;
         }
         crate::apps::set_needs_restart(name, false).await?;

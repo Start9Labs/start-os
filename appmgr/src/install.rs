@@ -561,6 +561,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
             crate::config::configure(&manifest.id, Some(empty_config), None, false).await?;
         }
     }
+    crate::dependencies::update_binds(&manifest.id).await?;
     for (dep_id, dep_info) in manifest.dependencies.0 {
         if dep_info.mount_shared
             && crate::apps::list_info().await?.get(&dep_id).is_some()
