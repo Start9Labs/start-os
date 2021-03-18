@@ -64,40 +64,36 @@ pub async fn remove(
             .with_code(crate::error::FILESYSTEM_ERROR)?;
         log::info!("Unbinding shared filesystem.");
         let installed_apps = crate::apps::list_info().await?;
-        for (dep, info) in manifest.dependencies.0.iter() {
+        for (dep, _) in manifest.dependencies.0.iter() {
+            let path = Path::new(crate::VOLUMES)
+                .join(name)
+                .join("start9")
+                .join("public")
+                .join(&dep);
+            if path.exists() {
+                crate::disks::unmount(&path).await?;
+            } else {
+                log::warn!("{} does not exist, skipping...", path.display());
+            }
+            let path = Path::new(crate::VOLUMES)
+                .join(name)
+                .join("start9")
+                .join("shared")
+                .join(&dep);
+            if path.exists() {
+                crate::disks::unmount(&path).await?;
+            } else {
+                log::warn!("{} does not exist, skipping...", path.display());
+            }
             if installed_apps.contains_key(dep) {
                 let dep_man = crate::apps::manifest(dep).await?;
-                if info.mount_public && dep_man.public.is_some() {
-                    let path = Path::new(crate::VOLUMES)
-                        .join(name)
-                        .join("start9")
-                        .join("public")
-                        .join(&dep);
+                if let Some(shared) = dep_man.shared {
+                    let path = Path::new(crate::VOLUMES).join(dep).join(&shared).join(name);
                     if path.exists() {
-                        crate::disks::unmount(&path).await?;
-                    } else {
-                        log::warn!("{} does not exist, skipping...", path.display());
-                    }
-                }
-                if info.mount_shared {
-                    if let Some(shared) = dep_man.shared {
-                        let path = Path::new(crate::VOLUMES)
-                            .join(name)
-                            .join("start9")
-                            .join("shared")
-                            .join(&dep);
-                        if path.exists() {
-                            crate::disks::unmount(&path).await?;
-                        } else {
-                            log::warn!("{} does not exist, skipping...", path.display());
-                        }
-                        let path = Path::new(crate::VOLUMES).join(dep).join(&shared).join(name);
-                        if path.exists() {
-                            tokio::fs::remove_dir_all(&path)
-                                .await
-                                .with_context(|e| format!("rm {}: {}", path.display(), e))
-                                .with_code(crate::error::FILESYSTEM_ERROR)?;
-                        }
+                        tokio::fs::remove_dir_all(&path)
+                            .await
+                            .with_context(|e| format!("rm {}: {}", path.display(), e))
+                            .with_code(crate::error::FILESYSTEM_ERROR)?;
                     }
                 }
             } else {
@@ -105,33 +101,26 @@ pub async fn remove(
             }
         }
         if manifest.public.is_some() || manifest.shared.is_some() {
-            for dependent in crate::apps::dependents(&manifest.id, false).await? {
-                if let Some(info) = crate::apps::manifest(&dependent)
-                    .await?
-                    .dependencies
-                    .0
-                    .get(&manifest.id)
-                {
-                    if info.mount_public && manifest.public.is_some() {
-                        let path = Path::new(crate::VOLUMES)
-                            .join(name)
-                            .join("start9")
-                            .join("public")
-                            .join(&manifest.id);
-                        if path.exists() {
-                            crate::disks::unmount(&path).await?;
-                        }
-                    }
-                    if info.mount_shared && manifest.shared.is_some() {
-                        let path = Path::new(crate::VOLUMES)
-                            .join(name)
-                            .join("start9")
-                            .join("shared")
-                            .join(&manifest.id);
-                        if path.exists() {
-                            crate::disks::unmount(&path).await?;
-                        }
-                    }
+            for dependent in crate::apps::dependents(name, false).await? {
+                let path = Path::new(crate::VOLUMES)
+                    .join(&dependent)
+                    .join("start9")
+                    .join("public")
+                    .join(name);
+                if path.exists() {
+                    crate::disks::unmount(&path).await?;
+                } else {
+                    log::warn!("{} does not exist, skipping...", path.display());
+                }
+                let path = Path::new(crate::VOLUMES)
+                    .join(dependent)
+                    .join("start9")
+                    .join("shared")
+                    .join(name);
+                if path.exists() {
+                    crate::disks::unmount(&path).await?;
+                } else {
+                    log::warn!("{} does not exist, skipping...", path.display());
                 }
             }
         }
