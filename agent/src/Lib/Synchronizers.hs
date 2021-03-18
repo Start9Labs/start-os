@@ -583,11 +583,11 @@ syncRestarterService = SyncOp "Install Restarter Service" check migrate True
             liftIO $ callCommand "systemctl enable restarter.timer"
 
 syncUpgradeTor :: SyncOp
-syncUpgradeTor = SyncOp "Install Tor 0.3.5.12-1" check migrate False
+syncUpgradeTor = SyncOp "Install Tor 0.3.5.14-1" check migrate False
     where
         check =
             liftIO
-                $       (  run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.12-1|] $| conduit await)
+                $       (  run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.14-1|] $| conduit await)
                         $> False
                         )
                 `catch` \(e :: ProcessException) -> case e of
@@ -595,7 +595,7 @@ syncUpgradeTor = SyncOp "Install Tor 0.3.5.12-1" check migrate False
                             _ -> throwIO e
         migrate = liftIO . run $ do
             shell "apt-get update"
-            shell "apt-get install -y tor=0.3.5.12-1"
+            shell "apt-get install -y tor=0.3.5.14-1"
 
 syncDropCertificateUniqueness :: SyncOp
 syncDropCertificateUniqueness = SyncOp "Eliminate OpenSSL unique_subject=yes" check migrate False
