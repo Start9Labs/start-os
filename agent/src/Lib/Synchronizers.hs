@@ -587,7 +587,7 @@ syncUpgradeTor = SyncOp "Install Tor 0.3.5.14-1" check migrate False
     where
         check =
             liftIO
-                $       (  run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.12-1|] $| conduit await)
+                $       (  run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.14-1|] $| conduit await)
                         $> False
                         )
                 `catch` \(e :: ProcessException) -> case e of
