@@ -10,6 +10,7 @@ use serde::Serialize;
 use crate::util::from_yaml_async_reader;
 use crate::util::to_yaml_async_writer;
 use crate::util::Invoke;
+use crate::util::PersistencePath;
 use crate::version::VersionT;
 use crate::Error;
 use crate::ResultExt;
@@ -224,6 +225,11 @@ pub async fn restore_backup<P: AsRef<Path>>(
     }
 
     crate::tor::restart().await?;
+    crate::tor::write_lan_services(
+&crate::tor::services_map(&PersistencePath::from_ref(crate::SERVICES_YAML)).await?,
+    )
+    .await?;
+
 
     Ok(())
 }

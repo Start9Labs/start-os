@@ -187,7 +187,7 @@ cutoffDuringUpdate m = do
             case path of
                 [v] | v == "v" <> (show . major $ agentVersion) -> m
                 [auth] | auth == "auth" -> m
-                (v:ssh:_) | ssh == "sshKeys" -> m
+                (_:ssh:_) | ssh == "sshKeys" -> m
                 _ -> handleS9ErrT $ throwE UpdateInProgressE
         Nothing -> m
 

@@ -22,6 +22,7 @@ import           Yesod.Core.Types
 
 import           Foundation
 import           Handler.Util
+import           Handler.Network
 import           Lib.Error
 import qualified Lib.External.AppMgr           as AppMgr
 import qualified Lib.Notifications             as Notifications
@@ -93,7 +94,7 @@ postStopBackupR appId = disableEndpointOnFailedUpdate $ do
 postRestoreBackupR :: AppId -> Handler ()
 postRestoreBackupR appId = disableEndpointOnFailedUpdate $ do
     req           <- requireCheckJsonBody
-    AgentCtx {..} <- getYesod
+    ctx@AgentCtx {..} <- getYesod
     restoreBackupLogic appId req
         & AppMgr2.runAppMgrCliC
         & runLabelled @"databaseConnection"
@@ -101,6 +102,7 @@ postRestoreBackupR appId = disableEndpointOnFailedUpdate $ do
         & runLabelled @"backgroundJobCache"
         & runReader appBackgroundJobs
         & handleS9ErrC
+        & flip runReaderT ctx
         & runM
 
 getDisksR :: Handler (JSONResponse [AppMgr.DiskInfo])
@@ -171,7 +173,8 @@ stopBackupLogic appId = do
         Left  e   -> throwError e
         Right tid -> liftIO $ killThread tid
 
-restoreBackupLogic :: ( HasLabelled "backgroundJobCache" (Reader (TVar JobCache)) sig m
+restoreBackupLogic :: ( Has (Reader AgentCtx) sig m
+                      , HasLabelled "backgroundJobCache" (Reader (TVar JobCache)) sig m
                       , HasLabelled "databaseConnection" (Reader ConnectionPool) sig m
                       , Has (Error S9Error) sig m
                       , Has AppMgr2.AppMgr sig m
@@ -208,6 +211,7 @@ restoreBackupLogic appId RestoreBackupReq {..} = do
                         Right _ -> Notifications.RestoreSucceeded
                 flip runSqlPool db $ void $ Notifications.emit appId version notif
             liftIO . atomically $ modifyTVar jobCache (insertJob appId Restore tid)
+            postResetLanLogic
 
 
 listDisksLogic :: (Has (Error S9Error) sig m, MonadIO m) => m [AppMgr.DiskInfo]
