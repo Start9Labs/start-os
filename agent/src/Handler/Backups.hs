@@ -7,11 +7,11 @@ import           Startlude               hiding ( Reader
                                                 , runReader
                                                 )
 
-import           Control.Effect.Labelled hiding ( Handler )
-import           Control.Effect.Reader.Labelled
 import           Control.Carrier.Error.Church
 import           Control.Carrier.Lift
 import           Control.Carrier.Reader         ( runReader )
+import           Control.Effect.Labelled hiding ( Handler )
+import           Control.Effect.Reader.Labelled
 import           Data.Aeson
 import qualified Data.HashMap.Strict           as HM
 import           Data.UUID.V4
@@ -20,8 +20,13 @@ import           Yesod.Auth
 import           Yesod.Core
 import           Yesod.Core.Types
 
+import           Control.Concurrent.STM
+import           Exinst
 import           Foundation
+import           Handler.Network
 import           Handler.Util
+import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
+import           Lib.Background
 import           Lib.Error
 import qualified Lib.External.AppMgr           as AppMgr
 import qualified Lib.Notifications             as Notifications
@@ -29,10 +34,6 @@ import           Lib.Password
 import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Model
-import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
-import           Lib.Background
-import           Control.Concurrent.STM
-import           Exinst
 
 
 data CreateBackupReq = CreateBackupReq
@@ -58,8 +59,9 @@ instance FromJSON RestoreBackupReq where
         pure RestoreBackupReq { .. }
 
 data EjectDiskReq = EjectDiskReq
-    { ejectDiskLogicalName :: Text 
-    } deriving (Eq, Show)
+    { ejectDiskLogicalName :: Text
+    }
+    deriving (Eq, Show)
 instance FromJSON EjectDiskReq where
     parseJSON = withObject "Eject Disk Req" $ \o -> do
         ejectDiskLogicalName <- o .: "logicalName"
@@ -100,6 +102,8 @@ postRestoreBackupR appId = disableEndpointOnFailedUpdate $ do
         & runReader appConnPool
         & runLabelled @"backgroundJobCache"
         & runReader appBackgroundJobs
+        & runLabelled @"lanThread"
+        & runReader appLanThread
         & handleS9ErrC
         & runM
 
@@ -173,6 +177,7 @@ stopBackupLogic appId = do
 
 restoreBackupLogic :: ( HasLabelled "backgroundJobCache" (Reader (TVar JobCache)) sig m
                       , HasLabelled "databaseConnection" (Reader ConnectionPool) sig m
+                      , HasLabelled "lanThread" (Reader (MVar ThreadId)) sig m
                       , Has (Error S9Error) sig m
                       , Has AppMgr2.AppMgr sig m
                       , MonadIO m
@@ -181,10 +186,11 @@ restoreBackupLogic :: ( HasLabelled "backgroundJobCache" (Reader (TVar JobCache)
                    -> RestoreBackupReq
                    -> m ()
 restoreBackupLogic appId RestoreBackupReq {..} = do
-    jobCache <- ask @"backgroundJobCache"
-    db       <- ask @"databaseConnection"
-    version  <- fmap AppMgr2.infoResVersion $ AppMgr2.info [AppMgr2.flags| |] appId `orThrowM` NotFoundE "appId"
-                                                                                                         (show appId)
+    lanThread <- ask @"lanThread"
+    jobCache  <- ask @"backgroundJobCache"
+    db        <- ask @"databaseConnection"
+    version   <- fmap AppMgr2.infoResVersion $ AppMgr2.info [AppMgr2.flags| |] appId `orThrowM` NotFoundE "appId"
+                                                                                                          (show appId)
     res <- liftIO . atomically $ do
         (JobCache jobs) <- readTVar jobCache
         case HM.lookup appId jobs of
@@ -206,9 +212,12 @@ restoreBackupLogic appId RestoreBackupReq {..} = do
                 let notif = case appmgrRes of
                         Left  e -> Notifications.RestoreFailed e
                         Right _ -> Notifications.RestoreSucceeded
+                resetRes <- runExceptT @S9Error $ runReader lanThread . runLabelled @"lanThread" $ postResetLanLogic
+                case resetRes of
+                    Left  _  -> pure () -- temporarily forbidden is the only possible thing here so ignore it
+                    Right () -> pure ()
                 flip runSqlPool db $ void $ Notifications.emit appId version notif
             liftIO . atomically $ modifyTVar jobCache (insertJob appId Restore tid)
-
 
 listDisksLogic :: (Has (Error S9Error) sig m, MonadIO m) => m [AppMgr.DiskInfo]
 listDisksLogic = runExceptT AppMgr.diskShow >>= liftEither

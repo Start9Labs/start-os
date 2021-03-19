@@ -1,3 +1,4 @@
+use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 
 use argon2::Config;
@@ -10,6 +11,7 @@ use serde::Serialize;
 use crate::util::from_yaml_async_reader;
 use crate::util::to_yaml_async_writer;
 use crate::util::Invoke;
+use crate::util::PersistencePath;
 use crate::version::VersionT;
 use crate::Error;
 use crate::ResultExt;
@@ -224,6 +226,28 @@ pub async fn restore_backup<P: AsRef<Path>>(
     }
 
     crate::tor::restart().await?;
+    // Delete the fullchain certificate, so it can be regenerated with the restored tor pubkey address
+    PersistencePath::from_ref("apps")
+        .join(&app_id)
+        .join("cert-local.fullchain.crt.pem")
+        .delete()
+        .await?;
+    crate::tor::write_lan_services(
+        &crate::tor::services_map(&PersistencePath::from_ref(crate::SERVICES_YAML)).await?,
+    )
+    .await?;
+    let svc_exit = std::process::Command::new("service")
+        .args(&["nginx", "reload"])
+        .status()?;
+    crate::ensure_code!(
+        svc_exit.success(),
+        crate::error::GENERAL_ERROR,
+        "Failed to Reload Nginx: {}",
+        svc_exit
+            .code()
+            .or_else(|| { svc_exit.signal().map(|a| 128 + a) })
+            .unwrap_or(0)
+    );
 
     Ok(())
 }

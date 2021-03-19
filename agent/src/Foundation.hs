@@ -186,6 +186,8 @@ cutoffDuringUpdate m = do
             path <- asks $ pathInfo . reqWaiRequest . handlerRequest
             case path of
                 [v] | v == "v" <> (show . major $ agentVersion) -> m
+                [auth] | auth == "auth" -> m
+                (_:ssh:_) | ssh == "sshKeys" -> m
                 _ -> handleS9ErrT $ throwE UpdateInProgressE
         Nothing -> m
 

@@ -48,6 +48,7 @@ import           System.Process                 ( callCommand )
 
 import           Constants
 import           Control.Effect.Error    hiding ( run )
+import           Control.Effect.Labelled        ( runLabelled )
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
 import qualified Data.Text                     as T
 import           Foundation
@@ -438,10 +439,11 @@ syncInstallAppMgr = SyncOp "Install AppMgr" check migrate False
             Left  _ -> pure True
             Right v -> not . (v <||) <$> asks (appMgrVersionSpec . appSettings)
         migrate = fmap (either absurd id) . runExceptT . flip catchE failUpdate $ do
+            lan <- asks appLanThread
             avs <- asks $ appMgrVersionSpec . appSettings
             av  <- AppMgr.installNewAppMgr avs
             unless (av <|| avs) $ throwE $ AppMgrVersionE av avs
-            postResetLanLogic -- to accommodate 0.2.x -> 0.2.9 where previous appmgr didn't correctly set up lan
+            flip runReaderT lan $ runLabelled @"lanThread" $ postResetLanLogic -- to accommodate 0.2.x -> 0.2.9 where previous appmgr didn't correctly set up lan
 
 syncUpgradeLifeline :: SyncOp
 syncUpgradeLifeline = SyncOp "Upgrade Lifeline" check migrate False
@@ -583,11 +585,11 @@ syncRestarterService = SyncOp "Install Restarter Service" check migrate True
             liftIO $ callCommand "systemctl enable restarter.timer"
 
 syncUpgradeTor :: SyncOp
-syncUpgradeTor = SyncOp "Install Tor 0.3.5.12-1" check migrate False
+syncUpgradeTor = SyncOp "Install Tor 0.3.5.14-1" check migrate False
     where
         check =
             liftIO
-                $       (  run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.12-1|] $| conduit await)
+                $       (  run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.14-1|] $| conduit await)
                         $> False
                         )
                 `catch` \(e :: ProcessException) -> case e of
@@ -595,7 +597,7 @@ syncUpgradeTor = SyncOp "Install Tor 0.3.5.12-1" check migrate False
                             _ -> throwIO e
         migrate = liftIO . run $ do
             shell "apt-get update"
-            shell "apt-get install -y tor=0.3.5.12-1"
+            shell "apt-get install -y tor=0.3.5.14-1"
 
 syncDropCertificateUniqueness :: SyncOp
 syncDropCertificateUniqueness = SyncOp "Eliminate OpenSSL unique_subject=yes" check migrate False
