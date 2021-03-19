@@ -102,8 +102,8 @@ postRestoreBackupR appId = disableEndpointOnFailedUpdate $ do
         & runLabelled @"backgroundJobCache"
         & runReader appBackgroundJobs
         & handleS9ErrC
-        & flip runReaderT ctx
         & runM
+    runM . handleS9ErrC . runReader ctx $ postResetLanLogic
 
 getDisksR :: Handler (JSONResponse [AppMgr.DiskInfo])
 getDisksR = fmap JSONResponse . runM . handleS9ErrC $ listDisksLogic
@@ -173,8 +173,7 @@ stopBackupLogic appId = do
         Left  e   -> throwError e
         Right tid -> liftIO $ killThread tid
 
-restoreBackupLogic :: ( Has (Reader AgentCtx) sig m
-                      , HasLabelled "backgroundJobCache" (Reader (TVar JobCache)) sig m
+restoreBackupLogic :: ( HasLabelled "backgroundJobCache" (Reader (TVar JobCache)) sig m
                       , HasLabelled "databaseConnection" (Reader ConnectionPool) sig m
                       , Has (Error S9Error) sig m
                       , Has AppMgr2.AppMgr sig m
@@ -211,8 +210,6 @@ restoreBackupLogic appId RestoreBackupReq {..} = do
                         Right _ -> Notifications.RestoreSucceeded
                 flip runSqlPool db $ void $ Notifications.emit appId version notif
             liftIO . atomically $ modifyTVar jobCache (insertJob appId Restore tid)
-            postResetLanLogic
-
 
 listDisksLogic :: (Has (Error S9Error) sig m, MonadIO m) => m [AppMgr.DiskInfo]
 listDisksLogic = runExceptT AppMgr.diskShow >>= liftEither
