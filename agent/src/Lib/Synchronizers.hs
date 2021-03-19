@@ -48,6 +48,7 @@ import           System.Process                 ( callCommand )
 
 import           Constants
 import           Control.Effect.Error    hiding ( run )
+import           Control.Effect.Labelled        ( runLabelled )
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
 import qualified Data.Text                     as T
 import           Foundation
@@ -438,10 +439,11 @@ syncInstallAppMgr = SyncOp "Install AppMgr" check migrate False
             Left  _ -> pure True
             Right v -> not . (v <||) <$> asks (appMgrVersionSpec . appSettings)
         migrate = fmap (either absurd id) . runExceptT . flip catchE failUpdate $ do
+            lan <- asks appLanThread
             avs <- asks $ appMgrVersionSpec . appSettings
             av  <- AppMgr.installNewAppMgr avs
             unless (av <|| avs) $ throwE $ AppMgrVersionE av avs
-            postResetLanLogic -- to accommodate 0.2.x -> 0.2.9 where previous appmgr didn't correctly set up lan
+            flip runReaderT lan $ runLabelled @"lanThread" $ postResetLanLogic -- to accommodate 0.2.x -> 0.2.9 where previous appmgr didn't correctly set up lan
 
 syncUpgradeLifeline :: SyncOp
 syncUpgradeLifeline = SyncOp "Upgrade Lifeline" check migrate False

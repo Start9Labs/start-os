@@ -109,7 +109,11 @@ type AllEffects m
                             ( Labelled
                                   "databaseConnection"
                                   (ReaderT ConnectionPool)
-                                  (ReaderT AgentCtx (ErrorC S9Error (LiftC m)))
+                                  ( Labelled
+                                        "lanThread"
+                                        (ReaderT (MVar ThreadId))
+                                        (ReaderT AgentCtx (ErrorC S9Error (LiftC m)))
+                                  )
                             )
                       )
                 )
@@ -122,6 +126,8 @@ intoHandler m = do
     runM
         . handleS9ErrC
         . flip runReaderT ctx
+        . flip runReaderT (appLanThread ctx)
+        . runLabelled @"lanThread"
         . flip runReaderT (appConnPool ctx)
         . runLabelled @"databaseConnection"
         . flip runReaderT fsbase
@@ -376,6 +382,7 @@ postUninstallAppLogic :: ( HasFilesystemBase sig m
                          , MonadIO m
                          , HasLabelled "databaseConnection" (Reader ConnectionPool) sig m
                          , HasLabelled "iconTagCache" (Reader (TVar (HM.HashMap AppId (Digest MD5)))) sig m
+                         , HasLabelled "lanThread" (Reader (MVar ThreadId)) sig m
                          )
                       => AppId
                       -> AppMgr2.DryRun
@@ -413,6 +420,7 @@ postInstallNewAppR appId = do
 
 postInstallNewAppLogic :: forall sig m a
                         . ( Has (Reader AgentCtx) sig m
+                          , HasLabelled "lanThread" (Reader (MVar ThreadId)) sig m
                           , HasLabelled "databaseConnection" (Reader ConnectionPool) sig m
                           , HasLabelled "iconTagCache" (Reader (TVar (HM.HashMap AppId (Digest MD5)))) sig m
                           , Has (Error S9Error) sig m
