@@ -110,6 +110,19 @@ impl PersistencePath {
     pub async fn for_update(self) -> Result<UpdateHandle<ForRead>, Error> {
         UpdateHandle::new(self).await
     }
+
+    pub async fn delete(&self) -> Result<(), Error> {
+        match tokio::fs::remove_file(self.path()).await {
+            Ok(()) => Ok(()),
+            Err(k) => {
+                if k.kind() == std::io::ErrorKind::NotFound {
+                    Ok(())
+                } else {
+                    Err(k).with_code(crate::error::FILESYSTEM_ERROR)
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
