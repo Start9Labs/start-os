@@ -1,10 +1,15 @@
 [Unit]
 Description=Boot process for system setup.
+After=rc-local.service
+Before=getty.target
+ConditionFileNotEmpty=/root/setup.sh
 
 [Service]
 Type=oneshot
 ExecStart=/root/setup.sh
+ExecStartPost=/root/setup-s2.sh
 RemainAfterExit=true
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=basic.target
+

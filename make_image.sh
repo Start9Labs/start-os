@@ -1,4 +1,10 @@
 #!/bin/bash
+arch=$(uname -m)
+if [[ $arch == armv7l ]]; then
+    dev_target="target"
+else 
+    dev_target="target/armv7-unknown-linux-musleabihf"
+fi
 mv buster.img embassy.img
 product_key=$(cat product_key)
 loopdev=$(losetup -f -P embassy.img --show)
@@ -23,14 +29,15 @@ echo -n "${product_key}" | shasum -t -a 256 | cut -c1-8 >> "${root_mountpoint}/e
 mv "${root_mountpoint}/etc/hosts.tmp" "${root_mountpoint}/etc/hosts"
 cp agent/dist/agent "${root_mountpoint}/usr/local/bin/agent"
 chmod 700 "${root_mountpoint}/usr/local/bin/agent"
-cp appmgr/target/release/appmgr "${root_mountpoint}/usr/local/bin/appmgr"
+cp "appmgr/${dev_target}/release/appmgr" "${root_mountpoint}/usr/local/bin/appmgr"
 chmod 700 "${root_mountpoint}/usr/local/bin/appmgr"
-cp lifeline/target/release/lifeline "${root_mountpoint}/usr/local/bin/lifeline"
+cp "lifeline/${dev_target}/release/lifeline" "${root_mountpoint}/usr/local/bin/lifeline"
 chmod 700 "${root_mountpoint}/usr/local/bin/lifeline"
 cp docker-daemon.json "${root_mountpoint}/etc/docker/daemon.json"
 cp setup.sh "${root_mountpoint}/root/setup.sh"
 chmod 700 "${root_mountpoint}/root/setup.sh"
 cp setup.service "${root_mountpoint}/etc/systemd/system/setup.service"
+ln -s  /etc/systemd/system/setup.service "${root_mountpoint}/etc/systemd/system/getty.target.wants/setup.service"
 cp lifeline/lifeline.service "${root_mountpoint}/etc/systemd/system/lifeline.service"
 cp agent/config/agent.service "${root_mountpoint}/etc/systemd/system/agent.service"
 cat "${boot_mountpoint}/config.txt" | grep -v "dtoverlay=" > "${boot_mountpoint}/config.txt.tmp"
