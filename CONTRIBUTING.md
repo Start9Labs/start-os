@@ -77,7 +77,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 
 - Make sure that you are using the latest version.
 - Determine if your bug is really a bug and not an error on your side e.g. using incompatible environment components/versions (Make sure that you have read the [documentation](https://docs.start9labs.com). If you are looking for support, you might want to check [this section](#i-have-a-question)).
-- To see if other users have experienced (and potentially already solved) the same issue you are having, check if there is not already a bug report existing for your bug or error in the [bug tracker](https://github.com/Start9Labs/embassy-osissues?q=label%3Abug).
+- To see if other users have experienced (and potentially already solved) the same issue you are having, check if there is not already a bug report existing for your bug or error in the [bug tracker](https://github.com/Start9Labs/embassy-os/issues?q=label%3Abug).
 - Also make sure to search the internet (including Stack Overflow) to see if users outside of the GitHub community have discussed the issue.
 - Collect information about the bug:
   - Stack trace (Traceback)
@@ -225,9 +225,9 @@ When a pull request conflicts with the target branch, you may be asked to rebase
 This project aims to have a clean git history, where code changes are only made in non-merge commits. This simplifies auditability because merge commits can be assumed to not contain arbitrary code changes.
 
 ## Join The Discussion
-Current or aspiring contributors? Join our community developer Matrix channel: `#community-dev:matrix.start9labs.com`.
+Current or aspiring contributors? Join our community developer [Matrix channel](https://matrix.to/#/#community-dev:matrix.start9labs.com).
 
-Just interested in or using the project? Join our community [Telegram](https://t.me/start9_labs) or Matrix channel: `#community:matrix.start9labs.com`.
+Just interested in or using the project? Join our community [Telegram](https://t.me/start9_labs) or [Matrix](https://matrix.to/#/#community:matrix.start9labs.com).
 
 ## Join The Project Team
 Interested in becoming a part of the Start9 Labs team? Send an email to <jobs@start9labs.com>
