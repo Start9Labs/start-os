@@ -26,13 +26,13 @@
    1. Don't forget to create the empty `ssh` file
    1. Connect the drive (remember to remove the microSD) to the raspi and start it up
    1. Use `sudo raspi-config` to change the default password
-   1. Optional: `sudo apt upgrade`
+   1. Optional: `sudo apt upgrade -y`
    1. Optional: `sudo nano /etc/apt/sources.list.d/vscode.list` comment the last line which contains `packages.microsoft.com`
 
 3. Install GHC
    ```
    sudo apt update
-   sudo apt install ghc
+   sudo apt install -y ghc
    
    #test:
    ghc --version
@@ -58,9 +58,13 @@
       ```
       git clone --depth 1 --branch v2.5.1 https://github.com/commercialhaskell/stack.git
       cd stack
-
-      #Build (>=3.5h total... You might need to use VPN to avoid timeout issues)
-      #Note: Run it again if there were any "ConnectionFailure" messages
+      sudo apt install -y screen
+      screen
+      ```
+      > :information_source: Build (>=3.5h total... We are using `screen` in case of session timeout issues)
+     
+      > :memo:  If you get disconected you can reattach last sesion again by executing `screen -r`
+      ```
       stack build --stack-yaml=stack-ghc-84.yaml --system-ghc
       
       #Install
@@ -73,7 +77,8 @@
       > :information_source: The first time you run **make** you'll get an error
       
       ```
-      sudo apt install llvm-9 libgmp-dev
+      sudo apt install -y llvm-9 libgmp-dev
+      export PATH=/usr/lib/llvm-9/bin:$PATH
       cd ~/
       git clone https://github.com/Start9Labs/embassy-os.git
       cd embassy-os/
@@ -98,7 +103,9 @@
    1. Install NVM
       ```
       cd ~/ && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
-      #close and re-open connection to raspi and test:
+      export NVM_DIR="$HOME/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+      [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
       nvm --version
       ```
    1. Install Node.js & NPM
