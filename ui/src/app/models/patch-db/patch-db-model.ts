@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { initPatchDb, PatchDB, PatchDbConfig, PatchDocument, Store } from 'patch-db-client'
+import { initPatchDb, PatchDB, PatchDbConfig, Store } from 'patch-db-client'
 import { BehaviorSubject, combineLatest, Subscription } from 'rxjs'
 import { filter, map } from 'rxjs/operators'
 import { exists } from '../../util/misc.util'
@@ -75,9 +75,5 @@ export class PatchDbModel {
       error: e => console.error('Critical, patch-db-sync sub error', e),
       complete: () => console.error('Critical, patch-db-sync sub complete'),
     })
-  }
-
-  patch (ops: PatchDocument): void {
-    this.store.applyPatchDocument(ops)
   }
 }
