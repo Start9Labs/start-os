@@ -4,7 +4,6 @@ import { DependentsComponent } from './dependents.component'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule } from '@angular/router'
 import { SharingModule } from 'src/app/modules/sharing.module'
-import { InformationPopoverComponentModule } from '../../information-popover/information-popover.component.module'
 
 @NgModule({
   declarations: [
@@ -15,7 +14,6 @@ import { InformationPopoverComponentModule } from '../../information-popover/inf
     IonicModule,
     RouterModule.forChild([]),
     SharingModule,
-    InformationPopoverComponentModule,
   ],
   exports: [DependentsComponent],
 })

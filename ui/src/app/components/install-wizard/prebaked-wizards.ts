@@ -32,7 +32,11 @@ export class WizardBaker {
       installAlert ? {
         slide: {
           selector: 'notes',
-          params: { notes: installAlert, title: 'Warning', titleColor: 'warning' },
+          params: {
+            notes: installAlert,
+            title: 'Warning',
+            titleColor: 'warning',
+          },
         },
         bottomBar: {
           cancel: { afterLoading: { text: 'Cancel' } }, next: 'Next',
@@ -41,7 +45,12 @@ export class WizardBaker {
       {
         slide: {
           selector: 'dependencies',
-          params: { action, title, version, serviceRequirements },
+          params: {
+            action,
+            title,
+            version,
+            serviceRequirements,
+          },
         },
         bottomBar: {
           cancel: { afterLoading: { text: 'Cancel' } },
@@ -84,7 +93,11 @@ export class WizardBaker {
       installAlert ? {
         slide: {
           selector: 'notes',
-          params: { notes: installAlert, title: 'Warning', titleColor: 'warning'},
+          params: {
+            notes: installAlert,
+            title: 'Warning',
+            titleColor: 'warning',
+          },
         },
         bottomBar: {
           cancel: { afterLoading: { text: 'Cancel' } },
@@ -93,7 +106,12 @@ export class WizardBaker {
       } : undefined,
       { slide: {
           selector: 'dependencies',
-          params: { action, title, version, serviceRequirements },
+          params: {
+            action,
+            title,
+            version,
+            serviceRequirements,
+          },
         },
         bottomBar: {
           cancel: { afterLoading: { text: 'Cancel' } },
@@ -103,7 +121,11 @@ export class WizardBaker {
       { slide: {
           selector: 'dependents',
           params: {
-            skipConfirmationDialogue: true, action, verb: 'updating', title, fetchBreakages: () => this.apiService.installApp(id, version, true).then( ({ breakages }) => breakages ),
+            skipConfirmationDialogue: true,
+            action,
+            verb: 'updating',
+            title,
+            fetchBreakages: () => this.apiService.installApp(id, version, true).then(({ breakages }) => breakages),
           },
         },
         bottomBar: {
@@ -114,7 +136,10 @@ export class WizardBaker {
       { slide: {
           selector: 'complete',
           params: {
-            action, verb: 'beginning update for', title, executeAction: () => this.apiService.installApp(id, version).then(app => {
+            action,
+            verb: 'beginning update for',
+            title,
+            executeAction: () => this.apiService.installApp(id, version).then(app => {
               this.appModel.update({ id: app.id, status: AppStatus.INSTALLING })
             }),
           },
@@ -140,7 +165,11 @@ export class WizardBaker {
     const slideDefinitions: SlideDefinition[] = [
       { slide : {
           selector: 'notes',
-          params: { notes: releaseNotes, title: 'Release Notes', titleColor: 'dark' },
+          params: {
+            notes: releaseNotes,
+            title: 'Release Notes',
+            titleColor: 'dark',
+          },
         },
         bottomBar: {
           cancel: { afterLoading: { text: 'Cancel' } }, next: 'Update OS',
@@ -149,7 +178,10 @@ export class WizardBaker {
       { slide: {
           selector: 'complete',
           params: {
-            action, verb: 'beginning update for', title, executeAction: () => this.updateService.updateEmbassyOS(version),
+            action,
+            verb: 'beginning update for',
+            title,
+            executeAction: () => this.updateService.updateEmbassyOS(version),
           },
         },
         bottomBar: {
@@ -184,7 +216,12 @@ export class WizardBaker {
       } : undefined,
       { slide: {
           selector: 'dependencies',
-          params: { action, title, version, serviceRequirements },
+          params: {
+            action,
+            title,
+            version,
+            serviceRequirements,
+          },
         },
         bottomBar: {
           cancel: { afterLoading: { text: 'Cancel' } },
@@ -204,7 +241,10 @@ export class WizardBaker {
       { slide: {
           selector: 'complete',
           params: {
-            action, verb: 'beginning downgrade for', title, executeAction: () => this.apiService.installApp(id, version).then(app => {
+            action,
+            verb: 'beginning downgrade for',
+            title,
+            executeAction: () => this.apiService.installApp(id, version).then(app => {
               this.appModel.update({ id: app.id, status: AppStatus.INSTALLING })
             }),
           },
@@ -239,29 +279,35 @@ export class WizardBaker {
             titleColor: 'warning',
           },
         },
-        bottomBar: { cancel: { afterLoading: { text: 'Cancel' } }, next: 'Continue' },
+        bottomBar: { cancel: { afterLoading: { text: 'Cancel' } }, next: 'Next' },
       },
       { slide: {
           selector: 'dependents',
           params: {
-            action, verb: 'uninstalling', title, fetchBreakages: () => this.apiService.uninstallApp(id, true, false).then( ({ breakages }) => breakages ),
+            action,
+            verb: 'uninstalling',
+            title,
+            fetchBreakages: () => this.apiService.uninstallApp(id, true, false).then(({ breakages }) => breakages),
           },
         },
-        bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Uninstall' },
+        bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Next' },
       },
       { slide: {
           selector: 'config-reverts',
           params: {
             title,
-            fetchReverts: () => this.apiService.uninstallApp(id, true, true).then( ({ changes }) => changes),
+            fetchReverts: () => this.apiService.uninstallApp(id, true, true).then(({ changes }) => changes),
           },
         },
-        bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Continue Uninstall' },
+        bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Uninstall' },
       },
       { slide: {
           selector: 'complete',
           params: {
-            action, verb: 'uninstalling', title, executeAction: revertConfigs => this.apiService.uninstallApp(id, false, revertConfigs).then(() => this.appModel.delete(id)),
+            action,
+            verb: 'uninstalling',
+            title,
+            executeAction: revertConfigs => this.apiService.uninstallApp(id, false, revertConfigs).then(() => this.appModel.delete(id)),
           },
         },
         bottomBar: { finish: 'Dismiss', cancel: { whileLoading: { } } },
@@ -286,7 +332,10 @@ export class WizardBaker {
       { slide: {
           selector: 'dependents',
           params: {
-            action, verb: 'stopping', title, fetchBreakages: () => Promise.resolve(breakages),
+            action,
+            verb: 'stopping',
+            title,
+            fetchBreakages: () => Promise.resolve(breakages),
           },
         },
         bottomBar: { cancel: { afterLoading: { text: 'Cancel' } }, next: 'Stop Anyways' },
@@ -307,7 +356,10 @@ export class WizardBaker {
       { slide: {
           selector: 'dependents',
           params: {
-            action, verb: 'saving config for', title, fetchBreakages: () => Promise.resolve(breakages),
+            action,
+            verb: 'saving config for',
+            title,
+            fetchBreakages: () => Promise.resolve(breakages),
           },
         },
         bottomBar: { cancel: { afterLoading: { text: 'Cancel' } }, next: 'Save Config Anyways' },

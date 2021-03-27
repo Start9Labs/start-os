@@ -32,8 +32,7 @@ export class AppInstalledShowPage extends Cleanup {
   appId: string
   AppStatus = AppStatus
   showInstructions = false
-
-  hideLAN: boolean
+  hideLAN = false
 
   dependencyDefintion = () => `<span style="font-style: italic">Dependencies</span> are other services which must be installed, configured appropriately, and started in order to start ${this.app.title.getValue()}`
 

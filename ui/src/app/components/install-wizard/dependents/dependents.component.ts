@@ -27,7 +27,6 @@ export class DependentsComponent implements OnInit, Loadable {
     error: (e: Error) => void
   }
 
-
   dependentBreakages: DependentBreakage[]
   hasDependentViolation: boolean
   longMessage: string | null = null

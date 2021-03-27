@@ -28,7 +28,10 @@ export class ConfigRevertsComponent implements OnInit, Loadable {
   $cancel$ = new Subject<void>()
 
   configReverts: ConfigReverts
-  result: boolean = false
+  result: boolean = true
+
+  constructor () { }
+  ngOnInit () { }
 
   load () {
     markAsLoadingDuring$(
@@ -53,7 +56,4 @@ export class ConfigRevertsComponent implements OnInit, Loadable {
       error: (e: Error) => this.transitions.error(new Error(`Fetching dependent service information failed: ${e.message || e}`)),
     })
   }
-
-  constructor () { }
-  ngOnInit () { }
 }

@@ -1,29 +1,33 @@
-<div class="slide-content">
-  <div *ngIf="!($loading$ | async)" class="slide-content">
-    <div style="margin-top: 25px;">
-      <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
-        <ion-label [color]="dark" style="font-size: xx-large; font-weight: bold;">
-          NOTICE
-        </ion-label>
-      </div>
-      <div class="long-message">
-        While uninstalling, would you like to undo configurations for the following services which were required by {{params.title}}?
-      </div>
-      <ion-toggle [(ngModel)]="result"></ion-toggle>
-      <ul>
-        <li *ngFor="let config of configReverts | keyvalue">
-          <p>{{config.key}}</p>
+<div *ngIf="!($loading$ | async)" class="slide-content">
+  <div style="margin-top: 25px;">
+    <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
+      <ion-label color="warning" style="font-size: xx-large; font-weight: bold;">
+        WARNING
+      </ion-label>
+    </div>
+    <div class="long-message">
+      Would you like to revert the following configurations that were required by {{ params.title }}? (recommended)
+    </div>
+    <ion-item-group style="margin: 25px 0;">
+      <ion-item>
+        <ion-label>Revert configurations</ion-label>
+        <ion-toggle slot="end" [(ngModel)]="result"></ion-toggle>
+      </ion-item>
+      <ion-item-divider></ion-item-divider>
+      <ion-item *ngFor="let config of configReverts | keyvalue">
+        <ion-label class="ion-text-wrap">
+          <h2>{{ config.key }}</h2>
           <ul>
             <li *ngFor="let item of config.value | keyvalue">
-              {{item.key}}: {{item.value}}
+              {{ item.key }}: {{ item.value }}
             </li>
           </ul>
-        </li>
-      </ul>
-    </div>
+        </ion-label>
+      </ion-item>
+    </ion-item-group>
   </div>
-  <div *ngIf="$loading$ | async" class="center-spinner">
-    <ion-spinner color="warning" name="lines"></ion-spinner>
-    <ion-label class="long-message">Checking for auto configured services which {{params.title}} depended on...</ion-label>
-  </div>
+</div>
+<div *ngIf="$loading$ | async" class="center-spinner">
+  <ion-spinner color="warning" name="lines"></ion-spinner>
+  <ion-label class="long-message">Checking for custom configurations required by {{ params.title }}...</ion-label>
 </div>

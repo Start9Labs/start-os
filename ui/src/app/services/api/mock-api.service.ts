@@ -375,7 +375,6 @@ async function mockInstallApp (appId: string): Promise<ApiAppInstalledFull & { b
 }
 
 async function mockUninstallApp (): Promise< { breakages: DependentBreakage[], changes: ConfigReverts } > {
-
   await pauseFor(1000)
   return mockAppDependentBreakages
 }
