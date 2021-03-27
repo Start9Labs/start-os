@@ -41,7 +41,7 @@ export abstract class ApiService {
   abstract getExternalDisks (): Promise<DiskInfo[]>
   abstract getAppConfig (appId: string): Promise<{ spec: ConfigSpec, config: object, rules: Rules[] }>
   abstract getAppLogs (appId: string, params?: ReqRes.GetAppLogsReq): Promise<string[]>
-  abstract getServerLogs (): Promise<string>
+  abstract getServerLogs (): Promise<string[]>
   abstract installApp (appId: string, version: string, dryRun?: boolean): Promise<AppInstalledFull & { breakages: DependentBreakage[] }  >
   abstract uninstallApp (appId: string, dryRun: boolean, revertDependencyConfigs: boolean): Promise<{ breakages: DependentBreakage[], changes: ConfigReverts }>
   abstract startApp (appId: string): Promise<Unit>
