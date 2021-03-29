@@ -1,5 +1,13 @@
 # appmgr
 
+# Instructions
+
+Add dependencies
+```cargo install toml-cli```
+
+Install the portable version of appmgr
+```$ cargo install --path=. --features=portable```
+
 ## Exit Codes
 1. General Error
 2. File System IO Error
