@@ -33,5 +33,10 @@ While not as convenient as buying an Embassy, this option is easier than you mig
 
 To pursue this option, follow this [guide](https://docs.start9labs.com/getting-started/diy.html).
 
+### Build EmbassyOS from Source
+
+EmbassyOS can be built from source, for personal use, for free.
+A detailed guide for doing so can be found [here](https://github.com/Start9Labs/embassy-os/blob/master/BuildGuide.md).
+
 ## :heart: Contributing
-To build EmbassyOS from source, or to contribute to its development, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md#building-the-image).
+To contribute to the development of EmbassyOS, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
