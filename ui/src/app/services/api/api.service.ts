@@ -20,8 +20,6 @@ export abstract class ApiService {
     this.$unauthorizedApiResponse$.next()
   }
 
-  abstract testConnection (url: string): Promise<true>
-  abstract getCheckAuth (): Promise<Unit> // Throws an error on failed auth.
   abstract postLogin (password: string): Promise<Unit> // Throws an error on failed auth.
   abstract postLogout (): Promise<Unit> // Throws an error on failed auth.
   abstract getServer (timeout?: number): Promise<ApiServer>

@@ -231,7 +231,10 @@ export class WizardBaker {
       { slide: {
           selector: 'dependents',
           params: {
-            skipConfirmationDialogue: true, action, verb: 'downgrading', title, fetchBreakages: () => this.apiService.installApp(id, version, true).then( ({ breakages }) => breakages ),
+            skipConfirmationDialogue: true,
+            action,
+            verb: 'downgrading',
+            title, fetchBreakages: () => this.apiService.installApp(id, version, true).then( ({ breakages }) => breakages ),
           },
         },
         bottomBar: {
@@ -287,6 +290,7 @@ export class WizardBaker {
             action,
             verb: 'uninstalling',
             title,
+            // fetchBreakages: () => { return Promise.reject('fake error for testing') },
             fetchBreakages: () => this.apiService.uninstallApp(id, true, false).then(({ breakages }) => breakages),
           },
         },

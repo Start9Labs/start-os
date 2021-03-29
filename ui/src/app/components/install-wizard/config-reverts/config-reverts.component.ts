@@ -1,6 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core'
 import { BehaviorSubject, from, of, Subject } from 'rxjs'
-import { concatMap, map, takeUntil } from 'rxjs/operators'
+import { catchError, concatMap, map, takeUntil } from 'rxjs/operators'
 import { ConfigReverts } from 'src/app/models/app-types'
 import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { pauseFor } from 'src/app/util/misc.util'
@@ -39,21 +39,21 @@ export class ConfigRevertsComponent implements OnInit, Loadable {
       from(Promise.all([
         this.params.fetchReverts(),
         pauseFor(2000),
-      ])).pipe(
-        takeUntil(this.$cancel$),
-        map(([revs]) => this.configReverts = revs),
-        concatMap(() => {
-          if (!Object.keys(this.configReverts).length) {
-            console.log('completed')
-            this.transitions.next(false)
-            return pauseFor(250)
-          } else {
-            return of()
-          }
-        }),
-      ),
-    ).subscribe({
-      error: (e: Error) => this.transitions.error(new Error(`Fetching dependent service information failed: ${e.message || e}`)),
-    })
+      ])),
+    )
+    .pipe(
+      takeUntil(this.$cancel$),
+      map(([revs]) => this.configReverts = revs),
+      concatMap(() => {
+        if (!Object.keys(this.configReverts).length) {
+          this.transitions.next(false)
+          return pauseFor(250)
+        } else {
+          return of()
+        }
+      }),
+      catchError((e: Error) => of(this.transitions.error(new Error(`Fetching config information failed: ${e.message || e}`)))),
+    )
+    .subscribe()
   }
 }

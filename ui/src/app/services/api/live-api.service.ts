@@ -25,15 +25,6 @@ export class LiveApiService extends ApiService {
     private readonly config: ConfigService,
   ) { super() }
 
-  testConnection (url: string): Promise<true> {
-    return this.http.raw.get(url).pipe(mapTo(true as true), catchError(e => catchHttpStatusError(e))).toPromise()
-  }
-
-  // Used to check whether password or key is valid. If so, it will be used implicitly by all other calls.
-  async getCheckAuth (): Promise<Unit> {
-    return this.http.serverRequest<Unit>({ method: Method.GET, url: '/authenticate' }, { version: '' })
-  }
-
   async postLogin (password: string): Promise<Unit> {
     return this.http.serverRequest<Unit>({ method: Method.POST, url: '/auth/login', data: { password } }, { version: '' })
   }

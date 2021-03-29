@@ -14,9 +14,9 @@
     <div *ngIf="longMessage" class="long-message">
       {{ longMessage }}
     </div>
-    <div style="margin: 25px 0px;">
-      <div style="border-width: 0px 0px 1px 0px; font-size: unset; text-align: left; font-weight: bold; margin-left: 13px; border-style: solid; border-color: var(--ion-color-light-tint);"
-        *ngIf="hasDependentViolation">
+
+    <div *ngIf="hasDependentViolation" style="margin: 25px 0px;">
+      <div style="border-width: 0px 0px 1px 0px; font-size: unset; text-align: left; font-weight: bold; margin-left: 13px; border-style: solid; border-color: var(--ion-color-light-tint);">
         <ion-text color="warning">Will Stop</ion-text>
       </div>
       <ion-item style="--ion-item-background: rgb(0,0,0,0); margin-top: 5px" *ngFor="let dep of dependentBreakages">
@@ -24,7 +24,7 @@
           <img [src]="dep.iconURL | iconParse" />
         </ion-avatar>
         <ion-label>
-            <h5>{{ dep.title }}</h5>
+          <h5>{{ dep.title }}</h5>
         </ion-label>
       </ion-item>
     </div>

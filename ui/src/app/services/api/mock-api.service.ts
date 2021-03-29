@@ -43,24 +43,8 @@ export class MockApiService extends ApiService {
     }
   }
 
-  testCounter = 0
-  async testConnection (): Promise<true> {
-    console.log('testing connection')
-    this.testCounter ++
-    await pauseFor(500)
-    if (this.testCounter > 2) {
-      return true
-    } else {
-      throw new Error('Not Connected')
-    }
-  }
-
   async ejectExternalDisk (): Promise<Unit> {
     await pauseFor(2000)
-    return { }
-  }
-
-  async getCheckAuth (): Promise<ReqRes.GetCheckAuthRes> {
     return { }
   }
 

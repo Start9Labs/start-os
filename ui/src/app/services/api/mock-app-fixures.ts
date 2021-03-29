@@ -314,17 +314,17 @@ export const mockApiAppAvailableVersionInfo: AppAvailableVersionSpecificInfo = {
 
 export const mockAppDependentBreakages: { breakages: DependentBreakage[], changes: ConfigReverts } = {
   breakages: [
-    toServiceBreakage(bitcoinI),
-    toServiceBreakage(cupsA),
+    // toServiceBreakage(bitcoinI),
+    // toServiceBreakage(cupsA),
   ],
   changes: {
-    'bitcoind': {
-      'some': 'value',
-      'someOther': [1, 2, 3],
-    },
-    'someService': {
-      'some': 'value',
-      'someOther': [1, 2, 3],
-    },
+    // 'bitcoind': {
+    //   'some': 'value',
+    //   'someOther': [1, 2, 3],
+    // },
+    // 'someService': {
+    //   'some': 'value',
+    //   'someOther': [1, 2, 3],
+    // },
   },
 }
