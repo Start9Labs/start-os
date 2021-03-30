@@ -13,7 +13,7 @@
 
 EmbassyOS is a mass-market, graphical operating system designed to facilitate the discovery, installation, configuration, private self-hosting, and reliable operation of open-source software services and applications. It aims to eliminate trust and custodianship from personal computing.
 
-<img src="eos.png" width="100%">
+<img src="assets/eos.png" width="100%">
 
 ## :warning: Caution
 Some technologies supported by this software, such as [Lightning](https://lightning.network/), are considered in active development and might experience issues. Do not commit any funds you are not willing to loose. Be #reckless at your own risk. 
@@ -40,3 +40,9 @@ A detailed guide for doing so can be found [here](https://github.com/Start9Labs/
 
 ## :heart: Contributing
 To contribute to the development of EmbassyOS, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
+
+## UI Screenshots
+![Embassy Services](assets/ServicesRunning.png)|20%
+![Service Details](assets/ServiceDetails.png)
+![EmbassyOS](assets/Embassy.png)
+![Marketplace](assets/Marketplace.png)
