@@ -2,9 +2,6 @@
 
 # Instructions
 
-Add dependencies
-`cargo install toml-cli`
-
 Install the portable version of appmgr
 `$ cargo install --path=. --features=portable`
 
