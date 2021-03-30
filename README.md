@@ -42,7 +42,7 @@ A detailed guide for doing so can be found [here](https://github.com/Start9Labs/
 To contribute to the development of EmbassyOS, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
 
 ## UI Screenshots
-![Embassy Services](assets/ServicesRunning.png)|20%
-![Service Details](assets/ServiceDetails.png)
-![EmbassyOS](assets/Embassy.png)
-![Marketplace](assets/Marketplace.png)
+<img src="assets/ServicesRunning.png" alt="Embassy Services" width="50%" height="50%">
+<img src="assets/ServiceDetails.png" alt="Service Details" width="50%" height="50%">
+<img src="assets/Embassy.png" alt="EmbassyOS" width="50%" height="50%">
+<img src="assets/Marketplace.png" alt="Marketplace" width="50%" height="50%">
