@@ -3,7 +3,12 @@
 # Instructions
 
 Install the portable version of appmgr
-`$ cargo install --path=. --features=portable`
+
+`cargo install --path=. --features=portable`
+
+On Mac, also add 
+
+`--no-default-features`
 
 ## Exit Codes
 1. General Error
