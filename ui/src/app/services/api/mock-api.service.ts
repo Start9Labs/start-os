@@ -847,7 +847,7 @@ const mockApiAppConfig: ReqRes.GetAppConfigRes = {
     'testnet': {
       'name': 'Testnet',
       'type': 'boolean',
-      'description': 'determines whether your node is running ontestnet or mainnet',
+      'description': '*Hello*, **Testing Markdown**. Lorem ipsum dolor si',
       'changeWarning': 'Chain will have to resync!',
       'default': false,
     },
