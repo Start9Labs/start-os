@@ -66,6 +66,7 @@ export const bitcoinI: ApiAppInstalledFull = {
   restoreAlert: 'if you restore this app horrible things will happen to the people you love.',
   actions: [
     { id: 'sync-chain', name: 'Sync Chain', description: 'this will sync with the chain like from Avatar', allowedStatuses: [ AppStatus.RUNNING, AppStatus.RUNNING, AppStatus.RUNNING, AppStatus.RUNNING ]},
+    { id: 'single-status-action', name: 'Single Status Action', description: 'This action has only one allowed status', allowedStatuses: [ AppStatus.RUNNING ]},
     { id: 'off-sync-chain', name: 'Off Sync Chain', description: 'this will off sync with the chain like from Avatar', allowedStatuses: [ AppStatus.STOPPED ]}
   ],
 }
