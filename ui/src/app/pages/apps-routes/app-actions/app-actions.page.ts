@@ -59,20 +59,23 @@ export class AppActionsPage extends Cleanup {
       })
       await alert.present()
     } else {
-      const joinStatuses = (statuses: AppStatus[]) => {
-        const last = statuses.pop()
-        let s = statuses.join(', ')
-        if (last) {
-          if (statuses.length > 1) { // oxford comma
-            s += ','
-          }
-          s += ` or ${last}`
+      const statuses = [...action.allowedStatuses]
+      const last = statuses.pop()
+      let statusesStr = statuses.join(', ')
+      let error = null
+      if (statuses.length) {
+        if (statuses.length > 1) { // oxford comma
+          statusesStr += ','
         }
-        return s
+        statusesStr += ` or ${last}`
+      } else if (last) {
+        statusesStr = `${last}`
+      } else {
+        error = `There is state for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
       }
       const alert = await this.alertCtrl.create({
         header: 'Forbidden',
-        message: `Action "${action.name}" can only be executed when service is ${joinStatuses(action.allowedStatuses)}`,
+        message: error || `Action "${action.name}" can only be executed when service is ${statusesStr}`,
         buttons: ['OK'],
         cssClass: 'alert-error-message',
       })
