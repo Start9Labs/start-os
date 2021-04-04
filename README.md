@@ -24,7 +24,7 @@ There are multiple ways to obtain and begin using EmbassyOS.
 ### :moneybag: Buy an Embassy
 This is the most convenient option. Simply [buy an Embassy](https://start9labs.com) from Start9 Labs and plug it in. Depending on where you live, shipping costs and import duties may vary.
 
-### :hammer_and_wrench: Build your own Embassy
+### :construction_worker: Build your own Embassy
 While not as convenient as buying an Embassy, this option is easier than you might imagine, and there are 4 reasons why you might prefer it:
 1. You already have a Raspberry Pi and would like to re-purpose it.
 1. You want to save on shipping costs.
@@ -33,7 +33,7 @@ While not as convenient as buying an Embassy, this option is easier than you mig
 
 To pursue this option, follow this [guide](https://docs.start9labs.com/getting-started/diy.html).
 
-### Build EmbassyOS from Source
+### :hammer_and_wrench: Build EmbassyOS from Source
 
 EmbassyOS can be built from source, for personal use, for free.
 A detailed guide for doing so can be found [here](https://github.com/Start9Labs/embassy-os/blob/master/BuildGuide.md).
@@ -42,7 +42,6 @@ A detailed guide for doing so can be found [here](https://github.com/Start9Labs/
 To contribute to the development of EmbassyOS, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
 
 ## UI Screenshots
-<img src="assets/ServicesRunning.png" alt="Embassy Services" width="50%" height="50%">
-<img src="assets/ServiceDetails.png" alt="Service Details" width="50%" height="50%">
-<img src="assets/Embassy.png" alt="EmbassyOS" width="50%" height="50%">
-<img src="assets/Marketplace.png" alt="Marketplace" width="50%" height="50%">
+<img src="assets/ServicesRunning.png" alt="Embassy Services" width="100%"> | <img src="assets/ServiceDetails.png" alt="Service Details" width="100%">
+--- | ---
+<img src="assets/Embassy.png" alt="EmbassyOS" width="100%"> | <img src="assets/Marketplace.png" alt="Marketplace" width="100%">
