@@ -1,12 +1,12 @@
-use std::ops::Bound;
-use std::ops::RangeBounds;
-use std::ops::RangeInclusive;
+use std::ops::{Bound, RangeBounds, RangeInclusive};
 
-use rand::{distributions::Distribution, Rng};
+use rand::distributions::Distribution;
+use rand::Rng;
+use serde_json::Value;
 
-use super::value::Config;
+use super::Config;
 
-pub const STATIC_NULL: super::value::Value = super::value::Value::Null;
+pub const STATIC_NULL: Value = Value::Null;
 
 #[derive(Clone, Debug)]
 pub struct CharSet(pub Vec<(RangeInclusive<char>, usize)>, usize);
@@ -15,7 +15,7 @@ impl CharSet {
         self.0.iter().any(|r| r.0.contains(c))
     }
     pub fn gen<R: Rng>(&self, rng: &mut R) -> char {
-        let mut idx = rng.gen_range(0, self.1);
+        let mut idx = rng.gen_range(0..self.1);
         for r in &self.0 {
             if idx < r.1 {
                 return std::convert::TryFrom::try_from(
@@ -282,7 +282,7 @@ impl UniqueBy {
         match self {
             UniqueBy::Any(any) => any.iter().any(|u| u.eq(lhs, rhs)),
             UniqueBy::All(all) => all.iter().all(|u| u.eq(lhs, rhs)),
-            UniqueBy::Exactly(key) => lhs.0.get(key) == rhs.0.get(key),
+            UniqueBy::Exactly(key) => lhs.get(key) == rhs.get(key),
             UniqueBy::NotUnique => false,
         }
     }
