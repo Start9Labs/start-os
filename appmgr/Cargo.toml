@@ -1,16 +1,28 @@
 [package]
 authors = ["Aiden McClelland <me@drbonez.dev>"]
 edition = "2018"
-name = "appmgr"
-version = "0.2.13"
+name = "embassy"
+version = "0.3.0"
 
 [lib]
-name = "appmgrlib"
+name = "embassy"
 path = "src/lib.rs"
 
 [[bin]]
-name = "appmgr"
-path = "src/main.rs"
+name = "embassyd"
+path = "src/bin/embassyd.rs"
+
+[[bin]]
+name = "embassy-init"
+path = "src/bin/embassy-init.rs"
+
+[[bin]]
+name = "embassy-sdk"
+path = "src/bin/embassy-sdk.rs"
+
+[[bin]]
+name = "embassy-cli"
+path = "src/bin/embassy-cli.rs"
 
 [features]
 avahi = ["avahi-sys"]
@@ -19,40 +31,51 @@ portable = []
 production = []
 
 [dependencies]
+anyhow = "1.0.40"
 async-trait = "0.1.42"
 avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", branch = "feature/dynamic-linking", features = ["dynamic"], optional = true }
 base32 = "0.4.0"
+bollard = "0.10.1"
+chrono = { version = "0.4.19", features = ["serde"] }
 clap = "2.33"
-ctrlc = "3.1.7"
-ed25519-dalek = "1.0.1"
-emver = { version = "0.1.0", features = ["serde"] }
-failure = "0.1.8"
-file-lock = "1.1"
+digest = "0.9.0"
+ed25519-dalek = { version = "1.0.1", features = ["serde"] }
+emver = { version = "0.1.2", features = ["serde"] }
 futures = "0.3.8"
 git-version = "0.3.4"
 http = "0.2.3"
-itertools = "0.9.0"
+id-pool = { version = "0.2.1", features = ["u16", "serde"], default-features = false }
+indexmap = { version = "1.6.2", features = ["serde"] }
+itertools = "0.10.0"
+jsonpath_lib = "0.2.6"
 lazy_static = "1.4"
 libc = "0.2.86"
-linear-map = { version = "1.2", features = ["serde_impl"] }
 log = "0.4.11"
-nix = "0.19.1"
+nix = "0.20.0"
 openssl = "0.10.30"
-pest = "2.1"
-pest_derive = "2.1"
+patch-db = { path = "../../patch-db/patch-db" }
+pin-project = "1.0.6"
 prettytable-rs = "0.8.0"
-rand = "0.7.3"
+rand = "0.8.3"
 regex = "1.4.2"
-reqwest = { version = "0.10.9", features = ["stream", "json"] }
+reqwest = { version = "0.11.2", features = ["stream", "json"] }
 rpassword = "5.0.0"
+rpc-toolkit = { version = "*", path = "../../rpc-toolkit/rpc-toolkit" }
 rust-argon2 = "0.8.3"
 scopeguard = "1.1" # because avahi-sys fucks your shit up
 serde = { version = "1.0.118", features = ["derive", "rc"] }
 serde_cbor = "0.11.1"
 serde_json = "1.0.59"
+serde_toml = { package = "toml", version = "0.5.8" }
 serde_yaml = "0.8.14"
+sha2 = "0.9.3"
 simple-logging = "2.0"
-tokio = { version = "0.3.5", features = ["full"] }
-tokio-compat-02 = "0.1.2"
-tokio-tar = { version = "0.3.0", git = "https://github.com/dr-bonez/tokio-tar.git", rev = "1ba710f3" }
-yajrc = { version = "0.1.0", git = "https://github.com/dr-bonez/yajrc", rev = "c2952a4a21c50f7be6f8003afa37ee77deb66d56" }
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite"] }
+thiserror = "1.0.24"
+tokio = { version = "1.5.0", features = ["full"] }
+tokio-compat-02 = "0.2.0"
+tokio-stream = { version = "0.1.5", features = ["io-util"] }
+tokio-tar = "0.3.0"
+tokio-util = { version = "0.6.6", features = ["io"] }
+typed-builder = "0.9.0"
+url = { version = "2.2.1", features = ["serde"] }

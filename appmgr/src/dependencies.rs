@@ -1,260 +1,245 @@
-use std::borrow::Cow;
-use std::path::Path;
+use std::collections::HashMap;
 
-use emver::{Version, VersionRange};
-use linear_map::LinearMap;
-use rand::SeedableRng;
+use anyhow::anyhow;
+use emver::VersionRange;
+use indexmap::{IndexMap, IndexSet};
+use patch_db::{DbHandle, DiffPatch, HasModel, Map, MapModel};
+use serde::{Deserialize, Serialize};
 
-use crate::config::{Config, ConfigRuleEntryWithSuggestions, ConfigSpec};
-use crate::manifest::ManifestLatest;
-use crate::Error;
-use crate::ResultExt as _;
+use crate::action::ActionImplementation;
+use crate::config::{Config, ConfigSpec};
+use crate::id::InterfaceId;
+use crate::net::host::Hosts;
+use crate::s9pk::manifest::PackageId;
+use crate::status::health_check::{HealthCheckId, HealthCheckResult, HealthCheckResultVariant};
+use crate::status::{DependencyErrors, MainStatus, Status};
+use crate::util::Version;
+use crate::{Error, ResultExt as _};
 
-#[derive(Clone, Debug, Fail, serde::Serialize)]
+#[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[serde(tag = "type")]
 pub enum DependencyError {
-    NotInstalled, // "not-installed"
-    NotRunning,   // "not-running"
+    NotInstalled, // { "type": "not-installed" }
     IncorrectVersion {
         expected: VersionRange,
         received: Version,
-    }, // { "incorrect-version": { "expected": "0.1.0", "received": "^0.2.0" } }
-    ConfigUnsatisfied(Vec<String>), // { "config-unsatisfied": ["Bitcoin Core must have pruning set to manual."] }
-    PointerUpdateError(String), // { "pointer-update-error": "Bitcoin Core RPC Port must not be 18332" }
-    Other(String),              // { "other": "Well fuck." }
+    }, // { "type": "incorrect-version", "expected": "0.1.0", "received": "^0.2.0" }
+    ConfigUnsatisfied {
+        error: String,
+    }, // { "type": "config-unsatisfied", "error": "Bitcoin Core must have pruning set to manual." }
+    NotRunning,   // { "type": "not-running" }
+    HealthChecksFailed {
+        failures: IndexMap<HealthCheckId, HealthCheckResult>,
+    }, // { "type": "health-checks-failed", "checks": { "rpc": { "time": "2021-05-11T18:21:29Z", "result": "warming-up" } } }
+}
+impl DependencyError {
+    pub fn merge_with(self, other: DependencyError) -> DependencyError {
+        use DependencyError::*;
+        match (self, other) {
+            (NotInstalled, _) => NotInstalled,
+            (_, NotInstalled) => NotInstalled,
+            (IncorrectVersion { expected, received }, _) => IncorrectVersion { expected, received },
+            (_, IncorrectVersion { expected, received }) => IncorrectVersion { expected, received },
+            (ConfigUnsatisfied { error: e0 }, ConfigUnsatisfied { error: e1 }) => {
+                ConfigUnsatisfied {
+                    error: e0 + "\n" + &e1,
+                }
+            }
+            (ConfigUnsatisfied { error }, _) => ConfigUnsatisfied { error },
+            (_, ConfigUnsatisfied { error }) => ConfigUnsatisfied { error },
+            (NotRunning, _) => NotRunning,
+            (_, NotRunning) => NotRunning,
+            (HealthChecksFailed { failures: f0 }, HealthChecksFailed { failures: f1 }) => {
+                HealthChecksFailed {
+                    failures: f0.into_iter().chain(f1.into_iter()).collect(),
+                }
+            }
+        }
+    }
 }
 impl std::fmt::Display for DependencyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use DependencyError::*;
         match self {
             NotInstalled => write!(f, "Not Installed"),
-            NotRunning => write!(f, "Not Running"),
             IncorrectVersion { expected, received } => write!(
                 f,
                 "Incorrect Version: Expected {}, Received {}",
-                expected, received
+                expected,
+                received.as_str()
             ),
-            ConfigUnsatisfied(rules) => {
-                write!(f, "Configuration Rule(s) Violated: {}", rules.join(", "))
+            ConfigUnsatisfied { error } => {
+                write!(f, "Configuration Requirements Not Satisfied: {}", error)
             }
-            PointerUpdateError(e) => write!(f, "Pointer Update Caused {}", e),
-            Other(e) => write!(f, "System Error: {}", e),
+            NotRunning => write!(f, "Not Running"),
+            HealthChecksFailed { failures } => {
+                write!(f, "Failed Health Check(s): ")?;
+                let mut comma = false;
+                for (check, res) in failures {
+                    if !comma {
+                        comma = true;
+                    } else {
+                        write!(f, ", ");
+                    }
+                    write!(f, "{} @ {} {}", check, res.time, res.result)?;
+                }
+                Ok(())
+            }
         }
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct TaggedDependencyError {
-    pub dependency: String,
+    pub dependency: PackageId,
     pub error: DependencyError,
 }
-impl std::fmt::Display for TaggedDependencyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.dependency, self.error)
-    }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BreakageRes {
+    pub patch: DiffPatch,
+    pub breakages: IndexMap<PackageId, TaggedDependencyError>,
 }
 
-#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
-pub struct Dependencies(pub LinearMap<String, DepInfo>);
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Dependencies(pub IndexMap<PackageId, DepInfo>);
+impl Map for Dependencies {
+    type Key = PackageId;
+    type Value = DepInfo;
+    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
+        self.0.get(key)
+    }
+}
+impl HasModel for Dependencies {
+    type Model = MapModel<Self>;
+}
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct DepInfo {
     pub version: VersionRange,
     pub optional: Option<String>,
     pub description: Option<String>,
+    pub critical: bool,
     #[serde(default)]
-    pub mount_public: bool,
-    #[serde(default)]
-    pub mount_shared: bool,
-    #[serde(default)]
-    pub config: Vec<ConfigRuleEntryWithSuggestions>,
+    #[model]
+    pub config: Option<DependencyConfig>,
 }
 impl DepInfo {
-    pub async fn satisfied(
+    pub async fn satisfied<Db: DbHandle>(
         &self,
-        dependency_id: &str,
+        db: &mut Db,
+        dependency_id: &PackageId,
         dependency_config: Option<Config>, // fetch if none
-        dependent_id: &str,
+        dependent_id: &PackageId,
+        dependent_version: &Version,
         dependent_config: &Config,
     ) -> Result<Result<(), DependencyError>, Error> {
-        let info = if let Some(info) = crate::apps::list_info().await?.remove(dependency_id) {
+        let dependency = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(dependency_id)
+            .and_then(|pde| pde.installed())
+            .get(db)
+            .await?;
+        let info = if let Some(info) = &*dependency {
             info
         } else {
             return Ok(Err(DependencyError::NotInstalled));
         };
-        if !&info.version.satisfies(&self.version) {
+        if !&info.manifest.version.satisfies(&self.version) {
             return Ok(Err(DependencyError::IncorrectVersion {
                 expected: self.version.clone(),
-                received: info.version.clone(),
+                received: info.manifest.version.clone(),
             }));
         }
+        let hosts = crate::db::DatabaseModel::new()
+            .network()
+            .hosts()
+            .get(db)
+            .await?;
         let dependency_config = if let Some(cfg) = dependency_config {
             cfg
+        } else if let Some(cfg_info) = &info.manifest.config {
+            cfg_info
+                .get(
+                    dependency_id,
+                    &info.manifest.version,
+                    &info.manifest.volumes,
+                    &hosts,
+                )
+                .await?
+                .config
+                .unwrap_or_default()
         } else {
-            let app_config = crate::apps::config(dependency_id).await?;
-            if let Some(cfg) = app_config.config {
-                cfg
-            } else {
-                app_config
-                    .spec
-                    .gen(&mut rand::rngs::StdRng::from_entropy(), &None)
-                    .unwrap_or_default()
-            }
+            Config::default()
         };
-        let mut errors = Vec::new();
-        let mut cfgs = LinearMap::with_capacity(2);
-        cfgs.insert(dependency_id, Cow::Borrowed(&dependency_config));
-        cfgs.insert(dependent_id, Cow::Borrowed(dependent_config));
-        for rule in self.config.iter() {
-            if !(rule.entry.rule.compiled)(&dependency_config, &cfgs) {
-                errors.push(rule.entry.description.clone());
+        if let Some(cfg_req) = &self.config {
+            if let Err(e) = cfg_req
+                .check(dependent_id, dependent_version, dependent_config)
+                .await
+            {
+                if e.kind == crate::ErrorKind::ConfigRulesViolation {
+                    return Ok(Err(DependencyError::ConfigUnsatisfied {
+                        error: format!("{}", e),
+                    }));
+                } else {
+                    return Err(e);
+                }
             }
         }
-        if !errors.is_empty() {
-            return Ok(Err(DependencyError::ConfigUnsatisfied(errors)));
-        }
-        if crate::apps::status(dependency_id, false).await?.status
-            != crate::apps::DockerStatus::Running
-        {
-            return Ok(Err(DependencyError::NotRunning));
+        match &info.status.main {
+            MainStatus::BackingUp {
+                started: Some(_),
+                health,
+            }
+            | MainStatus::Running { health, .. } => {
+                let mut failures = IndexMap::with_capacity(health.len());
+                for (check, res) in health {
+                    if !matches!(res.result, HealthCheckResultVariant::Success) {
+                        failures.insert(check.clone(), res.clone());
+                    }
+                }
+                if !failures.is_empty() {
+                    return Ok(Err(DependencyError::HealthChecksFailed { failures }));
+                }
+            }
+            _ => return Ok(Err(DependencyError::NotRunning)),
         }
         Ok(Ok(()))
     }
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
-pub struct AppDepInfo {
-    #[serde(flatten)]
-    pub info: DepInfo,
-    pub required: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<DependencyError>,
+pub struct DependencyConfig {
+    check: ActionImplementation,
+    auto_configure: ActionImplementation,
 }
-
-#[derive(Debug, Default, serde::Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct AppDependencies(pub LinearMap<String, AppDepInfo>);
-
-pub async fn check_dependencies(
-    manifest: ManifestLatest,
-    dependent_config: &Config,
-    dependent_config_spec: &ConfigSpec,
-) -> Result<AppDependencies, Error> {
-    let mut deps = AppDependencies::default();
-    for (dependency_id, dependency_info) in manifest.dependencies.0.into_iter() {
-        let required = dependency_info.optional.is_none()
-            || dependent_config_spec.requires(&dependency_id, dependent_config);
-        let error = dependency_info
-            .satisfied(&dependency_id, None, &manifest.id, dependent_config)
+impl DependencyConfig {
+    pub async fn check(
+        &self,
+        dependent_id: &PackageId,
+        dependent_version: &Version,
+        dependency_config: &Config,
+    ) -> Result<Result<(), String>, Error> {
+        Ok(self
+            .check
+            .sandboxed(dependent_id, dependent_version, Some(dependency_config))
             .await?
-            .err();
-        let app_dep_info = AppDepInfo {
-            error,
-            required,
-            info: dependency_info,
-        };
-        deps.0.insert(dependency_id, app_dep_info);
+            .map_err(|(_, e)| e))
     }
-    Ok(deps)
-}
-
-pub async fn auto_configure(
-    dependent: &str,
-    dependency: &str,
-    dry_run: bool,
-) -> Result<crate::config::ConfigurationRes, Error> {
-    let (dependent_config, mut dependency_config, manifest) = futures::try_join!(
-        crate::apps::config_or_default(dependent),
-        crate::apps::config_or_default(dependency),
-        crate::apps::manifest(dependent)
-    )?;
-    let mut cfgs = LinearMap::new();
-    cfgs.insert(dependent, Cow::Borrowed(&dependent_config));
-    cfgs.insert(dependency, Cow::Owned(dependency_config.clone()));
-    let dep_info = manifest
-        .dependencies
-        .0
-        .get(dependency)
-        .ok_or_else(|| failure::format_err!("{} Does Not Depend On {}", dependent, dependency))
-        .no_code()?;
-    for rule in &dep_info.config {
-        if let Err(e) = rule.apply(dependency, &mut dependency_config, &mut cfgs) {
-            log::warn!("Rule Unsatisfied After Applying Suggestions: {}", e);
-        }
+    pub async fn auto_configure(
+        &self,
+        dependent_id: &PackageId,
+        dependent_version: &Version,
+        old: &Config,
+    ) -> Result<Config, Error> {
+        self.auto_configure
+            .sandboxed(dependent_id, dependent_version, Some(old))
+            .await?
+            .map_err(|e| Error::new(anyhow!("{}", e.1), crate::ErrorKind::AutoConfigure))
     }
-    crate::config::configure(dependency, Some(dependency_config), None, dry_run).await
-}
-
-pub async fn update_binds(dependent_id: &str) -> Result<(), Error> {
-    let dependent_manifest = crate::apps::manifest(dependent_id).await?;
-    let dependency_manifests = futures::future::try_join_all(
-        dependent_manifest
-            .dependencies
-            .0
-            .into_iter()
-            .filter(|(_, info)| info.mount_public || info.mount_shared)
-            .map(|(id, info)| async {
-                Ok::<_, Error>(if crate::apps::list_info().await?.contains_key(&id) {
-                    let man = crate::apps::manifest(&id).await?;
-                    Some((id, info, man))
-                } else {
-                    None
-                })
-            }),
-    )
-    .await?;
-    // i just have a gut feeling this shouldn't be concurrent
-    for (dependency_id, info, dependency_manifest) in
-        dependency_manifests.into_iter().filter_map(|a| a)
-    {
-        match (dependency_manifest.public, info.mount_public) {
-            (Some(public), true) => {
-                let public_path = Path::new(crate::VOLUMES).join(&dependency_id).join(public);
-                if let Ok(metadata) = tokio::fs::metadata(&public_path).await {
-                    if metadata.is_dir() {
-                        crate::disks::bind(
-                            public_path,
-                            Path::new(crate::VOLUMES)
-                                .join(&dependent_id)
-                                .join("start9")
-                                .join("public")
-                                .join(&dependency_id),
-                            true,
-                        )
-                        .await?
-                    }
-                }
-            }
-            _ => (),
-        }
-        match (dependency_manifest.shared, info.mount_shared) {
-            (Some(shared), true) => {
-                let shared_path = Path::new(crate::VOLUMES)
-                    .join(&dependency_id)
-                    .join(shared)
-                    .join(dependent_id); // namespaced by dependent
-                tokio::fs::create_dir_all(&shared_path).await?;
-                if let Ok(metadata) = tokio::fs::metadata(&shared_path).await {
-                    if metadata.is_dir() {
-                        crate::disks::bind(
-                            shared_path,
-                            Path::new(crate::VOLUMES)
-                                .join(&dependent_id)
-                                .join("start9")
-                                .join("shared")
-                                .join(&dependency_id),
-                            false,
-                        )
-                        .await?
-                    }
-                }
-            }
-            _ => (),
-        }
-    }
-
-    Ok(())
 }
