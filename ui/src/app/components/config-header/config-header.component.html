@@ -3,22 +3,28 @@
   <ng-container *ngIf="error">
     <ion-item>
       <ion-icon slot="start" name="warning-outline" color="danger" size="small"></ion-icon>
-      <ion-label><ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text></ion-label>
+      <ion-label>
+        <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+      </ion-label>
     </ion-item>
     <ion-item-divider *ngIf="spec.description || spec.changeWarning"></ion-item-divider>
   </ng-container>
   <!-- description -->
   <ion-item *ngIf="spec.description">
     <ion-label class="ion-text-wrap">
-      <p><ion-text color="dark">Description</ion-text></p>
-      <p *ngIf="spec.description" [innerHTML]="spec.description | markdown"></p>
+      <p>
+        <ion-text color="dark">Description</ion-text>
+      </p>
+      <p [innerHTML]="spec.description | markdown"></p>
     </ion-label>
   </ion-item>
   <!-- warning -->
   <ion-item *ngIf="spec.changeWarning">
     <ion-label class="ion-text-wrap">
-      <p><ion-text color="warning">Warning!</ion-text></p>
-      <p *ngIf="spec.changeWarning" [innerHTML]="spec.changeWarning | markdown"></p>
+      <p>
+        <ion-text color="warning">Warning!</ion-text>
+      </p>
+      <p [innerHTML]="spec.changeWarning | markdown"></p>
     </ion-label>
   </ion-item>
 </ion-item-group>
