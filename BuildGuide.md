@@ -145,7 +145,7 @@
       cd ~/embassy-os
       make
       
-      #Depending from your hadware this can take 1-2h+
+      #Depending on your hardware this can take 1-2h+
       #Wait for the "DONE!" message and take note of your product_key
       exit
       ```
