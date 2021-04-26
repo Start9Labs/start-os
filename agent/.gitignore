@@ -19,9 +19,7 @@ cabal.sandbox.config
 *.keter
 *~
 .vscode
-*.cabal
 \#*
-start9-companion-server.cabal
 stack.yaml.lock
 *.env
 agent_*

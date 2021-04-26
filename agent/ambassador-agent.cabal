@@ -1,0 +1,418 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: bcd365c14545d22345b64bce91cca30beb45eb6cf0f8d6c224702dce707f39a0
+
+name:           ambassador-agent
+version:        0.2.12
+build-type:     Simple
+
+flag dev
+  description: Turn on development settings, like auto-reload templates.
+  manual: False
+  default: False
+
+flag disable-auth
+  description: disable authorization checks
+  manual: False
+  default: False
+
+flag library-only
+  description: Build for use with "yesod devel"
+  manual: False
+  default: False
+
+library
+  exposed-modules:
+      Application
+      Auth
+      Constants
+      Daemon.AppNotifications
+      Daemon.RefreshProcDev
+      Daemon.SslRenew
+      Daemon.TorHealth
+      Daemon.ZeroConf
+      Foundation
+      Handler.Apps
+      Handler.Authenticate
+      Handler.Backups
+      Handler.Hosts
+      Handler.Icons
+      Handler.Login
+      Handler.Network
+      Handler.Notifications
+      Handler.PasswordUpdate
+      Handler.PowerOff
+      Handler.Register
+      Handler.Register.Nginx
+      Handler.Register.Tor
+      Handler.SelfUpdate
+      Handler.SshKeys
+      Handler.Status
+      Handler.Tor
+      Handler.Types.Apps
+      Handler.Types.HmacSig
+      Handler.Types.Hosts
+      Handler.Types.Metrics
+      Handler.Types.Parse
+      Handler.Types.Register
+      Handler.Types.V0.Base
+      Handler.Types.V0.Specs
+      Handler.Types.V0.Ssh
+      Handler.Types.V0.Wifi
+      Handler.Util
+      Handler.V0
+      Handler.Wifi
+      Lib.Algebra.Domain.AppMgr
+      Lib.Algebra.Domain.AppMgr.TH
+      Lib.Algebra.Domain.AppMgr.Types
+      Lib.Algebra.State.RegistryUrl
+      Lib.Avahi
+      Lib.Background
+      Lib.ClientManifest
+      Lib.Crypto
+      Lib.Database
+      Lib.Error
+      Lib.External.AppManifest
+      Lib.External.AppMgr
+      Lib.External.Metrics.Df
+      Lib.External.Metrics.Iotop
+      Lib.External.Metrics.ProcDev
+      Lib.External.Metrics.Temperature
+      Lib.External.Metrics.Top
+      Lib.External.Metrics.Types
+      Lib.External.Registry
+      Lib.External.Specs.Common
+      Lib.External.Specs.CPU
+      Lib.External.Specs.Memory
+      Lib.External.Util
+      Lib.External.WpaSupplicant
+      Lib.IconCache
+      Lib.Metrics
+      Lib.Migration
+      Lib.Notifications
+      Lib.Password
+      Lib.ProductKey
+      Lib.SelfUpdate
+      Lib.Sound
+      Lib.Ssh
+      Lib.Ssl
+      Lib.Synchronizers
+      Lib.SystemCtl
+      Lib.SystemPaths
+      Lib.Tor
+      Lib.TyFam.ConditionalData
+      Lib.Types.Core
+      Lib.Types.Emver
+      Lib.Types.Emver.Orphans
+      Lib.Types.NetAddress
+      Lib.Types.ServerApp
+      Lib.Types.Url
+      Lib.WebServer
+      Model
+      Orphans.Digest
+      Orphans.UUID
+      Settings
+      Startlude
+      Startlude.ByteStream
+      Startlude.ByteStream.Char8
+      Util.Conduit
+      Util.File
+      Util.Function
+      Util.Text
+  other-modules:
+      Paths_ambassador_agent
+  hs-source-dirs:
+      src
+  default-extensions: NoImplicitPrelude BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFunctor DeriveGeneric DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NumericUnderscores OverloadedStrings PolyKinds RankNTypes StandaloneDeriving StandaloneKindSignatures TupleSections TypeApplications TypeFamilies TypeOperators
+  build-depends:
+      aeson
+    , aeson-flatten
+    , attoparsec
+    , base >=4.9.1.0 && <5
+    , bytestring
+    , casing
+    , comonad
+    , conduit
+    , conduit-extra
+    , connection
+    , containers
+    , cryptonite
+    , cryptonite-conduit
+    , data-default
+    , directory
+    , errors
+    , exceptions
+    , exinst
+    , fast-logger
+    , file-embed
+    , filelock
+    , filepath
+    , fused-effects
+    , fused-effects-th
+    , git-embed
+    , http-api-data
+    , http-client
+    , http-client-tls
+    , http-conduit
+    , http-types
+    , interpolate
+    , iso8601-time
+    , json-rpc
+    , lens
+    , lens-aeson
+    , lifted-async
+    , lifted-base
+    , memory
+    , mime-types
+    , monad-control
+    , monad-logger
+    , network
+    , persistent
+    , persistent-sqlite
+    , persistent-template
+    , process
+    , process-extras
+    , protolude
+    , regex-compat
+    , resourcet
+    , shell-conduit
+    , singletons
+    , stm
+    , streaming
+    , streaming-bytestring
+    , streaming-conduit
+    , streaming-utils
+    , tar-conduit
+    , template-haskell
+    , text >=0.11 && <2.0
+    , time
+    , transformers
+    , transformers-base
+    , typed-process
+    , unix
+    , unliftio
+    , unliftio-core
+    , unordered-containers
+    , uuid
+    , wai
+    , wai-cors
+    , wai-extra
+    , warp
+    , yaml
+    , yesod
+    , yesod-auth
+    , yesod-core
+    , yesod-form
+    , yesod-persistent
+  if (flag(dev)) || (flag(library-only))
+    ghc-options: -Wall -Wunused-packages -fwarn-tabs -O0 -fdefer-typed-holes
+    cpp-options: -DDEVELOPMENT
+  else
+    ghc-options: -Wall -Wunused-packages -fwarn-tabs -O2 -fdefer-typed-holes
+  if (flag(disable-auth))
+    cpp-options: -DDISABLE_AUTH
+  default-language: Haskell2010
+
+executable agent
+  main-is: main.hs
+  hs-source-dirs:
+      app
+  default-extensions: NoImplicitPrelude BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFunctor DeriveGeneric DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NumericUnderscores OverloadedStrings PolyKinds RankNTypes StandaloneDeriving StandaloneKindSignatures TupleSections TypeApplications TypeFamilies TypeOperators
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N -fdefer-typed-holes
+  build-depends:
+      aeson
+    , aeson-flatten
+    , ambassador-agent
+    , attoparsec
+    , base >=4.9.1.0 && <5
+    , bytestring
+    , casing
+    , comonad
+    , conduit
+    , conduit-extra
+    , connection
+    , containers
+    , cryptonite
+    , cryptonite-conduit
+    , data-default
+    , directory
+    , errors
+    , exceptions
+    , exinst
+    , fast-logger
+    , file-embed
+    , filelock
+    , filepath
+    , fused-effects
+    , fused-effects-th
+    , git-embed
+    , http-api-data
+    , http-client
+    , http-client-tls
+    , http-conduit
+    , http-types
+    , interpolate
+    , iso8601-time
+    , json-rpc
+    , lens
+    , lens-aeson
+    , lifted-async
+    , lifted-base
+    , memory
+    , mime-types
+    , monad-control
+    , monad-logger
+    , network
+    , persistent
+    , persistent-sqlite
+    , persistent-template
+    , process
+    , process-extras
+    , protolude
+    , regex-compat
+    , resourcet
+    , shell-conduit
+    , singletons
+    , stm
+    , streaming
+    , streaming-bytestring
+    , streaming-conduit
+    , streaming-utils
+    , tar-conduit
+    , template-haskell
+    , text >=0.11 && <2.0
+    , time
+    , transformers
+    , transformers-base
+    , typed-process
+    , unix
+    , unliftio
+    , unliftio-core
+    , unordered-containers
+    , uuid
+    , wai
+    , wai-cors
+    , wai-extra
+    , warp
+    , yaml
+    , yesod
+    , yesod-auth
+    , yesod-core
+    , yesod-form
+    , yesod-persistent
+  if flag(library-only)
+    buildable: False
+  if false
+    other-modules:
+        Paths_ambassador_agent
+  default-language: Haskell2010
+
+test-suite agent-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      ChecklistSpec
+      Lib.External.AppManifestSpec
+      Lib.SoundSpec
+      Lib.Types.EmverProp
+      Live.Metrics
+      Live.Serialize
+      Spec
+  hs-source-dirs:
+      test
+  default-extensions: NoImplicitPrelude BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFunctor DeriveGeneric DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NumericUnderscores OverloadedStrings PolyKinds RankNTypes StandaloneDeriving StandaloneKindSignatures TupleSections TypeApplications TypeFamilies TypeOperators
+  ghc-options: -Wall -fdefer-typed-holes
+  build-depends:
+      aeson
+    , aeson-flatten
+    , ambassador-agent
+    , attoparsec
+    , base >=4.9.1.0 && <5
+    , bytestring
+    , casing
+    , comonad
+    , conduit
+    , conduit-extra
+    , connection
+    , containers
+    , cryptonite
+    , cryptonite-conduit
+    , data-default
+    , directory
+    , errors
+    , exceptions
+    , exinst
+    , fast-logger
+    , file-embed
+    , filelock
+    , filepath
+    , fused-effects
+    , fused-effects-th
+    , git-embed
+    , hedgehog
+    , hspec >=2.0.0
+    , hspec-expectations
+    , http-api-data
+    , http-client
+    , http-client-tls
+    , http-conduit
+    , http-types
+    , interpolate
+    , iso8601-time
+    , json-rpc
+    , lens
+    , lens-aeson
+    , lifted-async
+    , lifted-base
+    , memory
+    , mime-types
+    , monad-control
+    , monad-logger
+    , network
+    , persistent
+    , persistent-sqlite
+    , persistent-template
+    , process
+    , process-extras
+    , protolude
+    , random
+    , regex-compat
+    , resourcet
+    , shell-conduit
+    , singletons
+    , stm
+    , streaming
+    , streaming-bytestring
+    , streaming-conduit
+    , streaming-utils
+    , tar-conduit
+    , template-haskell
+    , text >=0.11 && <2.0
+    , time
+    , transformers
+    , transformers-base
+    , typed-process
+    , unix
+    , unliftio
+    , unliftio-core
+    , unordered-containers
+    , uuid
+    , wai
+    , wai-cors
+    , wai-extra
+    , warp
+    , yaml
+    , yesod
+    , yesod-auth
+    , yesod-core
+    , yesod-form
+    , yesod-persistent
+    , yesod-test
+  if false
+    other-modules:
+        Paths_ambassador_agent
+  default-language: Haskell2010
