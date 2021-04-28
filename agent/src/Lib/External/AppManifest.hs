@@ -78,6 +78,8 @@ data AppManifest where
      AppManifest ::{ appManifestId :: AppId
                     , appManifestVersion :: Version
                     , appManifestTitle :: Text
+                    , appManifestLicenseName :: Maybe Text
+                    , appManifestLicenseLink :: Maybe Text
                     , appManifestDescShort :: Text
                     , appManifestDescLong :: Text
                     , appManifestReleaseNotes :: Text
@@ -109,6 +111,8 @@ instance FromJSON AppManifest where
         appManifestId             <- o .: "id"
         appManifestVersion        <- o .: "version"
         appManifestTitle          <- o .: "title"
+        appManifestLicenseName    <- o .:? "license-info" >>= traverse (.: "license")
+        appManifestLicenseLink    <- o .:? "license-info" >>= traverse (.: "url")
         appManifestDescShort      <- o .: "description" >>= (.: "short")
         appManifestDescLong       <- o .: "description" >>= (.: "long")
         appManifestReleaseNotes   <- o .: "release-notes"

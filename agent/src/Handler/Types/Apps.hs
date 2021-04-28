@@ -131,6 +131,8 @@ instance ToJSON (AppDependencyRequirement Keep) where
 -- mute violations downstream of version for installing apps
 data AppInstalledFull = AppInstalledFull
     { appInstalledFullBase                   :: AppBase
+    , appInstalledFullLicenseName            :: Maybe Text
+    , appInstalledFullLicenseLink            :: Maybe Text
     , appInstalledFullStatus                 :: AppStatus
     , appInstalledFullVersionInstalled       :: Version
     , appInstalledFullTorAddress             :: Maybe TorAddress

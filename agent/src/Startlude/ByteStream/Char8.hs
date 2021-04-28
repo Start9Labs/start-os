@@ -1,7 +1,5 @@
 module Startlude.ByteStream.Char8
     ( module X
-    )
-where
+    ) where
 
-import           Data.ByteString.Streaming.Char8
-                                               as X
+import           Streaming.ByteString.Char8    as X

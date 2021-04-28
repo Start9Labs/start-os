@@ -303,6 +303,8 @@ getInstalledAppByIdLogic appId = do
             backupTime <- lift $ LAsync.wait backupTime'
             hoistMaybe $ HM.lookup appId installCache <&> \(StoreApp {..}, StoreAppVersionInfo {..}) -> AppInstalledFull
                 { appInstalledFullBase = AppBase appId storeAppTitle (iconUrl appId storeAppVersionInfoVersion)
+                , appInstalledFullLicenseName            = Nothing
+                , appInstalledFullLicenseLink            = Nothing
                 , appInstalledFullStatus                 = AppStatusTmp Installing
                 , appInstalledFullVersionInstalled       = storeAppVersionInfoVersion
                 , appInstalledFullInstructions           = Nothing
@@ -354,6 +356,8 @@ getInstalledAppByIdLogic appId = do
                     guard (not . null $ lanConfs)
                     pure $ LanAddress . (".onion" `Text.replace` ".local") . unTorAddress $ addrBase
             pure AppInstalledFull { appInstalledFullBase = AppBase appId infoResTitle (iconUrl appId version)
+                                  , appInstalledFullLicenseName            = AppManifest.appManifestLicenseName manifest
+                                  , appInstalledFullLicenseLink            = AppManifest.appManifestLicenseLink manifest
                                   , appInstalledFullStatus                 = status
                                   , appInstalledFullVersionInstalled       = version
                                   , appInstalledFullInstructions           = instructions
