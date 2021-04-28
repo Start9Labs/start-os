@@ -20,14 +20,17 @@ import           System.Posix.Files
 import           System.Process
 
 import           Constants
+import           Database.Persist.Sqlite        ( runSqlPool )
 import           Foundation
 import           Handler.Types.V0.Base
 import           Lib.Algebra.State.RegistryUrl
 import           Lib.Error
 import           Lib.External.Registry
+import qualified Lib.Notifications             as Notifications
 import           Lib.Sound                     as Sound
 import           Lib.Synchronizers
 import           Lib.SystemPaths
+import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Lib.WebServer
 import           Settings
@@ -214,7 +217,10 @@ synchronizeSystemState ctx _version = handle @_ @SomeException cleanup $ flip ru
         Nothing  -> pure ()
         Just tid -> liftIO $ killThread tid
     setUpdate False
-    when (any snd restartsAndRuns) $ liftIO $ playSong 400 marioPowerUp
+    when (any snd restartsAndRuns) $ liftIO $ do
+        _ <- flip runSqlPool (appConnPool ctx)
+            $ Notifications.emit (AppId "embassy-os") agentVersion Notifications.OsUpdateSucceeded
+        playSong 400 marioPowerUp
     when (any (uncurry (&&)) restartsAndRuns) $ liftIO do
         callCommand "/bin/sync"
         callCommand "/sbin/reboot"
