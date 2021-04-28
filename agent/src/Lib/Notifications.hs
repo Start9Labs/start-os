@@ -43,6 +43,8 @@ data AgentNotification =
     | RestartFailed S9Error
     | DockerFuckening
     | CertRenewFailed ExitCode String String
+    | OsUpdateSucceeded
+    | OsUpdateFailed Text
 
 -- CODES
 -- RULES:
@@ -73,6 +75,7 @@ toCode :: AgentNotification -> Text
 toCode InstallSuccess                  = "100"
 toCode BackupSucceeded                 = "101"
 toCode RestoreSucceeded                = "102"
+toCode OsUpdateSucceeded               = "103"
 toCode InstallFailedGetApp             = "300"
 toCode (InstallFailedAppMgrExitCode _) = "301"
 toCode DockerFuckening                 = "302"
@@ -86,6 +89,7 @@ toTitle :: AgentNotification -> Text
 toTitle InstallSuccess                  = "Install succeeded"
 toTitle BackupSucceeded                 = "Backup succeeded"
 toTitle RestoreSucceeded                = "Restore succeeded"
+toTitle OsUpdateSucceeded               = "EmbassyOS Update Succeeded"
 toTitle InstallFailedGetApp             = "Install failed"
 toTitle (InstallFailedAppMgrExitCode _) = "Install failed"
 toTitle (InstallFailedS9Error        _) = "Install failed"
@@ -118,3 +122,4 @@ Stdout:
 Stderr:
 #{e}
 |]
+toMessage _ version OsUpdateSucceeded = [i|The update to EmbassyOS #{version} succeeded.|]

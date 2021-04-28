@@ -55,6 +55,7 @@ import           Data.ByteString.Char8          ( split )
 import qualified Data.ByteString.Char8         as C8
 import           Data.Conduit.List              ( consume )
 import qualified Data.Text                     as T
+import           Database.Persist.Sqlite        ( runSqlPool )
 import           Foundation
 import           Handler.Network
 import qualified Lib.Algebra.Domain.AppMgr     as AppMgr2
@@ -62,6 +63,7 @@ import           Lib.ClientManifest
 import           Lib.Error
 import qualified Lib.External.AppMgr           as AppMgr
 import           Lib.External.Registry
+import qualified Lib.Notifications             as Notifications
 import           Lib.Sound
 import           Lib.Ssl
 import           Lib.SystemCtl
@@ -651,8 +653,13 @@ syncRemoveDefaultNginxCfg = SyncOp "Remove Default Nginx Configuration" check mi
 
 failUpdate :: S9Error -> ExceptT Void (ReaderT AgentCtx IO) ()
 failUpdate e = do
-    ref <- asks appIsUpdateFailed
-    putStrLn $ "UPDATE FAILED: " <> errorMessage (toError e)
+    ref  <- asks appIsUpdateFailed
+    pool <- asks appConnPool
+    let msg = errorMessage (toError e)
+    putStrLn $ "UPDATE FAILED: " <> msg
+    _ <- liftIO . flip runSqlPool pool $ Notifications.emit (AppId "embassy-os")
+                                                            agentVersion
+                                                            (Notifications.OsUpdateFailed msg)
     liftIO $ playSong 216 beethoven
     liftIO $ writeIORef ref (Just e)
 
