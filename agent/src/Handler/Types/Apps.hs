@@ -158,6 +158,8 @@ instance ToJSON AppInstalledFull where
         , "lanUi" .= appInstalledFullLanUi
         , "id" .= appBaseId appInstalledFullBase
         , "title" .= appBaseTitle appInstalledFullBase
+        , "licenseName" .= appInstalledFullLicenseName
+        , "licenseLink" .= appInstalledFullLicenseLink
         , "iconURL" .= appBaseIconUrl appInstalledFullBase
         , "versionInstalled" .= appInstalledFullVersionInstalled
         , "status" .= appInstalledFullStatus
