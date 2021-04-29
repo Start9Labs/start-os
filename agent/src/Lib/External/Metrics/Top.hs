@@ -87,7 +87,7 @@ getMemAggregates topRes = do
     swapLine <- getLineByHeader swapHeader topRes
     let stats = HM.fromList $ getStats readMaybe memLine
     memTotal <- HM.lookup "total" stats
-    memFree  <- HM.lookup "avail Mem" (HM.fromList $ getStats readMaybe swapLine)
+    memFree  <- HM.lookup "avail" (HM.fromList $ getStats readMaybe swapLine)
     memUsed  <- HM.lookup "used" stats
     pure TopMemAggregates { .. }
 
