@@ -13,8 +13,8 @@ import           Startlude.ByteStream    hiding ( count )
 
 import           Conduit
 import           Control.Algebra
-import           Control.Effect.Lift
 import           Control.Effect.Error
+import           Control.Effect.Lift
 import           Control.Effect.Reader.Labelled
 import           Control.Monad.Fail             ( fail )
 import           Control.Monad.Trans.Resource
@@ -30,13 +30,13 @@ import           System.Directory
 import           System.Process
 
 import           Constants
+import           Data.Time.ISO8601              ( parseISO8601 )
 import           Lib.Algebra.State.RegistryUrl
 import           Lib.Error
 import           Lib.SystemPaths
 import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Lib.Types.ServerApp
-import           Data.Time.ISO8601              ( parseISO8601 )
 
 newtype AppManifestRes = AppManifestRes
     { storeApps :: [StoreApp] } deriving (Eq, Show)
