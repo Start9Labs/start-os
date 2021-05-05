@@ -18,15 +18,14 @@ data TopMetrics = TopMetrics
     { metricMemPercentageUsed :: Maybe Percentage
     , metricMemFree           :: Maybe MebiBytes
     , metricMemUsed           :: Maybe MebiBytes
-
     , metricSwapTotal         :: Maybe MebiBytes
     , metricSwapUsed          :: Maybe MebiBytes
-
     , metricCpuIdle           :: Maybe Percentage
     , metricCpuUserSpace      :: Maybe Percentage
     , metricWait              :: Maybe Percentage
     , metricCpuPercentageUsed :: Maybe Percentage
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
 getTopMetrics :: MonadIO m => S9ErrT m TopMetrics
 getTopMetrics = fmap parseTop runTop
@@ -51,8 +50,8 @@ parseTop t = TopMetrics { metricMemPercentageUsed = getMemPercentageUsed <$> mem
     where
         topLines = lines t
         cpu      = getCpuAggregates topLines
-        mem      = getMemAggregates memHeader topLines
-        swapS    = getMemAggregates swapHeader topLines
+        mem      = getMemAggregates topLines
+        swapS    = getSwapAggregates topLines
 
 memHeader :: Text
 memHeader = "MiB Mem"
@@ -64,7 +63,8 @@ data TopMemAggregates = TopMemAggregates
     { memTotal :: Double
     , memFree  :: Double
     , memUsed  :: Double
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
 cpuHeader :: Text
 cpuHeader = "%Cpu(s)"
@@ -78,12 +78,23 @@ data TopCpuAggregates = TopCpuAggregates
     , cpuHi :: Percentage
     , cpuSi :: Percentage
     , cpuSt :: Percentage
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
-getMemAggregates :: Text -> [Text] -> Maybe TopMemAggregates
-getMemAggregates header topRes = do
-    memLine <- getLineByHeader header topRes
+getMemAggregates :: [Text] -> Maybe TopMemAggregates
+getMemAggregates topRes = do
+    memLine  <- getLineByHeader memHeader topRes
+    swapLine <- getLineByHeader swapHeader topRes
     let stats = HM.fromList $ getStats readMaybe memLine
+    memTotal <- HM.lookup "total" stats
+    memFree  <- HM.lookup "avail" (HM.fromList $ getStats readMaybe swapLine)
+    memUsed  <- HM.lookup "used" stats
+    pure TopMemAggregates { .. }
+
+getSwapAggregates :: [Text] -> Maybe TopMemAggregates
+getSwapAggregates topRes = do
+    swapLine <- getLineByHeader swapHeader topRes
+    let stats = HM.fromList $ getStats readMaybe swapLine
     memTotal <- HM.lookup "total" stats
     memFree  <- HM.lookup "free" stats
     memUsed  <- HM.lookup "used" stats
