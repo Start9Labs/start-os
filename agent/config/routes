@@ -50,7 +50,7 @@
 /v0/wifi                              WifiR                    GET POST
 /v0/wifi/#Text                        WifiBySsidR              POST DELETE
 
-/v0/notifications                     NotificationsR           GET
+/v0/notifications                     NotificationsR           GET DELETE
 /v0/notifications/#UUID               NotificationR            DELETE
 
 /v0/shutdown                          ShutdownR                POST

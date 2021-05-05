@@ -28,5 +28,9 @@ getNotificationsR = runDB $ do
                 Nothing -> pure a
                 Just x  -> pure x
 
+deleteNotificationsR :: Handler ()
+deleteNotificationsR = do
+    runDB $ deleteWhere ([] :: [Filter Notification])
+
 deleteNotificationR :: UUID -> Handler ()
 deleteNotificationR notifId = runDB $ delete (coerce @_ @(Key Notification) notifId)
