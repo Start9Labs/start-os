@@ -74,6 +74,8 @@ instance FromJSON InstallNewAppReq where
 
 data AppAvailableFull = AppAvailableFull
     { appAvailableFullBase                   :: AppBase
+    , appAvailableFullLicenseName            :: Maybe Text
+    , appAvailableFullLicenseLink            :: Maybe Text
     , appAvailableFullInstallInfo            :: Maybe (Version, AppStatus)
     , appAvailableFullVersionLatest          :: Version
     , appAvailableFullDescriptionShort       :: Text
@@ -88,7 +90,9 @@ instance ToJSON AppAvailableFull where
     toJSON AppAvailableFull {..} = mergeTo
         (toJSON appAvailableFullBase)
         (object
-            [ "versionInstalled" .= fmap fst appAvailableFullInstallInfo
+            [ "licenseName" .= appAvailableFullLicenseName
+            , "licenseLink" .= appAvailableFullLicenseLink
+            , "versionInstalled" .= fmap fst appAvailableFullInstallInfo
             , "status" .= fmap snd appAvailableFullInstallInfo
             , "versionLatest" .= appAvailableFullVersionLatest
             , "descriptionShort" .= appAvailableFullDescriptionShort
