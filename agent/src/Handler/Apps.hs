@@ -154,8 +154,7 @@ getAvailableAppsLogic :: ( Has (Reader AgentCtx) sig m
 getAvailableAppsLogic = do
     jobCache <- asks appBackgroundJobs >>= liftIO . readTVarIO
     let installCache = inspect SInstalling jobCache
-    (Reg.AppManifestRes apps, serverApps) <- LAsync.concurrently Reg.getAppManifest
-                                                                 (AppMgr2.list [AppMgr2.flags|-s -d|])
+    (Reg.AppIndexRes apps, serverApps) <- LAsync.concurrently Reg.getAppIndex (AppMgr2.list [AppMgr2.flags|-s -d|])
     let remapped = remapAppMgrInfo jobCache serverApps
     pure $ foreach apps $ \app@StoreApp { storeAppId } ->
         let installing =
@@ -183,8 +182,9 @@ getAvailableAppByIdLogic appId = do
     let storeAppId' = storeAppId
     jobCache <- asks appBackgroundJobs >>= liftIO . readTVarIO
     let installCache = inspect SInstalling jobCache
-    (Reg.AppManifestRes storeApps, serverApps) <- LAsync.concurrently Reg.getAppManifest
-                                                                      (AppMgr2.list [AppMgr2.flags|-s -d|])
+    ((Reg.AppIndexRes storeApps, serverApps), AppManifest.AppManifest { appManifestLicenseName, appManifestLicenseLink }) <-
+        LAsync.concurrently (LAsync.concurrently Reg.getAppIndex (AppMgr2.list [AppMgr2.flags|-s -d|]))
+                            (Reg.getAppManifest appId)
     StoreApp {..} <- pure (find ((== appId) . storeAppId) storeApps) `orThrowM` NotFoundE "appId" (show appId)
     let remapped = remapAppMgrInfo jobCache serverApps
     let installingInfo =
@@ -213,6 +213,8 @@ getAvailableAppByIdLogic appId = do
                                                        appId
                                                        storeAppTitle
                                                        (storeIconUrl appId (storeAppVersionInfoVersion $ extract storeAppVersions))
+        , appAvailableFullLicenseName            = appManifestLicenseName
+        , appAvailableFullLicenseLink            = appManifestLicenseLink
         , appAvailableFullInstallInfo            = installingInfo
         , appAvailableFullVersionLatest          = storeAppVersionInfoVersion latest
         , appAvailableFullDescriptionShort       = storeAppDescriptionShort
@@ -321,7 +323,7 @@ getInstalledAppByIdLogic appId = do
                 }
     serverApps <- AppMgr2.list [AppMgr2.flags|-s -d|]
     let remapped = remapAppMgrInfo jobCache serverApps
-    appManifestFetchCached <- cached Reg.getAppManifest
+    appManifestFetchCached <- cached Reg.getAppIndex
     let
         installed = do
             (status, version, AppMgr2.InfoRes {..}) <- hoistMaybe (HM.lookup appId remapped)
@@ -335,7 +337,7 @@ getInstalledAppByIdLogic appId = do
                         fromInstalled = (AppMgr2.infoResTitle &&& AppMgr2.infoResVersion)
                             <$> hoistMaybe (HM.lookup depId serverApps)
                     let fromStore = do
-                            Reg.AppManifestRes res <- lift appManifestFetchCached
+                            Reg.AppIndexRes res <- lift appManifestFetchCached
                             (storeAppTitle &&& storeAppVersionInfoVersion . extract . storeAppVersions)
                                 <$> hoistMaybe (find ((== depId) . storeAppId) res)
                     (title, v) <- fromInstalled <|> fromStore
@@ -678,8 +680,8 @@ getAvailableAppVersionInfoLogic :: ( Has (Reader AgentCtx) sig m
                                 -> VersionRange
                                 -> m AppVersionInfo
 getAvailableAppVersionInfoLogic appId appVersionSpec = do
-    jobCache                     <- asks appBackgroundJobs >>= liftIO . readTVarIO
-    Reg.AppManifestRes storeApps <- Reg.getAppManifest
+    jobCache                  <- asks appBackgroundJobs >>= liftIO . readTVarIO
+    Reg.AppIndexRes storeApps <- Reg.getAppIndex
     let titles =
             (storeAppTitle &&& storeAppVersionInfoVersion . extract . storeAppVersions) <$> indexBy storeAppId storeApps
     StoreApp {..} <- find ((== appId) . storeAppId) storeApps `orThrowPure` NotFoundE "appId" (show appId)

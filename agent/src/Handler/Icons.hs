@@ -14,6 +14,13 @@ import           Network.HTTP.Simple
 import           System.FilePath.Posix
 import           Yesod.Core
 
+import           Control.Carrier.Reader  hiding ( asks )
+import           Control.Concurrent.STM         ( modifyTVar
+                                                , readTVarIO
+                                                )
+import           Control.Effect.Labelled        ( runLabelled )
+import           Crypto.Hash.Conduit            ( hashFile )
+import qualified Data.HashMap.Strict           as HM
 import           Foundation
 import           Lib.Algebra.State.RegistryUrl
 import           Lib.Error
@@ -21,16 +28,9 @@ import qualified Lib.External.Registry         as Reg
 import           Lib.IconCache
 import           Lib.SystemPaths         hiding ( (</>) )
 import           Lib.Types.Core
+import           Lib.Types.Emver
 import           Lib.Types.ServerApp
 import           Settings
-import           Control.Carrier.Reader  hiding ( asks )
-import           Control.Effect.Labelled        ( runLabelled )
-import qualified Data.HashMap.Strict           as HM
-import           Control.Concurrent.STM         ( modifyTVar
-                                                , readTVarIO
-                                                )
-import           Crypto.Hash.Conduit            ( hashFile )
-import           Lib.Types.Emver
 
 iconUrl :: AppId -> Version -> Text
 iconUrl appId version = (foldMap (T.cons '/') . fst . renderRoute . AppIconR $ appId) <> "?" <> show version
@@ -63,7 +63,7 @@ getAppIconR appId = handleS9ErrT $ do
     lift $ respondSource (parseContentType path) $ CB.sourceFile path .| awaitForever sendChunkBS
     where
         fetchIcon = do
-            url <- find ((== appId) . storeAppId) . Reg.storeApps <$> Reg.getAppManifest >>= \case
+            url <- find ((== appId) . storeAppId) . Reg.storeApps <$> Reg.getAppIndex >>= \case
                 Nothing -> throwError $ NotFoundE "icon" (show appId)
                 Just x  -> pure . toS $ storeAppIconUrl x
             bp <- getAbsoluteLocationFor iconBasePath
@@ -84,7 +84,7 @@ getAvailableAppIconR :: AppId -> Handler TypedContent
 getAvailableAppIconR appId = handleS9ErrT $ do
     s   <- getsYesod appSettings
     url <- do
-        find ((== appId) . storeAppId) . Reg.storeApps <$> interp s Reg.getAppManifest >>= \case
+        find ((== appId) . storeAppId) . Reg.storeApps <$> interp s Reg.getAppIndex >>= \case
             Nothing -> throwE $ NotFoundE "icon" (show appId)
             Just x  -> pure . toS $ storeAppIconUrl x
     req <- case parseRequest url of
