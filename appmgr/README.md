@@ -2,6 +2,12 @@
 
 # Instructions
 
+Clone the repo and enter the appmgr directory
+
+`git clone https://github.com/Start9Labs/embassy-os.git`
+
+`cd embassy-os/appmgr`
+
 Install the portable version of appmgr
 
 `cargo install --path=. --features=portable --no-default-features`
