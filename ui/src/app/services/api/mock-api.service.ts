@@ -355,7 +355,7 @@ async function mockGetServerLogs (): Promise<ReqRes.GetServerLogsRes> {
 
 async function mockGetAppMetrics (): Promise<ReqRes.GetAppMetricsRes> {
   await pauseFor(1000)
-  return mockApiAppMetricsV1
+  return mockApiAppMetricsV1 as ReqRes.GetAppMetricsRes
 }
 
 async function mockGetAvailableAppVersionInfo (): Promise<ReqRes.GetAppAvailableVersionInfoRes> {

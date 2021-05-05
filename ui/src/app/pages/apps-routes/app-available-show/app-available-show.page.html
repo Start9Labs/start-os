@@ -17,6 +17,8 @@
     versionInstalled: $app$.versionInstalled | async,
     versionViewing: $app$.versionViewing | async,
     descriptionLong: $app$.descriptionLong | async,
+    licenseName: $app$.licenseName | async,
+    licenseLink: $app$.licenseLink | async,
     serviceRequirements: $app$.serviceRequirements | async,
     iconURL: $app$.iconURL | async,
     releaseNotes: $app$.releaseNotes | async
@@ -112,9 +114,14 @@
         <dependency-list [$loading$]="$dependenciesLoading$" [hostApp]="$app$ | peekProperties" [dependencies]="vars.serviceRequirements"></dependency-list>
       </ng-container>
       <ion-item-divider></ion-item-divider>
+      <ion-item *ngIf="vars.licenseLink" lines="none" button [href]="vars.licenseLink" target="_blank">
+        <ion-icon slot="start" name="newspaper-outline"></ion-icon>
+        <ion-label>License</ion-label>
+        <ion-note slot="end">{{ vars.licenseName }}</ion-note>
+      </ion-item>
       <ion-item lines="none" button (click)="presentAlertVersions()">
-        <ion-icon color="medium" slot="start" name="file-tray-stacked-outline"></ion-icon>
-        <ion-label color="medium">Other versions</ion-label>
+        <ion-icon slot="start" name="file-tray-stacked-outline"></ion-icon>
+        <ion-label>Other versions</ion-label>
       </ion-item>
     </ion-item-group>
   </ng-container>
