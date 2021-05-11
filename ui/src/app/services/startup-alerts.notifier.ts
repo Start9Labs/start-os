@@ -5,6 +5,7 @@ import { WizardBaker } from '../components/install-wizard/prebaked-wizards'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { S9Server } from '../models/server-model'
 import { displayEmver } from '../pipes/emver.pipe'
+import { V1Status } from './api/api-types'
 import { ApiService, ReqRes } from './api/api.service'
 import { ConfigService } from './config.service'
 import { Emver } from './emver.service'
@@ -36,6 +37,13 @@ export class StartupAlertsNotifier {
       display: vl => this.displayOsUpdateCheck(vl),
       hasRun: this.config.skipStartupAlerts,
     }
+    const v1StatusUpdate: Check<V1Status> = {
+      name: 'v1Status',
+      shouldRun: s => this.shouldRunOsUpdateCheck(s),
+      check: () => this.v1StatusCheck(),
+      display: s => this.displayV1Check(s),
+      hasRun: this.config.skipStartupAlerts,
+    }
     const apps: Check<boolean> = {
       name: 'apps',
       shouldRun: s => this.shouldRunAppsCheck(s),
@@ -43,7 +51,7 @@ export class StartupAlertsNotifier {
       display: () => this.displayAppsCheck(),
       hasRun: this.config.skipStartupAlerts,
     }
-    this.checks = [welcome, osUpdate, apps]
+    this.checks = [welcome, osUpdate, v1StatusUpdate, apps]
   }
 
   // This takes our three checks and filters down to those that should run.
@@ -83,6 +91,10 @@ export class StartupAlertsNotifier {
 
   private shouldRunOsUpdateCheck (server: S9Server): boolean {
     return server.autoCheckUpdates
+  }
+
+  private async v1StatusCheck (): Promise<V1Status> {
+    return this.apiService.checkV1Status()
   }
 
   private async osUpdateCheck (s: Readonly<S9Server>): Promise<ReqRes.GetVersionLatestRes | undefined> {
@@ -129,6 +141,33 @@ export class StartupAlertsNotifier {
       return false
     }
     return true
+  }
+
+  private async displayV1Check (s: V1Status): Promise<boolean> {
+    return new Promise(async resolve => {
+      if (s.status !== 'available') return resolve(true)
+      const alert = await this.alertCtrl.create({
+        backdropDismiss: true,
+        header: `EmbassyOS ${s.version} Now Available!`,
+        message: `Version ${s.version} introduces SSD support and a whole lot more.`,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            handler: () => resolve(true),
+          },
+          {
+            text: 'View Instructions',
+            handler: () => {
+              window.open(`https://start9.com/eos-${s.version}`, '_blank')
+              resolve(false)
+            },
+          },
+        ],
+      })
+
+      await alert.present()
+    })
   }
 
   private async displayAppsCheck (): Promise<boolean> {

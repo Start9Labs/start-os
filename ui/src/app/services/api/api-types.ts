@@ -37,3 +37,7 @@ export interface ApiAppConfig {
 
 export type Unit = { never?: never; } // hack for the unit typ
 
+export type V1Status = {
+  status: 'nothing' | 'instructions' | 'available'
+  version: string
+}

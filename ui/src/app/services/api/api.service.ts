@@ -2,7 +2,7 @@ import { Rules } from '../../models/app-model'
 import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalledFull, DependentBreakage, AppAvailableVersionSpecificInfo, ServiceAction } from '../../models/app-types'
 import { S9Notification, SSHFingerprint, ServerMetrics, DiskInfo } from '../../models/server-model'
 import { Subject, Observable } from 'rxjs'
-import { Unit, ApiServer, ApiAppInstalledFull, ApiAppConfig, ApiAppAvailableFull, ApiAppInstalledPreview } from './api-types'
+import { Unit, ApiServer, ApiAppInstalledFull, ApiAppConfig, ApiAppAvailableFull, ApiAppInstalledPreview, V1Status } from './api-types'
 import { AppMetrics, AppMetricsVersioned } from 'src/app/util/metrics.util'
 import { ConfigSpec } from 'src/app/app-config/config-types'
 
@@ -64,6 +64,7 @@ export abstract class ApiService {
   abstract ejectExternalDisk (logicalName: string): Promise<Unit>
   abstract serviceAction (appId: string, serviceAction: ServiceAction): Promise<ReqRes.ServiceActionResponse>
   abstract refreshLAN (): Promise<Unit>
+  abstract checkV1Status (): Promise<V1Status>
 }
 
 export function isRpcFailure<Error, Result> (arg: { error: Error } | { result: Result }): arg is { error: Error } {
