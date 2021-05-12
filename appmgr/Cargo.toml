@@ -2,7 +2,7 @@
 authors = ["Aiden McClelland <me@drbonez.dev>"]
 edition = "2018"
 name = "appmgr"
-version = "0.2.12"
+version = "0.2.13"
 
 [lib]
 name = "appmgrlib"
