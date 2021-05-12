@@ -32,10 +32,10 @@ echo "Set version"
 VERSION=$(jq ".version" package.json)
 echo "${VERSION}"
 
-echo "FILTER: mkdir beta-reg"
-ssh root@beta-registry.start9labs.com "mkdir -p /var/www/html/resources/sys/ambassador-ui.tar.gz/${VERSION}"
+echo "FILTER: mkdir alpha-reg"
+ssh root@alpha-registry.start9labs.com "mkdir -p /var/www/html/resources/sys/ambassador-ui.tar.gz/${VERSION}"
 
 echo "FILTER: scp ambassador-ui.tar.gz"
-scp ambassador-ui.tar.gz root@beta-registry.start9labs.com:/var/www/html/resources/sys/ambassador-ui.tar.gz/${VERSION}/ambassador-ui.tar.gz
+scp ambassador-ui.tar.gz root@alpha-registry.start9labs.com:/var/www/html/resources/sys/ambassador-ui.tar.gz/${VERSION}/ambassador-ui.tar.gz
 
 echo "FILTER: fin"
