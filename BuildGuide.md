@@ -90,9 +90,9 @@
       cat /proc/cpuinfo | grep Hardware
       ```
    1. If your "Hardware" is [BCM2711](https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2711/README.md) then:
-      1. Change `C compiler flags` to `-marm -mcpu=cortex-a72` in the GHC settings:
+      1. Change `C compiler flags` to `-marm -fno-stack-protector -mcpu=cortex-a7` in the GHC settings:
          ```
-         nano ~/.stack/programs/arm-linux/ghc-8.10.2/lib/ghc-8.10.2/settings
+         nano ~/.stack/programs/arm-linux/ghc-8.10.4/lib/ghc-8.10.4/settings
          ```
    1. To prevent gcc errors we delete the `setup-exe-src` folder
       ```
