@@ -1,5 +1,5 @@
 name: ambassador-agent
-version: 0.2.12
+version: 0.2.13
 
 default-extensions:
   - NoImplicitPrelude
@@ -182,3 +182,4 @@ executables:
         condition: flag(library-only)
       - condition: false
         other-modules: Paths_ambassador_agent
+extra-source-files: ./migrations/*

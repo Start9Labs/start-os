@@ -21,6 +21,26 @@
       <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
     </ion-item>
 
+    <ion-card *ngIf="v1Status.status === 'instructions'" [href]="'https://start9.com/eos-' + v1Status.version" target="_blank" class="instructions-card">
+      <ion-card-header>
+        <ion-card-subtitle>Coming Soon...</ion-card-subtitle>
+        <ion-card-title>EmbassyOS Version {{ v1Status.version }}</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <b>Get ready. View the update instructions.</b>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card *ngIf="v1Status.status === 'available'" [href]="'https://start9.com/eos-' + v1Status.version" target="_blank" class="available-card">
+      <ion-card-header>
+        <ion-card-subtitle>Now Available...</ion-card-subtitle>
+        <ion-card-title>EmbassyOS Version {{ v1Status.version }}</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <b>View the update instructions.</b>
+      </ion-card-content>
+    </ion-card>
+
     <ion-card *ngFor="let app of apps" style="margin: 10px 10px;" [routerLink]="[app.id]">
       <ion-item style="--inner-border-width: 0 0 .4px 0; --border-color: #525252;" *ngIf="{ installing: (app.subject.status | async) === 'INSTALLING', installComparison: app.subject | compareInstalledAndLatest | async } as l">
         <ion-avatar style="margin-top: 8px;" slot="start">

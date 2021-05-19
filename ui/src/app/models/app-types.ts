@@ -18,9 +18,11 @@ export interface AppAvailablePreview extends BaseApp {
 }
 
 export type AppAvailableFull =
-  AppAvailablePreview  &
-  { descriptionLong: string
+  AppAvailablePreview  & {
+    descriptionLong: string
     versions: string[]
+    licenseName?: string // @TODO required for 0.3.0
+    licenseLink?: string // @TODO required for 0.3.0
   } &
   AppAvailableVersionSpecificInfo
 
@@ -45,6 +47,8 @@ export interface AppInstalledPreview extends BaseApp {
 }
 
 export interface AppInstalledFull extends AppInstalledPreview {
+  licenseName?: string // @TODO required for 0.3.0
+  licenseLink?: string // @TODO required for 0.3.0
   instructions: string | null
   lastBackup: string | null
   configuredRequirements: AppDependency[] | null // null if not yet configured

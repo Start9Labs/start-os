@@ -8,6 +8,7 @@ import { Subscription, BehaviorSubject, combineLatest } from 'rxjs'
 import { take } from 'rxjs/operators'
 import { markAsLoadingDuringP } from 'src/app/services/loader.service'
 import { OsUpdateService } from 'src/app/services/os-update.service'
+import { V1Status } from 'src/app/services/api/api-types'
 
 @Component({
   selector: 'app-available-list',
@@ -20,6 +21,7 @@ export class AppAvailableListPage {
   installedAppDeltaSubscription: Subscription
   apps: PropertySubjectId<AppAvailablePreview>[] = []
   appsInstalled: PropertySubjectId<AppInstalledPreview>[] = []
+  v1Status: V1Status = { status: 'nothing', version: '' }
 
   constructor (
     private readonly apiService: ApiService,
@@ -35,6 +37,7 @@ export class AppAvailableListPage {
 
     markAsLoadingDuringP(this.$loading$, Promise.all([
       this.getApps(),
+      this.checkV1Status(),
       this.osUpdateService.checkWhenNotAvailable$().toPromise(), // checks for an os update, banner component renders conditionally
       pauseFor(600),
     ]))
@@ -42,6 +45,14 @@ export class AppAvailableListPage {
 
   ionViewDidEnter () {
     this.appModel.getContents().forEach(appInstalled => this.mergeInstalledProps(appInstalled.id))
+  }
+
+  async checkV1Status () {
+    try {
+      this.v1Status = await this.apiService.checkV1Status()
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   mergeInstalledProps (appInstalledId: string) {

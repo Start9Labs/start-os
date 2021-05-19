@@ -13,8 +13,8 @@ import           Startlude.ByteStream    hiding ( count )
 
 import           Conduit
 import           Control.Algebra
-import           Control.Effect.Lift
 import           Control.Effect.Error
+import           Control.Effect.Lift
 import           Control.Effect.Reader.Labelled
 import           Control.Monad.Fail             ( fail )
 import           Control.Monad.Trans.Resource
@@ -30,15 +30,17 @@ import           System.Directory
 import           System.Process
 
 import           Constants
+import qualified Data.Aeson.Types               ( parseEither )
+import           Data.Time.ISO8601              ( parseISO8601 )
 import           Lib.Algebra.State.RegistryUrl
 import           Lib.Error
+import           Lib.External.AppManifest
 import           Lib.SystemPaths
 import           Lib.Types.Core
 import           Lib.Types.Emver
 import           Lib.Types.ServerApp
-import           Data.Time.ISO8601              ( parseISO8601 )
 
-newtype AppManifestRes = AppManifestRes
+newtype AppIndexRes = AppIndexRes
     { storeApps :: [StoreApp] } deriving (Eq, Show)
 
 newtype RegistryVersionForSpecRes = RegistryVersionForSpecRes
@@ -85,8 +87,8 @@ getLifelineBinary avs = do
     liftIO $ runConduitRes $ httpSource request getResponseBody .| sinkFile (toS lifelineTarget)
     liftIO $ void $ readProcessWithExitCode "chmod" ["700", toS lifelineTarget] ""
 
-getAppManifest :: (MonadIO m, Has (Error S9Error) sig m, Has RegistryUrl sig m) => m AppManifestRes
-getAppManifest = do
+getAppIndex :: (MonadIO m, Has (Error S9Error) sig m, Has RegistryUrl sig m) => m AppIndexRes
+getAppIndex = do
     manifestPath <- registryManifestUrl
     req          <- liftIO $ fmap setUserAgent . parseRequestThrow $ toS manifestPath
     val          <- (liftIO . try @SomeException) (httpBS req) >>= \case
@@ -96,22 +98,29 @@ getAppManifest = do
         Left  e -> throwError $ RegistryParseE manifestPath . toS $ e
         Right a -> pure a
 
+getAppManifest :: (MonadIO m, Has (Error S9Error) sig m, Has RegistryUrl sig m) => AppId -> m AppManifest
+getAppManifest appId = do
+    let path = "/apps/manifest/" <> unAppId appId
+    v <- registryRequest path
+    case Data.Aeson.Types.parseEither parseJSON v of
+        Left  e -> throwError $ RegistryParseE path . toS $ e
+        Right a -> pure a
 
 getStoreAppInfo :: (MonadIO m, Has RegistryUrl sig m, Has (Error S9Error) sig m) => AppId -> m (Maybe StoreApp)
-getStoreAppInfo name = find ((== name) . storeAppId) . storeApps <$> getAppManifest
+getStoreAppInfo name = find ((== name) . storeAppId) . storeApps <$> getAppIndex
 
-parseBsManifest :: Has RegistryUrl sig m => ByteString -> m (Either String AppManifestRes)
+parseBsManifest :: Has RegistryUrl sig m => ByteString -> m (Either String AppIndexRes)
 parseBsManifest bs = do
     parseRegistryRes' <- parseRegistryRes
     pure $ parseEither parseRegistryRes' . fromJust . decodeThrow $ bs
 
-parseRegistryRes :: Has RegistryUrl sig m => m (Value -> Parser AppManifestRes)
+parseRegistryRes :: Has RegistryUrl sig m => m (Value -> Parser AppIndexRes)
 parseRegistryRes = do
     parseAppData' <- parseAppData
     pure $ withObject "app registry response" $ \obj -> do
         let keyVals       = HM.toList obj
         let mManifestApps = fmap (\(k, v) -> parseMaybe (parseAppData' (AppId k)) v) keyVals
-        pure . AppManifestRes . catMaybes $ mManifestApps
+        pure . AppIndexRes . catMaybes $ mManifestApps
 
 registryUrl :: (Has RegistryUrl sig m) => m Text
 registryUrl = maybe "https://registry.start9labs.com:443" show <$> getRegistryUrl

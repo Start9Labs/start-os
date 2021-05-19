@@ -74,6 +74,8 @@ instance FromJSON InstallNewAppReq where
 
 data AppAvailableFull = AppAvailableFull
     { appAvailableFullBase                   :: AppBase
+    , appAvailableFullLicenseName            :: Maybe Text
+    , appAvailableFullLicenseLink            :: Maybe Text
     , appAvailableFullInstallInfo            :: Maybe (Version, AppStatus)
     , appAvailableFullVersionLatest          :: Version
     , appAvailableFullDescriptionShort       :: Text
@@ -88,7 +90,9 @@ instance ToJSON AppAvailableFull where
     toJSON AppAvailableFull {..} = mergeTo
         (toJSON appAvailableFullBase)
         (object
-            [ "versionInstalled" .= fmap fst appAvailableFullInstallInfo
+            [ "licenseName" .= appAvailableFullLicenseName
+            , "licenseLink" .= appAvailableFullLicenseLink
+            , "versionInstalled" .= fmap fst appAvailableFullInstallInfo
             , "status" .= fmap snd appAvailableFullInstallInfo
             , "versionLatest" .= appAvailableFullVersionLatest
             , "descriptionShort" .= appAvailableFullDescriptionShort
@@ -131,6 +135,8 @@ instance ToJSON (AppDependencyRequirement Keep) where
 -- mute violations downstream of version for installing apps
 data AppInstalledFull = AppInstalledFull
     { appInstalledFullBase                   :: AppBase
+    , appInstalledFullLicenseName            :: Maybe Text
+    , appInstalledFullLicenseLink            :: Maybe Text
     , appInstalledFullStatus                 :: AppStatus
     , appInstalledFullVersionInstalled       :: Version
     , appInstalledFullTorAddress             :: Maybe TorAddress
@@ -156,6 +162,8 @@ instance ToJSON AppInstalledFull where
         , "lanUi" .= appInstalledFullLanUi
         , "id" .= appBaseId appInstalledFullBase
         , "title" .= appBaseTitle appInstalledFullBase
+        , "licenseName" .= appInstalledFullLicenseName
+        , "licenseLink" .= appInstalledFullLicenseLink
         , "iconURL" .= appBaseIconUrl appInstalledFullBase
         , "versionInstalled" .= appInstalledFullVersionInstalled
         , "status" .= appInstalledFullStatus

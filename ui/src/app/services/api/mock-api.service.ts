@@ -4,7 +4,7 @@ import { AppAvailablePreview, AppAvailableFull, AppInstalledPreview, AppInstalle
 import { S9Notification, SSHFingerprint, ServerStatus, ServerModel, DiskInfo } from '../../models/server-model'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService, ReqRes } from './api.service'
-import { ApiAppInstalledFull, ApiAppInstalledPreview, ApiServer, Unit as EmptyResponse, Unit } from './api-types'
+import { ApiAppInstalledFull, ApiAppInstalledPreview, ApiServer, Unit as EmptyResponse, Unit, V1Status } from './api-types'
 import { AppMetrics, AppMetricsVersioned, parseMetricsPermissive } from 'src/app/util/metrics.util'
 import { mockApiAppAvailableFull, mockApiAppAvailableVersionInfo, mockApiAppInstalledFull, mockAppDependentBreakages, toInstalledPreview } from './mock-app-fixures'
 import { ConfigService } from '../config.service'
@@ -273,12 +273,19 @@ export class MockApiService extends ApiService {
     return mockRefreshLAN()
   }
 
+  async checkV1Status (): Promise<V1Status> {
+    return {
+      status: 'instructions',
+      version: '1.0.0',
+    }
+  }
+
   private hasUI (app: ApiAppInstalledPreview): boolean {
     return app.lanUi || app.torUi
   }
 
   private isLaunchable (app: ApiAppInstalledPreview): boolean {
-    return !this.config.isConsulate && 
+    return !this.config.isConsulate &&
       app.status === AppStatus.RUNNING &&
       (
         (app.torAddress && app.torUi && this.config.isTor()) ||
@@ -355,7 +362,7 @@ async function mockGetServerLogs (): Promise<ReqRes.GetServerLogsRes> {
 
 async function mockGetAppMetrics (): Promise<ReqRes.GetAppMetricsRes> {
   await pauseFor(1000)
-  return mockApiAppMetricsV1
+  return mockApiAppMetricsV1 as ReqRes.GetAppMetricsRes
 }
 
 async function mockGetAvailableAppVersionInfo (): Promise<ReqRes.GetAppAvailableVersionInfoRes> {
@@ -492,7 +499,7 @@ const mockApiNotifications: ReqRes.GetNotificationsRes = [
 const mockApiServer: () => ReqRes.GetServerRes = () => ({
   serverId: 'start9-mockxyzab',
   name: 'Embassy:12345678',
-  versionInstalled: '0.2.12',
+  versionInstalled: '0.2.13',
   versionLatest: '0.2.13',
   status: ServerStatus.RUNNING,
   alternativeRegistryUrl: 'beta-registry.start9labs.com',
