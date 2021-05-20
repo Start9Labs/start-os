@@ -7,7 +7,7 @@ cabal-version: 1.12
 -- hash: bcd365c14545d22345b64bce91cca30beb45eb6cf0f8d6c224702dce707f39a0
 
 name:           ambassador-agent
-version:        0.2.12
+version:        0.2.13
 build-type:     Simple
 
 flag dev
