@@ -1,14 +1,33 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.2.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: bcd365c14545d22345b64bce91cca30beb45eb6cf0f8d6c224702dce707f39a0
 
 name:           ambassador-agent
-version:        0.2.12
+version:        0.2.13
 build-type:     Simple
+extra-source-files:
+    ./migrations/0.1.0::0.1.0
+    ./migrations/0.1.0::0.1.1
+    ./migrations/0.1.1::0.1.2
+    ./migrations/0.1.2::0.1.3
+    ./migrations/0.1.3::0.1.4
+    ./migrations/0.1.4::0.1.5
+    ./migrations/0.1.5::0.2.0
+    ./migrations/0.2.0::0.2.1
+    ./migrations/0.2.10::0.2.11
+    ./migrations/0.2.11::0.2.12
+    ./migrations/0.2.12::0.2.13
+    ./migrations/0.2.1::0.2.2
+    ./migrations/0.2.2::0.2.3
+    ./migrations/0.2.3::0.2.4
+    ./migrations/0.2.4::0.2.5
+    ./migrations/0.2.5::0.2.6
+    ./migrations/0.2.6::0.2.7
+    ./migrations/0.2.7::0.2.8
+    ./migrations/0.2.8::0.2.9
+    ./migrations/0.2.9::0.2.10
 
 flag dev
   description: Turn on development settings, like auto-reload templates.
@@ -127,7 +146,36 @@ library
       Paths_ambassador_agent
   hs-source-dirs:
       src
-  default-extensions: NoImplicitPrelude BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFunctor DeriveGeneric DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NumericUnderscores OverloadedStrings PolyKinds RankNTypes StandaloneDeriving StandaloneKindSignatures TupleSections TypeApplications TypeFamilies TypeOperators
+  default-extensions:
+      NoImplicitPrelude
+      BlockArguments
+      ConstraintKinds
+      DataKinds
+      DeriveAnyClass
+      DeriveFunctor
+      DeriveGeneric
+      DerivingStrategies
+      EmptyCase
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
+      InstanceSigs
+      KindSignatures
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NumericUnderscores
+      OverloadedStrings
+      PolyKinds
+      RankNTypes
+      StandaloneDeriving
+      StandaloneKindSignatures
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeOperators
   build-depends:
       aeson
     , aeson-flatten
@@ -221,7 +269,36 @@ executable agent
   main-is: main.hs
   hs-source-dirs:
       app
-  default-extensions: NoImplicitPrelude BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFunctor DeriveGeneric DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NumericUnderscores OverloadedStrings PolyKinds RankNTypes StandaloneDeriving StandaloneKindSignatures TupleSections TypeApplications TypeFamilies TypeOperators
+  default-extensions:
+      NoImplicitPrelude
+      BlockArguments
+      ConstraintKinds
+      DataKinds
+      DeriveAnyClass
+      DeriveFunctor
+      DeriveGeneric
+      DerivingStrategies
+      EmptyCase
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
+      InstanceSigs
+      KindSignatures
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NumericUnderscores
+      OverloadedStrings
+      PolyKinds
+      RankNTypes
+      StandaloneDeriving
+      StandaloneKindSignatures
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeOperators
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N -fdefer-typed-holes
   build-depends:
       aeson
@@ -306,9 +383,6 @@ executable agent
     , yesod-persistent
   if flag(library-only)
     buildable: False
-  if false
-    other-modules:
-        Paths_ambassador_agent
   default-language: Haskell2010
 
 test-suite agent-test
@@ -324,7 +398,36 @@ test-suite agent-test
       Spec
   hs-source-dirs:
       test
-  default-extensions: NoImplicitPrelude BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFunctor DeriveGeneric DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NumericUnderscores OverloadedStrings PolyKinds RankNTypes StandaloneDeriving StandaloneKindSignatures TupleSections TypeApplications TypeFamilies TypeOperators
+  default-extensions:
+      NoImplicitPrelude
+      BlockArguments
+      ConstraintKinds
+      DataKinds
+      DeriveAnyClass
+      DeriveFunctor
+      DeriveGeneric
+      DerivingStrategies
+      EmptyCase
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
+      InstanceSigs
+      KindSignatures
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NumericUnderscores
+      OverloadedStrings
+      PolyKinds
+      RankNTypes
+      StandaloneDeriving
+      StandaloneKindSignatures
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeOperators
   ghc-options: -Wall -fdefer-typed-holes
   build-depends:
       aeson
@@ -412,7 +515,4 @@ test-suite agent-test
     , yesod-form
     , yesod-persistent
     , yesod-test
-  if false
-    other-modules:
-        Paths_ambassador_agent
   default-language: Haskell2010
