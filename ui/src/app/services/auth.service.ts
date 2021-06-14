@@ -38,12 +38,8 @@ export class AuthService {
     return this.authState$.pipe(distinctUntilChanged())
   }
 
-  async submitPin (pin: string): Promise<void> {
-    await this.api.submitPin({ pin })
-  }
-
-  async submitPassword (password: string): Promise<void> {
-    await this.api.submitPassword({ password })
+  async login (password: string): Promise<void> {
+    await this.api.login({ password })
     await this.storage.set(StorageKeys.LOGGED_IN_KEY, true)
     this.authState$.next(AuthState.VERIFIED)
   }

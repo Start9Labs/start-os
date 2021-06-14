@@ -16,7 +16,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   }
 
   // used for determining internet connectivity
-  abstract ping (): Promise<void>
+  abstract echo (): Promise<string>
 
   // for getting static files: ex icons, instructions, licenses
   abstract getStatic (url: string): Promise<string>
@@ -34,9 +34,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // auth
 
-  abstract submitPin (params: RR.SubmitPinReq): Promise<RR.SubmitPinRes>
-
-  abstract submitPassword (params: RR.SubmitPasswordReq): Promise<RR.SubmitPasswordReq>
+  abstract login (params: RR.LoginReq): Promise<RR.loginRes>
 
   abstract logout (params: RR.LogoutReq): Promise<RR.LogoutRes>
 

@@ -16,11 +16,8 @@ export module RR {
 
   // auth
 
-  export type SubmitPinReq = { pin: string } // auth.pin - unauthed
-  export type SubmitPinRes = null
-
-  export type SubmitPasswordReq = { password: string } // auth.password - unauthed
-  export type SubmitPasswordRes = null
+  export type LoginReq = { password: string } // auth.login - unauthed
+  export type loginRes = null
 
   export type LogoutReq = { } // auth.logout
   export type LogoutRes = null

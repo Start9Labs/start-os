@@ -66,11 +66,11 @@ export class ConnectionService {
     // ping server every 10 seconds
     this.httpSubscription = timer(0, 10000)
       .pipe(
-        switchMap(() => this.apiService.ping()),
+        switchMap(() => this.apiService.echo()),
         retryWhen(errors =>
           errors.pipe(
             tap(val => {
-              console.error('Ping error: ', val)
+              console.error('Echo error: ', val)
               this.currentState.internet = true
               this.emitEvent()
             }),
