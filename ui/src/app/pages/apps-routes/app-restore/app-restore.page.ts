@@ -1,5 +1,5 @@
-import { Component } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
+import { Component, ViewChild } from '@angular/core'
+import { IonContent, LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
 import { DiskInfo, PartitionInfoEntry } from 'src/app/services/api/api-types'
@@ -18,6 +18,8 @@ export class AppRestorePage {
   error: string
   allPartitionsMounted: boolean
 
+  @ViewChild(IonContent) content: IonContent
+
   constructor (
     private readonly route: ActivatedRoute,
     private readonly modalCtrl: ModalController,
@@ -29,6 +31,10 @@ export class AppRestorePage {
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.getExternalDisks()
+  }
+
+  async ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   async doRefresh () {
