@@ -1,8 +1,21 @@
 [package]
 authors = ["Aiden McClelland <me@drbonez.dev>"]
+description = "The core of the Start9 Embassy Operating System"
+documentation = "https://docs.rs/embassy-os"
 edition = "2018"
-name = "embassy"
-version = "0.3.0"
+keywords = [
+  "self-hosted",
+  "raspberry-pi",
+  "privacy",
+  "bitcoin",
+  "full-node",
+  "lightning",
+]
+license = "Start9 Personal Use License v1.0"
+name = "embassy-os"
+readme = "README.md"
+repository = "https://github.com/Start9Labs/embassy-os"
+version = "0.3.0-pre.0"
 
 [lib]
 name = "embassy"
