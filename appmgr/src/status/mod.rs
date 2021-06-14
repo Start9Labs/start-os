@@ -415,6 +415,31 @@ impl HasModel for DependencyErrors {
     type Model = MapModel<Self>;
 }
 impl DependencyErrors {
+    pub async fn init<Db: DbHandle>(
+        db: &mut Db,
+        manifest: &Manifest,
+        current_dependencies: &IndexMap<PackageId, CurrentDependencyInfo>,
+    ) -> Result<DependencyErrors, Error> {
+        let mut res = IndexMap::new();
+        for (dep_id, info) in current_dependencies {
+            if let Err(e) = manifest
+                .dependencies
+                .0
+                .get(dep_id)
+                .ok_or_else(|| {
+                    Error::new(
+                        anyhow!("current dependency not in manifest"),
+                        crate::ErrorKind::Dependency,
+                    )
+                })?
+                .satisfied(db, dep_id, None, &manifest.id, &manifest.version)
+                .await?
+            {
+                res.insert(dep_id.clone(), e);
+            }
+        }
+        Ok(DependencyErrors(res))
+    }
     async fn update_health_based(
         &mut self,
         dependencies: &IndexMap<PackageId, CurrentDependencyInfo>,
