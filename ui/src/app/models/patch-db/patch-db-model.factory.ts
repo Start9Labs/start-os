@@ -11,13 +11,24 @@ export function PatchDbModelFactory (
   http: ApiService,
 ): PatchDbModel {
 
-  const { patchDb: { usePollOverride, poll, websocket, timeoutForMissingRevision }, isConsulate } = config
+  const { mocks, patchDb: { poll, timeoutForMissingRevision }, isConsulate, isLan } = config
 
   let source: Source<DataModel>
-  if (isConsulate || usePollOverride) {
-    source = new PollSource({ ...poll }, http)
+
+  if (mocks.enabled) {
+    if (mocks.connection === 'poll') {
+      source = new PollSource({ ...poll }, http)
+    } else {
+      source = new WebsocketSource('ws://localhost:8081')
+    }
   } else {
-    source = new WebsocketSource({ ...websocket })
+    if (isConsulate) {
+      source = new PollSource({ ...poll }, http)
+    } else {
+      const protocol = window.location.protocol === 'http:' ? 'ws' : 'wss'
+      const host = window.location.host
+      source = new WebsocketSource(`${protocol}://${host}/ws/db`)
+    }
   }
 
   return new PatchDbModel({ sources: [source, http], bootstrapper, http, timeoutForMissingRevision })

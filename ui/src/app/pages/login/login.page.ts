@@ -30,7 +30,7 @@ export class LoginPage {
   async submit () {
     try {
       await this.loader.displayDuringP(
-        this.authService.submitPassword(this.password),
+        this.authService.login(this.password),
       )
       this.password = ''
       await this.navCtrl.navigateForward(['/'])
