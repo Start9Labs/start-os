@@ -1304,9 +1304,9 @@ checksum = "2a60c7ce501c71e03a9c9c0d35b861413ae925bd979cc7a4e30d060069aaac8d"
 
 [[package]]
 name = "mio"
-version = "0.7.11"
+version = "0.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf80d3e903b34e0bd7282b218398aec54e082c840d9baf8339e0080a0c542956"
+checksum = "8c2bdb6314ec10835cd3293dd268473a835c02b7b352e788be788b3c6ca6bb16"
 dependencies = [
  "libc",
  "log",
@@ -2073,9 +2073,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "1.9.2"
+version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e3132bd01cfb74aac8b1b10083ad1f38dbf756df3176d5e63dd91e3f62a87f5"
+checksum = "6a3b379ba4fd515d3fdccfe8584eb9fcc6f7dd1bbe14636a12c98a36fbbfc850"
 dependencies = [
  "rustversion",
  "serde",
@@ -2899,6 +2899,7 @@ dependencies = [
 [[package]]
 name = "yajrc"
 version = "0.1.0"
+source = "git+https://github.com/dr-bonez/yajrc?branch=develop#5a97df80635a81e61f42841ecf34fa707ba61a6c"
 dependencies = [
  "anyhow",
  "serde",
