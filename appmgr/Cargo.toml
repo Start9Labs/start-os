@@ -46,7 +46,7 @@ production = []
 [dependencies]
 anyhow = "1.0.40"
 async-trait = "0.1.42"
-avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", branch = "feature/dynamic-linking", features = ["dynamic"], optional = true }
+avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", version = "0.10.0", branch = "feature/dynamic-linking", features = ["dynamic"], optional = true }
 base32 = "0.4.0"
 bollard = "0.10.1"
 chrono = { version = "0.4.19", features = ["serde"] }
@@ -66,7 +66,7 @@ libc = "0.2.86"
 log = "0.4.11"
 nix = "0.20.0"
 openssl = "0.10.30"
-patch-db = { path = "../../patch-db/patch-db" }
+patch-db = { version = "*", path = "../../patch-db/patch-db" }
 pin-project = "1.0.6"
 prettytable-rs = "0.8.0"
 rand = "0.8.3"
