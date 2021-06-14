@@ -47,7 +47,7 @@ export class AppActionsPage {
       })
       await alert.present()
     } else {
-      const statuses = [...action.allowedStatuses]
+      const statuses = [...action.value['allowedStatuses']]
       const last = statuses.pop()
       let statusesStr = statuses.join(', ')
       let error = null
@@ -63,7 +63,7 @@ export class AppActionsPage {
       }
       const alert = await this.alertCtrl.create({
         header: 'Forbidden',
-        message: error || `Action "${action.name}" can only be executed when service is ${statusesStr}`,
+        message: error || `Action "${action.value.name}" can only be executed when service is ${statusesStr}`,
         buttons: ['OK'],
         cssClass: 'alert-error-message',
       })
