@@ -104,7 +104,7 @@
               <ion-label><ion-text color="primary">Restore from Backup</ion-text></ion-label>
             </ion-item>
             <!-- donate -->
-            <ion-item button [href]="manifest['donation-url']" target="_blank">
+            <ion-item button (click)="donate(manifest)">
               <ion-icon slot="start" name="shapes-outline" color="primary"></ion-icon>
               <ion-label><ion-text color="primary">Donate</ion-text></ion-label>
             </ion-item>

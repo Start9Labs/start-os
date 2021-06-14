@@ -1,6 +1,6 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ToastController } from '@ionic/angular'
+import { IonContent, ToastController } from '@ionic/angular'
 import { InstalledPackageDataEntry } from 'src/app/models/patch-db/data-model'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { ConfigService } from 'src/app/services/config.service'
@@ -14,6 +14,8 @@ import { copyToClipboard } from 'src/app/util/web.util'
 export class AppInterfacesPage {
   pkgId: string
 
+  @ViewChild(IonContent) content: IonContent
+
   constructor (
     private readonly route: ActivatedRoute,
     private readonly toastCtrl: ToastController,
@@ -23,6 +25,10 @@ export class AppInterfacesPage {
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+  }
+
+  async ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   async copy (address: string): Promise<void> {

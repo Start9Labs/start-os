@@ -12,9 +12,9 @@ const routes: Routes = [
     path: '',
   },
   {
-    path: 'auth',
+    path: 'login',
     canActivate: [UnauthGuard],
-    loadChildren: () => import('./pages/auth-routes/auth-routing.module').then(m => m.AuthRoutingModule),
+    loadChildren: () => import('./pages/login/login.module').then(m => m.LoginPageModule),
   },
   {
     path: 'embassy',
