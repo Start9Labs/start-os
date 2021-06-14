@@ -41,7 +41,7 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-spinner *ngIf="pkgsLoading; else pkgsLoaded" class="center" name="lines" color="warning"></ion-spinner>
+    <ion-spinner *ngIf="pkgsLoading; else pkgsLoaded" style="padding-top: 200px;" name="lines" color="warning"></ion-spinner>
 
     <ng-template #pkgsLoaded>
       <ion-card *ngFor="let pkg of pkgs" style="margin: 10px 10px;" [routerLink]="[pkg.id]">

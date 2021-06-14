@@ -145,11 +145,6 @@
 
       <!-- versions -->
       <ion-item-divider></ion-item-divider>
-      <ion-item *ngIf="vars.licenseLink" lines="none" button [href]="vars.licenseLink" target="_blank">
-        <ion-icon slot="start" name="newspaper-outline"></ion-icon>
-        <ion-label>License</ion-label>
-        <ion-note slot="end">{{ vars.licenseName }}</ion-note>
-      </ion-item>
       <ion-item lines="none" button (click)="presentAlertVersions()">
         <ion-icon color="dark" slot="start" name="file-tray-stacked-outline"></ion-icon>
         <ion-label color="dark">Other versions</ion-label>

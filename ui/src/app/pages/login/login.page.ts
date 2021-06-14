@@ -1,15 +1,15 @@
 import { Component } from '@angular/core'
+import { NavController } from '@ionic/angular'
 import { AuthService } from 'src/app/services/auth.service'
 import { LoaderService } from 'src/app/services/loader.service'
-import { NavController } from '@ionic/angular'
 
 @Component({
-  selector: 'auth-password',
-  templateUrl: './auth-password.page.html',
-  styleUrls: ['./auth-password.page.scss'],
+  selector: 'login',
+  templateUrl: './login.page.html',
+  styleUrls: ['./login.page.scss'],
 })
-export class AuthPasswordPage {
-  password: string = ''
+export class LoginPage {
+  password = ''
   unmasked = false
   error = ''
 
@@ -33,7 +33,7 @@ export class AuthPasswordPage {
         this.authService.submitPassword(this.password),
       )
       this.password = ''
-      return this.navCtrl.navigateForward([''])
+      await this.navCtrl.navigateForward(['/'])
     } catch (e) {
       this.error = e.message
     }
