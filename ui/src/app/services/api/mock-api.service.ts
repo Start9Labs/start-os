@@ -4,10 +4,10 @@ import { ApiService } from './api.service'
 import { Observable } from 'rxjs'
 import { PatchOp, Update } from 'patch-db-client'
 import { DataModel, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/models/patch-db/data-model'
-import { ConfigService } from '../config.service'
 import { RR } from './api-types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './mock-app-fixures'
+import { HttpService } from '../http.service'
 
 @Injectable()
 export class MockApiService extends ApiService {
@@ -15,7 +15,7 @@ export class MockApiService extends ApiService {
   welcomeAck = false
 
   constructor (
-    private readonly config: ConfigService,
+    private readonly http: HttpService,
   ) { super() }
 
   // every time a patch is returned from the mock, we override its sequence to be 1 more than the last sequence in the patch-db as provided by `o`.
@@ -24,9 +24,9 @@ export class MockApiService extends ApiService {
     return super.watch$()
   }
 
-  async ping (): Promise<void> {
-    console.log('pinging server')
-    return
+  async echo (): Promise<string> {
+    console.log('echo...echo')
+    return ''
   }
 
   async getStatic (url: string): Promise<string> {
@@ -36,47 +36,20 @@ export class MockApiService extends ApiService {
   // db
 
   async getRevisions (since: number): Promise<RR.GetRevisionsRes> {
-    await pauseFor(2000)
-    return {
-      ...Mock.DbDump,
-      id: this.nextSequence(),
-    }
+    return this.http.rpcRequest({ method: 'db.revisions', params: { since } })
   }
 
   async getDump (): Promise<RR.GetDumpRes> {
-    await pauseFor(2000)
-    return {
-      ...Mock.DbDump,
-      id: this.nextSequence(),
-    }
+    return this.http.rpcRequest({ method: 'db.dump' })
   }
 
   async setDbValueRaw (params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
-    await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: params.pointer,
-            value: params.value,
-          },
-        ],
-        expireId: null,
-      },
-    }
+    return this.http.rpcRequest({ method: 'db.put.ui', params })
   }
 
   // auth
 
-  async submitPin (params: RR.SubmitPinReq): Promise<RR.SubmitPinRes> {
-    await pauseFor(2000)
-    return null
-  }
-
-  async submitPassword (params: RR.SubmitPasswordReq): Promise<RR.SubmitPasswordRes> {
+  async login (params: RR.LoginReq): Promise<RR.loginRes> {
     await pauseFor(2000)
     return null
   }
