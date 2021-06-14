@@ -136,7 +136,6 @@ impl DepInfo {
         dependency_config: Option<Config>, // fetch if none
         dependent_id: &PackageId,
         dependent_version: &Version,
-        dependent_config: &Config,
     ) -> Result<Result<(), DependencyError>, Error> {
         let dependency = crate::db::DatabaseModel::new()
             .package_data()
@@ -178,7 +177,7 @@ impl DepInfo {
         };
         if let Some(cfg_req) = &self.config {
             if let Err(e) = cfg_req
-                .check(dependent_id, dependent_version, dependent_config)
+                .check(dependent_id, dependent_version, &dependency_config)
                 .await
             {
                 if e.kind == crate::ErrorKind::ConfigRulesViolation {
