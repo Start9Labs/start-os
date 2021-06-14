@@ -130,10 +130,7 @@
 
         <ion-item-divider></ion-item-divider>
         <!-- instructions -->
-        <ion-item [routerLink]="['instructions']">
-          <ion-icon slot="start" name="list-outline" color="primary"></ion-icon>
-          <ion-label><ion-text color="primary">Instructions</ion-text></ion-label>
-        </ion-item>
+        <app-accordion-instructions [app]="appP"></app-accordion-instructions>
         <!-- config -->
         <ion-item [disabled]="[AppStatus.CREATING_BACKUP, AppStatus.RESTORING_BACKUP, AppStatus.INSTALLING, AppStatus.DEAD] | includes: vars.status" [routerLink]="['config']">
           <ion-icon slot="start" name="construct-outline" color="primary"></ion-icon>

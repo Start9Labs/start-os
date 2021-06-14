@@ -29,6 +29,7 @@ export class AppInstalledShowPage extends Cleanup {
 
   $error$ = new BehaviorSubject<string>('')
   app: PropertySubject<AppInstalledFull> = { } as any
+  appP: AppInstalledFull = { } as any
   appId: string
   AppStatus = AppStatus
   showInstructions = false
@@ -64,8 +65,8 @@ export class AppInstalledShowPage extends Cleanup {
         .pipe(
           tap(app => {
             this.app = app
-            const appP = peekProperties(this.app)
-            this.hideLAN = !appP.lanAddress || (appP.id === 'mastodon' && appP.versionInstalled === '3.3.0') // @TODO delete this hack in 0.3.0
+            this.appP = peekProperties(this.app)
+            this.hideLAN = !this.appP.lanAddress || (this.appP.id === 'mastodon' && this.appP.versionInstalled === '3.3.0') // @TODO delete this hack in 0.3.0
           }),
           concatMap(() => this.syncWhenDependencyInstalls()), // must be final in stack
           catchError(e => of(this.setError(e))),

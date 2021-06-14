@@ -1,0 +1,19 @@
+<ion-item (click)="toggleAccordion()" class="ion-activatable">
+  <ion-icon slot="start" name="list-outline" color="primary"></ion-icon>
+  <ion-label><ion-text color="primary">Instructions</ion-text></ion-label>
+</ion-item>
+<div *ngIf="this.isOpen">
+
+  <ion-item *ngIf="!app.instructions">
+    <ion-label class="ion-text-wrap">
+      <p>No instructions for {{ app.title }} {{ app.versionInstalled }}.</p>
+    </ion-label>
+  </ion-item>
+
+  <div style="
+      padding-left: var(--ion-padding,16px);
+      padding-right: var(--ion-padding,16px);
+      padding-bottom: var(--ion-padding,16px);
+    " *ngIf="app.instructions" [innerHTML]="app.instructions | markdown"></div>
+
+</div>
