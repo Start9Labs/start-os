@@ -3,20 +3,17 @@
     "timeoutForMissingRevision": 5000,
     "poll": {
       "cooldown": 40000
-    },
-    "websocket": {
-      "type": "ws",
-      "url": "",
-      "version": 0
-    },
-    "usePollOverride": true
+    }
   },
   "api": {
-    "mocks": true,
-    "url": "/api",
-    "version": "v1",
-    "root": ""
+    "url": "/rpc",
+    "version": "v1"
   },
-  "maskAs": "tor",
-  "skipStartupAlerts": true
+  "mocks": {
+    "enabled": true,
+    "connection": "poll",
+    "websocketUrl": "",
+    "maskAs": "tor",
+    "skipStartupAlerts": true
+  }
 }

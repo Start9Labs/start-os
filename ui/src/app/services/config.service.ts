@@ -1,31 +1,28 @@
 import { Injectable } from '@angular/core'
 import { InstalledPackageDataEntry, InterfaceDef, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from '../models/patch-db/data-model'
 
-const { patchDb, maskAs, api, skipStartupAlerts } = require('../../../ui-config.json') as UiConfig
+const { patchDb, api, mocks } = require('../../../ui-config.json') as UiConfig
 
 type UiConfig = {
   patchDb: {
-    // If this is false (the default), poll will be used if in consulate only. If true it will be on regardless of env. This is useful in concert with api mocks.
-    usePollOverride: boolean
     poll: {
       cooldown: number /* in ms */
-    }
-    websocket: {
-      type: 'ws'
-      url: string
-      version: number
     }
     // Wait this long (ms) before asking BE for a dump when out of order messages are received
     timeoutForMissingRevision: number
   }
   api: {
-    mocks: boolean
     url: string
     version: string
-    root: string
   }
-  maskAs: 'tor' | 'lan' | 'none'
-  skipStartupAlerts: boolean
+  mocks: {
+    enabled: boolean
+    connection: 'ws' | 'poll'
+    rpcPort: number
+    wsPort: number
+    maskAs: 'tor' | 'lan'
+    skipStartupAlerts: boolean
+  }
 }
 @Injectable({
   providedIn: 'root',
@@ -36,16 +33,21 @@ export class ConfigService {
 
   patchDb = patchDb
   api = api
+  mocks = mocks
 
-  skipStartupAlerts  = skipStartupAlerts
+  skipStartupAlerts  = mocks.enabled && mocks.skipStartupAlerts
   isConsulate        = window['platform'] === 'ios'
 
-  isTor () : boolean {
-    return (maskAs === 'tor') || this.origin.endsWith('.onion')
+  isTor (): boolean {
+    return (mocks.enabled && mocks.maskAs === 'tor') || this.origin.endsWith('.onion')
   }
 
-  isLan () : boolean {
-    return (maskAs === 'lan') || this.origin.endsWith('.local')
+  isLan (): boolean {
+    return (mocks.enabled && mocks.maskAs === 'lan') || this.origin.endsWith('.local')
+  }
+
+  usePoll (): boolean {
+    return this.isConsulate || (mocks.enabled && mocks.connection === 'poll')
   }
 
   isLaunchable (pkg: PackageDataEntry): boolean {

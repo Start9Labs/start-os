@@ -3,17 +3,15 @@ import { HttpService, Method } from '../http.service'
 import { ApiService  } from './api.service'
 import { RR } from './api-types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
-import { ConfigService } from '../config.service'
 
 @Injectable()
 export class LiveApiService extends ApiService {
   constructor (
     private readonly http: HttpService,
-    private readonly config: ConfigService,
   ) { super() }
 
-  async ping (): Promise<void> {
-    return this.http.rpcRequest({ method: 'ping', params: { } })
+  async echo (): Promise<string> {
+    return this.http.rpcRequest({ method: 'echo', params: { } })
   }
 
   async getStatic (url: string): Promise<string> {
@@ -36,12 +34,8 @@ export class LiveApiService extends ApiService {
 
   // auth
 
-  async submitPin (params: RR.SubmitPinReq): Promise<RR.SubmitPinRes> {
-    return this.http.rpcRequest({ method: 'auth.pin', params })
-  }
-
-  async submitPassword (params: RR.SubmitPasswordReq): Promise<RR.SubmitPasswordRes> {
-    return this.http.rpcRequest({ method: 'auth.password', params })
+  async login (params: RR.LoginReq): Promise<RR.loginRes> {
+    return this.http.rpcRequest({ method: 'auth.login', params })
   }
 
   async logout (params: RR.LogoutReq): Promise<RR.LogoutRes> {
