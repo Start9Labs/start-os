@@ -354,12 +354,25 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Complete", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type())?;
+    let current_dependencies = manifest
+        .dependencies
+        .0
+        .iter()
+        .filter_map(|(id, info)| {
+            if info.optional.is_none() {
+                Some((id.clone(), CurrentDependencyInfo::default()))
+            } else {
+                None
+            }
+        })
+        .collect();
     let installed = InstalledPackageDataEntry {
         manifest: manifest.clone(),
         status: Status {
             configured: manifest.config.is_none(),
             main: MainStatus::Stopped,
-            dependency_errors: todo!(),
+            dependency_errors: DependencyErrors::init(&mut tx, &manifest, &current_dependencies)
+                .await?,
         },
         system_pointers: Vec::new(),
         current_dependents: {
@@ -386,18 +399,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             }
             deps
         },
-        current_dependencies: manifest
-            .dependencies
-            .0
-            .iter()
-            .filter_map(|(id, info)| {
-                if info.optional.is_none() {
-                    Some((id.clone(), CurrentDependencyInfo::default()))
-                } else {
-                    None
-                }
-            })
-            .collect(),
+        current_dependencies,
         interface_info,
     };
     let mut pde = model.get_mut(&mut tx).await?;
