@@ -179,7 +179,7 @@ export module Mock {
     'upstream-repo': 'https://github.com/lightningnetwork/lnd',
     'support-site': 'https://lightning.engineering/',
     'marketing-site': 'https://lightning.engineering/',
-    'donation-url': 'https://start9.com',
+    'donation-url': null,
     alerts: {
       install: null,
       uninstall: null,

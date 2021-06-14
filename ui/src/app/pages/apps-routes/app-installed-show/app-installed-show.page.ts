@@ -2,7 +2,7 @@ import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, PopoverController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
-import { chill } from 'src/app/util/misc.util'
+import { chill, pauseFor } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
 import { Observable, of, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
@@ -10,7 +10,7 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, PackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
+import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, Manifest, PackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
 import { FEStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
@@ -52,6 +52,10 @@ export class AppInstalledShowPage {
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.pkgSub = this.patch.watch$('package-data', this.pkgId).subscribe(pkg => this.pkg = pkg)
+  }
+
+  async ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   async ngOnDestroy () {
@@ -112,6 +116,20 @@ export class AppInstalledShowPage {
 
     if (data.cancelled) return
     return this.navCtrl.navigateRoot('/services/installed')
+  }
+
+  async donate (manifest: Manifest): Promise<void> {
+    const url = manifest['donation-url']
+    if (url) {
+      window.open(url, '_blank')
+    } else {
+      const alert = await this.alertCtrl.create({
+        header: 'Not Accepting Donations',
+        message: `The developers of ${manifest.title} have not provided a donation URL. Please contact them directly if you insist on giving them money.`,
+        buttons: ['OK'],
+      })
+      await alert.present()
+    }
   }
 
   async presentPopover (information: string, ev: any) {
