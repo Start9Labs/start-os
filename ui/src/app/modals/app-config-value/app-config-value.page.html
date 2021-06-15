@@ -8,9 +8,9 @@
     <ion-title>
       {{ spec.name }}
     </ion-title>
-    <ion-buttons slot="end">
-      <ion-button [disabled]="!!error" (click)="done()" color="primary">
-        {{ saveFn ? 'Save' : 'Done' }}
+    <ion-buttons *ngIf="!!saveFn" slot="end">
+      <ion-button [disabled]="!!error" (click)="save()" color="primary">
+        Save
       </ion-button>
     </ion-buttons>
   </ion-toolbar>

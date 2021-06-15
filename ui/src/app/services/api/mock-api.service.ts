@@ -36,15 +36,40 @@ export class MockApiService extends ApiService {
   // db
 
   async getRevisions (since: number): Promise<RR.GetRevisionsRes> {
-    return this.http.rpcRequest({ method: 'db.revisions', params: { since } })
+    await pauseFor(2000)
+    return {
+      ...Mock.DbDump,
+      id: this.nextSequence(),
+    }
+    // return this.http.rpcRequest({ method: 'db.revisions', params: { since } })
   }
 
   async getDump (): Promise<RR.GetDumpRes> {
-    return this.http.rpcRequest({ method: 'db.dump' })
+    await pauseFor(2000)
+    return {
+      ...Mock.DbDump,
+      id: this.nextSequence(),
+    }
+    // return this.http.rpcRequest({ method: 'db.dump' })
   }
 
   async setDbValueRaw (params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
-    return this.http.rpcRequest({ method: 'db.put.ui', params })
+    await pauseFor(2000)
+    return {
+      response: null,
+      revision: {
+        id: this.nextSequence(),
+        patch: [
+          {
+            op: PatchOp.REPLACE,
+            path: params.pointer,
+            value: params.value,
+          },
+        ],
+        expireId: null,
+      },
+    }
+    // return this.http.rpcRequest({ method: 'db.put.ui', params })
   }
 
   // auth
