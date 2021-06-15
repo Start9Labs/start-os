@@ -12,7 +12,8 @@
   "mocks": {
     "enabled": true,
     "connection": "poll",
-    "websocketUrl": "",
+    "rpcPort": "5959",
+    "wsPort": "5960",
     "maskAs": "tor",
     "skipStartupAlerts": true
   }
