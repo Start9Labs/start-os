@@ -783,35 +783,79 @@ export module Mock {
     },
   ]
 
-  export const ServerMetrics: RR.GetServerMetricsRes = {
-    'Group1': {
-      'Metric1': {
-        value: 22.2,
-        unit: 'mi/b',
+  export function getServerMetrics () {
+    return {
+      'Group1': {
+        'Metric1': {
+          value: Math.random(),
+          unit: 'mi/b',
+        },
+        'Metric2': {
+          value: Math.random(),
+          unit: '%',
+        },
+        'Metric3': {
+          value: 10.1,
+          unit: '%',
+        },
       },
-      'Metric2': {
-        value: 50,
-        unit: '%',
+      'Group2': {
+        'Hmmmm1': {
+          value: 22.2,
+          unit: 'mi/b',
+        },
+        'Hmmmm2': {
+          value: 50,
+          unit: '%',
+        },
+        'Hmmmm3': {
+          value: 10.1,
+          unit: '%',
+        },
       },
-      'Metric3': {
-        value: 10.1,
-        unit: '%',
+      'Group3': {
+        'Hmmmm1': {
+          value: Math.random(),
+          unit: 'mi/b',
+        },
+        'Hmmmm2': {
+          value: 50,
+          unit: '%',
+        },
+        'Hmmmm3': {
+          value: 10.1,
+          unit: '%',
+        },
       },
-    },
-    'Group2': {
-      'Hmmmm1': {
-        value: 22.2,
-        unit: 'mi/b',
+      'Group4': {
+        'Hmmmm1': {
+          value: Math.random(),
+          unit: 'mi/b',
+        },
+        'Hmmmm2': {
+          value: 50,
+          unit: '%',
+        },
+        'Hmmmm3': {
+          value: 10.1,
+          unit: '%',
+        },
       },
-      'Hmmmm2': {
-        value: 50,
-        unit: '%',
+      'Group5': {
+        'Hmmmm1': {
+          value: Math.random(),
+          unit: 'mi/b',
+        },
+        'Hmmmm2': {
+          value: 50,
+          unit: '%',
+        },
+        'Hmmmm3': {
+          value: 10.1,
+          unit: '%',
+        },
       },
-      'Hmmmm3': {
-        value: 10.1,
-        unit: '%',
-      },
-    },
+    }
   }
 
   export const ServerLogs: RR.GetServerLogsRes = [

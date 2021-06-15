@@ -93,7 +93,7 @@ export class MockApiService extends ApiService {
 
   async getServerMetrics (params: RR.GetServerMetricsReq): Promise<RR.GetServerMetricsRes> {
     await pauseFor(2000)
-    return Mock.ServerMetrics
+    return Mock.getServerMetrics()
   }
 
   async updateServerRaw (params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
