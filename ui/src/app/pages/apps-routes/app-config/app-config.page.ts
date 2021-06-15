@@ -13,7 +13,7 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
-import { InstalledPackageDataEntry } from 'src/app/models/patch-db/data-model'
+import { InstalledPackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 
 @Component({
@@ -32,6 +32,7 @@ export class AppConfigPage {
   hasConfig = false
 
   backButtonDefense = false
+  packageState = PackageState
 
   rec: Recommendation | null = null
   showRec = true

@@ -49,31 +49,32 @@ export class AppConfigValuePage {
   }
 
   async dismiss () {
-    if (this.edited) {
-      await this.presentAlertUnsaved()
+    if (this.value === '') this.value = null
+
+    if (this.spec.type === 'number' && this.value !== null) {
+      this.value = Number(this.value)
+    }
+
+    if ((!!this.saveFn && this.edited) || (!this.saveFn && this.error)) {
+      await this.presentAlert()
     } else {
       await this.trackingModalCtrl.dismiss()
     }
   }
 
-  async done () {
-    if (!this.validate()) { return }
+  async save () {
+    if (this.value === '') this.value = null
 
-    if (this.spec.type !== 'boolean') {
-      this.value = this.value || null
-    }
-    if (this.spec.type === 'number' && this.value) {
+    if (this.spec.type === 'number' && this.value !== null) {
       this.value = Number(this.value)
     }
 
-    if (this.saveFn) {
-      this.loader.displayDuringP(
-        this.saveFn(this.value).catch(e => {
-          console.error(e)
-          this.error = e.message
-        }),
-      )
-    }
+    this.loader.displayDuringP(
+      this.saveFn(this.value).catch(e => {
+        console.error(e)
+        this.error = e.message
+      }),
+    )
 
     await this.trackingModalCtrl.dismiss(this.value)
   }
@@ -84,7 +85,7 @@ export class AppConfigValuePage {
   }
 
   handleInput () {
-    this.error = ''
+    this.validate()
     this.edited = true
   }
 
@@ -114,7 +115,7 @@ export class AppConfigValuePage {
     if (this.spec.type === 'boolean') return true
 
     // test blank
-    if (!this.value && !(this.spec as any).nullable) {
+    if (this.value === '' && !(this.spec as any).nullable) {
       this.error = 'Value cannot be blank'
       return false
     }
@@ -145,14 +146,23 @@ export class AppConfigValuePage {
       }
     }
 
+    this.error = ''
     return true
   }
 
-  private async presentAlertUnsaved () {
+  private async presentAlert () {
+    const header = this.error ?
+      'Invalid Entry' :
+      'Unsaved Changes'
+
+    const message = this.error ?
+    'Value will not be saved' :
+    'You have unsaved changes. Are you sure you want to leave?'
+
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
-      header: 'Unsaved Changes',
-      message: 'You have unsaved changes. Are you sure you want to leave?',
+      header,
+      message,
       buttons: [
         {
           text: 'Cancel',
