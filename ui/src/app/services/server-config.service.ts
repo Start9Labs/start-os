@@ -58,8 +58,7 @@ const serverConfig: ConfigSpec = {
     name: 'Device Name',
     description: 'A unique label for this device.',
     nullable: false,
-    // @TODO determine regex
-    // pattern: '',
+    pattern: '^.{1,40}$',
     patternDescription: 'Must be less than 40 characters',
     masked: false,
     copyable: false,
@@ -67,7 +66,7 @@ const serverConfig: ConfigSpec = {
   autoCheckUpdates: {
     type: 'boolean',
     name: 'Auto Check for Updates',
-    description: 'On launch, EmabssyOS will automatically check for updates of itself and your installed services. Updating still requires user approval and action. No updates will ever be performed automatically.',
+    description: 'On launch, EmbassyOS will automatically check for updates of itself and your installed services. Updating still requires user approval and action. No updates will ever be performed automatically.',
     default: true,
   },
   ssh: {
