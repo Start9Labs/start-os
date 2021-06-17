@@ -34,7 +34,7 @@
     "json-pointer": "^0.6.1",
     "jsonpointerx": "^1.0.30",
     "marked": "^2.0.0",
-    "patch-db-client": "file: ../../../../patch-db-client",
+    "patch-db-client": "file: ../../../../patch-db/client",
     "rxjs": "^6.6.0",
     "uuid": "^8.3.0",
     "zone.js": "^0.11.2"

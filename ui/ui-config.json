@@ -2,11 +2,11 @@
   "patchDb": {
     "timeoutForMissingRevision": 5000,
     "poll": {
-      "cooldown": 40000
+      "cooldown": 10000
     }
   },
   "api": {
-    "url": "/rpc",
+    "url": "rpc",
     "version": "v1"
   },
   "mocks": {
