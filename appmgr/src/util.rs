@@ -14,6 +14,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
+use tokio::sync::RwLock;
 
 use crate::{Error, ResultExt as _};
 
@@ -140,6 +141,29 @@ where
     W: AsyncWrite + Unpin,
 {
     let mut buffer = serde_yaml::to_vec(value).with_kind(crate::ErrorKind::Serialization)?;
+    buffer.extend_from_slice(b"\n");
+    writer.write_all(&buffer).await?;
+    Ok(())
+}
+
+pub async fn from_toml_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
+where
+    T: for<'de> serde::Deserialize<'de>,
+    R: AsyncRead + Unpin,
+{
+    let mut buffer = Vec::new();
+    reader.read_to_end(&mut buffer).await?;
+    serde_toml::from_slice(&buffer)
+        .map_err(anyhow::Error::from)
+        .with_kind(crate::ErrorKind::Deserialization)
+}
+
+pub async fn to_toml_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
+where
+    T: serde::Serialize,
+    W: AsyncWrite + Unpin,
+{
+    let mut buffer = serde_toml::to_vec(value).with_kind(crate::ErrorKind::Serialization)?;
     buffer.extend_from_slice(b"\n");
     writer.write_all(&buffer).await?;
     Ok(())
@@ -769,5 +793,15 @@ pub fn parse_duration(arg: &str, matches: &ArgMatches<'_>) -> Result<Duration, E
             anyhow!("Invalid units for duration"),
             crate::ErrorKind::Deserialization,
         )),
+    }
+}
+
+pub struct Container<T>(RwLock<Option<T>>);
+impl<T> Container<T> {
+    pub async fn set(&self, value: T) {
+        *self.0.write().await = Some(value);
+    }
+    pub async fn drop(&self) {
+        *self.0.write().await = None;
     }
 }
