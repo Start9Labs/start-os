@@ -45,7 +45,7 @@ impl CliContext {
         } else {
             CliContextConfig::default()
         };
-        if let Some(bind) = base.server_config.bind {
+        if let Some(bind) = base.server_config.bind_rpc {
             if base.host.is_none() {
                 base.host = Some(match bind.ip() {
                     IpAddr::V4(a) => Host::Ipv4(a),

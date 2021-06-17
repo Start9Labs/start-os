@@ -1877,6 +1877,7 @@ name = "rpc-toolkit"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "futures",
  "hyper",
  "lazy_static",
  "reqwest",
@@ -2899,7 +2900,6 @@ dependencies = [
 [[package]]
 name = "yajrc"
 version = "0.1.0"
-source = "git+https://github.com/dr-bonez/yajrc?branch=develop#5a97df80635a81e61f42841ecf34fa707ba61a6c"
 dependencies = [
  "anyhow",
  "serde",
