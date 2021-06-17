@@ -32,12 +32,13 @@
                 </div>
               </div>
     
-              <img style="position: absolute" class="main-img" [src]="pkg.value['static-files'].icon" [alt]="icon" />
+              <img style="position: absolute" class="main-img" [src]="pkg.value['static-files'].icon" alt="icon" />
               <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
               <img class="bulb-on" *ngIf="pkg.value | displayBulb: 'green' : connection" src="assets/img/running-bulb.png"/>
               <img class="bulb-on" *ngIf="pkg.value | displayBulb: 'red' : connection" src="assets/img/issue-bulb.png"/>
               <img class="bulb-on" *ngIf="pkg.value | displayBulb: 'yellow' : connection" src="assets/img/warning-bulb.png"/>
               <img class="bulb-off" *ngIf="pkg.value | displayBulb: 'off' : connection" src="assets/img/off-bulb.png"/>
+
               <ion-card-header>
                 <status [pkg]="pkg.value" [connection]="connection" size="small"></status>
                 <p>{{ (pkg.value | manifest).title }}</p>

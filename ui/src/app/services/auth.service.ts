@@ -19,19 +19,11 @@ export class AuthService {
   constructor (
     private readonly api: ApiService,
     private readonly storage: Storage,
-  ) {
-    this.storage.create()
-  }
+  ) { }
 
-  async init (): Promise<AuthState> {
+  async init (): Promise<void> {
     const loggedIn = await this.storage.get(StorageKeys.LOGGED_IN_KEY)
-    if (loggedIn) {
-      this.authState$.next(AuthState.VERIFIED)
-      return AuthState.VERIFIED
-    } else {
-      this.authState$.next(AuthState.UNVERIFIED)
-      return AuthState.UNVERIFIED
-    }
+    this.authState$.next( loggedIn ? AuthState.VERIFIED : AuthState.UNVERIFIED)
   }
 
   watch$ (): Observable<AuthState> {
