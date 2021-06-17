@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ops::{Bound, RangeBounds, RangeInclusive};
 
 use rand::distributions::Distribution;
@@ -311,8 +312,8 @@ impl<'de> serde::de::Deserialize<'de> for UniqueBy {
                 mut map: A,
             ) -> Result<Self::Value, A::Error> {
                 let mut variant = None;
-                while let Some(key) = map.next_key()? {
-                    match key {
+                while let Some(key) = map.next_key::<Cow<str>>()? {
+                    match key.as_ref() {
                         "any" => {
                             return Ok(UniqueBy::Any(map.next_value()?));
                         }
@@ -325,7 +326,7 @@ impl<'de> serde::de::Deserialize<'de> for UniqueBy {
                     }
                 }
                 Err(serde::de::Error::unknown_variant(
-                    variant.unwrap_or_default(),
+                    variant.unwrap_or_default().as_ref(),
                     &["any", "all"],
                 ))
             }

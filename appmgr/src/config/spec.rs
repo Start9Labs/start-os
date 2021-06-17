@@ -238,7 +238,7 @@ where
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub struct WithDescription<T> {
     #[serde(flatten)]
     pub inner: T,
@@ -497,7 +497,7 @@ impl DefaultableWith for ValueSpecBoolean {
 }
 
 #[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub struct ValueSpecEnum {
     pub values: IndexSet<String>,
     pub value_names: IndexMap<String, String>,
@@ -505,7 +505,7 @@ pub struct ValueSpecEnum {
 impl<'de> serde::de::Deserialize<'de> for ValueSpecEnum {
     fn deserialize<D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
-        #[serde(rename_all = "camelCase")]
+        #[serde(rename_all = "kebab-case")]
         pub struct _ValueSpecEnum {
             pub values: IndexSet<String>,
             #[serde(default)]
@@ -944,7 +944,7 @@ impl DefaultableWith for ValueSpecNumber {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub struct ValueSpecObject {
     pub spec: ConfigSpec,
     #[serde(default)]
@@ -1120,7 +1120,7 @@ impl ConfigSpec {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub struct Pattern {
     #[serde(with = "util::serde_regex")]
     pub pattern: Regex,
@@ -1254,7 +1254,7 @@ impl Entropy {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub struct UnionTag {
     pub id: String,
     pub name: String,
@@ -1263,7 +1263,7 @@ pub struct UnionTag {
 }
 
 #[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub struct ValueSpecUnion {
     pub tag: UnionTag,
     pub variants: IndexMap<String, ConfigSpec>,
@@ -1274,14 +1274,14 @@ pub struct ValueSpecUnion {
 impl<'de> serde::de::Deserialize<'de> for ValueSpecUnion {
     fn deserialize<D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
-        #[serde(rename_all = "camelCase")]
+        #[serde(rename_all = "kebab-case")]
         #[serde(untagged)]
         pub enum _UnionTag {
             Old(String),
             New(UnionTag),
         }
         #[derive(Deserialize)]
-        #[serde(rename_all = "camelCase")]
+        #[serde(rename_all = "kebab-case")]
         pub struct _ValueSpecUnion {
             pub variants: IndexMap<String, ConfigSpec>,
             pub tag: _UnionTag,
