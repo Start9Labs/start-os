@@ -98,6 +98,10 @@
       ```
       rm -rf ~/.stack/setup-exe-src/
       ```
+   1. Re-make the agent
+      ```
+      make agent
+      ```
 
 6. Install requirements for step 7
    1. Install NVM
