@@ -11,7 +11,7 @@ export function PatchDbModelFactory (
   http: ApiService,
 ): PatchDbModel {
 
-  const { mocks, patchDb: { poll, timeoutForMissingRevision }, isConsulate, isLan } = config
+  const { mocks, patchDb: { poll, timeoutForMissingRevision }, isConsulate } = config
 
   let source: Source<DataModel>
 
@@ -19,7 +19,7 @@ export function PatchDbModelFactory (
     if (mocks.connection === 'poll') {
       source = new PollSource({ ...poll }, http)
     } else {
-      source = new WebsocketSource('ws://localhost:8081')
+      source = new WebsocketSource(`ws://localhost:${config.mocks.wsPort}/db`)
     }
   } else {
     if (isConsulate) {

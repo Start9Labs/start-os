@@ -11,14 +11,15 @@ import { Revision } from 'patch-db-client'
 export class HttpService {
   private unauthorizedApiResponse$ = new Subject()
   authReqEnabled: boolean = false
-  rootUrl: string
+  fullUrl: string
 
   constructor (
     private readonly http: HttpClient,
     private readonly config: ConfigService,
   ) {
     const { url, version } = this.config.api
-    this.rootUrl = `${url}/${version}`
+    const port = config.mocks.enabled ? this.config.mocks.rpcPort : window.location.port
+    this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}/${url}/${version}`
   }
 
   watch401$ (): Observable<{ }> {
@@ -41,22 +42,34 @@ export class HttpService {
   }
 
   async httpRequest<T> (httpOpts: HttpOptions): Promise<T> {
-    let { url, body, timeout, ...rest} = translateOptions(httpOpts)
-    url = this.rootUrl + url
-
+    let { body, timeout, ...rest} = this.translateOptions(httpOpts)
     let req: Observable<{ body: T }>
     switch (httpOpts.method){
-      case Method.GET:    req = this.http.get(url, rest) as any;          break
-      case Method.POST:   req = this.http.post(url, body, rest) as any;   break
-      case Method.PUT:    req = this.http.put(url, body, rest) as any;    break
-      case Method.PATCH:  req = this.http.patch(url, body, rest) as any;  break
-      case Method.DELETE: req = this.http.delete(url, rest) as any;       break
+      case Method.GET:    req = this.http.get(this.fullUrl, rest) as any;          break
+      case Method.POST:   req = this.http.post(this.fullUrl, body, rest) as any;   break
+      case Method.PUT:    req = this.http.put(this.fullUrl, body, rest) as any;    break
+      case Method.PATCH:  req = this.http.patch(this.fullUrl, body, rest) as any;  break
+      case Method.DELETE: req = this.http.delete(this.fullUrl, rest) as any;       break
     }
 
     return (timeout ? withTimeout(req, timeout) : req)
       .toPromise()
       .then(res => res.body)
       .catch(e => { throw new HttpError(e) })
+  }
+
+  translateOptions (httpOpts: HttpOptions): HttpJsonOptions {
+    return {
+      observe: 'events',
+      responseType: 'json',
+      reportProgress: false,
+      withCredentials: this.config.mocks.enabled ? false : true,
+      headers: httpOpts.headers,
+      params: httpOpts.params,
+      body: httpOpts.data || { },
+      url: httpOpts.url,
+      timeout: httpOpts.readTimeout,
+    }
   }
 }
 
@@ -165,20 +178,6 @@ export interface HttpJsonOptions {
   body?: any
   url: string
   timeout: number
-}
-
-function translateOptions (httpOpts: HttpOptions): HttpJsonOptions {
-  return {
-    observe: 'events',
-    responseType: 'json',
-    reportProgress: false,
-    withCredentials: true,
-    headers: httpOpts.headers,
-    params: httpOpts.params,
-    body: httpOpts.data || { },
-    url: httpOpts.url,
-    timeout: httpOpts.readTimeout,
-  }
 }
 
 function withTimeout<U> (req: Observable<U>, timeout: number): Observable<U> {
