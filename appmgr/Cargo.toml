@@ -11,7 +11,6 @@ keywords = [
   "full-node",
   "lightning",
 ]
-license = "Start9 Personal Use License v1.0"
 name = "embassy-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/embassy-os"
