@@ -92,7 +92,7 @@ export class WizardBaker {
             action,
             verb: 'updating',
             title,
-            fetchBreakages: () => this.apiService.dryUpdatePackage({ id, version }).then( ({ breakages }) => breakages ),
+            fetchBreakages: () => this.apiService.dryUpdatePackage({ id, version }).then(breakages => breakages),
           },
         },
         bottomBar: {
@@ -192,7 +192,7 @@ export class WizardBaker {
             action,
             verb: 'downgrading',
             title,
-            fetchBreakages: () => this.apiService.dryUpdatePackage({ id, version }).then( ({ breakages }) => breakages ),
+            fetchBreakages: () => this.apiService.dryUpdatePackage({ id, version }).then(breakages => breakages),
           },
         },
         bottomBar: {
@@ -248,7 +248,7 @@ export class WizardBaker {
             action,
             verb: 'uninstalling',
             title,
-            fetchBreakages: () => this.apiService.dryRemovePackage({ id }).then( ({ breakages }) => breakages ),
+            fetchBreakages: () => this.apiService.dryRemovePackage({ id }).then(breakages => breakages ),
           },
         },
         bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Uninstall' },

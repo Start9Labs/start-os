@@ -331,10 +331,7 @@ export class MockApiService extends ApiService {
 
   async dryUpdatePackage (params: RR.DryUpdatePackageReq): Promise<RR.DryUpdatePackageRes> {
     await pauseFor(2000)
-    return {
-      patch: [],
-      breakages: { },
-    }
+    return { }
   }
 
   async getPackageConfig (params: RR.GetPackageConfigReq): Promise<RR.GetPackageConfigRes> {
@@ -344,10 +341,7 @@ export class MockApiService extends ApiService {
 
   async drySetPackageConfig (params: RR.DrySetPackageConfigReq): Promise<RR.DrySetPackageConfigRes> {
     await pauseFor(2000)
-    return {
-      patch: [],
-      breakages: { },
-    }
+    return { }
   }
 
   async setPackageConfigRaw (params: RR.SetPackageConfigReq): Promise<RR.SetPackageConfigRes> {
@@ -421,10 +415,7 @@ export class MockApiService extends ApiService {
 
   async dryStopPackage (params: RR.DryStopPackageReq): Promise<RR.DryStopPackageRes> {
     await pauseFor(2000)
-    return {
-      patch: [],
-      breakages: { },
-    }
+    return { }
   }
 
   async stopPackageRaw (params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
@@ -447,10 +438,7 @@ export class MockApiService extends ApiService {
 
   async dryRemovePackage (params: RR.DryRemovePackageReq): Promise<RR.DryRemovePackageRes> {
     await pauseFor(2000)
-    return {
-      patch: [],
-      breakages: { },
-    }
+    return { }
   }
 
   async removePackageRaw (params: RR.RemovePackageReq): Promise<RR.RemovePackageRes> {

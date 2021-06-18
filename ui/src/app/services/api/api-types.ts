@@ -1,4 +1,4 @@
-import { Dump, Operation, Revision } from 'patch-db-client'
+import { Dump, Revision } from 'patch-db-client'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { DataModel, DependencyError, Manifest, URL } from 'src/app/models/patch-db/data-model'
@@ -113,13 +113,13 @@ export module RR {
   export type InstallPackageRes = WithRevision<null>
 
   export type DryUpdatePackageReq = { id: string, version: string } // package.update.dry
-  export type DryUpdatePackageRes = BreakageRes
+  export type DryUpdatePackageRes = Breakages
 
   export type GetPackageConfigReq = { id: string } // package.config.get
   export type GetPackageConfigRes = { spec: ConfigSpec, config: object }
 
   export type DrySetPackageConfigReq = { id: string, config: object } // package.config.set.dry
-  export type DrySetPackageConfigRes = BreakageRes
+  export type DrySetPackageConfigRes = Breakages
 
   export type SetPackageConfigReq = WithExpire<DrySetPackageConfigReq> // package.config.set
   export type SetPackageConfigRes = WithRevision<null>
@@ -134,13 +134,13 @@ export module RR {
   export type StartPackageRes = WithRevision<null>
 
   export type DryStopPackageReq = StopPackageReq // package.stop.dry
-  export type DryStopPackageRes = BreakageRes
+  export type DryStopPackageRes = Breakages
 
   export type StopPackageReq = WithExpire<{ id: string }> // package.stop
   export type StopPackageRes = WithRevision<null>
 
   export type DryRemovePackageReq = RemovePackageReq // package.remove.dry
-  export type DryRemovePackageRes = BreakageRes
+  export type DryRemovePackageRes = Breakages
 
   export type RemovePackageReq = WithExpire<{ id: string }> // package.remove
   export type RemovePackageRes = WithRevision<null>
@@ -196,11 +196,6 @@ export interface AvailableShow {
       icon: URL
     }
   }
-}
-
-export interface BreakageRes {
-  patch: Operation[],
-  breakages: Breakages
 }
 
 export interface Breakages {

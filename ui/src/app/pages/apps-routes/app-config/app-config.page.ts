@@ -183,9 +183,9 @@ export class AppConfigPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync(async () => {
-      const { breakages } = await this.apiService.drySetPackageConfig({ id: pkg.manifest.id, config: this.config })
+      const breakages = await this.apiService.drySetPackageConfig({ id: pkg.manifest.id, config: this.config })
 
-      if (breakages.length) {
+      if (!isEmptyObject(breakages.length)) {
         const { cancelled } = await wizardModal(
           this.modalController,
           this.wizardBaker.configure({
