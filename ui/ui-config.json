@@ -1,6 +1,5 @@
 {
   "patchDb": {
-    "timeoutForMissingRevision": 5000,
     "poll": {
       "cooldown": 10000
     }

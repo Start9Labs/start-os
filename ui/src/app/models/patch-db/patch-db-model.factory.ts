@@ -11,7 +11,7 @@ export function PatchDbModelFactory (
   http: ApiService,
 ): PatchDbModel {
 
-  const { mocks, patchDb: { poll, timeoutForMissingRevision }, isConsulate } = config
+  const { mocks, patchDb: { poll }, isConsulate } = config
 
   let source: Source<DataModel>
 
@@ -31,5 +31,5 @@ export function PatchDbModelFactory (
     }
   }
 
-  return new PatchDbModel({ sources: [source, http], bootstrapper, http, timeoutForMissingRevision })
+  return new PatchDbModel(bootstrapper, source)
 }
