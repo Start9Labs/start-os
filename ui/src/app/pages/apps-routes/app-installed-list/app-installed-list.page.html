@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content style="position: relative">
-  <ng-container *ngrxLet="patch.watch$('package-data') as pkgs">
+  <ng-container *ngIf="patch.watch$('package-data') | ngrxPush as pkgs">
 
     <div *ngIf="pkgs | empty; else list" class="ion-text-center ion-padding">
       <div style="display: flex; flex-direction: column; justify-content: center; height: 40vh">
@@ -23,7 +23,7 @@
 
     <ng-template #list>
       <ion-grid>
-        <ion-row *ngrxLet="connectionService.monitor$() as connection">
+        <ion-row *ngIf="connectionService.monitor$() | ngrxPush as connection">
           <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="4" sizeSm="3" sizeMd="2" sizeLg="2">
             <ion-card class="installed-card" style="position:relative" [routerLink]="['/services', 'installed', (pkg.value | manifest).id]">
               <div class="launch-container" *ngIf="pkg.value | hasUi">

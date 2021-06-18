@@ -10,6 +10,7 @@ import { PackageDataEntry } from 'src/app/models/patch-db/data-model'
   styleUrls: ['./app-installed-list.page.scss'],
 })
 export class AppInstalledListPage {
+  pkgs: PackageDataEntry[] = []
 
   constructor (
     private readonly config: ConfigService,
