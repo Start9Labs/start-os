@@ -2,7 +2,7 @@ import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, PopoverController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
-import { chill, pauseFor } from 'src/app/util/misc.util'
+import { chill, isEmptyObject, pauseFor } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
 import { Observable, of, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
@@ -73,9 +73,9 @@ export class AppInstalledShowPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync(async () => {
-      const { breakages } = await this.apiService.dryStopPackage({ id })
+      const breakages = await this.apiService.dryStopPackage({ id })
 
-      if (breakages.length) {
+      if (isEmptyObject(breakages.length)) {
         const { cancelled } = await wizardModal(
           this.modalCtrl,
           this.wizardBaker.stop({

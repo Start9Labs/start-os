@@ -1,8 +1,5 @@
 <ion-app>
-
-  <ion-spinner *ngIf="!patch.initialized" class="center" name="lines" color="warning"></ion-spinner>
-
-  <ion-split-pane *ngIf="patch.initialized" [disabled]="!showMenu" (ionSplitPaneVisible)="splitPaneVisible($event)" contentId="main-content">
+  <ion-split-pane *ngIf="patch.patchDb?.store" [disabled]="!showMenu" (ionSplitPaneVisible)="splitPaneVisible($event)" contentId="main-content">
     <ion-menu contentId="main-content" type="overlay">
       <ion-header>
         <ion-toolbar style="--background: var(--ion-background-color);">

@@ -8,8 +8,6 @@ type UiConfig = {
     poll: {
       cooldown: number /* in ms */
     }
-    // Wait this long (ms) before asking BE for a dump when out of order messages are received
-    timeoutForMissingRevision: number
   }
   api: {
     url: string
