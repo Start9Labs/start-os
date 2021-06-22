@@ -1,11 +1,13 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
-import { AlertController } from '@ionic/angular'
+import { AlertController, ModalController, NavController } from '@ionic/angular'
 import { LoaderService } from 'src/app/services/loader.service'
 import { HttpErrorResponse } from '@angular/common/http'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { Action, InstalledPackageDataEntry, PackageMainStatus } from 'src/app/models/patch-db/data-model'
+import { Action, InstalledPackageDataEntry, Manifest, PackageMainStatus } from 'src/app/models/patch-db/data-model'
+import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
+import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 
 @Component({
   selector: 'app-actions',
@@ -18,8 +20,11 @@ export class AppActionsPage {
   constructor (
     private readonly route: ActivatedRoute,
     private readonly apiService: ApiService,
+    private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
     private readonly loaderService: LoaderService,
+    private readonly wizardBaker: WizardBaker,
+    private readonly navCtrl: NavController,
     public readonly patch: PatchDbModel,
   ) { }
 
@@ -69,6 +74,22 @@ export class AppActionsPage {
       })
       await alert.present()
     }
+  }
+
+  async uninstall (manifest: Manifest) {
+    const { id, title, version, alerts } = manifest
+    const data = await wizardModal(
+      this.modalCtrl,
+      this.wizardBaker.uninstall({
+        id,
+        title,
+        version,
+        uninstallAlert: alerts.uninstall,
+      }),
+    )
+
+    if (data.cancelled) return
+    return this.navCtrl.navigateRoot('/services/installed')
   }
 
   private async executeAction (pkgId: string, actionId: string) {

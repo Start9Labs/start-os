@@ -40,6 +40,14 @@ const routes: Routes = [
     loadChildren: () => import('./app-logs/app-logs.module').then(m => m.AppLogsPageModule),
   },
   {
+    path: 'installed/:pkgId/manifest',
+    loadChildren: () => import('./app-manifest/app-manifest.module').then(m => m.AppManifestPageModule),
+  },
+  {
+    path: 'installed/:pkgId/metrics',
+    loadChildren: () => import('./app-metrics/app-metrics.module').then(m => m.AppMetricsPageModule),
+  },
+  {
     path: 'installed/:pkgId/properties',
     loadChildren: () => import('./app-properties/app-properties.module').then(m => m.AppPropertiesPageModule),
   },

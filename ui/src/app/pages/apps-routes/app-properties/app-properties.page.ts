@@ -1,15 +1,14 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
-import { isEmptyObject, pauseFor } from 'src/app/util/misc.util'
-import { BehaviorSubject, Subject } from 'rxjs'
+import { Subscription } from 'rxjs'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { AlertController, NavController, PopoverController, ToastController } from '@ionic/angular'
 import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PropertyStore } from './property-store'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import * as JSONpointer from 'json-pointer'
+import * as JsonPointer from 'json-pointer'
 import { FEStatus } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
@@ -23,10 +22,11 @@ export class AppPropertiesPage {
   pkgId: string
   pointer: string
   qrCode: string
-  properties$ = new BehaviorSubject<PackageProperties>({ })
-  hasProperties$ = new BehaviorSubject<boolean>(null)
+  properties: PackageProperties
+  node: PackageProperties
   unmasked: { [key: string]: boolean } = { }
   FeStatus = FEStatus
+  subs: Subscription[]
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -36,28 +36,27 @@ export class AppPropertiesPage {
     private readonly popoverCtrl: PopoverController,
     private readonly propertyStore: PropertyStore,
     private readonly navCtrl: NavController,
-    public patch: PatchDbModel,
+    public readonly patch: PatchDbModel,
   ) { }
 
-  ngOnInit () {
+  async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.pointer = this.route.queryParams['pointer']
 
-    this.getProperties().then(() => this.loading = false)
+    await this.getProperties()
 
-    this.propertyStore.watch$().subscribe(m => {
-      const properties = JSONpointer.get(m, this.pointer || '')
-      this.properties$.next(properties)
-    })
-    this.properties$.subscribe(m => {
-      this.hasProperties$.next(!isEmptyObject(m))
-    })
-    this.route.queryParams.subscribe(queryParams => {
-      if (queryParams['pointer'] === this.pointer) return
-      this.pointer = queryParams['pointer']
-      const properties = JSONpointer.get(this.propertyStore.properties$.getValue(), this.pointer || '')
-      this.properties$.next(properties)
-    })
+    this.subs = [
+      this.route.queryParams.subscribe(queryParams => {
+        if (queryParams['pointer'] === this.pointer) return
+        this.pointer = queryParams['pointer']
+        this.node = JsonPointer.get(this.properties, this.pointer || '')
+      }),
+    ]
+
+    this.loading = false
+  }
+
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async doRefresh (event: any) {
@@ -118,8 +117,8 @@ export class AppPropertiesPage {
 
   private async getProperties (): Promise<void> {
     try {
-      const properties = await this.apiService.getPackageProperties({ id: this.pkgId })
-      this.propertyStore.update(properties)
+      this.properties = await this.apiService.getPackageProperties({ id: this.pkgId })
+      this.node = JsonPointer.get(this.properties, this.pointer || '')
     } catch (e) {
       console.error(e)
       this.error = e.message
