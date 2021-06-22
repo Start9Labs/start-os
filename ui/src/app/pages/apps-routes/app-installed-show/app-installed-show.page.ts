@@ -1,14 +1,14 @@
 import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, PopoverController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { ActivatedRoute, NavigationExtras } from '@angular/router'
-import { chill, isEmptyObject, pauseFor } from 'src/app/util/misc.util'
+import { ActivatedRoute, NavigationExtras, Router } from '@angular/router'
+import { chill, isEmptyObject } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
 import { Observable, of, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
-import { ConfigService } from 'src/app/services/config.service'
+import { ConfigService, getManifest } from 'src/app/services/config.service'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, Manifest, PackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
 import { FEStatus } from 'src/app/services/pkg-status-rendering.service'
@@ -26,12 +26,12 @@ export class AppInstalledShowPage {
   pkg: PackageDataEntry
   pkgSub: Subscription
   hideLAN: boolean
+  buttons: Button[] = []
+  manifest: Manifest = { } as Manifest
 
   FeStatus = FEStatus
   PackageState = PackageState
   DependencyErrorType = DependencyErrorType
-
-  depDefinition = '<span style="font-style: italic">Service Dependencies</span> are other services that this service recommends or requires in order to run.'
 
   @ViewChild(IonContent) content: IonContent
 
@@ -51,7 +51,11 @@ export class AppInstalledShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.pkgSub = this.patch.watch$('package-data', this.pkgId).subscribe(pkg => this.pkg = pkg)
+    this.pkgSub = this.patch.watch$('package-data', this.pkgId).subscribe(pkg => {
+      this.pkg = pkg
+      this.manifest = getManifest(this.pkg)
+    })
+    this.setButtons()
   }
 
   async ngAfterViewInit () {
@@ -102,30 +106,14 @@ export class AppInstalledShowPage {
     }
   }
 
-  async uninstall () {
-    const { id, title, version, alerts } = this.pkg.installed.manifest
-    const data = await wizardModal(
-      this.modalCtrl,
-      this.wizardBaker.uninstall({
-        id,
-        title,
-        version,
-        uninstallAlert: alerts.uninstall,
-      }),
-    )
-
-    if (data.cancelled) return
-    return this.navCtrl.navigateRoot('/services/installed')
-  }
-
-  async donate (manifest: Manifest): Promise<void> {
-    const url = manifest['donation-url']
+  async donate (): Promise<void> {
+    const url = this.manifest['donation-url']
     if (url) {
       window.open(url, '_blank')
     } else {
       const alert = await this.alertCtrl.create({
         header: 'Not Accepting Donations',
-        message: `The developers of ${manifest.title} have not provided a donation URL. Please contact them directly if you insist on giving them money.`,
+        message: `The developers of ${this.manifest.title} have not provided a donation URL. Please contact them directly if you insist on giving them money.`,
         buttons: ['OK'],
       })
       await alert.present()
@@ -161,6 +149,10 @@ export class AppInstalledShowPage {
       case 'configure':
         return this.configureDep(id)
     }
+  }
+
+  asIsOrder () {
+    return 0
   }
 
   private async installDep (depId: string): Promise<void> {
@@ -234,4 +226,94 @@ export class AppInstalledShowPage {
     this.error = e.message
     return of()
   }
+
+  setButtons (): void {
+    this.buttons = [
+      {
+        action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
+        title: 'Health',
+        icon: 'medkit-outline',
+        color: 'danger',
+        disabled: [],
+      },
+      {
+        action: () => this.navCtrl.navigateForward(['instructions'], { relativeTo: this.route }),
+        title: 'Instructions',
+        icon: 'list-outline',
+        color: 'danger',
+        disabled: [],
+      },
+      {
+        action: () => this.navCtrl.navigateForward(['config'], { relativeTo: this.route }),
+        title: 'Configure',
+        icon: 'construct-outline',
+        color: 'danger',
+        disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
+      },
+      {
+        action: () => this.navCtrl.navigateForward(['properties'], { relativeTo: this.route }),
+        title: 'Values',
+        icon: 'briefcase-outline',
+        color: 'danger',
+        disabled: [],
+      },
+      {
+        action: () => this.navCtrl.navigateForward(['interfaces'], { relativeTo: this.route }),
+        title: 'Interfaces',
+        icon: 'desktop-outline',
+        color: 'danger',
+        disabled: [],
+      },
+      {
+        action: () => this.navCtrl.navigateForward(['actions'], { relativeTo: this.route }),
+        title: 'Actions',
+        icon: 'flash-outline',
+        color: 'danger',
+        disabled: [],
+      },
+      {
+        action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
+        title: 'Logs',
+        icon: 'receipt-outline',
+        color: 'danger',
+        disabled: [],
+      },
+      {
+        action: () => this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
+        title: 'Restore Backup',
+        icon: 'color-wand-outline',
+        color: 'danger',
+        disabled: [FEStatus.Connecting, FEStatus.Installing, FEStatus.Updating, FEStatus.Stopping, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
+      },
+      {
+        action: () => this.navCtrl.navigateForward(['manifest'], { relativeTo: this.route }),
+        title: 'Package Manifest',
+        icon: 'finger-print-outline',
+        color: 'danger',
+        disabled: [],
+      },
+      {
+        action: () => this.donate(),
+        title: 'Support Project',
+        icon: 'logo-bitcoin',
+        color: 'danger',
+        disabled: [],
+      },
+      {
+        action: () => this.navCtrl.navigateForward(['/services', 'marketplace', this.pkgId], { relativeTo: this.route }),
+        title: 'Marketplace Listing',
+        icon: 'storefront-outline',
+        color: 'danger',
+        disabled: [],
+      },
+    ]
+  }
+}
+
+interface Button {
+  title: string
+  icon: string
+  color: string
+  disabled: FEStatus[]
+  action: Function
 }

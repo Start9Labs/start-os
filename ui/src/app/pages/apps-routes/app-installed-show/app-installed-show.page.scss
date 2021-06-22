@@ -16,7 +16,7 @@
 
 .top-plate {
   background: var(--ion-item-background);
-  margin: 20px 10px;
+  margin: 0 16px;
   border-radius: 10px;
   border-style: solid;
   border-color: #373737;
@@ -47,6 +47,12 @@
   --color: white;
   --border-radius: 10px;
   margin: 12px 10px;
+}
+
+.dep-card {
+  border-radius: 10px;
+  border-style: solid;
+  border-color: #404040;
 }
 
 .dep-badge {

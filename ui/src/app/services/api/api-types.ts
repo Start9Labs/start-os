@@ -28,7 +28,7 @@ export module RR {
   export type GetServerLogsRes = Log[]
 
   export type GetServerMetricsReq = { } // server.metrics
-  export type GetServerMetricsRes = ServerMetrics
+  export type GetServerMetricsRes = Metrics
 
   export type UpdateServerReq = WithExpire<{ }> // server.update
   export type UpdateServerRes = WithRevision<null>
@@ -219,7 +219,7 @@ export interface ActionResponse {
   qr: boolean
 }
 
-export interface ServerMetrics {
+export interface Metrics {
   [key: string]: {
     [key: string]: {
       value: string | number | null

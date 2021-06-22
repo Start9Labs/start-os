@@ -104,7 +104,7 @@ export interface Manifest {
     stop: string | null
   }
   main: ActionImpl
-  'health-check': ActionImpl
+  'health-checks': { [id: string]: ActionImpl & { critical: boolean } }
   config: ConfigActions | null
   volumes: { [id: string]: Volume }
   'min-os-version': string
@@ -257,24 +257,31 @@ export enum PackageMainStatus {
 
 export type HealthCheckResult = HealthCheckResultWarmingUp | HealthCheckResultDisabled | HealthCheckResultSuccess | HealthCheckResultFailure
 
+export enum HealthResult {
+  WarmingUp = 'warming-up',
+  Disabled = 'disabled',
+  Success = 'success',
+  Failure = 'failure',
+}
+
 export interface HealthCheckResultWarmingUp {
   time: string // UTC date string
-  result: 'warming-up'
+  result: HealthResult.WarmingUp
 }
 
 export interface HealthCheckResultDisabled {
   time: string // UTC date string
-  result: 'disabled'
+  result: HealthResult.Disabled
 }
 
 export interface HealthCheckResultSuccess {
   time: string // UTC date string
-  result: 'success'
+  result: HealthResult.Success
 }
 
 export interface HealthCheckResultFailure {
   time: string // UTC date string
-  result: 'failure'
+  result: HealthResult.Failure
   error: string
 }
 

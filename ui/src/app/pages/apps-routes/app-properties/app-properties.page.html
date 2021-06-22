@@ -3,7 +3,7 @@
     <ion-buttons slot="start">
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
-    <ion-title>Properties</ion-title>
+    <ion-title>Values</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -28,15 +28,15 @@
       </ion-item>
 
       <!-- no properties -->
-      <ion-item *ngIf="(hasProperties$ | ngrxPush) === false">
+      <ion-item *ngIf="properties | empty">
         <ion-label class="ion-text-wrap">
-          <p>No properties.</p>
+          <p>No values.</p>
         </ion-label>
       </ion-item>
   
       <!-- properties -->
-      <ion-item-group *ngIf="(hasProperties$ | ngrxPush) === true">
-        <div *ngFor="let prop of properties$ | ngrxPush | keyvalue: asIsOrder">
+      <ion-item-group *ngIf="!(properties | empty)">
+        <div *ngFor="let prop of node | keyvalue: asIsOrder">
           <!-- object -->
           <ion-item button detail="true" *ngIf="prop.value.type === 'object'" (click)="goToNested(prop.key)">
             <ion-button *ngIf="prop.value.description" class="help-button" fill="clear" slot="start" (click)="presentDescription(prop, $event)">

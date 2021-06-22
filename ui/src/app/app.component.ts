@@ -100,7 +100,7 @@ export class AppComponent {
       }
     })
 
-    this.http.watch401$().subscribe(() => {
+    this.http.watchUnauth$().subscribe(() => {
       this.authService.setUnverified()
     })
   }
