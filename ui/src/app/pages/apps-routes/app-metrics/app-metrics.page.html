@@ -1,0 +1,39 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Monitor</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content *ngIf="pkg">
+  <ion-item *ngIf="error" style="margin-bottom: 16px;">
+    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+  </ion-item>
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>
+        <ion-icon style="vertical-align: middle; padding-right: 12px;" name="medkit-outline"></ion-icon>
+        <span style="vertical-align: middle;">Health Checks</span>
+      </ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-item *ngIf="!(pkg.installed?.status.main.health | empty); else noHealth" color="light" style="margin: 10px;">
+        <ion-label>
+          <div *ngFor="let health of pkg.installed.status.main.health | keyvalue : asIsOrder" class="align" style="margin-left: 12px;">
+            <ion-icon *ngIf="health.value.result === 'success'" name="checkmark-outline" color="success"></ion-icon>
+            <ion-icon *ngIf="health.value.result === 'warming-up'" name="timer-outline" color="warning"></ion-icon>
+            <ion-icon *ngIf="health.value.result === 'failure'" name="close-outline" color="danger"></ion-icon>
+            <ion-icon *ngIf="health.value.result === 'disabled'" name="remove-outline" color="medium"></ion-icon>
+            <h2>{{ health.key }}</h2>
+            <p style="margin-left: 24px;" *ngIf="health.value.result === 'failure'"><ion-text color="danger">{{ health.value.error }}</ion-text></p>
+          </div>
+        </ion-label>
+      </ion-item>
+      <ng-template #noHealth>
+        No health checks
+      </ng-template>
+    </ion-card-content>
+  </ion-card>
+</ion-content>

@@ -22,7 +22,7 @@ export class HttpService {
     this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}/${url}/${version}`
   }
 
-  watch401$ (): Observable<{ }> {
+  watchUnauth$ (): Observable<{ }> {
     return this.unauthorizedApiResponse$.asObservable()
   }
 
@@ -36,7 +36,10 @@ export class HttpService {
 
     const res = await this.httpRequest<RPCResponse<T>>(httpOpts)
 
-    if (isRpcError(res)) throw new RpcError(res.error)
+    if (isRpcError(res)) {
+      if (res.error.code === 34) this.unauthorizedApiResponse$.next(true)
+      throw new RpcError(res.error)
+    }
 
     if (isRpcSuccess(res)) return res.result
   }
