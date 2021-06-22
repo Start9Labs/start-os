@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ServerMetrics } from 'src/app/services/api/api-types'
+import { Metrics } from 'src/app/services/api/api-types'
 import { ApiService } from 'src/app/services/api/api.service'
 import { pauseFor } from 'src/app/util/misc.util'
 
@@ -12,7 +12,7 @@ export class ServerMetricsPage {
   error = ''
   loading = true
   going = false
-  metrics: ServerMetrics = { }
+  metrics: Metrics = { }
 
   constructor (
     private readonly apiService: ApiService,

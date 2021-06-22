@@ -5,7 +5,8 @@ import { isEmptyObject } from '../util/misc.util'
   name: 'empty',
 })
 export class EmptyPipe implements PipeTransform {
-  transform (obj: { }): boolean {
-    return isEmptyObject(obj)
+  transform (val: object | [] = { }): boolean {
+    if (Array.isArray(val)) return !val.length
+    return isEmptyObject(val)
   }
 }
