@@ -7,6 +7,7 @@ import { SharingModule } from 'src/app/modules/sharing.module'
 import { DependentsComponentModule } from './dependents/dependents.component.module'
 import { CompleteComponentModule } from './complete/complete.component.module'
 import { NotesComponentModule } from './notes/notes.component.module'
+import { AlertComponentModule } from './alert/alert.component.module'
 
 @NgModule({
   declarations: [
@@ -20,6 +21,7 @@ import { NotesComponentModule } from './notes/notes.component.module'
     DependentsComponentModule,
     CompleteComponentModule,
     NotesComponentModule,
+    AlertComponentModule,
   ],
   exports: [InstallWizardComponent],
 })

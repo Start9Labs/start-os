@@ -174,7 +174,7 @@ export interface MarketplaceData {
 export interface MarketplaceEOS {
   version: string
   headline: string
-  notes: string
+  'release-notes': { [version: string]: string }
 }
 
 export interface AvailablePreview {
@@ -195,7 +195,8 @@ export interface AvailableShow {
       title: string
       icon: URL
     }
-  }
+  },
+  'release-notes': { [version: string]: string }
 }
 
 export interface Breakages {
