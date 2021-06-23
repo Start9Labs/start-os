@@ -24,6 +24,12 @@ Then open  `patch-db`, `ws-example`, and `embassy-os`, in separate tabs.
 
 `git submodule update --init --recursive`
 
+`cd client/`
+
+`npm i`
+
+`npm run build`
+
 ### ws-example
 
 **Start the server**
