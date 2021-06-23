@@ -90,6 +90,12 @@ impl<'a> Id<&'a str> {
         Id(self.0.to_owned())
     }
 }
+impl<S: AsRef<str>> std::ops::Deref for Id<S> {
+    type Target = S;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 impl<S: AsRef<str>> std::fmt::Display for Id<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0.as_ref())
@@ -166,6 +172,12 @@ pub struct InterfaceId<S: AsRef<str> = String>(Id<S>);
 impl<S: AsRef<str>> std::fmt::Display for InterfaceId<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", &self.0)
+    }
+}
+impl<S: AsRef<str>> std::ops::Deref for InterfaceId<S> {
+    type Target = S;
+    fn deref(&self) -> &Self::Target {
+        &*self.0
     }
 }
 impl<S: AsRef<str>> AsRef<str> for InterfaceId<S> {

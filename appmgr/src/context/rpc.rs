@@ -11,7 +11,8 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use tokio::fs::File;
 
-use crate::net::mdns::LanHandle;
+use crate::net::mdns::{enable_lan, LanHandle};
+use crate::net::tor::TorController;
 use crate::util::{from_toml_async_reader, AsyncFileExt, Container};
 use crate::{Error, ResultExt};
 
@@ -30,8 +31,8 @@ pub struct RpcContextSeed {
     pub db: PatchDb,
     pub secret_store: SqlitePool,
     pub docker: Docker,
-    // pub lan_handle: Container<LanHandle>,
-    // pub
+    pub lan_handle: Container<LanHandle>,
+    pub tor_controller: TorController,
 }
 
 #[derive(Clone)]
@@ -50,14 +51,19 @@ impl RpcContext {
         } else {
             RpcContextConfig::default()
         };
+        let db = PatchDb::open(
+            base.db
+                .unwrap_or_else(|| Path::new("/mnt/embassy-os/embassy.db").to_owned()),
+        )
+        .await?;
+        let mut db_handle = db.handle();
+        let lan_handle = Container::new();
+        lan_handle.set(enable_lan(&mut db_handle).await?).await;
+        let tor_controller = TorController::init(&mut db_handle).await?;
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
-            db: PatchDb::open(
-                base.db
-                    .unwrap_or_else(|| Path::new("/mnt/embassy-os/embassy.db").to_owned()),
-            )
-            .await?,
+            db,
             secret_store: SqlitePool::connect(&format!(
                 "sqlite://{}",
                 base.secret_store
@@ -66,6 +72,8 @@ impl RpcContext {
             ))
             .await?,
             docker: Docker::connect_with_unix_defaults()?,
+            lan_handle,
+            tor_controller,
         });
         Ok(Self(seed))
     }
