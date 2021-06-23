@@ -17,7 +17,6 @@ use crate::dependencies::Dependencies;
 use crate::id::{Id, InterfaceId, InvalidId, SYSTEM_ID};
 use crate::migration::Migrations;
 use crate::net::host::Hosts;
-use crate::net::tor::HiddenServiceVersion;
 use crate::status::health_check::{HealthCheckResult, HealthChecks};
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -31,6 +30,12 @@ impl FromStr for PackageId {
     type Err = InvalidId;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(PackageId(Id::try_from(s.to_owned())?))
+    }
+}
+impl<S: AsRef<str>> std::ops::Deref for PackageId<S> {
+    type Target = S;
+    fn deref(&self) -> &Self::Target {
+        &*self.0
     }
 }
 impl<S: AsRef<str>> AsRef<PackageId<S>> for PackageId<S> {
@@ -129,7 +134,7 @@ pub struct Manifest {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct Interfaces(IndexMap<InterfaceId, Interface>); // TODO
+pub struct Interfaces(pub IndexMap<InterfaceId, Interface>); // TODO
 impl Interfaces {
     pub async fn install(&self, ip: Ipv4Addr) -> Result<InterfaceInfo, Error> {
         todo!()
@@ -139,37 +144,35 @@ impl Interfaces {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Interface {
-    tor_config: Option<TorConfig>,
-    lan_config: Option<IndexMap<u16, LanPortConfig>>,
-    ui: bool,
-    protocols: Vec<String>,
+    pub tor_config: Option<TorConfig>,
+    pub lan_config: Option<IndexMap<u16, LanPortConfig>>,
+    pub ui: bool,
+    pub protocols: Vec<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct TorConfig {
-    #[serde(default)]
-    hidden_service_version: HiddenServiceVersion,
-    port_mapping: IndexMap<u16, u16>,
+    pub port_mapping: IndexMap<u16, u16>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct LanPortConfig {
-    ssl: bool,
-    mapping: u16,
+    pub ssl: bool,
+    pub mapping: u16,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Assets {
     #[serde(default)]
-    license: Option<PathBuf>,
+    pub license: Option<PathBuf>,
     #[serde(default)]
-    icon: Option<PathBuf>,
+    pub icon: Option<PathBuf>,
     #[serde(default)]
-    docker_images: Option<PathBuf>,
+    pub docker_images: Option<PathBuf>,
     #[serde(default)]
-    instructions: Option<PathBuf>,
+    pub instructions: Option<PathBuf>,
 }
 impl Assets {
     pub fn license_path(&self) -> &Path {
