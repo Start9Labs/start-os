@@ -27,9 +27,9 @@ export class WizardBaker {
     const slideDefinitions: SlideDefinition[] = [
       installAlert ? {
         slide: {
-          selector: 'notes',
+          selector: 'alert',
           params: {
-            notes: installAlert,
+            alert: installAlert,
             title: 'Warning',
             titleColor: 'warning',
           },
@@ -72,9 +72,9 @@ export class WizardBaker {
     const slideDefinitions: SlideDefinition[] = [
       installAlert ? {
         slide: {
-          selector: 'notes',
+          selector: 'alert',
           params: {
-            notes: installAlert,
+            alert: installAlert,
             title: 'Warning',
             titleColor: 'warning',
           },
@@ -120,7 +120,7 @@ export class WizardBaker {
   }
 
   updateOS (values: {
-    version: string, releaseNotes: string
+    version: string, releaseNotes: { [version: string]: string }
   }): InstallWizardComponent['params'] {
     const { version, releaseNotes } = values
 
@@ -176,9 +176,9 @@ export class WizardBaker {
     const slideDefinitions: SlideDefinition[] = [
       installAlert ? {
         slide: {
-          selector: 'notes',
+          selector: 'alert',
           params: {
-            notes: installAlert,
+            alert: installAlert,
             title: 'Warning',
             titleColor: 'warning',
           },
@@ -232,9 +232,9 @@ export class WizardBaker {
     const slideDefinitions: SlideDefinition[] = [
       {
         slide: {
-          selector: 'notes',
+          selector: 'alert',
           params: {
-            notes: uninstallAlert || defaultUninstallationWarning(title),
+            alert: uninstallAlert || defaultUninstallationWarning(title),
             title: 'Warning',
             titleColor: 'warning',
           },

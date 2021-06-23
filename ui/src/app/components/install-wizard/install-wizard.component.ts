@@ -4,6 +4,7 @@ import { BehaviorSubject } from 'rxjs'
 import { capitalizeFirstLetter, pauseFor } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
 import { DependentsComponent } from './dependents/dependents.component'
+import { AlertComponent } from './alert/alert.component'
 import { NotesComponent } from './notes/notes.component'
 import { Loadable } from './loadable'
 import { WizardAction } from './wizard-types'
@@ -92,6 +93,7 @@ export interface SlideDefinition {
   slide:
     { selector: 'dependents', params: DependentsComponent['params'] } |
     { selector: 'complete', params: CompleteComponent['params'] } |
+    { selector: 'alert', params: AlertComponent['params'] } |
     { selector: 'notes', params: NotesComponent['params'] }
   bottomBar: {
     cancel: {
