@@ -107,3 +107,5 @@ impl Drop for LanHandle {
         }
     }
 }
+unsafe impl Send for LanHandle {}
+unsafe impl Sync for LanHandle {}
