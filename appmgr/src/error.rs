@@ -173,6 +173,11 @@ impl From<bollard::errors::Error> for Error {
         Error::new(e, ErrorKind::Docker)
     }
 }
+impl From<torut::control::ConnError> for Error {
+    fn from(e: torut::control::ConnError) -> Self {
+        Error::new(anyhow!("{:?}", e), ErrorKind::Tor)
+    }
+}
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {
         let mut data_object = serde_json::Map::with_capacity(2);

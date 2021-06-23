@@ -798,6 +798,9 @@ pub fn parse_duration(arg: &str, matches: &ArgMatches<'_>) -> Result<Duration, E
 
 pub struct Container<T>(RwLock<Option<T>>);
 impl<T> Container<T> {
+    pub fn new() -> Self {
+        Container(RwLock::new(None))
+    }
     pub async fn set(&self, value: T) {
         *self.0.write().await = Some(value);
     }

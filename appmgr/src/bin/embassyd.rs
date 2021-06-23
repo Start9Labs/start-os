@@ -28,7 +28,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
         command: embassy::main_api,
         context: ctx,
         status: status_fn,
-
     });
     let status_ctx = rpc_ctx.clone();
     let status_daemon = daemon(
