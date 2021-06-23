@@ -1,6 +1,5 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { PackageDataEntry } from 'src/app/models/patch-db/data-model'
 import { AvailableShow } from 'src/app/services/api/api-types'
 import { ApiService } from 'src/app/services/api/api.service'
 
@@ -9,10 +8,12 @@ import { ApiService } from 'src/app/services/api/api.service'
   templateUrl: './app-release-notes-list.page.html',
   styleUrls: ['./app-release-notes-list.page.scss'],
 })
-export class AppReleaseNotesList {
+export class AppReleaseNotesListPage {
   loading = true
+  error = ''
   pkgId: string
   pkg: AvailableShow
+  selected: string
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -22,6 +23,7 @@ export class AppReleaseNotesList {
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.getPkg()
   }
 
   async getPkg (version?: string): Promise<void> {
@@ -33,6 +35,14 @@ export class AppReleaseNotesList {
       this.error = e.message
     } finally {
       this.loading = false
+    }
+  }
+
+  setSelected (selected: string) {
+    if (this.selected === selected) {
+      this.selected = null
+    } else {
+      this.selected = selected
     }
   }
 
