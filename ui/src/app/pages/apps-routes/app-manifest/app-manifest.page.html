@@ -3,43 +3,65 @@
     <ion-buttons slot="start">
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
-    <ion-title>Manifest</ion-title>
+    <ion-title>Package Manifest</ion-title>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-segment [(ngModel)]="segmentValue">
+      <ion-segment-button value="formatted">
+        <ion-label>Formatted</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="raw">
+        <ion-label>Raw</ion-label>
+      </ion-segment-button>
+    </ion-segment>
   </ion-toolbar>
 </ion-header>
 
-<ion-content *ngIf="pkg">
-  <ion-item *ngIf="error" style="margin-bottom: 16px;">
-    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
-  </ion-item>
-  
-  <ion-item-group *ngIf="node | typeof === 'object'">
-    <div *ngFor="let prop of node | keyvalue : asIsOrder">
-      <!-- object/array -->
-      <ng-container *ngIf="['object', 'array'] | includes : (prop.value | typeof); else notObj">
-        <ion-item button detail="true" *ngIf="!(prop.value | empty)" (click)="goToNested(prop.key)">
-          <ion-label class="ion-text-wrap">
-            <h2>{{ prop.key }}</h2>
-          </ion-label>
-        </ion-item>
-      </ng-container>
-      <!-- not object/array -->
-      <ng-template #notObj>
-        <ion-item *ngIf="prop.value">
-          <ion-label class="ion-text-wrap">
-            <h2>{{ prop.key }}</h2>
-            <p>{{ prop.value }}</p>
-          </ion-label>
-        </ion-item>
-      </ng-template>
-    </div>
-  </ion-item-group>
-  <!-- Arrays -->
-  <ion-item-group *ngIf="node | typeof === 'array'">
-    <ion-item *ngFor="let prop of node">
-      <ion-label class="ion-text-wrap">
-        {{ prop }}
-      </ion-label>
-    </ion-item>
-  </ion-item-group>
+<ion-content *ngIf="pkg" class="ion-padding">
+
+  <div *ngIf="segmentValue === 'formatted'" style="background-color: var(--ion-color-light);">
+    <ion-toolbar>
+      <ion-title>Formatted Manifest</ion-title>
+      <ion-buttons slot="start" *ngIf="!!pointer">
+        <ion-button (click)="handleFormattedBack()">
+          <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+    <!-- node is object -->
+    <ion-item-group *ngIf="(node | typeof) === 'object'">
+      <div *ngFor="let prop of node | keyvalue : asIsOrder">
+        <!-- object/array -->
+        <ng-container *ngIf="['object', 'array'] | includes : (prop.value | typeof); else notObj">
+          <ion-item button detail="true" *ngIf="!(prop.value | empty)" (click)="goToNested(prop.key)">
+            <ion-label class="ion-text-wrap">
+              <h2>{{ prop.key }}</h2>
+            </ion-label>
+          </ion-item>
+        </ng-container>
+        <!-- not object/array -->
+        <ng-template #notObj>
+          <ion-item *ngIf="prop.value">
+            <ion-label class="ion-text-wrap">
+              <h2>{{ prop.key }}</h2>
+              <p>{{ prop.value }}</p>
+            </ion-label>
+          </ion-item>
+        </ng-template>
+      </div>
+    </ion-item-group>
+    <!-- node is array -->
+    <ion-item-group *ngIf="(node | typeof) === 'array'">
+      <ion-item *ngFor="let prop of node">
+        <ion-label class="ion-text-wrap">
+          {{ prop }}
+        </ion-label>
+      </ion-item>
+    </ion-item-group>
+  </div>
+
+  <div *ngIf="segmentValue === 'raw'" class="raw">
+    <pre [innerHTML]="pkg | manifest | json"></pre>
+  </div>
 </ion-content>
 

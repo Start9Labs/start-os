@@ -1,12 +1,10 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { NavController } from '@ionic/angular'
-import * as JsonPointer from 'json-pointer'
 import { Subscription } from 'rxjs'
-import { distinctUntilChanged } from 'rxjs/operators'
 import { PackageDataEntry } from 'src/app/models/patch-db/data-model'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { getManifest } from 'src/app/services/config.service'
+import * as JsonPointer from 'json-pointer'
 
 @Component({
   selector: 'app-manifest',
@@ -19,11 +17,11 @@ export class AppManifestPage {
   pointer: string
   node: object
   subs: Subscription[]
+  segmentValue: 'formatted' | 'raw' = 'formatted'
 
   constructor (
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDbModel,
-    private readonly navCtrl: NavController,
   ) { }
 
   ngOnInit () {
@@ -35,12 +33,6 @@ export class AppManifestPage {
         this.pkg = pkg
         this.setNode()
       }),
-      this.route.queryParams
-      .pipe(distinctUntilChanged())
-      .subscribe(queryParams => {
-        this.pointer = queryParams['pointer']
-        this.setNode()
-      }),
     ]
 
     this.setNode()
@@ -50,16 +42,20 @@ export class AppManifestPage {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  setNode () {
+  handleFormattedBack () {
+    const arr = this.pointer.split('/')
+    arr.pop()
+    this.pointer = arr.join('/')
+    this.setNode()
+  }
+
+  private setNode () {
     this.node = JsonPointer.get(getManifest(this.pkg), this.pointer || '')
   }
 
   async goToNested (key: string): Promise<any> {
-    this.navCtrl.navigateForward(`/services/installed/${this.pkgId}/manifest`, {
-      queryParams: {
-        pointer: `${this.pointer || ''}/${key}`,
-      },
-    })
+    this.pointer = `${this.pointer || ''}/${key}`
+    this.setNode()
   }
 
   asIsOrder (a: any, b: any) {
