@@ -7,6 +7,17 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content *ngIf="pkg">
-  hello
+<ion-content>
+  <ion-spinner *ngIf="!pkg; else loaded" class="center" name="lines" color="warning"></ion-spinner>
+
+  <ng-template #loaded>
+    <div *ngFor="let note of pkg['release-notes'] | keyvalue : asIsOrder">
+      <ion-button (click)="setSelected(note.key)"  expand="full" color="light" style="height: 50px;" >
+        <p style="position: absolute; left: 10px;">{{note.key | displayEmver}}</p>
+      </ion-button>
+      <ion-card *ngIf="selected === note.key" class="acc-text" color="light" >
+        <ion-text id='release-notes' [innerHTML]="note.value | markdown"></ion-text>
+      </ion-card>
+    </div>
+  </ng-template>
 </ion-content>
