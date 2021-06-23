@@ -2,14 +2,14 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { AppReleaseNotesList } from './app-release-notes-list.page'
+import { AppReleaseNotesListPage } from './app-release-notes-list.page'
 import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
 
 const routes: Routes = [
   {
     path: '',
-    component: AppReleaseNotesList,
+    component: AppReleaseNotesListPage,
   },
 ]
 
@@ -21,6 +21,6 @@ const routes: Routes = [
     PwaBackComponentModule,
     SharingModule,
   ],
-  declarations: [AppReleaseNotesList],
+  declarations: [AppReleaseNotesListPage],
 })
 export class AppReleaseNotesListModule { }
