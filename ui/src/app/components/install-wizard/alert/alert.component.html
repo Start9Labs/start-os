@@ -5,9 +5,6 @@
         {{ params.title }}
       </ion-label>
     </div>
-    <div *ngFor="let note of params.notes | keyvalue : asIsOrder">
-      <h2>{{ note.key }}</h2>
-      <div class="long-message" [innerHTML]="note.value | markdown"></div>
-    </div>
+    <div class="long-message" [innerHTML]="params.notes | markdown"></div>
   </div>
 </div>

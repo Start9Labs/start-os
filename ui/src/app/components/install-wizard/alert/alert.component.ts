@@ -3,13 +3,13 @@ import { BehaviorSubject, Subject } from 'rxjs'
 import { Loadable } from '../loadable'
 
 @Component({
-  selector: 'notes',
-  templateUrl: './notes.component.html',
+  selector: 'alert',
+  templateUrl: './alert.component.html',
   styleUrls: ['../install-wizard.component.scss'],
 })
-export class NotesComponent implements OnInit, Loadable {
+export class AlertComponent implements OnInit, Loadable {
   @Input() params: {
-    notes: { [version: string]: string }
+    alert: string
     title: string
     titleColor: string
   }
@@ -21,8 +21,4 @@ export class NotesComponent implements OnInit, Loadable {
 
   constructor () { }
   ngOnInit () { }
-
-  asIsOrder () {
-    return 0
-  }
 }

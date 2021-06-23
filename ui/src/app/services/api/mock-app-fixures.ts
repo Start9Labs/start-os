@@ -7,7 +7,7 @@ export module Mock {
   export const MarketplaceEos: RR.GetMarketplaceEOSRes = {
     version: '1.0.0',
     headline: 'Our biggest release ever.',
-    notes: markdown,
+    'release-notes': { '1.0.0': markdown },
   }
 
   export const AvailableList: RR.GetAvailableListRes = [
@@ -400,45 +400,66 @@ export module Mock {
     }
   } = {
     'bitcoind': {
-      '0.19.0': {
+      '0.19.2': {
         icon: 'assets/img/service-icons/bitcoind.png',
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.19.0',
-          'release-notes': 'release notes for Bitcoin 0.19.0',
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': { },
+        'release-notes': {
+          '0.19.0': 'release notes for Bitcoin 0.19.0',
+          '0.19.1': 'release notes for Bitcoin 0.19.1',
+          '0.19.2': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
+        },
       },
       '0.20.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.20.0',
-          'release-notes': 'release notes for Bitcoin 0.20.0',
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': { },
+        'release-notes': {
+          '0.19.0': 'release notes for Bitcoin 0.19.0',
+          '0.19.1': 'release notes for Bitcoin 0.19.1',
+          '0.19.2': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
+        },
       },
       '0.21.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.21.0',
-          'release-notes': 'release notes for Bitcoin 0.20.0',
+          'release-notes': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': { },
+        'release-notes': {
+          '0.19.0': 'release notes for Bitcoin 0.19.0',
+          '0.19.1': 'release notes for Bitcoin 0.19.1',
+          '0.19.2': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
+        },
       },
       'latest': {
         icon: 'assets/img/service-icons/bitcoind.png',
-        manifest: Mock.MockManifestBitcoind,
+        manifest: {
+          ...Mock.MockManifestBitcoind,
+          'release-notes': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
+        },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': { },
+        'release-notes': {
+          '0.19.2': 'release notes for Bitcoin 0.19.2',
+          '0.20.0': 'release notes for Bitcoin 0.20.0',
+          '0.21.0': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
+        },
       },
     },
     'lnd': {
@@ -461,6 +482,11 @@ export module Mock {
             icon: 'assets/img/service-icons/bitcoin-proxy.png',
           },
         },
+        'release-notes': {
+          '0.19.0': 'release notes for LND 0.19.0',
+          '0.19.1': 'release notes for LND 0.19.1',
+          '0.19.2': 'release notes for LND 0.19.2',
+        },
       },
       '0.11.1': {
         icon: 'assets/img/service-icons/lnd.png',
@@ -481,6 +507,11 @@ export module Mock {
             icon: 'assets/img/service-icons/bitcoin-proxy.png',
           },
         },
+        'release-notes': {
+          '0.19.0': 'release notes for LND 0.19.0',
+          '0.19.1': 'release notes for LND 0.19.1',
+          '0.19.2': 'release notes for LND 0.19.2',
+        },
       },
       'latest': {
         icon: 'assets/img/service-icons/lnd.png',
@@ -497,6 +528,11 @@ export module Mock {
             icon: 'assets/img/service-icons/bitcoin-proxy.png',
           },
         },
+        'release-notes': {
+          '0.19.0': 'release notes for LND 0.19.0',
+          '0.19.1': 'release notes for LND 0.19.1',
+          '0.19.2': 'release notes for LND 0.19.2',
+        },
       },
     },
     'bitcoin-proxy': {
@@ -510,6 +546,11 @@ export module Mock {
             title: 'Bitcoin Core',
             icon: 'assets/img/service-icons/bitcoind.png',
           },
+        },
+        'release-notes': {
+          '0.19.0': 'release notes for btc proxy 0.19.0',
+          '0.19.1': 'release notes for btc proxy 0.19.1',
+          '0.19.2': 'release notes for btc proxy 0.19.2',
         },
       },
     },
