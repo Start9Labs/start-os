@@ -1,4 +1,4 @@
-import { HealthCheckResultWarmingUp, MainStatus, MainStatusRunning, PackageDataEntry, PackageMainStatus, PackageState, Status } from '../models/patch-db/data-model'
+import { HealthCheckResultLoading, MainStatusRunning, PackageDataEntry, PackageMainStatus, PackageState, Status } from '../models/patch-db/data-model'
 import { ConnectionState } from './connection.service'
 
 export function renderPkgStatus (pkg: PackageDataEntry, connection: ConnectionState): PkgStatusRendering {
@@ -35,8 +35,11 @@ function handleInstalledState (status: Status): PkgStatusRendering {
 function handleRunningState (status: MainStatusRunning): PkgStatusRendering {
   if (Object.values(status.health).some(h => h.result === 'failure')) {
     return { display: 'Needs Attention', color: 'danger', showDots: false, feStatus: FEStatus.NeedsAttention }
-  } else if (Object.values(status.health).some(h => h.result === 'warming-up')) {
-    return { display: 'Starting Up', color: 'warning', showDots: true, feStatus: FEStatus.StartingUp }
+  } else if (Object.values(status.health).some(h => h.result === 'starting')) {
+    return { display: 'Starting Up', color: 'warning', showDots: true, feStatus: FEStatus.Starting }
+  } else if (Object.values(status.health).some(h => h.result === 'loading')) {
+    const firstLoading = Object.values(status.health).find(h => h.result === 'loading') as HealthCheckResultLoading
+    return { display: firstLoading.message, color: 'warning', showDots: true, feStatus: FEStatus.Loading }
   } else {
     return { display: 'Running', color: 'success', showDots: false, feStatus: FEStatus.Running }
   }
@@ -63,8 +66,9 @@ export enum FEStatus {
   Restoring = 'restoring',
   // FE
   NeedsAttention = 'needs-attention',
-  StartingUp = 'starting-up',
+  Starting = 'starting',
   Connecting = 'connecting',
   DependencyIssue = 'dependency-issue',
   NeedsConfig = 'needs-config',
+  Loading = 'loading',
 }

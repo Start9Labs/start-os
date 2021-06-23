@@ -73,7 +73,7 @@ export class AppAvailableListPage {
       this.modalCtrl,
       this.wizardBaker.updateOS({
         version: this.eos.version,
-        releaseNotes: this.eos.notes,
+        releaseNotes: this.eos['release-notes'],
       }),
     )
   }

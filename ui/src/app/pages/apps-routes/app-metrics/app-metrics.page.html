@@ -23,7 +23,8 @@
         <ion-label>
           <div *ngFor="let health of pkg.installed.status.main.health | keyvalue : asIsOrder" class="align" style="margin-left: 12px;">
             <ion-icon *ngIf="health.value.result === 'success'" name="checkmark-outline" color="success"></ion-icon>
-            <ion-icon *ngIf="health.value.result === 'warming-up'" name="timer-outline" color="warning"></ion-icon>
+            <ion-icon *ngIf="health.value.result === 'starting'" name="timer-outline" color="warning"></ion-icon>
+            <ion-icon *ngIf="health.value.result === 'loading'" name="sync-circle-outline" color="warning"></ion-icon>
             <ion-icon *ngIf="health.value.result === 'failure'" name="close-outline" color="danger"></ion-icon>
             <ion-icon *ngIf="health.value.result === 'disabled'" name="remove-outline" color="medium"></ion-icon>
             <h2>{{ health.key }}</h2>

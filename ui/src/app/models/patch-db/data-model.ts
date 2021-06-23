@@ -255,18 +255,19 @@ export enum PackageMainStatus {
   Restoring = 'restoring',
 }
 
-export type HealthCheckResult = HealthCheckResultWarmingUp | HealthCheckResultDisabled | HealthCheckResultSuccess | HealthCheckResultFailure
+export type HealthCheckResult = HealthCheckResultStarting | HealthCheckResultLoading | HealthCheckResultDisabled | HealthCheckResultSuccess | HealthCheckResultFailure
 
 export enum HealthResult {
-  WarmingUp = 'warming-up',
+  Starting = 'starting',
+  Loading = 'loading',
   Disabled = 'disabled',
   Success = 'success',
   Failure = 'failure',
 }
 
-export interface HealthCheckResultWarmingUp {
+export interface HealthCheckResultStarting {
   time: string // UTC date string
-  result: HealthResult.WarmingUp
+  result: HealthResult.Starting
 }
 
 export interface HealthCheckResultDisabled {
@@ -277,6 +278,12 @@ export interface HealthCheckResultDisabled {
 export interface HealthCheckResultSuccess {
   time: string // UTC date string
   result: HealthResult.Success
+}
+
+export interface HealthCheckResultLoading {
+  time: string // UTC date string
+  result: HealthResult.Loading
+  message: string
 }
 
 export interface HealthCheckResultFailure {
