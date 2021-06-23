@@ -63,6 +63,10 @@ const routes: Routes = [
     path: 'marketplace/:pkgId',
     loadChildren: () => import('./app-available-show/app-available-show.module').then(m => m.AppAvailableShowPageModule),
   },
+  {
+    path: 'marketplace/:pkgId/notes',
+    loadChildren: () => import('./app-release-notes-list/app-release-notes-list.module').then(m => m.AppReleaseNotesListModule),
+  },
 ]
 
 @NgModule({

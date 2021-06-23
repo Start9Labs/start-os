@@ -97,10 +97,16 @@
 
     <ion-item-group>
       <!-- release notes -->
-      <ion-item-divider style="color: var(--ion-color-dark); font-weight: bold;">New in {{ pkg.manifest.version | displayEmver }}</ion-item-divider>
+      <ion-item-divider style="color: var(--ion-color-dark); font-weight: bold;">
+        New in {{ pkg.manifest.version | displayEmver }}
+        <ion-button [routerLink]="['notes']" style="position: absolute; right: 10px;" fill="clear" color="primary" >
+          Version History
+          <ion-icon slot="end" name="arrow-forward-outline"></ion-icon>
+        </ion-button>
+      </ion-item-divider>
       <ion-item lines="none">
         <ion-label style="display: flex; align-items: center; justify-content: space-between;" class="ion-text-wrap" >
-          <div id='release-notes' color="dark" [innerHTML]="pkg.manifest['release-notes'] | markdown"></div>
+          <div id='release-notes' [innerHTML]="pkg.manifest['release-notes'] | markdown"></div>
         </ion-label>
       </ion-item>
       <!-- description -->
