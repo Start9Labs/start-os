@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::config::spec::{PackagePointerSpecVariant, SystemPointerSpec};
-use crate::id::InterfaceId;
 use crate::install::progress::InstallProgress;
+use crate::net::interface::InterfaceId;
 use crate::net::Network;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::HealthCheckId;

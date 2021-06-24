@@ -18,7 +18,7 @@ use serde_json::{Number, Value};
 use super::util::{self, CharSet, NumRange, UniqueBy, STATIC_NULL};
 use super::{Config, MatchError, NoMatchWithPath, TimeoutError, TypeOf};
 use crate::config::ConfigurationError;
-use crate::id::InterfaceId;
+use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::Error;
 
