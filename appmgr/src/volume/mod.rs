@@ -6,7 +6,8 @@ use indexmap::IndexMap;
 use patch_db::{HasModel, Map, MapModel};
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::id::{Id, IdUnchecked, InterfaceId};
+use crate::id::{Id, IdUnchecked};
+use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
 
 pub mod disk;
@@ -129,8 +130,6 @@ pub enum Volume {
     #[serde(rename_all = "kebab-case")]
     Certificate { interface_id: InterfaceId },
     #[serde(rename_all = "kebab-case")]
-    HiddenService { interface_id: InterfaceId },
-    #[serde(rename_all = "kebab-case")]
     #[serde(skip)]
     Backup { readonly: bool },
 }
@@ -155,10 +154,6 @@ impl Volume {
                 .join(pkg_id)
                 .join("certificates")
                 .join(interface_id),
-            Volume::HiddenService { interface_id } => Path::new(PKG_VOLUME_DIR)
-                .join(pkg_id)
-                .join("hidden-services")
-                .join(interface_id),
             Volume::Backup { .. } => Path::new(BACKUP_DIR).join(pkg_id),
         }
     }
@@ -181,7 +176,6 @@ impl Volume {
             Volume::Data { readonly } => *readonly,
             Volume::Pointer { readonly, .. } => *readonly,
             Volume::Certificate { .. } => true,
-            Volume::HiddenService { .. } => true,
             Volume::Backup { readonly } => *readonly,
         }
     }
