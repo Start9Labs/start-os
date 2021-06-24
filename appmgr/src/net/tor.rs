@@ -6,14 +6,13 @@ use futures::future::BoxFuture;
 use futures::FutureExt;
 use indexmap::IndexMap;
 use patch_db::DbHandle;
-use sqlx::pool::PoolConnection;
-use sqlx::Sqlite;
+use sqlx::{Executor, Sqlite};
 use tokio::net::TcpStream;
 use tokio::sync::RwLock;
 use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
 use torut::onion::TorSecretKeyV3;
 
-use crate::s9pk::manifest::TorConfig;
+use super::interface::TorConfig;
 use crate::{Error, ResultExt as _};
 
 fn event_handler(event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>> {
@@ -23,21 +22,23 @@ fn event_handler(event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), Co
 #[derive(Clone)]
 pub struct TorController(Arc<RwLock<TorControllerInner>>);
 impl TorController {
-    pub async fn init<Db: DbHandle>(
+    pub async fn init<Db: DbHandle, Ex>(
         tor_cp: SocketAddr,
         db: &mut Db,
-        secrets: &mut PoolConnection<Sqlite>,
-    ) -> Result<Self, Error> {
+        secrets: &mut Ex,
+    ) -> Result<Self, Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    {
         Ok(TorController(Arc::new(RwLock::new(
             TorControllerInner::init(tor_cp, db, secrets).await?,
         ))))
     }
 
-    pub async fn sync<Db: DbHandle>(
-        &self,
-        db: &mut Db,
-        secrets: &mut PoolConnection<Sqlite>,
-    ) -> Result<(), Error> {
+    pub async fn sync<Db: DbHandle, Ex>(&self, db: &mut Db, secrets: &mut Ex) -> Result<(), Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    {
         let new = TorControllerInner::get_services(db, secrets).await?;
         if &new != &self.0.read().await.services {
             self.0.write().await.sync(new).await?;
@@ -62,10 +63,13 @@ pub struct TorControllerInner {
     services: IndexMap<[u8; 64], HiddenServiceConfig>,
 }
 impl TorControllerInner {
-    async fn get_services<Db: DbHandle>(
+    async fn get_services<Db: DbHandle, Ex>(
         db: &mut Db,
-        secrets: &mut PoolConnection<Sqlite>,
-    ) -> Result<IndexMap<[u8; 64], HiddenServiceConfig>, Error> {
+        secrets: &mut Ex,
+    ) -> Result<IndexMap<[u8; 64], HiddenServiceConfig>, Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    {
         let pkg_ids = crate::db::DatabaseModel::new()
             .package_data()
             .keys(db)
@@ -189,11 +193,14 @@ impl TorControllerInner {
         Ok(())
     }
 
-    async fn init<Db: DbHandle>(
+    async fn init<Db: DbHandle, Ex>(
         tor_cp: SocketAddr,
         db: &mut Db,
-        secrets: &mut PoolConnection<Sqlite>,
-    ) -> Result<Self, Error> {
+        secrets: &mut Ex,
+    ) -> Result<Self, Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    {
         let mut conn = torut::control::UnauthenticatedConn::new(
             TcpStream::connect(tor_cp).await?, // TODO
         );

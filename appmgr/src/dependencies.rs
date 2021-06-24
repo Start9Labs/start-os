@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::action::ActionImplementation;
 use crate::config::{Config, ConfigSpec};
-use crate::id::InterfaceId;
 use crate::net::host::Hosts;
+use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult, HealthCheckResultVariant};
 use crate::status::{DependencyErrors, MainStatus, Status};
