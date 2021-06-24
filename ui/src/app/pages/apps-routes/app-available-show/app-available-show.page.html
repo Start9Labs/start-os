@@ -12,9 +12,9 @@
 
 <ion-content class="ion-padding-bottom">
 
-  <ion-spinner *ngIf="loading; else loaded" class="center" name="lines" color="warning"></ion-spinner>
+  <ion-spinner *ngIf="!aaService.pkgs[pkgId]" class="center" name="lines" color="warning"></ion-spinner>
 
-  <ng-template #loaded>
+  <ng-container *ngIf="aaService.pkgs[pkgId] as pkg">
     <ion-item *ngIf="error" style="margin-bottom: 16px;">
       <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
     </ion-item>
@@ -157,5 +157,5 @@
       </ion-item>
     </ion-item-group>
 
-  </ng-template>
+  </ng-container>
 </ion-content>
