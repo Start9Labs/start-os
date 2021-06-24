@@ -331,6 +331,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     progress_model.put(&mut db, &progress).await?;
 
     let mut tx = db.begin().await?;
+    let mut sql_tx = ctx.secret_store.begin().await?;
 
     let mut network = crate::db::DatabaseModel::new()
         .network()
@@ -348,7 +349,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Installed main", pkg_id, version);
 
     log::info!("Install {}@{}: Installing interfaces", pkg_id, version);
-    let interface_info = manifest.interfaces.install(ip).await?;
+    let interface_info = manifest
+        .interfaces
+        .install(&ctx, &mut sql_tx, pkg_id, ip)
+        .await?;
     log::info!("Install {}@{}: Installed interfaces", pkg_id, version);
 
     log::info!("Install {}@{}: Complete", pkg_id, version);
@@ -460,6 +464,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             todo!("set as running if viable");
         }
     }
+
+    ctx.tor_controller.sync(&mut tx, &mut sql_tx).await?;
 
     tx.commit(None).await?;
 

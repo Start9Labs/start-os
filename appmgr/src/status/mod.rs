@@ -18,8 +18,8 @@ use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntryModel, PackageDataEntryModel,
 };
 use crate::dependencies::{Dependencies, DependencyError};
-use crate::id::InterfaceId;
 use crate::net::host::Hosts;
+use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::HealthCheckResultVariant;
 use crate::util::Invoke;

@@ -14,9 +14,10 @@ use crate::backup::BackupActions;
 use crate::config::action::ConfigActions;
 use crate::db::model::InterfaceInfo;
 use crate::dependencies::Dependencies;
-use crate::id::{Id, InterfaceId, InvalidId, SYSTEM_ID};
+use crate::id::{Id, InvalidId, SYSTEM_ID};
 use crate::migration::Migrations;
 use crate::net::host::Hosts;
+use crate::net::interface::Interfaces;
 use crate::status::health_check::{HealthCheckResult, HealthChecks};
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -130,37 +131,6 @@ pub struct Manifest {
     #[serde(default)]
     #[model]
     pub dependencies: Dependencies,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct Interfaces(pub IndexMap<InterfaceId, Interface>); // TODO
-impl Interfaces {
-    pub async fn install(&self, ip: Ipv4Addr) -> Result<InterfaceInfo, Error> {
-        todo!()
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct Interface {
-    pub tor_config: Option<TorConfig>,
-    pub lan_config: Option<IndexMap<u16, LanPortConfig>>,
-    pub ui: bool,
-    pub protocols: Vec<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct TorConfig {
-    pub port_mapping: IndexMap<u16, u16>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct LanPortConfig {
-    pub ssl: bool,
-    pub mapping: u16,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
