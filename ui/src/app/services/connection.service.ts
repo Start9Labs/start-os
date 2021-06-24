@@ -7,9 +7,9 @@ import { ApiService } from './api/api.service'
   providedIn: 'root',
 })
 export class ConnectionService {
-  private offlineSubscription: Subscription
-  private onlineSubscription: Subscription
-  private httpSubscription: Subscription
+  private offlineSubscription$: Subscription
+  private onlineSubscription$: Subscription
+  private httpSubscription$: Subscription
   private readonly currentState: ConnectionState = {
     network: true,
     internet: true,
@@ -25,9 +25,9 @@ export class ConnectionService {
 
   ngOnDestroy (): void {
     try {
-      this.offlineSubscription.unsubscribe()
-      this.onlineSubscription.unsubscribe()
-      this.httpSubscription.unsubscribe()
+      this.offlineSubscription$.unsubscribe()
+      this.onlineSubscription$.unsubscribe()
+      this.httpSubscription$.unsubscribe()
     } catch (e) {
       console.error(e.message)
     }
@@ -44,34 +44,36 @@ export class ConnectionService {
   }
 
   private checkNetworkState (): void {
-    this.onlineSubscription = fromEvent(window, 'online').subscribe(() => {
+    this.onlineSubscription$ = fromEvent(window, 'online').subscribe(() => {
       this.currentState.network = true
       this.checkInternetState()
       this.emitEvent()
     })
 
-    this.offlineSubscription = fromEvent(window, 'offline').subscribe(() => {
-      this.currentState.network = true
-      this.checkInternetState()
+    this.offlineSubscription$ = fromEvent(window, 'offline').subscribe(() => {
+      this.currentState.network = false
+      if (this.httpSubscription$) {
+        this.httpSubscription$.unsubscribe()
+      }
       this.emitEvent()
     })
   }
 
   private checkInternetState (): void {
 
-    if (this.httpSubscription) {
-      this.httpSubscription.unsubscribe()
+    if (this.httpSubscription$) {
+      this.httpSubscription$.unsubscribe()
     }
 
     // ping server every 10 seconds
-    this.httpSubscription = timer(0, 10000)
+    this.httpSubscription$ = timer(0, 10000)
       .pipe(
         switchMap(() => this.apiService.echo()),
         retryWhen(errors =>
           errors.pipe(
             tap(val => {
               console.error('Echo error: ', val)
-              this.currentState.internet = true
+              this.currentState.internet = false
               this.emitEvent()
             }),
             // restart after 2 seconds
@@ -86,7 +88,7 @@ export class ConnectionService {
   }
 
   private emitEvent (): void {
-    this.stateChangeEventEmitter.next(this.currentState)
+    this.stateChangeEventEmitter.next({ ...this.currentState })
   }
 }
 
