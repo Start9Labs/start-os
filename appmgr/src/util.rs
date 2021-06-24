@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::process::{exit, Stdio};
 use std::str::FromStr;
@@ -12,6 +12,7 @@ use async_trait::async_trait;
 use clap::ArgMatches;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
+use sqlx::{Executor, Sqlite};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::sync::RwLock;
