@@ -82,7 +82,7 @@ serde_toml = { package="toml", version="0.5.8" }
 serde_yaml = "0.8.14"
 sha2 = "0.9.3"
 simple-logging = "2.0"
-sqlx = { version="0.5", features=["runtime-tokio-rustls", "sqlite"] }
+sqlx = { version="0.5", features=["runtime-tokio-rustls", "sqlite", "offline"] }
 thiserror = "1.0.24"
 tokio = { version="1.5.0", features=["full"] }
 tokio-compat-02 = "0.2.0"
