@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, PopoverController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { ActivatedRoute, NavigationExtras, Router } from '@angular/router'
+import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { chill, isEmptyObject } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
 import { Observable, of, Subscription } from 'rxjs'
