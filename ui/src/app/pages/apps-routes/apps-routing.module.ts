@@ -65,7 +65,7 @@ const routes: Routes = [
   },
   {
     path: 'marketplace/:pkgId/notes',
-    loadChildren: () => import('./app-release-notes-list/app-release-notes-list.module').then(m => m.AppReleaseNotesListModule),
+    loadChildren: () => import('./release-notes/release-notes.module').then(m => m.ReleaseNotesModule),
   },
 ]
 
