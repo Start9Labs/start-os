@@ -12,7 +12,7 @@ import { pauseFor } from 'src/app/util/misc.util'
 import { AvailableShow } from 'src/app/services/api/api-types'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { PackageState } from 'src/app/models/patch-db/data-model'
-import { ReleaseNoteModel } from '../app-release-notes-list/release-notes'
+import { ReleaseNoteModel } from '../release-notes/release-notes.model'
 
 @Component({
   selector: 'app-available-show',
