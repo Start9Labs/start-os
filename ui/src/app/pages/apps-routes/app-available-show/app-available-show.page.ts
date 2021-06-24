@@ -1,6 +1,5 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/api.service'
 import { AlertController, ModalController, NavController, PopoverController } from '@ionic/angular'
 import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
@@ -9,10 +8,9 @@ import { InformationPopoverComponent } from 'src/app/components/information-popo
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { pauseFor } from 'src/app/util/misc.util'
-import { AvailableShow } from 'src/app/services/api/api-types'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { PackageState } from 'src/app/models/patch-db/data-model'
-import { ReleaseNoteModel } from '../release-notes/release-notes.model'
+import { AppAvailableService } from '../app-available.service'
 
 @Component({
   selector: 'app-available-show',
@@ -20,9 +18,7 @@ import { ReleaseNoteModel } from '../release-notes/release-notes.model'
   styleUrls: ['./app-available-show.page.scss'],
 })
 export class AppAvailableShowPage {
-  loading = true
   error = ''
-  pkg: AvailableShow
   pkgId: string
 
   PackageState = PackageState
@@ -34,7 +30,6 @@ export class AppAvailableShowPage {
 
   constructor (
     private readonly route: ActivatedRoute,
-    private readonly apiService: ApiService,
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly wizardBaker: WizardBaker,
@@ -42,25 +37,21 @@ export class AppAvailableShowPage {
     private readonly popoverController: PopoverController,
     private readonly emver: Emver,
     public readonly patch: PatchDbModel,
-    public releaseNotesModel: ReleaseNoteModel,
+    public aaService: AppAvailableService,
   ) { }
 
   async ngOnInit () {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId') as string
     this.rec = history.state && history.state.installRec as Recommendation
     this.getPkg()
   }
 
   async getPkg (version?: string): Promise<void> {
-    this.loading = true
+    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     try {
-      this.pkg = await this.apiService.getAvailableShow({ id: this.pkgId, version })
-      this.releaseNotesModel.releaseNotes = this.pkg['release-notes']
+      await this.aaService.setPkg(this.pkgId, version)
     } catch (e) {
       console.error(e)
       this.error = e.message
-    } finally {
-      this.loading = false
     }
   }
 
@@ -82,13 +73,13 @@ export class AppAvailableShowPage {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
       backdropDismiss: false,
-      inputs: this.pkg.versions.sort((a, b) => -1 * this.emver.compare(a, b)).map(v => {
+      inputs: this.aaService.pkgs[this.pkgId].versions.sort((a, b) => -1 * this.emver.compare(a, b)).map(v => {
         return {
           name: v, // for CSS
           type: 'radio',
           label: displayEmver(v), // appearance on screen
           value: v, // literal SEM version value
-          checked: this.pkg.manifest.version === v,
+          checked: this.aaService.pkgs[this.pkgId].manifest.version === v,
         }
       }),
       buttons: [
@@ -108,7 +99,7 @@ export class AppAvailableShowPage {
   }
 
   async install () {
-    const { id, title, version, dependencies, alerts } = this.pkg.manifest
+    const { id, title, version, dependencies, alerts } = this.aaService.pkgs[this.pkgId].manifest
     const { cancelled } = await wizardModal(
       this.modalCtrl,
       this.wizardBaker.install({
@@ -124,7 +115,7 @@ export class AppAvailableShowPage {
   }
 
   async update (action: 'update' | 'downgrade') {
-    const { id, title, version, dependencies, alerts } = this.pkg.manifest
+    const { id, title, version, dependencies, alerts } = this.aaService.pkgs[this.pkgId].manifest
     const value = {
       id,
       title,
