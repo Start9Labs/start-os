@@ -1,14 +1,14 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
-import { ReleaseNoteModel } from './release-notes'
+import { ReleaseNoteModel } from './release-notes.model'
 
 @Component({
-  selector: 'app-release-notes-list',
-  templateUrl: './app-release-notes-list.page.html',
-  styleUrls: ['./app-release-notes-list.page.scss'],
+  selector: 'release-notes',
+  templateUrl: './release-notes.page.html',
+  styleUrls: ['./release-notes.page.scss'],
 })
-export class AppReleaseNotesListPage {
+export class ReleaseNotes {
   error = ''
   pkgId: string
   releaseNotes: { [version: string]: string}
@@ -19,7 +19,6 @@ export class AppReleaseNotesListPage {
     private readonly apiService: ApiService,
     private releaseNoteModel: ReleaseNoteModel,
   ) {
-      console.log('model model', releaseNoteModel.releaseNotes)
       this.releaseNotes = releaseNoteModel.releaseNotes
    }
 
