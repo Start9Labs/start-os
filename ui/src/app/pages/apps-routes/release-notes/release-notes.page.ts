@@ -11,20 +11,17 @@ import { ReleaseNoteModel } from './release-notes.model'
 export class ReleaseNotes {
   error = ''
   pkgId: string
-  releaseNotes: { [version: string]: string}
   selected: string
 
   constructor (
     private readonly route: ActivatedRoute,
     private readonly apiService: ApiService,
-    private releaseNoteModel: ReleaseNoteModel,
-  ) {
-      this.releaseNotes = releaseNoteModel.releaseNotes
-   }
+    public releaseNotesModel: ReleaseNoteModel,
+  ) { }
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    if (!this.releaseNotes) {
+    if (!this.releaseNotesModel.releaseNotes) {
       this.getReleaseNotes()
     }
   }
@@ -32,7 +29,7 @@ export class ReleaseNotes {
   async getReleaseNotes (version?: string): Promise<void> {
     try {
       const pkg = await this.apiService.getAvailableShow({ id: this.pkgId, version })
-      this.releaseNotes = pkg['release-notes']
+      this.releaseNotesModel.releaseNotes = pkg['release-notes']
     } catch (e) {
       console.error(e)
       this.error = e.message

@@ -8,10 +8,10 @@
 </ion-header>
 
 <ion-content>
-  <ion-spinner *ngIf="!releaseNotes; else loaded" class="center" name="lines" color="warning"></ion-spinner>
+  <ion-spinner *ngIf="!releaseNotesModel.releaseNotes; else loaded" class="center" name="lines" color="warning"></ion-spinner>
 
   <ng-template #loaded>
-    <div *ngFor="let note of releaseNotes | keyvalue : asIsOrder">
+    <div *ngFor="let note of releaseNotesModel.releaseNotes | keyvalue : asIsOrder">
       <ion-button (click)="setSelected(note.key)"  expand="full" color="light" style="height: 50px;" >
         <p style="position: absolute; left: 10px;">{{note.key | displayEmver}}</p>
       </ion-button>
