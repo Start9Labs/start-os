@@ -12,6 +12,7 @@ import { pauseFor } from 'src/app/util/misc.util'
 import { AvailableShow } from 'src/app/services/api/api-types'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { PackageState } from 'src/app/models/patch-db/data-model'
+import { ReleaseNoteModel } from '../app-release-notes-list/release-notes'
 
 @Component({
   selector: 'app-available-show',
@@ -41,6 +42,7 @@ export class AppAvailableShowPage {
     private readonly popoverController: PopoverController,
     private readonly emver: Emver,
     public readonly patch: PatchDbModel,
+    public releaseNotesModel: ReleaseNoteModel,
   ) { }
 
   async ngOnInit () {
@@ -53,6 +55,7 @@ export class AppAvailableShowPage {
     this.loading = true
     try {
       this.pkg = await this.apiService.getAvailableShow({ id: this.pkgId, version })
+      this.releaseNotesModel.releaseNotes = this.pkg['release-notes']
     } catch (e) {
       console.error(e)
       this.error = e.message
