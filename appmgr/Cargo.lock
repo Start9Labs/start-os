@@ -665,6 +665,9 @@ name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "embassy-os"
@@ -2409,6 +2412,7 @@ dependencies = [
  "parking_lot",
  "percent-encoding",
  "rustls",
+ "serde",
  "sha2 0.9.5",
  "smallvec",
  "sqlformat",
@@ -2432,9 +2436,12 @@ dependencies = [
  "either",
  "futures",
  "heck",
+ "hex",
  "once_cell",
  "proc-macro2 1.0.28",
  "quote 1.0.9",
+ "serde",
+ "serde_json",
  "sha2 0.9.5",
  "sqlx-core",
  "sqlx-rt",
