@@ -3,7 +3,7 @@ import { Storage } from '@ionic/storage'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/api.service'
 import { Router, RoutesRecognized } from '@angular/router'
-import { distinctUntilChanged, filter, finalize, takeWhile } from 'rxjs/operators'
+import { distinctUntilChanged, filter, finalize, map, takeWhile } from 'rxjs/operators'
 import { AlertController, ToastController } from '@ionic/angular'
 import { LoaderService } from './services/loader.service'
 import { Emver } from './services/emver.service'
@@ -24,6 +24,7 @@ export class AppComponent {
   showMenu = false
   selectedIndex = 0
   untilLoaded = true
+  offlineToast: HTMLIonToastElement
   appPages = [
     {
       title: 'Services',
@@ -112,6 +113,14 @@ export class AppComponent {
       takeWhile(() => auth === AuthState.VERIFIED),
     )
     .subscribe(c => {
+      if (!c.network || !c.internet) {
+        this.presentToastOffline()
+      } else {
+        if (this.offlineToast) {
+          this.offlineToast.dismiss()
+          this.offlineToast = undefined
+        }
+      }
       console.log('CONNECTION CHANGED', c)
     })
   }
@@ -214,6 +223,25 @@ export class AppComponent {
       ],
     })
     await toast.present()
+  }
+
+  private async presentToastOffline () {
+    this.offlineToast = await this.toastCtrl.create({
+      header: 'No Internet',
+      message: `Please check your Internet connection and try again.`,
+      position: 'bottom',
+      duration: 0,
+      buttons: [
+        {
+          side: 'start',
+          icon: 'close',
+          handler: () => {
+            return true
+          },
+        },
+      ],
+    })
+    await this.offlineToast.present()
   }
 
   private async setError (e: Error) {
