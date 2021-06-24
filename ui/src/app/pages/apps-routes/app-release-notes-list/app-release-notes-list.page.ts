@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AvailableShow } from 'src/app/services/api/api-types'
 import { ApiService } from 'src/app/services/api/api.service'
+import { ReleaseNoteModel } from './release-notes'
 
 @Component({
   selector: 'app-release-notes-list',
@@ -9,32 +9,34 @@ import { ApiService } from 'src/app/services/api/api.service'
   styleUrls: ['./app-release-notes-list.page.scss'],
 })
 export class AppReleaseNotesListPage {
-  loading = true
   error = ''
   pkgId: string
-  pkg: AvailableShow
+  releaseNotes: { [version: string]: string}
   selected: string
 
   constructor (
     private readonly route: ActivatedRoute,
     private readonly apiService: ApiService,
-
-  ) { }
+    private releaseNoteModel: ReleaseNoteModel,
+  ) {
+      console.log('model model', releaseNoteModel.releaseNotes)
+      this.releaseNotes = releaseNoteModel.releaseNotes
+   }
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.getPkg()
+    if (!this.releaseNotes) {
+      this.getReleaseNotes()
+    }
   }
 
-  async getPkg (version?: string): Promise<void> {
-    this.loading = true
+  async getReleaseNotes (version?: string): Promise<void> {
     try {
-      this.pkg = await this.apiService.getAvailableShow({ id: this.pkgId, version })
+      const pkg = await this.apiService.getAvailableShow({ id: this.pkgId, version })
+      this.releaseNotes = pkg['release-notes']
     } catch (e) {
       console.error(e)
       this.error = e.message
-    } finally {
-      this.loading = false
     }
   }
 
