@@ -21,6 +21,7 @@ use crate::{Error, ResultExt};
 pub struct RpcContextConfig {
     pub bind_rpc: Option<SocketAddr>,
     pub bind_ws: Option<SocketAddr>,
+    pub tor_control: Option<SocketAddr>,
     pub db: Option<PathBuf>,
     pub secret_store: Option<PathBuf>,
 }
@@ -56,21 +57,27 @@ impl RpcContext {
                 .unwrap_or_else(|| Path::new("/mnt/embassy-os/embassy.db").to_owned()),
         )
         .await?;
+        let secret_store = SqlitePool::connect(&format!(
+            "sqlite://{}",
+            base.secret_store
+                .unwrap_or_else(|| Path::new("/mnt/embassy-os/secrets.db").to_owned())
+                .display()
+        ))
+        .await?;
         let mut db_handle = db.handle();
         let lan_handle = Container::new();
         lan_handle.set(enable_lan(&mut db_handle).await?).await;
-        let tor_controller = TorController::init(&mut db_handle).await?;
+        let tor_controller = TorController::init(
+            base.tor_control.unwrap_or(([127, 0, 0, 1], 9051).into()),
+            &mut db_handle,
+            &mut secret_store.acquire().await?,
+        )
+        .await?;
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             db,
-            secret_store: SqlitePool::connect(&format!(
-                "sqlite://{}",
-                base.secret_store
-                    .unwrap_or_else(|| Path::new("/mnt/embassy-os/secrets.db").to_owned())
-                    .display()
-            ))
-            .await?,
+            secret_store,
             docker: Docker::connect_with_unix_defaults()?,
             lan_handle,
             tor_controller,

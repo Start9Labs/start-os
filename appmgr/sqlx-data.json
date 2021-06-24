@@ -1,0 +1,21 @@
+{
+  "db": "SQLite",
+  "3e57a0e52b69f33e9411c13b03a5d82c5856d63f0375eb4c23b255a09c54f8b1": {
+    "query": "SELECT key FROM tor WHERE package = ? AND interface = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "key",
+          "ordinal": 0,
+          "type_info": "Blob"
+        }
+      ],
+      "parameters": {
+        "Right": 2
+      },
+      "nullable": [
+        false
+      ]
+    }
+  }
+}
