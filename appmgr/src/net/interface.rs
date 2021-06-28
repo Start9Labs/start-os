@@ -2,12 +2,10 @@ use std::net::Ipv4Addr;
 use std::path::Path;
 
 use indexmap::IndexMap;
-use patch_db::DbHandle;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Sqlite};
 use torut::onion::TorSecretKeyV3;
 
-use crate::context::RpcContext;
 use crate::db::model::{InterfaceAddressMap, InterfaceAddresses, InterfaceInfo};
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
@@ -19,7 +17,6 @@ pub struct Interfaces(pub IndexMap<InterfaceId, Interface>); // TODO
 impl Interfaces {
     pub async fn install<Ex>(
         &self,
-        ctx: &RpcContext,
         secrets: &mut Ex,
         package_id: &PackageId,
         ip: Ipv4Addr,
@@ -36,7 +33,7 @@ impl Interfaces {
                 tor_address: None,
                 lan_address: None,
             };
-            if iface.tor_config.is_some() {
+            if iface.tor_config.is_some() || iface.lan_config.is_some() {
                 let key = TorSecretKeyV3::generate();
                 let key_vec = key.as_bytes().to_vec();
                 sqlx::query!(
@@ -47,11 +44,18 @@ impl Interfaces {
                 )
                 .execute(&mut *secrets)
                 .await?;
-                addrs.tor_address = Some(key.public().get_onion_address().to_string());
+                let onion = key.public().get_onion_address();
+                if iface.tor_config.is_some() {
+                    addrs.tor_address = Some(onion.to_string());
+                }
+                if iface.lan_config.is_some() {
+                    addrs.lan_address =
+                        Some(format!("{}.local", onion.get_address_without_dot_onion()));
+                }
             }
             interface_info.addresses.0.insert(id.clone(), addrs);
         }
-        todo!()
+        Ok(interface_info)
     }
 }
 

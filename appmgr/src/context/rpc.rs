@@ -11,7 +11,7 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use tokio::fs::File;
 
-use crate::net::mdns::{enable_lan, LanHandle};
+use crate::net::mdns::MdnsController;
 use crate::net::tor::TorController;
 use crate::util::{from_toml_async_reader, AsyncFileExt, Container};
 use crate::{Error, ResultExt};
@@ -32,8 +32,8 @@ pub struct RpcContextSeed {
     pub db: PatchDb,
     pub secret_store: SqlitePool,
     pub docker: Docker,
-    pub lan_handle: Container<LanHandle>,
     pub tor_controller: TorController,
+    pub mdns_controller: MdnsController,
 }
 
 #[derive(Clone)]
@@ -65,22 +65,21 @@ impl RpcContext {
         ))
         .await?;
         let mut db_handle = db.handle();
-        let lan_handle = Container::new();
-        lan_handle.set(enable_lan(&mut db_handle).await?).await;
         let tor_controller = TorController::init(
             base.tor_control.unwrap_or(([127, 0, 0, 1], 9051).into()),
             &mut db_handle,
             &mut secret_store.acquire().await?,
         )
         .await?;
+        let mdns_controller = MdnsController::init(&mut db_handle).await?;
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             db,
             secret_store,
             docker: Docker::connect_with_unix_defaults()?,
-            lan_handle,
             tor_controller,
+            mdns_controller,
         });
         Ok(Self(seed))
     }
