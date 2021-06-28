@@ -1,5 +1,15 @@
 {
   "db": "SQLite",
+  "121a1c1c0c11c5588c17bbd9b2baeca4d27d1a6d82d6487fad142ffb58d1da0c": {
+    "query": "INSERT INTO tor (package, interface, key) VALUES (?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
   "3e57a0e52b69f33e9411c13b03a5d82c5856d63f0375eb4c23b255a09c54f8b1": {
     "query": "SELECT key FROM tor WHERE package = ? AND interface = ?",
     "describe": {

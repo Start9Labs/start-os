@@ -7,7 +7,7 @@ fn inner_main() -> Result<(), Error> {
     simple_logging::log_to_stderr(log::LevelFilter::Info);
     run_cli!(
         embassy::main_api,
-        app => app
+        app => app.name("Embassy CLI")
             .arg(Arg::with_name("host").long("host").short("h").takes_value(true))
             .arg(Arg::with_name("port").long("port").short("p").takes_value(true)),
         matches => EitherContext::Cli(CliContext::init(matches)?),
