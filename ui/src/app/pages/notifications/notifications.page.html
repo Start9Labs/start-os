@@ -46,7 +46,7 @@
         </h2>
         <p>
           {{ not['created-at'] | date: 'short' }}
-          <a *ngIf="not['package-id'] as pkgId" style="text-decoration: none;" [routerLink]="['/services', 'installed', not['package-id']]">
+          <a *ngIf="not['package-id'] as pkgId" style="text-decoration: none;" [routerLink]="['/services', not['package-id']]">
             - {{ not['package-id'] }} 
           </a>
         </p>

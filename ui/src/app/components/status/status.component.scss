@@ -1,17 +1,5 @@
-.icon-small {
-  width: auto; 
-  height: 14px;
-  padding-left: 6px;
-}
-
-.icon-medium {
-  width: auto; 
-  height: 18px;
-  padding-left: 8px;
-}
-
-.icon-large {
-  width: auto; 
-  height: 24px;
-  padding-left: 12px;
+p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

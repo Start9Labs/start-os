@@ -5,11 +5,11 @@ import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { PackageDataEntry } from 'src/app/models/patch-db/data-model'
 
 @Component({
-  selector: 'app-installed-list',
-  templateUrl: './app-installed-list.page.html',
-  styleUrls: ['./app-installed-list.page.scss'],
+  selector: 'app-list',
+  templateUrl: './app-list.page.html',
+  styleUrls: ['./app-list.page.scss'],
 })
-export class AppInstalledListPage {
+export class AppListPage {
   pkgs: PackageDataEntry[] = []
 
   constructor (

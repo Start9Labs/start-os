@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AppAvailableService } from '../app-available.service'
+import { MarketplaceService } from '../marketplace.service'
 
 @Component({
   selector: 'app-release-notes',
@@ -14,7 +14,7 @@ export class AppReleaseNotes {
 
   constructor (
     private readonly route: ActivatedRoute,
-    public aaService: AppAvailableService,
+    public aaService: MarketplaceService,
   ) { }
 
   ngOnInit () {

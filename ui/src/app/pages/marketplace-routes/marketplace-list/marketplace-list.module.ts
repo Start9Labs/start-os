@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { AppAvailableListPage } from './app-available-list.page'
+import { MarketplaceListPage } from './marketplace-list.page'
 import { SharingModule } from '../../../modules/sharing.module'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
@@ -11,7 +11,7 @@ import { StatusComponentModule } from 'src/app/components/status/status.componen
 const routes: Routes = [
   {
     path: '',
-    component: AppAvailableListPage,
+    component: MarketplaceListPage,
   },
 ]
 
@@ -24,6 +24,6 @@ const routes: Routes = [
     SharingModule,
     BadgeMenuComponentModule,
   ],
-  declarations: [AppAvailableListPage],
+  declarations: [MarketplaceListPage],
 })
-export class AppAvailableListPageModule { }
+export class MarketplaceListPageModule { }

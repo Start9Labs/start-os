@@ -469,7 +469,7 @@ export class MockApiService extends ApiService {
   async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
     await pauseFor(2000)
     return {
-      categories: ['featured', 'bitcoin', 'lightning', 'data', 'messaging'],
+      categories: ['featured', 'bitcoin', 'lightning', 'data', 'messaging', 'social', 'alt coin'],
     }
   }
 
