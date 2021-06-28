@@ -9,8 +9,6 @@ use tokio::sync::RwLock;
 use crate::util::Apply;
 use crate::Error;
 
-const HOSTNAME_LEN: usize = 1 + 15 + 1 + 5; // leading byte, main address, dot, "local"
-
 pub struct MdnsController(RwLock<MdnsControllerInner>);
 impl MdnsController {
     pub async fn init<Db: DbHandle>(db: &mut Db) -> Result<Self, Error> {
@@ -24,8 +22,7 @@ impl MdnsController {
 }
 
 pub struct MdnsControllerInner {
-    hostname: [u8; HOSTNAME_LEN + 1],
-    client: *mut AvahiClient,
+    hostname: Vec<u8>,
     entry_group: *mut AvahiEntryGroup,
 }
 unsafe impl Send for MdnsControllerInner {}
@@ -107,24 +104,26 @@ impl MdnsControllerInner {
             );
             let group =
                 avahi_sys::avahi_entry_group_new(avahi_client, Some(noop), std::ptr::null_mut());
-            let mut hostname_buf = [0; HOSTNAME_LEN + 1];
+            let mut hostname_buf = vec![0];
             {
                 let hostname_raw = avahi_sys::avahi_client_get_host_name_fqdn(avahi_client);
-                hostname_buf[1..]
-                    .copy_from_slice(std::ffi::CStr::from_ptr(hostname_raw).to_bytes_with_nul());
+                hostname_buf
+                    .extend_from_slice(std::ffi::CStr::from_ptr(hostname_raw).to_bytes_with_nul());
                 avahi_free(hostname_raw as *mut c_void);
             }
+            let buflen = hostname_buf.len();
+            debug_assert!(hostname_buf.ends_with(b".local\0"));
+            debug_assert!(!hostname_buf[..(buflen - 7)].contains(&b'.'));
             // assume fixed length prefix on hostname due to local address
-            hostname_buf[0] = 15; // set the prefix length to 15 for the main address
-            hostname_buf[16] = 5; // set the prefix length to 5 for "local"
+            hostname_buf[0] = (buflen - 8) as u8; // set the prefix length to len - 8 (leading byte, .local, nul) for the main address
+            hostname_buf[buflen - 7] = 5; // set the prefix length to 5 for "local"
 
             let mut ctrl = MdnsControllerInner {
                 hostname: hostname_buf,
-                client: avahi_client,
                 entry_group: group,
             };
-            avahi_entry_group_commit(group);
             ctrl.load_services(db).await?;
+            avahi_entry_group_commit(group);
             Ok(ctrl)
         }
     }
@@ -141,7 +140,6 @@ impl Drop for MdnsControllerInner {
     fn drop(&mut self) {
         unsafe {
             avahi_entry_group_free(self.entry_group);
-            avahi_client_free(self.client);
         }
     }
 }
