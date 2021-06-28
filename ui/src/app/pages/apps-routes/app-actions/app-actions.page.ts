@@ -89,7 +89,7 @@ export class AppActionsPage {
     )
 
     if (data.cancelled) return
-    return this.navCtrl.navigateRoot('/services/installed')
+    return this.navCtrl.navigateRoot('/services')
   }
 
   private async executeAction (pkgId: string, actionId: string) {

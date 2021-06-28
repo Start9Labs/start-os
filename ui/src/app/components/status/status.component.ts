@@ -11,7 +11,9 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 export class StatusComponent {
   @Input() pkg: PackageDataEntry
   @Input() connection: ConnectionState
-  @Input() size: 'small' | 'medium' | 'large' | 'italics-small' | 'bold-large' = 'large'
+  @Input() size?: 'small' | 'medium' | 'large' = 'large'
+  @Input() style?: string = 'regular'
+  @Input() weight?: string = 'normal'
   display = ''
   color = ''
   showDots = false

@@ -5,7 +5,7 @@ import { ApiService } from 'src/app/services/api/api.service'
 @Injectable({
   providedIn: 'root',
 })
-export class AppAvailableService {
+export class MarketplaceService {
   pkgs: { [id: string]: AvailableShow } = { }
 
   constructor (

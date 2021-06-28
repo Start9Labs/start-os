@@ -5,21 +5,16 @@
   text-align: center;
 
   ion-card-header {
-    padding: 0;
+    padding: 0 10px;
 
     status {
-      font-size: 9px;
-      font-weight: bold;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
-    p {
-      font-family: 'Montserrat';
-      font-size: 11px;
+    ion-card-title {
+      font-size: calc(8px + .7vw);
       color: white;
-      margin: 0px 12px 8px 12px;
+      margin: 10px 0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -72,7 +67,7 @@
   }
 }
 
-.disabled {
+.launch-disabled {
   pointer-events: none;
   border-color: transparent;
   &:hover {

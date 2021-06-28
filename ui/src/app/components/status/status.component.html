@@ -1,24 +1,9 @@
-<p *ngIf="size === 'small'" style="margin: 0 0 4px 0;">
-  <ion-text [color]="color">{{ display }}</ion-text>
+<p
+  [style.color]="'var(--ion-color-' + color + ')'"
+  [style.font-size]="size"
+  [style.font-style]="style"
+  [style.font-weight]="weight"
+>
+  {{ display }}
   <ion-spinner *ngIf="showDots" class="dots dots-small" name="dots" [color]="color"></ion-spinner>
 </p>
-
-<p *ngIf="size === 'italics-small'" style="margin: 0 0 4px 0; font-style: italic;">
-  <ion-text [color]="color">{{ display }}</ion-text>
-  <ion-spinner *ngIf="showDots" class="dots dots-small" name="dots" [color]="color"></ion-spinner>
-</p>
-
-<h3 *ngIf="size === 'medium'">
-  <ion-text [color]="color">{{ display }}</ion-text>
-  <ion-spinner *ngIf="showDots" class="dots dots-medium" name="dots" [color]="color"></ion-spinner>
-</h3>
-
-<h1 *ngIf="size === 'large'">
-  <ion-text [color]="color">{{ display }}</ion-text>
-  <ion-spinner *ngIf="showDots" class="dots" name="dots" [color]="color"></ion-spinner>
-</h1>
-
-<h1 *ngIf="size === 'bold-large'" style="font-size: 18px; font-weight: 500">
-  <ion-text [color]="color">{{ display }}</ion-text>
-  <ion-spinner *ngIf="showDots" class="dots" name="dots" [color]="color"></ion-spinner>
-</h1>
