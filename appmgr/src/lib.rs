@@ -41,12 +41,17 @@ use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 pub use version::{init, self_update};
 
-#[command(subcommands(config::config, version::git_info))]
+#[command]
+pub fn echo(#[context] _ctx: EitherContext, #[arg] message: String) -> Result<String, RpcError> {
+    Ok(message)
+}
+
+#[command(subcommands(config::config, version::git_info, echo, s9pk::pack, s9pk::verify))]
 pub fn main_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
     Ok(ctx)
 }
 
-#[command(subcommands(version::git_info))]
+#[command(subcommands(version::git_info, s9pk::pack, s9pk::verify))]
 pub fn portable_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
     Ok(ctx)
 }
