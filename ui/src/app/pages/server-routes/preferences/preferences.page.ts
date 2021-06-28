@@ -3,11 +3,11 @@ import { ServerConfigService } from 'src/app/services/server-config.service'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 
 @Component({
-  selector: 'general-settings',
-  templateUrl: './general-settings.page.html',
-  styleUrls: ['./general-settings.page.scss'],
+  selector: 'preferences',
+  templateUrl: './preferences.page.html',
+  styleUrls: ['./preferences.page.scss'],
 })
-export class GeneralSettingsPage {
+export class PreferencesPage {
   constructor (
     private readonly serverConfigService: ServerConfigService,
     public readonly patch: PatchDbModel,

@@ -41,23 +41,21 @@
           </ion-label>
         </ion-item>
     
-        <ion-item class="no-cushion-item" lines="none" style="margin-bottom: 10px;">
-          <ion-label class="status-readout">
-            <status size="bold-large" [pkg]="pkg" [connection]="connection"></status>
-            <ion-button *ngIf="status === FeStatus.NeedsConfig" expand="block" fill="outline" [routerLink]="['config']">
-              Configure
-            </ion-button>
-            <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : status" expand="block" fill="outline" color="danger" (click)="stop()">
-              Stop
-            </ion-button>
-            <ion-button *ngIf="status === FeStatus.DependencyIssue" expand="block" fill="outline" (click)="scrollToRequirements()">
-              Fix
-            </ion-button>
-            <ion-button *ngIf="status === FeStatus.Stopped" expand="block" fill="outline" color="success" (click)="tryStart()">
-              Start
-            </ion-button>
-          </ion-label>
-        </ion-item>
+        <div class="status-readout">
+          <status size="large" weight="bold" [pkg]="pkg" [connection]="connection"></status>
+          <ion-button *ngIf="status === FeStatus.NeedsConfig" expand="block" fill="outline" [routerLink]="['config']">
+            Configure
+          </ion-button>
+          <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : status" expand="block" fill="outline" color="danger" (click)="stop()">
+            Stop
+          </ion-button>
+          <ion-button *ngIf="status === FeStatus.DependencyIssue" expand="block" fill="outline" (click)="scrollToRequirements()">
+            Fix
+          </ion-button>
+          <ion-button *ngIf="status === FeStatus.Stopped" expand="block" fill="outline" color="success" (click)="tryStart()">
+            Start
+          </ion-button>
+        </div>
     
         <ion-button size="small" *ngIf="pkg | hasUi" [disabled]="!(pkg | isLaunchable)" class="launch-button" expand="block" (click)="launchUiTab()">
           Launch Web Interface
@@ -69,11 +67,11 @@
         <ion-grid class="ion-text-center" style="margin: 0 6px;">
           <ion-row>
             <ion-col *ngFor="let button of buttons" sizeMd="4" sizeSm="6" sizeXs="6">
-                <ion-button style="width: 100% !important; min-height: 120px; --background: #2f4858;" [disabled]="button.disabled | includes : status" (click)="button.action()">
+                <ion-button style="width: 100%; min-height: 120px;" color="light" [disabled]="button.disabled | includes : status" (click)="button.action()">
                   <div>
-                    <ion-icon size="large" [name]="button.icon" style="color: #fbe6ea"></ion-icon>
+                    <ion-icon size="large" [name]="button.icon"></ion-icon>
                     <br/><br/>
-                    <ion-text style="color: #fbe6ea">{{ button.title }}</ion-text>
+                    {{ button.title }}
                   </div>
                 </ion-button>
             </ion-col>
@@ -101,7 +99,7 @@
                       <p style="padding-top: 2px; position: relative; font-style: italic; font-size: smaller"><ion-text [color]="pkg.installed.status['dependency-errors'][dep.key] ? 'warning' : 'success'">{{ pkg.installed.status['dependency-errors'][dep.key] ? pkg.installed.status['dependency-errors'][dep.key].type : 'satisfied' }}</ion-text></p>
                     </ion-label>
 
-                    <ion-button *ngIf="!pkg.installed.status['dependency-errors'][dep.key] || (pkg.installed.status['dependency-errors'][dep.key] && [DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthChecksFailed] | includes : pkg.installed.status['dependency-errors'][dep.key].type)" slot="end" size="small" [routerLink]="['/services', 'installed', dep.key]" color="primary" fill="outline" style="font-size: x-small">
+                    <ion-button *ngIf="!pkg.installed.status['dependency-errors'][dep.key] || (pkg.installed.status['dependency-errors'][dep.key] && [DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthChecksFailed] | includes : pkg.installed.status['dependency-errors'][dep.key].type)" slot="end" size="small" [routerLink]="['/services', dep.key]" color="primary" fill="outline" style="font-size: x-small">
                       View
                     </ion-button>
 
@@ -111,7 +109,7 @@
                       </ion-button>
 
                       <ng-container *ngIf="localDep && localDep.state === PackageState.Installed">
-                        <ion-button *ngIf="pkg.installed.status['dependency-errors'][dep.key].type === DependencyErrorType.NotRunning" slot="end" size="small" [routerLink]="['/services', 'installed', dep.key]" color="primary" fill="outline" style="font-size: x-small">
+                        <ion-button *ngIf="pkg.installed.status['dependency-errors'][dep.key].type === DependencyErrorType.NotRunning" slot="end" size="small" [routerLink]="['/services', dep.key]" color="primary" fill="outline" style="font-size: x-small">
                           Start
                         </ion-button>
                         <ion-button *ngIf="pkg.installed.status['dependency-errors'][dep.key].type === DependencyErrorType.IncorrectVersion" slot="end" size="small" (click)="fixDep('update', dep.key)" color="primary" fill="outline" style="font-size: x-small">

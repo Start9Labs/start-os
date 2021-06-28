@@ -28,7 +28,7 @@ export class AppComponent {
   appPages = [
     {
       title: 'Services',
-      url: '/services/installed',
+      url: '/services',
       icon: 'grid-outline',
     },
     {
@@ -38,7 +38,7 @@ export class AppComponent {
     },
     {
       title: 'Marketplace',
-      url: '/services/marketplace',
+      url: '/marketplace',
       icon: 'storefront-outline',
     },
     {

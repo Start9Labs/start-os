@@ -15,7 +15,7 @@
         <h2>Welcome to your <span style="font-style: italic; color: var(--ion-color-start9)">Embassy</span></h2>
         <p class="ion-text-wrap">Get started by installing your first service.</p>
       </div>
-      <ion-button [routerLink]="['/services','marketplace']" style="width: 50%;" fill="outline">
+      <ion-button [routerLink]="['/marketplace']" style="width: 50%;" fill="outline">
         <ion-icon slot="start" name="storefront-outline"></ion-icon>
         Marketplace
       </ion-button>
@@ -24,10 +24,10 @@
     <ng-template #list>
       <ion-grid>
         <ion-row *ngIf="connectionService.monitor$() | ngrxPush as connection">
-          <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="4" sizeSm="3" sizeMd="2" sizeLg="2">
-            <ion-card class="installed-card" style="position:relative" [routerLink]="['/services', 'installed', (pkg.value | manifest).id]">
+          <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="4" sizeSm="3" sizeLg="3" sizeXl="2">
+            <ion-card class="installed-card" style="position:relative" [routerLink]="['/services', (pkg.value | manifest).id]">
               <div class="launch-container" *ngIf="pkg.value | hasUi">
-                <div class="launch-button-triangle"  (click)="launchUi(pkg.value, $event)" [class.disabled]="!(pkg.value | isLaunchable)">
+                <div class="launch-button-triangle"  (click)="launchUi(pkg.value, $event)" [class.launch-disabled]="!(pkg.value | isLaunchable)">
                   <ion-icon name="rocket-outline"></ion-icon>
                 </div>
               </div>
@@ -40,8 +40,8 @@
               <img class="bulb-off" *ngIf="pkg.value | displayBulb: 'off' : connection" src="assets/img/off-bulb.png"/>
 
               <ion-card-header>
-                <status [pkg]="pkg.value" [connection]="connection" size="small"></status>
-                <p>{{ (pkg.value | manifest).title }}</p>
+                <status [pkg]="pkg.value" [connection]="connection" size="calc(4px + .7vw)" weight="bold"></status>
+                <ion-card-title>{{ (pkg.value | manifest).title }}</ion-card-title>
               </ion-card-header>
             </ion-card>
           </ion-col>

@@ -1,0 +1,48 @@
+.header {
+  font-family: 'Montserrat';
+  padding: 2%;
+  img {
+    min-width: 16%;
+    max-width: 18%;
+  }
+  .header-text {
+    margin-left: 5%;
+    display: inline-block;
+    vertical-align: top;
+    .header-title {
+      line-height: .65;
+      margin: 0 0 0 -2px;
+      font-size: calc(20px + 3vw)
+    }
+    .header-version {
+      padding: 12px 0;
+      margin: 0;
+      font-size: calc(10px + 1vw)
+    }
+    .header-status {
+      p {
+        margin: 0;
+        font-size: calc(6px + 1vw)
+      }
+    }
+  }
+}
+
+.recommendation-text {
+  font-style: italic;
+}
+
+.recommendation-error {
+  color: var(--ion-color-danger);
+}
+
+ion-item-divider {
+  text-transform: uppercase;
+  margin-top: 22px;
+  font-weight: 400;
+}
+
+#release-notes {
+  overflow: auto;
+  max-height: 160px;
+}

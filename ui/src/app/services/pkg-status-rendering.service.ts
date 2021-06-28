@@ -20,7 +20,7 @@ function handleInstalledState (status: Status): PkgStatusRendering {
   }
 
   if (Object.keys(status['dependency-errors']).length) {
-    return { display: 'Dependency Issue', color: 'warning', showDots: false, feStatus: FEStatus.DependencyIssue }
+    return { display: 'Needs Attention', color: 'warning', showDots: false, feStatus: FEStatus.DependencyIssue }
   }
 
   switch (status.main.status) {
@@ -36,7 +36,7 @@ function handleRunningState (status: MainStatusRunning): PkgStatusRendering {
   if (Object.values(status.health).some(h => h.result === 'failure')) {
     return { display: 'Needs Attention', color: 'danger', showDots: false, feStatus: FEStatus.NeedsAttention }
   } else if (Object.values(status.health).some(h => h.result === 'starting')) {
-    return { display: 'Starting Up', color: 'warning', showDots: true, feStatus: FEStatus.Starting }
+    return { display: 'Starting', color: 'warning', showDots: true, feStatus: FEStatus.Starting }
   } else if (Object.values(status.health).some(h => h.result === 'loading')) {
     const firstLoading = Object.values(status.health).find(h => h.result === 'loading') as HealthCheckResultLoading
     return { display: firstLoading.message, color: 'warning', showDots: true, feStatus: FEStatus.Loading }

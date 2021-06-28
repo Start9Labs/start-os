@@ -28,6 +28,12 @@ const routes: Routes = [
     loadChildren: () => import('./pages/maintenance/maintenance.module').then(m => m.MaintenancePageModule),
   },
   {
+    path: 'marketplace',
+    canActivate: [AuthGuard, MaintenanceGuard],
+    canActivateChild: [AuthGuard, MaintenanceGuard],
+    loadChildren: () => import('./pages/marketplace-routes/marketplace-routing.module').then(m => m.MarketplaceRoutingModule),
+  },
+  {
     path: 'notifications',
     canActivate: [AuthGuard, MaintenanceGuard],
     loadChildren: () => import('./pages/notifications/notifications.module').then(m => m.NotificationsPageModule),
