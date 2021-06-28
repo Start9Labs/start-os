@@ -1,5 +1,5 @@
 .selected {
-  --background: linear-gradient(120deg, #1e1e1e -1%, var(--ion-color-start9) 96%);
+  --background: linear-gradient(120deg, #1e1e1e -1%, var(--ion-color-start9) 100%);
 }
 
 .menu-style {
@@ -10,4 +10,8 @@
 
 .selected-badge {
   background-color: #1e1e1e;
+}
+
+ion-split-pane {
+  --side-max-width: 280px;
 }

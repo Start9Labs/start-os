@@ -19,19 +19,7 @@
       <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
     </ion-item>
 
-    <div class="scrollable">
-      <ion-button
-        *ngFor="let cat of data.categories"
-        size="small"
-        fill="clear"
-        [color]="cat === category ? 'success' : 'dark'"
-        (click)="switchCategory(cat)"
-      >
-        {{ cat }}
-      </ion-button>
-    </div>
-
-    <ion-card *ngIf="eos && category === 'featured'" class="eos-card" (click)="updateEos()">
+    <ion-card *ngIf="eos" class="eos-card" (click)="updateEos()">
       <ion-card-header>
         <ion-card-subtitle>Now Available...</ion-card-subtitle>
         <ion-card-title>EmbassyOS Version {{ eos.version }}</ion-card-title>
@@ -41,10 +29,42 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-spinner *ngIf="pkgsLoading; else pkgsLoaded" style="padding-top: 200px;" name="lines" color="warning"></ion-spinner>
+    <h2 class="ion-margin-start">Categories</h2>
+
+    <div class="scrollable">
+      <ion-button
+        *ngFor="let cat of data.categories"
+        fill="clear"
+        [color]="cat === category ? 'primary' : 'dark'"
+        [class.cat-selected]="cat === category"
+        (click)="switchCategory(cat)"
+      >
+        {{ cat }}
+      </ion-button>
+    </div>
+
+    <div *ngIf="pkgsLoading; else pkgsLoaded" style="margin-top: 64px;" class="ion-text-center">
+      <ion-spinner name="lines" color="warning"></ion-spinner>
+    </div>
 
     <ng-template #pkgsLoaded>
-      <ion-card *ngFor="let pkg of pkgs" style="margin: 10px 10px;" [routerLink]="[pkg.id]">
+      <ion-grid style="margin: 0 6px;">
+        <ion-row>
+          <ion-col *ngFor="let pkg of pkgs" sizeXl="2" sizeLg="3" sizeMd="3" sizeSm="4" sizeXs="4">
+            <ion-card class="ion-text-center" style="margin: 0;" [routerLink]="['/marketplace', pkg.id]">
+              <img [src]="pkg.icon" style="width: 90%; margin-top: 8px;" />
+              <ion-card-header style="min-height: 70px; text-align: left;">
+                <ion-card-title>{{ pkg.title }}</ion-card-title>
+              </ion-card-header>
+              <ion-card-content style="text-align: left;">
+                {{ pkg.descriptionShort }}
+              </ion-card-content>
+            </ion-card>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+
+      <!-- <ion-card *ngFor="let pkg of pkgs" style="margin: 10px 10px;" [routerLink]="['/marketplace', pkg.id]">
         <ion-item style="--inner-border-width: 0 0 .4px 0; --border-color: #525252;">
           <ion-avatar style="margin-top: 8px;" slot="start">
             <img [src]="pkg.icon" />
@@ -81,7 +101,7 @@
           ">
           {{ pkg.descriptionShort }}
         </ion-card-content>
-      </ion-card>
+      </ion-card> -->
     </ng-template>
   </ng-template>
 </ion-content>
