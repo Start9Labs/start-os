@@ -183,7 +183,7 @@ export class StartupAlertsNotifier {
           {
             text: 'View in Marketplace',
             handler: () => {
-              return this.navCtrl.navigateForward('/services/marketplace').then(() => resolve(false))
+              return this.navCtrl.navigateForward('/marketplace').then(() => resolve(false))
             },
           },
         ],

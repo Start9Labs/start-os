@@ -20,7 +20,7 @@ export module Mock {
     },
     {
       id: 'lnd',
-      title: 'Lightning Network Daemon',
+      title: 'LND',
       version: '0.11.1',
       descriptionShort: 'A BOLT-compliant, lightning network node.',
       icon: 'assets/img/service-icons/lnd.png',
@@ -157,7 +157,7 @@ export module Mock {
 
   export const MockManifestLnd: Manifest = {
     id: 'lnd',
-    title: 'Lightning Network Daemon',
+    title: 'LND',
     version: '0.11.1',
     description: {
       short: 'A bolt spec compliant client.',

@@ -6,7 +6,6 @@ import { copyToClipboard } from 'src/app/util/web.util'
 import { AlertController, NavController, PopoverController, ToastController } from '@ionic/angular'
 import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { PropertyStore } from './property-store'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import * as JsonPointer from 'json-pointer'
 import { FEStatus } from 'src/app/services/pkg-status-rendering.service'
@@ -34,7 +33,6 @@ export class AppPropertiesPage {
     private readonly alertCtrl: AlertController,
     private readonly toastCtrl: ToastController,
     private readonly popoverCtrl: PopoverController,
-    private readonly propertyStore: PropertyStore,
     private readonly navCtrl: NavController,
     public readonly patch: PatchDbModel,
   ) { }
@@ -75,7 +73,7 @@ export class AppPropertiesPage {
   }
 
   async goToNested (key: string): Promise<any> {
-    this.navCtrl.navigateForward(`/services/installed/${this.pkgId}/properties`, {
+    this.navCtrl.navigateForward(`/services/${this.pkgId}/properties`, {
       queryParams: {
         pointer: `${this.pointer || ''}/${key}/value`,
       },

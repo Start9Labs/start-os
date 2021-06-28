@@ -8,10 +8,10 @@
 </ion-header>
 
 <ion-content>
-  <ion-spinner *ngIf="!aaService.pkgs[pkgId]; else loaded" class="center" name="lines" color="warning"></ion-spinner>
+  <ion-spinner *ngIf="!marketplaceService.pkgs[pkgId]; else loaded" class="center" name="lines" color="warning"></ion-spinner>
 
   <ng-template #loaded>
-    <div *ngFor="let note of aaService.pkgs[pkgId]['release-notes'] | keyvalue : asIsOrder">
+    <div *ngFor="let note of marketplaceService.pkgs[pkgId]['release-notes'] | keyvalue : asIsOrder">
       <ion-button (click)="setSelected(note.key)"  expand="full" color="light" style="height: 50px;" >
         <p style="position: absolute; left: 10px;">{{ note.key | displayEmver }}</p>
       </ion-button>

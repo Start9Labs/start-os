@@ -117,9 +117,12 @@
   white-space: normal !important;
 }
 
+ion-card-title {
+  font-family: 'Montserrat';
+}
+
 ion-title {
   font-family: 'Montserrat';
-  font-weight: unset;
 }
 
 ion-textarea {
@@ -272,11 +275,6 @@ ion-avatar {
   --border-radius: var(--icon-border-radius);
 }
 
-.no-white-space {
-  --white-space: 0;
-  --box-shadow: 3px 3px 10px var(--ion-color-primary);
-}
-
 .notifier-item {
   margin: 12px;
   margin-top: 0px;
@@ -301,7 +299,6 @@ ion-item-divider {
   color: var(--ion-color-medium);
   font-size: medium;
   padding-left: 10px;
-  font-weight: unset;
 }
 
 .dots {
