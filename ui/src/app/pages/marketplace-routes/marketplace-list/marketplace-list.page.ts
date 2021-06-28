@@ -8,11 +8,11 @@ import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { PackageState } from 'src/app/models/patch-db/data-model'
 
 @Component({
-  selector: 'app-available-list',
-  templateUrl: './app-available-list.page.html',
-  styleUrls: ['./app-available-list.page.scss'],
+  selector: 'marketplace-list',
+  templateUrl: './marketplace-list.page.html',
+  styleUrls: ['./marketplace-list.page.scss'],
 })
-export class AppAvailableListPage {
+export class MarketplaceListPage {
   pageLoading = true
   pkgsLoading = true
   error = ''

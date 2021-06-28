@@ -1,5 +1,5 @@
 import { Component, ViewChild } from '@angular/core'
-import { AlertController, NavController, ModalController, IonContent, PopoverController } from '@ionic/angular'
+import { AlertController, NavController, ModalController, IonContent } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { chill, isEmptyObject } from 'src/app/util/misc.util'
@@ -7,7 +7,6 @@ import { LoaderService } from 'src/app/services/loader.service'
 import { Observable, of, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { ConfigService, getManifest } from 'src/app/services/config.service'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, Manifest, PackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
@@ -16,11 +15,11 @@ import { ConnectionService } from 'src/app/services/connection.service'
 import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
 
 @Component({
-  selector: 'app-installed-show',
-  templateUrl: './app-installed-show.page.html',
-  styleUrls: ['./app-installed-show.page.scss'],
+  selector: 'app-show',
+  templateUrl: './app-show.page.html',
+  styleUrls: ['./app-show.page.scss'],
 })
-export class AppInstalledShowPage {
+export class AppShowPage {
   error: string
   pkgId: string
   pkg: PackageDataEntry
@@ -43,7 +42,6 @@ export class AppInstalledShowPage {
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
     private readonly wizardBaker: WizardBaker,
-    private readonly popoverController: PopoverController,
     private readonly config: ConfigService,
     public readonly patch: PatchDbModel,
     public readonly connectionService: ConnectionService,
@@ -120,20 +118,6 @@ export class AppInstalledShowPage {
     }
   }
 
-  async presentPopover (information: string, ev: any) {
-    const popover = await this.popoverController.create({
-      component: InformationPopoverComponent,
-      event: ev,
-      translucent: false,
-      showBackdrop: true,
-      backdropDismiss: true,
-      componentProps: {
-        information,
-      },
-    })
-    return await popover.present()
-  }
-
   scrollToRequirements () {
     const el = document.getElementById('dependencies')
     if (!el) return
@@ -170,7 +154,7 @@ export class AppInstalledShowPage {
       state: { installRec },
     }
 
-    await this.navCtrl.navigateForward(`/services/marketplace/${depId}`, navigationExtras)
+    await this.navCtrl.navigateForward(`/marketplace/${depId}`, navigationExtras)
   }
 
   private async configureDep (depId: string): Promise<void> {
@@ -189,7 +173,7 @@ export class AppInstalledShowPage {
       state: { configRecommendation },
     }
 
-    await this.navCtrl.navigateForward(`/services/installed/${depId}/config`, navigationExtras)
+    await this.navCtrl.navigateForward(`/services/${depId}/config`, navigationExtras)
   }
 
   private async presentAlertStart (message: string): Promise<void> {
@@ -300,7 +284,7 @@ export class AppInstalledShowPage {
         disabled: [],
       },
       {
-        action: () => this.navCtrl.navigateForward(['/services', 'marketplace', this.pkgId], { relativeTo: this.route }),
+        action: () => this.navCtrl.navigateForward(['/marketplace', this.pkgId], { relativeTo: this.route }),
         title: 'Marketplace Listing',
         icon: 'storefront-outline',
         color: 'danger',
