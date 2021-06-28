@@ -19,8 +19,7 @@ fn event_handler(event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), Co
     async move { Ok(()) }.boxed()
 }
 
-#[derive(Clone)]
-pub struct TorController(Arc<RwLock<TorControllerInner>>);
+pub struct TorController(RwLock<TorControllerInner>);
 impl TorController {
     pub async fn init<Db: DbHandle, Ex>(
         tor_cp: SocketAddr,
@@ -30,9 +29,9 @@ impl TorController {
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
     {
-        Ok(TorController(Arc::new(RwLock::new(
+        Ok(TorController(RwLock::new(
             TorControllerInner::init(tor_cp, db, secrets).await?,
-        ))))
+        )))
     }
 
     pub async fn sync<Db: DbHandle, Ex>(&self, db: &mut Db, secrets: &mut Ex) -> Result<(), Error>
