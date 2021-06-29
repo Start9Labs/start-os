@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { NavController, ToastController } from '@ionic/angular';
 import { ApiService } from './services/api/api.service';
-import { StateService } from './services/state.sevice';
+import { StateService } from './services/state.service';
 
 @Component({
   selector: 'app-root',
