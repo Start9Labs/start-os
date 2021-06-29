@@ -1,0 +1,46 @@
+{
+  "name": "setup-wizard",
+  "version": "0.0.1",
+  "author": "Start9 Labs, inc",
+  "homepage": "https://start9.com/",
+  "description": "Setup wizard for EmbassyOS",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "lint": "ng lint"
+  },
+  "dependencies": {
+    "@angular/common": "12.1.0",
+    "@angular/core": "12.1.0",
+    "@angular/forms": "12.1.0",
+    "@angular/platform-browser": "12.1.0",
+    "@angular/platform-browser-dynamic": "12.1.0",
+    "@angular/router": "12.1.0",
+    "@ionic/angular": "5.6.10",
+    "rxjs": "6.5.3",
+    "tslib": "2.3.0",
+    "zone.js": "0.11.4"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "12.1.0",
+    "@angular-eslint/builder": "12.2.0",
+    "@angular-eslint/eslint-plugin": "12.2.0",
+    "@angular-eslint/eslint-plugin-template": "12.2.0",
+    "@angular-eslint/template-parser": "12.2.0",
+    "@angular/cli": "12.1.0",
+    "@angular/compiler": "12.1.0",
+    "@angular/compiler-cli": "12.1.0",
+    "@angular/language-service": "12.1.0",
+    "@ionic/angular-toolkit": "4.0.0",
+    "@types/node": "15.12.4",
+    "@typescript-eslint/eslint-plugin": "4.28.0",
+    "@typescript-eslint/parser": "4.28.0",
+    "eslint": "7.29.0",
+    "eslint-plugin-import": "2.23.4",
+    "eslint-plugin-jsdoc": "35.4.0",
+    "eslint-plugin-prefer-arrow": "1.2.3",
+    "ts-node": "10.0.0",
+    "typescript": "4.2.4"
+  }
+}
