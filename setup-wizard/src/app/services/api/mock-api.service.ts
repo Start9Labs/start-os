@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { pauseFor } from "../state.sevice";
+import { pauseFor } from "../state.service";
 import { ApiService } from "./api.service"
 
 @Injectable({
@@ -14,7 +14,7 @@ export class MockApiService extends ApiService {
   async getState () {
     await pauseFor(2000)
     return {
-      'selected-data-drive': 'name1',
+      'selected-data-drive': null,
       'recovery-drive': null,
       'has-password': false,
       'data-transfer-progress': null
