@@ -1,10 +1,10 @@
 import { Component } from '@angular/core'
-import { AlertController, NavController } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { StateService } from 'src/app/services/state.sevice'
+import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  selector: 'app-home',
+  selector: 'home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
 })
@@ -15,8 +15,7 @@ export class HomePage {
   constructor(
     private readonly apiService: ApiService,
     private readonly stateService: StateService,
-    public alertController: AlertController,
-    private readonly navCtrl: NavController,
+    private readonly alertController: AlertController,
   ) {}
 
   async ngOnInit() {

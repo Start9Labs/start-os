@@ -1,10 +1,9 @@
 import { Component } from '@angular/core'
-import { AlertController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { StateService } from 'src/app/services/state.sevice'
+import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  selector: 'password-page',
+  selector: 'password',
   templateUrl: 'password.page.html',
   styleUrls: ['password.page.scss'],
 })
@@ -16,7 +15,6 @@ export class PasswordPage {
   constructor(
     private readonly apiService: ApiService,
     private readonly stateService: StateService,
-    public alertController: AlertController,
   ) {}
 
   async submitPassword () {
