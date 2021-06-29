@@ -25,7 +25,9 @@ export class AppComponent {
 
   async ngOnInit() {
     await this.stateService.getState()
-    if(this.stateService.hasPassword) {
+    if (!this.stateService.selectedDataDrive) {
+      await this.navCtrl.navigateForward(`/wizard`)
+    } else if(this.stateService.hasPassword) {
       //redirect to embassyOS
     } else if (this.stateService.recoveryDrive) {
       await this.navCtrl.navigateForward(`/recover`)
