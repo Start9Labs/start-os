@@ -7,16 +7,16 @@
 </ion-header>
 <ion-content>
   <div *ngIf="!stateService.recoveryDrive">
-    <h2 color="light">Select Data Drive</h2>
+    <h2 color="light">Select Recovery Drive</h2>
     <ion-card 
       *ngFor="let drive of dataDrives"
       (click)="selectDrive(drive)"
       button="true"
-      [class.selected]="selectedDrive === drive['logical-name']"
+      [class.selected]="selectedDrive?.logicalname === drive.logicalname"
       color="light"
     >
       <ion-card-header>
-        <ion-card-title>{{drive["logical-name"]}}</ion-card-title>
+        <ion-card-title>{{drive.logicalname}}</ion-card-title>
         <ion-card-subtitle>{{drive.name}}</ion-card-subtitle>
       </ion-card-header>
 
@@ -24,15 +24,15 @@
         Currently running {{drive.version}}
       </ion-card-content>
     </ion-card>
-    <ion-button (click)="warn()" color="primary" [disabled]="!selectedDrive">Next</ion-button>
+    <ion-button (click)="chooseDrive()" color="primary" [disabled]="!selectedDrive">Next</ion-button>
   </div>
   <div *ngIf="stateService.recoveryDrive">
-    <h2>Progress: {{ 100 * stateService.dataProgress }}% <ion-spinner *ngIf="stateService.dataProgress != 1"></ion-spinner> </h2>
+    <h2>Progress: {{ 100 * stateService.dataProgress }}% <ion-spinner *ngIf="stateService.dataProgress !== 1"></ion-spinner> </h2>
     <ion-progress-bar value="{{stateService.dataProgress}}"></ion-progress-bar>
     <ion-button 
       (click)="navToEmbassy()"
       color="primary" 
-      [disabled]="stateService.dataProgress != 1"
+      [disabled]="stateService.dataProgress !== 1"
     >
       Go To Embassy
     </ion-button>
