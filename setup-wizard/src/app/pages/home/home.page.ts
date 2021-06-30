@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
-import { AlertController, ModalController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { AlertController, ModalController, LoadingController } from '@ionic/angular'
+import { ApiService, DataDrive } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
 
@@ -11,26 +11,27 @@ import { PasswordPage } from '../password/password.page'
 })
 export class HomePage {
   dataDrives = []
-  selectedDrive = null
+  selectedDrive: DataDrive = null
 
   constructor(
     private readonly apiService: ApiService,
     private readonly stateService: StateService,
     private readonly alertController: AlertController,
-    private modalController: ModalController,
+    private readonly modalController: ModalController,
+    private readonly loadingCtrl: LoadingController,
   ) {}
 
   async ngOnInit() {
-    if(!this.stateService.selectedDataDrive) {
-      this.dataDrives = await this.apiService.getStorageDisks()
+    if(!this.stateService.dataDrive) {
+      this.dataDrives = await this.apiService.getDataDrives()
     }
   }
 
-  selectDrive(name: string) {
-    if (name === this.selectedDrive) {
+  selectDrive(drive: DataDrive) {
+    if (drive.logicalname === this.selectedDrive?.logicalname) {
       this.selectedDrive = null
     } else {
-      this.selectedDrive = name
+      this.selectedDrive = drive
     }
   }
 
@@ -38,7 +39,7 @@ export class HomePage {
     const alert = await this.alertController.create({
       cssClass: 'my-custom-class',
       header: 'Warning!',
-      message: 'This disk will be entirely wiped of all memory.',
+      message: 'This drive will be entirely wiped of all memory.',
       buttons: [
         {
           text: 'Cancel',
@@ -50,7 +51,7 @@ export class HomePage {
         }, {
           text: 'Okay',
           handler: async () => {
-            await this.chooseDisk()
+            await this.chooseDrive()
           }
         }
       ]
@@ -59,30 +60,38 @@ export class HomePage {
     await alert.present();
   }
 
-  async chooseDisk() {
-    await this.apiService.selectStorageDisk({logicalName: this.selectedDrive})
-    this.stateService.selectedDataDrive = this.selectedDrive
+  async chooseDrive() {
+    await this.apiService.selectDataDrive(this.selectedDrive.logicalname)
+    this.stateService.dataDrive = this.selectedDrive
   }
 
   async presentPasswordModal() {
     const modal = await this.modalController.create({
       component: PasswordPage,
-      backdropDismiss: false,
-      componentProps: {
-        'version': null,
-      }
+      backdropDismiss: false
     })
     modal.onDidDismiss().then(ret => {
-      if(ret.data.pwValid) {
-        this.submitPassword(ret.data.password)
+      const pass = ret.data.password
+      if (pass) {
+        this.submitPassword(pass)
       }
     })
     await modal.present();
   }
 
   async submitPassword (pw: string) {
-    await this.apiService.submitPassword(pw)
-    // @TODO navigate to embassyOS
+    const loader = await this.loadingCtrl.create({
+      message: 'Setting up your Embassy'
+    })
+    await loader.present()
+
+    try {
+      await this.apiService.submitPassword(pw)
+      location.reload()
+    } catch (e) {
+    } finally {
+      loader.dismiss()
+    }
   }
 
 }
