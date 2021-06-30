@@ -10,7 +10,7 @@ import { PasswordPage } from '../password/password.page'
   styleUrls: ['home.page.scss'],
 })
 export class HomePage {
-  dataDrives = []
+  dataDrives = null
   selectedDrive: DataDrive = null
 
   constructor(
@@ -22,8 +22,16 @@ export class HomePage {
   ) {}
 
   async ngOnInit() {
+    const loader = await this.loadingCtrl.create({
+      message: 'Selecting data drive'
+    })
     if(!this.stateService.dataDrive) {
+      const loader = await this.loadingCtrl.create({
+        message: 'Fetching data drives'
+      })
+      await loader.present()
       this.dataDrives = await this.apiService.getDataDrives()
+      loader.dismiss()
     }
   }
 
@@ -61,8 +69,17 @@ export class HomePage {
   }
 
   async chooseDrive() {
-    await this.apiService.selectDataDrive(this.selectedDrive.logicalname)
-    this.stateService.dataDrive = this.selectedDrive
+    const loader = await this.loadingCtrl.create({
+      message: 'Selecting data drive'
+    })
+    await loader.present()
+    try {
+      await this.apiService.selectDataDrive(this.selectedDrive.logicalname)
+      this.stateService.dataDrive = this.selectedDrive
+    } catch (e) {
+    } finally {
+      loader.dismiss()
+    }
   }
 
   async presentPasswordModal() {
