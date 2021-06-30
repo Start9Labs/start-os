@@ -1,69 +1,41 @@
 import { Injectable } from '@angular/core'
-import { fromEvent, Observable, Subject, Subscription, timer } from 'rxjs'
-import { debounceTime, delay, retryWhen, startWith, switchMap, tap } from 'rxjs/operators'
+import { BehaviorSubject, fromEvent, merge, Observable, Subscription, timer } from 'rxjs'
+import { delay, retryWhen, switchMap, tap } from 'rxjs/operators'
 import { ApiService } from './api/api.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class ConnectionService {
-  private offlineSubscription$: Subscription
-  private onlineSubscription$: Subscription
   private httpSubscription$: Subscription
-  private readonly currentState: ConnectionState = {
-    network: true,
-    internet: true,
-  }
-  private readonly stateChangeEventEmitter = new Subject<ConnectionState>()
+  private readonly networkState$ = new BehaviorSubject<boolean>(navigator.onLine)
+  private readonly internetState$ = new BehaviorSubject<boolean | null>(null)
 
   constructor (
     private readonly apiService: ApiService,
   ) {
-    this.checkNetworkState()
-    this.checkInternetState()
-  }
-
-  ngOnDestroy (): void {
-    try {
-      this.offlineSubscription$.unsubscribe()
-      this.onlineSubscription$.unsubscribe()
-      this.httpSubscription$.unsubscribe()
-    } catch (e) {
-      console.error(e.message)
-    }
-  }
-
-  /**
-   * Monitor Network & Internet connection status by subscribing to this observer.
-   */
-  monitor$ (): Observable<ConnectionState> {
-    return this.stateChangeEventEmitter.pipe(
-      debounceTime(300),
-      startWith(this.currentState),
-    )
-  }
-
-  private checkNetworkState (): void {
-    this.onlineSubscription$ = fromEvent(window, 'online').subscribe(() => {
-      this.currentState.network = true
-      this.checkInternetState()
-      this.emitEvent()
+    merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
+    .subscribe(event => {
+      this.networkState$.next(event.type === 'online')
     })
 
-    this.offlineSubscription$ = fromEvent(window, 'offline').subscribe(() => {
-      this.currentState.network = false
-      if (this.httpSubscription$) {
-        this.httpSubscription$.unsubscribe()
+    this.networkState$
+    .subscribe(online => {
+      if (online) {
+        this.testInternet()
+      } else {
+        this.killHttp()
+        this.internetState$.next(false)
       }
-      this.emitEvent()
     })
   }
 
-  private checkInternetState (): void {
+  monitor$ (): Observable<boolean> {
+    return this.internetState$.asObservable()
+  }
 
-    if (this.httpSubscription$) {
-      this.httpSubscription$.unsubscribe()
-    }
+  private testInternet (): void {
+    this.killHttp()
 
     // ping server every 10 seconds
     this.httpSubscription$ = timer(0, 10000)
@@ -73,8 +45,7 @@ export class ConnectionService {
           errors.pipe(
             tap(val => {
               console.error('Echo error: ', val)
-              this.currentState.internet = false
-              this.emitEvent()
+              this.internetState$.next(false)
             }),
             // restart after 2 seconds
             delay(2000),
@@ -82,13 +53,15 @@ export class ConnectionService {
         ),
       )
       .subscribe(() => {
-        this.currentState.internet = true
-        this.emitEvent()
+        this.internetState$.next(true)
       })
   }
 
-  private emitEvent (): void {
-    this.stateChangeEventEmitter.next({ ...this.currentState })
+  private killHttp () {
+    if (this.httpSubscription$) {
+      this.httpSubscription$.unsubscribe()
+      this.httpSubscription$ = undefined
+    }
   }
 }
 
@@ -103,5 +76,5 @@ export class ConnectionService {
   /**
    * "True" if browser has Internet access. Determined by heartbeat system which periodically makes request to heartbeat Url.
    */
-  internet: boolean
+  internet: boolean | null
 }
