@@ -10,15 +10,6 @@ const routes: Routes = [
     path: 'recover',
     loadChildren: () => import('./pages/recover/recover.module').then( m => m.RecoverPageModule)
   },
-  {
-    path: 'password',
-    loadChildren: () => import('./pages/password/password.module').then( m => m.PasswordPageModule)
-  },
-  {
-    path: '',
-    redirectTo: 'wizard',
-    pathMatch: 'full'
-  },
 ];
 
 @NgModule({

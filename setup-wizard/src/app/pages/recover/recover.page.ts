@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
-import { AlertController, ModalController } from '@ionic/angular'
-import { ApiService, EmbassyDrive } from 'src/app/services/api/api.service'
+import { AlertController, ModalController, LoadingController } from '@ionic/angular'
+import { ApiService, RecoveryDrive } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
 
@@ -11,62 +11,33 @@ import { PasswordPage } from '../password/password.page'
 })
 export class RecoverPage {
   dataDrives = []
-  selectedDrive = null
-  selectedVersion = null
+  selectedDrive: RecoveryDrive = null
 
   constructor(
     private readonly apiService: ApiService,
     private readonly stateService: StateService,
     public alertController: AlertController,
     private modalController: ModalController,
+    private readonly loadingCtrl: LoadingController,
   ) {}
 
   async ngOnInit() {
     if(!this.stateService.recoveryDrive) {
-      this.dataDrives = await this.apiService.getEmbassyDrives()
+      this.dataDrives = await this.apiService.getRecoveryDrives()
     } else {
       this.stateService.pollDataTransferProgress()
     }
   }
 
-  selectDrive(disk: EmbassyDrive) {
-    const name = disk['logical-name']
-    const version = disk.version
-    if (name === this.selectedDrive) {
+  selectDrive(drive: RecoveryDrive) {
+    if (drive.logicalname === this.selectedDrive?.logicalname) {
       this.selectedDrive = null
-      this.selectedVersion = null
     } else {
-      this.selectedDrive = name
-      this.selectedVersion = version
+      this.selectedDrive = drive
     }
   }
 
-  async warn() {
-    const alert = await this.alertController.create({
-      cssClass: 'my-custom-class',
-      header: 'Warning!',
-      message: 'Once you select this the recovery process will begin.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-          cssClass: 'secondary',
-          handler: () => {
-            this.selectedDrive = null
-          }
-        }, {
-          text: 'Okay',
-          handler: async () => {
-            await this.chooseDisk()
-          }
-        }
-      ]
-    });
-
-    await alert.present();
-  }
-
-  async chooseDisk() {
+  async chooseDrive() {
     this.presentPasswordModal()
   }
 
@@ -75,25 +46,38 @@ export class RecoverPage {
       component: PasswordPage,
       backdropDismiss: false,
       componentProps: {
-        'version': this.selectedVersion,
+        recoveryDrive: this.selectedDrive,
       }
     })
     modal.onDidDismiss().then(ret => {
-      if(ret.data.pwValid) {
-        this.submitPWAndDisk(ret.data.password)
+      const pass = ret.data.password
+      if(pass) {
+        this.submitPWAndDrive(pass)
       }
     })
     await modal.present();
   }
 
-  async submitPWAndDisk(pw: string) {
-    await this.apiService.selectEmbassyDrive({logicalName: this.selectedDrive}, pw)
-    this.stateService.recoveryDrive = this.selectedDrive
-    this.stateService.pollDataTransferProgress()
+  async submitPWAndDrive(pw: string) {
+    const loader = await this.loadingCtrl.create({
+      message: 'Validating password'
+    })
+    await loader.present()
+
+    try {
+      await this.apiService.selectRecoveryDrive(this.selectedDrive.logicalname, pw)
+      this.stateService.recoveryDrive = this.selectedDrive
+      this.stateService.pollDataTransferProgress()
+    } catch (e) {
+    } finally {
+      loader.dismiss()
+    }
+
+
   }
 
   async navToEmbassy() {
-    // @TODO nav to embassy
+    location.reload()
   }
 
 }
