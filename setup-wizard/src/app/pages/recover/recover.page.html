@@ -10,7 +10,7 @@
     <h2 color="light">Select Data Drive</h2>
     <ion-card 
       *ngFor="let drive of dataDrives"
-      (click)="selectDrive(drive['logical-name'])"
+      (click)="selectDrive(drive)"
       button="true"
       [class.selected]="selectedDrive === drive['logical-name']"
       color="light"
@@ -30,11 +30,11 @@
     <h2>Progress: {{ 100 * stateService.dataProgress }}% <ion-spinner *ngIf="stateService.dataProgress != 1"></ion-spinner> </h2>
     <ion-progress-bar value="{{stateService.dataProgress}}"></ion-progress-bar>
     <ion-button 
-      [routerLink]="['/password']" 
+      (click)="navToEmbassy()"
       color="primary" 
       [disabled]="stateService.dataProgress != 1"
     >
-      Next
+      Go To Embassy
     </ion-button>
   </div>
 </ion-content>

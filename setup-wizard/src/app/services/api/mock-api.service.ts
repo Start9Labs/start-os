@@ -12,9 +12,8 @@ export class MockApiService extends ApiService {
   }
 
   async getState () {
-    await pauseFor(2000)
     return {
-      'selected-data-drive': null,
+      'selected-data-drive': 'page1',
       'recovery-drive': null,
       'has-password': false,
       'data-transfer-progress': null
@@ -74,4 +73,4 @@ export class MockApiService extends ApiService {
   }
 }
 
-let tries = 4
+let tries = 2
