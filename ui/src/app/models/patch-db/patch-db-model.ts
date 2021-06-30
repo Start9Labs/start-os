@@ -36,11 +36,10 @@ export class PatchDbModel {
           this.bootstrapper.update(cache)
         },
         error: e => {
-          console.error('Critical, patch-db-sync sub error', e)
-          this.start()
+          console.error('patch-db-sync sub ERROR', e)
         },
         complete: () => {
-          console.error('Critical, patch-db-sync sub complete')
+          console.error('patch-db-sync sub COMPLETE')
         },
       })
     } catch (e) {

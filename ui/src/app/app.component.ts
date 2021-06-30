@@ -3,7 +3,7 @@ import { Storage } from '@ionic/storage'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/api.service'
 import { Router, RoutesRecognized } from '@angular/router'
-import { distinctUntilChanged, filter, finalize, map, takeWhile } from 'rxjs/operators'
+import { distinctUntilChanged, filter, finalize, takeWhile } from 'rxjs/operators'
 import { AlertController, ToastController } from '@ionic/angular'
 import { LoaderService } from './services/loader.service'
 import { Emver } from './services/emver.service'
@@ -84,7 +84,7 @@ export class AppComponent {
         this.showMenu = true
         this.patch.start()
         // watch network
-        this.watchNetwork(auth)
+        this.watchConnection(auth)
         // watch router to highlight selected menu item
         this.watchRouter(auth)
         // watch status to display/hide maintenance page
@@ -106,14 +106,14 @@ export class AppComponent {
     })
   }
 
-  private watchNetwork (auth: AuthState): void {
+  private watchConnection (auth: AuthState): void {
     this.connectionService.monitor$()
     .pipe(
       distinctUntilChanged(),
       takeWhile(() => auth === AuthState.VERIFIED),
     )
-    .subscribe(c => {
-      if (!c.network || !c.internet) {
+    .subscribe(internet => {
+      if (!internet) {
         this.presentToastOffline()
       } else {
         if (this.offlineToast) {
@@ -121,7 +121,7 @@ export class AppComponent {
           this.offlineToast = undefined
         }
       }
-      console.log('CONNECTION CHANGED', c)
+      console.log('INTERNET CONNECTION', internet)
     })
   }
 
