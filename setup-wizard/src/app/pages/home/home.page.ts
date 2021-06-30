@@ -1,7 +1,8 @@
 import { Component } from '@angular/core'
-import { AlertController } from '@ionic/angular'
+import { AlertController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
+import { PasswordPage } from '../password/password.page'
 
 @Component({
   selector: 'home',
@@ -16,6 +17,7 @@ export class HomePage {
     private readonly apiService: ApiService,
     private readonly stateService: StateService,
     private readonly alertController: AlertController,
+    private modalController: ModalController,
   ) {}
 
   async ngOnInit() {
@@ -60,6 +62,27 @@ export class HomePage {
   async chooseDisk() {
     await this.apiService.selectStorageDisk({logicalName: this.selectedDrive})
     this.stateService.selectedDataDrive = this.selectedDrive
+  }
+
+  async presentPasswordModal() {
+    const modal = await this.modalController.create({
+      component: PasswordPage,
+      backdropDismiss: false,
+      componentProps: {
+        'version': null,
+      }
+    })
+    modal.onDidDismiss().then(ret => {
+      if(ret.data.pwValid) {
+        this.submitPassword(ret.data.password)
+      }
+    })
+    await modal.present();
+  }
+
+  async submitPassword (pw: string) {
+    await this.apiService.submitPassword(pw)
+    // @TODO navigate to embassyOS
   }
 
 }

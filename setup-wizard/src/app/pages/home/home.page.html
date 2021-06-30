@@ -10,7 +10,7 @@
     <h2 color="light">Select Data Drive</h2>
     <ion-card 
       *ngFor="let drive of dataDrives"
-      (click)="selectDrive(drive['logical-name'])"
+      (click)="selectDrive(drive)"
       button="true"
       [class.selected]="selectedDrive === drive['logical-name']"
       color="light"
@@ -28,7 +28,7 @@
   </div>
   <div *ngIf="stateService.selectedDataDrive">
     <ion-card
-      [routerLink]="['/password']"
+      (click)="presentPasswordModal()"
       button="true"
       color="light"
     >
