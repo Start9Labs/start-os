@@ -10,7 +10,7 @@ import { PasswordPage } from '../password/password.page'
   styleUrls: ['recover.page.scss'],
 })
 export class RecoverPage {
-  dataDrives = []
+  dataDrives = null
   selectedDrive: RecoveryDrive = null
 
   constructor(
@@ -23,7 +23,13 @@ export class RecoverPage {
 
   async ngOnInit() {
     if(!this.stateService.recoveryDrive) {
+      const loader = await this.loadingCtrl.create({
+        message: 'Fetching recovery drives'
+      })
+      await loader.present()
       this.dataDrives = await this.apiService.getRecoveryDrives()
+
+      loader.dismiss()
     } else {
       this.stateService.pollDataTransferProgress()
     }
