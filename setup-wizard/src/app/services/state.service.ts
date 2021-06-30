@@ -1,38 +1,37 @@
-import { Injectable } from "@angular/core";
-import { ApiService } from "./api/api.service"
+import { Injectable } from '@angular/core'
+import { ApiService, DataDrive, RecoveryDrive } from './api/api.service'
 
 @Injectable({
   providedIn: 'root'
 })
 export class StateService {
-  loading = true
+  loading = true;
 
-  selectedDataDrive: string
-  recoveryDrive: string
-  hasPassword: Boolean
-  dataTransferProgress: { bytesTransfered: number, totalBytes: number } | null
-  dataProgress = 0
+  dataDrive: DataDrive;
+  recoveryDrive: RecoveryDrive;
+  dataTransferProgress: { bytesTransfered: number; totalBytes: number } | null;
+  dataProgress = 0;
 
-  constructor (
+  constructor(
     private readonly apiService: ApiService
   ) {}
 
-  async getState () {
+  async getState() {
     const state = await this.apiService.getState()
     if(state) {
-      this.selectedDataDrive = state['selected-data-drive']
+      this.dataDrive = state['data-drive']
       this.recoveryDrive = state['recovery-drive']
-      this.hasPassword = state['has-password']
-  
+
       this.loading = false
     }
   }
 
-  async pollDataTransferProgress () {
+  async pollDataTransferProgress() {
     if (
-      this.dataTransferProgress?.totalBytes && 
+      this.dataTransferProgress?.totalBytes &&
       this.dataTransferProgress.bytesTransfered === this.dataTransferProgress.totalBytes
     ) {return }
+    
     const progress = await this.apiService.getDataTransferProgress()
     this.dataTransferProgress = {
       bytesTransfered: progress['bytes-transfered'],
@@ -46,6 +45,7 @@ export class StateService {
   }
 }
 
-export function pauseFor (ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
+export const pauseFor = (ms: number) => {
+  const promise = new Promise(resolve => setTimeout(resolve, ms))
+  return promise
+};

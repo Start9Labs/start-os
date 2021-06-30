@@ -3,9 +3,6 @@
     <h2 color="light">Connecting to Embassy</h2>
   </ion-content>
   <ng-template #loaded>
-    <ion-content *ngIf="error">
-      <h2 color="light">{{ error }}</h2>
-    </ion-content>
-    <ion-router-outlet *ngIf="!error"></ion-router-outlet>
+    <ion-router-outlet></ion-router-outlet>
   </ng-template>
 </ion-app>
