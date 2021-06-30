@@ -7,7 +7,7 @@ export abstract class ApiService {
   abstract getStorageDisks (): Promise<StorageDisk[]>
   abstract selectStorageDisk (disk: { logicalName: string }): Promise<void>
   abstract getEmbassyDrives (): Promise<EmbassyDrive[]>
-  abstract selectEmbassyDrive (disk: { logicalName: string }): Promise<void>
+  abstract selectEmbassyDrive (disk: { logicalName: string }, password: string): Promise<void>
   abstract getDataTransferProgress () : Promise<TransferProgress>
   abstract submitPassword (password: string) : Promise<void>
 }
