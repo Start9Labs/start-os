@@ -1,20 +1,20 @@
-import { Component } from '@angular/core';
-import { NavController, ToastController } from '@ionic/angular';
-import { ApiService } from './services/api/api.service';
-import { StateService } from './services/state.service';
+import { Component, OnInit } from '@angular/core'
+import { NavController, ToastController } from '@ionic/angular'
+import { ApiService } from './services/api/api.service'
+import { StateService } from './services/state.service'
 
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
 
   constructor(
     private readonly apiService: ApiService,
     private readonly stateService: StateService,
     private readonly navCtrl: NavController,
-    public toastController: ToastController
+    private readonly toastController: ToastController
   ) {
     this.apiService.watchError$.subscribe(error => {
       if(error) {
@@ -25,12 +25,10 @@ export class AppComponent {
 
   async ngOnInit() {
     await this.stateService.getState()
-    if (!this.stateService.selectedDataDrive) {
-      await this.navCtrl.navigateForward(`/wizard`)
-    } else if(this.stateService.hasPassword) {
-      //redirect to embassyOS
-    } else if (this.stateService.recoveryDrive) {
+    if (this.stateService.recoveryDrive) {
       await this.navCtrl.navigateForward(`/recover`)
+    } else {
+      await this.navCtrl.navigateForward(`/wizard`)
     }
   }
 
@@ -45,9 +43,9 @@ export class AppComponent {
           role: 'cancel',
         }
       ]
-    });
-    await toast.present();
+    })
+    await toast.present()
 
-    await toast.onDidDismiss();
+    await toast.onDidDismiss()
   }
 }

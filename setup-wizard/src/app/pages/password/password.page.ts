@@ -1,5 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
+import { RecoveryDrive } from 'src/app/services/api/api.service'
 
 @Component({
   selector: 'password',
@@ -7,9 +8,9 @@ import { ModalController } from '@ionic/angular'
   styleUrls: ['password.page.scss'],
 })
 export class PasswordPage {
-  @Input() version: string | null
+  @Input() recoveryDrive: RecoveryDrive
 
-  needsVer = true
+  needsVer: boolean
 
   error = ''
   password = ''
@@ -20,27 +21,20 @@ export class PasswordPage {
   ) {}
 
   ngOnInit() {
-    this.needsVer = !this.version?.startsWith('0.3')
-    console.log('needs', this.needsVer)
+    this.needsVer = !!this.recoveryDrive && !this.recoveryDrive.version.startsWith('0.2')
   }
 
   async submitPassword () {
-    if (this.needsVer && this.password !== this.passwordVer) {
+    if (!this.needsVer && this.password !== this.passwordVer) {
       this.error="*passwords dont match"
     } else {
-      this.dismiss(true)
+      this.modalController.dismiss({
+        password: this.password,
+      })
     }
   }
 
   cancel () {
-    this.dismiss(false)
+    this.modalController.dismiss()
   }
-
-  dismiss(submitted: boolean) {
-    this.modalController.dismiss({
-      pwValid: submitted,
-      pw: this.password
-    });
-  }
-
 }

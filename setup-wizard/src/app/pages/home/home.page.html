@@ -6,17 +6,17 @@
   </ion-toolbar>
 </ion-header>
 <ion-content>
-  <div *ngIf="!stateService.selectedDataDrive">
+  <div *ngIf="!stateService.dataDrive">
     <h2 color="light">Select Data Drive</h2>
     <ion-card 
       *ngFor="let drive of dataDrives"
       (click)="selectDrive(drive)"
       button="true"
-      [class.selected]="selectedDrive === drive['logical-name']"
+      [class.selected]="selectedDrive?.logicalname === drive.logicalname"
       color="light"
     >
       <ion-card-header>
-        <ion-card-title>{{drive["logical-name"]}}</ion-card-title>
+        <ion-card-title>{{drive.logicalname}}</ion-card-title>
         <ion-card-subtitle>{{drive.labels}}</ion-card-subtitle>
       </ion-card-header>
     
@@ -26,7 +26,7 @@
     </ion-card>
     <ion-button (click)="warn()" color="primary" [disabled]="!selectedDrive">Next</ion-button>
   </div>
-  <div *ngIf="stateService.selectedDataDrive">
+  <div *ngIf="stateService.dataDrive">
     <ion-card
       (click)="presentPasswordModal()"
       button="true"
