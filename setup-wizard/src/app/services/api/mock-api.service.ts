@@ -14,14 +14,16 @@ export class MockApiService extends ApiService {
   async getState() {
     await pauseFor(2000)
     return {
-      'data-drive': null,
-      // {
-      //   logicalname: 'name1',
-      //   labels: ['label 1', 'label 2'],
-      //   capacity: 1600,
-      //   used: 200,
-      // },
-      'recovery-drive': null,
+      'data-drive': 
+      // null,
+      {
+        logicalname: 'name1',
+        labels: ['label 1', 'label 2'],
+        capacity: 1600,
+        used: 200,
+      },
+      'recovery-drive': 
+      null,
       // {
       //   logicalname: 'name1',
       //   version: '0.3.3',

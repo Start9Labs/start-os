@@ -27,6 +27,8 @@ export class StateService {
   }
 
   async pollDataTransferProgress() {
+    await pauseFor(7000)
+
     if (
       this.dataTransferProgress?.totalBytes &&
       this.dataTransferProgress.bytesTransfered === this.dataTransferProgress.totalBytes
@@ -40,7 +42,6 @@ export class StateService {
     if (this.dataTransferProgress.totalBytes) {
       this.dataProgress = this.dataTransferProgress.bytesTransfered / this.dataTransferProgress.totalBytes
     }
-    await pauseFor(7000)
     this.pollDataTransferProgress()
   }
 }

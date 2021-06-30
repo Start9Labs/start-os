@@ -6,25 +6,31 @@
   </ion-toolbar>
 </ion-header>
 <ion-content>
-  <div *ngIf="!stateService.dataDrive">
-    <h2 color="light">Select Data Drive</h2>
-    <ion-card 
-      *ngFor="let drive of dataDrives"
-      (click)="selectDrive(drive)"
-      button="true"
-      [class.selected]="selectedDrive?.logicalname === drive.logicalname"
-      color="light"
-    >
-      <ion-card-header>
-        <ion-card-title>{{drive.logicalname}}</ion-card-title>
-        <ion-card-subtitle>{{drive.labels}}</ion-card-subtitle>
-      </ion-card-header>
-    
-      <ion-card-content>
-        Currently using {{drive.used}} out of {{drive.capacity}} bytes.
-      </ion-card-content>
-    </ion-card>
-    <ion-button (click)="warn()" color="primary" [disabled]="!selectedDrive">Next</ion-button>
+  <div *ngIf="!stateService.dataDrive && dataDrives">
+    <div *ngIf="!dataDrives.length">
+      <h2 color="light">No data drives found</h2>
+      <p color="light">Please connect a data drive to your embassy and refresh the page.</p>
+    </div>
+    <div *ngIf="dataDrives.length">
+      <h2 color="light">Select Data Drive</h2>
+      <ion-card 
+        *ngFor="let drive of dataDrives"
+        (click)="selectDrive(drive)"
+        button="true"
+        [class.selected]="selectedDrive?.logicalname === drive.logicalname"
+        color="light"
+      >
+        <ion-card-header>
+          <ion-card-title>{{drive.logicalname}}</ion-card-title>
+          <ion-card-subtitle>{{drive.labels}}</ion-card-subtitle>
+        </ion-card-header>
+      
+        <ion-card-content>
+          Currently using {{drive.used}} out of {{drive.capacity}} bytes.
+        </ion-card-content>
+      </ion-card>
+      <ion-button (click)="warn()" color="primary" [disabled]="!selectedDrive">Next</ion-button>
+    </div>
   </div>
   <div *ngIf="stateService.dataDrive">
     <ion-card
