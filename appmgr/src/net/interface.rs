@@ -9,6 +9,7 @@ use torut::onion::TorSecretKeyV3;
 use crate::db::model::{InterfaceAddressMap, InterfaceAddresses, InterfaceInfo};
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
+use crate::util::Port;
 use crate::Error;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -99,7 +100,7 @@ impl<S: AsRef<str>> AsRef<Path> for InterfaceId<S> {
 #[serde(rename_all = "kebab-case")]
 pub struct Interface {
     pub tor_config: Option<TorConfig>,
-    pub lan_config: Option<IndexMap<u16, LanPortConfig>>,
+    pub lan_config: Option<IndexMap<Port, LanPortConfig>>,
     pub ui: bool,
     pub protocols: Vec<String>,
 }
@@ -107,7 +108,7 @@ pub struct Interface {
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct TorConfig {
-    pub port_mapping: IndexMap<u16, u16>,
+    pub port_mapping: IndexMap<Port, Port>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

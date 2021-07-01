@@ -20,8 +20,11 @@ pub mod reader;
 pub const SIG_CONTEXT: &'static [u8] = b"s9pk";
 
 #[command(cli_only, display(display_none), blocking)]
-pub fn pack(#[context] _ctx: EitherContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
+pub fn pack(#[context] ctx: EitherContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
     use std::fs::File;
+    use std::io::Read;
+
+    let ctx = ctx.as_cli().unwrap();
 
     let path = if let Some(path) = path {
         path
@@ -44,12 +47,40 @@ pub fn pack(#[context] _ctx: EitherContext, #[arg] path: Option<PathBuf>) -> Res
     S9pkPacker::builder()
         .manifest(&manifest)
         .writer(&mut outfile)
-        .license(File::open(path.join(manifest.assets.license_path()))?)
-        .icon(File::open(path.join(manifest.assets.icon_path()))?)
-        .instructions(File::open(path.join(manifest.assets.instructions_path()))?)
-        .docker_images(File::open(path.join(manifest.assets.docker_images_path()))?)
+        .license(
+            File::open(path.join(manifest.assets.license_path())).with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    manifest.assets.license_path().display().to_string(),
+                )
+            })?,
+        )
+        .icon(
+            File::open(path.join(manifest.assets.icon_path())).with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    manifest.assets.icon_path().display().to_string(),
+                )
+            })?,
+        )
+        .instructions(
+            File::open(path.join(manifest.assets.instructions_path())).with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    manifest.assets.instructions_path().display().to_string(),
+                )
+            })?,
+        )
+        .docker_images(
+            File::open(path.join(manifest.assets.docker_images_path())).with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    manifest.assets.docker_images_path().display().to_string(),
+                )
+            })?,
+        )
         .build()
-        .pack()?;
+        .pack(&ctx.developer_key()?)?;
     outfile.sync_all()?;
 
     Ok(())

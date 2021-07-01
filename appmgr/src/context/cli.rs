@@ -1,8 +1,10 @@
 use std::fs::File;
+use std::io::Read;
 use std::net::IpAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use anyhow::anyhow;
 use clap::ArgMatches;
 use reqwest::Proxy;
 use rpc_toolkit::reqwest::{Client, Url};
@@ -11,15 +13,17 @@ use rpc_toolkit::Context;
 use serde::Deserialize;
 
 use super::rpc::RpcContextConfig;
-use crate::ResultExt;
+use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct CliContextConfig {
     #[serde(deserialize_with = "deserialize_host")]
     pub host: Option<Host>,
     pub port: Option<u16>,
     #[serde(deserialize_with = "crate::util::deserialize_from_str_opt")]
     pub proxy: Option<Url>,
+    pub developer_key_path: Option<PathBuf>,
     #[serde(flatten)]
     pub server_config: RpcContextConfig,
 }
@@ -29,13 +33,15 @@ pub struct CliContextSeed {
     pub host: Host,
     pub port: u16,
     pub client: Client,
+    pub developer_key_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
 pub struct CliContext(Arc<CliContextSeed>);
 impl CliContext {
+    /// BLOCKING
     pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
-        let cfg_path = Path::new(crate::CONFIG_PATH);
+        let cfg_path = Path::new(matches.value_of("config").unwrap_or(crate::CONFIG_PATH));
         let mut base = if cfg_path.exists() {
             serde_yaml::from_reader(
                 File::open(cfg_path)
@@ -76,7 +82,28 @@ impl CliContext {
             } else {
                 Client::new()
             },
+            developer_key_path: base.developer_key_path.unwrap_or_else(|| {
+                cfg_path
+                    .parent()
+                    .unwrap_or(Path::new("/"))
+                    .join(".developer_key")
+            }),
         })))
+    }
+    /// BLOCKING
+    pub fn developer_key(&self) -> Result<ed25519_dalek::Keypair, Error> {
+        if !self.developer_key_path.exists() {
+            return Err(Error::new(anyhow!("Developer Key does not exist! Please run `embassy-sdk init` before running this command."), crate::ErrorKind::Uninitialized));
+        }
+        let mut keypair_buf = [0; ed25519_dalek::KEYPAIR_LENGTH];
+        File::open(&self.developer_key_path)?.read_exact(&mut keypair_buf)?;
+        Ok(ed25519_dalek::Keypair::from_bytes(&keypair_buf)?)
+    }
+}
+impl std::ops::Deref for CliContext {
+    type Target = CliContextSeed;
+    fn deref(&self) -> &Self::Target {
+        &*self.0
     }
 }
 impl Context for CliContext {
