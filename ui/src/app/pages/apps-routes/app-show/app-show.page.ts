@@ -23,10 +23,12 @@ export class AppShowPage {
   error: string
   pkgId: string
   pkg: PackageDataEntry
-  pkgSub: Subscription
   hideLAN: boolean
   buttons: Button[] = []
   manifest: Manifest = { } as Manifest
+  connected: boolean
+
+  subs: Subscription[] = []
 
   FeStatus = FEStatus
   PackageState = PackageState
@@ -49,10 +51,13 @@ export class AppShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.pkgSub = this.patch.watch$('package-data', this.pkgId).subscribe(pkg => {
-      this.pkg = pkg
-      this.manifest = getManifest(this.pkg)
-    })
+    this.subs = [
+      this.patch.watch$('package-data', this.pkgId).subscribe(pkg => {
+        this.pkg = pkg
+        this.manifest = getManifest(this.pkg)
+      }),
+      this.patch.connected$().subscribe(c => this.connected = c),
+    ]
     this.setButtons()
   }
 
@@ -61,7 +66,7 @@ export class AppShowPage {
   }
 
   async ngOnDestroy () {
-    this.pkgSub.unsubscribe()
+    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   launchUiTab (): void {
