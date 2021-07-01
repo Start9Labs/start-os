@@ -1,11 +1,6 @@
 import { HealthCheckResultLoading, MainStatusRunning, PackageDataEntry, PackageMainStatus, PackageState, Status } from '../models/patch-db/data-model'
-import { ConnectionState } from './connection.service'
 
-export function renderPkgStatus (pkg: PackageDataEntry, connection: ConnectionState): PkgStatusRendering {
-  if (!connection.network || !connection.internet) {
-    return { display: 'Connecting', color: 'medium', showDots: true, feStatus: FEStatus.Connecting }
-  }
-
+export function renderPkgStatus (pkg: PackageDataEntry): PkgStatusRendering {
   switch (pkg.state) {
     case PackageState.Installing: return { display: 'Installing', color: 'primary', showDots: true, feStatus: FEStatus.Installing }
     case PackageState.Updating: return { display: 'Updating', color: 'primary', showDots: true, feStatus: FEStatus.Updating }
