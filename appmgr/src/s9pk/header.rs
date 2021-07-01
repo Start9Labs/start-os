@@ -10,6 +10,7 @@ use crate::Error;
 pub const MAGIC: [u8; 2] = [59, 59];
 pub const VERSION: u8 = 1;
 
+#[derive(Debug)]
 pub struct Header {
     pub pubkey: PublicKey,
     pub signature: Signature,
@@ -76,14 +77,11 @@ pub struct TableOfContents {
 }
 impl TableOfContents {
     pub fn serialize<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
-        let len: u32 = 16 // size of FileSection
-            * (
-                1 + // manifest
-                1 + // license
-                1 + // instructions
-                1 + // icon
-                1 // docker_images
-            );
+        let len: u32 = ((1 + "manifest".len() + 16)
+            + (1 + "license".len() + 16)
+            + (1 + "instructions".len() + 16)
+            + (1 + "icon".len() + 16)
+            + (1 + "docker_images".len() + 16)) as u32;
         writer.write_all(&u32::to_be_bytes(len))?;
         self.manifest.serialize_entry("manifest", &mut writer)?;
         self.license.serialize_entry("license", &mut writer)?;
@@ -153,7 +151,8 @@ impl FileSection {
         if read == 0 {
             return Ok(None);
         }
-        let label = vec![0; label_len[0] as usize];
+        let mut label = vec![0; label_len[0] as usize];
+        reader.read_exact(&mut label).await?;
         let mut pos = [0; 8];
         reader.read_exact(&mut pos).await?;
         let mut len = [0; 8];

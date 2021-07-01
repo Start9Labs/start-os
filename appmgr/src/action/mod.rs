@@ -109,7 +109,7 @@ impl Action {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
 pub enum ActionImplementation {
     Docker(DockerAction),
