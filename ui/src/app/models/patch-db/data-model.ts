@@ -16,13 +16,18 @@ export interface ServerInfo {
   'lan-address': URL
   'tor-address': URL
   status: ServerStatus
-  registry: URL
+  'package-registry': URL
+  'system-registry': URL
   wifi: WiFiInfo
   'unread-notification-count': number
   specs: {
     CPU: string
     Disk: string
     Memory: string
+  }
+  'connection-addresses': {
+    tor: string[]
+    clearnet: string[]
   }
 }
 
