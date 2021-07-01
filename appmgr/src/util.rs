@@ -10,6 +10,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use clap::ArgMatches;
+use digest::Digest;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use sqlx::{Executor, Sqlite};
@@ -620,7 +621,7 @@ impl<W: std::fmt::Write> std::io::Write for FmtWriter<W> {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub enum IoFormat {
     Json,
     JsonPretty,
@@ -698,6 +699,7 @@ impl IoFormat {
                 .with_kind(crate::ErrorKind::Serialization),
         }
     }
+    /// BLOCKING
     pub fn from_reader<R: std::io::Read, T: for<'de> Deserialize<'de>>(
         &self,
         mut reader: R,
@@ -714,7 +716,9 @@ impl IoFormat {
             }
             IoFormat::Toml | IoFormat::TomlPretty => {
                 let mut s = String::new();
-                reader.read_to_string(&mut s);
+                reader
+                    .read_to_string(&mut s)
+                    .with_kind(crate::ErrorKind::Deserialization)?;
                 serde_toml::from_str(&s).with_kind(crate::ErrorKind::Deserialization)
             }
         }
@@ -807,5 +811,58 @@ impl<T> Container<T> {
     }
     pub async fn drop(&self) {
         *self.0.write().await = None;
+    }
+}
+
+pub struct HashWriter<H: Digest, W: std::io::Write> {
+    hasher: H,
+    writer: W,
+}
+impl<H: Digest, W: std::io::Write> HashWriter<H, W> {
+    pub fn new(hasher: H, writer: W) -> Self {
+        HashWriter { hasher, writer }
+    }
+    pub fn finish(self) -> (H, W) {
+        (self.hasher, self.writer)
+    }
+}
+impl<H: Digest, W: std::io::Write> std::io::Write for HashWriter<H, W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let written = self.writer.write(buf)?;
+        self.hasher.update(&buf[..written]);
+        Ok(written)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.writer.flush()
+    }
+}
+impl<H: Digest, W: std::io::Write> std::ops::Deref for HashWriter<H, W> {
+    type Target = W;
+    fn deref(&self) -> &Self::Target {
+        &self.writer
+    }
+}
+impl<H: Digest, W: std::io::Write> std::ops::DerefMut for HashWriter<H, W> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Port(pub u16);
+impl<'de> Deserialize<'de> for Port {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserialize_from_str(deserializer).map(Port)
+    }
+}
+impl Serialize for Port {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serialize_display(&self.0, serializer)
     }
 }

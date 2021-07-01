@@ -698,7 +698,7 @@ dependencies = [
  "patch-db",
  "pin-project",
  "prettytable-rs",
- "rand 0.8.4",
+ "rand 0.7.3",
  "regex",
  "reqwest",
  "rpassword",

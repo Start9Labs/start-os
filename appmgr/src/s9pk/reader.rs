@@ -67,7 +67,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<InstallProgressTracker<R>> {
 }
 impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
     pub async fn validate(&mut self) -> Result<(), Error> {
-        todo!()
+        Ok(())
     }
     pub async fn from_reader(mut rdr: R) -> Result<Self, Error> {
         let header = Header::deserialize(&mut rdr).await?;

@@ -147,7 +147,7 @@ impl TorControllerInner {
                     .port_mapping
                     .iter()
                     .map(|(external, internal)| {
-                        (*external, SocketAddr::from((config.ip, *internal)))
+                        (external.0, SocketAddr::from((config.ip, internal.0)))
                     })
                     .collect::<Vec<_>>()
                     .iter(),

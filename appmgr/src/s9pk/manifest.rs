@@ -134,6 +134,7 @@ pub struct Manifest {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Assets {
     #[serde(default)]
     pub license: Option<PathBuf>,
@@ -168,7 +169,7 @@ impl Assets {
         self.docker_images
             .as_ref()
             .map(|a| a.as_path())
-            .unwrap_or(Path::new("images.tar"))
+            .unwrap_or(Path::new("image.tar"))
     }
     pub fn instructions_path(&self) -> &Path {
         self.instructions
