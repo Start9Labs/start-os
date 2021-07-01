@@ -80,7 +80,7 @@ impl std::fmt::Display for DependencyError {
                     if !comma {
                         comma = true;
                     } else {
-                        write!(f, ", ");
+                        write!(f, ", ")?;
                     }
                     write!(f, "{} @ {} {}", check, res.time, res.result)?;
                 }

@@ -16,7 +16,7 @@ impl CharSet {
         self.0.iter().any(|r| r.0.contains(c))
     }
     pub fn gen<R: Rng>(&self, rng: &mut R) -> char {
-        let mut idx = rng.gen_range(0..self.1);
+        let mut idx = rng.gen_range(0, self.1);
         for r in &self.0 {
             if idx < r.1 {
                 return std::convert::TryFrom::try_from(

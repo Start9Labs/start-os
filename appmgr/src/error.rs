@@ -45,6 +45,7 @@ pub enum ErrorKind {
     RateLimited = 37,
     InvalidRequest = 38,
     MigrationFailed = 39,
+    Uninitialized = 40,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -89,6 +90,7 @@ impl ErrorKind {
             RateLimited => "Rate Limited",
             InvalidRequest => "Invalid Request",
             MigrationFailed => "Migration Failed",
+            Uninitialized => "Uninitialized",
         }
     }
 }
