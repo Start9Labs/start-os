@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use bollard::Docker;
 use patch_db::PatchDb;
+use reqwest::Url;
 use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
@@ -82,6 +83,14 @@ impl RpcContext {
             mdns_controller,
         });
         Ok(Self(seed))
+    }
+    pub async fn package_registry_url(&self) -> Result<Url, Error> {
+        Ok(crate::db::DatabaseModel::new()
+            .server_info()
+            .registry()
+            .get(&mut self.db.handle())
+            .await?
+            .to_owned())
     }
 }
 impl Context for RpcContext {
