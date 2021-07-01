@@ -719,12 +719,17 @@ export module Mock {
           selected: 'Goosers5G',
           connected: 'Goosers5G',
         },
-        registry: 'https://registry.start9.com',
+        'package-registry': 'https://registry.start9.com',
+        'system-registry': 'https://registry.start9.com',
         'unread-notification-count': 4,
         specs: {
           CPU: 'Cortex-A72: 4 Cores @1500MHz',
           Disk: '1TB SSD',
           Memory: '8GB',
+        },
+        'connection-addresses': {
+          tor: [],
+          clearnet: [],
         },
       },
       'package-data': {
