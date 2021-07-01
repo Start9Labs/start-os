@@ -43,7 +43,7 @@ impl Database {
                         .parse()
                         .unwrap(),
                 updating: false,
-                registry: "https://registry.start9.com".parse().unwrap(),
+                registry: "https://beta-registry-0-3.start9labs.com".parse().unwrap(),
                 unread_notification_count: 0,
             },
             package_data: AllPackageData::default(),

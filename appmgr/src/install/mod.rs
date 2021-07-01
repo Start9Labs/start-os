@@ -9,6 +9,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use anyhow::anyhow;
+use emver::VersionRange;
 use futures::TryStreamExt;
 use http::HeaderMap;
 use indexmap::{IndexMap, IndexSet};
@@ -17,6 +18,7 @@ use patch_db::{
     DbHandle, HasModel, MapModel, Model, ModelData, OptionModel, PatchDbHandle, Revision,
 };
 use reqwest::Response;
+use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -24,23 +26,48 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 
 use self::progress::{InstallProgress, InstallProgressTracker};
-use crate::context::RpcContext;
+use crate::context::{EitherContext, ExtendedContext, RpcContext};
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, StaticFiles,
 };
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{DependencyErrors, MainStatus, Status};
-use crate::util::{AsyncFileExt, Version};
-use crate::Error;
+use crate::util::{display_none, AsyncFileExt, Version};
+use crate::{Error, ResultExt};
 
 pub mod progress;
 
 pub const PKG_CACHE: &'static str = "/mnt/embassy-os/cache/packages";
 pub const PKG_PUBLIC_DIR: &'static str = "/mnt/embassy-os/public/package-data";
 
+#[command(display(display_none))]
+pub async fn install(#[context] ctx: EitherContext, #[arg] id: String) -> Result<(), Error> {
+    let rpc_ctx = ctx.as_rpc().unwrap();
+    let (pkg_id, version_str) = if let Some(split) = id.split_once("@") {
+        split
+    } else {
+        (id.as_str(), "*")
+    };
+    let version: VersionRange = version_str.parse()?;
+    let reg_url = rpc_ctx.package_registry_url().await?;
+    let (man_res, s9pk) = tokio::try_join!(
+        reqwest::get(format!(
+            "{}/packages/manifest/{}?version={}",
+            reg_url, pkg_id, version
+        )),
+        reqwest::get(format!(
+            "{}/packages/{}.s9pk?version={}",
+            reg_url, pkg_id, version
+        ))
+    )
+    .with_kind(crate::ErrorKind::Registry)?;
+    let man = man_res.json().await.with_kind(crate::ErrorKind::Registry)?;
+    download_install_s9pk(rpc_ctx, &man, s9pk).await
+}
+
 pub async fn download_install_s9pk(
-    ctx: RpcContext,
+    ctx: &RpcContext,
     temp_manifest: &Manifest,
     s9pk: Response,
 ) -> Result<(), Error> {

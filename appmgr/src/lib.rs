@@ -25,6 +25,7 @@ pub mod dependencies;
 pub mod developer;
 pub mod error;
 pub mod id;
+pub mod inspect;
 pub mod install;
 pub mod migration;
 pub mod net;
@@ -53,13 +54,21 @@ pub fn echo(#[context] _ctx: EitherContext, #[arg] message: String) -> Result<St
     echo,
     s9pk::pack,
     s9pk::verify,
-    developer::init
+    developer::init,
+    install::install,
+    inspect::inspect,
 ))]
 pub fn main_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
     Ok(ctx)
 }
 
-#[command(subcommands(version::git_info, s9pk::pack, s9pk::verify, developer::init))]
+#[command(subcommands(
+    version::git_info,
+    s9pk::pack,
+    s9pk::verify,
+    developer::init,
+    inspect::inspect
+))]
 pub fn portable_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
     Ok(ctx)
 }

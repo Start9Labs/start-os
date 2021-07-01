@@ -74,6 +74,18 @@ impl EitherContext {
             _ => None,
         }
     }
+    pub fn to_cli(self) -> Option<CliContext> {
+        match self {
+            EitherContext::Cli(a) => Some(a),
+            _ => None,
+        }
+    }
+    pub fn to_rpc(self) -> Option<RpcContext> {
+        match self {
+            EitherContext::Rpc(a) => Some(a),
+            _ => None,
+        }
+    }
 }
 impl Context for EitherContext {
     fn host(&self) -> Host<&str> {
