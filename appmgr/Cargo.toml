@@ -68,7 +68,7 @@ openssl = "0.10.30"
 patch-db = { version="*", path="../../patch-db/patch-db" }
 pin-project = "1.0.6"
 prettytable-rs = "0.8.0"
-rand = "0.8.3"
+rand = "0.7.3"
 regex = "1.4.2"
 reqwest = { version="0.11.2", features=["stream", "json"] }
 rpassword = "5.0.0"
