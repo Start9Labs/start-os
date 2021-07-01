@@ -71,7 +71,6 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
     }
     pub async fn from_reader(mut rdr: R) -> Result<Self, Error> {
         let header = Header::deserialize(&mut rdr).await?;
-        let pos = rdr.stream_position().await?;
 
         let mut hasher = Sha512::new();
         let mut buf = [0; 1024];
@@ -86,6 +85,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
         header
             .pubkey
             .verify_prehashed(hasher, Some(SIG_CONTEXT), &header.signature)?;
+        let pos = rdr.stream_position().await?;
 
         Ok(S9pkReader {
             hash_string: base32::encode(
