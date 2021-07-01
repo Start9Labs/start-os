@@ -12,7 +12,7 @@ import { LoadingOptions } from '@ionic/core'
 import { PatchDbModel } from './models/patch-db/patch-db-model'
 import { HttpService } from './services/http.service'
 import { ServerStatus } from './models/patch-db/data-model'
-import { ConnectionService } from './services/connection.service'
+import { ConnectionFailure, ConnectionService } from './services/connection.service'
 
 @Component({
   selector: 'app-root',
@@ -83,6 +83,7 @@ export class AppComponent {
         this.http.authReqEnabled = true
         this.showMenu = true
         this.patch.start()
+        this.connectionService.start()
         // watch network
         this.watchConnection(auth)
         // watch router to highlight selected menu item
@@ -95,6 +96,7 @@ export class AppComponent {
       } else if (auth === AuthState.UNVERIFIED) {
         this.http.authReqEnabled = false
         this.showMenu = false
+        this.connectionService.stop()
         this.patch.stop()
         this.storage.clear()
         this.router.navigate(['/login'], { replaceUrl: true })
@@ -107,13 +109,13 @@ export class AppComponent {
   }
 
   private watchConnection (auth: AuthState): void {
-    this.connectionService.monitor$()
+    this.connectionService.watch$()
     .pipe(
       distinctUntilChanged(),
       takeWhile(() => auth === AuthState.VERIFIED),
     )
-    .subscribe(internet => {
-      if (!internet) {
+    .subscribe(connectionFailure => {
+      if (connectionFailure !== ConnectionFailure.None) {
         this.presentToastOffline()
       } else {
         if (this.offlineToast) {
@@ -121,7 +123,6 @@ export class AppComponent {
           this.offlineToast = undefined
         }
       }
-      console.log('INTERNET CONNECTION', internet)
     })
   }
 

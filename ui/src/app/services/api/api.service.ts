@@ -1,11 +1,10 @@
 import { Subject, Observable } from 'rxjs'
-import { Http, Source, Update, Operation, Revision } from 'patch-db-client'
+import { Http, Update, Operation, Revision } from 'patch-db-client'
 import { RR } from './api-types'
 import { DataModel } from 'src/app/models/patch-db/data-model'
 import { filter } from 'rxjs/operators'
-import * as uuid from 'uuid'
 
-export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
+export abstract class ApiService implements Http<DataModel> {
   protected readonly sync = new Subject<Update<DataModel>>()
   private syncing = true
 
