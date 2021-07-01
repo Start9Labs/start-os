@@ -1,7 +1,7 @@
 import { Inject, Injectable, InjectionToken } from '@angular/core'
-import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
+import { Bootstrapper, ConnectionStatus, PatchDB, Source, Store } from 'patch-db-client'
 import { Observable, of, Subscription } from 'rxjs'
-import { catchError, debounceTime } from 'rxjs/operators'
+import { catchError, debounceTime, map } from 'rxjs/operators'
 import { DataModel } from './data-model'
 
 export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('app.config')
@@ -37,6 +37,7 @@ export class PatchDbModel {
         },
         error: e => {
           console.error('patch-db-sync sub ERROR', e)
+          this.start()
         },
         complete: () => {
           console.error('patch-db-sync sub COMPLETE')
@@ -54,7 +55,18 @@ export class PatchDbModel {
     }
   }
 
-  watch$: Store < DataModel > ['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
+  connected$ (): Observable<boolean> {
+    return this.patchDb.connectionStatus$
+    .pipe(
+      map(status => status === ConnectionStatus.Connected),
+    )
+  }
+
+  connectionStatus$ (): Observable<ConnectionStatus> {
+    return this.patchDb.connectionStatus$.asObservable()
+  }
+
+  watch$: Store<DataModel> ['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
     // console.log('WATCHING')
     return this.patchDb.store.watch$(...(args as [])).pipe(
       catchError(e => {

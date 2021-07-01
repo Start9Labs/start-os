@@ -1,80 +1,98 @@
 import { Injectable } from '@angular/core'
-import { BehaviorSubject, fromEvent, merge, Observable, Subscription, timer } from 'rxjs'
-import { delay, retryWhen, switchMap, tap } from 'rxjs/operators'
-import { ApiService } from './api/api.service'
+import { BehaviorSubject, combineLatest, fromEvent, merge, Observable, Subscription } from 'rxjs'
+import { ConnectionStatus } from '../../../../../patch-db/client/dist'
+import { DataModel } from '../models/patch-db/data-model'
+import { PatchDbModel } from '../models/patch-db/patch-db-model'
+import { HttpService, Method } from './http.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class ConnectionService {
-  private httpSubscription$: Subscription
-  private readonly networkState$ = new BehaviorSubject<boolean>(navigator.onLine)
-  private readonly internetState$ = new BehaviorSubject<boolean | null>(null)
+  private addrs: DataModel['server-info']['connection-addresses']
+  private readonly networkState$ = new BehaviorSubject<boolean>(true)
+  private readonly connectionFailure$ = new BehaviorSubject<ConnectionFailure>(ConnectionFailure.None)
+  private subs: Subscription[] = []
 
   constructor (
-    private readonly apiService: ApiService,
-  ) {
-    merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
-    .subscribe(event => {
-      this.networkState$.next(event.type === 'online')
-    })
+    private readonly httpService: HttpService,
+    private readonly patch: PatchDbModel,
+  ) { }
 
-    this.networkState$
-    .subscribe(online => {
-      if (online) {
-        this.testInternet()
-      } else {
-        this.killHttp()
-        this.internetState$.next(false)
+  watch$ () {
+    return this.connectionFailure$.asObservable()
+  }
+
+  start () {
+    this.subs = [
+      this.patch.watch$('server-info')
+      .subscribe(data => {
+        if (!data) return
+        this.addrs = data['connection-addresses'] || {
+          tor: [],
+          clearnet: [],
+        }
+      }),
+
+      merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
+      .subscribe(event => {
+        this.networkState$.next(event.type === 'online')
+      }),
+
+      combineLatest([this.networkState$, this.patch.connectionStatus$()])
+      .subscribe(async ([network, connectionStatus]) => {
+        if (connectionStatus !== ConnectionStatus.Disconnected) {
+          this.connectionFailure$.next(ConnectionFailure.None)
+        } else if (!network) {
+          this.connectionFailure$.next(ConnectionFailure.Network)
+        } else {
+          this.connectionFailure$.next(ConnectionFailure.Diagnosing)
+          const torSuccess = await this.testAddrs(this.addrs.tor)
+          if (torSuccess) {
+            this.connectionFailure$.next(ConnectionFailure.Embassy)
+          } else {
+            const clearnetSuccess = await this.testAddrs(this.addrs.clearnet)
+            if (clearnetSuccess) {
+              this.connectionFailure$.next(ConnectionFailure.Tor)
+            } else {
+              this.connectionFailure$.next(ConnectionFailure.Internet)
+            }
+          }
+        }
+      }),
+    ]
+  }
+
+  stop () {
+    this.subs.forEach(sub => {
+      sub.unsubscribe()
+    })
+    this.subs = []
+  }
+
+  private async testAddrs (addrs: string[]): Promise<boolean> {
+    if (!addrs.length) return true
+
+    const results = await Promise.all(addrs.map(async addr => {
+      try {
+        await this.httpService.httpRequest({
+          method: Method.GET,
+          url: addr,
+        })
+        return true
+      } catch (e) {
+        return false
       }
-    })
-  }
-
-  monitor$ (): Observable<boolean> {
-    return this.internetState$.asObservable()
-  }
-
-  private testInternet (): void {
-    this.killHttp()
-
-    // ping server every 10 seconds
-    this.httpSubscription$ = timer(0, 10000)
-      .pipe(
-        switchMap(() => this.apiService.echo()),
-        retryWhen(errors =>
-          errors.pipe(
-            tap(val => {
-              console.error('Echo error: ', val)
-              this.internetState$.next(false)
-            }),
-            // restart after 2 seconds
-            delay(2000),
-          ),
-        ),
-      )
-      .subscribe(() => {
-        this.internetState$.next(true)
-      })
-  }
-
-  private killHttp () {
-    if (this.httpSubscription$) {
-      this.httpSubscription$.unsubscribe()
-      this.httpSubscription$ = undefined
-    }
+    }))
+    return results.includes(true)
   }
 }
 
-/**
- * Instance of this interface is used to report current connection status.
- */
- export interface ConnectionState {
-  /**
-   * "True" if browser has network connection. Determined by Window objects "online" / "offline" events.
-   */
-  network: boolean
-  /**
-   * "True" if browser has Internet access. Determined by heartbeat system which periodically makes request to heartbeat Url.
-   */
-  internet: boolean | null
+export enum ConnectionFailure {
+  None = 'none',
+  Diagnosing = 'diagnosing',
+  Network = 'network',
+  Embassy = 'embassy',
+  Tor = 'tor',
+  Internet = 'internet',
 }

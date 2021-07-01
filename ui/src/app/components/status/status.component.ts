@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { PackageDataEntry } from 'src/app/models/patch-db/data-model'
-import { ConnectionState } from 'src/app/services/connection.service'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
+import { ConnectionStatus } from 'patch-db-client'
 
 @Component({
   selector: 'status',
@@ -10,7 +10,7 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 })
 export class StatusComponent {
   @Input() pkg: PackageDataEntry
-  @Input() connection: ConnectionState
+  @Input() connected: boolean
   @Input() size?: 'small' | 'medium' | 'large' = 'large'
   @Input() style?: string = 'regular'
   @Input() weight?: string = 'normal'
@@ -19,7 +19,7 @@ export class StatusComponent {
   showDots = false
 
   ngOnChanges () {
-    const { display, color, showDots } = renderPkgStatus(this.pkg, this.connection)
+    const { display, color, showDots } = renderPkgStatus(this.pkg)
     this.display = display
     this.color = color
     this.showDots = showDots
