@@ -3,11 +3,7 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 export interface DataModel {
   'server-info': ServerInfo
   'package-data': { [id: string]: PackageDataEntry }
-  ui: {
-    'server-name': string
-    'welcome-ack': string
-    'auto-check-updates': boolean
-  }
+  ui: UIData
 }
 
 export interface ServerInfo {
@@ -381,3 +377,9 @@ export interface InterfaceInfo {
 }
 
 export type URL = string
+
+export interface UIData {
+  'server-name': string
+  'welcome-ack': string
+  'auto-check-updates': boolean
+}

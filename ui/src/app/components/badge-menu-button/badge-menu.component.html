@@ -1,4 +1,4 @@
 <div style="position: relative; margin-right: 1vh;">
-  <ion-badge mode="md" class="md-badge" *ngIf="(badge$ | ngrxPush) && !(menuFixedOpen$ | ngrxPush)" color="danger">{{ badge$ | ngrxPush }}</ion-badge>
+  <ion-badge mode="md" class="md-badge" *ngIf="unreadCount && !sidebarOpen" color="danger">{{ unreadCount }}</ion-badge>
   <ion-menu-button color="dark"></ion-menu-button>
 </div>

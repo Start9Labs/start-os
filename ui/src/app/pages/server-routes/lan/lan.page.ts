@@ -5,6 +5,7 @@ import { ConfigService } from 'src/app/services/config.service'
 import { LoaderService } from 'src/app/services/loader.service'
 import { ApiService } from 'src/app/services/api/api.service'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { Subscription } from 'rxjs'
 
 @Component({
   selector: 'lan',
@@ -19,13 +20,14 @@ export class LANPage {
     NotTor: `For security reasons, you must setup LAN over a Tor connection. Please navigate to your Embassy Tor Address and try again.`,
   }
   readonly docsUrl = 'https://docs.start9.com/user-manual/general/lan-setup'
+  subs: Subscription[] = []
 
   constructor (
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
     private readonly loader: LoaderService,
     private readonly apiService: ApiService,
-    public readonly patch: PatchDbModel,
+    private readonly patch: PatchDbModel,
   ) { }
 
   ngOnInit () {
@@ -34,6 +36,16 @@ export class LANPage {
     } else if (!this.config.isTor()) {
       this.lanDisabled = LanSetupIssue.NOT_TOR
     }
+    this.subs = [
+      this.patch.watch$('server-info', 'lan-address')
+      .subscribe(addr => {
+        this.lanAddress = `https://${addr}`
+      }),
+    ]
+  }
+
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async refreshLAN (): Promise<void> {

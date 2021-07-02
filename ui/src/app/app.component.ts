@@ -13,6 +13,7 @@ import { PatchDbModel } from './models/patch-db/patch-db-model'
 import { HttpService } from './services/http.service'
 import { ServerStatus } from './models/patch-db/data-model'
 import { ConnectionFailure, ConnectionService } from './services/connection.service'
+import { combineLatest, merge } from 'rxjs'
 
 @Component({
   selector: 'app-root',
@@ -23,8 +24,9 @@ export class AppComponent {
   ServerStatus = ServerStatus
   showMenu = false
   selectedIndex = 0
-  untilLoaded = true
   offlineToast: HTMLIonToastElement
+  serverName: string
+  unreadCount: number
   appPages = [
     {
       title: 'Services',
@@ -59,8 +61,8 @@ export class AppComponent {
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
     private readonly toastCtrl: ToastController,
+    private readonly patch: PatchDbModel,
     readonly splitPane: SplitPaneTracker,
-    readonly patch: PatchDbModel,
   ) {
     // set dark theme
     document.body.classList.toggle('dark', true)
@@ -83,8 +85,10 @@ export class AppComponent {
         this.http.authReqEnabled = true
         this.showMenu = true
         this.patch.start()
+        // watch patch DB to display name and unread count
+        this.watchPatch()
         this.connectionService.start()
-        // watch network
+        // watch connection to display connectivity issues
         this.watchConnection(auth)
         // watch router to highlight selected menu item
         this.watchRouter(auth)
@@ -105,6 +109,17 @@ export class AppComponent {
 
     this.http.watchUnauth$().subscribe(() => {
       this.authService.setUnverified()
+    })
+  }
+
+  watchPatch (): void {
+    combineLatest([
+      this.patch.watch$('ui', 'server-name'),
+      this.patch.watch$('server-info', 'unread-notification-count'),
+    ])
+    .subscribe(([name, unread]) => {
+      this.serverName = name
+      this.unreadCount = unread
     })
   }
 
@@ -265,7 +280,7 @@ export class AppComponent {
   }
 
   splitPaneVisible (e: any) {
-    this.splitPane.menuFixedOpenOnLeft$.next(e.detail.visible)
+    this.splitPane.sidebarOpen$.next(e.detail.visible)
   }
 }
 

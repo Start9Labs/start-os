@@ -39,7 +39,7 @@
             <img class="bulb-off" *ngIf="pkg.value | displayBulb: 'off' : connected" src="assets/img/off-bulb.png"/>
 
             <ion-card-header>
-              <status *ngIf="connected" [pkg]="pkg.value" size="calc(4px + .7vw)" weight="bold"></status>
+              <status *ngIf="connected" [pkg]="pkg.value" size="calc(8px + .4vw)" weight="bold"></status>
               <ion-card-title>{{ (pkg.value | manifest).title }}</ion-card-title>
             </ion-card-header>
           </ion-card>

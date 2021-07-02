@@ -10,7 +10,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top" *ngrxLet="patch.watch$('package-data') as installedPkgs">
+<ion-content class="ion-padding-top">
   <ion-spinner *ngIf="pageLoading; else pageLoaded" class="center" name="lines" color="warning"></ion-spinner>
 
   <ng-template #pageLoaded>
@@ -43,23 +43,41 @@
       </ion-button>
     </div>
 
-    <div *ngIf="pkgsLoading; else pkgsLoaded" style="margin-top: 64px;" class="ion-text-center">
+    <div *ngIf="pkgsLoading; else loaded" style="margin-top: 64px;" class="ion-text-center">
       <ion-spinner name="lines" color="warning"></ion-spinner>
     </div>
 
-    <ng-template #pkgsLoaded>
-      <ion-grid style="margin: 0 6px;">
+    <ng-template #loaded>
+      <ion-grid>
         <ion-row>
-          <ion-col *ngFor="let pkg of pkgs" sizeXl="2" sizeLg="3" sizeMd="3" sizeSm="4" sizeXs="4">
-            <ion-card class="ion-text-center" style="margin: 0;" [routerLink]="['/marketplace', pkg.id]">
-              <img [src]="pkg.icon" style="width: 90%; margin-top: 8px;" />
-              <ion-card-header style="min-height: 70px; text-align: left;">
-                <ion-card-title>{{ pkg.title }}</ion-card-title>
-              </ion-card-header>
-              <ion-card-content style="text-align: left;">
-                {{ pkg.descriptionShort }}
-              </ion-card-content>
-            </ion-card>
+          <ion-col *ngFor="let pkg of pkgs" sizeSm="12" sizeMd="6">
+            <ion-item [routerLink]="['/marketplace', pkg.id]">
+              <ion-thumbnail slot="start">
+                <img [src]="pkg.icon" />
+              </ion-thumbnail>
+              <ion-label>
+                <h2 style="font-family: 'Montserrat';">{{ pkg.title }}</h2>
+                <p>{{ pkg.descriptionShort }}</p>
+                <ng-container *ngIf="installedPkgs[pkg.id] as pkgI">
+                  <p *ngIf="pkgI.state === PackageState.Installed">
+                    <ion-text *ngIf="(pkg.version | compareEmver : pkgI.installed.manifest.version) === 0" color="success">Installed</ion-text>
+                    <ion-text *ngIf="(pkg.version | compareEmver : pkgI.installed.manifest.version) === 1" color="warning">Update Available</ion-text>
+                  </p>
+                  <p *ngIf="pkgI.state === PackageState.Installing" style="display: flex; flex-direction: row; align-items: center;">
+                    <ion-text color="primary">Installing</ion-text>
+                    <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="primary"></ion-spinner>
+                  </p>
+                  <p *ngIf="pkgI.state === PackageState.Updating" style="display: flex; flex-direction: row; align-items: center;">
+                    <ion-text color="primary">Updating</ion-text>
+                    <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="primary"></ion-spinner>
+                  </p>
+                  <p *ngIf="pkgI.state === PackageState.Removing" style="display: flex; flex-direction: row; align-items: center;">
+                    <ion-text color="danger">Removing</ion-text>
+                    <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="danger"></ion-spinner>
+                  </p>
+                </ng-container>
+              </ion-label>
+            </ion-item>
           </ion-col>
         </ion-row>
       </ion-grid>
