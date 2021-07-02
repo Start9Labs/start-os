@@ -96,7 +96,7 @@
       <ion-item-divider>
         New in {{ pkg.manifest.version | displayEmver }}
         <ion-button [routerLink]="['notes']" style="position: absolute; right: 10px;" fill="clear" color="dark">
-          Release History
+          All Release Notes
           <ion-icon slot="end" name="arrow-forward-outline"></ion-icon>
         </ion-button>
       </ion-item-divider>
@@ -109,9 +109,7 @@
       <ion-item-divider>Description</ion-item-divider>
       <ion-item lines="none" color="transparent">
         <ion-label class="ion-text-wrap">
-          <ion-text>
-            <h5>{{ pkg.manifest.description.long }}</h5>
-          </ion-text>
+          <div id="release-notes" class="release-notes">{{ pkg.manifest.description.long }}</div>
         </ion-label>
       </ion-item>
       <!-- dependencies -->
@@ -137,14 +135,97 @@
             </ion-row>
           </ion-grid>
       </ng-container>
-
-      <!-- versions -->
-      <ion-item-divider>Additional Information</ion-item-divider>
-      <ion-item lines="none" button (click)="presentAlertVersions()" color="transparent">
-        <ion-icon color="dark" slot="start" name="file-tray-stacked-outline"></ion-icon>
-        <ion-label color="dark">Other versions</ion-label>
-      </ion-item>
     </ion-item-group>
 
+    <ion-item-divider>Additional Info</ion-item-divider>
+    <ion-card>
+      <ion-grid>
+        <ion-row>
+          <ion-col sizeSm="12" sizeMd="6">
+            <ion-item-group>
+              <ion-item detail="false">
+                <ion-label>
+                  <h2>Service ID</h2>
+                  <p>{{ pkg.manifest.id }}</p>
+                </ion-label>
+              </ion-item>
+              <ion-item detail="false">
+                <ion-label>
+                  <h2>Categories</h2>
+                  <p>{{ pkg.categories.join(', ') }}</p>
+                </ion-label>
+              </ion-item>
+              <ion-item detail="false">
+                <ion-label>
+                  <h2>Other Versions</h2>
+                  <p>Click to view other versions</p>
+                </ion-label>
+                <ion-button slot="end" fill="clear" (click)="presentAlertVersions()">
+                  <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+                </ion-button>
+              </ion-item>
+              <ion-item detail="false">
+                <ion-label>
+                  <h2>License</h2>
+                  <p>{{ pkg.manifest.license }}</p>
+                </ion-label>
+                <ion-button slot="end" fill="clear" (click)="presentModalLicense()">
+                  <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+                </ion-button>
+              </ion-item>
+            </ion-item-group>
+          </ion-col>
+          <ion-col>
+            <ion-item-group>
+              <ion-item detail="false">
+                <ion-label>
+                  <h2>Source Repository</h2>
+                  <p>{{ pkg.manifest['upstream-repo'] }}</p>
+                </ion-label>
+                <ion-button slot="end" fill="clear" [href]="pkg.manifest['upstream-repo']" target="_blank">
+                  <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+                </ion-button>
+              </ion-item>
+              <ion-item detail="false">
+                <ion-label>
+                  <h2>Wrapper Repository</h2>
+                  <p>{{ pkg.manifest['wrapper-repo'] }}</p>
+                </ion-label>
+                <ion-button slot="end" fill="clear" [href]="pkg.manifest['wrapper-repo']" target="_blank">
+                  <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+                </ion-button>
+              </ion-item>
+              <ion-item detail="false">
+                <ion-label>
+                  <h2>Support Site</h2>
+                  <p>{{ pkg.manifest['support-site'] }}</p>
+                </ion-label>
+                <ion-button slot="end" fill="clear" [href]="pkg.manifest['support-site']" target="_blank">
+                  <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+                </ion-button>
+              </ion-item>
+              <ion-item detail="false">
+                <ion-label>
+                  <h2>Marketing Site</h2>
+                  <p>{{ pkg.manifest['marketing-site'] }}</p>
+                </ion-label>
+                <ion-button slot="end" fill="clear" [href]="pkg.manifest['marketing-site']" target="_blank">
+                  <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+                </ion-button>
+              </ion-item>
+              <ion-item *ngIf="pkg.manifest['donation-url'] as donationUrl" detail="false">
+                <ion-label>
+                  <h2>Donation Site</h2>
+                  <p>{{ donationUrl }}</p>
+                </ion-label>
+                <ion-button slot="end" fill="clear" [href]="donationUrl" target="_blank">
+                  <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+                </ion-button>
+              </ion-item>
+            </ion-item-group>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </ion-card>
   </ng-container>
 </ion-content>

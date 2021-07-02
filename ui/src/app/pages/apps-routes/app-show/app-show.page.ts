@@ -239,7 +239,7 @@ export class AppShowPage {
       },
       {
         action: () => this.navCtrl.navigateForward(['properties'], { relativeTo: this.route }),
-        title: 'Values',
+        title: 'Properties',
         icon: 'briefcase-outline',
         color: 'danger',
         disabled: [],
@@ -267,7 +267,7 @@ export class AppShowPage {
       },
       {
         action: () => this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
-        title: 'Restore Backup',
+        title: 'Restore From Backup',
         icon: 'color-wand-outline',
         color: 'danger',
         disabled: [FEStatus.Connecting, FEStatus.Installing, FEStatus.Updating, FEStatus.Stopping, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],

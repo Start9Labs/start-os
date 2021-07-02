@@ -14,14 +14,14 @@ export class AppReleaseNotes {
 
   constructor (
     private readonly route: ActivatedRoute,
-    public aaService: MarketplaceService,
+    public marketplaceService: MarketplaceService,
   ) { }
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     const version = this.route.snapshot.paramMap.get('version')
-    if (!this.aaService.pkgs[this.pkgId]) {
-      this.aaService.setPkg(this.pkgId, version)
+    if (!this.marketplaceService.pkgs[this.pkgId]) {
+      this.marketplaceService.setPkg(this.pkgId, version)
     }
   }
 
