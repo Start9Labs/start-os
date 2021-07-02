@@ -40,13 +40,6 @@
   border-color: #404040;
 }
 
-.dep-badge {
-  position: absolute; width: 2.5vh;
-  height: 2.5vh;
-  border-radius: 50px;
-  left: -1vh;
-  top: -1vh;
-}
 
 .dep-issue {
   background: radial-gradient(var(--ion-color-warning) 40%, transparent)
@@ -54,4 +47,10 @@
 
 .dep-sat {
   background: radial-gradient(var(--ion-color-success) 40%, transparent)
+}
+
+ion-item-divider {
+  text-transform: uppercase;
+  margin-top: 22px;
+  font-weight: 400;
 }

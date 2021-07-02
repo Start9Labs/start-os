@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
-import { Observable } from 'rxjs'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { combineLatest, Subscription } from 'rxjs'
 
 @Component({
   selector: 'badge-menu-button',
@@ -10,14 +10,30 @@ import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 })
 
 export class BadgeMenuComponent {
-  badge$: Observable<number>
-  menuFixedOpen$: Observable<boolean>
+  unreadCount: number
+  sidebarOpen: boolean
+
+  subs: Subscription[] = []
 
   constructor (
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDbModel,
-  ) {
-    this.menuFixedOpen$ = this.splitPane.menuFixedOpenOnLeft$.asObservable()
-    this.badge$ = this.patch.watch$('server-info', 'unread-notification-count')
+  ) { }
+
+  ngOnInit () {
+    this.subs = [
+      combineLatest([
+        this.patch.watch$('server-info', 'unread-notification-count'),
+        this.splitPane.sidebarOpen$,
+      ])
+      .subscribe(([unread, menu]) => {
+        this.unreadCount = unread
+        this.sidebarOpen = menu
+      }),
+    ]
+  }
+
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
   }
 }

@@ -1,9 +1,9 @@
 <ion-app>
-  <ion-split-pane *ngIf="patch.patchDb?.store" [disabled]="!showMenu" (ionSplitPaneVisible)="splitPaneVisible($event)" contentId="main-content">
+  <ion-split-pane [disabled]="!showMenu" (ionSplitPaneVisible)="splitPaneVisible($event)" contentId="main-content">
     <ion-menu contentId="main-content" type="overlay">
       <ion-header>
         <ion-toolbar style="--background: var(--ion-background-color);">
-          <ion-title *ngIf="patch.watch$('ui', 'server-name') | ngrxPush as name; else dots">{{ name }}</ion-title>
+          <ion-title *ngIf="serverName; else dots">{{ serverName }}</ion-title>
           <ng-template #dots>
             <ion-title><ion-spinner name="dots" color="warning"></ion-spinner></ion-title>
           </ng-template>
@@ -24,7 +24,7 @@
               >
                 <ion-icon slot="start" [name]="page.icon"></ion-icon>
                 <ion-label style="font-family: 'Montserrat';">{{ page.title }}</ion-label>
-                <ion-badge *ngIf="page.url === '/notifications' && (patch.watch$('server-info', 'unread-notification-count') | ngrxPush) as badge" color="danger" style="margin-right: 3%;" [class.selected-badge]="selectedIndex == i">{{ badge }}</ion-badge>
+                <ion-badge *ngIf="page.url === '/notifications' && unreadCount" color="danger" style="margin-right: 3%;" [class.selected-badge]="selectedIndex == i">{{ unreadCount }}</ion-badge>
               </ion-item>
             </ion-menu-toggle>
           </ion-list>

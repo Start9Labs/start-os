@@ -1,13 +1,14 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
+import { AlertController, IonContent, ModalController, NavController } from '@ionic/angular'
 import { LoaderService } from 'src/app/services/loader.service'
 import { HttpErrorResponse } from '@angular/common/http'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { Action, InstalledPackageDataEntry, Manifest, PackageMainStatus } from 'src/app/models/patch-db/data-model'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
+import { Subscription } from 'rxjs'
 
 @Component({
   selector: 'app-actions',
@@ -15,7 +16,10 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
   styleUrls: ['./app-actions.page.scss'],
 })
 export class AppActionsPage {
-  pkgId: string
+  installed: InstalledPackageDataEntry
+
+  subs: Subscription[] = []
+  @ViewChild(IonContent) content: IonContent
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -25,11 +29,26 @@ export class AppActionsPage {
     private readonly loaderService: LoaderService,
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
-    public readonly patch: PatchDbModel,
+    private readonly patch: PatchDbModel,
   ) { }
 
   ngOnInit () {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    const pkgId = this.route.snapshot.paramMap.get('pkgId')
+
+    this.subs = [
+      this.patch.watch$('package-data', pkgId, 'installed')
+      .subscribe(installed => {
+        this.installed = installed
+      }),
+    ]
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
+  }
+
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async handleAction (pkg: InstalledPackageDataEntry, action: { key: string, value: Action }) {

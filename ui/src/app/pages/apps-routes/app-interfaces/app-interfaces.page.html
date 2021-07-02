@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <ng-container *ngIf="patch.watch$('package-data', pkgId) | ngrxPush as pkg">
+  <ng-container *ngIf="pkg">
 
     <ion-card style="margin-bottom: 16px;" *ngFor="let interface of pkg.installed.manifest.interfaces | keyvalue: asIsOrder">
       <ion-card-header>
