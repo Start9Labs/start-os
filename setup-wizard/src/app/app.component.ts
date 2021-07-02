@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core'
-import { NavController, ToastController } from '@ionic/angular'
+import { LoadingController, NavController, ToastController } from '@ionic/angular'
 import { ApiService } from './services/api/api.service'
 import { StateService } from './services/state.service'
 
@@ -14,7 +14,9 @@ export class AppComponent implements OnInit {
     private readonly apiService: ApiService,
     private readonly stateService: StateService,
     private readonly navCtrl: NavController,
-    private readonly toastController: ToastController
+    private readonly toastController: ToastController,
+    private readonly loadingCtrl: LoadingController,
+
   ) {
     this.apiService.watchError$.subscribe(error => {
       if(error) {
@@ -24,11 +26,19 @@ export class AppComponent implements OnInit {
   }
 
   async ngOnInit() {
-    await this.stateService.getState()
-    if (this.stateService.recoveryDrive) {
-      await this.navCtrl.navigateForward(`/recover`)
-    } else {
-      await this.navCtrl.navigateForward(`/wizard`)
+    const loader = await this.loadingCtrl.create({
+      message: 'Connecting to your Embassy'
+    })
+    await loader.present()
+    try {
+      await this.stateService.getState()
+      if (this.stateService.recoveryDrive) {
+        await this.navCtrl.navigateForward(`/recover`)
+      } else {
+        await this.navCtrl.navigateForward(`/wizard`)
+      }
+    } catch (e) {} finally {
+      loader.dismiss()
     }
   }
 

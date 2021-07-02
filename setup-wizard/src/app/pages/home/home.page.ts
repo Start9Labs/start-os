@@ -48,16 +48,18 @@ export class HomePage {
       cssClass: 'my-custom-class',
       header: 'Warning!',
       message: 'This drive will be entirely wiped of all memory.',
+      backdropDismiss: false,
       buttons: [
         {
           text: 'Cancel',
           role: 'cancel',
-          cssClass: 'secondary',
+          cssClass: 'cancel-button',
           handler: () => {
             this.selectedDrive = null
           }
         }, {
           text: 'Okay',
+          cssClass: 'okay-button',
           handler: async () => {
             await this.chooseDrive()
           }
@@ -85,7 +87,8 @@ export class HomePage {
   async presentPasswordModal() {
     const modal = await this.modalController.create({
       component: PasswordPage,
-      backdropDismiss: false
+      backdropDismiss: false,
+      cssClass: 'pw-modal',
     })
     modal.onDidDismiss().then(ret => {
       const pass = ret.data.password

@@ -1,10 +1,3 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>
-      Setup Wizard
-    </ion-title>
-  </ion-toolbar>
-</ion-header>
 <ion-content>
   <div *ngIf="!stateService.recoveryDrive && dataDrives?.length">
     <div *ngIf="!dataDrives.length">
@@ -12,8 +5,9 @@
       <p color="light">Please connect a recovery drive to your embassy and refresh the page.</p>
     </div>
     <div>
-      <h2 color="light">Select Recovery Drive</h2>
+      <h2 style="text-align: center;" color="secondary">Select Recovery Drive</h2>
       <ion-card 
+        class="wiz-card"
         *ngFor="let drive of dataDrives"
         (click)="selectDrive(drive)"
         button="true"
@@ -29,17 +23,30 @@
           Currently running {{drive.version}}
         </ion-card-content>
       </ion-card>
-      <ion-button (click)="chooseDrive()" color="primary" [disabled]="!selectedDrive">Next</ion-button>
+      <div style="width: 100%; text-align: center;;">
+        <ion-button 
+        (click)="presentPasswordModal()"
+        color="tertiary"
+        [disabled]="!selectedDrive"
+        style="text-align:center"
+        size="large"
+        >
+          Next
+        </ion-button>
+      </div>
     </div>
     
   </div>
-  <div *ngIf="stateService.recoveryDrive">
+  <div *ngIf="stateService.recoveryDrive" style="width: 100%; text-align: center;">
+    <h2>Recovering Your Embassy</h2>
+    <ion-progress-bar style="max-width: 700px; margin: auto;" value="{{stateService.dataProgress}}"></ion-progress-bar>
     <h2>Progress: {{ 100 * stateService.dataProgress }}% <ion-spinner *ngIf="stateService.dataProgress !== 1"></ion-spinner> </h2>
-    <ion-progress-bar value="{{stateService.dataProgress}}"></ion-progress-bar>
     <ion-button 
       (click)="navToEmbassy()"
-      color="primary" 
+      color="tertiary" 
       [disabled]="stateService.dataProgress !== 1"
+      style="text-align:center"
+      size="large"
     >
       Go To Embassy
     </ion-button>
