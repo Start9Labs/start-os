@@ -1,11 +1,11 @@
-import { Component } from '@angular/core'
-import { NavController, AlertController, ModalController, PopoverController } from '@ionic/angular'
+import { Component, ViewChild } from '@angular/core'
+import { NavController, AlertController, ModalController, PopoverController, IonContent } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
 import { isEmptyObject } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
 import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
-import { BehaviorSubject, from, fromEvent, of, Subscription } from 'rxjs'
+import { from, fromEvent, of, Subscription } from 'rxjs'
 import { catchError, concatMap, map, take, tap } from 'rxjs/operators'
 import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
@@ -26,7 +26,7 @@ export class AppConfigPage {
     { title: string, description: string, buttonText: string }
   }
 
-  loadingText$ = new BehaviorSubject(undefined)
+  loadingText: string | undefined
 
   pkg: InstalledPackageDataEntry
   hasConfig = false
@@ -45,7 +45,8 @@ export class AppConfigPage {
   spec: ConfigSpec
   config: object
 
-  subs: Subscription[]
+  @ViewChild(IonContent) content: IonContent
+  subs: Subscription[] = []
 
   constructor (
     private readonly navCtrl: NavController,
@@ -84,47 +85,50 @@ export class AppConfigPage {
           this.navCtrl.back()
         }
       }),
-    ]
-
-    this.patch.watch$('package-data', pkgId, 'installed')
-    .pipe(
-      tap(pkg => this.pkg = pkg),
-      tap(() => this.loadingText$.next(`Fetching config spec...`)),
-      concatMap(() => this.apiService.getPackageConfig({ id: pkgId })),
-      concatMap(({ spec, config }) => {
-        const rec = history.state && history.state.configRecommendation as Recommendation
-        if (rec) {
-          this.loadingText$.next(`Setting properties to accommodate ${rec.dependentTitle}...`)
-          return from(this.apiService.dryConfigureDependency({ 'dependency-id': pkgId, 'dependent-id': rec.dependentId }))
-          .pipe(
-            map(res => ({
-              spec,
-              config,
-              dependencyConfig: res,
-            })),
-            tap(() => this.rec = rec),
-            catchError(e => {
-              this.error = { text: `Could not set properties to accommodate ${rec.dependentTitle}: ${e.message}`, moreInfo: {
-                title: `${rec.dependentTitle} requires the following:`,
-                description: rec.description,
-                buttonText: 'Configure Manually',
-              } }
-              return of({ spec, config, dependencyConfig: null })
-            }),
-          )
-        } else {
-          return of({ spec, config, dependencyConfig: null })
-        }
+      this.patch.watch$('package-data', pkgId, 'installed')
+      .pipe(
+        tap(pkg => this.pkg = pkg),
+        tap(() => this.loadingText = 'Fetching config spec...'),
+        concatMap(() => this.apiService.getPackageConfig({ id: pkgId })),
+        concatMap(({ spec, config }) => {
+          const rec = history.state && history.state.configRecommendation as Recommendation
+          if (rec) {
+            this.loadingText = `Setting properties to accommodate ${rec.dependentTitle}...`
+            return from(this.apiService.dryConfigureDependency({ 'dependency-id': pkgId, 'dependent-id': rec.dependentId }))
+            .pipe(
+              map(res => ({
+                spec,
+                config,
+                dependencyConfig: res,
+              })),
+              tap(() => this.rec = rec),
+              catchError(e => {
+                this.error = { text: `Could not set properties to accommodate ${rec.dependentTitle}: ${e.message}`, moreInfo: {
+                  title: `${rec.dependentTitle} requires the following:`,
+                  description: rec.description,
+                  buttonText: 'Configure Manually',
+                } }
+                return of({ spec, config, dependencyConfig: null })
+              }),
+            )
+          } else {
+            return of({ spec, config, dependencyConfig: null })
+          }
+        }),
+        map(({ spec, config, dependencyConfig }) => this.setConfig(spec, config, dependencyConfig)),
+        tap(() => this.loadingText = undefined),
+        take(1),
+      ).subscribe({
+        error: e => {
+          console.error(e.message)
+          this.error = { text: e.message }
+        },
       }),
-      map(({ spec, config, dependencyConfig }) => this.setConfig(spec, config, dependencyConfig)),
-      tap(() => this.loadingText$.next(undefined)),
-      take(1),
-    ).subscribe({
-      error: e => {
-        console.error(e.message)
-        this.error = { text: e.message }
-      },
-    })
+    ]
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy () {

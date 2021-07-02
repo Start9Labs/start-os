@@ -12,7 +12,7 @@
 <ion-content class="ion-padding-top">
 
   <!-- loading -->
-  <ion-grid *ngIf="loadingText$ | ngrxPush as loadingText; else loaded" style="height: 100%;">
+  <ion-grid *ngIf="loadingText; else loaded" style="height: 100%;">
     <ion-row class="ion-align-items-center ion-text-center" style="height: 100%;">
       <ion-col>
         <ion-spinner name="lines" color="warning"></ion-spinner>

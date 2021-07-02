@@ -4,6 +4,11 @@
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
     <ion-title>SSH Keys</ion-title>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button (click)="presentModalAdd()">
+        <ion-icon slot="icon-only" name="add-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -16,7 +21,7 @@
 
   <ion-item-group>
     <ion-item-divider>Saved Keys</ion-item-divider>
-    <ion-item *ngFor="let ssh of sshService.watch$() | ngrxPush | keyvalue : asIsOrder">
+    <ion-item *ngFor="let ssh of sshKeys | keyvalue : asIsOrder">
       <ion-label class="ion-text-wrap">
         {{ ssh.value.alg }} {{ ssh.key }} {{ ssh.value.hostname }}
       </ion-label>
@@ -25,11 +30,5 @@
       </ion-button>
     </ion-item>
   </ion-item-group>
-
-  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
-    <ion-fab-button (click)="presentModalAdd()" class="fab-button">
-      <ion-icon name="add"></ion-icon>
-    </ion-fab-button>
-  </ion-fab>
 
 </ion-content>

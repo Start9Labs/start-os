@@ -2,7 +2,7 @@
   font-family: 'Montserrat';
   padding: 2%;
   img {
-    min-width: 16%;
+    min-width: 15%;
     max-width: 18%;
   }
   .header-text {
@@ -10,12 +10,11 @@
     display: inline-block;
     vertical-align: top;
     .header-title {
-      line-height: .65;
       margin: 0 0 0 -2px;
       font-size: calc(20px + 3vw)
     }
     .header-version {
-      padding: 12px 0;
+      padding: 4px 0 12px 0;
       margin: 0;
       font-size: calc(10px + 1vw)
     }

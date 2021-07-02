@@ -5,6 +5,7 @@ import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/
 import { DiskInfo, PartitionInfoEntry } from 'src/app/services/api/api-types'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { Subscription } from 'rxjs'
 
 @Component({
   selector: 'app-restore',
@@ -14,30 +15,44 @@ import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 export class AppRestorePage {
   disks: DiskInfo
   pkgId: string
+  title: string
   loading = true
   error: string
   allPartitionsMounted: boolean
 
   @ViewChild(IonContent) content: IonContent
+  subs: Subscription[] = []
 
   constructor (
     private readonly route: ActivatedRoute,
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
     private readonly loadingCtrl: LoadingController,
-    public readonly patch: PatchDbModel,
+    private readonly patch: PatchDbModel,
   ) { }
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+
+    this.subs = [
+      this.patch.watch$('package-data', this.pkgId, 'installed', 'manifest', 'title')
+      .subscribe(title => {
+        this.title = title
+      }),
+    ]
+
     this.getExternalDisks()
   }
 
-  async ngAfterViewInit () {
+  ngAfterViewInit () {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  async doRefresh () {
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
+  }
+
+  async refresh () {
     this.loading = true
     await this.getExternalDisks()
   }

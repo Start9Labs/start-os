@@ -1,7 +1,8 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent, ToastController } from '@ionic/angular'
-import { InstalledPackageDataEntry } from 'src/app/models/patch-db/data-model'
+import { Subscription } from 'rxjs'
+import { InstalledPackageDataEntry, PackageDataEntry } from 'src/app/models/patch-db/data-model'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { ConfigService } from 'src/app/services/config.service'
 import { copyToClipboard } from 'src/app/util/web.util'
@@ -12,23 +13,31 @@ import { copyToClipboard } from 'src/app/util/web.util'
   styleUrls: ['./app-Interfaces.page.scss'],
 })
 export class AppInterfacesPage {
-  pkgId: string
+  pkg: PackageDataEntry
 
   @ViewChild(IonContent) content: IonContent
+  subs: Subscription[] = []
 
   constructor (
     private readonly route: ActivatedRoute,
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
-    public readonly patch: PatchDbModel,
+    private readonly patch: PatchDbModel,
   ) { }
 
   ngOnInit () {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    const pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.subs = [
+      this.patch.watch$('package-data', pkgId).subscribe(pkg => this.pkg = pkg),
+    ]
   }
 
-  async ngAfterViewInit () {
+  ngAfterViewInit () {
     this.content.scrollToPoint(undefined, 1)
+  }
+
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async copy (address: string): Promise<void> {

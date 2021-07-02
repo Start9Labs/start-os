@@ -6,6 +6,7 @@ import { WifiService } from './wifi.service'
 import { LoaderService } from 'src/app/services/loader.service'
 import { WiFiInfo } from 'src/app/models/patch-db/data-model'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { Subscription } from 'rxjs'
 
 @Component({
   selector: 'wifi',
@@ -14,14 +15,29 @@ import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 })
 export class WifiListPage {
   error = ''
+  wifi: WiFiInfo
+  subs: Subscription[] = []
 
   constructor (
     private readonly apiService: ApiService,
     private readonly loader: LoaderService,
     private readonly actionCtrl: ActionSheetController,
     private readonly wifiService: WifiService,
-    public readonly patch: PatchDbModel,
+    private readonly patch: PatchDbModel,
   ) { }
+
+  ngOnInit () {
+    this.subs = [
+      this.patch.watch$('server-info', 'wifi')
+      .subscribe(wifi => {
+        this.wifi = wifi
+      }),
+    ]
+  }
+
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
+  }
 
   async presentAction (ssid: string, wifi: WiFiInfo) {
     const buttons: ActionSheetButton[] = [
