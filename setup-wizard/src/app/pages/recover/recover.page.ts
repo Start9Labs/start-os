@@ -51,6 +51,7 @@ export class RecoverPage {
     const modal = await this.modalController.create({
       component: PasswordPage,
       backdropDismiss: false,
+      cssClass: 'pw-modal',
       componentProps: {
         recoveryDrive: this.selectedDrive,
       }
