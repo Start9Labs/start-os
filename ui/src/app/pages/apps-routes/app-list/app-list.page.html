@@ -11,7 +11,7 @@
 
   <div *ngIf="pkgs | empty; else list" class="ion-text-center ion-padding">
     <div style="display: flex; flex-direction: column; justify-content: center; height: 40vh">
-      <h2>Welcome to your <span style="font-style: italic; color: var(--ion-color-start9)">Embassy</span></h2>
+      <h2>Welcome to your <span style="font-style: italic; color: var(--ion-color-danger)">Embassy</span></h2>
       <p class="ion-text-wrap">Get started by installing your first service.</p>
     </div>
     <ion-button [routerLink]="['/marketplace']" style="width: 50%;" fill="outline">
@@ -24,7 +24,7 @@
     <ion-grid>
       <ion-row>
         <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="4" sizeSm="3" sizeLg="3" sizeXl="2">
-          <ion-card class="installed-card" style="position:relative" [routerLink]="['/services', (pkg.value | manifest).id]">
+          <ion-card class="installed-card" [routerLink]="['/services', (pkg.value | manifest).id]">
             <div class="launch-container" *ngIf="pkg.value | hasUi">
               <div class="launch-button-triangle"  (click)="launchUi(pkg.value, $event)" [class.launch-disabled]="!(pkg.value | isLaunchable)">
                 <ion-icon name="rocket-outline"></ion-icon>

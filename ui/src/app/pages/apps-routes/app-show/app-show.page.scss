@@ -5,20 +5,24 @@
 .top-plate {
   background: var(--ion-item-background);
   margin: 0 16px;
+  padding: 12px;
   border-radius: 10px;
   border-style: solid;
   border-color: #373737;
+  ion-item {
+    border-radius: 10px;
+  }
 }
 
 .status-readout {
   --background: transparent;
   display: flex;
   justify-content: space-between;
-  padding: 0 10px;
+  padding: 8px 16px;
   border-radius: 10px;
   align-items: center;
   background: var(--ion-background-color);
-  margin: 10px 10px 0px 10px;
+  margin: 10px;
   border-style: solid;
   border-width: 1px;
   border-color: #404040;
@@ -38,19 +42,4 @@
   border-radius: 10px;
   border-style: solid;
   border-color: #404040;
-}
-
-
-.dep-issue {
-  background: radial-gradient(var(--ion-color-warning) 40%, transparent)
-}
-
-.dep-sat {
-  background: radial-gradient(var(--ion-color-success) 40%, transparent)
-}
-
-ion-item-divider {
-  text-transform: uppercase;
-  margin-top: 22px;
-  font-weight: 400;
 }

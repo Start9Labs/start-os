@@ -113,12 +113,8 @@ export class AppComponent {
   }
 
   watchPatch (): void {
-    combineLatest([
-      this.patch.watch$('ui', 'server-name'),
-      this.patch.watch$('server-info', 'unread-notification-count'),
-    ])
-    .subscribe(([name, unread]) => {
-      this.serverName = name
+    this.patch.watch$('server-info', 'unread-notification-count')
+    .subscribe(unread => {
       this.unreadCount = unread
     })
   }
@@ -233,7 +229,7 @@ export class AppComponent {
           side: 'end',
           text: 'View',
           handler: () => {
-            this.router.navigate(['/notifications'])
+            this.router.navigate(['/notifications'], { queryParams: { toast: true } })
           },
         },
       ],
