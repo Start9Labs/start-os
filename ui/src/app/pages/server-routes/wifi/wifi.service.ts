@@ -57,7 +57,7 @@ export class WifiService {
           },
         },
       ],
-      cssClass: 'notification-toast-error',
+      cssClass: 'notification-toast',
     })
 
     await toast.present()

@@ -3,6 +3,8 @@ import { ServerConfigService } from 'src/app/services/server-config.service'
 import { AlertController } from '@ionic/angular'
 import { LoaderService } from 'src/app/services/loader.service'
 import { SSHService } from './ssh.service'
+import { Subscription } from 'rxjs'
+import { SSHKeys } from 'src/app/services/api/api-types'
 
 @Component({
   selector: 'dev-ssh-keys',
@@ -12,18 +14,31 @@ import { SSHService } from './ssh.service'
 export class DevSSHKeysPage {
   error = ''
   loading = true
+  sshKeys: SSHKeys
+  subs: Subscription[] = []
 
   constructor (
     private readonly loader: LoaderService,
     private readonly serverConfigService: ServerConfigService,
     private readonly alertCtrl: AlertController,
-    public readonly sshService: SSHService,
+    private readonly sshService: SSHService,
   ) { }
 
-  ngOnInit () {
-    this.sshService.getKeys().then(() => {
-      this.loading = false
-    })
+  async ngOnInit () {
+    await this.sshService.getKeys()
+
+    this.subs = [
+      this.sshService.watch$()
+      .subscribe(keys => {
+        this.sshKeys = keys
+      }),
+    ]
+
+    this.loading = false
+  }
+
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async presentModalAdd () {

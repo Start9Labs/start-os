@@ -4,15 +4,15 @@
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
     <ion-title>Restore Backup</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="doRefresh()" color="primary">
-        <ion-icon slot="icon-only" name="reload-outline"></ion-icon>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button (click)="refresh()">
+        <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top" *ngIf="patch.watch$('package-data', pkgId) | ngrxPush as pkg">
+<ion-content class="ion-padding-top">
 
   <ion-grid *ngIf="loading; else loaded" style="height: 100%;">
     <ion-row class="ion-align-items-center ion-text-center" style="height: 100%;">
@@ -32,7 +32,7 @@
       <ion-label class="ion-text-wrap">
         <p><ion-text color="dark">About</ion-text></p>
         <p>
-          Select a location from which to restore {{ pkg.installed.manifest.title }}. This will overwrite all current data.
+          Select a location from which to restore {{ title }}. This will overwrite all current data.
         </p>
       </ion-label>
     </ion-item>

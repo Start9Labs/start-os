@@ -5,7 +5,8 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { PackageState } from 'src/app/models/patch-db/data-model'
+import { PackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
+import { Subscription } from 'rxjs'
 
 @Component({
   selector: 'marketplace-list',
@@ -23,6 +24,7 @@ export class MarketplaceListPage {
   data: MarketplaceData
   eos: MarketplaceEOS
   pkgs: AvailablePreview[] = []
+  installedPkgs: { [id: string]: PackageDataEntry } = { }
 
   PackageState = PackageState
 
@@ -30,14 +32,21 @@ export class MarketplaceListPage {
   needInfinite = false
   readonly perPage = 20
 
+  subs: Subscription[] = []
+
   constructor (
     private readonly apiService: ApiService,
     private readonly modalCtrl: ModalController,
     private readonly wizardBaker: WizardBaker,
-    public patch: PatchDbModel,
+    private readonly patch: PatchDbModel,
   ) { }
 
   async ngOnInit () {
+    this.subs = [
+      this.patch.watch$('package-data')
+      .subscribe(pkgs => this.installedPkgs = pkgs),
+    ]
+
     try {
       const [data, eos, pkgs] = await Promise.all([
         this.apiService.getMarketplaceData({ }),
@@ -56,6 +65,10 @@ export class MarketplaceListPage {
     }
   }
 
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
+  }
+
   async doInfinite (e: any): Promise<void> {
     const pkgs = await this.getPkgs()
     this.pkgs = this.pkgs.concat(pkgs)
@@ -65,6 +78,7 @@ export class MarketplaceListPage {
   async search (e?: any): Promise<void> {
     this.query = e.target.value || undefined
     this.page = 1
+    this.pkgsLoading = true
     this.pkgs = await this.getPkgs()
   }
 
@@ -79,7 +93,6 @@ export class MarketplaceListPage {
   }
 
   private async getPkgs (): Promise<AvailablePreview[]> {
-    this.pkgsLoading = true
     try {
       const pkgs = await this.apiService.getAvailableList({
         category: this.category,
@@ -100,6 +113,8 @@ export class MarketplaceListPage {
 
   async switchCategory (category: string): Promise<void> {
     this.category = category
+    this.pkgsLoading = true
+    this.page = 1
     this.pkgs = await this.getPkgs()
   }
 }

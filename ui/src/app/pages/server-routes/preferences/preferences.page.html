@@ -9,7 +9,7 @@
 
 <ion-content class="ion-padding-top">
 
-  <ion-item-group *ngrxLet="patch.watch$('ui') as ui">
+  <ion-item-group>
     <ion-item button (click)="presentModalValueEdit('name', ui['server-name'])">
       <ion-label>Embassy Name</ion-label>
       <ion-note slot="end">{{ ui['server-name'] }}</ion-note>

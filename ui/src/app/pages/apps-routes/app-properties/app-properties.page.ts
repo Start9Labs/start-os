@@ -1,14 +1,15 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
 import { Subscription } from 'rxjs'
 import { copyToClipboard } from 'src/app/util/web.util'
-import { AlertController, NavController, PopoverController, ToastController } from '@ionic/angular'
+import { AlertController, IonContent, NavController, PopoverController, ToastController } from '@ionic/angular'
 import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import * as JsonPointer from 'json-pointer'
 import { FEStatus } from 'src/app/services/pkg-status-rendering.service'
+import { PackageMainStatus } from 'src/app/models/patch-db/data-model'
 
 @Component({
   selector: 'app-properties',
@@ -24,8 +25,10 @@ export class AppPropertiesPage {
   properties: PackageProperties
   node: PackageProperties
   unmasked: { [key: string]: boolean } = { }
-  FeStatus = FEStatus
-  subs: Subscription[]
+  running = true
+
+  @ViewChild(IonContent) content: IonContent
+  subs: Subscription[] = []
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -48,18 +51,23 @@ export class AppPropertiesPage {
         this.pointer = queryParams['pointer']
         this.node = JsonPointer.get(this.properties, this.pointer || '')
       }),
+      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main', 'status')
+      .subscribe(status => {
+        this.running = status === PackageMainStatus.Running
+      }),
     ]
+  }
 
-    this.loading = false
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async doRefresh (event: any) {
-    await this.getProperties(),
-    event.target.complete()
+  async refresh () {
+    await this.getProperties()
   }
 
   async presentDescription (property: { key: string, value: PackageProperties[''] }, e: Event) {
@@ -114,12 +122,15 @@ export class AppPropertiesPage {
   }
 
   private async getProperties (): Promise<void> {
+    this.loading = true
     try {
       this.properties = await this.apiService.getPackageProperties({ id: this.pkgId })
       this.node = JsonPointer.get(this.properties, this.pointer || '')
     } catch (e) {
       console.error(e)
       this.error = e.message
+    } finally {
+      this.loading = false
     }
   }
 }
