@@ -58,26 +58,12 @@
   border-style: none;
 }
 
-.fab-button {
-  margin: 20px;
-  --background: transparent;
-  --border-color: var(--ion-color-primary);
-  --border-style: solid;
-  --border-width: 2px;
-}
-
 .help-button {
   margin: 0 8px 0 0;
 }
 
 .item-interactive {
   --highlight-background: transparent !important;
-}
-
-.alert-config-value {
-  .alert-message.sc-ion-alert-md {
-    color: var(--ion-color-danger) !important;
-  }
 }
 
 .center {
@@ -90,15 +76,6 @@
   --background: var(--ion-color-light);
   --button-color: var(--ion-color-dark);
   --border-color: var(--ion-color-warning);
-  --border-style: solid;
-  --border-width: 1px;
-  --color: white;
-}
-
-.notification-toast-error {
-  --background: var(--ion-color-light);
-  --button-color: var(--ion-color-dark);
-  --border-color: var(--ion-color-danger);
   --border-style: solid;
   --border-width: 1px;
   --color: white;
@@ -314,9 +291,4 @@ ion-item-divider {
 .dots-medium {
   width: 16px !important;
   height: 16px !important;
-}
-
-.dependency-item {
-  --padding-start: 20px;
-  --padding-end: 2px;
 }

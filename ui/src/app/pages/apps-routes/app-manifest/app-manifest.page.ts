@@ -1,10 +1,11 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { Subscription } from 'rxjs'
 import { PackageDataEntry } from 'src/app/models/patch-db/data-model'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { getManifest } from 'src/app/services/config.service'
 import * as JsonPointer from 'json-pointer'
+import { IonContent } from '@ionic/angular'
 
 @Component({
   selector: 'app-manifest',
@@ -12,12 +13,13 @@ import * as JsonPointer from 'json-pointer'
   styleUrls: ['./app-manifest.page.scss'],
 })
 export class AppManifestPage {
-  pkgId: string
   pkg: PackageDataEntry
   pointer: string
   node: object
-  subs: Subscription[]
   segmentValue: 'formatted' | 'raw' = 'formatted'
+
+  @ViewChild(IonContent) content: IonContent
+  subs: Subscription[] = []
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -25,10 +27,10 @@ export class AppManifestPage {
   ) { }
 
   ngOnInit () {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    const pkgId = this.route.snapshot.paramMap.get('pkgId')
 
     this.subs = [
-      this.patch.watch$('package-data', this.pkgId)
+      this.patch.watch$('package-data', pkgId)
       .subscribe(pkg => {
         this.pkg = pkg
         this.setNode()
@@ -36,6 +38,10 @@ export class AppManifestPage {
     ]
 
     this.setNode()
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy () {

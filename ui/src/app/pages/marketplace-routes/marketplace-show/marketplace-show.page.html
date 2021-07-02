@@ -19,59 +19,57 @@
       <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
     </ion-item>
 
-    <ng-container *ngrxLet="patch.watch$('package-data', pkgId) as localPkg">
-      <ion-grid>
-        <ion-row>
-          <ion-col sizeXl="9" sizeLg="9" sizeMd="9" sizeSm="12" sizeXs="12">
-            <div class="header">
-              <img [src]="pkg.icon" />
-              <div class="header-text">
-                <h1 class="header-title">{{ pkg.manifest.title }}</h1>
-                <p class="header-version">{{ pkg.manifest.version | displayEmver }}</p>
-                <div class="header-status">
-                  <!-- no localPkg -->
-                  <p *ngIf="!localPkg; else local">
-                    <ion-text color="medium">Not Installed</ion-text>
+    <ion-grid>
+      <ion-row>
+        <ion-col sizeXl="9" sizeLg="9" sizeMd="9" sizeSm="12" sizeXs="12">
+          <div class="header">
+            <img [src]="pkg.icon" />
+            <div class="header-text">
+              <h1 class="header-title">{{ pkg.manifest.title }}</h1>
+              <p class="header-version">{{ pkg.manifest.version | displayEmver }}</p>
+              <div class="header-status">
+                <!-- no installedPkg -->
+                <p *ngIf="!installedPkg; else local">
+                  <ion-text color="medium">Not Installed</ion-text>
+                </p>
+                <!-- installedPkg -->
+                <ng-template #local>
+                  <p *ngIf="installedPkg.state !== PackageState.Installed; else installed">
+                    <!-- installing, updating, removing -->
+                    <ion-text [color]="installedPkg.state === PackageState.Removing ? 'danger' : 'primary'">{{ installedPkg.state }}</ion-text>
+                    <ion-spinner class="dots dots-medium" name="dots" [color]="installedPkg.state === PackageState.Removing ? 'danger' : 'primary'"></ion-spinner>
                   </p>
-                  <!-- localPkg -->
-                  <ng-template #local>
-                    <p *ngIf="localPkg.state !== PackageState.Installed; else installed">
-                      <!-- installing, updating, removing -->
-                      <ion-text [color]="localPkg.state === PackageState.Removing ? 'danger' : 'primary'">{{ localPkg.state }}</ion-text>
-                      <ion-spinner class="dots dots-medium" name="dots" [color]="localPkg.state === PackageState.Removing ? 'danger' : 'primary'"></ion-spinner>
+                  <!-- installed -->
+                  <ng-template #installed>
+                    <p>
+                      <ion-text color="medium">Installed at {{ installedPkg.installed.manifest.version | displayEmver }}</ion-text>
                     </p>
-                    <!-- installed -->
-                    <ng-template #installed>
-                      <p>
-                        <ion-text color="medium">Installed at {{ localPkg.installed.manifest.version | displayEmver }}</ion-text>
-                      </p>
-                    </ng-template>
                   </ng-template>
-                </div>
+                </ng-template>
               </div>
             </div>
-          </ion-col>
-          <ion-col sizeXl="3" sizeLg="3" sizeMd="3" sizeSm="12" sizeXs="12" class="ion-align-self-center">
-            <!-- no localPkg -->
-            <ion-button *ngIf="!localPkg; else localPkg2" class="main-action-button" expand="block" (click)="install()">
-              Install
-            </ion-button>
-            <!-- localPkg -->
-            <ng-template #localPkg2>
-              <!-- not installing, updating, or removing -->
-              <ng-container *ngIf="localPkg.state === PackageState.Installed">
-                <ion-button *ngIf="(localPkg.installed.manifest.version | compareEmver : pkg.manifest.version) === -1" class="main-action-button" expand="block" (click)="update('update')">
-                  Update
-                </ion-button>
-                <ion-button *ngIf="(localPkg.installed.manifest.version | compareEmver : pkg.manifest.version) === 1" class="main-action-button" expand="block" color="warning" (click)="update('downgrade')">
-                  Downgrade
-                </ion-button>
-              </ng-container>
-            </ng-template>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
-    </ng-container>
+          </div>
+        </ion-col>
+        <ion-col sizeXl="3" sizeLg="3" sizeMd="3" sizeSm="12" sizeXs="12" class="ion-align-self-center">
+          <!-- no installedPkg -->
+          <ion-button *ngIf="!installedPkg; else installedPkg2" class="main-action-button" expand="block" (click)="install()">
+            Install
+          </ion-button>
+          <!-- installedPkg -->
+          <ng-template #installedPkg2>
+            <!-- not installing, updating, or removing -->
+            <ng-container *ngIf="installedPkg.state === PackageState.Installed">
+              <ion-button *ngIf="(installedPkg.installed.manifest.version | compareEmver : pkg.manifest.version) === -1" class="main-action-button" expand="block" (click)="update('update')">
+                Update
+              </ion-button>
+              <ion-button *ngIf="(installedPkg.installed.manifest.version | compareEmver : pkg.manifest.version) === 1" class="main-action-button" expand="block" color="warning" (click)="update('downgrade')">
+                Downgrade
+              </ion-button>
+            </ng-container>
+          </ng-template>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
 
     <!-- recommendation -->
     <ion-item *ngIf="rec && showRec" class="rec-item">
@@ -121,24 +119,20 @@
         <ion-item-divider>Dependencies</ion-item-divider>
           <ion-grid>
             <ion-row>
-              <ion-col *ngFor="let dep of pkg.manifest.dependencies | keyvalue" sizeMd="6" sizeSm="12" sizeXs="12">
-                <ion-card *ngIf="!dep.value.optional" style="--background: #171717" [routerLink]="['/marketplace', dep.key]">
-                  <ion-item color="transparent" lines="none">
-                    <ion-avatar slot="start">
-                      <img [src]="pkg['dependency-metadata'][dep.key].icon" />
-                    </ion-avatar>
-                    <ion-label class="ion-text-wrap">
-                      <h2>
-                        {{ pkg['dependency-metadata'][dep.key].title }}
-                        <span *ngIf="dep.value.recommended"> (recommended)</span>
-                      </h2>
-                      <p style="font-size: small">{{ dep.value.version | displayEmver }}</p>
-                    </ion-label>
-                  </ion-item>
-                  <ion-card-content>
-                    {{ dep.value.description }}
-                  </ion-card-content>
-                </ion-card>
+              <ion-col *ngFor="let dep of pkg.manifest.dependencies | keyvalue" sizeSm="12" sizeMd="6">
+                <ion-item *ngIf="!dep.value.optional" [routerLink]="['/marketplace', dep.key]">
+                  <ion-thumbnail slot="start">
+                    <img [src]="pkg['dependency-metadata'][dep.key].icon" />
+                  </ion-thumbnail>
+                  <ion-label class="ion-text-wrap">
+                    <h2>
+                      {{ pkg['dependency-metadata'][dep.key].title }}
+                      <span *ngIf="dep.value.recommended"> (recommended)</span>
+                    </h2>
+                    <p style="font-size: small">{{ dep.value.version | displayEmver }}</p>
+                    <p>{{ dep.value.description }}</p>
+                  </ion-label>
+                </ion-item>
               </ion-col>
             </ion-row>
           </ion-grid>

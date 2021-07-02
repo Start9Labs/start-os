@@ -27,14 +27,12 @@ export class AppShowPage {
   buttons: Button[] = []
   manifest: Manifest = { } as Manifest
   connected: boolean
-
-  subs: Subscription[] = []
-
   FeStatus = FEStatus
   PackageState = PackageState
   DependencyErrorType = DependencyErrorType
 
   @ViewChild(IonContent) content: IonContent
+  subs: Subscription[] = []
 
   constructor (
     private readonly alertCtrl: AlertController,
@@ -61,7 +59,7 @@ export class AppShowPage {
     this.setButtons()
   }
 
-  async ngAfterViewInit () {
+  ngAfterViewInit () {
     this.content.scrollToPoint(undefined, 1)
   }
 

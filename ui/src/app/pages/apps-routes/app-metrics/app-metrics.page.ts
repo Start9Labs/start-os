@@ -1,5 +1,6 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
+import { IonContent } from '@ionic/angular'
 import { Subscription } from 'rxjs'
 import { PackageDataEntry } from 'src/app/models/patch-db/data-model'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
@@ -10,9 +11,10 @@ import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
   styleUrls: ['./app-metrics.page.scss'],
 })
 export class AppMetricsPage {
-  pkgId: string
   pkg: PackageDataEntry
-  subs: Subscription[]
+
+  @ViewChild(IonContent) content: IonContent
+  subs: Subscription[] = []
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -20,14 +22,18 @@ export class AppMetricsPage {
   ) { }
 
   ngOnInit () {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    const pkgId = this.route.snapshot.paramMap.get('pkgId')
 
     this.subs = [
-      this.patch.watch$('package-data', this.pkgId)
+      this.patch.watch$('package-data', pkgId)
       .subscribe(pkg => {
         this.pkg = pkg
       }),
     ]
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy () {
