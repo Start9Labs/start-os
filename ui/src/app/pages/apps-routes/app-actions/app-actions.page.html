@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <ng-container *ngIf="patch.watch$('package-data', pkgId, 'installed') | ngrxPush as installed">
+  <ng-container *ngIf="installed">
     <ion-item-group>
       <ion-item button *ngFor="let action of installed.manifest.actions | keyvalue: asIsOrder" (click)="handleAction(installed, action)" >
         <ion-label class="ion-text-wrap">

@@ -1,9 +1,10 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
+import { IonContent } from '@ionic/angular'
+import { Subscription } from 'rxjs'
 import { concatMap, take, tap } from 'rxjs/operators'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
 import { ApiService } from 'src/app/services/api/api.service'
-import { Method } from 'src/app/services/http.service'
 
 @Component({
   selector: 'app-instructions',
@@ -14,6 +15,9 @@ export class AppInstructionsPage {
   instructions: string
   loading = true
   error = ''
+
+  @ViewChild(IonContent) content: IonContent
+  subs: Subscription[] = []
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -27,7 +31,6 @@ export class AppInstructionsPage {
     .pipe(
       concatMap(pkg => this.apiService.getStatic(pkg['static-files'].instructions)),
       tap(instructions => {
-        console.log(instructions)
         this.instructions = instructions
       }),
       take(1),
@@ -40,5 +43,13 @@ export class AppInstructionsPage {
       },
       () => console.log('COMPLETE'),
     )
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
+  }
+
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
   }
 }

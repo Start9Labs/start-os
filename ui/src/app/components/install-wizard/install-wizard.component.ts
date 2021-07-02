@@ -1,6 +1,5 @@
 import { Component, Input, NgZone, QueryList, ViewChild, ViewChildren } from '@angular/core'
 import { IonContent, IonSlides, ModalController } from '@ionic/angular'
-import { BehaviorSubject } from 'rxjs'
 import { capitalizeFirstLetter, pauseFor } from 'src/app/util/misc.util'
 import { CompleteComponent } from './complete/complete.component'
 import { DependentsComponent } from './dependents/dependents.component'
@@ -39,8 +38,8 @@ export class InstallWizardComponent {
     return this.params.slideDefinitions[this.slideIndex].bottomBar
   }
 
-  initializing$ = new BehaviorSubject(true)
-  error$ = new BehaviorSubject(undefined)
+  initializing = true
+  error = ''
 
   constructor (
     private readonly modalController: ModalController,
@@ -54,7 +53,7 @@ export class InstallWizardComponent {
   }
 
   ionViewDidEnter () {
-    this.initializing$.next(false)
+    this.initializing = false
   }
 
   // process bottom bar buttons
@@ -62,7 +61,7 @@ export class InstallWizardComponent {
     const i = info as { next?: any, error?: Error, cancelled?: true, final?: true }
     if (i.cancelled) this.currentSlide.cancel$.next()
     if (i.final || i.cancelled) return this.modalController.dismiss(i)
-    if (i.error) return this.error$.next(capitalizeFirstLetter(i.error.message))
+    if (i.error) return this.error = capitalizeFirstLetter(i.error.message)
 
     this.moveToNextSlide(i.next)
   }

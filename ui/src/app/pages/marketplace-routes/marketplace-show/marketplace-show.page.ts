@@ -8,8 +8,9 @@ import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { pauseFor } from 'src/app/util/misc.util'
 import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { PackageState } from 'src/app/models/patch-db/data-model'
+import { PackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
 import { MarketplaceService } from '../marketplace.service'
+import { Subscription } from 'rxjs'
 
 @Component({
   selector: 'marketplace-show',
@@ -19,11 +20,12 @@ import { MarketplaceService } from '../marketplace.service'
 export class MarketplaceShowPage {
   error = ''
   pkgId: string
-
+  installedPkg: PackageDataEntry
   PackageState = PackageState
-
   rec: Recommendation | null = null
   showRec = true
+
+  subs: Subscription[] = []
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -32,17 +34,30 @@ export class MarketplaceShowPage {
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
     private readonly emver: Emver,
-    public readonly patch: PatchDbModel,
+    private readonly patch: PatchDbModel,
     public marketplaceService: MarketplaceService,
   ) { }
 
   async ngOnInit () {
+    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.rec = history.state && history.state.installRec as Recommendation
+
+    this.subs = [
+      this.patch.watch$('package-data', this.pkgId)
+      .subscribe(pkg => {
+        console.log(pkg)
+        this.installedPkg = pkg
+      }),
+    ]
+
     this.getPkg()
   }
 
+  ngOnDestroy () {
+    this.subs.forEach(sub => sub.unsubscribe())
+  }
+
   async getPkg (version?: string): Promise<void> {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     try {
       await this.marketplaceService.setPkg(this.pkgId, version)
     } catch (e) {
