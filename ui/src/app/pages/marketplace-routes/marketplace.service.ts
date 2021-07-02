@@ -7,6 +7,7 @@ import { ApiService } from 'src/app/services/api/api.service'
 })
 export class MarketplaceService {
   pkgs: { [id: string]: AvailableShow } = { }
+  additionalInfo
 
   constructor (
     private readonly apiService: ApiService,
