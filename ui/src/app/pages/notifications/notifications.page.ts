@@ -3,6 +3,7 @@ import { ApiService } from 'src/app/services/api/api.service'
 import { LoaderService } from 'src/app/services/loader.service'
 import { ServerNotification, ServerNotifications } from 'src/app/services/api/api-types'
 import { AlertController } from '@ionic/angular'
+import { ActivatedRoute } from '@angular/router'
 
 @Component({
   selector: 'notifications',
@@ -15,15 +16,18 @@ export class NotificationsPage {
   notifications: ServerNotifications = []
   page = 1
   needInfinite = false
+  fromToast = false
   readonly perPage = 20
 
   constructor (
     private readonly apiService: ApiService,
     private readonly loader: LoaderService,
     private readonly alertCtrl: AlertController,
+    private readonly route: ActivatedRoute,
   ) { }
 
   async ngOnInit () {
+    this.fromToast = !!this.route.snapshot.queryParamMap.get('toast')
     this.notifications = await this.getNotifications()
     this.loading = false
   }

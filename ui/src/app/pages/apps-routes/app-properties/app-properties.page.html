@@ -3,8 +3,8 @@
     <ion-buttons slot="start">
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
-    <ion-title>Values</ion-title>
-    <ion-buttons slot="end" class="ion-padding-end">
+    <ion-title>Properties</ion-title>
+    <ion-buttons slot="end">
       <ion-button (click)="refresh()">
         <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
       </ion-button>
@@ -30,7 +30,7 @@
     <!-- no properties -->
     <ion-item *ngIf="properties | empty">
       <ion-label class="ion-text-wrap">
-        <p>No values.</p>
+        <p>No properties.</p>
       </ion-label>
     </ion-item>
 
@@ -39,8 +39,8 @@
       <div *ngFor="let prop of node | keyvalue: asIsOrder">
         <!-- object -->
         <ion-item button detail="true" *ngIf="prop.value.type === 'object'" (click)="goToNested(prop.key)">
-          <ion-button *ngIf="prop.value.description" class="help-button" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
-            <ion-icon size="small" slot="icon-only" name="help-circle-outline"></ion-icon>
+          <ion-button *ngIf="prop.value.description" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
+            <ion-icon slot="icon-only" name="help-circle-outline"></ion-icon>
           </ion-button>
           <ion-label class="ion-text-wrap">
             <h2>{{ prop.key }}</h2>
@@ -48,8 +48,8 @@
         </ion-item>
         <!-- not object -->
         <ion-item *ngIf="prop.value.type === 'string'">
-          <ion-button *ngIf="prop.value.description" class="help-button" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
-            <ion-icon size="small" slot="icon-only" name="help-circle-outline"></ion-icon>
+          <ion-button *ngIf="prop.value.description" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
+            <ion-icon slot="icon-only" name="help-circle-outline"></ion-icon>
           </ion-button>
           <ion-label class="ion-text-wrap">
             <h2>{{ prop.key }}</h2>
@@ -57,13 +57,13 @@
           </ion-label>
           <div slot="end" *ngIf="prop.value.copyable || prop.value.qr">
             <ion-button *ngIf="prop.value.masked" fill="clear" (click)="toggleMask(prop.key)">
-              <ion-icon slot="icon-only" [name]="unmasked[prop.key] ? 'eye-off-outline' : 'eye-outline'" [color]="unmasked[prop.key] ? 'danger' : 'primary'" size="small"></ion-icon>
+              <ion-icon slot="icon-only" [name]="unmasked[prop.key] ? 'eye-off-outline' : 'eye-outline'" [color]="unmasked[prop.key] ? 'danger' : 'dark'" size="small"></ion-icon>
             </ion-button>
             <ion-button *ngIf="prop.value.qr" fill="clear" (click)="showQR(prop.value.value)">
-              <ion-icon slot="icon-only" name="qr-code-outline" size="small" color="primary"></ion-icon>
+              <ion-icon slot="icon-only" name="qr-code-outline" size="small"></ion-icon>
             </ion-button>
             <ion-button *ngIf="prop.value.copyable" fill="clear" (click)="copy(prop.value.value)">
-              <ion-icon slot="icon-only" name="copy-outline" size="small" color="primary"></ion-icon>
+              <ion-icon slot="icon-only" name="copy-outline" size="small"></ion-icon>
             </ion-button>
           </div>
         </ion-item>

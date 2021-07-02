@@ -9,7 +9,7 @@
       {{ spec.name }}
     </ion-title>
     <ion-buttons *ngIf="!!saveFn" slot="end">
-      <ion-button [disabled]="!!error" (click)="save()" color="primary">
+      <ion-button [disabled]="!!error" (click)="save()">
         Save
       </ion-button>
     </ion-buttons>
@@ -22,7 +22,7 @@
 
   <ion-item-group>
     <ion-item-divider>
-      <ion-button *ngIf="spec.type === 'string' && spec.copyable" style="padding-right: 12px;" size="small" slot="end" fill="clear" color="primary" (click)="copy()">
+      <ion-button *ngIf="spec.type === 'string' && spec.copyable" style="padding-right: 12px;" size="small" slot="end" fill="clear" (click)="copy()">
         <ion-icon slot="icon-only" name="copy-outline" size="small"></ion-icon>
       </ion-button>
     </ion-item-divider>
@@ -73,7 +73,7 @@
       </p>
       <p *ngIf="spec.default !== undefined">
         <ion-text color="medium">
-          <p>Default: {{ defaultDescription }} <ion-icon style="padding-left: 8px;" name="refresh-outline" color="primary" (click)="refreshDefault()"></ion-icon></p>
+          <p>Default: {{ defaultDescription }} <ion-icon style="padding-left: 8px;" name="refresh-outline" color="dark" style="cursor: pointer;" (click)="refreshDefault()"></ion-icon></p>
           <p *ngIf="spec.type === 'number' && spec.units">Units: {{ spec.units }}</p>
         </ion-text>
       </p>
