@@ -674,13 +674,22 @@ impl IoFormat {
                 serde_cbor::to_writer(writer, value).with_kind(crate::ErrorKind::Serialization)
             }
             IoFormat::Toml => writer
-                .write_all(&serde_toml::to_vec(value).with_kind(crate::ErrorKind::Serialization)?)
+                .write_all(
+                    &serde_toml::to_vec(
+                        &serde_toml::Value::try_from(value)
+                            .with_kind(crate::ErrorKind::Serialization)?,
+                    )
+                    .with_kind(crate::ErrorKind::Serialization)?,
+                )
                 .with_kind(crate::ErrorKind::Serialization),
             IoFormat::TomlPretty => writer
                 .write_all(
-                    serde_toml::to_string_pretty(value)
-                        .with_kind(crate::ErrorKind::Serialization)?
-                        .as_bytes(),
+                    serde_toml::to_string_pretty(
+                        &serde_toml::Value::try_from(value)
+                            .with_kind(crate::ErrorKind::Serialization)?,
+                    )
+                    .with_kind(crate::ErrorKind::Serialization)?
+                    .as_bytes(),
                 )
                 .with_kind(crate::ErrorKind::Serialization),
         }
@@ -693,10 +702,15 @@ impl IoFormat {
             }
             IoFormat::Yaml => serde_yaml::to_vec(value).with_kind(crate::ErrorKind::Serialization),
             IoFormat::Cbor => serde_cbor::to_vec(value).with_kind(crate::ErrorKind::Serialization),
-            IoFormat::Toml => serde_toml::to_vec(value).with_kind(crate::ErrorKind::Serialization),
-            IoFormat::TomlPretty => serde_toml::to_string_pretty(value)
-                .map(|s| s.into_bytes())
-                .with_kind(crate::ErrorKind::Serialization),
+            IoFormat::Toml => serde_toml::to_vec(
+                &serde_toml::Value::try_from(value).with_kind(crate::ErrorKind::Serialization)?,
+            )
+            .with_kind(crate::ErrorKind::Serialization),
+            IoFormat::TomlPretty => serde_toml::to_string_pretty(
+                &serde_toml::Value::try_from(value).with_kind(crate::ErrorKind::Serialization)?,
+            )
+            .map(|s| s.into_bytes())
+            .with_kind(crate::ErrorKind::Serialization),
         }
     }
     /// BLOCKING
