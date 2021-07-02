@@ -3,8 +3,8 @@
     <ion-buttons slot="start">
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
-    <ion-title>Restore Backup</ion-title>
-    <ion-buttons slot="end" class="ion-padding-end">
+    <ion-title>Restore From Backup</ion-title>
+    <ion-buttons slot="end">
       <ion-button (click)="refresh()">
         <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
       </ion-button>
@@ -27,49 +27,52 @@
     <ion-item *ngIf="error" style="margin-bottom: 16px;">
       <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
     </ion-item>
-  
+    
     <ion-item class="ion-margin-bottom">
       <ion-label class="ion-text-wrap">
-        <p><ion-text color="dark">About</ion-text></p>
-        <p>
-          Select a location from which to restore {{ title }}. This will overwrite all current data.
-        </p>
+        <p class="ion-padding-bottom"><ion-text color="warning">Warning</ion-text></p>
+        <h2>
+          Restoring from backup will overwrite all current data for {{ title }} .
+        </h2>
       </ion-label>
     </ion-item>
-  
-    <ion-spinner *ngIf="loading; else loaded" name="lines" color="warning" class="center"></ion-spinner>
-  
-    <ng-template #loaded>
-  
-      <ion-item *ngIf="allPartitionsMounted">
-        <ion-text *ngIf="type === 'restore'" class="ion-text-wrap" color="warning">No partitions available. Insert the storage device containing the backup you intend to restore.</ion-text>
-      </ion-item>
-  
-      <ion-card *ngFor="let disk of disks | keyvalue">
-        <ion-card-header>
-          <ion-card-title>
-            {{ disk.value.size }}
-          </ion-card-title>
-          <ion-card-subtitle>
-            {{ disk.key }}
-          </ion-card-subtitle>
-        </ion-card-header>
-        <ion-card-content>
-          <ion-item-group>
-            <ion-item button *ngFor="let partition of disk.value.partitions | keyvalue" [disabled]="partition.value['is-mounted']" (click)="presentModal(partition.key, partition.value)">
-              <ion-icon slot="start" name="save-outline"></ion-icon>
-              <ion-label>
-                <h2>{{ partition.value.label || partition.key }} ({{ partition.value.size || 'unknown size' }})</h2>
-                <p *ngIf="!partition.value['is-mounted']; else unavailable"><ion-text color="success">Available</ion-text></p>
-                <ng-template #unavailable>
-                  <p><ion-text color="danger">Unavailable</ion-text></p>
-                </ng-template>
-              </ion-label>
-            </ion-item>
-          </ion-item-group>
-        </ion-card-content>
-      </ion-card>
-    </ng-template>
+
+    <ion-item-divider>Select Backup Drive</ion-item-divider>
+
+    <ion-item *ngIf="allPartitionsMounted">
+      <ion-text class="ion-text-wrap" color="warning">No partitions available. Insert the storage device containing the backup you intend to restore.</ion-text>
+    </ion-item>
+
+    <ion-grid>
+      <ion-row>
+        <ion-col *ngFor="let disk of disks | keyvalue" sizeSm="12" sizeMd="6">
+          <ion-card>
+            <ion-card-header>
+              <ion-card-title>
+                {{ disk.value.size }}
+              </ion-card-title>
+              <ion-card-subtitle>
+                {{ disk.key }}
+              </ion-card-subtitle>
+            </ion-card-header>
+            <ion-card-content>
+              <ion-item-group>
+                <ion-item button *ngFor="let partition of disk.value.partitions | keyvalue" [disabled]="partition.value['is-mounted']" (click)="presentModal(partition.key, partition.value)">
+                  <ion-icon slot="start" name="save-outline"></ion-icon>
+                  <ion-label>
+                    <h2>{{ partition.value.label || partition.key }} ({{ partition.value.size || 'unknown size' }})</h2>
+                    <p *ngIf="!partition.value['is-mounted']; else unavailable"><ion-text color="success">Available</ion-text></p>
+                    <ng-template #unavailable>
+                      <p><ion-text color="danger">Unavailable</ion-text></p>
+                    </ng-template>
+                  </ion-label>
+                </ion-item>
+              </ion-item-group>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
   </ng-template>
 
 </ion-content>

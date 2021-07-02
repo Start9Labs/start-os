@@ -47,19 +47,8 @@
   z-index: 40000 !important;
 }
 
-.alert-danger {
-  color: var(--ion-color-danger) !important;
-  & ion-icon {
-    color: var(--ion-color-danger) !important;
-  }
-}
-
 .borderless {
   border-style: none;
-}
-
-.help-button {
-  margin: 0 8px 0 0;
 }
 
 .item-interactive {
@@ -95,6 +84,7 @@
 }
 
 ion-card-title {
+  color: var(--ion-color-dark);
   font-family: 'Montserrat';
 }
 
@@ -120,6 +110,9 @@ ion-badge {
 
 ion-item-divider {
   --background: transparent;
+  text-transform: uppercase;
+  margin-top: 16px;
+  font-weight: 400;
 }
 
 ion-infinite-scroll ion-infinite-scroll-content {
@@ -132,6 +125,13 @@ ion-action-sheet {
 
 ion-alert {
   --backdrop-opacity: 0.75 !important;
+  .alert-button {
+    color: var(--ion-color-dark) !important;
+  }
+}
+
+ion-button {
+  --color: var(--ion-color-dark) !important;
 }
 
 ion-loading {
@@ -291,4 +291,8 @@ ion-item-divider {
 .dots-medium {
   width: 16px !important;
   height: 16px !important;
+}
+
+h2 {
+  line-height: unset;
 }
