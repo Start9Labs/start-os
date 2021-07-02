@@ -23,12 +23,12 @@ export class MockApiService extends ApiService {
         used: 200,
       },
       'recovery-drive': 
-      null,
-      // {
-      //   logicalname: 'name1',
-      //   version: '0.3.3',
-      //   name: 'My Embassy'
-      // }
+      // null,
+      {
+        logicalname: 'name1',
+        version: '0.3.3',
+        name: 'My Embassy'
+      }
     }
   }
 
