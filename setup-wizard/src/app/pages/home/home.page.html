@@ -1,10 +1,3 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>
-      Setup Wizard
-    </ion-title>
-  </ion-toolbar>
-</ion-header>
 <ion-content>
   <div *ngIf="!stateService.dataDrive && dataDrives">
     <div *ngIf="!dataDrives.length">
@@ -12,13 +5,16 @@
       <p color="light">Please connect a data drive to your embassy and refresh the page.</p>
     </div>
     <div *ngIf="dataDrives.length">
-      <h2 color="light">Select Data Drive</h2>
+      <h2 style="text-align: center;" color="secondary">Select Data Drive</h2>
+      
       <ion-card 
+        color="medium"
         *ngFor="let drive of dataDrives"
         (click)="selectDrive(drive)"
         button="true"
         [class.selected]="selectedDrive?.logicalname === drive.logicalname"
         color="light"
+        class="wiz-card"
       >
         <ion-card-header>
           <ion-card-title>{{drive.logicalname}}</ion-card-title>
@@ -29,30 +25,52 @@
           Currently using {{drive.used}} out of {{drive.capacity}} bytes.
         </ion-card-content>
       </ion-card>
-      <ion-button (click)="warn()" color="primary" [disabled]="!selectedDrive">Next</ion-button>
+      <div style="width: 100%; text-align: center;">
+        <ion-button 
+        (click)="warn()"
+        color="tertiary"
+        [disabled]="!selectedDrive"
+        style="text-align:center"
+        size="large"
+        >
+          Next
+        </ion-button>
+      </div>
     </div>
   </div>
   <div *ngIf="stateService.dataDrive">
-    <ion-card
-      (click)="presentPasswordModal()"
-      button="true"
-      color="light"
-    >
-      <ion-card-header>
-        <ion-card-title>Start Fresh</ion-card-title>
-        <ion-card-subtitle>Get started with a brand new Embassy</ion-card-subtitle>
-      </ion-card-header>
-    </ion-card>
+    <ion-grid style="max-width: 800px; margin: auto; margin-top: 30px;">
+      <ion-row>
+        <ion-col size-xs="12" size-sm="6">
+          <ion-card
+            (click)="presentPasswordModal()"
+            button="true"
+            color="light"
+            class="wiz-card"
+            style="text-align: center; background-color: #00919b !important; height: 160px;"
+          >
+            <ion-card-header style="margin-top: 25px;">
+              <ion-card-title style="font-size: 40px">Start Fresh</ion-card-title>
+              <ion-card-subtitle>Get started with a brand new Embassy</ion-card-subtitle>
+            </ion-card-header>
+          </ion-card>
+        </ion-col>
+        <ion-col size-xs="12" size-sm="6">
+          <ion-card
+            [routerLink]="['/recover']"
+            button="true"
+            color="light"
+            class="wiz-card"
+            style="text-align: center; background-color: #bf5900 !important; height: 160px;"
+          >
+            <ion-card-header style="margin-top: 25px;">
+              <ion-card-title style="font-size: 40px">Recover</ion-card-title>
+              <ion-card-subtitle>Recover the data from an old embassy</ion-card-subtitle>
+            </ion-card-header>
+          </ion-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
 
-    <ion-card
-      [routerLink]="['/recover']"
-      button="true"
-      color="light"
-    >
-      <ion-card-header>
-        <ion-card-title>Recover</ion-card-title>
-        <ion-card-subtitle>Recover the data from an old embassy</ion-card-subtitle>
-      </ion-card-header>
-    </ion-card>
   </div>
 </ion-content>

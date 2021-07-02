@@ -25,8 +25,12 @@ export class PasswordPage {
   }
 
   async submitPassword () {
-    if (!this.needsVer && this.password !== this.passwordVer) {
-      this.error="*passwords dont match"
+    if(!this.needsVer) {
+      if (this.password.length < 12) {
+        this.error="*passwords must be 12 characters or greater"
+      } else if (this.password !== this.passwordVer) {
+        this.error="*passwords dont match"
+      }
     } else {
       this.modalController.dismiss({
         password: this.password,

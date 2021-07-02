@@ -24,3 +24,20 @@
 @import "~@ionic/angular/css/text-alignment.css";
 @import "~@ionic/angular/css/text-transformation.css";
 @import "~@ionic/angular/css/flex-utils.css";
+
+.cancel-button {
+  color: #FF4961 !important;
+}
+
+.okay-button {
+  color: #00AACC !important;
+}
+
+.wiz-card {
+  max-width: 800px; margin: auto; margin-bottom: 10px;
+}
+
+.pw-modal .modal-wrapper{
+  width: 400px;
+  height: 300px;
+}

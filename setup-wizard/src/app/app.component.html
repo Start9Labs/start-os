@@ -1,8 +1,12 @@
 <ion-app>
-  <ion-content *ngIf="stateService.loading; else loaded">
-    <h2 color="light">Connecting to Embassy</h2>
-  </ion-content>
-  <ng-template #loaded>
+  <ion-header>
+    <ion-toolbar color="primary">
+      <ion-title>
+        Embassy Setup Wizard
+      </ion-title>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content *ngIf="!stateService.loading" class="has-header">
     <ion-router-outlet></ion-router-outlet>
-  </ng-template>
+  </ion-content>
 </ion-app>
