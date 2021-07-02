@@ -19,39 +19,30 @@
   <ng-container *ngIf="pkg">
     <!-- top plate -->
     <div class="top-plate">
-      <ion-item class="no-cushion-item" lines="none">
-        <ion-label class="ion-text-wrap" style="
-          display: grid;
-          grid-template-columns: 80px auto;
-          margin: 0px;
-          margin-top: 15px;"
-        >
-          <ion-avatar style="justify-self: center; height: 55px; width: 55px" slot="start">
-            <img [src]="pkg['static-files'].icon" />
-          </ion-avatar>
-          <div style="display: flex; flex-direction: column;">
-            <ion-text style="font-family: 'Montserrat'; font-size: x-large; line-height: normal;" [class.less-large]="manifest.title.length > 20">
-              {{ manifest.title }}
-            </ion-text>
-            <ion-text style="margin-top: -5px; margin-left: 2px;">
-              {{ manifest.version | displayEmver }}
-            </ion-text>
-          </div>
+      <ion-item lines="none">
+        <ion-thumbnail slot="start">
+          <img [src]="pkg['static-files'].icon" />
+        </ion-thumbnail>
+        <ion-label class="ion-text-wrap">
+          <h1 style="font-family: 'Montserrat';" [class.less-large]="manifest.title.length > 20">
+            {{ manifest.title }}
+          </h1>
+          <h5>{{ manifest.version | displayEmver }}</h5>
         </ion-label>
       </ion-item>
   
       <div class="status-readout">
-        <status *ngIf="connected" size="large" weight="bold" [pkg]="pkg"></status>
-        <ion-button *ngIf="pkg.status === FeStatus.NeedsConfig" expand="block" fill="outline" [routerLink]="['config']">
+        <status *ngIf="connected" size="large" weight="500" [pkg]="pkg"></status>
+        <ion-button *ngIf="pkg.status === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
           Configure
         </ion-button>
-        <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : pkg.status" expand="block" fill="outline" color="danger" (click)="stop()">
+        <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : pkg.status" expand="block" color="danger" (click)="stop()">
           Stop
         </ion-button>
-        <ion-button *ngIf="pkg.status === FeStatus.DependencyIssue" expand="block" fill="outline" (click)="scrollToRequirements()">
+        <ion-button *ngIf="pkg.status === FeStatus.DependencyIssue" expand="block" (click)="scrollToRequirements()">
           Fix
         </ion-button>
-        <ion-button *ngIf="pkg.status === FeStatus.Stopped" expand="block" fill="outline" color="success" (click)="tryStart()">
+        <ion-button *ngIf="pkg.status === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
           Start
         </ion-button>
       </div>

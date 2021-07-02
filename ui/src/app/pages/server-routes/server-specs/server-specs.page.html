@@ -27,7 +27,7 @@
         <p>http://{{ server['tor-address'] }}</p>
       </ion-label>
       <ion-button slot="end" fill="clear" (click)="copy('http://' + server['tor-address'])">
-        <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
+        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
     <ion-item>
@@ -36,7 +36,7 @@
         <p>https://{{ server['lan-address'] }}</p>
       </ion-label>
       <ion-button slot="end" fill="clear" (click)="copy('https://' + server['lan-address'])">
-        <ion-icon slot="icon-only" name="copy-outline" color="primary"></ion-icon>
+        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
 

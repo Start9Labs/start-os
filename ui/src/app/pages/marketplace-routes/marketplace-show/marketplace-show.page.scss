@@ -35,13 +35,7 @@
   color: var(--ion-color-danger);
 }
 
-ion-item-divider {
-  text-transform: uppercase;
-  margin-top: 22px;
-  font-weight: 400;
-}
-
 #release-notes {
   overflow: auto;
-  max-height: 160px;
+  max-height: 120px;
 }
