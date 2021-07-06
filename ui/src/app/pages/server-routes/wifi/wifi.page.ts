@@ -4,8 +4,8 @@ import { ApiService } from 'src/app/services/api/api.service'
 import { ActionSheetButton } from '@ionic/core'
 import { WifiService } from './wifi.service'
 import { LoaderService } from 'src/app/services/loader.service'
-import { WiFiInfo } from 'src/app/models/patch-db/data-model'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { WiFiInfo } from 'src/app/services/patch-db/data-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 
 @Component({

@@ -1,4 +1,4 @@
-import { HealthCheckResultLoading, MainStatusRunning, PackageDataEntry, PackageMainStatus, PackageState, Status } from '../models/patch-db/data-model'
+import { HealthCheckResultLoading, MainStatusRunning, PackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
 
 export function renderPkgStatus (pkg: PackageDataEntry): PkgStatusRendering {
   switch (pkg.state) {
@@ -15,7 +15,7 @@ function handleInstalledState (status: Status): PkgStatusRendering {
   }
 
   if (Object.keys(status['dependency-errors']).length) {
-    return { display: 'Needs Attention', color: 'warning', showDots: false, feStatus: FEStatus.DependencyIssue }
+    return { display: 'Dependency Issue', color: 'warning', showDots: false, feStatus: FEStatus.DependencyIssue }
   }
 
   switch (status.main.status) {

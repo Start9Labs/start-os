@@ -27,6 +27,10 @@ const routes: Routes = [
     loadChildren: () => import('./preferences/preferences.module').then(m => m.PreferencesPageModule),
   },
   {
+    path: 'preferences/edit',
+    loadChildren: () => import('./preferences/preferences.module').then(m => m.PreferencesPageModule),
+  },
+  {
     path: 'wifi',
     loadChildren: () => import('./wifi/wifi.module').then(m => m.WifiListPageModule),
   },

@@ -2,17 +2,16 @@ import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
-import { chill, isEmptyObject } from 'src/app/util/misc.util'
+import { chill, isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
 import { Observable, of, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService, getManifest } from 'src/app/services/config.service'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, Manifest, PackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, Manifest, PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { FEStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
 
 @Component({
   selector: 'app-show',
@@ -80,7 +79,9 @@ export class AppShowPage {
     }).displayDuringAsync(async () => {
       const breakages = await this.apiService.dryStopPackage({ id })
 
-      if (isEmptyObject(breakages.length)) {
+      console.log('BREAKAGES', breakages)
+
+      if (!isEmptyObject(breakages)) {
         const { cancelled } = await wizardModal(
           this.modalCtrl,
           this.wizardBaker.stop({

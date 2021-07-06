@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ServerConfigService } from 'src/app/services/server-config.service'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { ServerInfo } from 'src/app/models/patch-db/data-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { ServerInfo } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 
 @Component({

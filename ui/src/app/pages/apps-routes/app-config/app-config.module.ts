@@ -10,8 +10,6 @@ import { AppConfigObjectPageModule } from 'src/app/modals/app-config-object/app-
 import { AppConfigUnionPageModule } from 'src/app/modals/app-config-union/app-config-union.module'
 import { AppConfigValuePageModule } from 'src/app/modals/app-config-value/app-config-value.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
-import { RecommendationButtonComponentModule } from 'src/app/components/recommendation-button/recommendation-button.component.module'
-import { InformationPopoverComponentModule } from 'src/app/components/information-popover/information-popover.component.module'
 
 const routes: Routes = [
   {
@@ -32,8 +30,6 @@ const routes: Routes = [
     FormsModule,
     IonicModule,
     RouterModule.forChild(routes),
-    RecommendationButtonComponentModule,
-    InformationPopoverComponentModule,
   ],
   declarations: [AppConfigPage],
 })

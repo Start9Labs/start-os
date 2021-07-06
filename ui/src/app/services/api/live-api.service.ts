@@ -10,10 +10,6 @@ export class LiveApiService extends ApiService {
     private readonly http: HttpService,
   ) { super() }
 
-  async echo (): Promise<string> {
-    return this.http.rpcRequest({ method: 'echo', params: { } })
-  }
-
   async getStatic (url: string): Promise<string> {
     return this.http.httpRequest({ method: Method.GET, url })
   }
