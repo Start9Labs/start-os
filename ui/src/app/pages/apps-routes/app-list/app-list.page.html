@@ -33,13 +33,13 @@
   
             <img style="position: absolute" class="main-img" [src]="pkg.value['static-files'].icon" alt="icon" />
             <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
-            <img class="bulb-on" *ngIf="pkg.value | displayBulb: 'green' : connected" src="assets/img/running-bulb.png"/>
-            <img class="bulb-on" *ngIf="pkg.value | displayBulb: 'red' : connected" src="assets/img/issue-bulb.png"/>
-            <img class="bulb-on" *ngIf="pkg.value | displayBulb: 'yellow' : connected" src="assets/img/warning-bulb.png"/>
-            <img class="bulb-off" *ngIf="pkg.value | displayBulb: 'off' : connected" src="assets/img/off-bulb.png"/>
+            <img class="bulb-on" *ngIf="pkg.key | displayBulb : 'green' : connected" src="assets/img/running-bulb.png"/>
+            <img class="bulb-on" *ngIf="pkg.key | displayBulb : 'red' : connected" src="assets/img/issue-bulb.png"/>
+            <img class="bulb-on" *ngIf="pkg.key | displayBulb : 'yellow' : connected" src="assets/img/warning-bulb.png"/>
+            <img class="bulb-off" *ngIf="pkg.key | displayBulb : 'off' : connected" src="assets/img/off-bulb.png"/>
 
             <ion-card-header>
-              <status *ngIf="connected" [pkg]="pkg.value" size="calc(8px + .4vw)" weight="bold"></status>
+              <status *ngIf="connected" [pkgId]="pkg.key" size="calc(8px + .4vw)" weight="bold"></status>
               <ion-card-title>{{ (pkg.value | manifest).title }}</ion-card-title>
             </ion-card-header>
           </ion-card>

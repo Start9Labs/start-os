@@ -48,11 +48,10 @@ export class AppShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.pkg = this.patch.data['package-data'][this.pkgId]
+    // @TODO re-fetch manifest if package state changes.
+    this.manifest = getManifest(this.pkg)
     this.subs = [
-      this.patch.watch$('package-data', this.pkgId).subscribe(pkg => {
-        this.pkg = pkg
-        this.manifest = getManifest(this.pkg)
-      }),
       this.patch.connected$().subscribe(c => this.connected = c),
     ]
     this.setButtons()
@@ -62,7 +61,7 @@ export class AppShowPage {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  async ngOnDestroy () {
+  ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
