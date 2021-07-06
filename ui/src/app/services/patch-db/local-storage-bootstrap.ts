@@ -15,7 +15,7 @@ export class LocalStorageBootstrap implements Bootstrapper<DataModel> {
 
   async init (): Promise<DBCache<DataModel>> {
     const cache: DBCache<DataModel> = await this.storage.get(LocalStorageBootstrap.CONTENT_KEY)
-    return cache || { sequence: 0, data: { } }
+    return cache || { sequence: 0, data: { } as DataModel }
   }
 
   async update (cache: DBCache<DataModel>): Promise<void> {
