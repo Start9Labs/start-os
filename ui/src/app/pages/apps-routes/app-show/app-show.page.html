@@ -11,7 +11,6 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-
   <ion-item *ngIf="error" style="margin-bottom: 16px;">
     <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
   </ion-item>
@@ -30,19 +29,19 @@
           <h5>{{ manifest.version | displayEmver }}</h5>
         </ion-label>
       </ion-item>
-  
+
       <div class="status-readout">
-        <status *ngIf="connected" size="large" weight="500" [pkg]="pkg"></status>
-        <ion-button *ngIf="(pkg | status) === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
+        <status *ngIf="connected" size="large" weight="500" [pkgId]="pkgId"></status>
+        <ion-button *ngIf="(pkgId | status) === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
           Configure
         </ion-button>
-        <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : (pkg | status)" expand="block" color="danger" (click)="stop()">
+        <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : (pkgId | status)" expand="block" color="danger" (click)="stop()">
           Stop
         </ion-button>
-        <ion-button *ngIf="(pkg | status) === FeStatus.DependencyIssue" expand="block" (click)="scrollToRequirements()">
+        <ion-button *ngIf="(pkgId | status) === FeStatus.DependencyIssue" expand="block" (click)="scrollToRequirements()">
           Fix
         </ion-button>
-        <ion-button *ngIf="(pkg | status) === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
+        <ion-button *ngIf="(pkgId | status) === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
           Start
         </ion-button>
       </div>
@@ -68,20 +67,20 @@
         </ion-row>
       </ion-grid>
 
-      <ion-item-group class="ion-padding-bottom">      
+      <ion-item-group class="ion-padding-bottom">
         <!-- dependencies -->
         <ng-container *ngIf="!(pkg.installed['current-dependencies'] | empty)">
           <ion-item-divider id="dependencies">Dependencies</ion-item-divider>
           <!-- A current-dependency is a subset of the manifest.dependencies that is currently required as determined by the service config. -->
           <ion-grid>
             <ion-row>
-              <ion-col *ngFor="let dep of pkg.installed['current-dependencies'] | keyvalue" sizeSm="12" sizeMd="6">
-                <ion-item *ngrxLet="patch.watch$('package-data', dep.key) as localDep">
+              <ion-col *ngFor="let dep of pkg.installed['current-dependencies'] | keyvalue" sizeXs="12" sizeMd="6">
+                <ion-item>
                   <ion-thumbnail slot="start">
-                    <img [src]="localDep ? localDep['static-files'].icon : pkg.installed.status['dependency-errors'][dep.key]?.icon" />
+                    <img [src]="patch.data['package-data'][dep.key] ? patch.data['package-data'][dep.key]['static-files'].icon : pkg.installed.status['dependency-errors'][dep.key]?.icon" />
                   </ion-thumbnail>
                   <ion-label class="ion-text-wrap">
-                    <h2 style="font-family: 'Montserrat'">{{ localDep ? (localDep | manifest).title : pkg.installed.status['dependency-errors'][dep.key]?.title }}</h2>
+                    <h2 style="font-family: 'Montserrat'">{{ patch.data['package-data'][dep.key] ? (patch.data['package-data'][dep.key] | manifest).title : pkg.installed.status['dependency-errors'][dep.key]?.title }}</h2>
                     <p>{{ manifest.dependencies[dep.key].version | displayEmver }}</p>
                     <p><ion-text [color]="pkg.installed.status['dependency-errors'][dep.key] ? 'warning' : 'success'">{{ pkg.installed.status['dependency-errors'][dep.key] ? pkg.installed.status['dependency-errors'][dep.key].type : 'satisfied' }}</ion-text></p>
                   </ion-label>
@@ -91,11 +90,11 @@
                   </ion-button>
 
                   <ng-container *ngIf="pkg.installed.status['dependency-errors'][dep.key]">
-                    <ion-button *ngIf="!localDep" slot="end" size="small" (click)="fixDep('install', dep.key)">
+                    <ion-button *ngIf="!patch.data['package-data'][dep.key]" slot="end" size="small" (click)="fixDep('install', dep.key)">
                       Install
                     </ion-button>
 
-                    <ng-container *ngIf="localDep && localDep.state === PackageState.Installed">
+                    <ng-container *ngIf="patch.data['package-data'][dep.key] && patch.data['package-data'][dep.key].state === PackageState.Installed">
                       <ion-button *ngIf="pkg.installed.status['dependency-errors'][dep.key].type === DependencyErrorType.NotRunning" slot="end" size="small" [routerLink]="['/services', dep.key]">
                         Start
                       </ion-button>
@@ -107,8 +106,8 @@
                       </ion-button>
                     </ng-container>
 
-                    <div *ngIf="localDep && localDep.state !== PackageState.Installed" slot="end" class="spinner">
-                      <ion-spinner [color]="localDep.state === PackageState.Removing ? 'danger' : 'primary'" style="height: 3vh; width: 3vh" name="dots"></ion-spinner>
+                    <div *ngIf="patch.data['package-data'][dep.key] && patch.data['package-data'][dep.key].state !== PackageState.Installed" slot="end" class="spinner">
+                      <ion-spinner [color]="patch.data['package-data'][dep.key].state === PackageState.Removing ? 'danger' : 'primary'" style="height: 3vh; width: 3vh" name="dots"></ion-spinner>
                     </div>
                   </ng-container>     
                 </ion-item>

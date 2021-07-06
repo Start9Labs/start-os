@@ -9,7 +9,6 @@ import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './mock-app-fixures'
 import { HttpService } from '../http.service'
 import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
-import { map } from 'rxjs/operators'
 
 @Injectable()
 export class MockApiService extends ApiService {
@@ -22,10 +21,9 @@ export class MockApiService extends ApiService {
 
   // every time a patch is returned from the mock, we override its sequence to be 1 more than the last sequence in the patch-db as provided by `o`.
   watch$ (store: Store<DataModel>): Observable<Update<DataModel>> {
-    store.watchCache$().pipe(map(cache => cache.sequence)).subscribe(seq => {
+    store.sequence$.subscribe(seq => {
       console.log('INCOMING: ', seq)
       if (this.sequence < seq) {
-        console.log('hererereree')
         this.sequence = seq
       }
     })

@@ -1,7 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent } from '@ionic/angular'
-import { Subscription } from 'rxjs'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 
@@ -14,7 +13,6 @@ export class AppMetricsPage {
   pkg: PackageDataEntry
 
   @ViewChild(IonContent) content: IonContent
-  subs: Subscription[] = []
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -23,21 +21,11 @@ export class AppMetricsPage {
 
   ngOnInit () {
     const pkgId = this.route.snapshot.paramMap.get('pkgId')
-
-    this.subs = [
-      this.patch.watch$('package-data', pkgId)
-      .subscribe(pkg => {
-        this.pkg = pkg
-      }),
-    ]
+    this.pkg = this.patch.data['package-data'][pkgId]
   }
 
   ngAfterViewInit () {
     this.content.scrollToPoint(undefined, 1)
-  }
-
-  ngOnDestroy () {
-    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   asIsOrder (a: any, b: any) {

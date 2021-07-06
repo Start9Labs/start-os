@@ -84,8 +84,6 @@ export class AppComponent {
         this.http.authReqEnabled = true
         this.showMenu = true
         this.patch.start()
-        // watch patch DB to display name and unread count
-        this.watchPatch()
         this.connectionService.start()
         // watch connection to display connectivity issues
         this.watchConnection(auth)
@@ -108,13 +106,6 @@ export class AppComponent {
 
     this.http.watchUnauth$().subscribe(() => {
       this.authService.setUnverified()
-    })
-  }
-
-  watchPatch (): void {
-    this.patch.watch$('server-info', 'unread-notification-count')
-    .subscribe(unread => {
-      this.unreadCount = unread
     })
   }
 
@@ -194,6 +185,7 @@ export class AppComponent {
       finalize(() => console.log('FINALIZING!!!')),
     )
     .subscribe(count => {
+      this.unreadCount = count
       if (previous !== undefined && count > previous) this.presentToastNotifications()
       previous = count
     })
