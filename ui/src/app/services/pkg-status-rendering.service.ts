@@ -1,11 +1,11 @@
-import { HealthCheckResultLoading, MainStatusRunning, PackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
+import { HealthCheckResultLoading, MainStatusRunning, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
 
-export function renderPkgStatus (pkg: PackageDataEntry): PkgStatusRendering {
-  switch (pkg.state) {
+export function renderPkgStatus (state: PackageState, status: Status): PkgStatusRendering {
+  switch (state) {
     case PackageState.Installing: return { display: 'Installing', color: 'primary', showDots: true, feStatus: FEStatus.Installing }
     case PackageState.Updating: return { display: 'Updating', color: 'primary', showDots: true, feStatus: FEStatus.Updating }
     case PackageState.Removing: return { display: 'Removing', color: 'warning', showDots: true, feStatus: FEStatus.Removing }
-    case PackageState.Installed: return handleInstalledState(pkg.installed.status)
+    case PackageState.Installed: return handleInstalledState(status)
   }
 }
 
