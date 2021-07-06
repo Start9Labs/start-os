@@ -1,21 +1,16 @@
 import { Subject, Observable } from 'rxjs'
-import { Http, Update, Operation, Revision } from 'patch-db-client'
+import { Http, Update, Operation, Revision, Source, Store } from 'patch-db-client'
 import { RR } from './api-types'
-import { DataModel } from 'src/app/models/patch-db/data-model'
-import { filter } from 'rxjs/operators'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
-export abstract class ApiService implements Http<DataModel> {
+export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   protected readonly sync = new Subject<Update<DataModel>>()
-  private syncing = true
 
   /** PatchDb Source interface. Post/Patch requests provide a source of patches to the db. */
   // sequenceStream '_' is not used by the live api, but is overridden by the mock
-  watch$ (_?: Observable<number>): Observable<Update<DataModel>> {
-    return this.sync.asObservable().pipe(filter(() => this.syncing))
+  watch$ (_?: Store<DataModel>): Observable<Update<DataModel>> {
+    return this.sync.asObservable()
   }
-
-  // used for determining internet connectivity
-  abstract echo (): Promise<string>
 
   // for getting static files: ex icons, instructions, licenses
   abstract getStatic (url: string): Promise<string>
@@ -189,18 +184,4 @@ export abstract class ApiService implements Http<DataModel> {
       }) as any
     }
   }
-
-  // @TODO better types?
-  // private async process<T, F extends (args: object) => Promise<{ response: T, revision?: Revision }>> (f: F, temps: Operation[] = []): Promise<T> {
-  //   let expireId = undefined
-  //   if (temps.length) {
-  //     expireId = uuid.v4()
-  //     this.sync.next({ patch: temps, expiredBy: expireId })
-  //   }
-  //   const { response, revision } = await f({ ...f.arguments, expireId })
-  //   if (revision) this.sync.next(revision)
-  //   return response
-  // }
 }
-// used for type inference in syncResponse
-type ExtractResultPromise<T extends Promise<any>> = T extends Promise<infer R> ? Promise<R> : any

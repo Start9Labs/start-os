@@ -57,7 +57,7 @@
             </ion-card-header>
             <ion-card-content>
               <ion-item-group>
-                <ion-item button *ngFor="let partition of disk.value.partitions | keyvalue" [disabled]="partition.value['is-mounted']" (click)="presentModal(partition.key, partition.value)">
+                <ion-item button *ngFor="let partition of disk.value.partitions | keyvalue" [disabled]="partition.value['is-mounted']" (click)="presentModal(partition.key)">
                   <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label>
                     <h2>{{ partition.value.label || partition.key }} ({{ partition.value.size || 'unknown size' }})</h2>

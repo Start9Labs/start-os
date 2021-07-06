@@ -1,16 +1,16 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { AlertController, ModalController, NavController } from '@ionic/angular'
-import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
-import { pauseFor } from 'src/app/util/misc.util'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { PackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
+import { pauseFor, Recommendation } from 'src/app/util/misc.util'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from '../marketplace.service'
 import { Subscription } from 'rxjs'
+import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
 
 @Component({
   selector: 'marketplace-show',
@@ -35,7 +35,7 @@ export class MarketplaceShowPage {
     private readonly navCtrl: NavController,
     private readonly emver: Emver,
     private readonly patch: PatchDbModel,
-    public marketplaceService: MarketplaceService,
+    public readonly marketplaceService: MarketplaceService,
   ) { }
 
   async ngOnInit () {
@@ -93,6 +93,17 @@ export class MarketplaceShowPage {
     })
 
     await alert.present()
+  }
+
+  async presentModalMd (content: string) {
+    const modal = await this.modalCtrl.create({
+      componentProps: {
+        content,
+      },
+      component: MarkdownPage,
+    })
+
+    await modal.present()
   }
 
   async install () {
