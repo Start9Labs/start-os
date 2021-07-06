@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { InstalledPackageDataEntry } from 'src/app/models/patch-db/data-model'
+import { InstalledPackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { Breakages } from 'src/app/services/api/api-types'
 import { exists } from 'src/app/util/misc.util'
 import { ApiService } from '../../services/api/api.service'

@@ -1,6 +1,14 @@
 export type Omit<ObjectType, KeysType extends keyof ObjectType> = Pick<ObjectType, Exclude<keyof ObjectType, KeysType>>
 export type PromiseRes<T> = { result: 'resolve', value: T } | { result: 'reject', value: Error }
 
+export type Recommendation = {
+  dependentId: string
+  dependentTitle: string
+  dependentIcon: string,
+  description: string
+  version?: string
+}
+
 import { OperatorFunction } from 'rxjs'
 import { map } from 'rxjs/operators'
 

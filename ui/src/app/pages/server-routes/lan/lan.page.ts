@@ -4,7 +4,7 @@ import { copyToClipboard } from 'src/app/util/web.util'
 import { ConfigService } from 'src/app/services/config.service'
 import { LoaderService } from 'src/app/services/loader.service'
 import { ApiService } from 'src/app/services/api/api.service'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 
 @Component({

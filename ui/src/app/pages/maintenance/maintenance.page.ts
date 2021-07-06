@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
-import { ServerStatus } from 'src/app/models/patch-db/data-model'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { ServerStatus } from 'src/app/services/patch-db/data-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'Maintenance',

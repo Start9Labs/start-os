@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService } from './api.service'
 import { Observable } from 'rxjs'
-import { PatchOp, Update } from 'patch-db-client'
-import { DataModel, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/models/patch-db/data-model'
+import { PatchOp, Store, Update } from 'patch-db-client'
+import { DataModel, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
 import { RR } from './api-types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './mock-app-fixures'
 import { HttpService } from '../http.service'
-import { ConfigService } from '../config.service'
+import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
+import { map } from 'rxjs/operators'
 
 @Injectable()
 export class MockApiService extends ApiService {
@@ -20,18 +21,20 @@ export class MockApiService extends ApiService {
   ) { super() }
 
   // every time a patch is returned from the mock, we override its sequence to be 1 more than the last sequence in the patch-db as provided by `o`.
-  watch$ (sequenceStream: Observable<number>): Observable<Update<DataModel>> {
-    sequenceStream.subscribe(i => this.sequence < i ? (this.sequence = i) : { })
+  watch$ (store: Store<DataModel>): Observable<Update<DataModel>> {
+    store.watchCache$().pipe(map(cache => cache.sequence)).subscribe(seq => {
+      console.log('INCOMING: ', seq)
+      if (this.sequence < seq) {
+        console.log('hererereree')
+        this.sequence = seq
+      }
+    })
     return super.watch$()
   }
 
-  async echo (): Promise<string> {
-    console.log('echo...echo')
-    return ''
-  }
-
   async getStatic (url: string): Promise<string> {
-    return Mock.DbDump.value['package-data']['bitcoind']['static-files'].instructions
+    await pauseFor(2000)
+    return markdown
   }
 
   // db

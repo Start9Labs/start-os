@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { InstalledPackageDataEntry, InterfaceDef, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from '../models/patch-db/data-model'
+import { InstalledPackageDataEntry, InterfaceDef, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from './patch-db/data-model'
 
 const { patchDb, api, mocks } = require('../../../ui-config.json') as UiConfig
 

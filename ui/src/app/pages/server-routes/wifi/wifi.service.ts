@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { AlertController, ToastController } from '@ionic/angular'
 import { merge, Observable, timer } from 'rxjs'
 import { filter, map, take, tap } from 'rxjs/operators'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 
 @Injectable({
   providedIn: 'root',
