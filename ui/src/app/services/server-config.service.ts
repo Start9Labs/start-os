@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core'
-import { ModalController } from '@ionic/angular'
 import { AppConfigValuePage } from '../modals/app-config-value/app-config-value.page'
 import { ApiService } from './api/api.service'
 import { ConfigSpec } from '../pkg-config/config-types'
 import { ConfigCursor } from '../pkg-config/config-cursor'
 import { SSHService } from '../pages/server-routes/developer-routes/dev-ssh-keys/ssh.service'
+import { TrackingModalController } from './tracking-modal-controller.service'
 
 @Injectable({
   providedIn: 'root',
@@ -12,7 +12,7 @@ import { SSHService } from '../pages/server-routes/developer-routes/dev-ssh-keys
 export class ServerConfigService {
 
   constructor (
-    private readonly modalCtrl: ModalController,
+    private readonly trackingModalCtrl: TrackingModalController,
     private readonly apiService: ApiService,
     private readonly sshService: SSHService,
   ) { }
@@ -20,10 +20,10 @@ export class ServerConfigService {
   async presentModalValueEdit (key: string, current?: string) {
     const cursor = new ConfigCursor(serverConfig, { [key]: current }).seekNext(key)
 
-    const modal = await this.modalCtrl.create({
+    const modal = await this.trackingModalCtrl.create({
       backdropDismiss: false,
       component: AppConfigValuePage,
-      presentingElement: await this.modalCtrl.getTop(),
+      presentingElement: await this.trackingModalCtrl.getTop(),
       componentProps: {
         cursor,
         saveFn: this.saveFns[key],

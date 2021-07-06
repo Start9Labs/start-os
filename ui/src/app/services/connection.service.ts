@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core'
-import { BehaviorSubject, combineLatest, fromEvent, merge, Observable, Subscription } from 'rxjs'
-import { ConnectionStatus } from '../../../../../patch-db/client/dist'
-import { DataModel } from '../models/patch-db/data-model'
-import { PatchDbModel } from '../models/patch-db/patch-db-model'
+import { BehaviorSubject, combineLatest, fromEvent, merge, Subscription } from 'rxjs'
+import { DataModel } from './patch-db/data-model'
+import { ConnectionStatus, PatchDbModel } from './patch-db/patch-db.service'
 import { HttpService, Method } from './http.service'
+import { distinctUntilChanged } from 'rxjs/operators'
 
 @Injectable({
   providedIn: 'root',
@@ -19,7 +19,7 @@ export class ConnectionService {
     private readonly patch: PatchDbModel,
   ) { }
 
-  watch$ () {
+  watchFailure$ () {
     return this.connectionFailure$.asObservable()
   }
 
@@ -39,22 +39,27 @@ export class ConnectionService {
         this.networkState$.next(event.type === 'online')
       }),
 
-      combineLatest([this.networkState$, this.patch.connectionStatus$()])
+      combineLatest([this.networkState$.pipe(distinctUntilChanged()), this.patch.watchConnection$().pipe(distinctUntilChanged())])
       .subscribe(async ([network, connectionStatus]) => {
+        console.log('CONNECTION STATUS', connectionStatus)
         if (connectionStatus !== ConnectionStatus.Disconnected) {
           this.connectionFailure$.next(ConnectionFailure.None)
         } else if (!network) {
           this.connectionFailure$.next(ConnectionFailure.Network)
         } else {
+          console.log('diagnosing')
           this.connectionFailure$.next(ConnectionFailure.Diagnosing)
           const torSuccess = await this.testAddrs(this.addrs.tor)
           if (torSuccess) {
+            console.log('TOR SUCCESS, EMBASSY IS PROBLEM')
             this.connectionFailure$.next(ConnectionFailure.Embassy)
           } else {
             const clearnetSuccess = await this.testAddrs(this.addrs.clearnet)
             if (clearnetSuccess) {
+              console.log('CLEARNET SUCCESS, TOR IS PROBLEM')
               this.connectionFailure$.next(ConnectionFailure.Tor)
             } else {
+              console.log('INTERNET IS PROBLEM')
               this.connectionFailure$.next(ConnectionFailure.Internet)
             }
           }

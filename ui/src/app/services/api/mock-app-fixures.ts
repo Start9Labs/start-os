@@ -1,13 +1,12 @@
-import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/models/patch-db/data-model'
+import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
 import { NotificationLevel, RR, ServerNotification, ServerNotifications } from './api-types'
-import markdown from 'raw-loader!./md-sample.md'
 
 export module Mock {
 
   export const MarketplaceEos: RR.GetMarketplaceEOSRes = {
     version: '1.0.0',
     headline: 'Our biggest release ever.',
-    'release-notes': { '1.0.0': markdown },
+    'release-notes': { '1.0.0': 'Some **Markdown** release _notes_' },
   }
 
   export const AvailableList: RR.GetAvailableListRes = [
@@ -402,6 +401,8 @@ export module Mock {
     'bitcoind': {
       '0.19.2': {
         icon: 'assets/img/service-icons/bitcoind.png',
+        license: 'licenseUrl',
+        instructions: 'instructionsUrl',
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.19.0',
@@ -417,6 +418,8 @@ export module Mock {
       },
       '0.20.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
+        license: 'licenseUrl',
+        instructions: 'instructionsUrl',
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.20.0',
@@ -432,6 +435,8 @@ export module Mock {
       },
       '0.21.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
+        license: 'licenseUrl',
+        instructions: 'instructionsUrl',
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.21.0',
@@ -448,6 +453,8 @@ export module Mock {
       },
       'latest': {
         icon: 'assets/img/service-icons/bitcoind.png',
+        license: 'licenseUrl',
+        instructions: 'instructionsUrl',
         manifest: {
           ...Mock.MockManifestBitcoind,
           'release-notes': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
@@ -465,6 +472,8 @@ export module Mock {
     'lnd': {
       '0.11.0': {
         icon: 'assets/img/service-icons/lnd.png',
+        license: 'licenseUrl',
+        instructions: 'instructionsUrl',
         manifest: {
           ...Mock.MockManifestLnd,
           version: '0.11.0',
@@ -490,6 +499,8 @@ export module Mock {
       },
       '0.11.1': {
         icon: 'assets/img/service-icons/lnd.png',
+        license: 'licenseUrl',
+        instructions: 'instructionsUrl',
         manifest: {
           ...Mock.MockManifestLnd,
           version: '0.11.1',
@@ -515,6 +526,8 @@ export module Mock {
       },
       'latest': {
         icon: 'assets/img/service-icons/lnd.png',
+        license: 'licenseUrl',
+        instructions: 'instructionsUrl',
         manifest: Mock.MockManifestLnd,
         categories: ['bitcoin', 'lightning', 'cryptocurrency'],
         versions: ['0.11.0', '0.11.1'],
@@ -538,6 +551,8 @@ export module Mock {
     'bitcoin-proxy': {
       'latest': {
         icon: 'assets/img/service-icons/bitcoin-proxy.png',
+        license: 'licenseUrl',
+        instructions: 'instructionsUrl',
         manifest: Mock.MockManifestBitcoinProxy,
         categories: ['bitcoin'],
         versions: ['0.2.2'],
@@ -559,9 +574,9 @@ export module Mock {
   export const bitcoind: PackageDataEntry = {
     state: PackageState.Installed,
     'static-files': {
-      license: 'licenseURL',
+      license: 'licenseUrl', // /public/package-data/bitcoind/0.21.1/LICENSE.md,
       icon: 'assets/img/service-icons/bitcoind.png',
-      instructions: markdown, // /public/package-data/bitcoind/0.21.1/INSTRUCTIONS.md
+      instructions: 'instructionsUrl', // /public/package-data/bitcoind/0.21.1/INSTRUCTIONS.md
     },
     'temp-manifest': undefined,
     installed: {
@@ -610,9 +625,9 @@ export module Mock {
   export const lnd: PackageDataEntry = {
     state: PackageState.Installed,
     'static-files': {
-      license: 'licenseURL',
+      license: 'licenseUrl', // /public/package-data/lnd/0.21.1/LICENSE.md,
       icon: 'assets/img/service-icons/lnd.png',
-      instructions: markdown, // /public/package-data/bitcoind/0.21.1/INSTRUCTIONS.md
+      instructions: 'instructionsUrl', // /public/package-data/lnd/0.21.1/INSTRUCTIONS.md
     },
     'temp-manifest': undefined,
     installed: {
@@ -662,9 +677,9 @@ export module Mock {
   export const bitcoinproxy: PackageDataEntry = {
     state: PackageState.Installed,
     'static-files': {
-      license: 'licenseURL',
+      license: 'licenseUrl', // /public/package-data/bitcoinproxy/0.21.1/LICENSE.md,
       icon: 'assets/img/service-icons/bitcoin-proxy.png',
-      instructions: '*These are some instructions.*', // /public/package-data/bitcoinproxy/0.2.2/INSTRUCTIONS.md
+      instructions: 'instructionsUrl', // /public/package-data/bitcoinproxy/0.2.2/INSTRUCTIONS.md
     },
     'temp-manifest': undefined,
     installed: {
@@ -737,7 +752,6 @@ export module Mock {
         'lnd': lnd,
       },
       ui: {
-        'server-name': 'My Embassy',
         'welcome-ack': '1.0.0',
         'auto-check-updates': true,
       },

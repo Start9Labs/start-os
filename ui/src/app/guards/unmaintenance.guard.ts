@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core'
 import { CanActivate, Router } from '@angular/router'
 import { tap } from 'rxjs/operators'
-import { ServerStatus } from '../models/patch-db/data-model'
-import { PatchDbModel } from '../models/patch-db/patch-db-model'
+import { ServerStatus } from '../services/patch-db/data-model'
+import { PatchDbModel } from '../services/patch-db/patch-db.service'
 
 @Injectable({
   providedIn: 'root',

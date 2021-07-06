@@ -1,20 +1,18 @@
 import { Component, ViewChild } from '@angular/core'
-import { NavController, AlertController, ModalController, PopoverController, IonContent } from '@ionic/angular'
+import { NavController, AlertController, ModalController, IonContent } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
-import { isEmptyObject } from 'src/app/util/misc.util'
+import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
 import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
 import { from, fromEvent, of, Subscription } from 'rxjs'
 import { catchError, concatMap, map, take, tap } from 'rxjs/operators'
-import { Recommendation } from 'src/app/components/recommendation-button/recommendation-button.component'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
-import { InstalledPackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { InstalledPackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'app-config',
@@ -31,7 +29,7 @@ export class AppConfigPage {
   pkg: InstalledPackageDataEntry
   hasConfig = false
 
-  backButtonDefense = false
+  mocalShowing = false
   packageState = PackageState
 
   rec: Recommendation | null = null
@@ -57,7 +55,6 @@ export class AppConfigPage {
     private readonly alertCtrl: AlertController,
     private readonly modalController: ModalController,
     private readonly trackingModalCtrl: TrackingModalController,
-    private readonly popoverController: PopoverController,
     private readonly patch: PatchDbModel,
   ) { }
 
@@ -71,17 +68,17 @@ export class AppConfigPage {
         }
       }),
       fromEvent(window, 'popstate').subscribe(() => {
-        this.backButtonDefense = false
+        this.mocalShowing = false
         this.trackingModalCtrl.dismissAll()
       }),
       this.trackingModalCtrl.onCreateAny$().subscribe(() => {
-        if (!this.backButtonDefense) {
+        if (!this.mocalShowing) {
           window.history.pushState(null, null, window.location.href + '/edit')
-          this.backButtonDefense = true
+          this.mocalShowing = true
         }
       }),
       this.trackingModalCtrl.onDismissAny$().subscribe(() => {
-        if (!this.trackingModalCtrl.anyModals && this.backButtonDefense === true) {
+        if (!this.trackingModalCtrl.anyModals && this.mocalShowing === true) {
           this.navCtrl.back()
         }
       }),
@@ -133,28 +130,6 @@ export class AppConfigPage {
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
-  }
-
-  async presentPopover (title: string, description: string, ev: any) {
-    const information = `
-      <div style="font-size: medium; font-style: italic; margin: 5px 0px;">
-        ${title}
-      </div>
-      <div>
-        ${description}
-      </div>
-    `
-    const popover = await this.popoverController.create({
-      component: InformationPopoverComponent,
-      event: ev,
-      translucent: false,
-      showBackdrop: true,
-      backdropDismiss: true,
-      componentProps: {
-        information,
-      },
-    })
-    return await popover.present()
   }
 
   setConfig (spec: ConfigSpec, config: object, dependencyConfig?: object) {

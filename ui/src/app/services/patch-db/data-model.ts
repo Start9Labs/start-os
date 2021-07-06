@@ -379,7 +379,6 @@ export interface InterfaceInfo {
 export type URL = string
 
 export interface UIData {
-  'server-name': string
   'welcome-ack': string
   'auto-check-updates': boolean
 }
