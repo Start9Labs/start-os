@@ -3,7 +3,6 @@ import { BehaviorSubject, Observable } from 'rxjs'
 import { distinctUntilChanged } from 'rxjs/operators'
 import { ApiService } from './api/api.service'
 import { Storage } from '@ionic/storage'
-import { StorageKeys } from '../models/storage-keys'
 
 export enum AuthState {
   UNVERIFIED,
@@ -14,6 +13,7 @@ export enum AuthState {
   providedIn: 'root',
 })
 export class AuthService {
+  private readonly LOGGED_IN_KEY = 'loggedInKey'
   private readonly authState$: BehaviorSubject<AuthState> = new BehaviorSubject(AuthState.INITIALIZING)
 
   constructor (
@@ -22,7 +22,7 @@ export class AuthService {
   ) { }
 
   async init (): Promise<void> {
-    const loggedIn = await this.storage.get(StorageKeys.LOGGED_IN_KEY)
+    const loggedIn = await this.storage.get(this.LOGGED_IN_KEY)
     this.authState$.next( loggedIn ? AuthState.VERIFIED : AuthState.UNVERIFIED)
   }
 
@@ -32,7 +32,7 @@ export class AuthService {
 
   async login (password: string): Promise<void> {
     await this.api.login({ password })
-    await this.storage.set(StorageKeys.LOGGED_IN_KEY, true)
+    await this.storage.set(this.LOGGED_IN_KEY, true)
     this.authState$.next(AuthState.VERIFIED)
   }
 

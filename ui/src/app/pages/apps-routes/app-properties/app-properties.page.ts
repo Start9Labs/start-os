@@ -6,10 +6,10 @@ import { copyToClipboard } from 'src/app/util/web.util'
 import { AlertController, IonContent, NavController, PopoverController, ToastController } from '@ionic/angular'
 import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import * as JsonPointer from 'json-pointer'
 import { FEStatus } from 'src/app/services/pkg-status-rendering.service'
-import { PackageMainStatus } from 'src/app/models/patch-db/data-model'
+import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'app-properties',

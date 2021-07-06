@@ -1,7 +1,7 @@
 import { Dump, Revision } from 'patch-db-client'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
-import { DataModel, DependencyError, Manifest, URL } from 'src/app/models/patch-db/data-model'
+import { DataModel, DependencyError, Manifest, URL } from 'src/app/services/patch-db/data-model'
 
 export module RR {
 
@@ -187,6 +187,8 @@ export interface AvailablePreview {
 
 export interface AvailableShow {
   icon: URL
+  license: URL
+  instructions: URL
   manifest: Manifest
   categories: string[]
   versions: string[]

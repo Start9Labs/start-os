@@ -3,8 +3,6 @@ import { LoadingOptions } from '@ionic/core'
 import { AlertController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { LoaderService } from 'src/app/services/loader.service'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { ServerStatus } from 'src/app/models/patch-db/data-model'
 import { ActivatedRoute } from '@angular/router'
 
 @Component({
@@ -13,7 +11,6 @@ import { ActivatedRoute } from '@angular/router'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  ServerStatus = ServerStatus
   settings: ServerSettings = { }
 
   constructor (
@@ -22,7 +19,6 @@ export class ServerShowPage {
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
-    public readonly patch: PatchDbModel,
   ) { }
 
   ngOnInit () {
@@ -77,7 +73,6 @@ export class ServerShowPage {
     this.loader
       .of(LoadingSpinner(`Restarting...`))
       .displayDuringAsync( async () => {
-        // this.serverModel.markUnreachable()
         await this.apiService.restartServer({ })
       })
       .catch(console.error)
@@ -87,7 +82,6 @@ export class ServerShowPage {
     this.loader
       .of(LoadingSpinner(`Shutting down...`))
       .displayDuringAsync( async () => {
-        // this.serverModel.markUnreachable()
         await this.apiService.shutdownServer({ })
       })
       .catch(console.error)

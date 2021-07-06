@@ -4,8 +4,8 @@ import { MarketplaceData, MarketplaceEOS, AvailablePreview } from 'src/app/servi
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { PackageDataEntry, PackageState } from 'src/app/models/patch-db/data-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 
 @Component({

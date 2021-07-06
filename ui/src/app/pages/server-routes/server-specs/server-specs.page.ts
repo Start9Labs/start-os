@@ -1,8 +1,8 @@
 import { Component } from '@angular/core'
 import { ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
-import { ServerInfo } from 'src/app/models/patch-db/data-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { ServerInfo } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 
 @Component({

@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router'
 import { IonContent } from '@ionic/angular'
 import { Subscription } from 'rxjs'
 import { concatMap, take, tap } from 'rxjs/operators'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { ApiService } from 'src/app/services/api/api.service'
 
 @Component({

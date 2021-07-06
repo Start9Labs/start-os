@@ -3,17 +3,16 @@ import { Storage } from '@ionic/storage'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/api.service'
 import { Router, RoutesRecognized } from '@angular/router'
-import { distinctUntilChanged, filter, finalize, takeWhile } from 'rxjs/operators'
+import { debounceTime, distinctUntilChanged, filter, finalize, takeWhile } from 'rxjs/operators'
 import { AlertController, ToastController } from '@ionic/angular'
 import { LoaderService } from './services/loader.service'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { LoadingOptions } from '@ionic/core'
-import { PatchDbModel } from './models/patch-db/patch-db-model'
+import { PatchDbModel } from './services/patch-db/patch-db.service'
 import { HttpService } from './services/http.service'
-import { ServerStatus } from './models/patch-db/data-model'
+import { ServerStatus } from './services/patch-db/data-model'
 import { ConnectionFailure, ConnectionService } from './services/connection.service'
-import { combineLatest, merge } from 'rxjs'
 
 @Component({
   selector: 'app-root',
@@ -29,7 +28,7 @@ export class AppComponent {
   unreadCount: number
   appPages = [
     {
-      title: 'Services',
+      title: 'Installed Services',
       url: '/services',
       icon: 'grid-outline',
     },
@@ -39,7 +38,7 @@ export class AppComponent {
       icon: 'cube-outline',
     },
     {
-      title: 'Marketplace',
+      title: 'Service Marketplace',
       url: '/marketplace',
       icon: 'storefront-outline',
     },
@@ -120,19 +119,38 @@ export class AppComponent {
   }
 
   private watchConnection (auth: AuthState): void {
-    this.connectionService.watch$()
+    this.connectionService.watchFailure$()
     .pipe(
       distinctUntilChanged(),
+      debounceTime(500),
       takeWhile(() => auth === AuthState.VERIFIED),
     )
-    .subscribe(connectionFailure => {
-      if (connectionFailure !== ConnectionFailure.None) {
-        this.presentToastOffline()
-      } else {
+    .subscribe(async connectionFailure => {
+      if (connectionFailure === ConnectionFailure.None) {
         if (this.offlineToast) {
           this.offlineToast.dismiss()
           this.offlineToast = undefined
         }
+      } else {
+        let message: string
+        switch (connectionFailure) {
+          case ConnectionFailure.Network:
+            message = 'No network'
+            break
+          case ConnectionFailure.Diagnosing:
+            message = 'Diagnosing'
+            break
+          case ConnectionFailure.Embassy:
+            message = 'Embassy is unreachable'
+            break
+          case ConnectionFailure.Tor:
+            message = 'Tor issues'
+            break
+          case ConnectionFailure.Internet:
+            message = 'No Internet'
+            break
+        }
+        await this.presentToastOffline(message)
       }
     })
   }
@@ -237,10 +255,15 @@ export class AppComponent {
     await toast.present()
   }
 
-  private async presentToastOffline () {
+  private async presentToastOffline (message: string) {
+    if (this.offlineToast) {
+      this.offlineToast.message = message
+      return
+    }
+
     this.offlineToast = await this.toastCtrl.create({
-      header: 'No Internet',
-      message: `Please check your Internet connection and try again.`,
+      header: 'Connection Issue',
+      message,
       position: 'bottom',
       duration: 0,
       buttons: [
