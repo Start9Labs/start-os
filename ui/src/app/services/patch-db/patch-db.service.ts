@@ -18,6 +18,7 @@ export enum ConnectionStatus {
 })
 export class PatchDbModel {
   connectionStatus$ = new BehaviorSubject(ConnectionStatus.Initializing)
+  data: DataModel
   private patchDb: PatchDB<DataModel>
   private patchSub: Subscription
 
@@ -29,6 +30,7 @@ export class PatchDbModel {
   async init (): Promise<void> {
     const cache = await this.bootstrapper.init()
     this.patchDb = new PatchDB(this.sources, cache)
+    this.data = this.patchDb.store.cache.data
   }
 
   start (): void {
@@ -75,7 +77,7 @@ export class PatchDbModel {
     return this.connectionStatus$.asObservable()
   }
 
-  watch$: Store<DataModel> ['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
+  watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
     // console.log('WATCHING')
     return this.patchDb.store.watch$(...(args as [])).pipe(
       tap(cache => console.log('CHANGE IN STORE', cache)),
