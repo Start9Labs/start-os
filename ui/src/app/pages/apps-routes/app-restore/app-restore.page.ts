@@ -4,7 +4,7 @@ import { ApiService } from 'src/app/services/api/api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
 import { DiskInfo, PartitionInfoEntry } from 'src/app/services/api/api-types'
 import { ActivatedRoute } from '@angular/router'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 
 @Component({
@@ -69,10 +69,10 @@ export class AppRestorePage {
     }
   }
 
-  async presentModal (logicalname: string, partition: PartitionInfoEntry): Promise<void> {
+  async presentModal (logicalname: string): Promise<void> {
     const m = await this.modalCtrl.create({
       componentProps: {
-        name: partition.label || logicalname,
+        type: 'restore',
       },
       cssClass: 'alertlike-modal',
       component: BackupConfirmationComponent,

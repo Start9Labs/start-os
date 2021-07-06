@@ -9,16 +9,17 @@ import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
 import { ApiService } from './services/api/api.service'
 import { ApiServiceFactory } from './services/api/api.service.factory'
-import { PatchDbModelFactory } from './models/patch-db/patch-db-model.factory'
+import { PatchDbModelFactory } from './services/patch-db/patch-db.factory'
 import { HttpService } from './services/http.service'
 import { ConfigService } from './services/config.service'
 import { QRCodeModule } from 'angularx-qrcode'
-import { APP_CONFIG_COMPONENT_MAPPING } from './modals/app-config-injectable/modal-injectable-token'
-import { appConfigComponents } from './modals/app-config-injectable/modal-injectable-value'
+import { appConfigComponents } from './modals/app-config-injectable'
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
-import { PatchDbModel } from './models/patch-db/patch-db-model'
-import { LocalStorageBootstrap } from './models/patch-db/local-storage-bootstrap'
+import { MarkdownPageModule } from './modals/markdown/markdown.module'
+import { PatchDbModel } from './services/patch-db/patch-db.service'
+import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstrap'
 import { SharingModule } from './modules/sharing.module'
+import { APP_CONFIG_COMPONENT_MAPPING } from './services/tracking-modal-controller.service'
 
 @NgModule({
   declarations: [AppComponent],
@@ -36,6 +37,7 @@ import { SharingModule } from './modules/sharing.module'
     }),
     QRCodeModule,
     OSWelcomePageModule,
+    MarkdownPageModule,
     SharingModule,
   ],
   providers: [

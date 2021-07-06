@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
-import { PatchDbModel } from 'src/app/models/patch-db/patch-db-model'
+import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { combineLatest, Subscription } from 'rxjs'
 
 @Component({

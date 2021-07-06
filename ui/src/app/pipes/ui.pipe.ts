@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { PackageDataEntry, Manifest } from '../models/patch-db/data-model'
+import { PackageDataEntry, Manifest } from '../services/patch-db/data-model'
 import { ConfigService, getManifest, hasUi } from '../services/config.service'
 
 @Pipe({

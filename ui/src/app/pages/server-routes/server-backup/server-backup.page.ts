@@ -2,7 +2,7 @@ import { Component } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
-import { DiskInfo, PartitionInfoEntry } from 'src/app/services/api/api-types'
+import { DiskInfo } from 'src/app/services/api/api-types'
 
 @Component({
   selector: 'server-backup',
@@ -42,10 +42,10 @@ export class ServerBackupPage {
     }
   }
 
-  async presentModal (logicalname: string, partition: PartitionInfoEntry): Promise<void> {
+  async presentModal (logicalname: string): Promise<void> {
     const m = await this.modalCtrl.create({
       componentProps: {
-        name: partition.label || logicalname,
+        type: 'backup',
       },
       cssClass: 'alertlike-modal',
       component: BackupConfirmationComponent,

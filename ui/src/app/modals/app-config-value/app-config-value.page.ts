@@ -1,8 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { getDefaultConfigValue, getDefaultDescription, Range } from 'src/app/pkg-config/config-utilities'
-import { AlertController, ToastController } from '@ionic/angular'
+import { AlertController, ModalController, ToastController } from '@ionic/angular'
 import { LoaderService } from 'src/app/services/loader.service'
-import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { ValueSpecOf } from 'src/app/pkg-config/config-types'
 import { copyToClipboard } from 'src/app/util/web.util'
@@ -31,7 +30,7 @@ export class AppConfigValuePage {
 
   constructor (
     private readonly loader: LoaderService,
-    private readonly trackingModalCtrl: TrackingModalController,
+    private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
     private readonly toastCtrl: ToastController,
   ) { }
@@ -58,7 +57,7 @@ export class AppConfigValuePage {
     if ((!!this.saveFn && this.edited) || (!this.saveFn && this.error)) {
       await this.presentAlert()
     } else {
-      await this.trackingModalCtrl.dismiss()
+      await this.modalCtrl.dismiss()
     }
   }
 
@@ -76,7 +75,7 @@ export class AppConfigValuePage {
       }),
     )
 
-    await this.trackingModalCtrl.dismiss(this.value)
+    await this.modalCtrl.dismiss(this.value)
   }
 
   refreshDefault () {
@@ -172,7 +171,7 @@ export class AppConfigValuePage {
           text: `Leave`,
           cssClass: 'alert-danger',
           handler: () => {
-            this.trackingModalCtrl.dismiss()
+            this.modalCtrl.dismiss()
           },
         },
       ],

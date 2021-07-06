@@ -1,10 +1,11 @@
-import { Inject, Injectable } from '@angular/core'
+import { Inject, Injectable, InjectionToken } from '@angular/core'
 import { Observable, Subject } from 'rxjs'
 import { ModalController } from '@ionic/angular'
 import { ModalOptions } from '@ionic/core'
-import { APP_CONFIG_COMPONENT_MAPPING } from '../modals/app-config-injectable/modal-injectable-token'
-import { AppConfigComponentMapping } from '../modals/app-config-injectable/modal-injectable-type'
 import { ValueSpec } from '../pkg-config/config-types'
+import { AppConfigComponentMapping } from '../modals/app-config-injectable'
+
+export const APP_CONFIG_COMPONENT_MAPPING = new InjectionToken<string>('APP_CONFIG_COMPONENTS')
 
 @Injectable({
   providedIn: 'root',

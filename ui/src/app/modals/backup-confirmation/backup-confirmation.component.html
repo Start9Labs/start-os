@@ -1,10 +1,14 @@
-<!-- TODO: EJECT-DISKS, add a check box to allow a user to eject a disk on backup completion. -->
 <ion-content>
-  <div style="height: 85%; margin: 20px; display: flex; flex-direction: column; justify-content: space-between;">
-    <div>
-      <h4><ion-text color="dark">Ready to Backup</ion-text></h4>
+  <div style="height: 85%; margin: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+    <div *ngIf="type === 'backup'">
+      <h4><ion-text color="dark">Encrypt Backup</ion-text></h4>
       <p><ion-text color="medium">Enter your master password to create an encrypted backup.</ion-text></p>  
     </div>
+    <div *ngIf="type === 'restore'">
+      <h4><ion-text color="dark">Decrypt Backup</ion-text></h4>
+      <p><ion-text color="medium">Enter the password that was originally used to encrypt this backup.</ion-text></p>  
+    </div>
+
     <div>
       <ion-item lines="none" style="--background: var(--ion-background-color); --border-color: var(--ion-color-medium);">
         <ion-label style="font-size: small" position="floating">Master Password</ion-label>
@@ -14,12 +18,13 @@
         <ion-label style="font-size: small" color="danger" class="ion-text-wrap">{{ error }}</ion-label>
       </ion-item>
     </div>
+
     <div style="display: flex; justify-content: flex-end; align-items: center;">
       <ion-button fill="clear" color="medium" (click)="cancel()">
         Cancel
       </ion-button>
-      <ion-button fill="clear" color="primary" (click)="submit()">
-        Create Backup
+      <ion-button fill="clear" (click)="submit()">
+        {{ type === 'backup' ? 'Create Backup' : 'Restore Backup' }}
       </ion-button>
     </div>
   </div>

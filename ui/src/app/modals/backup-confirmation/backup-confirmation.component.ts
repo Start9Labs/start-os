@@ -1,6 +1,5 @@
 import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { PartitionInfo } from 'src/app/services/api/api-types'
 
 @Component({
   selector: 'backup-confirmation',
@@ -8,19 +7,14 @@ import { PartitionInfo } from 'src/app/services/api/api-types'
   styleUrls: ['./backup-confirmation.component.scss'],
 })
 export class BackupConfirmationComponent {
-  @Input() name: string
+  @Input() type: 'backup' | 'restore'
   unmasked = false
-  password: string
-  message: string
+  password = ''
   error = ''
 
   constructor (
     private readonly modalCtrl: ModalController,
   ) { }
-
-  ngOnInit () {
-    this.message = `Enter your master password to create an encrypted backup on "${this.name}".`
-  }
 
   toggleMask () {
     this.unmasked = !this.unmasked

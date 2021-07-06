@@ -1,7 +1,6 @@
 import { Component, Input } from '@angular/core'
-import { PackageDataEntry } from 'src/app/models/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
-import { ConnectionStatus } from 'patch-db-client'
 
 @Component({
   selector: 'status',
