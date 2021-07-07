@@ -49,7 +49,7 @@ export class AppShowPage {
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.pkg = this.patch.data['package-data'][this.pkgId]
-    // @TODO re-fetch manifest if package state changes.
+    // @TODO maybe re-fetch manifest if package state changes.
     this.manifest = getManifest(this.pkg)
     this.subs = [
       this.patch.connected$().subscribe(c => this.connected = c),

@@ -1,6 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { BehaviorSubject } from 'rxjs'
-import { PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 
@@ -18,7 +17,6 @@ export class StatusComponent {
   color = ''
   showDots = false
   subs = []
-  pkg: PackageDataEntry
 
   constructor (
     private readonly patch: PatchDbModel,
@@ -26,9 +24,8 @@ export class StatusComponent {
 
   ngOnInit () {
     this.subs = [
-      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main', 'status').subscribe(_ => {
-        this.pkg = this.patch.data['package-data'][this.pkgId]
-        this.render(this.pkg)
+      this.patch.sequence$.subscribe(_ => {
+        this.render(this.patch.data['package-data'][this.pkgId])
       }),
     ]
   }
