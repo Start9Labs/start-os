@@ -5,7 +5,8 @@ import { ApiService, DataDrive, RecoveryDrive } from './api/api.service'
   providedIn: 'root'
 })
 export class StateService {
-  loading = true;
+  loading = true
+  polling = false
 
   dataDrive: DataDrive;
   recoveryDrive: RecoveryDrive;
@@ -27,6 +28,7 @@ export class StateService {
   }
 
   async pollDataTransferProgress() {
+    this.polling = true
     await pauseFor(7000)
 
     if (
