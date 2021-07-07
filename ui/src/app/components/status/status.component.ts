@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { combineLatest } from 'rxjs'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 
@@ -24,21 +24,21 @@ export class StatusComponent {
 
   ngOnInit () {
     this.subs = [
-      this.patch.sequence$.subscribe(_ => {
-        this.render(this.patch.data['package-data'][this.pkgId])
+      combineLatest([
+        this.patch.watch$('package-data', this.pkgId, 'state'),
+        this.patch.watch$('package-data', this.pkgId, 'installed', 'status'),
+      ])
+      .subscribe(([state, status]) => {
+        const { display, color, showDots } = renderPkgStatus(state, status)
+        this.display = display
+        this.color = color
+        this.showDots = showDots
       }),
     ]
   }
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
-  }
-
-  private render (pkg: PackageDataEntry) {
-    const { display, color, showDots } = renderPkgStatus(pkg.state, pkg.installed.status)
-    this.display = display
-    this.color = color
-    this.showDots = showDots
   }
 }
 
