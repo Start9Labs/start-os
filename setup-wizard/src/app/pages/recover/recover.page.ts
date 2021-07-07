@@ -72,8 +72,8 @@ export class RecoverPage {
     await loader.present()
 
     try {
-      await this.apiService.selectRecoveryDrive(this.selectedDrive.logicalname, pw)
       this.stateService.recoveryDrive = this.selectedDrive
+      await this.apiService.selectRecoveryDrive(this.selectedDrive.logicalname, pw)
       this.stateService.pollDataTransferProgress()
     } catch (e) {
     } finally {
