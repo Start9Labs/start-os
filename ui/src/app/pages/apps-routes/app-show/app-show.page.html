@@ -32,16 +32,16 @@
 
       <div class="status-readout">
         <status *ngIf="connected" size="large" weight="500" [pkgId]="pkgId"></status>
-        <ion-button *ngIf="(pkgId | status) === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
+        <ion-button *ngIf="(pkgId | status | async) === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
           Configure
         </ion-button>
-        <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : (pkgId | status)" expand="block" color="danger" (click)="stop()">
+        <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : (pkgId | status | async)" expand="block" color="danger" (click)="stop()">
           Stop
         </ion-button>
-        <ion-button *ngIf="(pkgId | status) === FeStatus.DependencyIssue" expand="block" (click)="scrollToRequirements()">
+        <ion-button *ngIf="(pkgId | status | async) === FeStatus.DependencyIssue" expand="block" (click)="scrollToRequirements()">
           Fix
         </ion-button>
-        <ion-button *ngIf="(pkgId | status) === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
+        <ion-button *ngIf="(pkgId | status | async) === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
           Start
         </ion-button>
       </div>
