@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { Observable } from 'rxjs'
+import { combineLatest, Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { PatchDbModel } from '../services/patch-db/patch-db.service'
 import { FEStatus, renderPkgStatus } from '../services/pkg-status-rendering.service'
@@ -14,10 +14,13 @@ export class StatusPipe implements PipeTransform {
   ) { }
 
   transform (pkgId: string): Observable<FEStatus> {
-    return this.patch.sequence$.pipe(
-      map(_ => {
-        const pkg = this.patch.data['package-data'][pkgId]
-        return renderPkgStatus(pkg.state, pkg.installed.status).feStatus
+    return combineLatest([
+      this.patch.watch$('package-data', pkgId, 'state'),
+      this.patch.watch$('package-data', pkgId, 'installed', 'status'),
+    ])
+    .pipe(
+      map(([state, status]) => {
+        return renderPkgStatus(state, status).feStatus
       }),
     )
   }
