@@ -1,5 +1,5 @@
 <ion-content>
-  <div *ngIf="!stateService.recoveryDrive && dataDrives?.length">
+  <div *ngIf="!stateService.polling && dataDrives?.length">
     <div *ngIf="!dataDrives.length">
       <h2 color="light">No recovery drives found</h2>
       <p color="light">Please connect a recovery drive to your embassy and refresh the page.</p>
@@ -26,7 +26,7 @@
       <div style="width: 100%; text-align: center;;">
         <ion-button 
         (click)="presentPasswordModal()"
-        color="tertiary"
+        color="primary"
         [disabled]="!selectedDrive"
         style="text-align:center"
         size="large"
@@ -37,13 +37,12 @@
     </div>
     
   </div>
-  <div *ngIf="stateService.recoveryDrive" style="width: 100%; text-align: center;">
-    <h2>Recovering Your Embassy</h2>
-    <ion-progress-bar style="max-width: 700px; margin: auto;" value="{{stateService.dataProgress}}"></ion-progress-bar>
-    <h2>Progress: {{ 100 * stateService.dataProgress }}% <ion-spinner *ngIf="stateService.dataProgress !== 1"></ion-spinner> </h2>
+  <div *ngIf="stateService.polling" style="width: 100%; text-align: center;">
+    <h2 style="padding-bottom: 30px; padding-top: 70px;">Recovery Progress: {{ 100 * stateService.dataProgress }}% </h2>
+    <ion-progress-bar color="primary" style="max-width: 700px; margin: auto; padding-bottom: 20px; margin-bottom: 40px;" value="{{stateService.dataProgress}}"></ion-progress-bar>
     <ion-button 
       (click)="navToEmbassy()"
-      color="tertiary" 
+      color="primary" 
       [disabled]="stateService.dataProgress !== 1"
       style="text-align:center"
       size="large"
