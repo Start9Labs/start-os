@@ -8,9 +8,14 @@ use crate::s9pk::reader::S9pkReader;
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::Error;
 
-#[command(subcommands(manifest, license, icon, instructions, docker_images))]
+#[command(subcommands(hash, manifest, license, icon, instructions, docker_images))]
 pub fn inspect(#[context] ctx: EitherContext) -> Result<(), Error> {
     Ok(())
+}
+
+#[command(cli_only)]
+pub async fn hash(#[arg] path: PathBuf) -> Result<String, Error> {
+    Ok(S9pkReader::open(path).await?.hash_str().to_owned())
 }
 
 #[command(cli_only, display(display_serializable))]

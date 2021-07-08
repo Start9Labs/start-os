@@ -12,6 +12,7 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use tokio::fs::File;
 
+#[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
 use crate::net::tor::TorController;
 use crate::util::{from_toml_async_reader, AsyncFileExt, Container};
@@ -34,6 +35,7 @@ pub struct RpcContextSeed {
     pub secret_store: SqlitePool,
     pub docker: Docker,
     pub tor_controller: TorController,
+    #[cfg(feature = "avahi")]
     pub mdns_controller: MdnsController,
 }
 
@@ -72,6 +74,7 @@ impl RpcContext {
             &mut secret_store.acquire().await?,
         )
         .await?;
+        #[cfg(feature = "avahi")]
         let mdns_controller = MdnsController::init(&mut db_handle).await?;
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
@@ -80,6 +83,7 @@ impl RpcContext {
             secret_store,
             docker: Docker::connect_with_unix_defaults()?,
             tor_controller,
+            #[cfg(feature = "avahi")]
             mdns_controller,
         });
         Ok(Self(seed))
