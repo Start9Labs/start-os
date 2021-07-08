@@ -10,26 +10,12 @@ import { Subscription } from 'rxjs'
   styleUrls: ['./dev-options.page.scss'],
 })
 export class DevOptionsPage {
-  server: ServerInfo = { } as any
   subs: Subscription[] = []
 
   constructor (
     private readonly serverConfigService: ServerConfigService,
-    private readonly patch: PatchDbModel,
+    public readonly patch: PatchDbModel,
   ) { }
-
-  ngOnInit () {
-    this.subs = [
-      this.patch.watch$('server-info')
-      .subscribe(server => {
-        this.server = server
-      }),
-    ]
-  }
-
-  ngOnDestroy () {
-    this.subs.forEach(sub => sub.unsubscribe())
-  }
 
   async presentModalValueEdit (key: string, current?: any): Promise<void> {
     await this.serverConfigService.presentModalValueEdit(key, current)

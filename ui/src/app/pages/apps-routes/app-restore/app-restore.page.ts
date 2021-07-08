@@ -2,7 +2,7 @@ import { Component, ViewChild } from '@angular/core'
 import { IonContent, LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
-import { DiskInfo, PartitionInfoEntry } from 'src/app/services/api/api-types'
+import { DiskInfo } from 'src/app/services/api/api-types'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
@@ -33,23 +33,13 @@ export class AppRestorePage {
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-
-    this.subs = [
-      this.patch.watch$('package-data', this.pkgId, 'installed', 'manifest', 'title')
-      .subscribe(title => {
-        this.title = title
-      }),
-    ]
+    this.title = this.patch.data['package-data'][this.pkgId].installed.manifest.title
 
     this.getExternalDisks()
   }
 
   ngAfterViewInit () {
     this.content.scrollToPoint(undefined, 1)
-  }
-
-  ngOnDestroy () {
-    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async refresh () {
