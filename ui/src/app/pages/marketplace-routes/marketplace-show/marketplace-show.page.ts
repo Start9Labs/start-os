@@ -1,6 +1,6 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
+import { AlertController, IonContent, ModalController, NavController } from '@ionic/angular'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Emver } from 'src/app/services/emver.service'
@@ -18,6 +18,7 @@ import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
   styleUrls: ['./marketplace-show.page.scss'],
 })
 export class MarketplaceShowPage {
+  @ViewChild(IonContent) content: IonContent
   error = ''
   pkgId: string
   installedPkg: PackageDataEntry
@@ -51,6 +52,10 @@ export class MarketplaceShowPage {
     ]
 
     this.getPkg()
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy () {
@@ -95,10 +100,11 @@ export class MarketplaceShowPage {
     await alert.present()
   }
 
-  async presentModalMd (content: string) {
+  async presentModalMd (title: string) {
     const modal = await this.modalCtrl.create({
       componentProps: {
-        content,
+        title,
+        contentUrl: this.marketplaceService.pkgs[this.pkgId][title],
       },
       component: MarkdownPage,
     })

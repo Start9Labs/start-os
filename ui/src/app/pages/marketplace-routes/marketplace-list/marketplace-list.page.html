@@ -11,7 +11,7 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <ion-spinner *ngIf="pageLoading; else pageLoaded" class="center" name="lines" color="warning"></ion-spinner>
+  <text-spinner *ngIf="pageLoading; else pageLoaded" [text]="'loading marketplace'"></text-spinner>
 
   <ng-template #pageLoaded>
 
