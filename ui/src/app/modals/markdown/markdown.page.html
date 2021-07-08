@@ -1,3 +1,21 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>{{ title | titlecase }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
 <ion-content>
-  <div [innerHTML]="content | markdown"></div>
+  <text-spinner *ngIf="loading; else loaded" [text]="'fetching ' + title"></text-spinner>
+  <ng-template #loaded>
+    <ion-item *ngIf="error" style="margin-bottom: 16px;">
+      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
+    </ion-item>
+
+    <div *ngIf="content" class="content-padding" [innerHTML]="content | markdown"></div>
+  </ng-template>
 </ion-content>

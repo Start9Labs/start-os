@@ -1,5 +1,6 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
+import { IonContent } from '@ionic/angular'
 import { MarketplaceService } from '../marketplace.service'
 
 @Component({
@@ -8,6 +9,7 @@ import { MarketplaceService } from '../marketplace.service'
   styleUrls: ['./app-release-notes.page.scss'],
 })
 export class AppReleaseNotes {
+  @ViewChild(IonContent) content: IonContent
   error = ''
   selected: string
   pkgId: string
@@ -23,6 +25,10 @@ export class AppReleaseNotes {
     if (!this.marketplaceService.pkgs[this.pkgId]) {
       this.marketplaceService.setPkg(this.pkgId, version)
     }
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   setSelected (selected: string) {
