@@ -12,7 +12,7 @@
 
 <ion-content class="ion-padding">
 
-  <ion-spinner *ngIf="!marketplaceService.pkgs[pkgId]" class="center" name="lines" color="warning"></ion-spinner>
+  <text-spinner *ngIf="!marketplaceService.pkgs[pkgId]" [text]="'fetching package'"></text-spinner>
 
   <ng-container *ngIf="marketplaceService.pkgs[pkgId] as pkg">
     <ion-item *ngIf="error" style="margin-bottom: 16px;">
@@ -162,7 +162,7 @@
                 </ion-label>
                 <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
               </ion-item>
-              <ion-item button detail="false" (click)="presentModalMd(pkg.manifest.)">
+              <ion-item button detail="false" (click)="presentModalMd('license')">
                 <ion-label>
                   <h2>License</h2>
                   <p>{{ pkg.manifest.license }}</p>
