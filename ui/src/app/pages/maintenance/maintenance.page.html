@@ -1,4 +1,4 @@
-<ion-content *ngrxLet="patch.watch$('server-info', 'status') as status">
+<ion-content *ngIf="patch.data['serverInfo'].status as status">
 
   <ion-grid style="height: 100%;">
     <ion-row class="ion-align-items-center ion-text-center" style="height: 100%;">
