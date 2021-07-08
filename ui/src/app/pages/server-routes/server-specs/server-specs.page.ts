@@ -2,7 +2,6 @@ import { Component } from '@angular/core'
 import { ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
-import { ServerInfo } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 
 @Component({
@@ -11,26 +10,12 @@ import { Subscription } from 'rxjs'
   styleUrls: ['./server-specs.page.scss'],
 })
 export class ServerSpecsPage {
-  server: ServerInfo
   subs: Subscription[] = []
 
   constructor (
     private readonly toastCtrl: ToastController,
-    private readonly patch: PatchDbModel,
+    public readonly patch: PatchDbModel,
   ) { }
-
-  ngOnInit () {
-    this.subs = [
-      this.patch.watch$('server-info')
-      .subscribe(server => {
-        this.server = server
-      }),
-    ]
-  }
-
-  ngOnDestroy () {
-    this.subs.forEach(sub => sub.unsubscribe())
-  }
 
   async copy (address: string) {
     let message = ''

@@ -16,10 +16,10 @@ import { Subscription } from 'rxjs'
   styleUrls: ['./app-actions.page.scss'],
 })
 export class AppActionsPage {
-  installed: InstalledPackageDataEntry
-
   subs: Subscription[] = []
   @ViewChild(IonContent) content: IonContent
+
+  pkgId: string
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -29,18 +29,11 @@ export class AppActionsPage {
     private readonly loaderService: LoaderService,
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
-    private readonly patch: PatchDbModel,
+    public readonly patch: PatchDbModel,
   ) { }
 
   ngOnInit () {
-    const pkgId = this.route.snapshot.paramMap.get('pkgId')
-
-    this.subs = [
-      this.patch.watch$('package-data', pkgId, 'installed')
-      .subscribe(installed => {
-        this.installed = installed
-      }),
-    ]
+    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
   }
 
   ngAfterViewInit () {

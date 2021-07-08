@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject, combineLatest, fromEvent, merge, Subscription } from 'rxjs'
-import { DataModel } from './patch-db/data-model'
 import { ConnectionStatus, PatchDbModel } from './patch-db/patch-db.service'
 import { HttpService, Method } from './http.service'
 import { distinctUntilChanged } from 'rxjs/operators'
@@ -9,7 +8,6 @@ import { distinctUntilChanged } from 'rxjs/operators'
   providedIn: 'root',
 })
 export class ConnectionService {
-  private addrs: DataModel['server-info']['connection-addresses']
   private readonly networkState$ = new BehaviorSubject<boolean>(true)
   private readonly connectionFailure$ = new BehaviorSubject<ConnectionFailure>(ConnectionFailure.None)
   private subs: Subscription[] = []
@@ -25,15 +23,6 @@ export class ConnectionService {
 
   start () {
     this.subs = [
-      this.patch.watch$('server-info')
-      .subscribe(data => {
-        if (!data) return
-        this.addrs = data['connection-addresses'] || {
-          tor: [],
-          clearnet: [],
-        }
-      }),
-
       merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
       .subscribe(event => {
         this.networkState$.next(event.type === 'online')
@@ -42,6 +31,7 @@ export class ConnectionService {
       combineLatest([this.networkState$.pipe(distinctUntilChanged()), this.patch.watchConnection$().pipe(distinctUntilChanged())])
       .subscribe(async ([network, connectionStatus]) => {
         console.log('CONNECTION STATUS', connectionStatus)
+        const addrs = this.patch.data['server-info']?.['connection-addresses']
         if (connectionStatus !== ConnectionStatus.Disconnected) {
           this.connectionFailure$.next(ConnectionFailure.None)
         } else if (!network) {
@@ -49,12 +39,12 @@ export class ConnectionService {
         } else {
           console.log('diagnosing')
           this.connectionFailure$.next(ConnectionFailure.Diagnosing)
-          const torSuccess = await this.testAddrs(this.addrs.tor)
+          const torSuccess = await this.testAddrs(addrs?.tor || [])
           if (torSuccess) {
             console.log('TOR SUCCESS, EMBASSY IS PROBLEM')
             this.connectionFailure$.next(ConnectionFailure.Embassy)
           } else {
-            const clearnetSuccess = await this.testAddrs(this.addrs.clearnet)
+            const clearnetSuccess = await this.testAddrs(addrs?.clearnet || [])
             if (clearnetSuccess) {
               console.log('CLEARNET SUCCESS, TOR IS PROBLEM')
               this.connectionFailure$.next(ConnectionFailure.Tor)

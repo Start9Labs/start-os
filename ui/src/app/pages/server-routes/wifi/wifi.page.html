@@ -26,7 +26,7 @@
     </ion-item>
 
     <ion-item-divider>Saved Networks</ion-item-divider>
-    <ng-container *ngIf="wifi">
+    <ng-container *ngIf="patch.data['server-info']?.wifi as wifi">
       <ion-item button detail="false" *ngFor="let ssid of wifi.ssids" (click)="presentAction(ssid, wifi)">
         <ion-label>{{ ssid }}</ion-label>
         <ion-note slot="end" *ngIf="ssid === wifi.connected"><ion-text color="success">Connected</ion-text></ion-note>
