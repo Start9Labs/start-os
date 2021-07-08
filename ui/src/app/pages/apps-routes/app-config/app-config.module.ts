@@ -10,6 +10,7 @@ import { AppConfigObjectPageModule } from 'src/app/modals/app-config-object/app-
 import { AppConfigUnionPageModule } from 'src/app/modals/app-config-union/app-config-union.module'
 import { AppConfigValuePageModule } from 'src/app/modals/app-config-value/app-config-value.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
+import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text-spinner.component.module'
 
 const routes: Routes = [
   {
@@ -25,6 +26,7 @@ const routes: Routes = [
     AppConfigObjectPageModule,
     AppConfigUnionPageModule,
     AppConfigValuePageModule,
+    TextSpinnerComponentModule,
     SharingModule,
     CommonModule,
     FormsModule,

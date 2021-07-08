@@ -1,8 +1,8 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ApiService } from 'src/app/services/api/api.service'
 import { MarketplaceData, MarketplaceEOS, AvailablePreview } from 'src/app/services/api/api-types'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
-import { ModalController } from '@ionic/angular'
+import { IonContent, ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
@@ -14,6 +14,7 @@ import { Subscription } from 'rxjs'
   styleUrls: ['./marketplace-list.page.scss'],
 })
 export class MarketplaceListPage {
+  @ViewChild(IonContent) content: IonContent
   pageLoading = true
   pkgsLoading = true
   error = ''
@@ -63,6 +64,10 @@ export class MarketplaceListPage {
       this.pageLoading = false
       this.pkgsLoading = false
     }
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy () {
