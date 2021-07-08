@@ -15,7 +15,6 @@ import { Subscription } from 'rxjs'
 })
 export class WifiListPage {
   error = ''
-  wifi: WiFiInfo
   subs: Subscription[] = []
 
   constructor (
@@ -23,21 +22,8 @@ export class WifiListPage {
     private readonly loader: LoaderService,
     private readonly actionCtrl: ActionSheetController,
     private readonly wifiService: WifiService,
-    private readonly patch: PatchDbModel,
+    public readonly patch: PatchDbModel,
   ) { }
-
-  ngOnInit () {
-    this.subs = [
-      this.patch.watch$('server-info', 'wifi')
-      .subscribe(wifi => {
-        this.wifi = wifi
-      }),
-    ]
-  }
-
-  ngOnDestroy () {
-    this.subs.forEach(sub => sub.unsubscribe())
-  }
 
   async presentAction (ssid: string, wifi: WiFiInfo) {
     const buttons: ActionSheetButton[] = [

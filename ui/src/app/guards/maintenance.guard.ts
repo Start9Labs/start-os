@@ -8,17 +8,10 @@ import { PatchDbModel } from '../services/patch-db/patch-db.service'
   providedIn: 'root',
 })
 export class MaintenanceGuard implements CanActivate, CanActivateChild {
-  serverStatus: ServerStatus
-
   constructor (
     private readonly router: Router,
     private readonly patch: PatchDbModel,
-  ) {
-    this.patch.watch$('server-info', 'status')
-    .pipe(
-      tap(status => this.serverStatus = status),
-    ).subscribe()
-  }
+  ) { }
 
   canActivate (): boolean {
     return this.runServerStatusCheck()
@@ -29,7 +22,7 @@ export class MaintenanceGuard implements CanActivate, CanActivateChild {
   }
 
   private runServerStatusCheck (): boolean {
-    if ([ServerStatus.Updating, ServerStatus.BackingUp].includes(this.serverStatus)) {
+    if ([ServerStatus.Updating, ServerStatus.BackingUp].includes(this.patch.data['server-info']?.status)) {
       this.router.navigate(['/maintenance'], { replaceUrl: true })
       return false
     } else {

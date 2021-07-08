@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content>
-    <ion-grid *ngIf="pkg">
+    <ion-grid *ngIf="patch.data['package-data'][pkgId] as pkg">
       <ion-row>
         <ion-col *ngFor="let interface of pkg.installed.manifest.interfaces | keyvalue: asIsOrder" sizeSm="12" sizeMd="6">
           <ion-card>

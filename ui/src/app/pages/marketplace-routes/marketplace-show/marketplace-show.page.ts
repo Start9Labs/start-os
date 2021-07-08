@@ -46,7 +46,6 @@ export class MarketplaceShowPage {
     this.subs = [
       this.patch.watch$('package-data', this.pkgId)
       .subscribe(pkg => {
-        console.log(pkg)
         this.installedPkg = pkg
       }),
     ]
