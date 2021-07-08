@@ -1,34 +1,22 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService } from './api.service'
-import { Observable } from 'rxjs'
-import { PatchOp, Store, Update } from 'patch-db-client'
-import { DataModel, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
-import { RR } from './api-types'
+import { PatchOp } from 'patch-db-client'
+import { PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
+import { RR, WithRevision } from './api-types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './mock-app-fixures'
 import { HttpService } from '../http.service'
 import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
+import { revision } from '@start9labs/emver'
 
 @Injectable()
 export class MockApiService extends ApiService {
-  sequence = 0
   welcomeAck = false
 
   constructor (
     private readonly http: HttpService,
   ) { super() }
-
-  // every time a patch is returned from the mock, we override its sequence to be 1 more than the last sequence in the patch-db as provided by `o`.
-  watch$ (store: Store<DataModel>): Observable<Update<DataModel>> {
-    store.sequence$.subscribe(seq => {
-      console.log('INCOMING: ', seq)
-      if (this.sequence < seq) {
-        this.sequence = seq
-      }
-    })
-    return super.watch$()
-  }
 
   async getStatic (url: string): Promise<string> {
     await pauseFor(2000)
@@ -100,20 +88,14 @@ export class MockApiService extends ApiService {
 
   async updateServerRaw (params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/status',
-            value: ServerStatus.Updating,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status',
+        value: ServerStatus.Updating,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async restartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
@@ -137,39 +119,31 @@ export class MockApiService extends ApiService {
 
   async setRegistryRaw (params: RR.SetRegistryReq): Promise<RR.SetRegistryRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/registry',
-            value: params.url,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/registry',
+        value: params.url,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   // notification
 
   async getNotificationsRaw (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes> {
     await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/unread-notification-count',
+        value: 0,
+      },
+    ]
+    const { revision } = await this.http.rpcRequest({ method: 'db.patch', params: { patch } }) as WithRevision<null>
     return {
       response: Mock.Notifications,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/unread-notification-count',
-            value: 0,
-          },
-        ],
-        expireId: null,
-      },
+      revision,
     }
   }
 
@@ -187,48 +161,36 @@ export class MockApiService extends ApiService {
 
   async connectWifiRaw (params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/wifi/selected',
-            value: params.ssid,
-          },
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/wifi/connected',
-            value: params.ssid,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/wifi/selected',
+        value: params.ssid,
       },
-    }
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/wifi/connected',
+        value: params.ssid,
+      },
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async deleteWifiRaw (params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/wifi/selected',
-            value: null,
-          },
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/wifi/connected',
-            value: null,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/wifi/selected',
+        value: null,
       },
-    }
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/wifi/connected',
+        value: null,
+      },
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   // ssh
@@ -252,20 +214,14 @@ export class MockApiService extends ApiService {
 
   async createBackupRaw (params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/status',
-            value: ServerStatus.BackingUp,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status',
+        value: ServerStatus.BackingUp,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async restoreBackupRaw (params: RR.RestoreBackupReq): Promise<RR.RestoreBackupRes> {
@@ -314,20 +270,14 @@ export class MockApiService extends ApiService {
         'read-complete': false,
       },
     }
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.ADD,
-            path: `/package-data/${params.id}`,
-            value: pkg,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.ADD,
+        path: `/package-data/${params.id}`,
+        value: pkg,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async dryUpdatePackage (params: RR.DryUpdatePackageReq): Promise<RR.DryUpdatePackageRes> {
@@ -347,43 +297,31 @@ export class MockApiService extends ApiService {
 
   async setPackageConfigRaw (params: RR.SetPackageConfigReq): Promise<RR.SetPackageConfigRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/configured`,
-            value: true,
-          },
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/main/status`,
-            value: PackageMainStatus.Running,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/configured`,
+        value: true,
       },
-    }
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/main/status`,
+        value: PackageMainStatus.Running,
+      },
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async restorePackageRaw (params: RR.RestorePackageReq): Promise<RR.RestorePackageRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/main/status`,
-            value: PackageMainStatus.Restoring,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/main/status`,
+        value: PackageMainStatus.Restoring,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async executePackageAction (params: RR.ExecutePackageActionReq): Promise<RR.ExecutePackageActionRes> {
@@ -398,20 +336,14 @@ export class MockApiService extends ApiService {
 
   async startPackageRaw (params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/main/status`,
-            value: PackageMainStatus.Running,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/main/status`,
+        value: PackageMainStatus.Running,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async dryStopPackage (params: RR.DryStopPackageReq): Promise<RR.DryStopPackageRes> {
@@ -421,20 +353,26 @@ export class MockApiService extends ApiService {
 
   async stopPackageRaw (params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/main/status`,
-            value: PackageMainStatus.Stopping,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/main/status`,
+        value: PackageMainStatus.Stopping,
       },
-    }
+    ]
+    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    setTimeout(() => {
+      const patch = [
+        {
+          op: PatchOp.REPLACE,
+          path: `/package-data/${params.id}/installed/status/main/status`,
+          value: PackageMainStatus.Stopped,
+        },
+      ]
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    }, 2000)
+
+    return res
   }
 
   async dryRemovePackage (params: RR.DryRemovePackageReq): Promise<RR.DryRemovePackageRes> {
@@ -444,20 +382,14 @@ export class MockApiService extends ApiService {
 
   async removePackageRaw (params: RR.RemovePackageReq): Promise<RR.RemovePackageRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/state`,
-            value: PackageState.Removing,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/state`,
+        value: PackageState.Removing,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes> {
@@ -487,11 +419,5 @@ export class MockApiService extends ApiService {
   async getAvailableShow (params: RR.GetAvailableShowReq): Promise<RR.GetAvailableShowRes> {
     await pauseFor(2000)
     return Mock.AvailableShow[params.id][params.version || 'latest']
-  }
-
-  private nextSequence () {
-    console.log('next')
-    this.sequence++
-    return this.sequence
   }
 }
