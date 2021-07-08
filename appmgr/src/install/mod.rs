@@ -53,11 +53,11 @@ pub async fn install(#[context] ctx: EitherContext, #[arg] id: String) -> Result
     let reg_url = rpc_ctx.package_registry_url().await?;
     let (man_res, s9pk) = tokio::try_join!(
         reqwest::get(format!(
-            "{}/packages/manifest/{}?version={}",
+            "{}/package/manifest/{}?version={}",
             reg_url, pkg_id, version
         )),
         reqwest::get(format!(
-            "{}/packages/{}.s9pk?version={}",
+            "{}/package/{}.s9pk?version={}",
             reg_url, pkg_id, version
         ))
     )
@@ -86,7 +86,7 @@ pub async fn download_install_s9pk(
 
     let res = (|| async {
         let progress = InstallProgress::new(s9pk.content_length());
-        let static_files = StaticFiles::remote(pkg_id, version, temp_manifest.assets.icon_type())?;
+        let static_files = StaticFiles::remote(pkg_id, version, temp_manifest.assets.icon_type());
         let mut pde = pkg_data_entry.get_mut(&mut db).await?;
         match pde.take() {
             Some(PackageDataEntry::Installed { installed, .. }) => {
@@ -381,7 +381,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
 
     log::info!("Install {}@{}: Complete", pkg_id, version);
 
-    let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type())?;
+    let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
     let current_dependencies = manifest
         .dependencies
         .0
@@ -490,6 +490,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     }
 
     ctx.tor_controller.sync(&mut tx, &mut sql_tx).await?;
+    #[cfg(feature = "avahi")]
     ctx.mdns_controller.sync(&mut tx).await?;
 
     tx.commit(None).await?;
