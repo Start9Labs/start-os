@@ -33,6 +33,7 @@ export class PatchDbModel {
 
   async init (): Promise<void> {
     const cache = await this.bootstrapper.init()
+    console.log('CACHECACHE', cache)
     this.patchDb = new PatchDB([this.source, this.http], this.http, cache)
 
     this.sequence$ = this.patchDb.store.sequence$.asObservable()

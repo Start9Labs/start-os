@@ -11,7 +11,6 @@ import { Subscription } from 'rxjs'
   styleUrls: ['./app-list.page.scss'],
 })
 export class AppListPage {
-  pkgs: { [id: string]: PackageDataEntry } = { }
   connected: boolean
   subs: Subscription[] = []
 
@@ -23,9 +22,6 @@ export class AppListPage {
 
   ngOnInit () {
     this.subs = [
-      this.patch.watch$('package-data').subscribe(pkgs => {
-        this.pkgs = pkgs
-      }),
       this.patch.connected$().subscribe(c => this.connected = c),
     ]
   }

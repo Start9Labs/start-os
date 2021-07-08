@@ -25,7 +25,6 @@ export class MarketplaceListPage {
   data: MarketplaceData
   eos: MarketplaceEOS
   pkgs: AvailablePreview[] = []
-  installedPkgs: { [id: string]: PackageDataEntry } = { }
 
   PackageState = PackageState
 
@@ -43,10 +42,6 @@ export class MarketplaceListPage {
   ) { }
 
   async ngOnInit () {
-    this.subs = [
-      this.patch.watch$('package-data')
-      .subscribe(pkgs => this.installedPkgs = pkgs),
-    ]
 
     try {
       const [data, eos, pkgs] = await Promise.all([

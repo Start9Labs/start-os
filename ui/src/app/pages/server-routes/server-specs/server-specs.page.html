@@ -11,7 +11,7 @@
 
   <ion-item-divider>Basic</ion-item-divider>
 
-  <ion-item-group *ngIf="server">
+  <ion-item-group *ngIf="patch.data['server-info'] as server">
     <ion-item>
       <ion-label>
         <h2>Version</h2>

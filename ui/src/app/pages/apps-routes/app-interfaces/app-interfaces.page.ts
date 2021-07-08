@@ -16,28 +16,21 @@ export class AppInterfacesPage {
   pkg: PackageDataEntry
 
   @ViewChild(IonContent) content: IonContent
-  subs: Subscription[] = []
+  pkgId: string
 
   constructor (
     private readonly route: ActivatedRoute,
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
-    private readonly patch: PatchDbModel,
+    public readonly patch: PatchDbModel,
   ) { }
 
   ngOnInit () {
-    const pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.subs = [
-      this.patch.watch$('package-data', pkgId).subscribe(pkg => this.pkg = pkg),
-    ]
+    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
   }
 
   ngAfterViewInit () {
     this.content.scrollToPoint(undefined, 1)
-  }
-
-  ngOnDestroy () {
-    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async copy (address: string): Promise<void> {

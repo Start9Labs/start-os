@@ -58,7 +58,7 @@
               <ion-label>
                 <h2 style="font-family: 'Montserrat';">{{ pkg.title }}</h2>
                 <p>{{ pkg.descriptionShort }}</p>
-                <ng-container *ngIf="installedPkgs[pkg.id] as pkgI">
+                <ng-container *ngIf="patch.data['package-data'] as pkgI">
                   <p *ngIf="pkgI.state === PackageState.Installed">
                     <ion-text *ngIf="(pkg.version | compareEmver : pkgI.installed.manifest.version) === 0" color="success">Installed</ion-text>
                     <ion-text *ngIf="(pkg.version | compareEmver : pkgI.installed.manifest.version) === 1" color="warning">Update Available</ion-text>
@@ -81,45 +81,6 @@
           </ion-col>
         </ion-row>
       </ion-grid>
-
-      <!-- <ion-card *ngFor="let pkg of pkgs" style="margin: 10px 10px;" [routerLink]="['/marketplace', pkg.id]">
-        <ion-item style="--inner-border-width: 0 0 .4px 0; --border-color: #525252;">
-          <ion-avatar style="margin-top: 8px;" slot="start">
-            <img [src]="pkg.icon" />
-          </ion-avatar>
-          <ion-label style="margin-top: 6px; margin-bottom: 3px">
-            <h1 style="font-family: 'Montserrat'; font-size: 20px; margin-bottom: 0px;">
-              {{ pkg.title }}
-            </h1>
-            <p>{{ pkg.version }}</p>
-            <div class="beneath-title" *ngIf="installedPkgs[pkg.id] as pkgI">
-              <ng-container *ngIf="pkgI.state === PackageState.Installed">
-                <ion-text *ngIf="(pkg.version | compareEmver : pkgI.installed.manifest.version) === 0" style="font-size: 12px;" color="success">Installed</ion-text>
-                <ion-text *ngIf="(pkg.version | compareEmver : pkgI.installed.manifest.version) === 1" style="font-size: 12px;" color="warning">Update Available</ion-text>
-              </ng-container>
-              <div class="beneath-title" *ngIf="pkgI.state === PackageState.Installing" style="display: flex; flex-direction: row; align-items: center;">
-                <ion-text style="font-size: 12px;" color="primary">Installing</ion-text>
-                <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="primary"></ion-spinner>
-              </div>
-              <div class="beneath-title" *ngIf="pkgI.state === PackageState.Updating" style="display: flex; flex-direction: row; align-items: center;">
-                <ion-text style="font-size: 12px;" color="primary">Updating</ion-text>
-                <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="primary"></ion-spinner>
-              </div>
-              <div class="beneath-title" *ngIf="pkgI.state === PackageState.Removing" style="display: flex; flex-direction: row; align-items: center;">
-                <ion-text style="font-size: 12px;" color="danger">Removing</ion-text>
-                <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="danger"></ion-spinner>
-              </div>
-            </div>
-          </ion-label>
-        </ion-item>
-        <ion-card-content style="
-          font-size: small !important;
-          padding-bottom: 10px;
-          padding-top: 6px;
-          ">
-          {{ pkg.descriptionShort }}
-        </ion-card-content>
-      </ion-card> -->
     </ng-template>
   </ng-template>
 </ion-content>
