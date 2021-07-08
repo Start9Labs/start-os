@@ -31,5 +31,5 @@ export function PatchDbModelFactory (
     }
   }
 
-  return new PatchDbModel(bootstrapper, [source, apiService])
+  return new PatchDbModel(source, apiService, bootstrapper)
 }
