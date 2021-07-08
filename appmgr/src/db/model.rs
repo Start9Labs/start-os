@@ -87,26 +87,24 @@ impl HasModel for AllPackageData {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct StaticFiles {
-    license: Url,
-    instructions: Url,
-    icon: Url,
+    license: String,
+    instructions: String,
+    icon: String,
 }
 impl StaticFiles {
-    pub fn local(id: &PackageId, version: &Version, icon_type: &str) -> Result<Self, Error> {
-        Ok(StaticFiles {
-            license: format!("/public/package-data/{}/{}/LICENSE.md", id, version).parse()?,
-            instructions: format!("/public/package-data/{}/{}/INSTRUCTIONS.md", id, version)
-                .parse()?,
-            icon: format!("/public/package-data/{}/{}/icon.{}", id, version, icon_type).parse()?,
-        })
+    pub fn local(id: &PackageId, version: &Version, icon_type: &str) -> Self {
+        StaticFiles {
+            license: format!("/public/package-data/{}/{}/LICENSE.md", id, version),
+            instructions: format!("/public/package-data/{}/{}/INSTRUCTIONS.md", id, version),
+            icon: format!("/public/package-data/{}/{}/icon.{}", id, version, icon_type),
+        }
     }
-    pub fn remote(id: &PackageId, version: &Version, icon_type: &str) -> Result<Self, Error> {
-        Ok(StaticFiles {
-            license: format!("/registry/packages/{}/{}/LICENSE.md", id, version).parse()?,
-            instructions: format!("/registry/packages/{}/{}/INSTRUCTIONS.md", id, version)
-                .parse()?,
-            icon: format!("/registry/packages/{}/{}/icon.{}", id, version, icon_type).parse()?,
-        })
+    pub fn remote(id: &PackageId, version: &Version, icon_type: &str) -> Self {
+        StaticFiles {
+            license: format!("/registry/packages/{}/{}/LICENSE.md", id, version),
+            instructions: format!("/registry/packages/{}/{}/INSTRUCTIONS.md", id, version),
+            icon: format!("/registry/packages/{}/{}/icon.{}", id, version, icon_type),
+        }
     }
 }
 
