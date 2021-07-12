@@ -61,7 +61,7 @@
   </div>
 
   <div *ngIf="segmentValue === 'raw'" class="raw">
-    <pre [innerHTML]="pkg | manifest | json"></pre>
+    <pre [innerHTML]="pkg.manifest | json"></pre>
   </div>
 </ion-content>
 

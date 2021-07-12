@@ -58,20 +58,20 @@
               <ion-label>
                 <h2 style="font-family: 'Montserrat';">{{ pkg.title }}</h2>
                 <p>{{ pkg.descriptionShort }}</p>
-                <ng-container *ngIf="patch.data['package-data'] as pkgI">
-                  <p *ngIf="pkgI.state === PackageState.Installed">
-                    <ion-text *ngIf="(pkg.version | compareEmver : pkgI.installed.manifest.version) === 0" color="success">Installed</ion-text>
-                    <ion-text *ngIf="(pkg.version | compareEmver : pkgI.installed.manifest.version) === 1" color="warning">Update Available</ion-text>
+                <ng-container *ngIf="patch.data['package-data'][pkg.id] as localPkg">
+                  <p *ngIf="localPkg.state === PackageState.Installed">
+                    <ion-text *ngIf="(pkg.version | compareEmver : localPkg.manifest.version) === 0" color="success">Installed</ion-text>
+                    <ion-text *ngIf="(pkg.version | compareEmver : localPkg.manifest.version) === 1" color="warning">Update Available</ion-text>
                   </p>
-                  <p *ngIf="pkgI.state === PackageState.Installing" style="display: flex; flex-direction: row; align-items: center;">
+                  <p *ngIf="localPkg.state === PackageState.Installing" style="display: flex; flex-direction: row; align-items: center;">
                     <ion-text color="primary">Installing</ion-text>
                     <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="primary"></ion-spinner>
                   </p>
-                  <p *ngIf="pkgI.state === PackageState.Updating" style="display: flex; flex-direction: row; align-items: center;">
+                  <p *ngIf="localPkg.state === PackageState.Updating" style="display: flex; flex-direction: row; align-items: center;">
                     <ion-text color="primary">Updating</ion-text>
                     <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="primary"></ion-spinner>
                   </p>
-                  <p *ngIf="pkgI.state === PackageState.Removing" style="display: flex; flex-direction: row; align-items: center;">
+                  <p *ngIf="localPkg.state === PackageState.Removing" style="display: flex; flex-direction: row; align-items: center;">
                     <ion-text color="danger">Removing</ion-text>
                     <ion-spinner name="crescent" style="height: 10px; width: 15px; margin-left: 3px; margin-right: -4px;" color="danger"></ion-spinner>
                   </p>

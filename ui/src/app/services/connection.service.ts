@@ -39,7 +39,7 @@ export class ConnectionService {
           this.connectionFailure$.next(ConnectionFailure.Network)
         } else if (!this.configService.isTor()) {
           this.connectionFailure$.next(ConnectionFailure.Lan)
-        } {
+        } else {
           // diagnosing
           this.connectionFailure$.next(ConnectionFailure.Diagnosing)
           const torSuccess = await this.testAddrs(addrs?.tor || [])

@@ -53,16 +53,14 @@ export class ConfigService {
       return false
     }
 
-    const installed = pkg.installed
-
-    return installed.status.main.status === PackageMainStatus.Running &&
+    return pkg.installed.status.main.status === PackageMainStatus.Running &&
     (
-      (hasTorUi(installed.manifest.interfaces) && this.isTor()) ||
-      (hasLanUi(installed.manifest.interfaces) && !this.isTor())
+      (hasTorUi(pkg.manifest.interfaces) && this.isTor()) ||
+      (hasLanUi(pkg.manifest.interfaces) && !this.isTor())
     )
   }
 
-  launchableURL (pkg: InstalledPackageDataEntry): string {
+  launchableURL (pkg: PackageDataEntry): string {
     return this.isTor() ? `http://${torUiAddress(pkg)}` : `https://${lanUiAddress(pkg)}`
   }
 }
@@ -75,7 +73,7 @@ export function hasLanUi (interfaces: { [id: string]: InterfaceDef }): boolean {
   return !!Object.values(interfaces).find(i => i.ui && i['lan-config'])
 }
 
-export function torUiAddress (pkg: InstalledPackageDataEntry): string {
+export function torUiAddress (pkg: PackageDataEntry): string {
   const interfaces = pkg.manifest.interfaces
   const id = Object.keys(interfaces).find(key => {
     const val = interfaces[key]
@@ -84,7 +82,7 @@ export function torUiAddress (pkg: InstalledPackageDataEntry): string {
   return pkg['interface-info'].addresses[id]['tor-address']
 }
 
-export function lanUiAddress (pkg: InstalledPackageDataEntry): string {
+export function lanUiAddress (pkg: PackageDataEntry): string {
   const interfaces = pkg.manifest.interfaces
   const id = Object.keys(interfaces).find(key => {
     const val = interfaces[key]
@@ -99,7 +97,7 @@ export function hasUi (interfaces: { [id: string]: InterfaceDef }): boolean {
 
 export function getManifest (pkg: PackageDataEntry): Manifest {
   if (pkg.state === PackageState.Installed) {
-    return pkg.installed.manifest
+    return pkg.manifest
   }
   return pkg['temp-manifest']
 }

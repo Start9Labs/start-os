@@ -11,7 +11,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
-import { InstalledPackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
@@ -26,7 +26,7 @@ export class AppConfigPage {
 
   loadingText: string | undefined
 
-  pkg: InstalledPackageDataEntry
+  pkg: PackageDataEntry
   hasConfig = false
 
   mocalShowing = false
@@ -82,7 +82,7 @@ export class AppConfigPage {
           this.navCtrl.back()
         }
       }),
-      this.patch.watch$('package-data', pkgId, 'installed')
+      this.patch.watch$('package-data', pkgId)
       .pipe(
         tap(pkg => this.pkg = pkg),
         tap(() => this.loadingText = 'Fetching config spec...'),
@@ -156,7 +156,7 @@ export class AppConfigPage {
     }
   }
 
-  async save (pkg: InstalledPackageDataEntry) {
+  async save (pkg: PackageDataEntry) {
     return this.loader.of({
       message: `Saving config...`,
       spinner: 'lines',

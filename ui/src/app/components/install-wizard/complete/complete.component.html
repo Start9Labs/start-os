@@ -1,17 +1,17 @@
-<div *ngIf="!(loading$ | ngrxPush) && !params.skipCompletionDialogue" class="slide-content">
+<div *ngIf="!(loading$ | async) && !params.skipCompletionDialogue" class="slide-content">
   <div style="margin-top: 25px;">
     <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
-      <ion-label [color]="$color$ | ngrxPush" style="font-size: xx-large; font-weight: bold;">
-        {{successText}}
+      <ion-label [color]="color$ | async" style="font-size: xx-large; font-weight: bold;">
+        {{ successText }}
       </ion-label>
     </div>
     <div class="long-message">
-    {{summary}}
+    {{ summary }}
     </div>
   </div>
 </div>
 
-<div *ngIf="loading$ | ngrxPush" class="center-spinner">
+<div *ngIf="loading$ | async" class="center-spinner">
   <ion-spinner color="warning" name="lines"></ion-spinner>
   <ion-label class="long-message">{{label}}</ion-label>
 </div>
