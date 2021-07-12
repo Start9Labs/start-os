@@ -3,3 +3,4 @@
 .DS_Store
 .vscode
 secrets.db
+*.s9pk
