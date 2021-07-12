@@ -10,6 +10,7 @@ use crate::s9pk::builder::S9pkPacker;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
 use crate::util::display_none;
+use crate::volume::Volume;
 use crate::{Error, ResultExt};
 
 pub mod builder;
@@ -79,6 +80,22 @@ pub fn pack(#[context] ctx: EitherContext, #[arg] path: Option<PathBuf>) -> Resu
                 )
             })?,
         )
+        .assets({
+            let mut assets = tar::Builder::new(Vec::new()); // TODO: Ideally stream this? best not to buffer in memory
+
+            for (asset_volume, _) in manifest
+                .volumes
+                .iter()
+                .filter(|(_, v)| matches!(v, &&Volume::Assets {}))
+            {
+                assets.append_dir_all(
+                    asset_volume,
+                    path.join(manifest.assets.assets_path()).join(asset_volume),
+                )?;
+            }
+
+            std::io::Cursor::new(assets.into_inner()?)
+        })
         .build()
         .pack(&ctx.developer_key()?)?;
     outfile.sync_all()?;
