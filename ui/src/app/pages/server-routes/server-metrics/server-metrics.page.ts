@@ -19,10 +19,8 @@ export class ServerMetricsPage {
   ) { }
 
   ngOnInit () {
-    this.getMetrics().then(() => {
-      this.loading = false
-      this.startDaemon()
-    })
+    this.loading = false
+    this.startDaemon()
   }
 
   ngOnDestroy () {
@@ -32,8 +30,8 @@ export class ServerMetricsPage {
   async startDaemon (): Promise<void> {
     this.going = true
     while (this.going) {
-      await pauseFor(250)
       await this.getMetrics()
+      await pauseFor(250)
     }
   }
 
@@ -44,18 +42,6 @@ export class ServerMetricsPage {
   async getMetrics (): Promise<void> {
     try {
       this.metrics = await this.apiService.getServerMetrics({ })
-
-      // @TODO keeping code in case naive approach (above) has issues
-      // Object.keys(metrics).forEach(outerKey => {
-      //   if (!this.metrics[outerKey]) {
-      //     console.log('outer keys')
-      //     this.metrics[outerKey] = metrics[outerKey]
-      //   } else {
-      //     Object.entries(metrics[outerKey]).forEach(([key, value]) => {
-      //       this.metrics[outerKey][key] = value
-      //     })
-      //   }
-      // })
     } catch (e) {
       console.error(e)
       this.error = e.message
