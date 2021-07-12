@@ -64,7 +64,7 @@ lazy_static = "1.4"
 libc = "0.2.86"
 log = "0.4.11"
 nix = "0.20.0"
-openssl = "0.10.30"
+openssl = { version="0.10.30", features=["vendored"] }
 patch-db = { version="*", path="../../patch-db/patch-db" }
 pin-project = "1.0.6"
 prettytable-rs = "0.8.0"
@@ -83,6 +83,7 @@ serde_yaml = "0.8.14"
 sha2 = "0.9.3"
 simple-logging = "2.0"
 sqlx = { version="0.5", features=["runtime-tokio-rustls", "sqlite", "offline"] }
+tar = "0.4.35"
 thiserror = "1.0.24"
 tokio = { version="1.5.0", features=["full"] }
 tokio-compat-02 = "0.2.0"

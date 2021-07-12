@@ -77,6 +77,8 @@ impl DockerAction {
         } else {
             None
         };
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
         if let (Some(input), Some(stdin)) = (&input_buf, &mut handle.stdin) {
             use tokio::io::AsyncWriteExt;
@@ -133,6 +135,8 @@ impl DockerAction {
         } else {
             None
         };
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
         if let (Some(input), Some(stdin)) = (&input_buf, &mut handle.stdin) {
             use tokio::io::AsyncWriteExt;
@@ -177,9 +181,11 @@ impl DockerAction {
         format!("service_{}_{}", pkg_id, version)
     }
 
-    pub fn uncontainer_name(name: &str) -> Option<&str> {
-        name.strip_prefix("service_")
-            .and_then(|name| name.split("_").next())
+    pub fn uncontainer_name(name: &str) -> Option<(&str, Version)> {
+        name.trim_start_matches("/")
+            .strip_prefix("service_")
+            .and_then(|name| name.split_once("_"))
+            .and_then(|(id, version)| Some((id, version.parse().ok()?)))
     }
 
     fn docker_args<'a>(
@@ -196,18 +202,20 @@ impl DockerAction {
                 + self.args.len(), // [ARG...]
         );
         for (volume_id, dst) in &self.mounts {
-            let src = if let Some(path) = volumes.get_path_for(pkg_id, volume_id) {
-                path
+            let volume = if let Some(v) = volumes.get(volume_id) {
+                v
             } else {
                 continue;
             };
+            let src = volume.path_for(pkg_id, pkg_version, volume_id);
             res.push(OsStr::new("--mount").into());
             res.push(
-                OsString::from(format!(
-                    "type=bind,src={},dst={}",
+                dbg!(OsString::from(format!(
+                    "type=bind,src={},dst={}{}",
                     src.display(),
-                    dst.display()
-                ))
+                    dst.display(),
+                    if volume.readonly() { ",readonly" } else { "" }
+                )))
                 .into(),
             );
         }

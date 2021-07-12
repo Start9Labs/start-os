@@ -9,6 +9,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use crate::id::{Id, IdUnchecked};
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
+use crate::util::Version;
 
 pub mod disk;
 
@@ -65,16 +66,18 @@ where
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-pub struct CustomVolumeId<S: AsRef<str> = String>(Id<S>);
-
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Volumes(IndexMap<VolumeId, Volume>);
 impl Volumes {
-    pub fn get_path_for(&self, pkg_id: &PackageId, volume_id: &VolumeId) -> Option<PathBuf> {
+    pub fn get_path_for(
+        &self,
+        pkg_id: &PackageId,
+        version: &Version,
+        volume_id: &VolumeId,
+    ) -> Option<PathBuf> {
         self.0
             .get(volume_id)
-            .map(|volume| volume.path_for(pkg_id, volume_id))
+            .map(|volume| volume.path_for(pkg_id, version, volume_id))
     }
     pub fn to_readonly(&self) -> Self {
         Volumes(
@@ -121,6 +124,8 @@ pub enum Volume {
         readonly: bool,
     },
     #[serde(rename_all = "kebab-case")]
+    Assets {},
+    #[serde(rename_all = "kebab-case")]
     Pointer {
         package_id: PackageId,
         volume_id: VolumeId,
@@ -134,22 +139,31 @@ pub enum Volume {
     Backup { readonly: bool },
 }
 impl Volume {
-    pub fn path_for(&self, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {
+    pub fn path_for(&self, pkg_id: &PackageId, version: &Version, volume_id: &VolumeId) -> PathBuf {
         match self {
             Volume::Data { .. } => Path::new(PKG_VOLUME_DIR)
                 .join(pkg_id)
                 .join("volumes")
+                .join(volume_id),
+            Volume::Assets {} => Path::new(PKG_VOLUME_DIR)
+                .join(pkg_id)
+                .join("assets")
+                .join(version.as_str())
                 .join(volume_id),
             Volume::Pointer {
                 package_id,
                 volume_id,
                 path,
                 ..
-            } => Path::new(PKG_VOLUME_DIR)
+            } => dbg!(Path::new(PKG_VOLUME_DIR)
                 .join(package_id)
                 .join("volumes")
                 .join(volume_id)
-                .join(path),
+                .join(if path.is_absolute() {
+                    path.strip_prefix("/").unwrap()
+                } else {
+                    path.as_ref()
+                })),
             Volume::Certificate { interface_id } => Path::new(PKG_VOLUME_DIR)
                 .join(pkg_id)
                 .join("certificates")
@@ -174,6 +188,7 @@ impl Volume {
     pub fn readonly(&self) -> bool {
         match self {
             Volume::Data { readonly } => *readonly,
+            Volume::Assets {} => true,
             Volume::Pointer { readonly, .. } => *readonly,
             Volume::Certificate { .. } => true,
             Volume::Backup { readonly } => *readonly,

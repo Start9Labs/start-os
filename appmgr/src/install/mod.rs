@@ -379,8 +379,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let interface_info = manifest.interfaces.install(&mut sql_tx, pkg_id, ip).await?;
     log::info!("Install {}@{}: Installed interfaces", pkg_id, version);
 
-    log::info!("Install {}@{}: Complete", pkg_id, version);
-
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
     let current_dependencies = manifest
         .dependencies
@@ -489,11 +487,19 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         }
     }
 
+    log::info!("Install {}@{}: Syncing Tor", pkg_id, version);
     ctx.tor_controller.sync(&mut tx, &mut sql_tx).await?;
+    log::info!("Install {}@{}: Synced Tor", pkg_id, version);
     #[cfg(feature = "avahi")]
-    ctx.mdns_controller.sync(&mut tx).await?;
+    {
+        log::info!("Install {}@{}: Syncing MDNS", pkg_id, version);
+        ctx.mdns_controller.sync(&mut tx).await?;
+        log::info!("Install {}@{}: Synced MDNS", pkg_id, version);
+    }
 
     tx.commit(None).await?;
+
+    log::info!("Install {}@{}: Complete", pkg_id, version);
 
     Ok(())
 }
