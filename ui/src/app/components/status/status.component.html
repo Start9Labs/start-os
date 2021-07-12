@@ -1,9 +1,9 @@
 <p
-  [style.color]="'var(--ion-color-' + color + ')'"
+  [style.color]="'var(--ion-color-' + rendering.color + ')'"
   [style.font-size]="size"
   [style.font-style]="style"
   [style.font-weight]="weight"
 >
-  {{ display }}
-  <ion-spinner *ngIf="showDots" class="dots dots-small" name="dots" [color]="color"></ion-spinner>
+  {{ rendering.display }}
+  <ion-spinner *ngIf="rendering.showDots" class="dots dots-small" name="dots" [color]="color"></ion-spinner>
 </p>

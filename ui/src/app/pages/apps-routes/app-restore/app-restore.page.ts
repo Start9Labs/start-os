@@ -33,7 +33,7 @@ export class AppRestorePage {
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.title = this.patch.data['package-data'][this.pkgId].installed.manifest.title
+    this.title = this.patch.data['package-data'][this.pkgId].manifest.title
 
     this.getExternalDisks()
   }

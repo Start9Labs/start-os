@@ -6,12 +6,10 @@ import { MarkdownPipe } from '../pipes/markdown.pipe'
 import { AnnotationStatusPipe } from '../pipes/annotation-status.pipe'
 import { TruncateCenterPipe, TruncateEndPipe } from '../pipes/truncate.pipe'
 import { MaskPipe } from '../pipes/mask.pipe'
-import { DisplayBulbPipe } from '../pipes/display-bulb.pipe'
-import { HasUiPipe, LaunchablePipe, ManifestPipe } from '../pipes/ui.pipe'
+import { HasUiPipe, LaunchablePipe } from '../pipes/ui.pipe'
 import { EmptyPipe } from '../pipes/empty.pipe'
 import { StatusPipe } from '../pipes/status.pipe'
 import { NotificationColorPipe } from '../pipes/notification-color.pipe'
-import { ReactiveComponentModule } from '@ngrx/component'
 
 @NgModule({
     declarations: [
@@ -24,18 +22,14 @@ import { ReactiveComponentModule } from '@ngrx/component'
         TruncateCenterPipe,
         TruncateEndPipe,
         MaskPipe,
-        DisplayBulbPipe,
         EmverDisplayPipe,
         HasUiPipe,
         LaunchablePipe,
-        ManifestPipe,
         EmptyPipe,
         StatusPipe,
         NotificationColorPipe,
     ],
-    imports: [
-      ReactiveComponentModule,
-    ],
+    imports: [],
     exports: [
         EmverComparesPipe,
         EmverSatisfiesPipe,
@@ -46,15 +40,12 @@ import { ReactiveComponentModule } from '@ngrx/component'
         TruncateEndPipe,
         TruncateCenterPipe,
         MaskPipe,
-        DisplayBulbPipe,
         EmverDisplayPipe,
         HasUiPipe,
         LaunchablePipe,
-        ManifestPipe,
         EmptyPipe,
         StatusPipe,
         NotificationColorPipe,
-        ReactiveComponentModule,
     ],
 })
 export class SharingModule { }

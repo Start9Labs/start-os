@@ -10,12 +10,12 @@
 <ion-content>
     <ion-grid *ngIf="patch.data['package-data'][pkgId] as pkg">
       <ion-row>
-        <ion-col *ngFor="let interface of pkg.installed.manifest.interfaces | keyvalue: asIsOrder" sizeSm="12" sizeMd="6">
+        <ion-col *ngFor="let interface of pkg.manifest.interfaces | keyvalue: asIsOrder" sizeSm="12" sizeMd="6">
           <ion-card>
             <ion-card-header>
               <ion-card-title>{{ interface.value.name }}</ion-card-title>
               <ion-card-subtitle>{{ interface.value.description }}</ion-card-subtitle>
-              <ion-button style="margin-top: 12px;" *ngIf="interface.value.ui" [disabled]="!(pkg | isLaunchable)" fill="outline" color="dark" expand="block" (click)="launch(pkg.installed)">
+              <ion-button style="margin-top: 12px;" *ngIf="interface.value.ui" [disabled]="!(pkg | isLaunchable)" fill="outline" color="dark" expand="block" (click)="launch(pkg)">
                 Launch
                 <ion-icon slot="end" name="rocket-outline"></ion-icon>
               </ion-button>

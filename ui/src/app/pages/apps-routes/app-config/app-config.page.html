@@ -35,7 +35,7 @@
 
     <ng-container *ngIf="pkg">
       <!-- @TODO make sure this is how to determine if pkg is in needs_config -->
-      <ng-container *ngIf="pkg.manifest.config && !pkg.status.configured && !edited">
+      <ng-container *ngIf="pkg.manifest.config && !pkg.installed.status.configured && !edited">
         <ion-item class="notifier-item">
           <ion-label class="ion-text-wrap">
             <h2 style="display: flex; align-items: center; margin-bottom: 3px;">
@@ -91,7 +91,7 @@
 
       <!-- save button, always show -->
       <ion-button
-        [disabled]="invalid || (!edited && !added && !pkg.status.configured )"
+        [disabled]="invalid || (!edited && !added && !pkg.installed.status.configured )"
         fill="outline"
         expand="block"
         style="margin: 10px"

@@ -578,12 +578,11 @@ export module Mock {
       icon: 'assets/img/service-icons/bitcoind.png',
       instructions: 'instructionsUrl', // /public/package-data/bitcoind/0.21.1/INSTRUCTIONS.md
     },
-    'temp-manifest': undefined,
+    manifest: {
+      ...MockManifestBitcoind,
+      version: '0.20.0',
+    },
     installed: {
-      manifest: {
-        ...MockManifestBitcoind,
-        version: '0.20.0',
-      },
       status: {
         configured: true,
         main: {
@@ -629,9 +628,8 @@ export module Mock {
       icon: 'assets/img/service-icons/lnd.png',
       instructions: 'instructionsUrl', // /public/package-data/lnd/0.21.1/INSTRUCTIONS.md
     },
-    'temp-manifest': undefined,
+    manifest: MockManifestLnd,
     installed: {
-      manifest: MockManifestLnd,
       status: {
         configured: true,
         main: {
@@ -681,9 +679,8 @@ export module Mock {
       icon: 'assets/img/service-icons/bitcoin-proxy.png',
       instructions: 'instructionsUrl', // /public/package-data/bitcoinproxy/0.2.2/INSTRUCTIONS.md
     },
-    'temp-manifest': undefined,
+    manifest: MockManifestBitcoinProxy,
     installed: {
-      manifest: MockManifestBitcoinProxy,
       status: {
         configured: true,
         main: {

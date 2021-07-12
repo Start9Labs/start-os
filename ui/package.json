@@ -24,7 +24,6 @@
     "@ionic/angular": "^5.6.0",
     "@ionic/storage": "^3.0.0",
     "@ionic/storage-angular": "^3.0.0",
-    "@ngrx/component": "^11.1.1",
     "@start9labs/emver": "^0.1.4",
     "ajv": "^6.12.6",
     "angularx-qrcode": "^11.0.0",
