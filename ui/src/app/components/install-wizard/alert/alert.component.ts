@@ -9,8 +9,8 @@ import { Loadable } from '../loadable'
 })
 export class AlertComponent implements OnInit, Loadable {
   @Input() params: {
-    alert: string
     title: string
+    message: string
     titleColor: string
   }
 

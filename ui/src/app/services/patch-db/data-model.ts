@@ -46,7 +46,7 @@ export interface PackageDataEntry {
     instructions: URL
     icon: URL
   }
-  'temp-manifest'?: Manifest // exists when: installing, updating, removing
+  manifest: Manifest
   installed?: InstalledPackageDataEntry, // exists when: installed, updating
   'install-progress'?: InstallProgress, // exists when: installing, updating
 }
@@ -62,7 +62,6 @@ export interface InstallProgress {
 }
 
 export interface InstalledPackageDataEntry {
-  manifest: Manifest
   status: Status
   'interface-info': InterfaceInfo
   'system-pointers': any[]

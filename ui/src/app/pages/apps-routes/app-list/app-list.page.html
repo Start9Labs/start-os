@@ -24,7 +24,7 @@
       <ion-grid>
         <ion-row>
           <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="4" sizeSm="3" sizeLg="3" sizeXl="2">
-            <ion-card class="installed-card" [routerLink]="['/services', (pkg.value | manifest).id]">
+            <ion-card class="installed-card" [routerLink]="['/services', pkg.value.manifest.id]">
               <div class="launch-container" *ngIf="pkg.value | hasUi">
                 <div class="launch-button-triangle"  (click)="launchUi(pkg.value, $event)" [class.launch-disabled]="!(pkg.value | isLaunchable)">
                   <ion-icon name="rocket-outline"></ion-icon>
@@ -33,14 +33,11 @@
     
               <img style="position: absolute" class="main-img" [src]="pkg.value['static-files'].icon" alt="icon" />
               <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
-              <img class="bulb-on" *ngIf="(pkg.key | displayBulb : 'green' : connected) | async" src="assets/img/running-bulb.png"/>
-              <img class="bulb-on" *ngIf="(pkg.key | displayBulb : 'red' : connected) | async" src="assets/img/issue-bulb.png"/>
-              <img class="bulb-on" *ngIf="(pkg.key | displayBulb : 'yellow' : connected) | async" src="assets/img/warning-bulb.png"/>
-              <img class="bulb-off" *ngIf="(pkg.key | displayBulb : 'off' : connected) | async" src="assets/img/off-bulb.png"/>
+              <img [class]="serviceInfo[pkg.key].bulbInfo.class" [src]="serviceInfo[pkg.key].bulbInfo.img"/>
 
               <ion-card-header>
-                <status *ngIf="connected" [pkgId]="pkg.key" size="calc(8px + .4vw)" weight="bold"></status>
-                <ion-card-title>{{ (pkg.value | manifest).title }}</ion-card-title>
+                <status *ngIf="connected" [rendering]="serviceInfo[pkg.key].rendering" size="calc(8px + .4vw)" weight="bold"></status>
+                <ion-card-title>{{ pkg.value.manifest.title }}</ion-card-title>
               </ion-card-header>
             </ion-card>
           </ion-col>

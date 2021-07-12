@@ -5,7 +5,7 @@ import { AlertController, IonContent, ModalController, NavController } from '@io
 import { LoaderService } from 'src/app/services/loader.service'
 import { HttpErrorResponse } from '@angular/common/http'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
-import { Action, InstalledPackageDataEntry, Manifest, PackageMainStatus } from 'src/app/services/patch-db/data-model'
+import { Action, Manifest, PackageDataEntry, PackageMainStatus } from 'src/app/services/patch-db/data-model'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
@@ -44,8 +44,8 @@ export class AppActionsPage {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async handleAction (pkg: InstalledPackageDataEntry, action: { key: string, value: Action }) {
-    if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(pkg.status.main.status)) {
+  async handleAction (pkg: PackageDataEntry, action: { key: string, value: Action }) {
+    if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(pkg.installed.status.main.status)) {
       const alert = await this.alertCtrl.create({
         header: 'Confirm',
         message: `Are you sure you want to execute action "${action.value.name}"? ${action.value.warning || ''}`,

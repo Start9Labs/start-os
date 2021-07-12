@@ -307,7 +307,6 @@ export class MockApiService extends ApiService {
     const pkg: PackageDataEntry = {
       ...Mock.bitcoinproxy,
       state: PackageState.Installing,
-      'temp-manifest': Mock.MockManifestBitcoinProxy,
       // installed: undefined,
       'install-progress': {
         size: 100,

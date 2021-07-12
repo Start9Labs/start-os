@@ -46,8 +46,8 @@ export class AppInterfacesPage {
     await toast.present()
   }
 
-  launch (installed: InstalledPackageDataEntry): void {
-    window.open(this.config.launchableURL(installed), '_blank')
+  launch (pkg: PackageDataEntry): void {
+    window.open(this.config.launchableURL(pkg), '_blank')
   }
 
   asIsOrder () {

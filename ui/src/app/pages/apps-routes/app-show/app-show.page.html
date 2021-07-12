@@ -23,15 +23,15 @@
           <img [src]="pkg['static-files'].icon" />
         </ion-thumbnail>
         <ion-label class="ion-text-wrap">
-          <h1 style="font-family: 'Montserrat';" [class.less-large]="manifest.title.length > 20">
-            {{ manifest.title }}
+          <h1 style="font-family: 'Montserrat';" [class.less-large]="pkg.manifest.title.length > 20">
+            {{ pkg.manifest.title }}
           </h1>
-          <h5>{{ manifest.version | displayEmver }}</h5>
+          <h5>{{ pkg.manifest.version | displayEmver }}</h5>
         </ion-label>
       </ion-item>
 
       <div class="status-readout">
-        <status *ngIf="connected" size="large" weight="500" [pkgId]="pkgId"></status>
+        <status *ngIf="connected" size="large" weight="500" [rendering]="rendering"></status>
         <ion-button *ngIf="(pkgId | status | async) === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
           Configure
         </ion-button>
@@ -71,7 +71,7 @@
         <!-- dependencies -->
         <ng-container *ngIf="!(pkg.installed['current-dependencies'] | empty)">
           <ion-item-divider id="dependencies">Dependencies</ion-item-divider>
-          <!-- A current-dependency is a subset of the manifest.dependencies that is currently required as determined by the service config. -->
+          <!-- A current-dependency is a subset of the pkg.manifest.dependencies that is currently required as determined by the service config. -->
           <ion-grid>
             <ion-row>
               <ion-col *ngFor="let dep of pkg.installed['current-dependencies'] | keyvalue" sizeXs="12" sizeMd="6">
@@ -80,8 +80,8 @@
                     <img [src]="patch.data['package-data'][dep.key] ? patch.data['package-data'][dep.key]['static-files'].icon : pkg.installed.status['dependency-errors'][dep.key]?.icon" />
                   </ion-thumbnail>
                   <ion-label class="ion-text-wrap">
-                    <h2 style="font-family: 'Montserrat'">{{ patch.data['package-data'][dep.key] ? (patch.data['package-data'][dep.key] | manifest).title : pkg.installed.status['dependency-errors'][dep.key]?.title }}</h2>
-                    <p>{{ manifest.dependencies[dep.key].version | displayEmver }}</p>
+                    <h2 style="font-family: 'Montserrat'">{{ patch.data['package-data'][dep.key] ? patch.data['package-data'][dep.key].manifest.title : pkg.installed.status['dependency-errors'][dep.key]?.title }}</h2>
+                    <p>{{ pkg.manifest.dependencies[dep.key].version | displayEmver }}</p>
                     <p><ion-text [color]="pkg.installed.status['dependency-errors'][dep.key] ? 'warning' : 'success'">{{ pkg.installed.status['dependency-errors'][dep.key] ? pkg.installed.status['dependency-errors'][dep.key].type : 'satisfied' }}</ion-text></p>
                   </ion-label>
 
