@@ -141,4 +141,8 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
     pub async fn docker_images<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
         Ok(self.read_handle(self.toc.docker_images).await?)
     }
+
+    pub async fn assets<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
+        Ok(self.read_handle(self.toc.assets).await?)
+    }
 }

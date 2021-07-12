@@ -74,6 +74,7 @@ pub struct TableOfContents {
     pub instructions: FileSection,
     pub icon: FileSection,
     pub docker_images: FileSection,
+    pub assets: FileSection,
 }
 impl TableOfContents {
     pub fn serialize<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
@@ -81,7 +82,8 @@ impl TableOfContents {
             + (1 + "license".len() + 16)
             + (1 + "instructions".len() + 16)
             + (1 + "icon".len() + 16)
-            + (1 + "docker_images".len() + 16)) as u32;
+            + (1 + "docker_images".len() + 16)
+            + (1 + "assets".len() + 16)) as u32;
         writer.write_all(&u32::to_be_bytes(len))?;
         self.manifest.serialize_entry("manifest", &mut writer)?;
         self.license.serialize_entry("license", &mut writer)?;
@@ -90,6 +92,7 @@ impl TableOfContents {
         self.icon.serialize_entry("icon", &mut writer)?;
         self.docker_images
             .serialize_entry("docker_images", &mut writer)?;
+        self.assets.serialize_entry("assets", &mut writer)?;
         Ok(())
     }
     pub async fn deserialize<R: AsyncRead + Unpin>(mut reader: R) -> std::io::Result<Self> {
@@ -126,6 +129,7 @@ impl TableOfContents {
             instructions: from_table(&table, "instructions")?,
             icon: from_table(&table, "icon")?,
             docker_images: from_table(&table, "docker_images")?,
+            assets: from_table(&table, "assets")?,
         })
     }
 }

@@ -518,6 +518,15 @@ impl std::fmt::Display for Version {
         write!(f, "{}", self.string)
     }
 }
+impl std::str::FromStr for Version {
+    type Err = <emver::Version as FromStr>::Err;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Version {
+            string: s.to_owned(),
+            version: s.parse()?,
+        })
+    }
+}
 impl From<emver::Version> for Version {
     fn from(v: emver::Version) -> Self {
         Version {
