@@ -3,6 +3,7 @@ import { BehaviorSubject, combineLatest, fromEvent, merge, Subscription } from '
 import { ConnectionStatus, PatchDbModel } from './patch-db/patch-db.service'
 import { HttpService, Method } from './http.service'
 import { distinctUntilChanged } from 'rxjs/operators'
+import { ConfigService } from './config.service'
 
 @Injectable({
   providedIn: 'root',
@@ -14,6 +15,7 @@ export class ConnectionService {
 
   constructor (
     private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
     private readonly patch: PatchDbModel,
   ) { }
 
@@ -30,26 +32,27 @@ export class ConnectionService {
 
       combineLatest([this.networkState$.pipe(distinctUntilChanged()), this.patch.watchConnection$().pipe(distinctUntilChanged())])
       .subscribe(async ([network, connectionStatus]) => {
-        console.log('CONNECTION STATUS', connectionStatus)
         const addrs = this.patch.data['server-info']?.['connection-addresses']
         if (connectionStatus !== ConnectionStatus.Disconnected) {
           this.connectionFailure$.next(ConnectionFailure.None)
         } else if (!network) {
           this.connectionFailure$.next(ConnectionFailure.Network)
-        } else {
-          console.log('diagnosing')
+        } else if (!this.configService.isTor()) {
+          this.connectionFailure$.next(ConnectionFailure.Lan)
+        } {
+          // diagnosing
           this.connectionFailure$.next(ConnectionFailure.Diagnosing)
           const torSuccess = await this.testAddrs(addrs?.tor || [])
           if (torSuccess) {
-            console.log('TOR SUCCESS, EMBASSY IS PROBLEM')
+            // TOR SUCCESS, EMBASSY IS PROBLEM
             this.connectionFailure$.next(ConnectionFailure.Embassy)
           } else {
             const clearnetSuccess = await this.testAddrs(addrs?.clearnet || [])
             if (clearnetSuccess) {
-              console.log('CLEARNET SUCCESS, TOR IS PROBLEM')
+              // CLEARNET SUCCESS, TOR IS PROBLEM
               this.connectionFailure$.next(ConnectionFailure.Tor)
             } else {
-              console.log('INTERNET IS PROBLEM')
+              // INTERNET IS PROBLEM
               this.connectionFailure$.next(ConnectionFailure.Internet)
             }
           }
@@ -89,5 +92,6 @@ export enum ConnectionFailure {
   Network = 'network',
   Embassy = 'embassy',
   Tor = 'tor',
+  Lan = 'lan',
   Internet = 'internet',
 }
