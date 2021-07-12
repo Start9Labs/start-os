@@ -61,13 +61,16 @@
   height: 100%;
 }
 
-.notification-toast {
+ion-toast {
   --background: var(--ion-color-light);
   --button-color: var(--ion-color-dark);
-  --border-color: var(--ion-color-warning);
   --border-style: solid;
   --border-width: 1px;
   --color: white;
+}
+
+.warning-toast {
+  --border-color: var(--ion-color-warning);
 }
 
 .sublist-spinner {
