@@ -141,6 +141,10 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest( { method: 'package.logs', params })
   }
 
+  async getPkgMetrics (params: RR.GetPackageMetricsReq): Promise<RR.GetPackageMetricsRes> {
+    return this.http.rpcRequest({ method: 'package.metrics', params })
+  }
+
   async installPackageRaw (params: RR.InstallPackageReq): Promise<RR.InstallPackageRes> {
     return this.http.rpcRequest({ method: 'package.install', params })
   }

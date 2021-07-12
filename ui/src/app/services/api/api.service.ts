@@ -38,6 +38,8 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract getServerMetrics (params: RR.GetServerMetricsReq): Promise<RR.GetServerMetricsRes>
 
+  abstract getPkgMetrics (params: RR.GetPackageMetricsReq): Promise<RR.GetPackageMetricsRes>
+
   protected abstract updateServerRaw (params: RR.UpdateServerReq): Promise<RR.UpdateServerRes>
   updateServer = (params: RR.UpdateServerReq) => this.syncResponse(
     () => this.updateServerRaw(params),

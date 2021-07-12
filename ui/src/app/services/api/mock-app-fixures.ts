@@ -1,5 +1,5 @@
 import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
-import { NotificationLevel, RR, ServerNotification, ServerNotifications } from './api-types'
+import { Metric, NotificationLevel, RR, ServerNotification, ServerNotifications } from './api-types'
 
 export module Mock {
 
@@ -886,6 +886,25 @@ export module Mock {
         },
       },
     }
+  }
+
+  export function getAppMetrics () {
+    const metr: Metric = {
+      'Metric1': {
+        value: Math.random(),
+        unit: 'mi/b',
+      },
+      'Metric2': {
+        value: Math.random(),
+        unit: '%',
+      },
+      'Metric3': {
+        value: 10.1,
+        unit: '%',
+      },
+    }
+
+    return metr
   }
 
   export const ServerLogs: RR.GetServerLogsRes = [
