@@ -96,7 +96,6 @@ export class AppPropertiesPage {
       header: message,
       position: 'bottom',
       duration: 1000,
-      cssClass: 'notification-toast',
     })
     await toast.present()
   }
