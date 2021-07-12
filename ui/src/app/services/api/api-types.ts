@@ -109,6 +109,9 @@ export module RR {
   export type GetPackageLogsReq = { id: string, before?: string } // package.logs
   export type GetPackageLogsRes = Log[]
 
+  export type GetPackageMetricsReq = { id: string } // package.metrics
+  export type GetPackageMetricsRes = Metric
+
   export type InstallPackageReq = WithExpire<{ id: string, version: string }> // package.install
   export type InstallPackageRes = WithRevision<null>
 
@@ -228,6 +231,13 @@ export interface Metrics {
       value: string | number | null
       unit?: string
     }
+  }
+}
+
+export interface Metric {
+  [key: string]: {
+    value: string | number | null
+    unit?: string
   }
 }
 

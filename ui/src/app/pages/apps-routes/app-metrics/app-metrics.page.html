@@ -37,4 +37,23 @@
       </ng-template>
     </ion-card-content>
   </ion-card>
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>
+        <ion-icon style="vertical-align: middle; padding-right: 12px;" name="analytics-outline"></ion-icon>
+        <span style="vertical-align: middle;">Service Metrics</span>
+      </ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
+        <ion-label>
+          <ion-text color="medium">{{ metric.key }}</ion-text>
+        </ion-label>
+        <ion-note *ngIf="metric.value" slot="end" class="metric-note">
+          <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
+        </ion-note>
+      </ion-item>
+    </ion-card-content>
+  </ion-card>
+
 </ion-content>
