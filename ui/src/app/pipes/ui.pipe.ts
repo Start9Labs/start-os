@@ -24,13 +24,3 @@ export class LaunchablePipe implements PipeTransform {
     return this.configService.isLaunchable(pkg)
   }
 }
-
-@Pipe({
-  name: 'manifest',
-})
-export class ManifestPipe implements PipeTransform {
-
-  transform (pkg: PackageDataEntry): Manifest {
-    return getManifest(pkg)
-  }
-}

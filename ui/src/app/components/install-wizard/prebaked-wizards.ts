@@ -1,10 +1,9 @@
 import { Injectable } from '@angular/core'
-import { InstalledPackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { Breakages } from 'src/app/services/api/api-types'
 import { exists } from 'src/app/util/misc.util'
 import { ApiService } from '../../services/api/api.service'
 import { InstallWizardComponent, SlideDefinition, TopbarParams } from './install-wizard.component'
-import { WizardAction } from './wizard-types'
 
 @Injectable({ providedIn: 'root' })
 export class WizardBaker {
@@ -17,10 +16,6 @@ export class WizardBaker {
   }): InstallWizardComponent['params'] {
     const { id, title, version, installAlert } = values
 
-    validate(id, exists, 'missing id')
-    validate(title, exists, 'missing title')
-    validate(version, exists, 'missing version')
-
     const action = 'install'
     const toolbar: TopbarParams = { action, title, version }
 
@@ -29,8 +24,8 @@ export class WizardBaker {
         slide: {
           selector: 'alert',
           params: {
-            alert: installAlert,
             title: 'Warning',
+            message: installAlert,
             titleColor: 'warning',
           },
         },
@@ -62,10 +57,6 @@ export class WizardBaker {
   }): InstallWizardComponent['params'] {
     const { id, title, version, installAlert } = values
 
-    validate(id, exists, 'missing id')
-    validate(title, exists, 'missing title')
-    validate(version, exists, 'missing version')
-
     const action = 'update'
     const toolbar: TopbarParams  = { action, title, version }
 
@@ -74,8 +65,8 @@ export class WizardBaker {
         slide: {
           selector: 'alert',
           params: {
-            alert: installAlert,
             title: 'Warning',
+            message: installAlert,
             titleColor: 'warning',
           },
         },
@@ -166,10 +157,6 @@ export class WizardBaker {
   }): InstallWizardComponent['params'] {
     const { id, title, version, installAlert } = values
 
-    validate(id, exists, 'missing id')
-    validate(title, exists, 'missing title')
-    validate(version, exists, 'missing version')
-
     const action = 'downgrade'
     const toolbar: TopbarParams  = { action, title, version }
 
@@ -178,8 +165,8 @@ export class WizardBaker {
         slide: {
           selector: 'alert',
           params: {
-            alert: installAlert,
             title: 'Warning',
+            message: installAlert,
             titleColor: 'warning',
           },
         },
@@ -222,11 +209,7 @@ export class WizardBaker {
   }): InstallWizardComponent['params'] {
     const { id, title, version, uninstallAlert } = values
 
-    validate(id, exists, 'missing id')
-    validate(title, exists, 'missing title')
-    validate(version, exists, 'missing version')
-
-    const action = 'uninstall' as WizardAction
+    const action = 'uninstall'
     const toolbar: TopbarParams  = { action, title, version }
 
     const slideDefinitions: SlideDefinition[] = [
@@ -234,8 +217,8 @@ export class WizardBaker {
         slide: {
           selector: 'alert',
           params: {
-            alert: uninstallAlert || defaultUninstallationWarning(title),
             title: 'Warning',
+            message: uninstallAlert || defaultUninstallWarning(title),
             titleColor: 'warning',
           },
         },
@@ -248,7 +231,7 @@ export class WizardBaker {
             action,
             verb: 'uninstalling',
             title,
-            fetchBreakages: () => this.apiService.dryRemovePackage({ id }).then(breakages => breakages ),
+            fetchBreakages: () => this.apiService.dryRemovePackage({ id }).then(breakages => breakages),
           },
         },
         bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Uninstall' },
@@ -274,10 +257,6 @@ export class WizardBaker {
   }): InstallWizardComponent['params'] {
     const { breakages, title, version } = values
 
-    validate(breakages, t => !!t && Array.isArray(t), 'missing breakages')
-    validate(title, exists, 'missing title')
-    validate(version, exists, 'missing version')
-
     const action = 'stop'
     const toolbar: TopbarParams  = { action, title, version }
 
@@ -298,7 +277,7 @@ export class WizardBaker {
     return { toolbar, slideDefinitions }
   }
 
-  configure (values: { breakages: Breakages, pkg: InstalledPackageDataEntry }): InstallWizardComponent['params'] {
+  configure (values: { breakages: Breakages, pkg: PackageDataEntry }): InstallWizardComponent['params'] {
     const { breakages, pkg } = values
     const { title, version } = pkg.manifest
     const action = 'configure'
@@ -321,12 +300,4 @@ export class WizardBaker {
   }
 }
 
-function validate<T> (t: T, test: (t: T) => Boolean, desc: string) {
-  if (!test(t)) {
-    console.error('failed validation', desc, t)
-    throw new Error(desc)
-  }
-}
-
-
-const defaultUninstallationWarning = serviceName => `Uninstalling ${ serviceName } will result in the deletion of its data.`
+const defaultUninstallWarning = serviceName => `Uninstalling ${ serviceName } will result in the deletion of its data.`

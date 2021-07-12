@@ -42,7 +42,7 @@
                   <!-- installed -->
                   <ng-template #installed>
                     <p>
-                      <ion-text color="medium">Installed at {{ installedPkg.installed.manifest.version | displayEmver }}</ion-text>
+                      <ion-text color="medium">Installed at {{ installedPkg.manifest.version | displayEmver }}</ion-text>
                     </p>
                   </ng-template>
                 </ng-template>
@@ -59,10 +59,10 @@
           <ng-template #installedPkg2>
             <!-- not installing, updating, or removing -->
             <ng-container *ngIf="installedPkg.state === PackageState.Installed">
-              <ion-button *ngIf="(installedPkg.installed.manifest.version | compareEmver : pkg.manifest.version) === -1" class="main-action-button" expand="block" (click)="update('update')">
+              <ion-button *ngIf="(installedPkg.manifest.version | compareEmver : pkg.manifest.version) === -1" class="main-action-button" expand="block" (click)="update('update')">
                 Update
               </ion-button>
-              <ion-button *ngIf="(installedPkg.installed.manifest.version | compareEmver : pkg.manifest.version) === 1" class="main-action-button" expand="block" color="warning" (click)="update('downgrade')">
+              <ion-button *ngIf="(installedPkg.manifest.version | compareEmver : pkg.manifest.version) === 1" class="main-action-button" expand="block" color="warning" (click)="update('downgrade')">
                 Downgrade
               </ion-button>
             </ng-container>

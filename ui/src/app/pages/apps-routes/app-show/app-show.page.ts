@@ -4,13 +4,13 @@ import { ApiService } from 'src/app/services/api/api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { chill, isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
-import { Observable, of, Subscription } from 'rxjs'
+import { combineLatest, Observable, of, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService, getManifest } from 'src/app/services/config.service'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, Manifest, PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
-import { FEStatus } from 'src/app/services/pkg-status-rendering.service'
+import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
@@ -24,11 +24,11 @@ export class AppShowPage {
   pkg: PackageDataEntry
   hideLAN: boolean
   buttons: Button[] = []
-  manifest: Manifest = { } as Manifest
   connected: boolean
   FeStatus = FEStatus
   PackageState = PackageState
   DependencyErrorType = DependencyErrorType
+  rendering: PkgStatusRendering
 
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []
@@ -49,10 +49,15 @@ export class AppShowPage {
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.pkg = this.patch.data['package-data'][this.pkgId]
-    // @TODO maybe re-fetch manifest if package state changes.
-    this.manifest = getManifest(this.pkg)
     this.subs = [
-      this.patch.connected$().subscribe(c => this.connected = c),
+      combineLatest([
+        this.patch.connected$(),
+        this.patch.watch$('package-data', this.pkgId),
+      ])
+      .subscribe(([connected, pkg]) => {
+        this.connected = connected
+        this.rendering = renderPkgStatus(pkg.state, pkg.installed.status)
+      }),
     ]
     this.setButtons()
   }
@@ -66,11 +71,11 @@ export class AppShowPage {
   }
 
   launchUiTab (): void {
-    window.open(this.config.launchableURL(this.pkg.installed), '_blank')
+    window.open(this.config.launchableURL(this.pkg), '_blank')
   }
 
   async stop (): Promise<void> {
-    const { id, title, version } = this.pkg.installed.manifest
+    const { id, title, version } = this.pkg.manifest
     await this.loader.of({
       message: `Stopping...`,
       spinner: 'lines',
@@ -99,7 +104,7 @@ export class AppShowPage {
   }
 
   async tryStart (): Promise<void> {
-    const message = this.pkg.installed.manifest.alerts.start
+    const message = this.pkg.manifest.alerts.start
     if (message) {
       this.presentAlertStart(message)
     } else {
@@ -108,13 +113,13 @@ export class AppShowPage {
   }
 
   async donate (): Promise<void> {
-    const url = this.manifest['donation-url']
+    const url = this.pkg.manifest['donation-url']
     if (url) {
       window.open(url, '_blank')
     } else {
       const alert = await this.alertCtrl.create({
         header: 'Not Accepting Donations',
-        message: `The developers of ${this.manifest.title} have not provided a donation URL. Please contact them directly if you insist on giving them money.`,
+        message: `The developers of ${this.pkg.manifest.title} have not provided a donation URL. Please contact them directly if you insist on giving them money.`,
         buttons: ['OK'],
       })
       await alert.present()
@@ -143,8 +148,8 @@ export class AppShowPage {
   }
 
   private async installDep (depId: string): Promise<void> {
-    const version = this.pkg.installed.manifest.dependencies[depId].version
-    const dependentTitle = this.pkg.installed.manifest.title
+    const version = this.pkg.manifest.dependencies[depId].version
+    const dependentTitle = this.pkg.manifest.title
 
     const installRec: Recommendation = {
       dependentId: this.pkgId,
@@ -164,7 +169,7 @@ export class AppShowPage {
     const configErrors = (this.pkg.installed.status['dependency-errors'][depId] as DependencyErrorConfigUnsatisfied).errors
 
     const description = `<ul>${configErrors.map(d => `<li>${d}</li>`).join('\n')}</ul>`
-    const dependentTitle = this.pkg.installed.manifest.title
+    const dependentTitle = this.pkg.manifest.title
 
     const configRecommendation: Recommendation = {
       dependentId: this.pkgId,
