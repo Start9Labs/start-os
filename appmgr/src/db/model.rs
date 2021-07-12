@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{HasModel, Map, MapModel, OptionModel};
+use patch_db::{DbHandle, HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -12,7 +12,7 @@ use crate::config::spec::{PackagePointerSpecVariant, SystemPointerSpec};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
 use crate::net::Network;
-use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
 use crate::util::Version;
@@ -115,24 +115,25 @@ pub enum PackageDataEntry {
     #[serde(rename_all = "kebab-case")]
     Installing {
         static_files: StaticFiles,
-        temp_manifest: Manifest,
+        manifest: Manifest,
         install_progress: Arc<InstallProgress>,
     }, // { state: "installing", 'install-progress': InstallProgress }
     #[serde(rename_all = "kebab-case")]
     Updating {
         static_files: StaticFiles,
-        temp_manifest: Manifest,
+        manifest: Manifest,
         installed: InstalledPackageDataEntry,
         install_progress: Arc<InstallProgress>,
     },
     #[serde(rename_all = "kebab-case")]
     Removing {
         static_files: StaticFiles,
-        temp_manifest: Manifest,
+        manifest: Manifest,
     },
     #[serde(rename_all = "kebab-case")]
     Installed {
         static_files: StaticFiles,
+        manifest: Manifest,
         installed: InstalledPackageDataEntry,
     },
 }
@@ -143,13 +144,14 @@ impl PackageDataEntryModel {
     pub fn install_progress(self) -> OptionModel<InstallProgress> {
         self.0.child("install-progress").into()
     }
+    pub fn manifest(self) -> ManifestModel {
+        self.0.child("manifest").into()
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct InstalledPackageDataEntry {
-    #[model]
-    pub manifest: Manifest,
     #[model]
     pub status: Status,
     pub system_pointers: Vec<SystemPointerSpec>,
@@ -159,6 +161,13 @@ pub struct InstalledPackageDataEntry {
     pub current_dependencies: IndexMap<PackageId, CurrentDependencyInfo>,
     #[model]
     pub interface_info: InterfaceInfo,
+}
+impl InstalledPackageDataEntryModel {
+    pub fn manifest(self) -> ManifestModel {
+        let mut ptr = JsonPointer::from(self);
+        ptr.pop_end();
+        PackageDataEntryModel::from(ptr).manifest()
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
