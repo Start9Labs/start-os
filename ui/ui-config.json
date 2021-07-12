@@ -10,7 +10,7 @@
   },
   "mocks": {
     "enabled": true,
-    "connection": "poll",
+    "connection": "ws",
     "rpcPort": "5959",
     "wsPort": "5960",
     "maskAs": "tor",

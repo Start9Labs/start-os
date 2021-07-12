@@ -4,11 +4,11 @@ import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/api.service'
 import { Router, RoutesRecognized } from '@angular/router'
 import { debounceTime, distinctUntilChanged, filter, finalize, takeWhile } from 'rxjs/operators'
-import { AlertController, ToastController } from '@ionic/angular'
+import { AlertController, IonicSafeString, ToastController } from '@ionic/angular'
 import { LoaderService } from './services/loader.service'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
-import { LoadingOptions } from '@ionic/core'
+import { LoadingOptions, ToastButton } from '@ionic/core'
 import { PatchDbModel } from './services/patch-db/patch-db.service'
 import { HttpService } from './services/http.service'
 import { ServerStatus } from './services/patch-db/data-model'
@@ -123,25 +123,28 @@ export class AppComponent {
           this.offlineToast = undefined
         }
       } else {
-        let message: string
+        let message: string | IonicSafeString
+        let link: string
         switch (connectionFailure) {
           case ConnectionFailure.Network:
-            message = 'No network'
+            message = 'Your phone or computer has no network connection.'
             break
           case ConnectionFailure.Diagnosing:
-            message = 'Diagnosing'
+            message = new IonicSafeString('Running network diagnostics <ion-spinner name="dots"></ion-spinner>')
             break
           case ConnectionFailure.Embassy:
-            message = 'Embassy is unreachable'
+            message = 'Your Embassy appears to be offline.'
+            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#embassy-offline'
             break
           case ConnectionFailure.Tor:
-            message = 'Tor issues'
+            message = 'Your phone or computer is currently unable to connect over Tor.'
+            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#tor-failure'
             break
           case ConnectionFailure.Internet:
-            message = 'No Internet'
+            message = 'Your phone or computer is unable to connect to the Internet.'
             break
         }
-        await this.presentToastOffline(message)
+        await this.presentToastOffline(message, link)
       }
     })
   }
@@ -226,7 +229,6 @@ export class AppComponent {
       message: `New notifications`,
       position: 'bottom',
       duration: 4000,
-      cssClass: 'notification-toast',
       buttons: [
         {
           side: 'start',
@@ -247,26 +249,42 @@ export class AppComponent {
     await toast.present()
   }
 
-  private async presentToastOffline (message: string) {
+  private async presentToastOffline (message: string | IonicSafeString, link?: string) {
     if (this.offlineToast) {
       this.offlineToast.message = message
       return
     }
 
+    let buttons: ToastButton[] = [
+      {
+        side: 'start',
+        icon: 'close',
+        handler: () => {
+          return true
+        },
+      },
+    ]
+
+    if (link) {
+      buttons.push(
+        {
+          side: 'end',
+          text: 'View solutions',
+          handler: () => {
+            window.open(link, '_blank')
+            return false
+          },
+        },
+      )
+    }
+
     this.offlineToast = await this.toastCtrl.create({
-      header: 'Connection Issue',
+      header: 'Unable to Connect',
+      cssClass: 'warning-toast',
       message,
       position: 'bottom',
       duration: 0,
-      buttons: [
-        {
-          side: 'start',
-          icon: 'close',
-          handler: () => {
-            return true
-          },
-        },
-      ],
+      buttons,
     })
     await this.offlineToast.present()
   }
