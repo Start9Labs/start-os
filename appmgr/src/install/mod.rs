@@ -89,19 +89,23 @@ pub async fn download_install_s9pk(
         let static_files = StaticFiles::remote(pkg_id, version, temp_manifest.assets.icon_type());
         let mut pde = pkg_data_entry.get_mut(&mut db).await?;
         match pde.take() {
-            Some(PackageDataEntry::Installed { installed, .. }) => {
+            Some(PackageDataEntry::Installed {
+                installed,
+                manifest,
+                static_files,
+            }) => {
                 *pde = Some(PackageDataEntry::Updating {
                     install_progress: progress.clone(),
                     static_files,
                     installed,
-                    temp_manifest: temp_manifest.clone(),
+                    manifest,
                 })
             }
             None => {
                 *pde = Some(PackageDataEntry::Installing {
                     install_progress: progress.clone(),
                     static_files,
-                    temp_manifest: temp_manifest.clone(),
+                    manifest: temp_manifest.clone(),
                 })
             }
             _ => {
@@ -393,7 +397,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         })
         .collect();
     let installed = InstalledPackageDataEntry {
-        manifest: manifest.clone(),
         status: Status {
             configured: manifest.config.is_none(),
             main: MainStatus::Stopped,
@@ -433,23 +436,25 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         &mut *pde,
         PackageDataEntry::Installed {
             installed,
+            manifest: manifest.clone(),
             static_files,
         },
     );
     pde.save(&mut tx).await?;
     if let PackageDataEntry::Updating {
-        installed: prev, ..
+        installed: prev,
+        manifest: prev_manifest,
+        ..
     } = prev
     {
         let mut configured = prev.status.configured;
-        if let Some(res) = prev
-            .manifest
+        if let Some(res) = prev_manifest
             .migrations
             .to(
                 version,
                 pkg_id,
-                &prev.manifest.version,
-                &prev.manifest.volumes,
+                &prev_manifest.version,
+                &prev_manifest.volumes,
                 &hosts,
             )
             .await?
@@ -460,7 +465,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         if let Some(res) = manifest
             .migrations
             .from(
-                &prev.manifest.version,
+                &prev_manifest.version,
                 pkg_id,
                 version,
                 &manifest.volumes,
