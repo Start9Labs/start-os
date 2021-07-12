@@ -139,11 +139,13 @@ pub struct Assets {
     #[serde(default)]
     pub license: Option<PathBuf>,
     #[serde(default)]
+    pub instructions: Option<PathBuf>,
+    #[serde(default)]
     pub icon: Option<PathBuf>,
     #[serde(default)]
     pub docker_images: Option<PathBuf>,
     #[serde(default)]
-    pub instructions: Option<PathBuf>,
+    pub assets: Option<PathBuf>,
 }
 impl Assets {
     pub fn license_path(&self) -> &Path {
@@ -151,6 +153,12 @@ impl Assets {
             .as_ref()
             .map(|a| a.as_path())
             .unwrap_or(Path::new("LICENSE.md"))
+    }
+    pub fn instructions_path(&self) -> &Path {
+        self.instructions
+            .as_ref()
+            .map(|a| a.as_path())
+            .unwrap_or(Path::new("INSTRUCTIONS.md"))
     }
     pub fn icon_path(&self) -> &Path {
         self.icon
@@ -171,11 +179,11 @@ impl Assets {
             .map(|a| a.as_path())
             .unwrap_or(Path::new("image.tar"))
     }
-    pub fn instructions_path(&self) -> &Path {
-        self.instructions
+    pub fn assets_path(&self) -> &Path {
+        self.assets
             .as_ref()
             .map(|a| a.as_path())
-            .unwrap_or(Path::new("INSTRUCTIONS.md"))
+            .unwrap_or(Path::new("assets"))
     }
 }
 

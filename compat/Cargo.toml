@@ -1,0 +1,13 @@
+[package]
+name = "compat"
+version = "0.1.0"
+authors = ["Aiden McClelland <me@drbonez.dev>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2.33.3"
+serde = { version="1.0.118", features=["derive", "rc"] }
+serde_yaml = "0.8.17"
+embassy-os = { path="../appmgr", default-features=false }

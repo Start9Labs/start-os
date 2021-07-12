@@ -18,6 +18,7 @@ pub struct S9pkPacker<
     RInstructions: Read,
     RIcon: Read,
     RDockerImages: Read,
+    RAssets: Read,
 > {
     writer: W,
     manifest: &'a Manifest,
@@ -25,6 +26,7 @@ pub struct S9pkPacker<
     instructions: RInstructions,
     icon: RIcon,
     docker_images: RDockerImages,
+    assets: RAssets,
 }
 impl<
         'a,
@@ -33,7 +35,8 @@ impl<
         RInstructions: Read,
         RIcon: Read,
         RDockerImages: Read,
-    > S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages>
+        RAssets: Read,
+    > S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages, RAssets>
 {
     /// BLOCKING
     pub fn pack(mut self, key: &ed25519_dalek::Keypair) -> Result<(), Error> {
@@ -93,9 +96,18 @@ impl<
         position = new_pos;
         // docker_images
         std::io::copy(&mut self.docker_images, &mut writer)
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying App Image"))?;
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Docker Images"))?;
         let new_pos = writer.stream_position()?;
         header.table_of_contents.docker_images = FileSection {
+            position,
+            length: new_pos - position,
+        };
+        position = new_pos;
+        // docker_images
+        std::io::copy(&mut self.assets, &mut writer)
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Assets"))?;
+        let new_pos = writer.stream_position()?;
+        header.table_of_contents.assets = FileSection {
             position,
             length: new_pos - position,
         };

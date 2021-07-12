@@ -65,7 +65,7 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
     let mut fuckening = false;
     for summary in info {
         let id = if let Some(id) = summary.names.iter().flatten().find_map(|s| {
-            DockerAction::uncontainer_name(s.as_str()).and_then(|id| pkg_ids.take(id))
+            DockerAction::uncontainer_name(s.as_str()).and_then(|(id, _)| pkg_ids.take(id))
         }) {
             id
         } else {

@@ -7,7 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::util::Version;
 use crate::Error;
 
-pub const SYSTEM_ID: Id<&'static str> = Id("SYSTEM");
+pub const SYSTEM_ID: Id<&'static str> = Id("x_system");
 
 #[derive(Debug, thiserror::Error)]
 #[error("Invalid ID")]
