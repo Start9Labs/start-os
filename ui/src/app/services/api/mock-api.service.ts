@@ -7,8 +7,9 @@ import { DataModel, PackageDataEntry, PackageMainStatus, PackageState, ServerSta
 import { RR } from './api-types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './mock-app-fixures'
-import { HttpService } from '../http.service'
+import { HttpService, Method } from '../http.service'
 import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
+import { ConfigService } from '../config.service'
 
 @Injectable()
 export class MockApiService extends ApiService {
@@ -17,6 +18,7 @@ export class MockApiService extends ApiService {
 
   constructor (
     private readonly http: HttpService,
+    private readonly configService: ConfigService,
   ) { super() }
 
   // every time a patch is returned from the mock, we override its sequence to be 1 more than the last sequence in the patch-db as provided by `o`.
@@ -472,25 +474,52 @@ export class MockApiService extends ApiService {
   // marketplace
 
   async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
-    await pauseFor(2000)
-    return {
-      categories: ['featured', 'bitcoin', 'lightning', 'data', 'messaging', 'social', 'alt coin'],
+    const registryURL = this.configService.mocks.registryURL
+    if(!registryURL) {
+      await pauseFor(2000)
+      return {
+        categories: ['featured', 'bitcoin', 'lightning', 'data', 'messaging', 'social', 'alt coin'],
+      }
     }
+    const url = `${registryURL}/marketplace/data`
+    let md = await this.http.simpleGet(url)
+    return (md as any)
   }
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
+    const registryURL = this.configService.mocks.registryURL
+    if(!registryURL) {
+      await pauseFor(2000)
+      return Mock.MarketplaceEos
+    }
+    const url = `${registryURL}/sys/version/eos`
+    let eos = await this.http.simpleGet(url)
+    return (eos as any)
     await pauseFor(2000)
     return Mock.MarketplaceEos
   }
 
   async getAvailableList (params: RR.GetAvailableListReq): Promise<RR.GetAvailableListRes> {
-    await pauseFor(2000)
-    return Mock.AvailableList
+    const registryURL = this.configService.mocks.registryURL
+    if(!registryURL) {
+      await pauseFor(2000)
+      return Mock.AvailableList
+    }
+    const url = `${registryURL}/marketplace/available/list?category=${params.category || 'featured'}&per-page=${params['per-page'] || '20'}&page=${params.page || '1'}&query=${params.query || ''}`
+    let av = await this.http.simpleGet(url)
+    return (av as any)
   }
 
   async getAvailableShow (params: RR.GetAvailableShowReq): Promise<RR.GetAvailableShowRes> {
-    await pauseFor(2000)
-    return Mock.AvailableShow[params.id][params.version || 'latest']
+    const registryURL = this.configService.mocks.registryURL
+    if(!registryURL) {
+      await pauseFor(2000)
+      return Mock.AvailableShow[params.id][params.version || 'latest']
+    }
+    const url = `${registryURL}/marketplace/available?id=${params.id}&version=${params.version || '1.3.0'}`
+    let res = await this.http.simpleGet(url)
+    console.log('res RES RES', res)
+    return (res as any)
   }
 
   private nextSequence () {

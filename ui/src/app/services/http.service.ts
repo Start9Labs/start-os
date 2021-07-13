@@ -44,6 +44,11 @@ export class HttpService {
     if (isRpcSuccess(res)) return res.result
   }
 
+  async simpleGet (url: string): Promise<object> {
+    const data = await this.http.get(url).toPromise()
+    return data
+  }
+
   async httpRequest<T> (httpOpts: HttpOptions): Promise<T> {
     let { body, timeout, ...rest} = this.translateOptions(httpOpts)
     let req: Observable<{ body: T }>
