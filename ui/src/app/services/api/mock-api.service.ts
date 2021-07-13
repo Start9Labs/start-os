@@ -504,7 +504,7 @@ export class MockApiService extends ApiService {
       await pauseFor(2000)
       return Mock.AvailableList
     }
-    const url = `${registryURL}/marketplace/available/list?category=${params.category || 'featured'}&per-page=${params['per-page'] || '20'}&page=${params.page || '1'}&query=${params.query || ''}`
+    const url = `${registryURL}/marketplace/available/list?${params.category ? `category=${params.category}` : ''}&per-page=${params['per-page'] || '20'}&page=${params.page || '1'}&query=${params.query || ''}`
     let av = await this.http.simpleGet(url)
     return (av as any)
   }
