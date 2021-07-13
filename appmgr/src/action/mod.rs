@@ -1,4 +1,3 @@
-use std::net::Ipv4Addr;
 use std::path::Path;
 
 use anyhow::anyhow;
@@ -9,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use self::docker::DockerAction;
 use crate::config::{Config, ConfigSpec};
 use crate::id::Id;
-use crate::net::host::Hosts;
 use crate::s9pk::manifest::PackageId;
 use crate::util::{ValuePrimative, Version};
 use crate::volume::Volumes;
@@ -95,14 +93,20 @@ impl Action {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-        hosts: &Hosts,
         input: Config,
     ) -> Result<ActionResult, Error> {
         self.input_spec
             .matches(&input)
             .with_kind(crate::ErrorKind::ConfigSpecViolation)?;
         self.implementation
-            .execute(pkg_id, pkg_version, volumes, hosts, Some(input), true)
+            .execute(
+                pkg_id,
+                pkg_version,
+                Some(&format!("{}Action", self.name)),
+                volumes,
+                Some(input),
+                true,
+            )
             .await?
             .map_err(|e| Error::new(anyhow!("{}", e.1), crate::ErrorKind::Action))
     }
@@ -115,32 +119,19 @@ pub enum ActionImplementation {
     Docker(DockerAction),
 }
 impl ActionImplementation {
-    pub async fn install(
-        &self,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        volumes: &Volumes,
-        ip: Ipv4Addr,
-    ) -> Result<(), Error> {
-        match self {
-            ActionImplementation::Docker(action) => {
-                action.create(pkg_id, pkg_version, volumes, ip).await
-            }
-        }
-    }
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
         pkg_id: &PackageId,
         pkg_version: &Version,
+        name: Option<&str>,
         volumes: &Volumes,
-        hosts: &Hosts,
         input: Option<I>,
         allow_inject: bool,
     ) -> Result<Result<O, (i32, String)>, Error> {
         match self {
             ActionImplementation::Docker(action) => {
                 action
-                    .execute(pkg_id, pkg_version, volumes, hosts, input, allow_inject)
+                    .execute(pkg_id, pkg_version, name, volumes, input, allow_inject)
                     .await
             }
         }

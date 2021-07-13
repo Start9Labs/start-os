@@ -27,6 +27,7 @@ pub mod error;
 pub mod id;
 pub mod inspect;
 pub mod install;
+pub mod manager;
 pub mod migration;
 pub mod net;
 pub mod registry;

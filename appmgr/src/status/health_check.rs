@@ -6,7 +6,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::action::ActionImplementation;
 use crate::id::Id;
-use crate::net::host::Hosts;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -51,13 +50,12 @@ impl HealthChecks {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-        hosts: &Hosts,
     ) -> Result<IndexMap<HealthCheckId, HealthCheckResult>, Error> {
         let res = futures::future::try_join_all(self.0.iter().map(|(id, check)| async move {
             Ok::<_, Error>((
                 id.clone(),
                 check
-                    .check(started, pkg_id, pkg_version, volumes, hosts)
+                    .check(id, started, pkg_id, pkg_version, volumes)
                     .await?,
             ))
         }))
@@ -75,15 +73,22 @@ pub struct HealthCheck {
 impl HealthCheck {
     pub async fn check(
         &self,
+        id: &HealthCheckId,
         started: &DateTime<Utc>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-        hosts: &Hosts,
     ) -> Result<HealthCheckResult, Error> {
         let res = self
             .implementation
-            .execute(pkg_id, pkg_version, volumes, hosts, Some(started), true)
+            .execute(
+                pkg_id,
+                pkg_version,
+                Some(&format!("{}Health", id)),
+                volumes,
+                Some(started),
+                true,
+            )
             .await?;
         Ok(HealthCheckResult {
             time: Utc::now(),
