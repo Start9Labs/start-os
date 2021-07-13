@@ -13,6 +13,7 @@ $RECYCLE.BIN/
 
 start9-ambassador
 *.tar.gz
+config.json
 
 ambassador.tar.gz
 *.log
