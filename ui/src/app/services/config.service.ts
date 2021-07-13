@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { InstalledPackageDataEntry, InterfaceDef, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from './patch-db/data-model'
 
-const { patchDb, api, mocks } = require('../../../ui-config.json') as UiConfig
+const { patchDb, api, mocks } = require('../../../config.json') as UiConfig
 
 type UiConfig = {
   patchDb: {
@@ -20,6 +20,7 @@ type UiConfig = {
     wsPort: number
     maskAs: 'tor' | 'lan'
     skipStartupAlerts: boolean
+    registryURL: String
   }
 }
 @Injectable({
