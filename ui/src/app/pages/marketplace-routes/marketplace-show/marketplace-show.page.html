@@ -12,7 +12,7 @@
 
 <ion-content class="ion-padding">
 
-  <text-spinner *ngIf="!marketplaceService.pkgs[pkgId]" [text]="'fetching package'"></text-spinner>
+  <text-spinner *ngIf="!marketplaceService.pkgs[pkgId]" text="Loading Package"></text-spinner>
 
   <ng-container *ngIf="marketplaceService.pkgs[pkgId] as pkg">
     <ion-item *ngIf="error" style="margin-bottom: 16px;">

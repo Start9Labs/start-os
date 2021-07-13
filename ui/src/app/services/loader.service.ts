@@ -70,14 +70,6 @@ export function markAsLoadingDuring$<T> ($trigger$: Subject<boolean>, o: Observa
  )
 }
 
-export function markAsLoadingDuringP<T> ($trigger$: Subject<boolean>, p: Promise<T>): Promise<T> {
-  return markAsLoadingDuring$($trigger$, from(p)).toPromise()
-}
-
-export function markAsLoadingDuringAsync<T> ($trigger$: Subject<boolean>, thunk: () => Promise<T>): Promise<T> {
-  return markAsLoadingDuringP($trigger$, fromAsyncP(thunk))
-}
-
 
 const defaultOptions: () => LoadingOptions = () => ({
   spinner: 'lines',

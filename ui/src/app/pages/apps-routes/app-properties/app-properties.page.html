@@ -13,7 +13,7 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <ion-spinner *ngIf="loading; else loaded" class="center" name="lines" color="warning"></ion-spinner>
+  <text-spinner *ngIf="loading; else loaded" text="Loading Properties"></text-spinner>
 
   <ng-template #loaded>
     <ion-item *ngIf="error" style="margin-bottom: 16px;">
