@@ -1,0 +1,27 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="dismiss()">
+        <ion-icon name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>{{ action.name }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button [disabled]="error" (click)="save()">
+        Save
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+
+  <config-header [spec]="spec" [error]="error"></config-header>
+
+  <!-- object -->
+  <ion-item-group>
+    <ion-item-divider></ion-item-divider>
+    <object-config [cursor]="cursor" (onEdit)="handleObjectEdit()"></object-config>
+  </ion-item-group>
+
+</ion-content>

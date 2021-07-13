@@ -57,7 +57,7 @@ export class AppConfigValuePage {
     if ((!!this.saveFn && this.edited) || (!this.saveFn && this.error)) {
       await this.presentAlert()
     } else {
-      await this.modalCtrl.dismiss()
+      await this.modalCtrl.dismiss(this.value)
     }
   }
 
