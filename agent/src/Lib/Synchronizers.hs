@@ -591,19 +591,22 @@ syncUpgradeTor :: SyncOp
 syncUpgradeTor = SyncOp "Install Latest Tor" check migrate False
     where
         check = run $ do
+            shell "apt-get clean"
             shell "apt-get update"
             mTorVersion <- (shell "dpkg -s tor" $| shell "grep '^Version'" $| shell "cut -d ' ' -f2" $| conduit await)
             echo ("CURRENT TOR VERSION:" :: Text) (show mTorVersion :: Text)
             let torVersion = case mTorVersion of
                     Nothing -> panic "invalid output from dpkg, can't read tor version"
                     Just x  -> x
-            availVersions <-
-                (shell "apt-cache madison tor" $| shell "cut -d '|' -f2" $| shell "xargs" $| conduit consume)
-            echo ("AVAILABLE TOR VERSIONS:" :: Text) (show availVersions :: Text)
-            pure . not $ isJust (find ((== EQ) . compareTorVersions torVersion) availVersions)
+            pure $ compareTorVersions torVersion "0.3.5.15-1" == LT
         migrate = liftIO . run $ do
             shell "apt-get update"
-            shell "apt-get install -y tor"
+            availVersions <-
+                (shell "apt-cache madison tor" $| shell "cut -d '|' -f2" $| shell "xargs" $| conduit consume)
+            let latest = case lastMay $ sortBy compareTorVersions availVersions of
+                    Nothing -> panic "No available versions of tor"
+                    Just x  -> x
+            shell $ "apt-get install -y tor=" <> if "0.3.5.15-1" `elem` availVersions then "0.3.5.15-1" else latest
         compareTorVersions :: ByteString -> ByteString -> Ordering
         compareTorVersions a b =
             let a' = (traverse (readMaybe @Int . decodeUtf8) . (split '.' <=< split '-') $ a)
