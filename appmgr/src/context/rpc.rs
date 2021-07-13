@@ -12,10 +12,9 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use tokio::fs::File;
 
-#[cfg(feature = "avahi")]
-use crate::net::mdns::MdnsController;
-use crate::net::tor::TorController;
-use crate::util::{from_toml_async_reader, AsyncFileExt, Container};
+use crate::manager::ManagerMap;
+use crate::net::NetController;
+use crate::util::{from_toml_async_reader, AsyncFileExt};
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -34,9 +33,8 @@ pub struct RpcContextSeed {
     pub db: PatchDb,
     pub secret_store: SqlitePool,
     pub docker: Docker,
-    pub tor_controller: TorController,
-    #[cfg(feature = "avahi")]
-    pub mdns_controller: MdnsController,
+    pub net_controller: Arc<NetController>,
+    pub managers: ManagerMap,
 }
 
 #[derive(Clone)]
@@ -67,24 +65,27 @@ impl RpcContext {
                 .display()
         ))
         .await?;
-        let mut db_handle = db.handle();
-        let tor_controller = TorController::init(
-            base.tor_control.unwrap_or(([127, 0, 0, 1], 9051).into()),
-            &mut db_handle,
+        let net_controller = Arc::new(
+            NetController::init(
+                base.tor_control
+                    .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+            )
+            .await?,
+        );
+        let managers = ManagerMap::init(
+            &mut db.handle(),
             &mut secret_store.acquire().await?,
+            &*net_controller,
         )
         .await?;
-        #[cfg(feature = "avahi")]
-        let mdns_controller = MdnsController::init(&mut db_handle).await?;
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             db,
             secret_store,
             docker: Docker::connect_with_unix_defaults()?,
-            tor_controller,
-            #[cfg(feature = "avahi")]
-            mdns_controller,
+            net_controller,
+            managers,
         });
         Ok(Self(seed))
     }

@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::action::ActionImplementation;
 use crate::config::{Config, ConfigSpec};
-use crate::net::host::Hosts;
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult, HealthCheckResultVariant};
@@ -137,38 +136,31 @@ impl DepInfo {
         dependent_id: &PackageId,
         dependent_version: &Version,
     ) -> Result<Result<(), DependencyError>, Error> {
-        let dependency = crate::db::DatabaseModel::new()
+        let (manifest, info) = if let Some(dep_model) = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(dependency_id)
             .and_then(|pde| pde.installed())
-            .get(db)
-            .await?;
-        let info = if let Some(info) = &*dependency {
-            info
+            .check(db)
+            .await?
+        {
+            (
+                dep_model.clone().manifest().get(db).await?,
+                dep_model.get(db).await?,
+            )
         } else {
             return Ok(Err(DependencyError::NotInstalled));
         };
-        if !&info.manifest.version.satisfies(&self.version) {
+        if !&manifest.version.satisfies(&self.version) {
             return Ok(Err(DependencyError::IncorrectVersion {
                 expected: self.version.clone(),
-                received: info.manifest.version.clone(),
+                received: manifest.version.clone(),
             }));
         }
-        let hosts = crate::db::DatabaseModel::new()
-            .network()
-            .hosts()
-            .get(db)
-            .await?;
         let dependency_config = if let Some(cfg) = dependency_config {
             cfg
-        } else if let Some(cfg_info) = &info.manifest.config {
+        } else if let Some(cfg_info) = &manifest.config {
             cfg_info
-                .get(
-                    dependency_id,
-                    &info.manifest.version,
-                    &info.manifest.volumes,
-                    &hosts,
-                )
+                .get(dependency_id, &manifest.version, &manifest.volumes)
                 .await?
                 .config
                 .unwrap_or_default()

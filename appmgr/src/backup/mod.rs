@@ -3,7 +3,6 @@ use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 
 use crate::action::ActionImplementation;
-use crate::net::host::Hosts;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::{Volume, VolumeId, Volumes};
@@ -15,17 +14,23 @@ pub struct BackupActions {
     pub restore: ActionImplementation,
 }
 impl BackupActions {
-    pub async fn backup(
+    pub async fn create(
         &self,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-        hosts: &Hosts,
     ) -> Result<(), Error> {
         let mut volumes = volumes.to_readonly();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
         self.create
-            .execute(pkg_id, pkg_version, &volumes, hosts, None::<()>, false)
+            .execute(
+                pkg_id,
+                pkg_version,
+                Some("CreateBackup"),
+                &volumes,
+                None::<()>,
+                false,
+            )
             .await?
             .map_err(|e| anyhow!("{}", e.1))
             .with_kind(crate::ErrorKind::Backup)?;
@@ -37,12 +42,18 @@ impl BackupActions {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-        hosts: &Hosts,
     ) -> Result<(), Error> {
         let mut volumes = volumes.clone();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
         self.restore
-            .execute(pkg_id, pkg_version, &volumes, hosts, None::<()>, false)
+            .execute(
+                pkg_id,
+                pkg_version,
+                Some("RestoreBackup"),
+                &volumes,
+                None::<()>,
+                false,
+            )
             .await?
             .map_err(|e| anyhow!("{}", e.1))
             .with_kind(crate::ErrorKind::Restore)?;

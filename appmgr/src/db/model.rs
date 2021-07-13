@@ -11,7 +11,6 @@ use serde_json::Value;
 use crate::config::spec::{PackagePointerSpecVariant, SystemPointerSpec};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
-use crate::net::Network;
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
@@ -26,8 +25,6 @@ pub struct Database {
     #[model]
     pub package_data: AllPackageData,
     pub broken_packages: Vec<PackageId>,
-    #[model]
-    pub network: Network,
     pub ui: Value,
 }
 impl Database {
@@ -48,7 +45,6 @@ impl Database {
             },
             package_data: AllPackageData::default(),
             broken_packages: Vec::new(),
-            network: Network::default(),
             ui: Value::Object(Default::default()),
         }
     }
@@ -160,7 +156,7 @@ pub struct InstalledPackageDataEntry {
     #[model]
     pub current_dependencies: IndexMap<PackageId, CurrentDependencyInfo>,
     #[model]
-    pub interface_info: InterfaceInfo,
+    pub interface_addresses: InterfaceAddressMap,
 }
 impl InstalledPackageDataEntryModel {
     pub fn manifest(self) -> ManifestModel {
@@ -175,14 +171,6 @@ impl InstalledPackageDataEntryModel {
 pub struct CurrentDependencyInfo {
     pub pointers: Vec<PackagePointerSpecVariant>,
     pub health_checks: IndexSet<HealthCheckId>,
-}
-
-#[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
-pub struct InterfaceInfo {
-    pub ip: Ipv4Addr,
-    #[model]
-    pub addresses: InterfaceAddressMap,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

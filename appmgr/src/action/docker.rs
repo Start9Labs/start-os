@@ -7,12 +7,13 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::id::ImageId;
-use crate::net::host::Hosts;
+use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
-use crate::util::{Invoke, IoFormat, Version};
+use crate::util::{IoFormat, Version};
 use crate::volume::{VolumeId, Volumes};
-use crate::{Error, ResultExt};
+use crate::{Error, ResultExt, HOST_IP};
+
+pub const NET_TLD: &'static str = "embassy";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -33,33 +34,12 @@ pub struct DockerAction {
     pub shm_size_mb: Option<usize>, // TODO: use postfix sizing? like 1k vs 1m vs 1g
 }
 impl DockerAction {
-    pub async fn create(
-        &self,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        volumes: &Volumes,
-        ip: Ipv4Addr,
-    ) -> Result<(), Error> {
-        tokio::process::Command::new("docker")
-            .arg("create")
-            .arg("--net")
-            .arg("start9")
-            .arg("--ip")
-            .arg(format!("{}", ip))
-            .arg("--name")
-            .arg(Self::container_name(pkg_id, pkg_version))
-            .args(self.docker_args(pkg_id, pkg_version, volumes, false))
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-        Ok(())
-    }
-
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
         pkg_id: &PackageId,
         pkg_version: &Version,
+        name: Option<&str>,
         volumes: &Volumes,
-        hosts: &Hosts,
         input: Option<I>,
         allow_inject: bool,
     ) -> Result<Result<O, (i32, String)>, Error> {
@@ -67,8 +47,12 @@ impl DockerAction {
         if self.inject && allow_inject {
             cmd.arg("exec");
         } else {
-            cmd.arg("run").arg("--rm");
-            cmd.args(hosts.docker_args());
+            cmd.arg("run")
+                .arg("--rm")
+                .arg("--network=start9")
+                .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
+                .arg("--name")
+                .arg(Self::container_name(pkg_id, name));
         }
         cmd.args(self.docker_args(pkg_id, pkg_version, volumes, allow_inject));
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
@@ -126,8 +110,7 @@ impl DockerAction {
         input: Option<I>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let mut cmd = tokio::process::Command::new("docker");
-        cmd.arg("run").arg("--rm");
-        cmd.arg("--network=none");
+        cmd.arg("run").arg("--rm").arg("--network=none");
         cmd.args(self.docker_args(pkg_id, pkg_version, &Volumes::default(), false));
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
@@ -177,15 +160,22 @@ impl DockerAction {
         })
     }
 
-    pub fn container_name(pkg_id: &PackageId, version: &Version) -> String {
-        format!("service_{}_{}", pkg_id, version)
+    pub fn container_name(pkg_id: &PackageId, name: Option<&str>) -> String {
+        if let Some(name) = name {
+            format!("{}_{}.{}", pkg_id, name, NET_TLD)
+        } else {
+            format!("{}.{}", pkg_id, NET_TLD)
+        }
     }
 
-    pub fn uncontainer_name(name: &str) -> Option<(&str, Version)> {
-        name.trim_start_matches("/")
-            .strip_prefix("service_")
-            .and_then(|name| name.split_once("_"))
-            .and_then(|(id, version)| Some((id, version.parse().ok()?)))
+    pub fn uncontainer_name<'a>(name: &'a str) -> Option<(PackageId<&'a str>, Option<&'a str>)> {
+        let (pre_tld, _) = name.split_once(".")?;
+        if pre_tld.contains("_") {
+            let (pkg, name) = name.split_once("_")?;
+            Some((Id::try_from(pkg).ok()?.into(), Some(name)))
+        } else {
+            Some((Id::try_from(pre_tld).ok()?.into(), None))
+        }
     }
 
     fn docker_args<'a>(
@@ -208,6 +198,10 @@ impl DockerAction {
                 continue;
             };
             let src = volume.path_for(pkg_id, pkg_version, volume_id);
+            if !src.exists() {
+                // TODO: this is a blocking call, make this async?
+                continue;
+            }
             res.push(OsStr::new("--mount").into());
             res.push(
                 dbg!(OsString::from(format!(
@@ -224,7 +218,7 @@ impl DockerAction {
             res.push(OsString::from(format!("{}m", shm_size_mb)).into());
         }
         if self.inject && allow_inject {
-            res.push(OsString::from(Self::container_name(pkg_id, pkg_version)).into());
+            res.push(OsString::from(Self::container_name(pkg_id, None)).into());
             res.push(OsStr::new(&self.entrypoint).into());
         } else {
             res.push(OsStr::new("--entrypoint").into());

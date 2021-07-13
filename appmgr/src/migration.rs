@@ -5,9 +5,7 @@ use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 
 use crate::action::ActionImplementation;
-use crate::net::host::Hosts;
 use crate::s9pk::manifest::PackageId;
-use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::Error;
@@ -25,7 +23,6 @@ impl Migrations {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-        hosts: &Hosts,
     ) -> Result<Option<MigrationRes>, Error> {
         Ok(
             if let Some((_, migration)) = self
@@ -35,7 +32,14 @@ impl Migrations {
             {
                 Some(
                     migration
-                        .execute(pkg_id, pkg_version, volumes, hosts, Some(version), false)
+                        .execute(
+                            pkg_id,
+                            pkg_version,
+                            Some("Migration"), // Migrations cannot be executed concurrently
+                            volumes,
+                            Some(version),
+                            false,
+                        )
                         .await?
                         .map_err(|e| {
                             Error::new(anyhow!("{}", e.1), crate::ErrorKind::MigrationFailed)
@@ -52,7 +56,6 @@ impl Migrations {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-        hosts: &Hosts,
     ) -> Result<Option<MigrationRes>, Error> {
         Ok(
             if let Some((_, migration)) =
@@ -60,7 +63,14 @@ impl Migrations {
             {
                 Some(
                     migration
-                        .execute(pkg_id, pkg_version, volumes, hosts, Some(version), false)
+                        .execute(
+                            pkg_id,
+                            pkg_version,
+                            Some("Migration"),
+                            volumes,
+                            Some(version),
+                            false,
+                        )
                         .await?
                         .map_err(|e| {
                             Error::new(anyhow!("{}", e.1), crate::ErrorKind::MigrationFailed)
