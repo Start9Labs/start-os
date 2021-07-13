@@ -2,7 +2,7 @@
 authors = ["Aiden McClelland <me@drbonez.dev>"]
 edition = "2018"
 name = "appmgr"
-version = "0.2.13"
+version = "0.2.14"
 
 [lib]
 name = "appmgrlib"
@@ -20,7 +20,9 @@ production = []
 
 [dependencies]
 async-trait = "0.1.42"
-avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", branch = "feature/dynamic-linking", features = ["dynamic"], optional = true }
+avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", branch = "feature/dynamic-linking", features = [
+  "dynamic",
+], optional = true }
 base32 = "0.4.0"
 clap = "2.33"
 ctrlc = "3.1.7"
