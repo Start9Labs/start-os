@@ -30,7 +30,7 @@ export class MarketplaceListPage {
 
   page = 1
   needInfinite = false
-  readonly perPage = 20
+  readonly perPage = 30
 
   subs: Subscription[] = []
 
