@@ -1,93 +1,77 @@
+use std::collections::HashMap;
+
 use avahi_sys::{
-    self, avahi_client_free, avahi_entry_group_commit, avahi_entry_group_free,
-    avahi_entry_group_reset, avahi_free, AvahiClient, AvahiEntryGroup,
+    self, avahi_entry_group_commit, avahi_entry_group_free, avahi_entry_group_reset, avahi_free,
+    AvahiEntryGroup,
 };
 use libc::c_void;
 use patch_db::{DbHandle, OptionModel};
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
+use torut::onion::TorSecretKeyV3;
 
+use super::interface::InterfaceId;
+use crate::s9pk::manifest::PackageId;
 use crate::util::Apply;
 use crate::Error;
 
-pub struct MdnsController(RwLock<MdnsControllerInner>);
+pub struct MdnsController(Mutex<MdnsControllerInner>);
 impl MdnsController {
-    pub async fn init<Db: DbHandle>(db: &mut Db) -> Result<Self, Error> {
-        Ok(MdnsController(RwLock::new(
-            MdnsControllerInner::init(db).await?,
-        )))
+    pub fn init() -> Self {
+        MdnsController(Mutex::new(MdnsControllerInner::init()))
     }
-    pub async fn sync<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
-        self.0.write().await.sync(db).await
+    pub async fn add<'a, I: IntoIterator<Item = (InterfaceId, TorSecretKeyV3)>>(
+        &self,
+        pkg_id: &PackageId,
+        interfaces: I,
+    ) {
+        self.0.lock().await.add(pkg_id, interfaces)
+    }
+    pub async fn remove<I: IntoIterator<Item = InterfaceId>>(
+        &self,
+        pkg_id: &PackageId,
+        interfaces: I,
+    ) {
+        self.0.lock().await.remove(pkg_id, interfaces)
     }
 }
 
 pub struct MdnsControllerInner {
     hostname: Vec<u8>,
     entry_group: *mut AvahiEntryGroup,
+    services: HashMap<(PackageId, InterfaceId), TorSecretKeyV3>,
 }
 unsafe impl Send for MdnsControllerInner {}
 unsafe impl Sync for MdnsControllerInner {}
 
 impl MdnsControllerInner {
-    async fn load_services<Db: DbHandle>(&mut self, db: &mut Db) -> Result<(), Error> {
+    fn load_services(&mut self) {
         unsafe {
-            for app_id in crate::db::DatabaseModel::new()
-                .package_data()
-                .keys(db)
-                .await?
-            {
-                let iface_model = if let Some(model) = crate::db::DatabaseModel::new()
-                    .package_data()
-                    .idx_model(&app_id)
-                    .expect(db)
-                    .await?
-                    .installed()
-                    .map(|i| i.interface_info().addresses())
-                    .apply(OptionModel::from)
-                    .check(db)
-                    .await?
-                {
-                    model
-                } else {
-                    continue;
-                };
-                for iface in iface_model.keys(db).await? {
-                    let lan_address = if let Some(addr) = iface_model
-                        .clone()
-                        .idx_model(&iface)
-                        .expect(db)
-                        .await?
-                        .lan_address()
-                        .get(db)
-                        .await?
-                        .to_owned()
-                    {
-                        addr
-                    } else {
-                        continue;
-                    };
-                    let lan_address_ptr = std::ffi::CString::new(lan_address)
-                        .expect("Could not cast lan address to c string");
-                    let _ = avahi_sys::avahi_entry_group_add_record(
-                        self.entry_group,
-                        avahi_sys::AVAHI_IF_UNSPEC,
-                        avahi_sys::AVAHI_PROTO_UNSPEC,
-                        avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_USE_MULTICAST
-                            | avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_ALLOW_MULTIPLE,
-                        lan_address_ptr.as_ptr(),
-                        avahi_sys::AVAHI_DNS_CLASS_IN as u16,
-                        avahi_sys::AVAHI_DNS_TYPE_CNAME as u16,
-                        avahi_sys::AVAHI_DEFAULT_TTL,
-                        self.hostname.as_ptr().cast(),
-                        self.hostname.len(),
-                    );
-                    log::info!("Published {:?}", lan_address_ptr);
-                }
+            for key in self.services.values() {
+                let lan_address = key
+                    .public()
+                    .get_onion_address()
+                    .get_address_without_dot_onion()
+                    + ".local";
+                let lan_address_ptr = std::ffi::CString::new(lan_address)
+                    .expect("Could not cast lan address to c string");
+                let _ = avahi_sys::avahi_entry_group_add_record(
+                    self.entry_group,
+                    avahi_sys::AVAHI_IF_UNSPEC,
+                    avahi_sys::AVAHI_PROTO_UNSPEC,
+                    avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_USE_MULTICAST
+                        | avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_ALLOW_MULTIPLE,
+                    lan_address_ptr.as_ptr(),
+                    avahi_sys::AVAHI_DNS_CLASS_IN as u16,
+                    avahi_sys::AVAHI_DNS_TYPE_CNAME as u16,
+                    avahi_sys::AVAHI_DEFAULT_TTL,
+                    self.hostname.as_ptr().cast(),
+                    self.hostname.len(),
+                );
+                log::info!("Published {:?}", lan_address_ptr);
             }
         }
-        Ok(())
     }
-    async fn init<Db: DbHandle>(db: &mut Db) -> Result<Self, Error> {
+    fn init() -> Self {
         unsafe {
             // let app_list = crate::apps::list_info().await?;
 
@@ -118,22 +102,39 @@ impl MdnsControllerInner {
             hostname_buf[0] = (buflen - 8) as u8; // set the prefix length to len - 8 (leading byte, .local, nul) for the main address
             hostname_buf[buflen - 7] = 5; // set the prefix length to 5 for "local"
 
-            let mut ctrl = MdnsControllerInner {
+            avahi_entry_group_commit(group);
+
+            MdnsControllerInner {
                 hostname: hostname_buf,
                 entry_group: group,
-            };
-            ctrl.load_services(db).await?;
-            avahi_entry_group_commit(group);
-            Ok(ctrl)
+                services: HashMap::new(),
+            }
         }
     }
-    async fn sync<Db: DbHandle>(&mut self, db: &mut Db) -> Result<(), Error> {
+    fn sync(&mut self) {
         unsafe {
             avahi_entry_group_reset(self.entry_group);
-            self.load_services(db).await?;
+            self.load_services();
             avahi_entry_group_commit(self.entry_group);
         }
-        Ok(())
+    }
+    fn add<'a, I: IntoIterator<Item = (InterfaceId, TorSecretKeyV3)>>(
+        &self,
+        pkg_id: &PackageId,
+        interfaces: I,
+    ) {
+        self.services.extend(
+            interfaces
+                .into_iter()
+                .map(|(interface_id, key)| ((pkg_id.clone(), interface_id), key)),
+        );
+        self.sync();
+    }
+    fn remove<I: IntoIterator<Item = InterfaceId>>(&self, pkg_id: &PackageId, interfaces: I) {
+        for interface_id in interfaces {
+            self.services.remove(&(pkg_id.clone(), interface_id));
+        }
+        self.sync();
     }
 }
 impl Drop for MdnsControllerInner {

@@ -46,6 +46,7 @@ pub enum ErrorKind {
     InvalidRequest = 38,
     MigrationFailed = 39,
     Uninitialized = 40,
+    ParseNetAddress = 41,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -91,6 +92,7 @@ impl ErrorKind {
             InvalidRequest => "Invalid Request",
             MigrationFailed => "Migration Failed",
             Uninitialized => "Uninitialized",
+            ParseNetAddress => "Net Address Parsing Error",
         }
     }
 }
@@ -178,6 +180,11 @@ impl From<bollard::errors::Error> for Error {
 impl From<torut::control::ConnError> for Error {
     fn from(e: torut::control::ConnError) -> Self {
         Error::new(anyhow!("{:?}", e), ErrorKind::Tor)
+    }
+}
+impl From<std::net::AddrParseError> for Error {
+    fn from(e: std::net::AddrParseError) -> Self {
+        Error::new(e, ErrorKind::ParseNetAddress)
     }
 }
 impl From<Error> for RpcError {

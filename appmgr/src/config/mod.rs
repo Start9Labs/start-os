@@ -18,7 +18,6 @@ use crate::context::{EitherContext, ExtendedContext};
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
 use crate::db::util::WithRevision;
 use crate::dependencies::{BreakageRes, DependencyError, TaggedDependencyError};
-use crate::net::host::Hosts;
 use crate::s9pk::manifest::PackageId;
 use crate::util::{
     display_none, display_serializable, parse_duration, parse_stdin_deserializable, IoFormat,
@@ -173,14 +172,7 @@ pub async fn get(
         })?;
     let version = pkg_model.clone().manifest().version().get(&mut db).await?;
     let volumes = pkg_model.manifest().volumes().get(&mut db).await?;
-    let hosts = crate::db::DatabaseModel::new()
-        .network()
-        .hosts()
-        .get(&mut db)
-        .await?;
-    action
-        .get(ctx.extension(), &*version, &*volumes, &*hosts)
-        .await
+    action.get(ctx.extension(), &*version, &*volumes).await
 }
 
 #[command(subcommands(self(set_impl(async)), set_dry), display(display_none))]
@@ -209,17 +201,11 @@ pub async fn set_dry(
     let (ctx, (id, config, timeout, _)) = ctx.split();
     let rpc_ctx = ctx.as_rpc().unwrap();
     let mut db = rpc_ctx.db.handle();
-    let hosts = crate::db::DatabaseModel::new()
-        .network()
-        .hosts()
-        .get(&mut db)
-        .await?;
     let mut tx = db.begin().await?;
     let mut breakages = IndexMap::new();
     configure(
         &mut tx,
         &rpc_ctx.docker,
-        &*hosts,
         &id,
         config,
         &timeout,
@@ -255,17 +241,11 @@ pub async fn set_impl(
     let (ctx, (id, config, timeout, expire_id)) = ctx.split();
     let rpc_ctx = ctx.as_rpc().unwrap();
     let mut db = rpc_ctx.db.handle();
-    let hosts = crate::db::DatabaseModel::new()
-        .network()
-        .hosts()
-        .get(&mut db)
-        .await?;
     let mut tx = db.begin().await?;
     let mut breakages = IndexMap::new();
     configure(
         &mut tx,
         &rpc_ctx.docker,
-        &*hosts,
         &id,
         config,
         &timeout,
@@ -295,7 +275,6 @@ pub async fn set_impl(
 pub fn configure<'a, Db: DbHandle>(
     db: &'a mut Db,
     docker: &'a Docker,
-    hosts: &'a Hosts,
     id: &'a PackageId,
     config: Option<Config>,
     timeout: &'a Option<Duration>,
@@ -330,7 +309,7 @@ pub fn configure<'a, Db: DbHandle>(
         let ConfigRes {
             config: old_config,
             spec,
-        } = action.get(id, &*version, &*volumes, &*hosts).await?;
+        } = action.get(id, &*version, &*volumes).await?;
 
         // determine new config to use
         let mut config = if let Some(config) = config.or_else(|| old_config.clone()) {
@@ -379,7 +358,7 @@ pub fn configure<'a, Db: DbHandle>(
         let signal = if !dry_run {
             // run config action
             let res = action
-                .set(id, &*version, &*dependencies, &*volumes, hosts, &config)
+                .set(id, &*version, &*dependencies, &*volumes, &config)
                 .await?;
 
             // track dependencies with no pointers
@@ -539,8 +518,7 @@ pub fn configure<'a, Db: DbHandle>(
                     if let PackagePointerSpecVariant::Config { selector, multi } = ptr {
                         if selector.select(*multi, &next) != selector.select(*multi, &prev) {
                             if let Err(e) = configure(
-                                db, docker, hosts, dependent, None, timeout, dry_run, overrides,
-                                breakages,
+                                db, docker, dependent, None, timeout, dry_run, overrides, breakages,
                             )
                             .await
                             {
@@ -575,7 +553,7 @@ pub fn configure<'a, Db: DbHandle>(
         if let Some(signal) = signal {
             docker
                 .kill_container(
-                    &DockerAction::container_name(id, &*version),
+                    &DockerAction::container_name(id, None),
                     Some(KillContainerOptions {
                         signal: signal.to_string(),
                     }),
@@ -586,6 +564,7 @@ pub fn configure<'a, Db: DbHandle>(
                     if matches!(
                         e,
                         bollard::errors::Error::DockerResponseConflictError { .. }
+                            | bollard::errors::Error::DockerResponseNotFoundError { .. }
                     ) {
                         Ok(())
                     } else {

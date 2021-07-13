@@ -18,7 +18,6 @@ use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntryModel, PackageDataEntryModel,
 };
 use crate::dependencies::{Dependencies, DependencyError};
-use crate::net::host::Hosts;
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::HealthCheckResultVariant;
@@ -46,7 +45,7 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
             .get(&mut db)
             .await?
         {
-            container_names.push(DockerAction::container_name(id.as_ref(), version));
+            container_names.push(DockerAction::container_name(id.as_ref(), None));
         } else {
             pkg_ids.remove(&id);
         }
@@ -168,12 +167,11 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     async fn main_status<Db: DbHandle>(
         status_model: StatusModel,
         manifest: Arc<ModelData<Manifest>>,
-        hosts: Arc<Hosts>,
         mut db: Db,
     ) -> Result<MainStatus, Error> {
         let mut status = status_model.get_mut(&mut db).await?;
 
-        status.main.check(&*manifest, &*hosts).await?;
+        status.main.check(&*manifest).await?;
 
         let res = status.main.clone();
 
@@ -192,7 +190,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     .for_each_concurrent(None, move |(((status, manifest), id), hosts)| {
         let status_sender = status_sender.clone();
         async move {
-            match tokio::spawn(main_status(status, manifest, hosts, ctx.db.handle()))
+            match tokio::spawn(main_status(status, manifest, ctx.db.handle()))
                 .await
                 .unwrap()
             {
@@ -292,7 +290,7 @@ impl MainStatus {
                 .and_then(|s| s.status)
                 == Some(ContainerStateStatusEnum::RUNNING))
         }
-        let name = DockerAction::container_name(&manifest.id, &manifest.version);
+        let name = DockerAction::container_name(&manifest.id, None);
         let state = summary.state.as_ref().map(|s| s.as_str());
         match state {
             Some("created") | Some("exited") => match self {
@@ -343,18 +341,12 @@ impl MainStatus {
         }
         Ok(false)
     }
-    pub async fn check(&mut self, manifest: &Manifest, hosts: &Hosts) -> Result<(), Error> {
+    pub async fn check(&mut self, manifest: &Manifest) -> Result<(), Error> {
         match self {
             MainStatus::Running { started, health } => {
                 *health = manifest
                     .health_checks
-                    .check_all(
-                        started,
-                        &manifest.id,
-                        &manifest.version,
-                        &manifest.volumes,
-                        hosts,
-                    )
+                    .check_all(started, &manifest.id, &manifest.version, &manifest.volumes)
                     .await?;
                 for (check, res) in health {
                     if matches!(
