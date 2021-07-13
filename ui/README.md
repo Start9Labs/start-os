@@ -42,7 +42,8 @@ Then open  `patch-db`, `ws-example`, and `embassy-os`, in separate tabs.
 
 `npm i`
 
-In `ui-config.json`, edit the "mocks" section to look like the following:
+Copy `config-sample.json` to new file `config.json`
+In `config.json`, edit the "mocks" section to look like the following:
 
 ```
 "mocks": {
