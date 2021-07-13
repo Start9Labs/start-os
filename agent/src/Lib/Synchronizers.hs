@@ -52,6 +52,7 @@ import           Control.Effect.Error    hiding ( run )
 import           Control.Effect.Labelled        ( runLabelled )
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
 import           Data.ByteString.Char8          ( split )
+import qualified Data.ByteString.Char8         as C8
 import           Data.Conduit.List              ( consume )
 import qualified Data.Text                     as T
 import           Foundation
@@ -606,7 +607,9 @@ syncUpgradeTor = SyncOp "Install Latest Tor" check migrate False
             let latest = case lastMay $ sortBy compareTorVersions availVersions of
                     Nothing -> panic "No available versions of tor"
                     Just x  -> x
-            shell $ "apt-get install -y tor=" <> if "0.3.5.15-1" `elem` availVersions then "0.3.5.15-1" else latest
+            shell $ "apt-get install -y tor=" <> if "0.3.5.15-1" `elem` availVersions
+                then "0.3.5.15-1"
+                else (C8.unpack latest)
         compareTorVersions :: ByteString -> ByteString -> Ordering
         compareTorVersions a b =
             let a' = (traverse (readMaybe @Int . decodeUtf8) . (split '.' <=< split '-') $ a)
