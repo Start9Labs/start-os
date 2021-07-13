@@ -878,6 +878,7 @@ impl<'de> Deserialize<'de> for Port {
     where
         D: Deserializer<'de>,
     {
+        //TODO: if number, be permissive
         deserialize_from_str(deserializer).map(Port)
     }
 }

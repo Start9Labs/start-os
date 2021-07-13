@@ -1,48 +1,48 @@
+use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::Arc;
 
 use anyhow::anyhow;
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use indexmap::IndexMap;
-use patch_db::DbHandle;
-use sqlx::{Executor, Sqlite};
 use tokio::net::TcpStream;
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
 use torut::onion::TorSecretKeyV3;
 
-use super::interface::TorConfig;
+use super::interface::{Interface, InterfaceId, TorConfig};
+use crate::s9pk::manifest::PackageId;
 use crate::{Error, ResultExt as _};
 
 fn event_handler(event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>> {
     async move { Ok(()) }.boxed()
 }
 
-pub struct TorController(RwLock<TorControllerInner>);
+pub struct TorController(Mutex<TorControllerInner>);
 impl TorController {
-    pub async fn init<Db: DbHandle, Ex>(
-        tor_cp: SocketAddr,
-        db: &mut Db,
-        secrets: &mut Ex,
-    ) -> Result<Self, Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
-    {
-        Ok(TorController(RwLock::new(
-            TorControllerInner::init(tor_cp, db, secrets).await?,
+    pub async fn init(tor_control: SocketAddr) -> Result<Self, Error> {
+        Ok(TorController(Mutex::new(
+            TorControllerInner::init(tor_control).await?,
         )))
     }
 
-    pub async fn sync<Db: DbHandle, Ex>(&self, db: &mut Db, secrets: &mut Ex) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
-    {
-        let new = TorControllerInner::get_services(db, secrets).await?;
-        if &new != &self.0.read().await.services {
-            self.0.write().await.sync(new).await?;
-        }
-        Ok(())
+    pub async fn add<
+        'a,
+        I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
+    >(
+        &self,
+        pkg_id: &PackageId,
+        ip: Ipv4Addr,
+        interfaces: I,
+    ) -> Result<(), Error> {
+        self.0.lock().await.add(pkg_id, ip, interfaces).await
+    }
+
+    pub async fn remove<I: IntoIterator<Item = InterfaceId> + Clone>(
+        &self,
+        pkg_id: &PackageId,
+        interfaces: I,
+    ) -> Result<(), Error> {
+        self.0.lock().await.remove(pkg_id, interfaces).await
     }
 }
 
@@ -59,149 +59,70 @@ struct HiddenServiceConfig {
 
 pub struct TorControllerInner {
     connection: AuthenticatedConnection,
-    services: IndexMap<[u8; 64], HiddenServiceConfig>,
+    services: HashMap<(PackageId, InterfaceId), TorSecretKeyV3>,
 }
 impl TorControllerInner {
-    async fn get_services<Db: DbHandle, Ex>(
-        db: &mut Db,
-        secrets: &mut Ex,
-    ) -> Result<IndexMap<[u8; 64], HiddenServiceConfig>, Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
-    {
-        let pkg_ids = crate::db::DatabaseModel::new()
-            .package_data()
-            .keys(db)
-            .await?;
-        let mut services = IndexMap::new();
-        for pkg_id in pkg_ids {
-            if let Some(installed) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&pkg_id)
-                .expect(db)
-                .await?
-                .installed()
-                .check(db)
-                .await?
-            {
-                let ifaces = installed
-                    .clone()
-                    .manifest()
-                    .interfaces()
-                    .get(db)
-                    .await?
-                    .to_owned();
-                for (iface_id, cfgs) in ifaces.0 {
-                    if let Some(tor_cfg) = cfgs.tor_config {
-                        if let Some(key) = sqlx::query!(
-                            "SELECT key FROM tor WHERE package = ? AND interface = ?",
-                            *pkg_id,
-                            *iface_id,
-                        )
-                        .fetch_optional(&mut *secrets)
-                        .await?
-                        {
-                            if key.key.len() != 64 {
-                                return Err(Error::new(
-                                    anyhow!("Invalid key length"),
-                                    crate::ErrorKind::Database,
-                                ));
-                            }
-                            let mut buf = [0; 64];
-                            buf.clone_from_slice(&key.key);
-                            services.insert(
-                                buf,
-                                HiddenServiceConfig {
-                                    ip: installed
-                                        .clone()
-                                        .interface_info()
-                                        .ip()
-                                        .get(db)
-                                        .await?
-                                        .to_owned(),
-                                    cfg: tor_cfg,
-                                },
-                            );
-                        }
-                    }
-                }
-            }
-        }
-        Ok(services)
-    }
-
-    async fn add_svc(
+    async fn add<'a, I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)>>(
         &mut self,
-        key: &TorSecretKeyV3,
-        config: &HiddenServiceConfig,
+        pkg_id: &PackageId,
+        ip: Ipv4Addr,
+        interfaces: I,
     ) -> Result<(), Error> {
-        self.connection
-            .add_onion_v3(
-                key,
-                false,
-                false,
-                false,
-                None,
-                &mut config
-                    .cfg
-                    .port_mapping
-                    .iter()
-                    .map(|(external, internal)| {
-                        (external.0, SocketAddr::from((config.ip, internal.0)))
-                    })
-                    .collect::<Vec<_>>()
-                    .iter(),
-            )
-            .await?;
+        for (interface_id, interface, key) in interfaces {
+            let id = (pkg_id.clone(), interface_id);
+            match self.services.get(&id) {
+                Some(k) if k != &key => {
+                    self.remove(pkg_id, std::iter::once(id.1.clone())).await?;
+                }
+                Some(_) => return Ok(()),
+                None => (),
+            }
+            if let Some(tor_cfg) = &interface.tor_config {
+                self.connection
+                    .add_onion_v3(
+                        &key,
+                        false,
+                        false,
+                        false,
+                        None,
+                        &mut tor_cfg
+                            .port_mapping
+                            .iter()
+                            .map(|(external, internal)| {
+                                (external.0, SocketAddr::from((ip, internal.0)))
+                            })
+                            .collect::<Vec<_>>()
+                            .iter(),
+                    )
+                    .await?;
+            }
+            self.services.insert(id, key);
+        }
         Ok(())
     }
 
-    async fn sync(
+    async fn remove<I: IntoIterator<Item = InterfaceId>>(
         &mut self,
-        services: IndexMap<[u8; 64], HiddenServiceConfig>,
+        pkg_id: &PackageId,
+        interfaces: I,
     ) -> Result<(), Error> {
-        for (key, new) in &services {
-            let tor_key = TorSecretKeyV3::from(key.clone());
-            if let Some(old) = self.services.remove(&key[..]) {
-                if new != &old {
-                    self.connection
-                        .del_onion(
-                            &tor_key
-                                .public()
-                                .get_onion_address()
-                                .get_address_without_dot_onion(),
-                        )
-                        .await?;
-                    self.add_svc(&tor_key, new).await?;
-                }
-            } else {
-                self.add_svc(&tor_key, new).await?;
+        for interface_id in interfaces {
+            if let Some(key) = self.services.remove(&(pkg_id.clone(), interface_id)) {
+                self.connection
+                    .del_onion(
+                        &key.public()
+                            .get_onion_address()
+                            .get_address_without_dot_onion(),
+                    )
+                    .await?;
             }
         }
-        for (key, _) in self.services.drain(..) {
-            self.connection
-                .del_onion(
-                    &TorSecretKeyV3::from(key)
-                        .public()
-                        .get_onion_address()
-                        .get_address_without_dot_onion(),
-                )
-                .await?;
-        }
-        self.services = services;
         Ok(())
     }
 
-    async fn init<Db: DbHandle, Ex>(
-        tor_cp: SocketAddr,
-        db: &mut Db,
-        secrets: &mut Ex,
-    ) -> Result<Self, Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
-    {
+    async fn init(tor_control: SocketAddr) -> Result<Self, Error> {
         let mut conn = torut::control::UnauthenticatedConn::new(
-            TcpStream::connect(tor_cp).await?, // TODO
+            TcpStream::connect(tor_control).await?, // TODO
         );
         let auth = conn
             .load_protocol_info()
@@ -212,12 +133,10 @@ impl TorControllerInner {
         conn.authenticate(&auth).await?;
         let mut connection: AuthenticatedConnection = conn.into_authenticated().await;
         connection.set_async_event_handler(Some(event_handler));
-        let mut res = TorControllerInner {
+        Ok(TorControllerInner {
             connection,
-            services: IndexMap::new(),
-        };
-        res.sync(Self::get_services(db, secrets).await?).await?;
-        Ok(res)
+            services: HashMap::new(),
+        })
     }
 }
 

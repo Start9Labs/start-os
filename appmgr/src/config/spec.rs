@@ -1562,9 +1562,7 @@ impl PackagePointerSpec {
                     .package_data()
                     .idx_model(&self.package_id)
                     .and_then(|pde| pde.installed())
-                    .and_then(|installed| {
-                        installed.interface_info().addresses().idx_model(interface)
-                    })
+                    .and_then(|installed| installed.interface_addresses().idx_model(interface))
                     .and_then(|addresses| addresses.tor_address())
                     .get(db)
                     .await
@@ -1576,9 +1574,7 @@ impl PackagePointerSpec {
                     .package_data()
                     .idx_model(&self.package_id)
                     .and_then(|pde| pde.installed())
-                    .and_then(|installed| {
-                        installed.interface_info().addresses().idx_model(interface)
-                    })
+                    .and_then(|installed| installed.interface_addresses().idx_model(interface))
                     .and_then(|addresses| addresses.lan_address())
                     .get(db)
                     .await
@@ -1612,17 +1608,11 @@ impl PackagePointerSpec {
                         .get(db)
                         .await
                         .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
-                    let hosts = crate::db::DatabaseModel::new()
-                        .network()
-                        .hosts()
-                        .get(db)
-                        .await
-                        .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                     if let (Some(version), Some(cfg_actions), Some(volumes)) =
                         (&*version, &*cfg_actions, &*volumes)
                     {
                         let cfg_res = cfg_actions
-                            .get(&self.package_id, version, volumes, &*hosts)
+                            .get(&self.package_id, version, volumes)
                             .await
                             .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                         if let Some(cfg) = cfg_res.config {
