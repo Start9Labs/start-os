@@ -31,17 +31,17 @@
       </ion-item>
 
       <div class="status-readout">
-        <status *ngIf="connected" size="large" weight="500" [rendering]="rendering"></status>
-        <ion-button *ngIf="(pkgId | status | async) === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
+        <status size="large" weight="500" [rendering]="rendering"></status>
+        <ion-button *ngIf="rendering.feStatus === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
           Configure
         </ion-button>
-        <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : (pkgId | status | async)" expand="block" color="danger" (click)="stop()">
+        <ion-button *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : rendering.feStatus" expand="block" color="danger" (click)="stop()">
           Stop
         </ion-button>
-        <ion-button *ngIf="(pkgId | status | async) === FeStatus.DependencyIssue" expand="block" (click)="scrollToRequirements()">
+        <ion-button *ngIf="rendering.feStatus === FeStatus.DependencyIssue" expand="block" (click)="scrollToRequirements()">
           Fix
         </ion-button>
-        <ion-button *ngIf="(pkgId | status | async) === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
+        <ion-button *ngIf="rendering.feStatus === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
           Start
         </ion-button>
       </div>
@@ -52,11 +52,11 @@
       </ion-button>
     </div>
 
-    <ng-container *ngIf="!([FeStatus.Installing, FeStatus.Updating, FeStatus.Removing] | includes : pkg.status)">
+    <ng-container *ngIf="!([FeStatus.Installing, FeStatus.Updating, FeStatus.Removing] | includes : rendering.feStatus)">
       <ion-grid class="ion-text-center" style="margin: 0 6px;">
         <ion-row>
           <ion-col *ngFor="let button of buttons" sizeMd="4" sizeSm="6" sizeXs="6">
-              <ion-button style="width: 100%; min-height: 120px;" color="light" [disabled]="button.disabled | includes : pkg.status" (click)="button.action()">
+              <ion-button style="width: 100%; min-height: 120px;" color="light" [disabled]="button.disabled | includes : rendering.feStatus" (click)="button.action()">
                 <div>
                   <ion-icon size="large" [name]="button.icon"></ion-icon>
                   <br/><br/>

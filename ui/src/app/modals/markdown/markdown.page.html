@@ -10,7 +10,7 @@
 </ion-header>
 
 <ion-content>
-  <text-spinner *ngIf="loading; else loaded" [text]="'fetching ' + title"></text-spinner>
+  <text-spinner *ngIf="loading; else loaded" [text]="'Loading ' + title | titlecase"></text-spinner>
   <ng-template #loaded>
     <ion-item *ngIf="error" style="margin-bottom: 16px;">
       <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
