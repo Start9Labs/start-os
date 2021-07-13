@@ -7,9 +7,9 @@ import { LoaderService } from 'src/app/services/loader.service'
 import { combineLatest, Observable, of, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { ConfigService, getManifest } from 'src/app/services/config.service'
+import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, Manifest, PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 
@@ -279,7 +279,7 @@ export class AppShowPage {
       },
       {
         action: () => this.navCtrl.navigateForward(['manifest'], { relativeTo: this.route }),
-        title: 'Package Manifest',
+        title: 'Package Details',
         icon: 'finger-print-outline',
         color: 'danger',
         disabled: [],

@@ -9,6 +9,9 @@ import { Action, Manifest, PackageDataEntry, PackageMainStatus } from 'src/app/s
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
+import { AppConfigObjectPage } from 'src/app/modals/app-config-object/app-config-object.page'
+import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
+import { AppActionInputPage } from 'src/app/modals/app-action-input/app-action-input.page'
 
 @Component({
   selector: 'app-actions',
@@ -46,23 +49,36 @@ export class AppActionsPage {
 
   async handleAction (pkg: PackageDataEntry, action: { key: string, value: Action }) {
     if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(pkg.installed.status.main.status)) {
-      const alert = await this.alertCtrl.create({
-        header: 'Confirm',
-        message: `Are you sure you want to execute action "${action.value.name}"? ${action.value.warning || ''}`,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
+      const inputSpec = action.value['input-spec']
+      if (inputSpec) {
+        const modal = await this.modalCtrl.create({
+          component: AppActionInputPage,
+          componentProps: {
+            action: action.value,
+            cursor: new ConfigCursor(inputSpec, { }),
+            execute: () => this.executeAction(pkg.manifest.id, action.key),
           },
-          {
-            text: 'Execute',
-            handler: () => {
-              this.executeAction(pkg.manifest.id, action.key)
+        })
+        await modal.present()
+      } else {
+        const alert = await this.alertCtrl.create({
+          header: 'Confirm',
+          message: `Are you sure you want to execute action "${action.value.name}"? ${action.value.warning || ''}`,
+          buttons: [
+            {
+              text: 'Cancel',
+              role: 'cancel',
             },
-          },
-        ],
-      })
-      await alert.present()
+            {
+              text: 'Execute',
+              handler: () => {
+                this.executeAction(pkg.manifest.id, action.key)
+              },
+            },
+          ],
+        })
+        await alert.present()
+      }
     } else {
       const statuses = [...action.value['allowedStatuses']]
       const last = statuses.pop()

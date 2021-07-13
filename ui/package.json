@@ -13,7 +13,6 @@
     "lint": "ng lint",
     "e2e": "ng e2e"
   },
-  "private": true,
   "dependencies": {
     "@angular/common": "^11.0.0",
     "@angular/core": "^11.0.0",

@@ -18,7 +18,7 @@
     <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
   </ion-item>
 
-  <ion-spinner *ngIf="!logs" class="center" name="lines" color="warning"></ion-spinner>
+  <text-spinner *ngIf="!logs" text="Loading Logs"></text-spinner>
 
-  <p style="white-space: pre-line;">{{ logs }}</p>
+  <div style="white-space: pre-line;">{{ logs }}</div>
 </ion-content>
