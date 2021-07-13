@@ -1,4 +1,3 @@
-use std::net::Ipv4Addr;
 use std::path::Path;
 
 use indexmap::IndexMap;
@@ -6,7 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Sqlite};
 use torut::onion::TorSecretKeyV3;
 
-use crate::db::model::{InterfaceAddressMap, InterfaceAddresses, InterfaceInfo};
+use crate::db::model::{InterfaceAddressMap, InterfaceAddresses};
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Port;
@@ -20,15 +19,11 @@ impl Interfaces {
         &self,
         secrets: &mut Ex,
         package_id: &PackageId,
-        ip: Ipv4Addr,
-    ) -> Result<InterfaceInfo, Error>
+    ) -> Result<InterfaceAddressMap, Error>
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
     {
-        let mut interface_info = InterfaceInfo {
-            ip,
-            addresses: InterfaceAddressMap(IndexMap::new()),
-        };
+        let mut interface_addresses = InterfaceAddressMap(IndexMap::new());
         for (id, iface) in &self.0 {
             let mut addrs = InterfaceAddresses {
                 tor_address: None,
@@ -54,9 +49,9 @@ impl Interfaces {
                         Some(format!("{}.local", onion.get_address_without_dot_onion()));
                 }
             }
-            interface_info.addresses.0.insert(id.clone(), addrs);
+            interface_addresses.0.insert(id.clone(), addrs);
         }
-        Ok(interface_info)
+        Ok(interface_addresses)
     }
 }
 

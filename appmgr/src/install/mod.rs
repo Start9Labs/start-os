@@ -364,23 +364,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let mut tx = db.begin().await?;
     let mut sql_tx = ctx.secret_store.begin().await?;
 
-    let mut network = crate::db::DatabaseModel::new()
-        .network()
-        .get_mut(&mut tx)
-        .await?;
-
-    log::info!("Install {}@{}: Installing main", pkg_id, version);
-    let ip = network.register_host(&manifest.id)?;
-    manifest
-        .main
-        .install(pkg_id, version, &manifest.volumes, ip)
-        .await?;
-    let hosts = network.hosts.clone();
-    network.save(&mut tx).await?;
-    log::info!("Install {}@{}: Installed main", pkg_id, version);
+    log::info!("Install {}@{}: Creating manager", pkg_id, version);
+    todo!("create manager");
+    log::info!("Install {}@{}: Created manager", pkg_id, version);
 
     log::info!("Install {}@{}: Installing interfaces", pkg_id, version);
-    let interface_info = manifest.interfaces.install(&mut sql_tx, pkg_id, ip).await?;
+    let interface_addresses = manifest.interfaces.install(&mut sql_tx, pkg_id).await?;
     log::info!("Install {}@{}: Installed interfaces", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
@@ -429,7 +418,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             deps
         },
         current_dependencies,
-        interface_info,
+        interface_addresses,
     };
     let mut pde = model.get_mut(&mut tx).await?;
     let prev = std::mem::replace(
@@ -455,7 +444,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 pkg_id,
                 &prev_manifest.version,
                 &prev_manifest.volumes,
-                &hosts,
             )
             .await?
         {
@@ -464,13 +452,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         // cleanup(pkg_id, Some(prev)).await?;
         if let Some(res) = manifest
             .migrations
-            .from(
-                &prev_manifest.version,
-                pkg_id,
-                version,
-                &manifest.volumes,
-                &hosts,
-            )
+            .from(&prev_manifest.version, pkg_id, version, &manifest.volumes)
             .await?
         {
             configured &= res.configured;
@@ -479,7 +461,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             crate::config::configure(
                 &mut tx,
                 &ctx.docker,
-                &hosts,
                 pkg_id,
                 None,
                 &None,
@@ -490,16 +471,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             .await?;
             todo!("set as running if viable");
         }
-    }
-
-    log::info!("Install {}@{}: Syncing Tor", pkg_id, version);
-    ctx.tor_controller.sync(&mut tx, &mut sql_tx).await?;
-    log::info!("Install {}@{}: Synced Tor", pkg_id, version);
-    #[cfg(feature = "avahi")]
-    {
-        log::info!("Install {}@{}: Syncing MDNS", pkg_id, version);
-        ctx.mdns_controller.sync(&mut tx).await?;
-        log::info!("Install {}@{}: Synced MDNS", pkg_id, version);
     }
 
     tx.commit(None).await?;

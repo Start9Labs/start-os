@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use super::{Config, ConfigSpec};
 use crate::action::ActionImplementation;
 use crate::dependencies::Dependencies;
-use crate::net::host::Hosts;
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
@@ -32,10 +31,16 @@ impl ConfigActions {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-        hosts: &Hosts,
     ) -> Result<ConfigRes, Error> {
         self.get
-            .execute(pkg_id, pkg_version, volumes, hosts, None::<()>, false)
+            .execute(
+                pkg_id,
+                pkg_version,
+                Some("GetConfig"),
+                volumes,
+                None::<()>,
+                false,
+            )
             .await
             .and_then(|res| {
                 res.map_err(|e| Error::new(anyhow!("{}", e.1), crate::ErrorKind::ConfigGen))
@@ -48,12 +53,18 @@ impl ConfigActions {
         pkg_version: &Version,
         dependencies: &Dependencies,
         volumes: &Volumes,
-        hosts: &Hosts,
         input: &Config,
     ) -> Result<SetResult, Error> {
         let res: SetResult = self
             .set
-            .execute(pkg_id, pkg_version, volumes, hosts, Some(input), false)
+            .execute(
+                pkg_id,
+                pkg_version,
+                Some("SetConfig"),
+                volumes,
+                Some(input),
+                false,
+            )
             .await
             .and_then(|res| {
                 res.map_err(|e| {

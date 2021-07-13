@@ -47,7 +47,7 @@ anyhow = "1.0.40"
 async-trait = "0.1.42"
 avahi-sys = { git="https://github.com/Start9Labs/avahi-sys", version="0.10.0", branch="feature/dynamic-linking", features=["dynamic"], optional=true }
 base32 = "0.4.0"
-bollard = "0.10.1"
+bollard = "0.11.0"
 chrono = { version="0.4.19", features=["serde"] }
 clap = "2.33"
 digest = "0.9.0"
@@ -56,10 +56,9 @@ emver = { version="0.1.2", features=["serde"] }
 futures = "0.3.8"
 git-version = "0.3.4"
 http = "0.2.3"
-id-pool = { version="0.2.1", features=["u16", "serde"], default-features=false }
 indexmap = { version="1.6.2", features=["serde"] }
 itertools = "0.10.0"
-jsonpath_lib = "0.2.6"
+jsonpath_lib = "0.3.0"
 lazy_static = "1.4"
 libc = "0.2.86"
 log = "0.4.11"
@@ -85,9 +84,9 @@ simple-logging = "2.0"
 sqlx = { version="0.5", features=["runtime-tokio-rustls", "sqlite", "offline"] }
 tar = "0.4.35"
 thiserror = "1.0.24"
-tokio = { version="1.5.0", features=["full"] }
+tokio = { version="1.8.1", features=["full"] }
 tokio-compat-02 = "0.2.0"
-tokio-stream = { version="0.1.5", features=["io-util"] }
+tokio-stream = { version="0.1.5", features=["io-util", "sync"] }
 tokio-tar = "0.3.0"
 tokio-util = { version="0.6.6", features=["io"] }
 torut = "0.1.9"

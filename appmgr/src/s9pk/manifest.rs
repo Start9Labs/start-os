@@ -12,11 +12,9 @@ use url::Url;
 use crate::action::{ActionImplementation, Actions};
 use crate::backup::BackupActions;
 use crate::config::action::ConfigActions;
-use crate::db::model::InterfaceInfo;
 use crate::dependencies::Dependencies;
 use crate::id::{Id, InvalidId, SYSTEM_ID};
 use crate::migration::Migrations;
-use crate::net::host::Hosts;
 use crate::net::interface::Interfaces;
 use crate::status::health_check::{HealthCheckResult, HealthChecks};
 use crate::util::Version;
@@ -31,6 +29,11 @@ impl FromStr for PackageId {
     type Err = InvalidId;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(PackageId(Id::try_from(s.to_owned())?))
+    }
+}
+impl<S: AsRef<str>> From<Id<S>> for PackageId<S> {
+    fn from(id: Id<S>) -> Self {
+        PackageId(id)
     }
 }
 impl<S: AsRef<str>> std::ops::Deref for PackageId<S> {
