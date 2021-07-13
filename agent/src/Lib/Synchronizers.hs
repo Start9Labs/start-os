@@ -24,6 +24,7 @@ import qualified Data.Conduit.Combinators      as Conduit
 import           Data.Conduit.Shell      hiding ( arch
                                                 , hostname
                                                 , patch
+                                                , split
                                                 , stream
                                                 )
 import qualified Data.Conduit.Tar              as Conduit
@@ -50,6 +51,8 @@ import           Constants
 import           Control.Effect.Error    hiding ( run )
 import           Control.Effect.Labelled        ( runLabelled )
 import           Daemon.ZeroConf                ( getStart9AgentHostname )
+import           Data.ByteString.Char8          ( split )
+import           Data.Conduit.List              ( consume )
 import qualified Data.Text                     as T
 import           Foundation
 import           Handler.Network
@@ -98,12 +101,12 @@ parseKernelVersion = do
     pure $ KernelVersion (Version (major', minor', patch', 0)) arch
 
 synchronizer :: Synchronizer
-synchronizer = sync_0_2_13
+synchronizer = sync_0_2_14
 {-# INLINE synchronizer #-}
 
-sync_0_2_13 :: Synchronizer
-sync_0_2_13 = Synchronizer
-    "0.2.13"
+sync_0_2_14 :: Synchronizer
+sync_0_2_14 = Synchronizer
+    "0.2.14"
     [ syncCreateAgentTmp
     , syncCreateSshDir
     , syncRemoveAvahiSystemdDependency
@@ -585,19 +588,30 @@ syncRestarterService = SyncOp "Install Restarter Service" check migrate True
             liftIO $ callCommand "systemctl enable restarter.timer"
 
 syncUpgradeTor :: SyncOp
-syncUpgradeTor = SyncOp "Install Tor 0.3.5.14-1" check migrate False
+syncUpgradeTor = SyncOp "Install Latest Tor" check migrate False
     where
-        check =
-            liftIO
-                $       (  run (shell [i|dpkg -l|] $| shell [i|grep tor|] $| shell [i|grep 0.3.5.14-1|] $| conduit await)
-                        $> False
-                        )
-                `catch` \(e :: ProcessException) -> case e of
-                            ProcessException _ (ExitFailure 1) -> pure True
-                            _ -> throwIO e
+        check = run $ do
+            shell "apt-get update"
+            mTorVersion <- (shell "dpkg -s tor" $| shell "grep '^Version'" $| shell "cut -d ' ' -f2" $| conduit await)
+            echo ("CURRENT TOR VERSION:" :: Text) (show mTorVersion :: Text)
+            let torVersion = case mTorVersion of
+                    Nothing -> panic "invalid output from dpkg, can't read tor version"
+                    Just x  -> x
+            availVersions <-
+                (shell "apt-cache madison tor" $| shell "cut -d '|' -f2" $| shell "xargs" $| conduit consume)
+            echo ("AVAILABLE TOR VERSIONS:" :: Text) (show availVersions :: Text)
+            pure . not $ isJust (find ((== EQ) . compareTorVersions torVersion) availVersions)
         migrate = liftIO . run $ do
             shell "apt-get update"
-            shell "apt-get install -y tor=0.3.5.14-1"
+            shell "apt-get install -y tor"
+        compareTorVersions :: ByteString -> ByteString -> Ordering
+        compareTorVersions a b =
+            let a' = (traverse (readMaybe @Int . decodeUtf8) . (split '.' <=< split '-') $ a)
+                b' = (traverse (readMaybe @Int . decodeUtf8) . (split '.' <=< split '-') $ b)
+            in  case liftA2 compare a' b' of
+                    Nothing -> panic "invalid tor version string"
+                    Just x  -> x
+
 
 syncDropCertificateUniqueness :: SyncOp
 syncDropCertificateUniqueness = SyncOp "Eliminate OpenSSL unique_subject=yes" check migrate False
