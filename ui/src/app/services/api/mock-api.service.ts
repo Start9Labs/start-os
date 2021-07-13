@@ -10,7 +10,7 @@ import { Mock } from './mock-app-fixures'
 import { HttpService, Method } from '../http.service'
 import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
 import { ConfigService } from '../config.service'
-
+const configService = new ConfigService()
 @Injectable()
 export class MockApiService extends ApiService {
   sequence = 0
@@ -18,7 +18,6 @@ export class MockApiService extends ApiService {
 
   constructor (
     private readonly http: HttpService,
-    private readonly configService: ConfigService,
   ) { super() }
 
   // every time a patch is returned from the mock, we override its sequence to be 1 more than the last sequence in the patch-db as provided by `o`.
@@ -474,8 +473,8 @@ export class MockApiService extends ApiService {
   // marketplace
 
   async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
-    const registryURL = this.configService.mocks.registryURL
-    if(!registryURL) {
+    const registryURL = configService.mocks.registryURL
+    if (!registryURL) {
       await pauseFor(2000)
       return {
         categories: ['featured', 'bitcoin', 'lightning', 'data', 'messaging', 'social', 'alt coin'],
@@ -487,8 +486,8 @@ export class MockApiService extends ApiService {
   }
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
-    const registryURL = this.configService.mocks.registryURL
-    if(!registryURL) {
+    const registryURL = configService.mocks.registryURL
+    if (!registryURL) {
       await pauseFor(2000)
       return Mock.MarketplaceEos
     }
@@ -500,8 +499,8 @@ export class MockApiService extends ApiService {
   }
 
   async getAvailableList (params: RR.GetAvailableListReq): Promise<RR.GetAvailableListRes> {
-    const registryURL = this.configService.mocks.registryURL
-    if(!registryURL) {
+    const registryURL = configService.mocks.registryURL
+    if (!registryURL) {
       await pauseFor(2000)
       return Mock.AvailableList
     }
@@ -511,8 +510,8 @@ export class MockApiService extends ApiService {
   }
 
   async getAvailableShow (params: RR.GetAvailableShowReq): Promise<RR.GetAvailableShowRes> {
-    const registryURL = this.configService.mocks.registryURL
-    if(!registryURL) {
+    const registryURL = configService.mocks.registryURL
+    if (!registryURL) {
       await pauseFor(2000)
       return Mock.AvailableShow[params.id][params.version || 'latest']
     }
