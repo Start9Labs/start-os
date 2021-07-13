@@ -19,7 +19,7 @@ export class MarketplaceListPage {
   pkgsLoading = true
   error = ''
 
-  category = 'featured'
+  category = 'all'
   query: string
 
   data: MarketplaceData
@@ -38,7 +38,7 @@ export class MarketplaceListPage {
     private readonly apiService: ApiService,
     private readonly modalCtrl: ModalController,
     private readonly wizardBaker: WizardBaker,
-    private readonly patch: PatchDbModel,
+    public readonly patch: PatchDbModel,
   ) { }
 
   async ngOnInit () {
@@ -50,6 +50,7 @@ export class MarketplaceListPage {
         this.getPkgs(),
       ])
       this.data = data
+      this.data.categories.unshift(this.category)
       this.eos = eos
       this.pkgs = pkgs
     } catch (e) {
@@ -95,7 +96,7 @@ export class MarketplaceListPage {
   private async getPkgs (): Promise<AvailablePreview[]> {
     try {
       const pkgs = await this.apiService.getAvailableList({
-        category: this.category,
+        category: this.category !== 'all' ? this.category : undefined,
         query: this.query,
         page: this.page,
         'per-page': this.perPage,
