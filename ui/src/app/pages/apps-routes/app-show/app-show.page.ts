@@ -12,6 +12,7 @@ import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-show',
@@ -19,7 +20,6 @@ import { ConnectionService } from 'src/app/services/connection.service'
   styleUrls: ['./app-show.page.scss'],
 })
 export class AppShowPage {
-  error: string
   pkgId: string
   pkg: PackageDataEntry
   hideLAN: boolean
@@ -37,6 +37,7 @@ export class AppShowPage {
     private readonly alertCtrl: AlertController,
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
+    private readonly errToast: ErrorToastService,
     private readonly loader: LoaderService,
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
@@ -62,9 +63,9 @@ export class AppShowPage {
     this.setButtons()
   }
 
-  ngAfterViewInit () {
-    this.content.scrollToPoint(undefined, 1)
-  }
+  // ngAfterViewInit () {
+  //   this.content.scrollToPoint(undefined, 1)
+  // }
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
@@ -215,23 +216,24 @@ export class AppShowPage {
   }
 
   private setError (e: Error): Observable<void> {
-    this.error = e.message
+    console.error(e)
+    this.errToast.present(e.message)
     return of()
   }
 
   setButtons (): void {
     this.buttons = [
       {
-        action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
-        title: 'Health',
-        icon: 'medkit-outline',
+        action: () => this.navCtrl.navigateForward(['instructions'], { relativeTo: this.route }),
+        title: 'Instructions',
+        icon: 'list-outline',
         color: 'danger',
         disabled: [],
       },
       {
-        action: () => this.navCtrl.navigateForward(['instructions'], { relativeTo: this.route }),
-        title: 'Instructions',
-        icon: 'list-outline',
+        action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
+        title: 'Monitor',
+        icon: 'medkit-outline',
         color: 'danger',
         disabled: [],
       },

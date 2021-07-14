@@ -1,6 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { ApiService } from 'src/app/services/api/api.service'
 import { IonContent } from '@ionic/angular'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'server-logs',
@@ -10,10 +11,10 @@ import { IonContent } from '@ionic/angular'
 export class ServerLogsPage {
   @ViewChild(IonContent, { static: false }) private content: IonContent
   loading = true
-  error = ''
   logs: string
 
   constructor (
+    private readonly errToast: ErrorToastService,
     private readonly apiService: ApiService,
   ) { }
 
@@ -27,11 +28,10 @@ export class ServerLogsPage {
     try {
       const logs = await this.apiService.getServerLogs({ })
       this.logs = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n')
-      this.error = ''
       setTimeout(async () => await this.content.scrollToBottom(100), 200)
     } catch (e) {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
     } finally {
       this.loading = false
     }

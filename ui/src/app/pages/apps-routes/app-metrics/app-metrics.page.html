@@ -7,10 +7,8 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content *ngIf="pkg">
-  <ion-item *ngIf="error" style="margin-bottom: 16px;">
-    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
-  </ion-item>
+<ion-content>
+
   <ion-card>
     <ion-card-header>
       <ion-card-title>
@@ -19,41 +17,61 @@
       </ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <ion-item *ngIf="!(pkg.installed?.status.main.health | empty); else noHealth" color="light" style="margin: 10px;">
+      <ion-item *ngIf="pkg.installed?.status.main.health | empty; else health">
         <ion-label>
-          <div *ngFor="let health of pkg.installed.status.main.health | keyvalue : asIsOrder" class="align" style="margin-left: 12px;">
-            <ion-icon *ngIf="health.value.result === 'success'" name="checkmark-outline" color="success"></ion-icon>
-            <ion-icon *ngIf="health.value.result === 'starting'" name="timer-outline" color="warning"></ion-icon>
-            <ion-icon *ngIf="health.value.result === 'loading'" name="sync-circle-outline" color="warning"></ion-icon>
-            <ion-icon *ngIf="health.value.result === 'failure'" name="close-outline" color="danger"></ion-icon>
-            <ion-icon *ngIf="health.value.result === 'disabled'" name="remove-outline" color="medium"></ion-icon>
-            <h2>{{ health.key }}</h2>
-            <p style="margin-left: 24px;" *ngIf="health.value.result === 'failure'"><ion-text color="danger">{{ health.value.error }}</ion-text></p>
-          </div>
+          No health checks
         </ion-label>
       </ion-item>
-      <ng-template #noHealth>
-        No health checks
+      <ng-template #health>
+        <ion-item *ngIf="!(pkg.installed?.status.main.health | empty); else noHealth" color="light" style="margin: 10px;">
+          <ion-label>
+            <div *ngFor="let health of pkg.installed.status.main.health | keyvalue : asIsOrder" class="align" style="margin-left: 12px;">
+              <ion-icon *ngIf="health.value.result === 'success'" name="checkmark-outline" color="success"></ion-icon>
+              <ion-icon *ngIf="health.value.result === 'starting'" name="timer-outline" color="warning"></ion-icon>
+              <ion-icon *ngIf="health.value.result === 'loading'" name="sync-circle-outline" color="warning"></ion-icon>
+              <ion-icon *ngIf="health.value.result === 'failure'" name="close-outline" color="danger"></ion-icon>
+              <ion-icon *ngIf="health.value.result === 'disabled'" name="remove-outline" color="medium"></ion-icon>
+              <h2>{{ health.key }}</h2>
+              <p style="margin-left: 24px;" *ngIf="health.value.result === 'failure'"><ion-text color="danger">{{ health.value.error }}</ion-text></p>
+            </div>
+          </ion-label>
+        </ion-item>
       </ng-template>
     </ion-card-content>
   </ion-card>
+
   <ion-card>
     <ion-card-header>
       <ion-card-title>
-        <ion-icon style="vertical-align: middle; padding-right: 12px;" name="analytics-outline"></ion-icon>
-        <span style="vertical-align: middle;">Service Metrics</span>
+        <ion-icon style="vertical-align: middle; padding-right: 12px;" name="pulse-outline"></ion-icon>
+        <span style="vertical-align: middle;">Metrics</span>
       </ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
-        <ion-label>
-          <ion-text color="medium">{{ metric.key }}</ion-text>
-        </ion-label>
-        <ion-note *ngIf="metric.value" slot="end" class="metric-note">
-          <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
-        </ion-note>
-      </ion-item>
+      <ng-container *ngIf="loading">
+        <div class="post">
+          <div class="label"></div>
+          <div class="note"></div>
+        </div>
+        <div class="post">
+          <div class="label"></div>
+          <div class="note"></div>
+        </div>
+        <div class="post">
+          <div class="label"></div>
+          <div class="note"></div>
+        </div>
+      </ng-container>
+      <ion-item-group *ngIf="!loading">
+        <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
+          <ion-label>
+            <ion-text color="medium">{{ metric.key }}</ion-text>
+          </ion-label>
+          <ion-note *ngIf="metric.value" slot="end" class="metric-note">
+            <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
+          </ion-note>
+        </ion-item>
+      </ion-item-group>
     </ion-card-content>
   </ion-card>
-
 </ion-content>

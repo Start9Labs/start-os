@@ -14,20 +14,9 @@
 
 <ion-content class="ion-padding-top">
 
-  <ion-grid *ngIf="loading; else loaded" style="height: 100%;">
-    <ion-row class="ion-align-items-center ion-text-center" style="height: 100%;">
-      <ion-col>
-        <ion-spinner name="lines" color="warning"></ion-spinner>
-        <p>Loading Drives</p>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+  <text-spinner *ngIf="loading; else loaded" text="Loading Drives"></text-spinner>
 
   <ng-template #loaded>
-    <ion-item *ngIf="error" style="margin-bottom: 16px;">
-      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
-    </ion-item>
-    
     <ion-item class="ion-margin-bottom">
       <ion-label class="ion-text-wrap">
         <p class="ion-padding-bottom"><ion-text color="warning">Warning</ion-text></p>

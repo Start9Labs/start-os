@@ -494,8 +494,6 @@ export class MockApiService extends ApiService {
     const url = `${registryURL}/sys/version/eos`
     let eos = await this.http.simpleGet(url)
     return (eos as any)
-    await pauseFor(2000)
-    return Mock.MarketplaceEos
   }
 
   async getAvailableList (params: RR.GetAvailableListReq): Promise<RR.GetAvailableListRes> {
@@ -515,7 +513,7 @@ export class MockApiService extends ApiService {
       await pauseFor(2000)
       return Mock.AvailableShow[params.id][params.version || 'latest']
     }
-    const url = `${registryURL}/marketplace/available?id=${params.id}&version=${params.version || '1.3.0'}`
+    const url = `${registryURL}/marketplace/available?id=${params.id}`
     let res = await this.http.simpleGet(url)
     console.log('res RES RES', res)
     return (res as any)

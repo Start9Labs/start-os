@@ -5,7 +5,10 @@
 .menu-style {
   border-style: solid;
   border-width: 0px 1px 0px 0px;
-  border-color: #ff4960;
+  border-color: var(--ion-color-danger);
+  ion-item::part(native) {
+    height: 56px;
+  }
 }
 
 .selected-badge {

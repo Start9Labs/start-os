@@ -5,6 +5,7 @@ import { LoaderService } from 'src/app/services/loader.service'
 import { SSHService } from './ssh.service'
 import { Subscription } from 'rxjs'
 import { SSHKeys } from 'src/app/services/api/api-types'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'dev-ssh-keys',
@@ -12,27 +13,27 @@ import { SSHKeys } from 'src/app/services/api/api-types'
   styleUrls: ['dev-ssh-keys.page.scss'],
 })
 export class DevSSHKeysPage {
-  error = ''
   loading = true
   sshKeys: SSHKeys
   subs: Subscription[] = []
 
   constructor (
     private readonly loader: LoaderService,
+    private readonly errToast: ErrorToastService,
     private readonly serverConfigService: ServerConfigService,
     private readonly alertCtrl: AlertController,
     private readonly sshService: SSHService,
   ) { }
 
   async ngOnInit () {
-    await this.sshService.getKeys()
-
     this.subs = [
       this.sshService.watch$()
       .subscribe(keys => {
         this.sshKeys = keys
       }),
     ]
+
+    await this.sshService.getKeys()
 
     this.loading = false
   }
@@ -68,7 +69,6 @@ export class DevSSHKeysPage {
   }
 
   async delete (hash: string): Promise<void> {
-    this.error = ''
     this.loader.of({
       message: 'Deleting...',
       spinner: 'lines',
@@ -77,7 +77,7 @@ export class DevSSHKeysPage {
       await this.sshService.delete(hash)
     }).catch(e => {
       console.error(e)
-      this.error = ''
+      this.errToast.present(e.message)
     })
   }
 

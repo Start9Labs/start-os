@@ -1,12 +1,13 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AlertController, IonContent, ModalController, NavController } from '@ionic/angular'
+import { AlertController, IonContent, ModalController, NavController, ToastController } from '@ionic/angular'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { pauseFor, Recommendation } from 'src/app/util/misc.util'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from '../marketplace.service'
 import { Subscription } from 'rxjs'
@@ -19,7 +20,7 @@ import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
 })
 export class MarketplaceShowPage {
   @ViewChild(IonContent) content: IonContent
-  error = ''
+  loading = true
   pkgId: string
   installedPkg: PackageDataEntry
   PackageState = PackageState
@@ -32,11 +33,12 @@ export class MarketplaceShowPage {
     private readonly route: ActivatedRoute,
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
+    private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
     private readonly emver: Emver,
     private readonly patch: PatchDbModel,
-    public readonly marketplaceService: MarketplaceService,
+    private readonly marketplaceService: MarketplaceService,
   ) { }
 
   async ngOnInit () {
@@ -66,7 +68,10 @@ export class MarketplaceShowPage {
       await this.marketplaceService.setPkg(this.pkgId, version)
     } catch (e) {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
+    } finally {
+      await pauseFor(100)
+      this.loading = false
     }
   }
 
