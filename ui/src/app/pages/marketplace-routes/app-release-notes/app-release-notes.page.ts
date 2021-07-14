@@ -10,7 +10,6 @@ import { MarketplaceService } from '../marketplace.service'
 })
 export class AppReleaseNotes {
   @ViewChild(IonContent) content: IonContent
-  error = ''
   selected: string
   pkgId: string
 
@@ -22,8 +21,8 @@ export class AppReleaseNotes {
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     const version = this.route.snapshot.paramMap.get('version')
-    if (!this.marketplaceService.pkgs[this.pkgId]) {
-      this.marketplaceService.setPkg(this.pkgId, version)
+    if (!this.marketplaceService.pkgs[this.pkgId]?.['release-notes']) {
+      this.marketplaceService.getPkg(this.pkgId, version)
     }
   }
 

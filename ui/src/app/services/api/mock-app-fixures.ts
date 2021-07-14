@@ -1,5 +1,5 @@
 import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
-import { Metric, NotificationLevel, RR, ServerNotification, ServerNotifications } from './api-types'
+import { MarketplacePkg, Metric, NotificationLevel, RR, ServerNotification, ServerNotifications } from './api-types'
 
 export module Mock {
 
@@ -9,29 +9,11 @@ export module Mock {
     'release-notes': { '1.0.0': 'Some **Markdown** release _notes_' },
   }
 
-  export const AvailableList: RR.GetAvailableListRes = [
-    {
-      id: 'bitcoind',
-      title: 'Bitcoin Core',
-      version: '0.21.1',
-      descriptionShort: 'A Bitcoin full node by Bitcoin Core.',
-      icon: 'assets/img/service-icons/bitcoind.png',
-    },
-    {
-      id: 'lnd',
-      title: 'LND',
-      version: '0.11.1',
-      descriptionShort: 'A BOLT-compliant, lightning network node.',
-      icon: 'assets/img/service-icons/lnd.png',
-    },
-    {
-      id: 'bitcoin-proxy',
-      title: 'Bitcoin Proxy',
-      version: '0.2.2',
-      descriptionShort: 'A super charger for your Bitcoin node.',
-      icon: 'assets/img/service-icons/bitcoin-proxy.png',
-    },
-  ]
+  export const ReleaseNotes: RR.GetReleaseNotesRes = {
+    '0.19.2': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
+    '0.19.1': 'release notes for Bitcoin 0.19.1',
+    '0.19.0': 'release notes for Bitcoin 0.19.0',
+  }
 
   export const MockManifestBitcoind: Manifest = {
     id: 'bitcoind',
@@ -395,7 +377,7 @@ export module Mock {
 
   export const AvailableShow: {
     [id: string]: {
-      [version: string]: RR.GetAvailableShowRes
+      [version: string]: MarketplacePkg
     }
   } = {
     'bitcoind': {
@@ -410,11 +392,6 @@ export module Mock {
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': { },
-        'release-notes': {
-          '0.19.2': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
-          '0.19.1': 'release notes for Bitcoin 0.19.1',
-          '0.19.0': 'release notes for Bitcoin 0.19.0',
-        },
       },
       '0.20.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
@@ -427,11 +404,6 @@ export module Mock {
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': { },
-        'release-notes': {
-          '0.19.2': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
-          '0.19.1': 'release notes for Bitcoin 0.19.1',
-          '0.19.0': 'release notes for Bitcoin 0.19.0',
-        },
       },
       '0.21.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
@@ -445,11 +417,6 @@ export module Mock {
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': { },
-        'release-notes': {
-          '0.19.2': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
-          '0.19.1': 'release notes for Bitcoin 0.19.1',
-          '0.19.0': 'release notes for Bitcoin 0.19.0',
-        },
       },
       'latest': {
         icon: 'assets/img/service-icons/bitcoind.png',
@@ -462,11 +429,6 @@ export module Mock {
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': { },
-        'release-notes': {
-          '0.21.0': 'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.',
-          '0.20.0': 'release notes for Bitcoin 0.20.0',
-          '0.19.2': 'release notes for Bitcoin 0.19.2',
-        },
       },
     },
     'lnd': {
@@ -491,11 +453,6 @@ export module Mock {
             icon: 'assets/img/service-icons/bitcoin-proxy.png',
           },
         },
-        'release-notes': {
-          '0.19.2': 'release notes for LND 0.19.2',
-          '0.19.1': 'release notes for LND 0.19.1',
-          '0.19.0': 'release notes for LND 0.19.0',
-        },
       },
       '0.11.1': {
         icon: 'assets/img/service-icons/lnd.png',
@@ -518,11 +475,6 @@ export module Mock {
             icon: 'assets/img/service-icons/bitcoin-proxy.png',
           },
         },
-        'release-notes': {
-          '0.19.2': 'release notes for LND 0.19.2',
-          '0.19.1': 'release notes for LND 0.19.1',
-          '0.19.0': 'release notes for LND 0.19.0',
-        },
       },
       'latest': {
         icon: 'assets/img/service-icons/lnd.png',
@@ -541,11 +493,6 @@ export module Mock {
             icon: 'assets/img/service-icons/bitcoin-proxy.png',
           },
         },
-        'release-notes': {
-          '0.19.2': 'release notes for LND 0.19.2',
-          '0.19.1': 'release notes for LND 0.19.1',
-          '0.19.0': 'release notes for LND 0.19.0',
-        },
       },
     },
     'bitcoin-proxy': {
@@ -562,14 +509,11 @@ export module Mock {
             icon: 'assets/img/service-icons/bitcoind.png',
           },
         },
-        'release-notes': {
-          '0.19.2': 'release notes for btc proxy 0.19.2',
-          '0.19.1': 'release notes for btc proxy 0.19.1',
-          '0.19.0': 'release notes for btc proxy 0.19.0',
-        },
       },
     },
   }
+
+  export const AvailableList: RR.GetMarketplacePackagesRes = Object.values(Mock.AvailableShow).map(service => service['latest'])
 
   export const bitcoind: PackageDataEntry = {
     state: PackageState.Installed,
@@ -731,8 +675,8 @@ export module Mock {
           selected: 'Goosers5G',
           connected: 'Goosers5G',
         },
-        'package-registry': 'https://registry.start9.com',
-        'system-registry': 'https://registry.start9.com',
+        'package-marketplace': 'https://registry.start9.com',
+        'eos-marketplace': 'https://registry.start9.com',
         'unread-notification-count': 4,
         specs: {
           CPU: 'Cortex-A72: 4 Cores @1500MHz',

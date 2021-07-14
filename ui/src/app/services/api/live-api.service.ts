@@ -1,12 +1,15 @@
 import { Injectable } from '@angular/core'
 import { HttpService, Method } from '../http.service'
-import { ApiService  } from './api.service'
+import { ApiService, getMarketURL  } from './api.service'
 import { RR } from './api-types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
+import { ConfigService } from '../config.service'
 
 @Injectable()
 export class LiveApiService extends ApiService {
+
   constructor (
+    private readonly config: ConfigService,
     private readonly http: HttpService,
   ) { super() }
 
@@ -66,10 +69,22 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'network.lan.refresh', params })
   }
 
-  // registry
+  // marketplace URLs
 
-  async setRegistryRaw (params: RR.SetRegistryReq): Promise<RR.SetRegistryRes> {
-    return this.http.rpcRequest({ method: 'registry.set', params })
+  async setEosMarketplaceRaw (isTor: boolean): Promise<RR.SetEosMarketplaceRes> {
+    const params: RR.SetEosMarketplaceReq = {
+      url: isTor ? this.config.start9Marketplace.tor : this.config.start9Marketplace.clearnet,
+    }
+    return this.http.rpcRequest({ method: 'marketplace.eos.set', params })
+  }
+
+  async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
+    return this.http.rpcRequest({ method: 'marketplace.package.set', params })
+  }
+
+  // password
+  async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
+    return this.http.rpcRequest({ method: 'password.set', params })
   }
 
   // notification
@@ -200,18 +215,18 @@ export class LiveApiService extends ApiService {
   // marketplace
 
   async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
-    return this.http.rpcRequest({ method: 'marketplace.data', params })
+    return this.http.simpleGet<RR.GetMarketplaceDataRes>(getMarketURL('package', this.patch.data), params)
   }
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
-    return this.http.rpcRequest({ method: 'marketplace.eos', params })
+    return this.http.simpleGet<RR.GetMarketplaceEOSRes>(getMarketURL('eos', this.patch.data), params)
   }
 
-  async getAvailableList (params: RR.GetAvailableListReq): Promise<RR.GetAvailableListRes> {
-    return this.http.rpcRequest({ method: 'marketplace.available.list', params })
+  async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
+    return this.http.simpleGet<RR.GetMarketplacePackagesRes>(getMarketURL('package', this.patch.data), params)
   }
 
-  async getAvailableShow (params: RR.GetAvailableShowReq): Promise<RR.GetAvailableShowRes> {
-    return this.http.rpcRequest({ method: 'marketplace.available', params })
+  async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
+    return this.http.simpleGet<RR.GetReleaseNotesRes>(getMarketURL('package', this.patch.data), params)
   }
 }

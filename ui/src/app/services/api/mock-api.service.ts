@@ -1,35 +1,23 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '../../util/misc.util'
-import { ApiService } from './api.service'
-import { Observable } from 'rxjs'
-import { PatchOp, Store, Update } from 'patch-db-client'
-import { DataModel, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
-import { RR } from './api-types'
+import { ApiService, getMarketURL } from './api.service'
+import { PatchOp } from 'patch-db-client'
+import { PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
+import { RR, WithRevision } from './api-types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './mock-app-fixures'
-import { HttpService, Method } from '../http.service'
+import { HttpService } from '../http.service'
 import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
 import { ConfigService } from '../config.service'
-const configService = new ConfigService()
+
 @Injectable()
 export class MockApiService extends ApiService {
-  sequence = 0
   welcomeAck = false
 
   constructor (
+    private readonly config: ConfigService,
     private readonly http: HttpService,
   ) { super() }
-
-  // every time a patch is returned from the mock, we override its sequence to be 1 more than the last sequence in the patch-db as provided by `o`.
-  watch$ (store: Store<DataModel>): Observable<Update<DataModel>> {
-    store.sequence$.subscribe(seq => {
-      console.log('INCOMING: ', seq)
-      if (this.sequence < seq) {
-        this.sequence = seq
-      }
-    })
-    return super.watch$()
-  }
 
   async getStatic (url: string): Promise<string> {
     await pauseFor(2000)
@@ -106,20 +94,14 @@ export class MockApiService extends ApiService {
 
   async updateServerRaw (params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/status',
-            value: ServerStatus.Updating,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status',
+        value: ServerStatus.Updating,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async restartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
@@ -139,43 +121,56 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  // registry
+  // marketplace URLs
 
-  async setRegistryRaw (params: RR.SetRegistryReq): Promise<RR.SetRegistryRes> {
+  async setEosMarketplaceRaw (isTor: boolean): Promise<RR.SetEosMarketplaceRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/registry',
-            value: params.url,
-          },
-        ],
-        expireId: null,
-      },
+    const params: RR.SetEosMarketplaceReq = {
+      url: isTor ? this.config.start9Marketplace.tor : this.config.start9Marketplace.clearnet,
     }
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/eos-marketplace',
+        value: params.url,
+      },
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+  }
+
+  async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/package-marketplace',
+        value: params.url,
+      },
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+  }
+
+  // password
+  async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
+    await pauseFor(2000)
+    return null
   }
 
   // notification
 
   async getNotificationsRaw (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes> {
     await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/unread-notification-count',
+        value: 0,
+      },
+    ]
+    const { revision } = await this.http.rpcRequest({ method: 'db.patch', params: { patch } }) as WithRevision<null>
     return {
       response: Mock.Notifications,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/unread-notification-count',
-            value: 0,
-          },
-        ],
-        expireId: null,
-      },
+      revision,
     }
   }
 
@@ -193,48 +188,36 @@ export class MockApiService extends ApiService {
 
   async connectWifiRaw (params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/wifi/selected',
-            value: params.ssid,
-          },
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/wifi/connected',
-            value: params.ssid,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/wifi/selected',
+        value: params.ssid,
       },
-    }
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/wifi/connected',
+        value: params.ssid,
+      },
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async deleteWifiRaw (params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/wifi/selected',
-            value: null,
-          },
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/wifi/connected',
-            value: null,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/wifi/selected',
+        value: null,
       },
-    }
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/wifi/connected',
+        value: null,
+      },
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   // ssh
@@ -258,20 +241,14 @@ export class MockApiService extends ApiService {
 
   async createBackupRaw (params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: '/server-info/status',
-            value: ServerStatus.BackingUp,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status',
+        value: ServerStatus.BackingUp,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async restoreBackupRaw (params: RR.RestoreBackupReq): Promise<RR.RestoreBackupRes> {
@@ -308,7 +285,6 @@ export class MockApiService extends ApiService {
     const pkg: PackageDataEntry = {
       ...Mock.bitcoinproxy,
       state: PackageState.Installing,
-      // installed: undefined,
       'install-progress': {
         size: 100,
         downloaded: 10,
@@ -319,20 +295,14 @@ export class MockApiService extends ApiService {
         'read-complete': false,
       },
     }
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.ADD,
-            path: `/package-data/${params.id}`,
-            value: pkg,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.ADD,
+        path: `/package-data/${params.id}`,
+        value: pkg,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async dryUpdatePackage (params: RR.DryUpdatePackageReq): Promise<RR.DryUpdatePackageRes> {
@@ -352,43 +322,31 @@ export class MockApiService extends ApiService {
 
   async setPackageConfigRaw (params: RR.SetPackageConfigReq): Promise<RR.SetPackageConfigRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/configured`,
-            value: true,
-          },
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/main/status`,
-            value: PackageMainStatus.Running,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/configured`,
+        value: true,
       },
-    }
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/main/status`,
+        value: PackageMainStatus.Running,
+      },
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async restorePackageRaw (params: RR.RestorePackageReq): Promise<RR.RestorePackageRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/main/status`,
-            value: PackageMainStatus.Restoring,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/main/status`,
+        value: PackageMainStatus.Restoring,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async executePackageAction (params: RR.ExecutePackageActionReq): Promise<RR.ExecutePackageActionRes> {
@@ -403,20 +361,14 @@ export class MockApiService extends ApiService {
 
   async startPackageRaw (params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/main/status`,
-            value: PackageMainStatus.Running,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/main/status`,
+        value: PackageMainStatus.Running,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async dryStopPackage (params: RR.DryStopPackageReq): Promise<RR.DryStopPackageRes> {
@@ -426,20 +378,26 @@ export class MockApiService extends ApiService {
 
   async stopPackageRaw (params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/installed/status/main/status`,
-            value: PackageMainStatus.Stopping,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/installed/status/main/status`,
+        value: PackageMainStatus.Stopping,
       },
-    }
+    ]
+    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    setTimeout(() => {
+      const patch = [
+        {
+          op: PatchOp.REPLACE,
+          path: `/package-data/${params.id}/installed/status/main/status`,
+          value: PackageMainStatus.Stopped,
+        },
+      ]
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    }, 2000)
+
+    return res
   }
 
   async dryRemovePackage (params: RR.DryRemovePackageReq): Promise<RR.DryRemovePackageRes> {
@@ -449,20 +407,14 @@ export class MockApiService extends ApiService {
 
   async removePackageRaw (params: RR.RemovePackageReq): Promise<RR.RemovePackageRes> {
     await pauseFor(2000)
-    return {
-      response: null,
-      revision: {
-        id: this.nextSequence(),
-        patch: [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${params.id}/state`,
-            value: PackageState.Removing,
-          },
-        ],
-        expireId: null,
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.id}/state`,
+        value: PackageState.Removing,
       },
-    }
+    ]
+    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
   async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes> {
@@ -473,7 +425,7 @@ export class MockApiService extends ApiService {
   // marketplace
 
   async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
-    const registryURL = configService.mocks.registryURL
+    const registryURL = getMarketURL('package', this.patch.data)
     if (!registryURL) {
       await pauseFor(2000)
       return {
@@ -481,47 +433,36 @@ export class MockApiService extends ApiService {
       }
     }
     const url = `${registryURL}/marketplace/data`
-    let md = await this.http.simpleGet(url)
-    return (md as any)
+    return this.http.simpleGet<RR.GetMarketplaceDataRes>(url)
   }
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
-    const registryURL = configService.mocks.registryURL
+    const registryURL = getMarketURL('eos', this.patch.data)
     if (!registryURL) {
       await pauseFor(2000)
       return Mock.MarketplaceEos
     }
     const url = `${registryURL}/sys/version/eos`
-    let eos = await this.http.simpleGet(url)
-    return (eos as any)
+    return this.http.simpleGet<RR.GetMarketplaceEOSRes>(url)
   }
 
-  async getAvailableList (params: RR.GetAvailableListReq): Promise<RR.GetAvailableListRes> {
-    const registryURL = configService.mocks.registryURL
+  async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
+    const registryURL = getMarketURL('package', this.patch.data)
     if (!registryURL) {
       await pauseFor(2000)
       return Mock.AvailableList
     }
-    const url = `${registryURL}/marketplace/available/list?${params.category ? `category=${params.category}` : ''}&per-page=${params['per-page'] || '20'}&page=${params.page || '1'}&query=${params.query || ''}`
-    let av = await this.http.simpleGet(url)
-    return (av as any).services
+    const url = `${registryURL}/marketplace/packages`
+    return this.http.simpleGet<RR.GetMarketplacePackagesRes>(url, params)
   }
 
-  async getAvailableShow (params: RR.GetAvailableShowReq): Promise<RR.GetAvailableShowRes> {
-    const registryURL = configService.mocks.registryURL
+  async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
+    const registryURL = getMarketURL('package', this.patch.data)
     if (!registryURL) {
       await pauseFor(2000)
-      return Mock.AvailableShow[params.id][params.version || 'latest']
+      return Mock.ReleaseNotes
     }
-    const url = `${registryURL}/marketplace/available?id=${params.id}`
-    let res = await this.http.simpleGet(url)
-    console.log('res RES RES', res)
-    return (res as any)
-  }
-
-  private nextSequence () {
-    console.log('next')
-    this.sequence++
-    return this.sequence
+    const url = `${registryURL}/marketplace/release-notes`
+    return this.http.simpleGet<RR.GetReleaseNotesRes>(url)
   }
 }
