@@ -1,16 +1,28 @@
 <ng-container *ngIf="groups">
-  <ng-container *ngFor="let g of groupsArr">
-    <ion-item-divider></ion-item-divider>
-    <div *ngFor="let r of rowsArr" class="post">
-      <div class="label"></div>
-      <div class="note"></div>
-    </div>
-  </ng-container>
+  <ion-item-group>
+    <ng-container *ngFor="let g of groupsArr">
+      <ion-item-divider>
+        <ion-skeleton-text style="width: 15%"></ion-skeleton-text>
+      </ion-item-divider>
+      <ion-item *ngFor="let r of rowsArr">
+        <ion-label>
+          <ion-skeleton-text animated style="width: 50%"></ion-skeleton-text>
+        </ion-label>
+        <ion-note slot="end">
+          <ion-skeleton-text animated style="width: 100%"></ion-skeleton-text>
+        </ion-note>
+      </ion-item>
+    </ng-container>
+  </ion-item-group>
 </ng-container>
 
 <ng-container *ngIf="!groups">
-  <div *ngFor="let r of rowsArr" class="post">
-    <div class="label"></div>
-    <div class="note"></div>
-  </div>
+  <ion-item *ngFor="let r of rowsArr">
+    <ion-label>
+      <ion-skeleton-text animated style="width: 50%"></ion-skeleton-text>
+    </ion-label>
+    <ion-note slot="end">
+      <ion-skeleton-text animated style="width: 50%"></ion-skeleton-text>
+    </ion-note>
+  </ion-item>
 </ng-container>
