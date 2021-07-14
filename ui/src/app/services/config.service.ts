@@ -1,9 +1,13 @@
 import { Injectable } from '@angular/core'
-import { InstalledPackageDataEntry, InterfaceDef, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from './patch-db/data-model'
+import { InterfaceDef, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from './patch-db/data-model'
 
-const { patchDb, api, mocks } = require('../../../config.json') as UiConfig
+const { start9Marketplace, patchDb, api, mocks } = require('../../../config.json') as UiConfig
 
 type UiConfig = {
+  start9Marketplace: {
+    clearnet: string
+    tor: string
+  }
   patchDb: {
     poll: {
       cooldown: number /* in ms */
@@ -20,7 +24,6 @@ type UiConfig = {
     wsPort: number
     maskAs: 'tor' | 'lan'
     skipStartupAlerts: boolean
-    registryURL: String
   }
 }
 @Injectable({
@@ -30,6 +33,7 @@ export class ConfigService {
   origin = removePort(removeProtocol(window.origin))
   version = require('../../../package.json').version
 
+  start9Marketplace = start9Marketplace
   patchDb = patchDb
   api = api
   mocks = mocks

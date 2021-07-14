@@ -1,0 +1,34 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Privacy and Security</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+
+  <ion-item-group>
+    <ion-item-divider>Marketplace Settings</ion-item-divider>
+    <ion-item button (click)="presentModalValueEdit('eosMarketplace', patch.data['server-info']['eos-marketplace'])">
+      <ion-label>Use Tor</ion-label>
+      <ion-note slot="end">{{ patch.data['server-info']['eos-marketplace'] === config.start9Marketplace.tor }}</ion-note>
+    </ion-item>
+    <ion-item button (click)="presentModalValueEdit('packageMarketplace', patch.data['server-info']['package-marketplace'])">
+      <ion-label>Package Marketplace</ion-label>
+      <ion-note slot="end">{{ patch.data['server-info']['package-marketplace'] }}</ion-note>
+    </ion-item>
+    <ion-item button (click)="presentModalValueEdit('autoCheckUpdates', patch.data.ui['auto-check-updates'])">
+      <ion-label>Auto Check for Updates</ion-label>
+      <ion-note slot="end">{{ patch.data.ui['auto-check-updates'] }}</ion-note>
+    </ion-item>
+
+    <ion-item-divider></ion-item-divider>
+    <ion-item button (click)="presentModalValueEdit('password')">
+      <ion-label>Change Password</ion-label>
+      <ion-note slot="end">********</ion-note>
+    </ion-item>
+  </ion-item-group>
+
+</ion-content>

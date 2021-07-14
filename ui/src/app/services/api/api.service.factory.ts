@@ -5,8 +5,8 @@ import { ConfigService } from '../config.service'
 
 export function ApiServiceFactory (config: ConfigService, http: HttpService) {
   if (config.mocks.enabled) {
-    return new MockApiService(http)
+    return new MockApiService(config, http)
   } else {
-    return new LiveApiService(http)
+    return new LiveApiService(config, http)
   }
 }

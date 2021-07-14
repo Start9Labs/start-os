@@ -44,9 +44,11 @@ export class HttpService {
     if (isRpcSuccess(res)) return res.result
   }
 
-  async simpleGet (url: string): Promise<object> {
-    const data = await this.http.get(url).toPromise()
-    return data
+  async simpleGet<T> (url: string, params: { [param: string]: string | string[] } = { }): Promise<T> {
+    Object.keys(params).forEach(key => {
+      if (!params[key]) delete params[key]
+    })
+    return this.http.get<T>(url, { params }).toPromise()
   }
 
   async httpRequest<T> (httpOpts: HttpOptions): Promise<T> {
