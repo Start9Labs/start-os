@@ -2,17 +2,19 @@ import { Component } from '@angular/core'
 import { ServerConfigService } from 'src/app/services/server-config.service'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
-  selector: 'preferences',
-  templateUrl: './preferences.page.html',
-  styleUrls: ['./preferences.page.scss'],
+  selector: 'privacy',
+  templateUrl: './privacy.page.html',
+  styleUrls: ['./privacy.page.scss'],
 })
-export class PreferencesPage {
+export class PrivacyPage {
   subs: Subscription[] = []
 
   constructor (
     private readonly serverConfigService: ServerConfigService,
+    public readonly config: ConfigService,
     public readonly patch: PatchDbModel,
   ) { }
 

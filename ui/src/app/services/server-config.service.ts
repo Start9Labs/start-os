@@ -34,35 +34,25 @@ export class ServerConfigService {
   }
 
   saveFns: { [key: string]: (val: any) => Promise<any> } = {
-    name: async (value: string) => {
-      return this.apiService.setDbValue({ pointer: 'ui/name', value })
-    },
     autoCheckUpdates: async (value: boolean) => {
       return this.apiService.setDbValue({ pointer: 'ui/auto-check-updates', value })
     },
     ssh: async (pubkey: string) => {
       return this.sshService.add(pubkey)
     },
-    registry: async (url: string) => {
-      return this.apiService.setRegistry({ url })
+    eosMarketplace: async (enabled: boolean) => {
+      return this.apiService.setEosMarketplace(enabled)
     },
-    // password: async (password: string) => {
-    //   return this.apiService.updatePassword({ password })
-    // },
+    packageMarketplace: async (url: string) => {
+      return this.apiService.setPackageMarketplace({ url })
+    },
+    password: async (password: string) => {
+      return this.apiService.updatePassword({ password })
+    },
   }
 }
 
 const serverConfig: ConfigSpec = {
-  name: {
-    type: 'string',
-    name: 'Device Name',
-    description: 'A unique label for this device.',
-    nullable: false,
-    pattern: '^.{1,40}$',
-    patternDescription: 'Must be less than 40 characters',
-    masked: false,
-    copyable: false,
-  },
   autoCheckUpdates: {
     type: 'boolean',
     name: 'Auto Check for Updates',
@@ -80,29 +70,33 @@ const serverConfig: ConfigSpec = {
     masked: false,
     copyable: false,
   },
-  registry: {
+  eosMarketplace: {
+    type: 'boolean',
+    name: 'Use Tor',
+    description: `Use Start9's Tor Hidden Service Marketplace (instead of clearnet).`,
+    default: false,
+  },
+  packageMarketplace: {
     type: 'string',
-    name: 'Marketplace URL',
-    description: 'The URL of the service marketplace. By default, your Embassy connects to the official Start9 Embassy Marketplace.',
+    name: 'Package Marketplace',
+    description: `Use for alternative embassy marketplace. Leave empty to use start9's marketplace.`,
     nullable: true,
     // @TODO regex for URL
     // pattern: '',
-    patternDescription: 'Must be a valid URL',
-    changeWarning: 'Downloading services from an alternative marketplace can result in malicious or harmful code being installed on your device.',
-    default: 'https://registry.start9.com',
+    patternDescription: 'Must be a valid URL.',
     masked: false,
     copyable: false,
   },
-  // password: {
-  //   type: 'string',
-  //   name: 'Change Password',
-  //   description: 'The master password for your Embassy. Must contain at least 128 bits of entropy.',
-  //   nullable: false,
-  //   // @TODO figure out how to confirm min entropy
-  //   // pattern: '^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@#$%^&*\]).{12,32}$',
-  //   patternDescription: 'Password too simple. Password must contain at least 128 bits of entroy.',
-  //   changeWarning: 'Changing your password will have no affect on old backups. In order to restore old backups, you must provide the password that was used to create them.',
-  //   masked: true,
-  //   copyable: true,
-  // },
+  password: {
+    type: 'string',
+    name: 'Change Password',
+    description: `Your Embassy's master password, used for authentication and disk encryption.`,
+    nullable: false,
+    // @TODO regex for 12 chars
+    // pattern: '',
+    patternDescription: 'Must contain at least 12 characters.',
+    changeWarning: 'If you forget your master password, there is absolutely no way to recover your data. This can result in loss of money! Keep in mind, old backups will still be encrypted by the password used to encrypt them.',
+    masked: false,
+    copyable: false,
+  },
 }

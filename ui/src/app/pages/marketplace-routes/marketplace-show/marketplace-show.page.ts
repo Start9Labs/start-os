@@ -1,6 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AlertController, IonContent, ModalController, NavController, ToastController } from '@ionic/angular'
+import { AlertController, IonContent, ModalController, NavController } from '@ionic/angular'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Emver } from 'src/app/services/emver.service'
@@ -51,8 +51,9 @@ export class MarketplaceShowPage {
         this.installedPkg = pkg
       }),
     ]
-
-    this.getPkg()
+    if (!this.marketplaceService.pkgs[this.pkgId]) {
+      this.getPkg()
+    }
   }
 
   ngAfterViewInit () {
@@ -65,7 +66,7 @@ export class MarketplaceShowPage {
 
   async getPkg (version?: string): Promise<void> {
     try {
-      await this.marketplaceService.setPkg(this.pkgId, version)
+      await this.marketplaceService.getPkg(this.pkgId, version)
     } catch (e) {
       console.error(e)
       this.errToast.present(e.message)
@@ -117,7 +118,7 @@ export class MarketplaceShowPage {
   }
 
   async install () {
-    const { id, title, version, dependencies, alerts } = this.marketplaceService.pkgs[this.pkgId].manifest
+    const { id, title, version, alerts } = this.marketplaceService.pkgs[this.pkgId].manifest
     const { cancelled } = await wizardModal(
       this.modalCtrl,
       this.wizardBaker.install({
