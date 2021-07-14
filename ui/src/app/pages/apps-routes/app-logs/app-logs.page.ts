@@ -2,6 +2,7 @@ import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/api.service'
 import { IonContent } from '@ionic/angular'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-logs',
@@ -12,10 +13,10 @@ export class AppLogsPage {
   @ViewChild(IonContent, { static: false }) private content: IonContent
   pkgId: string
   logs = ''
-  error = ''
 
   constructor (
     private readonly route: ActivatedRoute,
+    private readonly errToast: ErrorToastService,
     private readonly apiService: ApiService,
   ) { }
 
@@ -32,7 +33,8 @@ export class AppLogsPage {
       this.logs = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n')
       setTimeout(async () => await this.content.scrollToBottom(100), 200)
     } catch (e) {
-      this.error = e.message
+      console.error(e)
+      this.errToast.present(e.message)
     }
   }
 }

@@ -4,6 +4,7 @@ import { LoaderService } from 'src/app/services/loader.service'
 import { ServerNotification, ServerNotifications } from 'src/app/services/api/api-types'
 import { AlertController } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'notifications',
@@ -11,7 +12,6 @@ import { ActivatedRoute } from '@angular/router'
   styleUrls: ['notifications.page.scss'],
 })
 export class NotificationsPage {
-  error = ''
   loading = true
   notifications: ServerNotifications = []
   page = 1
@@ -22,6 +22,7 @@ export class NotificationsPage {
   constructor (
     private readonly apiService: ApiService,
     private readonly loader: LoaderService,
+    private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly route: ActivatedRoute,
   ) { }
@@ -50,10 +51,9 @@ export class NotificationsPage {
       notifications = await this.apiService.getNotifications({ page: this.page, 'per-page': this.perPage })
       this.needInfinite = notifications.length >= this.perPage
       this.page++
-      this.error = ''
     } catch (e) {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
     } finally {
       return notifications
     }
@@ -67,11 +67,10 @@ export class NotificationsPage {
     }).displayDuringP(
       this.apiService.deleteNotification({ id }).then(() => {
         this.notifications.splice(index, 1)
-        this.error = ''
       }),
     ).catch(e => {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
     })
   }
 

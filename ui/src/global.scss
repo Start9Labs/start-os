@@ -73,6 +73,16 @@ ion-toast {
   --border-color: var(--ion-color-warning);
 }
 
+.error-toast {
+  --border-color: var(--ion-color-danger);
+  width: 40%;
+  min-width: 400px;
+  --end: 8px;
+  right: 8px;
+  left: unset;
+  top: 64px;
+}
+
 .sublist-spinner {
   text-align: center;
   margin-top: 40px;

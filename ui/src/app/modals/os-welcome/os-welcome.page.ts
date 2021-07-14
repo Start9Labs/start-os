@@ -18,7 +18,8 @@ export class OSWelcomePage {
   ) { }
 
   async dismiss () {
-    this.apiService.setDbValue({ pointer: '/welcome-ack', value: this.config.version }).catch(console.error)
+    this.apiService.setDbValue({ pointer: '/welcome-ack', value: this.config.version })
+    .catch(console.error)
 
     // return false to skip subsequent alert modals (e.g. check for updates modals)
     // return true to show subsequent alert modals
