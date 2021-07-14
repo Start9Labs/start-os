@@ -5,6 +5,7 @@ import { IonicModule } from '@ionic/angular'
 import { AppMetricsPage } from './app-metrics.page'
 import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
+import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
 
 const routes: Routes = [
   {
@@ -20,6 +21,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     PwaBackComponentModule,
     SharingModule,
+    SkeletonListComponentModule,
   ],
   declarations: [AppMetricsPage],
 })
