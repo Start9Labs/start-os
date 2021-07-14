@@ -44,10 +44,17 @@ export module RR {
   export type RefreshLanReq = { } // network.lan.refresh
   export type RefreshLanRes = null
 
-  // registry
+  // marketplace URLs
 
-  export type SetRegistryReq = WithExpire<{ url: string }> // registry.set
-  export type SetRegistryRes = WithRevision<null>
+  export type SetEosMarketplaceReq = WithExpire<{ url: string }> // marketplace.eos.set
+  export type SetEosMarketplaceRes = WithRevision<null>
+
+  export type SetPackageMarketplaceReq = WithExpire<{ url: string }> // marketplace.package.set
+  export type SetPackageMarketplaceRes = WithRevision<null>
+
+  // password
+  export type UpdatePasswordReq = { password: string } // password.set
+  export type UpdatePasswordRes = null
 
   // notification
 
@@ -160,11 +167,11 @@ export module RR {
   export type GetMarketplaceEOSReq = { }
   export type GetMarketplaceEOSRes = MarketplaceEOS
 
-  export type GetAvailableListReq = { category?: string, query?: string, page: number, 'per-page': number }
-  export type GetAvailableListRes = AvailablePreview[]
+  export type GetMarketplacePackagesReq = { id?: string, version?: string, category?: string, query?: string, page?: string, 'per-page'?: string }
+  export type GetMarketplacePackagesRes = MarketplacePkg[]
 
-  export type GetAvailableShowReq = { id: string, version?: string }
-  export type GetAvailableShowRes = AvailableShow
+  export type GetReleaseNotesReq = { id: string }
+  export type GetReleaseNotesRes = { [version: string]: string}
 }
 
 export type WithExpire<T> = { 'expire-id'?: string } & T
@@ -180,15 +187,7 @@ export interface MarketplaceEOS {
   'release-notes': { [version: string]: string }
 }
 
-export interface AvailablePreview {
-  id: string
-  title: string
-  version: string
-  icon: URL
-  descriptionShort: string
-}
-
-export interface AvailableShow {
+export interface MarketplacePkg {
   icon: URL
   license: URL
   instructions: URL
@@ -201,7 +200,6 @@ export interface AvailableShow {
       icon: URL
     }
   },
-  'release-notes': { [version: string]: string }
 }
 
 export interface Breakages {

@@ -6,14 +6,19 @@ export interface DataModel {
   ui: UIData
 }
 
+export interface UIData {
+  'welcome-ack': string
+  'auto-check-updates': boolean
+}
+
 export interface ServerInfo {
   id: string
   version: string
   'lan-address': URL
   'tor-address': URL
   status: ServerStatus
-  'package-registry': URL
-  'system-registry': URL
+  'eos-marketplace': URL
+  'package-marketplace': URL | null // uses EOS marketplace if null
   wifi: WiFiInfo
   'unread-notification-count': number
   specs: {
@@ -376,8 +381,3 @@ export interface InterfaceInfo {
 }
 
 export type URL = string
-
-export interface UIData {
-  'welcome-ack': string
-  'auto-check-updates': boolean
-}

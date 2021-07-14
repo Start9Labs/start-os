@@ -53,12 +53,20 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract refreshLan (params: RR.RefreshLanReq): Promise<RR.RefreshLanRes>
 
-  // registry
+  // marketplace URLs
 
-  protected abstract setRegistryRaw (params: RR.SetRegistryReq): Promise<RR.SetRegistryRes>
-  setRegistry = (params: RR.SetRegistryReq) => this.syncResponse(
-    () => this.setRegistryRaw(params),
+  protected abstract setEosMarketplaceRaw (isTor: boolean): Promise<RR.SetEosMarketplaceRes>
+  setEosMarketplace = (isTor: boolean) => this.syncResponse(
+    () => this.setEosMarketplaceRaw(isTor),
   )()
+
+  protected abstract setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes>
+  setPackageMarketplace = (params: RR.SetPackageMarketplaceReq) => this.syncResponse(
+    () => this.setPackageMarketplaceRaw(params),
+  )()
+
+  // password
+  abstract updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes>
 
   // notification
 
@@ -165,9 +173,9 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes>
 
-  abstract getAvailableList (params: RR.GetAvailableListReq): Promise<RR.GetAvailableListRes>
+  abstract getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes>
 
-  abstract getAvailableShow (params: RR.GetAvailableShowReq): Promise<RR.GetAvailableShowRes>
+  abstract getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes>
 
   // Helper allowing quick decoration to sync the response patch and return the response contents.
   // Pass in a tempUpdate function which returns a UpdateTemp corresponding to a temporary
@@ -185,5 +193,15 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
         return response
       }) as any
     }
+  }
+}
+
+export function getMarketURL (eosOrPackage: 'eos' | 'package', data: DataModel): string {
+  const eosMarketplace = data['server-info']['eos-marketplace']
+  if (eosOrPackage === 'eos') {
+    return eosMarketplace
+  } else {
+    const packageMarketplace = data['server-info']['package-marketplace']
+    return packageMarketplace || eosMarketplace
   }
 }

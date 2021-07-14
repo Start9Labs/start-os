@@ -1,6 +1,5 @@
 import { Component, ViewChild } from '@angular/core'
-import { ApiService } from 'src/app/services/api/api.service'
-import { MarketplaceData, MarketplaceEOS, AvailablePreview } from 'src/app/services/api/api-types'
+import { MarketplaceData, MarketplaceEOS, MarketplacePkg } from 'src/app/services/api/api-types'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { IonContent, ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
@@ -8,6 +7,7 @@ import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { MarketplaceService } from '../marketplace.service'
 
 @Component({
   selector: 'marketplace-list',
@@ -24,7 +24,7 @@ export class MarketplaceListPage {
 
   data: MarketplaceData
   eos: MarketplaceEOS
-  pkgs: AvailablePreview[] = []
+  pkgs: MarketplacePkg[] = []
 
   PackageState = PackageState
 
@@ -35,7 +35,7 @@ export class MarketplaceListPage {
   subs: Subscription[] = []
 
   constructor (
-    private readonly apiService: ApiService,
+    private readonly marketplaceService: MarketplaceService,
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
@@ -46,8 +46,8 @@ export class MarketplaceListPage {
 
     try {
       const [data, eos, pkgs] = await Promise.all([
-        this.apiService.getMarketplaceData({ }),
-        this.apiService.getEos({ }),
+        this.marketplaceService.getMarketplaceData(),
+        this.marketplaceService.getEos(),
         this.getPkgs(),
       ])
       this.data = data
@@ -94,14 +94,14 @@ export class MarketplaceListPage {
     )
   }
 
-  private async getPkgs (): Promise<AvailablePreview[]> {
+  private async getPkgs (): Promise<MarketplacePkg[]> {
     try {
-      const pkgs = await this.apiService.getAvailableList({
-        category: this.category !== 'all' ? this.category : undefined,
-        query: this.query,
-        page: this.page,
-        'per-page': this.perPage,
-      })
+      const pkgs = await this.marketplaceService.getPkgs(
+        this.category !== 'all' ? this.category : undefined,
+        this.query,
+        this.page,
+        this.perPage,
+      )
       this.needInfinite = pkgs.length >= this.perPage
       this.page++
       return pkgs
