@@ -5,8 +5,9 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { IonContent, ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
-import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
+import { PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'marketplace-list',
@@ -17,7 +18,6 @@ export class MarketplaceListPage {
   @ViewChild(IonContent) content: IonContent
   pageLoading = true
   pkgsLoading = true
-  error = ''
 
   category = 'all'
   query: string
@@ -37,6 +37,7 @@ export class MarketplaceListPage {
   constructor (
     private readonly apiService: ApiService,
     private readonly modalCtrl: ModalController,
+    private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
     public readonly patch: PatchDbModel,
   ) { }
@@ -55,7 +56,7 @@ export class MarketplaceListPage {
       this.pkgs = pkgs
     } catch (e) {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
     } finally {
       this.pageLoading = false
       this.pkgsLoading = false
@@ -106,7 +107,7 @@ export class MarketplaceListPage {
       return pkgs
     } catch (e) {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
     } finally {
       this.pkgsLoading = false
     }

@@ -5,6 +5,7 @@ import { ServerBackupPage } from './server-backup.page'
 import { RouterModule, Routes } from '@angular/router'
 import { BackupConfirmationComponentModule } from 'src/app/modals/backup-confirmation/backup-confirmation.component.module'
 import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
+import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text-spinner.component.module'
 
 const routes: Routes = [
   {
@@ -20,6 +21,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     BackupConfirmationComponentModule,
     PwaBackComponentModule,
+    TextSpinnerComponentModule,
   ],
   declarations: [
     ServerBackupPage,

@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'markdown',
@@ -12,10 +13,10 @@ export class MarkdownPage {
   @Input() title: string
   content: string
   loading = true
-  error = ''
 
   constructor (
     private readonly modalCtrl: ModalController,
+    private readonly errToast: ErrorToastService,
     private readonly apiService: ApiService,
   ) { }
 
@@ -23,7 +24,8 @@ export class MarkdownPage {
     try {
       this.content = await this.apiService.getStatic(this.contentUrl)
     } catch (e) {
-      this.error = e.message
+      console.error(e.message)
+      this.errToast.present(e.message)
     } finally {
       this.loading = false
     }

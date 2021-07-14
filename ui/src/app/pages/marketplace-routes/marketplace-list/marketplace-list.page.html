@@ -14,11 +14,6 @@
   <text-spinner *ngIf="pageLoading; else pageLoaded" [text]="'loading marketplace'"></text-spinner>
 
   <ng-template #pageLoaded>
-
-    <ion-item *ngIf="error" style="margin-bottom: 16px;">
-      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
-    </ion-item>
-
     <ion-card *ngIf="eos" class="eos-card" (click)="updateEos()">
       <ion-card-header>
         <ion-card-subtitle>Now Available...</ion-card-subtitle>
@@ -50,7 +45,7 @@
     <ng-template #loaded>
       <ion-grid>
         <ion-row>
-          <ion-col *ngFor="let pkg of pkgs" sizeSm="12" sizeMd="6">
+          <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeSm="12" sizeMd="6">
             <ion-item [routerLink]="['/marketplace', pkg.id]">
               <ion-thumbnail slot="start">
                 <img [src]="pkg.icon" />

@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router'
 import { IonContent } from '@ionic/angular'
 import { Metric } from 'src/app/services/api/api-types'
 import { ApiService } from 'src/app/services/api/api.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
 import { pauseFor } from 'src/app/util/misc.util'
@@ -13,6 +14,7 @@ import { pauseFor } from 'src/app/util/misc.util'
   styleUrls: ['./app-metrics.page.scss'],
 })
 export class AppMetricsPage {
+  loading = true
   pkgId: string
   pkg: PackageDataEntry
   going = false
@@ -22,6 +24,7 @@ export class AppMetricsPage {
 
   constructor (
     private readonly route: ActivatedRoute,
+    private readonly errToast: ErrorToastService,
     private readonly patch: PatchDbModel,
     private readonly apiService: ApiService,
   ) { }
@@ -31,6 +34,10 @@ export class AppMetricsPage {
     this.pkg = this.patch.data['package-data'][this.pkgId]
 
     this.startDaemon()
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy () {
@@ -53,14 +60,12 @@ export class AppMetricsPage {
     try {
       this.metrics = await this.apiService.getPkgMetrics({ id: this.pkgId})
     } catch (e) {
+      console.error(e)
+      this.errToast.present(e.message)
       this.stopDaemon()
-      await pauseFor(1000)
-      this.startDaemon()
+    } finally {
+      this.loading = false
     }
-  }
-
-  ngAfterViewInit () {
-    this.content.scrollToPoint(undefined, 1)
   }
 
   asIsOrder (a: any, b: any) {
