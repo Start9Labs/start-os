@@ -1,0 +1,16 @@
+<ng-container *ngIf="groups">
+  <ng-container *ngFor="let g of groupsArr">
+    <ion-item-divider></ion-item-divider>
+    <div *ngFor="let r of rowsArr" class="post">
+      <div class="label"></div>
+      <div class="note"></div>
+    </div>
+  </ng-container>
+</ng-container>
+
+<ng-container *ngIf="!groups">
+  <div *ngFor="let r of rowsArr" class="post">
+    <div class="label"></div>
+    <div class="note"></div>
+  </div>
+</ng-container>
