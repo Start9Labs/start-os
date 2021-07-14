@@ -3,6 +3,7 @@ import { NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { WifiService } from '../wifi.service'
 import { LoaderService } from 'src/app/services/loader.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'wifi-add',
@@ -14,17 +15,16 @@ export class WifiAddPage {
   countryCode = 'US'
   ssid = ''
   password = ''
-  error = ''
 
   constructor (
     private readonly navCtrl: NavController,
+    private readonly errToast: ErrorToastService,
     private readonly apiService: ApiService,
     private readonly loader: LoaderService,
     private readonly wifiService: WifiService,
   ) { }
 
   async save (): Promise<void> {
-    this.error = ''
     this.loader.of({
       message: 'Saving...',
       spinner: 'lines',
@@ -40,12 +40,11 @@ export class WifiAddPage {
       this.navCtrl.back()
     }).catch(e => {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
     })
   }
 
   async saveAndConnect (): Promise<void> {
-    this.error = ''
     this.loader.of({
       message: 'Connecting. This could take while...',
       spinner: 'lines',
@@ -64,7 +63,7 @@ export class WifiAddPage {
         }
       }).catch (e => {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
     })
   }
 

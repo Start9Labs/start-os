@@ -13,12 +13,7 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-
-  <ion-item *ngIf="error" style="margin-bottom: 16px;">
-    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
-  </ion-item>
-
-  <ion-spinner *ngIf="loading; else loaded" name="lines" color="warning" class="center"></ion-spinner>
+  <text-spinner *ngIf="loading; else loaded" text="Loading Drives"></text-spinner>
 
   <ng-template #loaded>
 

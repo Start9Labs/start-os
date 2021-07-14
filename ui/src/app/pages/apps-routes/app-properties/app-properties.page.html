@@ -16,12 +16,8 @@
   <text-spinner *ngIf="loading; else loaded" text="Loading Properties"></text-spinner>
 
   <ng-template #loaded>
-    <ion-item *ngIf="error" style="margin-bottom: 16px;">
-      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
-    </ion-item>
-
     <!-- not running -->
-    <ion-item *ngIf="notRunning" class="ion-margin-bottom">
+    <ion-item *ngIf="!running" class="ion-margin-bottom">
       <ion-label class="ion-text-wrap">
         <p><ion-text color="warning">Service not running. Information on this page could be inaccurate.</ion-text></p>
       </ion-label>

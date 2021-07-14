@@ -7,9 +7,9 @@ import { AlertController, IonContent, NavController, PopoverController, ToastCon
 import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
-import * as JsonPointer from 'json-pointer'
-import { FEStatus } from 'src/app/services/pkg-status-rendering.service'
 import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
+import * as JsonPointer from 'json-pointer'
 
 @Component({
   selector: 'app-properties',
@@ -17,11 +17,9 @@ import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
   styleUrls: ['./app-properties.page.scss'],
 })
 export class AppPropertiesPage {
-  error = ''
   loading = true
   pkgId: string
   pointer: string
-  qrCode: string
   properties: PackageProperties
   node: PackageProperties
   unmasked: { [key: string]: boolean } = { }
@@ -33,15 +31,17 @@ export class AppPropertiesPage {
   constructor (
     private readonly route: ActivatedRoute,
     private readonly apiService: ApiService,
+    private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly toastCtrl: ToastController,
     private readonly popoverCtrl: PopoverController,
     private readonly navCtrl: NavController,
-    public readonly patch: PatchDbModel,
+    private readonly patch: PatchDbModel,
   ) { }
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.running = this.patch.data['package-data'][this.pkgId].installed?.status.main.status === PackageMainStatus.Running
 
     await this.getProperties()
 
@@ -50,10 +50,6 @@ export class AppPropertiesPage {
         if (queryParams['pointer'] === this.pointer) return
         this.pointer = queryParams['pointer']
         this.node = JsonPointer.get(this.properties, this.pointer || '')
-      }),
-      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main', 'status')
-      .subscribe(status => {
-        this.running = status === PackageMainStatus.Running
       }),
     ]
   }
@@ -116,10 +112,6 @@ export class AppPropertiesPage {
     this.unmasked[key] = !this.unmasked[key]
   }
 
-  asIsOrder (a: any, b: any) {
-    return 0
-  }
-
   private async getProperties (): Promise<void> {
     this.loading = true
     try {
@@ -127,9 +119,13 @@ export class AppPropertiesPage {
       this.node = JsonPointer.get(this.properties, this.pointer || '')
     } catch (e) {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
     } finally {
       this.loading = false
     }
+  }
+
+  asIsOrder (a: any, b: any) {
+    return 0
   }
 }

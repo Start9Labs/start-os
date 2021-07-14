@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import { Metrics } from 'src/app/services/api/api-types'
 import { ApiService } from 'src/app/services/api/api.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { pauseFor } from 'src/app/util/misc.util'
 
 @Component({
@@ -9,17 +10,16 @@ import { pauseFor } from 'src/app/util/misc.util'
   styleUrls: ['./server-metrics.page.scss'],
 })
 export class ServerMetricsPage {
-  error = ''
   loading = true
   going = false
   metrics: Metrics = { }
 
   constructor (
+    private readonly errToast: ErrorToastService,
     private readonly apiService: ApiService,
   ) { }
 
   ngOnInit () {
-    this.loading = false
     this.startDaemon()
   }
 
@@ -44,8 +44,10 @@ export class ServerMetricsPage {
       this.metrics = await this.apiService.getServerMetrics({ })
     } catch (e) {
       console.error(e)
-      this.error = e.message
+      this.errToast.present(e.message)
       this.stopDaemon()
+    } finally {
+      this.loading = false
     }
   }
 

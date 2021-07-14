@@ -11,10 +11,6 @@
   <text-spinner *ngIf="loading; else loaded" text="Loading Instructions"></text-spinner>
 
   <ng-template #loaded>
-    <ion-item *ngIf="error" style="margin-bottom: 16px;">
-      <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
-    </ion-item>
-
     <div *ngIf="instructions" class="instuctions-padding" [innerHTML]="instructions | markdown"></div>
   </ng-template>
 </ion-content>

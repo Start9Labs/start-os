@@ -8,11 +8,7 @@
 </ion-header>
 
 <ion-content>
-  <ion-item *ngIf="error" style="margin-bottom: 16px;">
-    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
-  </ion-item>
-
-  <ion-spinner *ngIf="loading; else loaded" class="center" name="lines" color="warning"></ion-spinner>
+  <text-spinner *ngIf="loading; else loaded" text="Loading Metrics"></text-spinner>
 
   <ng-template #loaded>
     <ion-item-group *ngFor="let metricGroup of metrics | keyvalue : asIsOrder">
