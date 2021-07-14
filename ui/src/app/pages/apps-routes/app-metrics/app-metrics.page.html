@@ -48,20 +48,7 @@
       </ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <ng-container *ngIf="loading">
-        <div class="post">
-          <div class="label"></div>
-          <div class="note"></div>
-        </div>
-        <div class="post">
-          <div class="label"></div>
-          <div class="note"></div>
-        </div>
-        <div class="post">
-          <div class="label"></div>
-          <div class="note"></div>
-        </div>
-      </ng-container>
+      <skeleton-list *ngIf="loading" rows="3"></skeleton-list>
       <ion-item-group *ngIf="!loading">
         <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
           <ion-label>
