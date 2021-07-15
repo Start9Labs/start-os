@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { ServerConfigService } from 'src/app/services/server-config.service'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'dev-options',
@@ -11,7 +11,7 @@ export class DevOptionsPage {
 
   constructor (
     private readonly serverConfigService: ServerConfigService,
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
   ) { }
 
   async presentModalValueEdit (key: string, current?: any): Promise<void> {

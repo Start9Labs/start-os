@@ -2,7 +2,7 @@ import { Inject, Injectable, InjectionToken } from '@angular/core'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
 import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
 import { catchError, debounceTime, finalize, map, tap } from 'rxjs/operators'
-import { ApiService } from '../api/api.service'
+import { ApiService } from '../api/embassy/embassy-api.service'
 import { DataModel } from './data-model'
 
 export const PATCH_HTTP = new InjectionToken<Source<DataModel>>('app.config')
@@ -18,7 +18,7 @@ export enum ConnectionStatus {
 @Injectable({
   providedIn: 'root',
 })
-export class PatchDbModel {
+export class PatchDbService {
   connectionStatus$ = new BehaviorSubject(ConnectionStatus.Initializing)
   sequence$: Observable<number>
   data: DataModel

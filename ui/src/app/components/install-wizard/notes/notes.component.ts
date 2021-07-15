@@ -12,6 +12,7 @@ export class NotesComponent implements OnInit, Loadable {
     notes: { [version: string]: string }
     title: string
     titleColor: string
+    headline: string
   }
 
   loading$ = new BehaviorSubject(false)

@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { LoadingOptions } from '@ionic/core'
 import { AlertController, NavController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { LoaderService } from 'src/app/services/loader.service'
 import { ActivatedRoute } from '@angular/router'
 

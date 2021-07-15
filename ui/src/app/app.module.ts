@@ -7,20 +7,20 @@ import { IonicStorageModule } from '@ionic/storage-angular'
 import { HttpClientModule } from '@angular/common/http'
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
-import { ApiService } from './services/api/api.service'
+import { ApiService } from './services/api/embassy/embassy-api.service'
 import { ApiServiceFactory, MarketplaceApiServiceFactory } from './services/api/api.service.factory'
-import { PatchDbModelFactory } from './services/patch-db/patch-db.factory'
+import { PatchDbServiceFactory } from './services/patch-db/patch-db.factory'
 import { HttpService } from './services/http.service'
 import { ConfigService } from './services/config.service'
 import { QRCodeModule } from 'angularx-qrcode'
 import { appConfigComponents } from './modals/app-config-injectable'
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
 import { MarkdownPageModule } from './modals/markdown/markdown.module'
-import { PatchDbModel } from './services/patch-db/patch-db.service'
+import { PatchDbService } from './services/patch-db/patch-db.service'
 import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstrap'
 import { SharingModule } from './modules/sharing.module'
 import { APP_CONFIG_COMPONENT_MAPPING } from './services/tracking-modal-controller.service'
-import { MarketplaceApiService } from './services/api/marketplace-api.service'
+import { MarketplaceApiService } from './services/api/marketplace/marketplace-api.service'
 
 @NgModule({
   declarations: [AppComponent],
@@ -45,8 +45,8 @@ import { MarketplaceApiService } from './services/api/marketplace-api.service'
     Storage,
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },    { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },
-    { provide: MarketplaceApiService , useFactory: MarketplaceApiServiceFactory, deps: [ConfigService, HttpService, PatchDbModel] },
-    { provide: PatchDbModel, useFactory: PatchDbModelFactory, deps: [ConfigService, LocalStorageBootstrap, ApiService] },
+    { provide: MarketplaceApiService , useFactory: MarketplaceApiServiceFactory, deps: [ConfigService, HttpService, PatchDbService] },
+    { provide: PatchDbService, useFactory: PatchDbServiceFactory, deps: [ConfigService, LocalStorageBootstrap, ApiService] },
     { provide: APP_CONFIG_COMPONENT_MAPPING, useValue: appConfigComponents },
   ],
   bootstrap: [AppComponent],

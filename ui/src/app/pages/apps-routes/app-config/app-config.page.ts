@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { NavController, AlertController, ModalController, IonContent } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
 import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
@@ -12,7 +12,7 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'app-config',
@@ -55,7 +55,7 @@ export class AppConfigPage {
     private readonly alertCtrl: AlertController,
     private readonly modalController: ModalController,
     private readonly trackingModalCtrl: TrackingModalController,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   async ngOnInit () {

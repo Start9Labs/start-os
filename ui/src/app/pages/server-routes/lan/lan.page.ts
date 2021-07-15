@@ -3,8 +3,8 @@ import { isPlatform, ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { ConfigService } from 'src/app/services/config.service'
 import { LoaderService } from 'src/app/services/loader.service'
-import { ApiService } from 'src/app/services/api/api.service'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 
 @Component({
@@ -27,7 +27,7 @@ export class LANPage {
     private readonly config: ConfigService,
     private readonly loader: LoaderService,
     private readonly apiService: ApiService,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {

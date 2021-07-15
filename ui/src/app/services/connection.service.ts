@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject, combineLatest, fromEvent, merge, Subscription } from 'rxjs'
-import { ConnectionStatus, PatchDbModel } from './patch-db/patch-db.service'
+import { ConnectionStatus, PatchDbService } from './patch-db/patch-db.service'
 import { HttpService, Method } from './http.service'
 import { distinctUntilChanged } from 'rxjs/operators'
 import { ConfigService } from './config.service'
@@ -16,7 +16,7 @@ export class ConnectionService {
   constructor (
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   watchFailure$ () {

@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { NotificationLevel, ServerNotification } from '../services/api/api-types'
+import { NotificationLevel, ServerNotification } from '../services/api/api.types'
 
 @Pipe({
   name: 'notificationColor',

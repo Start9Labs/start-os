@@ -1,22 +1,22 @@
 import { Injectable } from '@angular/core'
-import { pauseFor } from '../../util/misc.util'
-import { ApiService } from './api.service'
+import { pauseFor } from '../../../util/misc.util'
+import { ApiService } from './embassy-api.service'
 import { PatchOp } from 'patch-db-client'
 import { PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
-import { RR, WithRevision } from './api-types'
+import { RR, WithRevision } from '../api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
-import { Mock } from './mock-app-fixures'
-import { HttpService } from '../http.service'
+import { Mock } from '../api.fixures'
+import { HttpService } from '../../http.service'
 import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
-import { ConfigService } from '../config.service'
+import { ConfigService } from '../../config.service'
 
 @Injectable()
 export class MockApiService extends ApiService {
   welcomeAck = false
 
   constructor (
-    private readonly config: ConfigService,
     private readonly http: HttpService,
+    private readonly config: ConfigService,
   ) { super() }
 
   async getStatic (url: string): Promise<string> {

@@ -1,10 +1,10 @@
 import { Component, ViewChild } from '@angular/core'
 import { IonContent, LoadingController, ModalController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
-import { DiskInfo } from 'src/app/services/api/api-types'
+import { DiskInfo } from 'src/app/services/api/api.types'
 import { ActivatedRoute } from '@angular/router'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 
 @Component({
@@ -28,7 +28,7 @@ export class AppRestorePage {
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
     private readonly loadingCtrl: LoadingController,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {

@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 
 @Component({
@@ -14,7 +14,7 @@ export class ServerSpecsPage {
 
   constructor (
     private readonly toastCtrl: ToastController,
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
   ) { }
 
   async copy (address: string) {

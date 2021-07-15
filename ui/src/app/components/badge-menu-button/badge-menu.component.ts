@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { combineLatest, Subscription } from 'rxjs'
 
 @Component({
@@ -17,7 +17,7 @@ export class BadgeMenuComponent {
 
   constructor (
     private readonly splitPane: SplitPaneTracker,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {

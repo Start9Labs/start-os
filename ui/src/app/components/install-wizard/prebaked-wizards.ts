@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { Breakages } from 'src/app/services/api/api-types'
+import { Breakages } from 'src/app/services/api/api.types'
 import { exists } from 'src/app/util/misc.util'
-import { ApiService } from '../../services/api/api.service'
+import { ApiService } from '../../services/api/embassy/embassy-api.service'
 import { InstallWizardComponent, SlideDefinition, TopbarParams } from './install-wizard.component'
 
 @Injectable({ providedIn: 'root' })
@@ -12,7 +12,10 @@ export class WizardBaker {
   ) { }
 
   install (values: {
-    id: string, title: string, version: string, installAlert?: string
+    id: string
+    title: string
+    version: string
+    installAlert?: string
   }): InstallWizardComponent['params'] {
     const { id, title, version, installAlert } = values
 
@@ -53,7 +56,10 @@ export class WizardBaker {
   }
 
   update (values: {
-    id: string, title: string, version: string, installAlert?: string
+    id: string
+    title: string
+    version: string
+    installAlert?: string
   }): InstallWizardComponent['params'] {
     const { id, title, version, installAlert } = values
 
@@ -111,9 +117,11 @@ export class WizardBaker {
   }
 
   updateOS (values: {
-    version: string, releaseNotes: { [version: string]: string }
+    version: string
+    releaseNotes: { [version: string]: string }
+    headline: string
   }): InstallWizardComponent['params'] {
-    const { version, releaseNotes } = values
+    const { version, releaseNotes, headline } = values
 
     const action = 'update'
     const title = 'EmbassyOS'
@@ -127,6 +135,7 @@ export class WizardBaker {
             notes: releaseNotes,
             title: 'Release Notes',
             titleColor: 'dark',
+            headline,
           },
         },
         bottomBar: {
@@ -153,7 +162,10 @@ export class WizardBaker {
   }
 
   downgrade (values: {
-    id: string, title: string, version: string, installAlert?: string
+    id: string
+    title: string
+    version: string
+    installAlert?: string
   }): InstallWizardComponent['params'] {
     const { id, title, version, installAlert } = values
 
@@ -205,7 +217,10 @@ export class WizardBaker {
   }
 
   uninstall (values: {
-    id: string, title: string, version: string, uninstallAlert?: string
+    id: string
+    title: string
+    version: string
+    uninstallAlert?: string
   }): InstallWizardComponent['params'] {
     const { id, title, version, uninstallAlert } = values
 
@@ -253,7 +268,10 @@ export class WizardBaker {
   }
 
   stop (values: {
-    breakages: Breakages, id: string, title: string, version: string
+    id: string
+    title: string
+    version: string
+    breakages: Breakages
   }): InstallWizardComponent['params'] {
     const { breakages, title, version } = values
 
@@ -277,7 +295,10 @@ export class WizardBaker {
     return { toolbar, slideDefinitions }
   }
 
-  configure (values: { breakages: Breakages, pkg: PackageDataEntry }): InstallWizardComponent['params'] {
+  configure (values: {
+    pkg: PackageDataEntry
+    breakages: Breakages
+  }): InstallWizardComponent['params'] {
     const { breakages, pkg } = values
     const { title, version } = pkg.manifest
     const action = 'configure'
