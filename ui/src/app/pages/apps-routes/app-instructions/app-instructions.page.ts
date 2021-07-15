@@ -1,8 +1,8 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent } from '@ionic/angular'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
-import { ApiService } from 'src/app/services/api/api.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
@@ -20,7 +20,7 @@ export class AppInstructionsPage {
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
     private readonly apiService: ApiService,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   async ngOnInit () {

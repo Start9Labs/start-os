@@ -1,14 +1,14 @@
 import { Component, ViewChild } from '@angular/core'
-import { MarketplaceData, MarketplaceEOS, MarketplacePkg } from 'src/app/services/api/api-types'
+import { MarketplaceData, MarketplaceEOS, MarketplacePkg } from 'src/app/services/api/api.types'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { IonContent, ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
-import { MarketplaceApiService } from 'src/app/services/api/marketplace-api.service'
+import { MarketplaceApiService } from 'src/app/services/api/marketplace/marketplace-api.service'
 
 @Component({
   selector: 'marketplace-list',
@@ -41,7 +41,7 @@ export class MarketplaceListPage {
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
   ) { }
 
   async ngOnInit () {
@@ -91,6 +91,7 @@ export class MarketplaceListPage {
       this.modalCtrl,
       this.wizardBaker.updateOS({
         version: this.eos.version,
+        headline: this.eos.headline,
         releaseNotes: this.eos['release-notes'],
       }),
     )

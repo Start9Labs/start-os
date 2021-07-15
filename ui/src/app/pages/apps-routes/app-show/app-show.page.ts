@@ -1,6 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { chill, isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { LoaderService } from 'src/app/services/loader.service'
@@ -8,7 +8,7 @@ import { combineLatest, Observable, of, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -43,7 +43,7 @@ export class AppShowPage {
     private readonly apiService: ApiService,
     private readonly wizardBaker: WizardBaker,
     private readonly config: ConfigService,
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
     public readonly connectionService: ConnectionService,
   ) { }
 

@@ -167,7 +167,17 @@ export module RR {
   export type GetMarketplaceEOSReq = { }
   export type GetMarketplaceEOSRes = MarketplaceEOS
 
-  export type GetMarketplacePackagesReq = { id?: string, version?: string, category?: string, query?: string, page?: string, 'per-page'?: string }
+  export type GetMarketplacePackagesReq = {
+    ids?: string[]
+    id?: string
+    // iff id
+    version?: string
+    // iff !id
+    category?: string
+    query?: string
+    page?: string
+    'per-page'?: string
+  }
   export type GetMarketplacePackagesRes = MarketplacePkg[]
 
   export type GetReleaseNotesReq = { id: string }

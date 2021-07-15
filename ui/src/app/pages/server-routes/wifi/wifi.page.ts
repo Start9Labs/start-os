@@ -1,11 +1,11 @@
 import { Component } from '@angular/core'
 import { ActionSheetController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
 import { WifiService } from './wifi.service'
 import { LoaderService } from 'src/app/services/loader.service'
 import { WiFiInfo } from 'src/app/services/patch-db/data-model'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
@@ -23,7 +23,7 @@ export class WifiListPage {
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
     private readonly wifiService: WifiService,
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
   ) { }
 
   async presentAction (ssid: string, wifi: WiFiInfo) {

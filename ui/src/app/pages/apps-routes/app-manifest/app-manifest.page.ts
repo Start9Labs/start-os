@@ -2,7 +2,7 @@ import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { Subscription } from 'rxjs'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { getManifest } from 'src/app/services/config.service'
 import * as JsonPointer from 'json-pointer'
 import { IonContent } from '@ionic/angular'
@@ -23,7 +23,7 @@ export class AppManifestPage {
 
   constructor (
     private readonly route: ActivatedRoute,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {

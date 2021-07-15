@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { ServerStatus } from 'src/app/services/patch-db/data-model'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'Maintenance',
@@ -11,7 +11,7 @@ export class MaintenancePage {
   ServerStatus = ServerStatus
 
   constructor (
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
   ) { }
 }
 

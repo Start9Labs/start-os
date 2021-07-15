@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject, Observable } from 'rxjs'
 import { distinctUntilChanged } from 'rxjs/operators'
-import { ApiService } from './api/api.service'
+import { ApiService } from './api/embassy/embassy-api.service'
 import { Storage } from '@ionic/storage'
 
 export enum AuthState {

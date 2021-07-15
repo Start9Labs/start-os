@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { combineLatest, Subscription } from 'rxjs'
 import { PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
@@ -25,7 +25,7 @@ export class AppListPage {
   constructor (
     private readonly config: ConfigService,
     public readonly connectionService: ConnectionService,
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {

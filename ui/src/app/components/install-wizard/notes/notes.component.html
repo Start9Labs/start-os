@@ -1,8 +1,9 @@
 <div class="slide-content">
   <div style="margin-top: 25px;">
     <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
-      <ion-label [color]="params.titleColor" style="font-size: xx-large; font-weight: bold;">
-        {{ params.title }}
+      <ion-label [color]="params.titleColor">
+        <h1>{{ params.title }}</h1>
+        <h2>{{ params.headline }}</h2>
       </ion-label>
     </div>
     <div *ngFor="let note of params.notes | keyvalue : asIsOrder">

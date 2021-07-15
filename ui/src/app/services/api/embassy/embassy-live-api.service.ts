@@ -1,16 +1,16 @@
 import { Injectable } from '@angular/core'
-import { HttpService, Method } from '../http.service'
-import { ApiService  } from './api.service'
-import { RR } from './api-types'
+import { HttpService, Method } from '../../http.service'
+import { ApiService  } from './embassy-api.service'
+import { RR } from '../api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
-import { ConfigService } from '../config.service'
+import { ConfigService } from '../../config.service'
 
 @Injectable()
 export class LiveApiService extends ApiService {
 
   constructor (
-    private readonly config: ConfigService,
     private readonly http: HttpService,
+    private readonly config: ConfigService,
   ) { super() }
 
   async getStatic (url: string): Promise<string> {
