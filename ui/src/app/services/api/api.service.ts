@@ -167,16 +167,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes>
 
-  // marketplace
-
-  abstract getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes>
-
-  abstract getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes>
-
-  abstract getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes>
-
-  abstract getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes>
-
   // Helper allowing quick decoration to sync the response patch and return the response contents.
   // Pass in a tempUpdate function which returns a UpdateTemp corresponding to a temporary
   // state change you'd like to enact prior to request and expired when request terminates.
@@ -193,15 +183,5 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
         return response
       }) as any
     }
-  }
-}
-
-export function getMarketURL (eosOrPackage: 'eos' | 'package', data: DataModel): string {
-  const eosMarketplace = data['server-info']['eos-marketplace']
-  if (eosOrPackage === 'eos') {
-    return eosMarketplace
-  } else {
-    const packageMarketplace = data['server-info']['package-marketplace']
-    return packageMarketplace || eosMarketplace
   }
 }
