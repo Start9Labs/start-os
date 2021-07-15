@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { WifiService } from '../wifi.service'
 import { LoaderService } from 'src/app/services/loader.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'

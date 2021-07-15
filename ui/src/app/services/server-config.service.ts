@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { AppConfigValuePage } from '../modals/app-config-value/app-config-value.page'
-import { ApiService } from './api/api.service'
+import { ApiService } from './api/embassy/embassy-api.service'
 import { ConfigSpec } from '../pkg-config/config-types'
 import { ConfigCursor } from '../pkg-config/config-cursor'
 import { SSHService } from '../pages/server-routes/developer-routes/dev-ssh-keys/ssh.service'

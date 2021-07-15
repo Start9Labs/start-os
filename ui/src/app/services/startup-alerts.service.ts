@@ -4,60 +4,65 @@ import { wizardModal } from '../components/install-wizard/install-wizard.compone
 import { WizardBaker } from '../components/install-wizard/prebaked-wizards'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { displayEmver } from '../pipes/emver.pipe'
-import { ApiService } from './api/api.service'
+import { RR } from './api/api.types'
+import { MarketplaceApiService } from './api/marketplace/marketplace-api.service'
+import { PatchDbService } from './patch-db/patch-db.service'
 import { ConfigService } from './config.service'
 import { Emver } from './emver.service'
-import { OsUpdateService } from './os-update.service'
 
-@Injectable({providedIn: 'root' })
-export class StartupAlertsNotifier {
+@Injectable({
+  providedIn: 'root',
+})
+export class StartupAlertsService {
+  private checks: Check<any>[]
+
   constructor (
     private readonly alertCtrl: AlertController,
     private readonly navCtrl: NavController,
     private readonly config: ConfigService,
     private readonly modalCtrl: ModalController,
-    private readonly apiService: ApiService,
+    private readonly marketplaceApi: MarketplaceApiService,
     private readonly emver: Emver,
-    private readonly osUpdateService: OsUpdateService,
     private readonly wizardBaker: WizardBaker,
+    private readonly patch: PatchDbService,
   ) {
-    const welcome: Check<S9Server> = {
+    const welcome: Check<boolean> = {
       name: 'welcome',
-      shouldRun: s => this.shouldRunOsWelcome(s),
-      check: async s => s,
-      display: s => this.displayOsWelcome(s),
+      shouldRun: () => this.shouldRunOsWelcome(),
+      check: async () => true,
+      display: () => this.displayOsWelcome(),
       hasRun: this.config.skipStartupAlerts,
     }
-    const osUpdate: Check<ReqRes.GetVersionLatestRes | undefined> = {
+    const osUpdate: Check<RR.GetMarketplaceEOSRes | undefined> = {
       name: 'osUpdate',
-      shouldRun: s => this.shouldRunOsUpdateCheck(s),
-      check: s => this.osUpdateCheck(s),
-      display: vl => this.displayOsUpdateCheck(vl),
+      shouldRun: () => this.shouldRunOsUpdateCheck(),
+      check: () => this.osUpdateCheck(),
+      display: pkg => this.displayOsUpdateCheck(pkg),
       hasRun: this.config.skipStartupAlerts,
     }
     const apps: Check<boolean> = {
       name: 'apps',
-      shouldRun: s => this.shouldRunAppsCheck(s),
+      shouldRun: () => this.shouldRunAppsCheck(),
       check: () => this.appsCheck(),
       display: () => this.displayAppsCheck(),
       hasRun: this.config.skipStartupAlerts,
     }
-    this.checks = [welcome, osUpdate, v1StatusUpdate, apps]
+    this.checks = [welcome, osUpdate, apps]
   }
 
   // This takes our three checks and filters down to those that should run.
   // Then, the reduce fires, quickly iterating through yielding a promise (previousDisplay) to the next element
   // Each promise fires more or less concurrently, so each c.check(server) is run concurrently
-  // Then, since we await previoudDisplay before c.display(res), each promise executing gets hung awaiting the display of the previous run
-  async runChecks (server: Readonly<S9Server>): Promise<void> {
+  // Then, since we await previousDisplay before c.display(res), each promise executing gets hung awaiting the display of the previous run
+  async runChecks (): Promise<void> {
     await this.checks
-      .filter(c => !c.hasRun && c.shouldRun(server))
+      .filter(c => !c.hasRun && c.shouldRun())
       // returning true in the below block means to continue to next modal
       // returning false means to skip all subsequent modals
       .reduce(async (previousDisplay, c) => {
         let checkRes: any
         try {
-          checkRes = await c.check(server)
+          checkRes = await c.check()
         } catch (e) {
           console.error(`Exception in ${c.name} check:`, e)
           return true
@@ -70,44 +75,49 @@ export class StartupAlertsNotifier {
       }, Promise.resolve(true))
   }
 
-  checks: Check<any>[]
-
-  private shouldRunOsWelcome (s: S9Server): boolean {
-    return !s.welcomeAck && s.versionInstalled === this.config.version
+  private shouldRunOsWelcome (): boolean {
+    const data = this.patch.data
+    return !data.ui['welcome-ack'] && data['server-info'].version === this.config.version
   }
 
-  private shouldRunAppsCheck (server: S9Server): boolean {
-    return server.autoCheckUpdates
+  private shouldRunOsUpdateCheck (): boolean {
+    return this.patch.data.ui['auto-check-updates']
   }
 
-  private shouldRunOsUpdateCheck (server: S9Server): boolean {
-    return server.autoCheckUpdates
+  private shouldRunAppsCheck (): boolean {
+    return this.patch.data.ui['auto-check-updates']
   }
 
-  private async v1StatusCheck (): Promise<V1Status> {
-    return this.apiService.checkV1Status()
-  }
+  private async osUpdateCheck (): Promise<RR.GetMarketplaceEOSRes | undefined> {
+    const res = await this.marketplaceApi.getEos({ })
 
-  private async osUpdateCheck (s: Readonly<S9Server>): Promise<ReqRes.GetVersionLatestRes | undefined> {
-    const res = await this.apiService.getVersionLatest()
-    return this.osUpdateService.updateIsAvailable(s.versionInstalled, res) ? res : undefined
+    if (this.emver.compare(this.patch.data['server-info'].version, res.version) === -1) {
+      return res
+    } else {
+      return undefined
+    }
   }
 
   private async appsCheck (): Promise<boolean> {
-    const availableApps = await this.apiService.getAvailableApps()
-    return !!availableApps.find(
-      app => app.versionInstalled && this.emver.compare(app.versionInstalled, app.versionLatest) === -1,
-    )
+    const pkgs = await this.marketplaceApi.getMarketplacePkgs({
+      ids: Object.keys(this.patch.data['package-data']).filter(id => {
+        return !!this.patch.data['package-data'][id].installed
+      }),
+    })
+    return !!pkgs.find(pkg => {
+      const versionInstalled = this.patch.data['package-data'][pkg.manifest.id].manifest.version
+      return this.emver.compare(versionInstalled, pkg.manifest.version) === -1
+    })
   }
 
-  private async displayOsWelcome (s: Readonly<S9Server>): Promise<boolean> {
+  private async displayOsWelcome (): Promise<boolean> {
     return new Promise(async resolve => {
       const modal = await this.modalCtrl.create({
         backdropDismiss: false,
         component: OSWelcomePage,
         presentingElement: await this.modalCtrl.getTop(),
         componentProps: {
-          version: s.versionInstalled,
+          version: this.patch.data['server-info'].version,
         },
       })
 
@@ -118,47 +128,21 @@ export class StartupAlertsNotifier {
     })
   }
 
-  private async displayOsUpdateCheck (res: ReqRes.GetVersionLatestRes): Promise<boolean> {
-    const { update } = await this.presentAlertNewOS(res.versionLatest)
+  private async displayOsUpdateCheck (eos: RR.GetMarketplaceEOSRes): Promise<boolean> {
+    const { update } = await this.presentAlertNewOS(eos.version)
     if (update) {
       const { cancelled } = await wizardModal(
         this.modalCtrl,
         this.wizardBaker.updateOS({
-          version: res.versionLatest,
-          releaseNotes: res.releaseNotes,
+          version: eos.version,
+          headline: eos.headline,
+          releaseNotes: eos['release-notes'],
         }),
       )
       if (cancelled) return true
       return false
     }
     return true
-  }
-
-  private async displayV1Check (s: V1Status): Promise<boolean> {
-    return new Promise(async resolve => {
-      if (s.status !== 'available') return resolve(true)
-      const alert = await this.alertCtrl.create({
-        backdropDismiss: true,
-        header: `EmbassyOS ${s.version} Now Available!`,
-        message: `Version ${s.version} introduces SSD support and a whole lot more.`,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            handler: () => resolve(true),
-          },
-          {
-            text: 'View Instructions',
-            handler: () => {
-              window.open(`https://start9.com/eos-${s.version}`, '_blank')
-              resolve(false)
-            },
-          },
-        ],
-      })
-
-      await alert.present()
-    })
   }
 
   private async displayAppsCheck (): Promise<boolean> {
@@ -223,9 +207,9 @@ export class StartupAlertsNotifier {
 
 type Check<T> = {
   // validates whether a check should run based on server properties
-  shouldRun: (s: S9Server) => boolean
+  shouldRun: () => boolean
   // executes a check, often requiring api call. It should return a false-y value if there should be no display.
-  check: (s: S9Server) => Promise<T>
+  check: () => Promise<T>
   // display an alert based on the result of the check.
   // return false if subsequent modals should not be displayed
   display: (a: T) => Promise<boolean>

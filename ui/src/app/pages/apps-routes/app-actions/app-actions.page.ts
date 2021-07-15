@@ -1,10 +1,10 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { AlertController, IonContent, ModalController, NavController } from '@ionic/angular'
 import { LoaderService } from 'src/app/services/loader.service'
 import { HttpErrorResponse } from '@angular/common/http'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Action, Manifest, PackageDataEntry, PackageMainStatus } from 'src/app/services/patch-db/data-model'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
@@ -32,7 +32,7 @@ export class AppActionsPage {
     private readonly loaderService: LoaderService,
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {

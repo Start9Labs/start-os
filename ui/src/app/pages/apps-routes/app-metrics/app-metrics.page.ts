@@ -1,11 +1,11 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent } from '@ionic/angular'
-import { Metric } from 'src/app/services/api/api-types'
-import { ApiService } from 'src/app/services/api/api.service'
+import { Metric } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { pauseFor } from 'src/app/util/misc.util'
 
 @Component({
@@ -25,7 +25,7 @@ export class AppMetricsPage {
   constructor (
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
     private readonly apiService: ApiService,
   ) { }
 

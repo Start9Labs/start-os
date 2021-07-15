@@ -1,8 +1,8 @@
 import { Component } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
-import { DiskInfo } from 'src/app/services/api/api-types'
+import { DiskInfo } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'server-backup',

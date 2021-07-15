@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
-import { MarketplacePkg } from 'src/app/services/api/api-types'
-import { MarketplaceApiService } from 'src/app/services/api/marketplace-api.service'
+import { MarketplacePkg } from 'src/app/services/api/api.types'
+import { MarketplaceApiService } from 'src/app/services/api/marketplace/marketplace-api.service'
 
 @Injectable({
   providedIn: 'root',

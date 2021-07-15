@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { Storage } from '@ionic/storage'
 import { AuthService, AuthState } from './services/auth.service'
-import { ApiService } from './services/api/api.service'
+import { ApiService } from './services/api/embassy/embassy-api.service'
 import { Router, RoutesRecognized } from '@angular/router'
 import { debounceTime, distinctUntilChanged, filter, finalize, takeWhile } from 'rxjs/operators'
 import { AlertController, IonicSafeString, ToastController } from '@ionic/angular'
@@ -9,10 +9,11 @@ import { LoaderService } from './services/loader.service'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { LoadingOptions, ToastButton } from '@ionic/core'
-import { PatchDbModel } from './services/patch-db/patch-db.service'
+import { PatchDbService } from './services/patch-db/patch-db.service'
 import { HttpService } from './services/http.service'
 import { ServerStatus } from './services/patch-db/data-model'
 import { ConnectionFailure, ConnectionService } from './services/connection.service'
+import { StartupAlertsService } from './services/startup-alerts.service'
 
 @Component({
   selector: 'app-root',
@@ -59,8 +60,9 @@ export class AppComponent {
     private readonly loader: LoaderService,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
+    private readonly startupAlertsService: StartupAlertsService,
     private readonly toastCtrl: ToastController,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
     readonly splitPane: SplitPaneTracker,
   ) {
     // set dark theme
@@ -93,6 +95,8 @@ export class AppComponent {
         this.watchStatus(auth)
         // watch unread notification count to display toast
         this.watchNotifications(auth)
+        // run startup alerts
+        this.startupAlertsService.runChecks()
       // UNVERIFIED
       } else if (auth === AuthState.UNVERIFIED) {
         this.http.authReqEnabled = false

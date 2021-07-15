@@ -4,7 +4,7 @@ import { AlertController } from '@ionic/angular'
 import { LoaderService } from 'src/app/services/loader.service'
 import { SSHService } from './ssh.service'
 import { Subscription } from 'rxjs'
-import { SSHKeys } from 'src/app/services/api/api-types'
+import { SSHKeys } from 'src/app/services/api/api.types'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({

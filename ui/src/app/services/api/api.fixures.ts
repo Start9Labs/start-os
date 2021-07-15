@@ -1,5 +1,5 @@
 import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
-import { MarketplacePkg, Metric, NotificationLevel, RR, ServerNotification, ServerNotifications } from './api-types'
+import { MarketplacePkg, Metric, NotificationLevel, RR, ServerNotification, ServerNotifications } from './api.types'
 
 export module Mock {
 

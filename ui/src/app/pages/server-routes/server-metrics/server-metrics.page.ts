@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
-import { Metrics } from 'src/app/services/api/api-types'
-import { ApiService } from 'src/app/services/api/api.service'
+import { Metrics } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { pauseFor } from 'src/app/util/misc.util'
 
