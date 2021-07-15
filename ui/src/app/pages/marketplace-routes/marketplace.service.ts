@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { MarketplacePkg } from 'src/app/services/api/api-types'
-import { ApiService } from 'src/app/services/api/api.service'
+import { MarketplaceApiService } from 'src/app/services/api/marketplace-api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -12,19 +12,11 @@ export class MarketplaceService {
   } }
 
   constructor (
-    private readonly apiService: ApiService,
+    private readonly marketplaceApiService: MarketplaceApiService,
   ) { }
 
-  async getMarketplaceData () {
-    return this.apiService.getMarketplaceData({ })
-  }
-
-  async getEos () {
-    return this.apiService.getEos({ })
-  }
-
   async getPkgs (category: string, query: string, page: number, perPage: number) : Promise<MarketplacePkg[]> {
-    const pkgs = await this.apiService.getMarketplacePkgs({
+    const pkgs = await this.marketplaceApiService.getMarketplacePkgs({
       category: category !== 'all' ? category : undefined,
       query,
       page: String(page),
@@ -38,7 +30,7 @@ export class MarketplaceService {
   }
 
   async getPkg (id: string, version?: string): Promise<void> {
-    const pkg = (await this.apiService.getMarketplacePkgs({ id, version }))[0]
+    const pkg = (await this.marketplaceApiService.getMarketplacePkgs({ id, version }))[0]
     if (pkg) {
       this.pkgs[id] = pkg
     } else {
@@ -47,7 +39,7 @@ export class MarketplaceService {
   }
 
   async getReleaseNotes (id: string): Promise<void> {
-    this.releaseNotes[id] = await this.apiService.getReleaseNotes({ id })
+    this.releaseNotes[id] = await this.marketplaceApiService.getReleaseNotes({ id })
   }
 }
 
