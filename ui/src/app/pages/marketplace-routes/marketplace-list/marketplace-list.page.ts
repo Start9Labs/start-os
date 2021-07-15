@@ -8,6 +8,7 @@ import { PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
+import { MarketplaceApiService } from 'src/app/services/api/marketplace-api.service'
 
 @Component({
   selector: 'marketplace-list',
@@ -36,6 +37,7 @@ export class MarketplaceListPage {
 
   constructor (
     private readonly marketplaceService: MarketplaceService,
+    private readonly marketplaceApiService: MarketplaceApiService,
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
@@ -46,8 +48,8 @@ export class MarketplaceListPage {
 
     try {
       const [data, eos, pkgs] = await Promise.all([
-        this.marketplaceService.getMarketplaceData(),
-        this.marketplaceService.getEos(),
+        this.marketplaceApiService.getMarketplaceData({ }),
+        this.marketplaceApiService.getEos({ }),
         this.getPkgs(),
       ])
       this.data = data
