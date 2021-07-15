@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { AlertController, ToastController } from '@ionic/angular'
 import { merge, Observable, timer } from 'rxjs'
 import { filter, map, take, tap } from 'rxjs/operators'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Injectable({
   providedIn: 'root',
@@ -12,7 +12,7 @@ export class WifiService {
   constructor (
     private readonly toastCtrl: ToastController,
     private readonly alertCtrl: AlertController,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   confirmWifi (ssid: string): Observable<boolean> {

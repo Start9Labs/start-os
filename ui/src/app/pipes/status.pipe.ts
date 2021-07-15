@@ -1,7 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { combineLatest, Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { PatchDbModel } from '../services/patch-db/patch-db.service'
+import { PatchDbService } from '../services/patch-db/patch-db.service'
 import { FEStatus, renderPkgStatus } from '../services/pkg-status-rendering.service'
 
 @Pipe({
@@ -10,7 +10,7 @@ import { FEStatus, renderPkgStatus } from '../services/pkg-status-rendering.serv
 export class StatusPipe implements PipeTransform {
 
   constructor (
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   transform (pkgId: string): Observable<FEStatus> {

@@ -6,7 +6,7 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { pauseFor, Recommendation } from 'src/app/util/misc.util'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from '../marketplace.service'
@@ -37,7 +37,7 @@ export class MarketplaceShowPage {
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
     private readonly emver: Emver,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
     private readonly marketplaceService: MarketplaceService,
   ) { }
 

@@ -1,12 +1,12 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { Subscription } from 'rxjs'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { AlertController, IonContent, NavController, PopoverController, ToastController } from '@ionic/angular'
 import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import * as JsonPointer from 'json-pointer'
@@ -36,7 +36,7 @@ export class AppPropertiesPage {
     private readonly toastCtrl: ToastController,
     private readonly popoverCtrl: PopoverController,
     private readonly navCtrl: NavController,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   async ngOnInit () {

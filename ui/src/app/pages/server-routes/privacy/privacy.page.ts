@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { ServerConfigService } from 'src/app/services/server-config.service'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
 
@@ -15,7 +15,7 @@ export class PrivacyPage {
   constructor (
     private readonly serverConfigService: ServerConfigService,
     public readonly config: ConfigService,
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
   ) { }
 
   async presentModalValueEdit (key: string, current?: string): Promise<void> {

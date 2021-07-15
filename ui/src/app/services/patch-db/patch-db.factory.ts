@@ -2,14 +2,14 @@ import { PollSource, Source, WebsocketSource } from 'patch-db-client'
 import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from './data-model'
 import { LocalStorageBootstrap } from './local-storage-bootstrap'
-import { PatchDbModel } from './patch-db.service'
-import { ApiService } from 'src/app/services/api/api.service'
+import { PatchDbService } from './patch-db.service'
+import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 
-export function PatchDbModelFactory (
+export function PatchDbServiceFactory (
   config: ConfigService,
   bootstrapper: LocalStorageBootstrap,
   apiService: ApiService,
-): PatchDbModel {
+): PatchDbService {
 
   const { mocks, patchDb: { poll }, isConsulate } = config
 
@@ -31,5 +31,5 @@ export function PatchDbModelFactory (
     }
   }
 
-  return new PatchDbModel(source, apiService, bootstrapper)
+  return new PatchDbService(source, apiService, bootstrapper)
 }

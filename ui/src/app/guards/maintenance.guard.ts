@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { CanActivate, Router, CanActivateChild } from '@angular/router'
 import { tap } from 'rxjs/operators'
 import { ServerStatus } from '../services/patch-db/data-model'
-import { PatchDbModel } from '../services/patch-db/patch-db.service'
+import { PatchDbService } from '../services/patch-db/patch-db.service'
 
 @Injectable({
   providedIn: 'root',
@@ -10,7 +10,7 @@ import { PatchDbModel } from '../services/patch-db/patch-db.service'
 export class MaintenanceGuard implements CanActivate, CanActivateChild {
   constructor (
     private readonly router: Router,
-    private readonly patch: PatchDbModel,
+    private readonly patch: PatchDbService,
   ) { }
 
   canActivate (): boolean {

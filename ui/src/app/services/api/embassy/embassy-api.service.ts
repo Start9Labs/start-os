@@ -1,6 +1,6 @@
 import { Subject, Observable } from 'rxjs'
 import { Http, Update, Operation, Revision, Source, Store } from 'patch-db-client'
-import { RR } from './api-types'
+import { RR } from '../api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 export abstract class ApiService implements Source<DataModel>, Http<DataModel> {

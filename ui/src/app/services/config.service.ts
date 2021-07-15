@@ -19,6 +19,7 @@ type UiConfig = {
   }
   mocks: {
     enabled: boolean
+    marketplace: boolean
     connection: 'ws' | 'poll'
     rpcPort: number
     wsPort: number

@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router'
 import { IonContent, ToastController } from '@ionic/angular'
 import { Subscription } from 'rxjs'
 import { InstalledPackageDataEntry, PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { PatchDbModel } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 
@@ -22,7 +22,7 @@ export class AppInterfacesPage {
     private readonly route: ActivatedRoute,
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
-    public readonly patch: PatchDbModel,
+    public readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {
