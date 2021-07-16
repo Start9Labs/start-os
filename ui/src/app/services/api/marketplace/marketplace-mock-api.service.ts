@@ -9,8 +9,6 @@ import { ConfigService } from '../../config.service'
 
 @Injectable()
 export class MarketplaceMockApiService extends MarketplaceApiService {
-  CONTENT_KEY = 'marketplace-cache'
-
   constructor (
     private readonly http: HttpService,
     config: ConfigService,
