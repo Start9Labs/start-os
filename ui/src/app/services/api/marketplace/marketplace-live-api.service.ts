@@ -25,10 +25,21 @@ export class MarketplaceLiveApiService extends MarketplaceApiService {
   }
 
   async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
-    return this.http.simpleGet<RR.GetMarketplacePackagesRes>(this.getMarketplaceURL('package'), params)
+    const url = this.getMarketplaceURL('package', params.ids?.length > 1)
+    const threadParams = {
+      ...params,
+      ids: JSON.stringify(params.ids),
+    }
+
+    return this.http.simpleGet<RR.GetMarketplacePackagesRes>(url, threadParams)
   }
 
   async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
     return this.http.simpleGet<RR.GetReleaseNotesRes>(this.getMarketplaceURL('package'), params)
+  }
+
+  async getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes> {
+    const url = this.getMarketplaceURL('package', params.ids?.length > 1)
+    return this.http.simpleGet<RR.GetLatestVersionRes>(url, params)
   }
 }

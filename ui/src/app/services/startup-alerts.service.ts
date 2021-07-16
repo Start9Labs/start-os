@@ -5,10 +5,11 @@ import { WizardBaker } from '../components/install-wizard/prebaked-wizards'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { displayEmver } from '../pipes/emver.pipe'
 import { RR } from './api/api.types'
-import { MarketplaceApiService } from './api/marketplace/marketplace-api.service'
 import { PatchDbService } from './patch-db/patch-db.service'
 import { ConfigService } from './config.service'
 import { Emver } from './emver.service'
+import { MarketplaceService } from '../pages/marketplace-routes/marketplace.service'
+import { MarketplaceApiService } from './api/marketplace/marketplace-api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -21,6 +22,7 @@ export class StartupAlertsService {
     private readonly navCtrl: NavController,
     private readonly config: ConfigService,
     private readonly modalCtrl: ModalController,
+    private readonly marketplaceService: MarketplaceService,
     private readonly marketplaceApi: MarketplaceApiService,
     private readonly emver: Emver,
     private readonly wizardBaker: WizardBaker,
@@ -63,6 +65,7 @@ export class StartupAlertsService {
         let checkRes: any
         try {
           checkRes = await c.check()
+          console.log('CHECK RES', checkRes)
         } catch (e) {
           console.error(`Exception in ${c.name} check:`, e)
           return true
@@ -99,15 +102,8 @@ export class StartupAlertsService {
   }
 
   private async appsCheck (): Promise<boolean> {
-    const pkgs = await this.marketplaceApi.getMarketplacePkgs({
-      ids: Object.keys(this.patch.data['package-data']).filter(id => {
-        return !!this.patch.data['package-data'][id].installed
-      }),
-    })
-    return !!pkgs.find(pkg => {
-      const versionInstalled = this.patch.data['package-data'][pkg.manifest.id].manifest.version
-      return this.emver.compare(versionInstalled, pkg.manifest.version) === -1
-    })
+    const updates = await this.marketplaceService.getUpdates(this.patch.data['package-data'])
+    return !!updates.length
   }
 
   private async displayOsWelcome (): Promise<boolean> {
