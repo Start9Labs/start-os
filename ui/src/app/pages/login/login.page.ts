@@ -1,7 +1,6 @@
 import { Component } from '@angular/core'
-import { NavController } from '@ionic/angular'
+import { LoadingController } from '@ionic/angular'
 import { AuthService } from 'src/app/services/auth.service'
-import { LoaderService } from 'src/app/services/loader.service'
 
 @Component({
   selector: 'login',
@@ -12,15 +11,18 @@ export class LoginPage {
   password = ''
   unmasked = false
   error = ''
+  loader: HTMLIonLoadingElement
 
   constructor (
     private readonly authService: AuthService,
-    private readonly loader: LoaderService,
-    private readonly navCtrl: NavController,
+    private readonly loadingCtrl: LoadingController,
   ) { }
 
-  ionViewDidEnter () {
-    this.error = ''
+  ngOnDestroy () {
+    if (this.loader) {
+      this.loader.dismiss()
+      this.loader = undefined
+    }
   }
 
   toggleMask () {
@@ -28,14 +30,21 @@ export class LoginPage {
   }
 
   async submit () {
+    this.error = ''
+
+    this.loader = await this.loadingCtrl.create({
+      message: 'Authenticating',
+      spinner: 'lines',
+    })
+    await this.loader.present()
+
     try {
-      await this.loader.displayDuringP(
-        this.authService.login(this.password),
-      )
+      await this.authService.login(this.password)
+      this.loader.message = 'Loading Embassy Data'
       this.password = ''
-      await this.navCtrl.navigateForward(['/'])
     } catch (e) {
       this.error = e.message
+      this.loader.dismiss()
     }
   }
 }

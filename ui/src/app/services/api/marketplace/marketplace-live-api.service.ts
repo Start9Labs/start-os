@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { HttpService } from '../../http.service'
+import { HttpService, Method } from '../../http.service'
 import { RR } from '../api.types'
 import { MarketplaceApiService } from './marketplace-api.service'
 import { PatchDbService } from '../../patch-db/patch-db.service'
@@ -17,29 +17,55 @@ export class MarketplaceLiveApiService extends MarketplaceApiService {
   }
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
-    return this.http.simpleGet<RR.GetMarketplaceEOSRes>(this.getMarketplaceURL('eos'), params)
+    const url = this.getMarketplaceURL('eos')
+    return this.http.httpRequest<RR.GetMarketplaceEOSRes>({
+      method: Method.GET,
+      url: url + '/eos',
+      params,
+      withCredentials: false,
+    })
   }
 
   async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
-    return this.http.simpleGet<RR.GetMarketplaceDataRes>(this.getMarketplaceURL('package'), params)
+    const url = this.getMarketplaceURL('package')
+    return this.http.httpRequest<RR.GetMarketplaceDataRes>({
+      method: Method.GET,
+      url: url + '/data',
+      params,
+      withCredentials: false,
+    })
   }
 
   async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
     const url = this.getMarketplaceURL('package', params.ids?.length > 1)
-    const threadParams = {
-      ...params,
-      ids: JSON.stringify(params.ids),
-    }
-
-    return this.http.simpleGet<RR.GetMarketplacePackagesRes>(url, threadParams)
+    return this.http.httpRequest<RR.GetMarketplacePackagesRes>({
+      method: Method.GET,
+      url: url + '/packages',
+      params: {
+        ...params,
+        ids: JSON.stringify(params.ids),
+      },
+      withCredentials: false,
+    })
   }
 
   async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
-    return this.http.simpleGet<RR.GetReleaseNotesRes>(this.getMarketplaceURL('package'), params)
+    const url = this.getMarketplaceURL('package')
+    return this.http.httpRequest<RR.GetReleaseNotesRes>({
+      method: Method.GET,
+      url: url + + '/release-notes',
+      params,
+      withCredentials: false,
+    })
   }
 
   async getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes> {
     const url = this.getMarketplaceURL('package', params.ids?.length > 1)
-    return this.http.simpleGet<RR.GetLatestVersionRes>(url, params)
+    return this.http.httpRequest<RR.GetLatestVersionRes>({
+      method: Method.GET,
+      url: url + '/latest-version',
+      params,
+      withCredentials: false,
+    })
   }
 }

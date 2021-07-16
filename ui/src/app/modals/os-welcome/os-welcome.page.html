@@ -1,7 +1,7 @@
 <ion-header>
   <ion-toolbar>
     <ion-title >
-      <ion-label style="font-size: 20px;" class="ion-text-wrap">Welcome to 0.2.17!</ion-label>
+      <ion-label style="font-size: 20px;" class="ion-text-wrap">Welcome to {{ version }}!</ion-label>
     </ion-title>
   </ion-toolbar>
 </ion-header>
@@ -14,7 +14,7 @@
     </div>
 
     <div class="close-button">
-      <ion-button fill="outline" (click)="dismiss()">
+      <ion-button fill="outline" color="dark" (click)="dismiss()">
         Begin
       </ion-button>
     </div>
