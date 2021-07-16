@@ -59,6 +59,7 @@ export class MarketplaceListPage {
         data.categories = data.categories.filter(cat => this.category !== cat)
       }
       data.categories.unshift(this.category)
+      data.categories.push('all')
       this.eos = eos
     } catch (e) {
       console.error(e)
