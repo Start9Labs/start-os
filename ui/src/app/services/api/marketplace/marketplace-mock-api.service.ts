@@ -6,9 +6,11 @@ import { HttpService } from '../../http.service'
 import { MarketplaceApiService } from './marketplace-api.service'
 import { PatchDbService } from '../../patch-db/patch-db.service'
 import { ConfigService } from '../../config.service'
+import { Storage } from '@ionic/storage'
 
 @Injectable()
 export class MarketplaceMockApiService extends MarketplaceApiService {
+  CONTENT_KEY = 'marketplace-cache'
 
   constructor (
     private readonly http: HttpService,
@@ -38,18 +40,22 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
         categories: ['featured', 'bitcoin', 'lightning', 'data', 'messaging', 'social', 'alt coin'],
       }
     }
-    url = `${url}/marketplace/data`
+    url = `${url}/data`
     return this.http.simpleGet<RR.GetMarketplaceDataRes>(url)
   }
 
   async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
-    let url = this.getMarketplaceURL('package')
+    let url = this.getMarketplaceURL('package', params.ids?.length > 1)
+    const threadParams = {
+      ...params,
+      ids: JSON.stringify(params.ids),
+    }
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return Mock.AvailableList
     }
-    url = `${url}/marketplace/packages`
-    return this.http.simpleGet<RR.GetMarketplacePackagesRes>(url, params)
+    url = `${url}/packages`
+    return this.http.simpleGet<RR.GetMarketplacePackagesRes>(url, threadParams)
   }
 
   async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
@@ -58,8 +64,21 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
       await pauseFor(2000)
       return Mock.ReleaseNotes
     }
-    url = `${url}/marketplace/release-notes`
-    return this.http.simpleGet<RR.GetReleaseNotesRes>(url)
+    url = `${url}/release-notes`
+    return this.http.simpleGet<RR.GetReleaseNotesRes>(url, params)
+  }
+
+  async getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes> {
+    let url = this.getMarketplaceURL('package', params.ids?.length > 1)
+    if (this.useLocal(url)) {
+      await pauseFor(2000)
+      return params.ids.reduce((obj, id) => {
+        obj[id] = this.patch.data['package-data']?.[id]?.manifest.version.replace('0', '1')
+        return obj
+      }, { })
+    }
+    url = `${url}/latest-version`
+    return this.http.simpleGet<RR.GetLatestVersionRes>(url)
   }
 
   private useLocal (url: string): boolean {

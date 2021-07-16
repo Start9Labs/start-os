@@ -78,9 +78,9 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'marketplace.eos.set', params })
   }
 
-  async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
-    return this.http.rpcRequest({ method: 'marketplace.package.set', params })
-  }
+  // async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
+  //   return this.http.rpcRequest({ method: 'marketplace.package.set', params })
+  // }
 
   // password
   async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
