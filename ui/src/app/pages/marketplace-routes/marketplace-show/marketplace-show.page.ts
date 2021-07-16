@@ -52,7 +52,6 @@ export class MarketplaceShowPage {
       }),
     ]
 
-    console.log(this.marketplaceService.pkgs[this.pkgId])
     if (this.marketplaceService.pkgs[this.pkgId]) {
       this.loading = false
     } else {
