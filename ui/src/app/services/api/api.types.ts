@@ -168,10 +168,7 @@ export module RR {
   export type GetMarketplaceEOSRes = MarketplaceEOS
 
   export type GetMarketplacePackagesReq = {
-    ids?: string[]
-    id?: string
-    // iff id
-    version?: string
+    ids?: { id: string, version: string }[]
     // iff !id
     category?: string
     query?: string
@@ -182,13 +179,17 @@ export module RR {
 
   export type GetReleaseNotesReq = { id: string }
   export type GetReleaseNotesRes = { [version: string]: string}
+
+  export type GetLatestVersionReq = { ids: string[] }
+  export type GetLatestVersionRes = { [id: string]: string}
+
 }
 
 export type WithExpire<T> = { 'expire-id'?: string } & T
 export type WithRevision<T> = { response: T, revision?: Revision }
 
 export interface MarketplaceData {
-  categories: string[]
+  categories: string[],
 }
 
 export interface MarketplaceEOS {

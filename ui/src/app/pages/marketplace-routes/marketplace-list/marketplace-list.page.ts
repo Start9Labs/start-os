@@ -20,7 +20,7 @@ export class MarketplaceListPage {
   pageLoading = true
   pkgsLoading = true
 
-  category = 'all'
+  category = 'featured'
   query: string
 
   data: MarketplaceData
@@ -47,15 +47,19 @@ export class MarketplaceListPage {
   async ngOnInit () {
 
     try {
-      const [data, eos, pkgs] = await Promise.all([
+      const [data, eos] = await Promise.all([
         this.marketplaceApiService.getMarketplaceData({ }),
         this.marketplaceApiService.getEos({ }),
         this.getPkgs(),
       ])
       this.data = data
-      this.data.categories.unshift(this.category)
+      this.data.categories.push(this.category)
+      this.data.categories.unshift('updates')
+      if (data.categories.includes(this.category)) {
+        data.categories = data.categories.filter(cat => this.category !== cat)
+      }
+      data.categories.unshift(this.category)
       this.eos = eos
-      this.pkgs = pkgs
     } catch (e) {
       console.error(e)
       this.errToast.present(e.message)
@@ -74,8 +78,7 @@ export class MarketplaceListPage {
   }
 
   async doInfinite (e: any): Promise<void> {
-    const pkgs = await this.getPkgs()
-    this.pkgs = this.pkgs.concat(pkgs)
+    await this.getPkgs(true)
     e.target.complete()
   }
 
@@ -83,7 +86,7 @@ export class MarketplaceListPage {
     this.query = e.target.value || undefined
     this.page = 1
     this.pkgsLoading = true
-    this.pkgs = await this.getPkgs()
+    await this.getPkgs()
   }
 
   async updateEos (): Promise<void> {
@@ -97,17 +100,26 @@ export class MarketplaceListPage {
     )
   }
 
-  private async getPkgs (): Promise<MarketplacePkg[]> {
+  private async getPkgs (doInfinite = false): Promise<void> {
     try {
-      const pkgs = await this.marketplaceService.getPkgs(
-        this.category !== 'all' ? this.category : undefined,
-        this.query,
-        this.page,
-        this.perPage,
-      )
-      this.needInfinite = pkgs.length >= this.perPage
-      this.page++
-      return pkgs
+      if (this.category === 'updates') {
+        this.pkgs = this.marketplaceService.updates
+        if (this.pkgs.length) {
+          this.pkgsLoading = false
+        }
+        await this.marketplaceService.getUpdates(this.patch.data['package-data'])
+        this.pkgs = this.marketplaceService.updates
+      } else {
+        const pkgs = await this.marketplaceService.getPkgs(
+          this.category !== 'all' ? this.category : undefined,
+          this.query,
+          this.page,
+          this.perPage,
+        )
+        this.needInfinite = pkgs.length >= this.perPage
+        this.page++
+        this.pkgs = doInfinite ? this.pkgs.concat(pkgs) : pkgs
+      }
     } catch (e) {
       console.error(e)
       this.errToast.present(e.message)
@@ -117,9 +129,10 @@ export class MarketplaceListPage {
   }
 
   async switchCategory (category: string): Promise<void> {
+    this.pkgs = []
     this.category = category
     this.pkgsLoading = true
     this.page = 1
-    this.pkgs = await this.getPkgs()
+    await this.getPkgs()
   }
 }

@@ -20,9 +20,8 @@ export class AppReleaseNotes {
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    const version = this.route.snapshot.paramMap.get('version')
-    if (!this.marketplaceService.pkgs[this.pkgId]?.['release-notes']) {
-      this.marketplaceService.getPkg(this.pkgId, version)
+    if (!this.marketplaceService.releaseNotes[this.pkgId]) {
+      this.marketplaceService.getReleaseNotes(this.pkgId)
     }
   }
 

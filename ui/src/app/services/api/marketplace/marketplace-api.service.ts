@@ -17,12 +17,17 @@ export abstract class MarketplaceApiService {
 
   abstract getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes>
 
-  getMarketplaceURL (type: 'eos' | 'package'): string {
+  abstract getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes>
+
+  getMarketplaceURL (type: 'eos' | 'package', defaultToTor = false): string {
+    const packageMarketplace = this.patch.data['server-info']['package-marketplace']
+    if (defaultToTor && !packageMarketplace) {
+      return this.config.start9Marketplace.tor
+    }
     const eosMarketplace = this.patch.data['server-info']['eos-marketplace'] || this.config.start9Marketplace.clearnet
     if (type === 'eos') {
       return eosMarketplace
     } else {
-      const packageMarketplace = this.patch.data['server-info']['package-marketplace']
       return packageMarketplace || eosMarketplace
     }
   }
