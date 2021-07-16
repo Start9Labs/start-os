@@ -54,12 +54,12 @@ export class MarketplaceListPage {
       ])
       this.eos = eos
       this.data = data
-      this.data.categories.unshift('updates')
-      if (data.categories.includes(this.category)) {
-        data.categories = data.categories.filter(cat => this.category !== cat)
-      }
-      data.categories.unshift(this.category)
-      data.categories.push('all')
+
+      // category should start as first item in array
+      // remove here then add at beginning
+      const filterdCategories = this.data.categories.filter(cat => this.category !== cat)
+      this.data.categories = [this.category, 'updates'].concat(filterdCategories).concat(['all'])
+
     } catch (e) {
       console.error(e)
       this.errToast.present(e.message)
