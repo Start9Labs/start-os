@@ -6,7 +6,6 @@ import { HttpService } from '../../http.service'
 import { MarketplaceApiService } from './marketplace-api.service'
 import { PatchDbService } from '../../patch-db/patch-db.service'
 import { ConfigService } from '../../config.service'
-import { Storage } from '@ionic/storage'
 
 @Injectable()
 export class MarketplaceMockApiService extends MarketplaceApiService {
