@@ -83,9 +83,9 @@ export class LiveApiService extends ApiService {
   // }
 
   // password
-  async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
-    return this.http.rpcRequest({ method: 'password.set', params })
-  }
+  // async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
+  //   return this.http.rpcRequest({ method: 'password.set', params })
+  // }
 
   // notification
 

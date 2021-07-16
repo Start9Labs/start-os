@@ -28,8 +28,8 @@ export class StartupAlertsService {
     private readonly wizardBaker: WizardBaker,
     private readonly patch: PatchDbService,
   ) {
-    const welcome: Check<boolean> = {
-      name: 'welcome',
+    const osWelcome: Check<boolean> = {
+      name: 'osWelcome',
       shouldRun: () => this.shouldRunOsWelcome(),
       check: async () => true,
       display: () => this.displayOsWelcome(),
@@ -42,14 +42,14 @@ export class StartupAlertsService {
       display: pkg => this.displayOsUpdateCheck(pkg),
       hasRun: this.config.skipStartupAlerts,
     }
-    const apps: Check<boolean> = {
-      name: 'apps',
+    const pkgsUpdate: Check<boolean> = {
+      name: 'pkgsUpdate',
       shouldRun: () => this.shouldRunAppsCheck(),
       check: () => this.appsCheck(),
       display: () => this.displayAppsCheck(),
       hasRun: this.config.skipStartupAlerts,
     }
-    this.checks = [welcome, osUpdate, apps]
+    this.checks = [osWelcome, osUpdate, pkgsUpdate]
   }
 
   // This takes our three checks and filters down to those that should run.
@@ -79,8 +79,7 @@ export class StartupAlertsService {
   }
 
   private shouldRunOsWelcome (): boolean {
-    const data = this.patch.data
-    return !data.ui['welcome-ack'] && data['server-info'].version === this.config.version
+    return this.patch.data.ui['welcome-ack'] !== this.config.version
   }
 
   private shouldRunOsUpdateCheck (): boolean {
@@ -94,7 +93,7 @@ export class StartupAlertsService {
   private async osUpdateCheck (): Promise<RR.GetMarketplaceEOSRes | undefined> {
     const res = await this.marketplaceApi.getEos({ })
 
-    if (this.emver.compare(this.patch.data['server-info'].version, res.version) === -1) {
+    if (this.emver.compare(this.config.version, res.version) === -1) {
       return res
     } else {
       return undefined
@@ -113,7 +112,7 @@ export class StartupAlertsService {
         component: OSWelcomePage,
         presentingElement: await this.modalCtrl.getTop(),
         componentProps: {
-          version: this.patch.data['server-info'].version,
+          version: this.config.version,
         },
       })
 
