@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '../../../util/misc.util'
 import { ApiService } from './embassy-api.service'
-import { PatchOp } from 'patch-db-client'
+import { Operation, PatchOp } from 'patch-db-client'
 import { PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
 import { RR, WithRevision } from '../api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
@@ -12,7 +12,7 @@ import { ConfigService } from '../../config.service'
 
 @Injectable()
 export class MockApiService extends ApiService {
-  welcomeAck = false
+  private readonly revertTime = 4000
 
   constructor (
     private readonly http: HttpService,
@@ -32,7 +32,7 @@ export class MockApiService extends ApiService {
     //   ...Mock.DbDump,
     //   id: this.nextSequence(),
     // }
-    return this.http.rpcRequest({ method: 'db.revisions', params: { since } })
+    return this.http.rpcRequest<RR.GetRevisionsRes>({ method: 'db.revisions', params: { since } })
   }
 
   async getDump (): Promise<RR.GetDumpRes> {
@@ -41,7 +41,7 @@ export class MockApiService extends ApiService {
     //   ...Mock.DbDump,
     //   id: this.nextSequence(),
     // }
-    return this.http.rpcRequest({ method: 'db.dump' })
+    return this.http.rpcRequest<RR.GetDumpRes>({ method: 'db.dump' })
   }
 
   async setDbValueRaw (params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
@@ -60,7 +60,7 @@ export class MockApiService extends ApiService {
     //     expireId: null,
     //   },
     // }
-    return this.http.rpcRequest({ method: 'db.put.ui', params })
+    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.put.ui', params })
   }
 
   // auth
@@ -94,14 +94,41 @@ export class MockApiService extends ApiService {
 
   async updateServerRaw (params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
+    const path = '/server-info/status'
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/status',
+        path,
         value: ServerStatus.Updating,
       },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    setTimeout(() => {
+      const patch = [
+        {
+          op: PatchOp.REPLACE,
+          path,
+          value: ServerStatus.Running,
+        },
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/version',
+          value: this.config.version + '.1',
+        },
+      ]
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+      // quickly revert patch to proper version to prevent infinite refresh loop
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/version',
+          value: this.config.version,
+        },
+      ]
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch2 } })
+    }, this.revertTime)
+
+    return res
   }
 
   async restartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
@@ -135,7 +162,7 @@ export class MockApiService extends ApiService {
         value: params.url,
       },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   }
 
   // async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
@@ -147,14 +174,14 @@ export class MockApiService extends ApiService {
   //       value: params.url,
   //     },
   //   ]
-  //   return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+  //   return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   // }
 
   // password
-  async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
-    await pauseFor(2000)
-    return null
-  }
+  // async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
+  //   await pauseFor(2000)
+  //   return null
+  // }
 
   // notification
 
@@ -167,7 +194,7 @@ export class MockApiService extends ApiService {
         value: 0,
       },
     ]
-    const { revision } = await this.http.rpcRequest({ method: 'db.patch', params: { patch } }) as WithRevision<null>
+    const { revision } = await this.http.rpcRequest<WithRevision<RR.GetNotificationsRes>>({ method: 'db.patch', params: { patch } }) as WithRevision<null>
     return {
       response: Mock.Notifications,
       revision,
@@ -200,24 +227,28 @@ export class MockApiService extends ApiService {
         value: params.ssid,
       },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   }
 
   async deleteWifiRaw (params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
     await pauseFor(2000)
-    const patch = [
+    const patch: Operation[] = [
       {
-        op: PatchOp.REPLACE,
-        path: '/server-info/wifi/selected',
-        value: null,
+        op: PatchOp.REMOVE,
+        path: `/server-info/wifi/ssids/${params.ssid}`,
       },
-      {
-        op: PatchOp.REPLACE,
-        path: '/server-info/wifi/connected',
-        value: null,
-      },
+      // {
+      //   op: PatchOp.REPLACE,
+      //   path: '/server-info/wifi/selected',
+      //   value: null,
+      // },
+      // {
+      //   op: PatchOp.REPLACE,
+      //   path: '/server-info/wifi/connected',
+      //   value: null,
+      // },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   }
 
   // ssh
@@ -241,14 +272,26 @@ export class MockApiService extends ApiService {
 
   async createBackupRaw (params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
+    const path = '/server-info/status'
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/status',
+        path,
         value: ServerStatus.BackingUp,
       },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    setTimeout(() => {
+      const patch = [
+        {
+          op: PatchOp.REPLACE,
+          path,
+          value: ServerStatus.Running,
+        },
+      ]
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    }, this.revertTime)
+    return res
   }
 
   async restoreBackupRaw (params: RR.RestoreBackupReq): Promise<RR.RestoreBackupRes> {
@@ -302,7 +345,7 @@ export class MockApiService extends ApiService {
         value: pkg,
       },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   }
 
   async dryUpdatePackage (params: RR.DryUpdatePackageReq): Promise<RR.DryUpdatePackageRes> {
@@ -328,25 +371,32 @@ export class MockApiService extends ApiService {
         path: `/package-data/${params.id}/installed/status/configured`,
         value: true,
       },
-      {
-        op: PatchOp.REPLACE,
-        path: `/package-data/${params.id}/installed/status/main/status`,
-        value: PackageMainStatus.Running,
-      },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   }
 
   async restorePackageRaw (params: RR.RestorePackageReq): Promise<RR.RestorePackageRes> {
     await pauseFor(2000)
+    const path = `/package-data/${params.id}/installed/status/main/status`
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${params.id}/installed/status/main/status`,
+        path,
         value: PackageMainStatus.Restoring,
       },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    setTimeout(() => {
+      const patch = [
+        {
+          op: PatchOp.REPLACE,
+          path,
+          value: PackageMainStatus.Stopped,
+        },
+      ]
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    }, this.revertTime)
+    return res
   }
 
   async executePackageAction (params: RR.ExecutePackageActionReq): Promise<RR.ExecutePackageActionRes> {
@@ -361,14 +411,15 @@ export class MockApiService extends ApiService {
 
   async startPackageRaw (params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
     await pauseFor(2000)
+    const path = `/package-data/${params.id}/installed/status/main/status`
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${params.id}/installed/status/main/status`,
+        path,
         value: PackageMainStatus.Running,
       },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   }
 
   async dryStopPackage (params: RR.DryStopPackageReq): Promise<RR.DryStopPackageRes> {
@@ -378,10 +429,11 @@ export class MockApiService extends ApiService {
 
   async stopPackageRaw (params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
+    const path = `/package-data/${params.id}/installed/status/main/status`
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${params.id}/installed/status/main/status`,
+        path,
         value: PackageMainStatus.Stopping,
       },
     ]
@@ -390,12 +442,12 @@ export class MockApiService extends ApiService {
       const patch = [
         {
           op: PatchOp.REPLACE,
-          path: `/package-data/${params.id}/installed/status/main/status`,
+          path,
           value: PackageMainStatus.Stopped,
         },
       ]
       this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    }, 2000)
+    }, this.revertTime)
 
     return res
   }
@@ -414,7 +466,17 @@ export class MockApiService extends ApiService {
         value: PackageState.Removing,
       },
     ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    setTimeout(async () => {
+      const patch = [
+        {
+          op: PatchOp.REMOVE,
+          path: `/package-data/${params.id}`,
+        },
+      ]
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    }, this.revertTime)
+    return res
   }
 
   async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes> {

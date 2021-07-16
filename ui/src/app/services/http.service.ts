@@ -10,7 +10,6 @@ import { Revision } from 'patch-db-client'
 })
 export class HttpService {
   private unauthorizedApiResponse$ = new Subject()
-  authReqEnabled: boolean = false
   fullUrl: string
 
   constructor (
@@ -44,22 +43,15 @@ export class HttpService {
     if (isRpcSuccess(res)) return res.result
   }
 
-  async simpleGet<T> (url: string, params: { [param: string]: string | string[] } = { }): Promise<T> {
-    Object.keys(params).forEach(key => {
-      if (!params[key]) delete params[key]
-    })
-    return this.http.get<T>(url, { params }).toPromise()
-  }
-
   async httpRequest<T> (httpOpts: HttpOptions): Promise<T> {
-    let { body, timeout, ...rest} = this.translateOptions(httpOpts)
+    let { body, timeout, url, ...rest} = this.translateOptions(httpOpts)
     let req: Observable<{ body: T }>
     switch (httpOpts.method){
-      case Method.GET:    req = this.http.get(this.fullUrl, rest) as any;          break
-      case Method.POST:   req = this.http.post(this.fullUrl, body, rest) as any;   break
-      case Method.PUT:    req = this.http.put(this.fullUrl, body, rest) as any;    break
-      case Method.PATCH:  req = this.http.patch(this.fullUrl, body, rest) as any;  break
-      case Method.DELETE: req = this.http.delete(this.fullUrl, rest) as any;       break
+      case Method.GET:    req = this.http.get(url, rest) as any;          break
+      case Method.POST:   req = this.http.post(url, body, rest) as any;   break
+      case Method.PUT:    req = this.http.put(url, body, rest) as any;    break
+      case Method.PATCH:  req = this.http.patch(url, body, rest) as any;  break
+      case Method.DELETE: req = this.http.delete(url, rest) as any;       break
     }
 
     return (timeout ? withTimeout(req, timeout) : req)
@@ -68,16 +60,25 @@ export class HttpService {
       .catch(e => { throw new HttpError(e) })
   }
 
-  translateOptions (httpOpts: HttpOptions): HttpJsonOptions {
+  private translateOptions (httpOpts: HttpOptions): HttpJsonOptions {
+    if (httpOpts.withCredentials !== false) {
+      httpOpts.withCredentials = this.config.mocks.enabled ? false : true
+    }
+
+    const urlIsRelative = !httpOpts.url || httpOpts.url.startsWith('/')
+    const url = urlIsRelative ?
+      this.fullUrl + httpOpts.url :
+      httpOpts.url
+
     return {
       observe: 'events',
       responseType: 'json',
       reportProgress: false,
-      withCredentials: this.config.mocks.enabled ? false : true,
+      withCredentials: httpOpts.withCredentials,
       headers: httpOpts.headers,
       params: httpOpts.params,
       body: httpOpts.data || { },
-      url: httpOpts.url,
+      url,
       timeout: httpOpts.readTimeout,
     }
   }

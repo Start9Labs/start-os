@@ -20,7 +20,6 @@ export enum ConnectionStatus {
 })
 export class PatchDbService {
   connectionStatus$ = new BehaviorSubject(ConnectionStatus.Initializing)
-  sequence$: Observable<number>
   data: DataModel
   private patchDb: PatchDB<DataModel>
   private patchSub: Subscription
@@ -33,10 +32,7 @@ export class PatchDbService {
 
   async init (): Promise<void> {
     const cache = await this.bootstrapper.init()
-    console.log('CACHECACHE', cache)
     this.patchDb = new PatchDB([this.source, this.http], this.http, cache)
-
-    this.sequence$ = this.patchDb.store.sequence$.asObservable()
     this.data = this.patchDb.store.cache.data
   }
 

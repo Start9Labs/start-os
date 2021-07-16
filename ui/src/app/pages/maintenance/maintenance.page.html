@@ -1,10 +1,10 @@
-<ion-content *ngIf="patch.data['serverInfo'].status as status">
+<ion-content *ngIf="patch.data['server-info'].status as status">
 
   <ion-grid style="height: 100%;">
     <ion-row class="ion-align-items-center ion-text-center" style="height: 100%;">
       <ion-col>
         <ion-spinner name="lines" color="warning"></ion-spinner>
-        <p *ngIf="status === ServerStatus.Updating">Updating Embassy</p>
+        <p *ngIf="status === ServerStatus.Updating">Embassy is updating</p>
         <p *ngIf="status === ServerStatus.BackingUp">Embassy is backing up</p>
       </ion-col>
     </ion-row>
