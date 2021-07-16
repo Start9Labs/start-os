@@ -53,7 +53,6 @@ export class MarketplaceListPage {
         this.getPkgs(),
       ])
       this.data = data
-      this.data.categories.push(this.category)
       this.data.categories.unshift('updates')
       if (data.categories.includes(this.category)) {
         data.categories = data.categories.filter(cat => this.category !== cat)
