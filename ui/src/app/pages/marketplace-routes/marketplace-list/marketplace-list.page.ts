@@ -52,6 +52,7 @@ export class MarketplaceListPage {
         this.marketplaceApiService.getEos({ }),
         this.getPkgs(),
       ])
+      this.eos = eos
       this.data = data
       this.data.categories.unshift('updates')
       if (data.categories.includes(this.category)) {
@@ -59,7 +60,6 @@ export class MarketplaceListPage {
       }
       data.categories.unshift(this.category)
       data.categories.push('all')
-      this.eos = eos
     } catch (e) {
       console.error(e)
       this.errToast.present(e.message)
