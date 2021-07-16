@@ -32,7 +32,7 @@ export class ConnectionService {
 
       combineLatest([this.networkState$.pipe(distinctUntilChanged()), this.patch.watchConnection$().pipe(distinctUntilChanged())])
       .subscribe(async ([network, connectionStatus]) => {
-        const addrs = this.patch.data['server-info']?.['connection-addresses']
+        const addrs = this.patch.data['server-info']['connection-addresses']
         if (connectionStatus !== ConnectionStatus.Disconnected) {
           this.connectionFailure$.next(ConnectionFailure.None)
         } else if (!network) {
@@ -42,12 +42,12 @@ export class ConnectionService {
         } else {
           // diagnosing
           this.connectionFailure$.next(ConnectionFailure.Diagnosing)
-          const torSuccess = await this.testAddrs(addrs?.tor || [])
+          const torSuccess = await this.testAddrs(addrs.tor)
           if (torSuccess) {
             // TOR SUCCESS, EMBASSY IS PROBLEM
             this.connectionFailure$.next(ConnectionFailure.Embassy)
           } else {
-            const clearnetSuccess = await this.testAddrs(addrs?.clearnet || [])
+            const clearnetSuccess = await this.testAddrs(addrs.clearnet)
             if (clearnetSuccess) {
               // CLEARNET SUCCESS, TOR IS PROBLEM
               this.connectionFailure$.next(ConnectionFailure.Tor)
@@ -76,6 +76,7 @@ export class ConnectionService {
         await this.httpService.httpRequest({
           method: Method.GET,
           url: addr,
+          withCredentials: false,
         })
         return true
       } catch (e) {

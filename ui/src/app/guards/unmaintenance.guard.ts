@@ -14,8 +14,8 @@ export class UnmaintenanceGuard implements CanActivate {
     private readonly router: Router,
     private readonly patch: PatchDbService,
   ) {
-    this.patch.sequence$.subscribe(_ => {
-      this.serverStatus = this.patch.data['server-info'].status
+    this.patch.watch$('server-info', 'status').subscribe(status => {
+      this.serverStatus = status
     })
   }
 

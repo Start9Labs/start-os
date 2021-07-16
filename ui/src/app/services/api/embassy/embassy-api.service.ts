@@ -66,7 +66,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   // )()
 
   // password
-  abstract updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes>
+  // abstract updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes>
 
   // notification
 

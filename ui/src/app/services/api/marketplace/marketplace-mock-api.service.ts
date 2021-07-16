@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { pauseFor } from '../../../util/misc.util'
 import { RR } from '../api.types'
 import { Mock } from '../api.fixures'
-import { HttpService } from '../../http.service'
+import { HttpService, Method } from '../../http.service'
 import { MarketplaceApiService } from './marketplace-api.service'
 import { PatchDbService } from '../../patch-db/patch-db.service'
 import { ConfigService } from '../../config.service'
@@ -20,53 +20,68 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
   // marketplace
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
-    let url = this.getMarketplaceURL('eos')
+    const url = this.getMarketplaceURL('eos')
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return Mock.MarketplaceEos
     }
-    url = `${url}/sys/version/eos`
-    return this.http.simpleGet<RR.GetMarketplaceEOSRes>(url)
+    return this.http.httpRequest<RR.GetMarketplaceEOSRes>({
+      method: Method.GET,
+      url: `${url}/eos`,
+      params,
+      withCredentials: false,
+    })
   }
 
   async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
-    let url = this.getMarketplaceURL('package')
+    const url = this.getMarketplaceURL('package')
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return {
         categories: ['featured', 'bitcoin', 'lightning', 'data', 'messaging', 'social', 'alt coin'],
       }
     }
-    url = `${url}/data`
-    return this.http.simpleGet<RR.GetMarketplaceDataRes>(url)
+    return this.http.httpRequest<RR.GetMarketplaceDataRes>({
+      method: Method.GET,
+      url: `${url}/data`,
+      params,
+      withCredentials: false,
+    })
   }
 
   async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
-    let url = this.getMarketplaceURL('package', params.ids?.length > 1)
-    const threadParams = {
-      ...params,
-      ids: JSON.stringify(params.ids),
-    }
+    const url = this.getMarketplaceURL('package', params.ids?.length > 1)
     if (this.useLocal(url)) {
       await pauseFor(2000)
-      return Mock.AvailableList
+      return Mock.MarketplacePkgsList
     }
-    url = `${url}/packages`
-    return this.http.simpleGet<RR.GetMarketplacePackagesRes>(url, threadParams)
+    return this.http.httpRequest<RR.GetMarketplacePackagesRes>({
+      method: Method.GET,
+      url: `${url}/packages`,
+      params: {
+        ...params,
+        ids: JSON.stringify(params.ids),
+      },
+      withCredentials: false,
+    })
   }
 
   async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
-    let url = this.getMarketplaceURL('package')
+    const url = this.getMarketplaceURL('package')
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return Mock.ReleaseNotes
     }
-    url = `${url}/release-notes`
-    return this.http.simpleGet<RR.GetReleaseNotesRes>(url, params)
+    return this.http.httpRequest<RR.GetReleaseNotesRes>({
+      method: Method.GET,
+      url: `${url}/release-notes`,
+      params,
+      withCredentials: false,
+    })
   }
 
   async getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes> {
-    let url = this.getMarketplaceURL('package', params.ids?.length > 1)
+    const url = this.getMarketplaceURL('package', params.ids?.length > 1)
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return params.ids.reduce((obj, id) => {
@@ -74,8 +89,13 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
         return obj
       }, { })
     }
-    url = `${url}/latest-version`
-    return this.http.simpleGet<RR.GetLatestVersionRes>(url)
+
+    return this.http.httpRequest<RR.GetLatestVersionRes>({
+      method: Method.GET,
+      url: `${url}/latest-version`,
+      params,
+      withCredentials: false,
+    })
   }
 
   private useLocal (url: string): boolean {
