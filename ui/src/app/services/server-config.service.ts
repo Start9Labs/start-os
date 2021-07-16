@@ -43,12 +43,12 @@ export class ServerConfigService {
     eosMarketplace: async (enabled: boolean) => {
       return this.apiService.setEosMarketplace(enabled)
     },
-    packageMarketplace: async (url: string) => {
-      return this.apiService.setPackageMarketplace({ url })
-    },
-    password: async (password: string) => {
-      return this.apiService.updatePassword({ password })
-    },
+    // packageMarketplace: async (url: string) => {
+    //   return this.apiService.setPackageMarketplace({ url })
+    // },
+    // password: async (password: string) => {
+    //   return this.apiService.updatePassword({ password })
+    // },
   }
 }
 
@@ -76,27 +76,27 @@ const serverConfig: ConfigSpec = {
     description: `Use Start9's Tor Hidden Service Marketplace (instead of clearnet).`,
     default: false,
   },
-  packageMarketplace: {
-    type: 'string',
-    name: 'Package Marketplace',
-    description: `Use for alternative embassy marketplace. Leave empty to use start9's marketplace.`,
-    nullable: true,
-    // @TODO regex for URL
-    // pattern: '',
-    patternDescription: 'Must be a valid URL.',
-    masked: false,
-    copyable: false,
-  },
-  password: {
-    type: 'string',
-    name: 'Change Password',
-    description: `Your Embassy's master password, used for authentication and disk encryption.`,
-    nullable: false,
-    // @TODO regex for 12 chars
-    // pattern: '',
-    patternDescription: 'Must contain at least 12 characters.',
-    changeWarning: 'If you forget your master password, there is absolutely no way to recover your data. This can result in loss of money! Keep in mind, old backups will still be encrypted by the password used to encrypt them.',
-    masked: false,
-    copyable: false,
-  },
+  // packageMarketplace: {
+  //   type: 'string',
+  //   name: 'Package Marketplace',
+  //   description: `Use for alternative embassy marketplace. Leave empty to use start9's marketplace.`,
+  //   nullable: true,
+  //   // @TODO regex for URL
+  //   // pattern: '',
+  //   patternDescription: 'Must be a valid URL.',
+  //   masked: false,
+  //   copyable: false,
+  // },
+  // password: {
+  //   type: 'string',
+  //   name: 'Change Password',
+  //   description: `Your Embassy's master password, used for authentication and disk encryption.`,
+  //   nullable: false,
+  //   // @TODO regex for 12 chars
+  //   // pattern: '',
+  //   patternDescription: 'Must contain at least 12 characters.',
+  //   changeWarning: 'If you forget your master password, there is absolutely no way to recover your data. This can result in loss of money! Keep in mind, old backups will still be encrypted by the password used to encrypt them.',
+  //   masked: false,
+  //   copyable: false,
+  // },
 }

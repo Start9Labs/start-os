@@ -138,17 +138,17 @@ export class MockApiService extends ApiService {
     return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
   }
 
-  async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
-    await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/server-info/package-marketplace',
-        value: params.url,
-      },
-    ]
-    return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
-  }
+  // async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
+  //   await pauseFor(2000)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: '/server-info/package-marketplace',
+  //       value: params.url,
+  //     },
+  //   ]
+  //   return this.http.rpcRequest({ method: 'db.patch', params: { patch } })
+  // }
 
   // password
   async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
