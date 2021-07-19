@@ -36,6 +36,12 @@ pub fn pack(#[context] ctx: EitherContext, #[arg] path: Option<PathBuf>) -> Resu
         let mut s = String::new();
         File::open(path.join("manifest.toml"))?.read_to_string(&mut s)?;
         serde_toml::from_str(&s).with_kind(crate::ErrorKind::Deserialization)?
+    } else if path.join("manifest.yaml").exists() {
+        serde_yaml::from_reader(File::open(path.join("manifest.yaml"))?)
+            .with_kind(crate::ErrorKind::Deserialization)?
+    } else if path.join("manifest.json").exists() {
+        serde_json::from_reader(File::open(path.join("manifest.json"))?)
+            .with_kind(crate::ErrorKind::Deserialization)?
     } else {
         return Err(Error::new(
             anyhow!("manifest not found"),
