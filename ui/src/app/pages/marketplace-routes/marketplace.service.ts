@@ -49,7 +49,10 @@ export class MarketplaceService {
   }
 
   async getPkg (id: string, version?: string): Promise<void> {
-    const pkg = (await this.marketplaceApi.getMarketplacePkgs({ ids: [{ id, version }]}))[0]
+    const pkgs = await this.marketplaceApi.getMarketplacePkgs({
+      ids: [{ id, version: version || '*' }],
+    })
+    const pkg = pkgs[0]
     if (pkg) {
       this.pkgs[id] = pkg
     } else {
