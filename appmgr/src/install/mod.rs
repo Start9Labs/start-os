@@ -355,7 +355,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .await?;
     log::info!("Install {}@{}: Unpacked Docker Images", pkg_id, version,);
 
-    progress.read_complete.store(true, Ordering::SeqCst);
+    progress.unpack_complete.store(true, Ordering::SeqCst);
 
     progress_model.put(&mut ctx.db.handle(), &progress).await?;
 
