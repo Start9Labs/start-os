@@ -28,11 +28,21 @@ impl ManagerMap {
     pub async fn init<Db: DbHandle, Ex>(
         db: &mut Db,
         secrets: &mut Ex,
-        net_ctl: &NetController,
+        docker: Docker,
+        net_ctl: Arc<NetController>,
     ) -> Result<Self, Error>
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
     {
+        // let mut res = ManagerMap(RwLock::new(HashMap::new()));
+        // for package in crate::db::DatabaseModel::new()
+        //     .package_data()
+        //     .keys(db, true)
+        //     .await?
+        // {
+        //     let man = crate::db::DatabaseModel::new().package_data().idx_model(&package).
+        //     res.add(docker.clone(), net_ctl.clone(), manifest, tor_keys)
+        // }
         todo!()
     }
 
@@ -114,7 +124,7 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
             )
             .await
     });
-    let mut ip = None::<Ipv4Addr>;
+    let mut ip;
     loop {
         match state
             .docker
@@ -137,7 +147,7 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
         match futures::poll!(&mut runtime) {
             Poll::Ready(res) => {
                 return res
-                    .map_err(|e| {
+                    .map_err(|_| {
                         Error::new(
                             anyhow!("Manager runtime panicked!"),
                             crate::ErrorKind::Docker,
@@ -186,17 +196,20 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
         .await?;
     let res = runtime
         .await
-        .map_err(|e| {
+        .map_err(|_| {
             Error::new(
                 anyhow!("Manager runtime panicked!"),
                 crate::ErrorKind::Docker,
             )
         })
         .and_then(|a| a);
-    state.net_ctl.remove(
-        &state.manifest.id,
-        state.manifest.interfaces.0.keys().cloned(),
-    );
+    state
+        .net_ctl
+        .remove(
+            &state.manifest.id,
+            state.manifest.interfaces.0.keys().cloned(),
+        )
+        .await?;
     res
 }
 
