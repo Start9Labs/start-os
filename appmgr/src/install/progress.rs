@@ -21,8 +21,8 @@ pub struct InstallProgress {
     pub download_complete: AtomicBool,
     pub validated: AtomicU64,
     pub validation_complete: AtomicBool,
-    pub read: AtomicU64,
-    pub read_complete: AtomicBool,
+    pub unpacked: AtomicU64,
+    pub unpack_complete: AtomicBool,
 }
 impl InstallProgress {
     pub fn new(size: Option<u64>) -> Arc<Self> {
@@ -32,8 +32,8 @@ impl InstallProgress {
             download_complete: AtomicBool::new(false),
             validated: AtomicU64::new(0),
             validation_complete: AtomicBool::new(false),
-            read: AtomicU64::new(0),
-            read_complete: AtomicBool::new(false),
+            unpacked: AtomicU64::new(0),
+            unpack_complete: AtomicBool::new(false),
         })
     }
     pub fn download_complete(&self) {
@@ -182,7 +182,7 @@ impl<R: AsyncRead> AsyncRead for InstallProgressTracker<R> {
                 if *this.validating {
                     &this.progress.validated
                 } else {
-                    &this.progress.read
+                    &this.progress.unpacked
                 }
                 .fetch_add(buf.filled().len() as u64 - prev, Ordering::SeqCst);
 
@@ -204,7 +204,7 @@ impl<R: AsyncSeek> AsyncSeek for InstallProgressTracker<R> {
                 if *this.validating {
                     &this.progress.validated
                 } else {
-                    &this.progress.read
+                    &this.progress.unpacked
                 }
                 .store(n, Ordering::SeqCst);
                 Poll::Ready(Ok(n))

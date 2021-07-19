@@ -65,6 +65,7 @@ impl RpcContext {
                 .display()
         ))
         .await?;
+        let docker = Docker::connect_with_unix_defaults()?;
         let net_controller = Arc::new(
             NetController::init(
                 base.tor_control
@@ -75,7 +76,8 @@ impl RpcContext {
         let managers = ManagerMap::init(
             &mut db.handle(),
             &mut secret_store.acquire().await?,
-            &*net_controller,
+            docker.clone(),
+            net_controller.clone(),
         )
         .await?;
         let seed = Arc::new(RpcContextSeed {
@@ -83,7 +85,7 @@ impl RpcContext {
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             db,
             secret_store,
-            docker: Docker::connect_with_unix_defaults()?,
+            docker,
             net_controller,
             managers,
         });
