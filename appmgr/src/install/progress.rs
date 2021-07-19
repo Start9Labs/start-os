@@ -43,18 +43,13 @@ impl InstallProgress {
         self: Arc<Self>,
         model: OptionModel<InstallProgress>,
         mut db: Db,
-    ) -> (Db, Result<(), Error>) {
+    ) -> Result<(), Error> {
         while !self.download_complete.load(Ordering::SeqCst) {
-            if let Err(e) = model.put(&mut db, &self).await {
-                return (db, Err(e.into()));
-            }
+            model.put(&mut db, &self).await?;
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
-        if let Err(e) = model.put(&mut db, &self).await {
-            (db, Err(e.into()))
-        } else {
-            (db, Ok(()))
-        }
+        model.put(&mut db, &self).await?;
+        Ok(())
     }
     pub async fn track_download_during<
         F: FnOnce() -> Fut,
@@ -64,16 +59,13 @@ impl InstallProgress {
         self: &Arc<Self>,
         model: OptionModel<InstallProgress>,
         db: &PatchDb,
-        handle: &mut PatchDbHandle,
         f: F,
     ) -> Result<T, Error> {
-        let local_db = std::mem::replace(handle, db.handle());
+        let local_db = db.handle();
         let tracker = tokio::spawn(self.clone().track_download(model.clone(), local_db));
         let res = f().await;
         self.download_complete.store(true, Ordering::SeqCst);
-        let (local_db, tracker_res) = tracker.await.unwrap();
-        let _ = std::mem::replace(handle, local_db);
-        tracker_res?;
+        tracker.await.unwrap()?;
         res
     }
     pub async fn track_read<Db: DbHandle>(
@@ -81,14 +73,13 @@ impl InstallProgress {
         model: OptionModel<InstallProgress>,
         mut db: Db,
         complete: Arc<AtomicBool>,
-    ) -> (Db, Result<(), Error>) {
+    ) -> Result<(), Error> {
         while !complete.load(Ordering::SeqCst) {
-            if let Err(e) = model.put(&mut db, &self).await {
-                return (db, Err(e.into()));
-            }
+            model.put(&mut db, &self).await?;
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
-        (db, Ok(()))
+        model.put(&mut db, &self).await?;
+        Ok(())
     }
     pub async fn track_read_during<
         F: FnOnce() -> Fut,
@@ -98,10 +89,9 @@ impl InstallProgress {
         self: &Arc<Self>,
         model: OptionModel<InstallProgress>,
         db: &PatchDb,
-        handle: &mut PatchDbHandle,
         f: F,
     ) -> Result<T, Error> {
-        let local_db = std::mem::replace(handle, db.handle());
+        let local_db = db.handle();
         let complete = Arc::new(AtomicBool::new(false));
         let tracker = tokio::spawn(self.clone().track_read(
             model.clone(),
@@ -110,9 +100,7 @@ impl InstallProgress {
         ));
         let res = f().await;
         complete.store(true, Ordering::SeqCst);
-        let (local_db, tracker_res) = tracker.await.unwrap();
-        let _ = std::mem::replace(handle, local_db);
-        tracker_res?;
+        tracker.await.unwrap()?;
         res
     }
 }

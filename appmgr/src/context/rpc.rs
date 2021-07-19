@@ -93,7 +93,7 @@ impl RpcContext {
         Ok(crate::db::DatabaseModel::new()
             .server_info()
             .registry()
-            .get(&mut self.db.handle())
+            .get(&mut self.db.handle(), false)
             .await?
             .to_owned())
     }
