@@ -19,7 +19,7 @@ export class WifiAddPage {
   constructor (
     private readonly navCtrl: NavController,
     private readonly errToast: ErrorToastService,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly loader: LoaderService,
     private readonly wifiService: WifiService,
   ) { }
@@ -30,7 +30,7 @@ export class WifiAddPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync(async () => {
-      await this.apiService.addWifi({
+      await this.embassyApi.addWifi({
         ssid: this.ssid,
         password: this.password,
         country: this.countryCode,
@@ -50,7 +50,7 @@ export class WifiAddPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync(async () => {
-      await this.apiService.addWifi({
+      await this.embassyApi.addWifi({
         ssid: this.ssid,
         password: this.password,
         country: this.countryCode,

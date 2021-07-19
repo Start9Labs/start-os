@@ -50,7 +50,7 @@ export class AppConfigPage {
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
     private readonly wizardBaker: WizardBaker,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly loader: LoaderService,
     private readonly alertCtrl: AlertController,
     private readonly modalController: ModalController,
@@ -86,12 +86,12 @@ export class AppConfigPage {
       .pipe(
         tap(pkg => this.pkg = pkg),
         tap(() => this.loadingText = 'Fetching config spec...'),
-        concatMap(() => this.apiService.getPackageConfig({ id: pkgId })),
+        concatMap(() => this.embassyApi.getPackageConfig({ id: pkgId })),
         concatMap(({ spec, config }) => {
           const rec = history.state && history.state.configRecommendation as Recommendation
           if (rec) {
             this.loadingText = `Setting properties to accommodate ${rec.dependentTitle}...`
-            return from(this.apiService.dryConfigureDependency({ 'dependency-id': pkgId, 'dependent-id': rec.dependentId }))
+            return from(this.embassyApi.dryConfigureDependency({ 'dependency-id': pkgId, 'dependent-id': rec.dependentId }))
             .pipe(
               map(res => ({
                 spec,
@@ -162,7 +162,7 @@ export class AppConfigPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync(async () => {
-      const breakages = await this.apiService.drySetPackageConfig({ id: pkg.manifest.id, config: this.config })
+      const breakages = await this.embassyApi.drySetPackageConfig({ id: pkg.manifest.id, config: this.config })
 
       if (!isEmptyObject(breakages.length)) {
         const { cancelled } = await wizardModal(
@@ -175,7 +175,7 @@ export class AppConfigPage {
         if (cancelled) return { skip: true }
       }
 
-      return this.apiService.setPackageConfig({ id: pkg.manifest.id, config: this.config })
+      return this.embassyApi.setPackageConfig({ id: pkg.manifest.id, config: this.config })
         .then(() => ({ skip: false }))
     })
     .then(({ skip }) => {

@@ -9,7 +9,7 @@
 
 <ion-content>
 
-  <ion-card>
+  <ion-card *ngIf="mainStatus">
     <ion-card-header>
       <ion-card-title>
         <ion-icon style="vertical-align: middle; padding-right: 12px;" name="medkit-outline"></ion-icon>
@@ -17,15 +17,15 @@
       </ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <ion-item *ngIf="pkg.installed?.status.main.health | empty; else health">
+      <ion-item *ngIf="mainStatus.health | empty; else health">
         <ion-label>
           No health checks
         </ion-label>
       </ion-item>
       <ng-template #health>
-        <ion-item *ngIf="!(pkg.installed?.status.main.health | empty); else noHealth" color="light" style="margin: 10px;">
+        <ion-item *ngIf="!(mainStatus.health | empty); else noHealth" color="light" style="margin: 10px;">
           <ion-label>
-            <div *ngFor="let health of pkg.installed.status.main.health | keyvalue : asIsOrder" class="align" style="margin-left: 12px;">
+            <div *ngFor="let health of mainStatus.health | keyvalue : asIsOrder" class="align" style="margin-left: 12px;">
               <ion-icon *ngIf="health.value.result === 'success'" name="checkmark-outline" color="success"></ion-icon>
               <ion-icon *ngIf="health.value.result === 'starting'" name="timer-outline" color="warning"></ion-icon>
               <ion-icon *ngIf="health.value.result === 'loading'" name="sync-circle-outline" color="warning"></ion-icon>

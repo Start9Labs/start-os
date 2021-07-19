@@ -17,12 +17,12 @@ export class MarkdownPage {
   constructor (
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
   ) { }
 
   async ngOnInit () {
     try {
-      this.content = await this.apiService.getStatic(this.contentUrl)
+      this.content = await this.embassyApi.getStatic(this.contentUrl)
     } catch (e) {
       console.error(e.message)
       this.errToast.present(e.message)

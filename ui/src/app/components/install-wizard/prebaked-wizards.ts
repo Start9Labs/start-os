@@ -8,7 +8,7 @@ import { InstallWizardComponent, SlideDefinition, TopbarParams } from './install
 @Injectable({ providedIn: 'root' })
 export class WizardBaker {
   constructor (
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
   ) { }
 
   install (values: {
@@ -43,7 +43,7 @@ export class WizardBaker {
             action,
             verb: 'beginning installation for',
             title,
-            executeAction: () => this.apiService.installPackage({ id, version }),
+            executeAction: () => this.embassyApi.installPackage({ id, version }),
           },
         },
         bottomBar: {
@@ -89,7 +89,7 @@ export class WizardBaker {
             action,
             verb: 'updating',
             title,
-            fetchBreakages: () => this.apiService.dryUpdatePackage({ id, version }).then(breakages => breakages),
+            fetchBreakages: () => this.embassyApi.dryUpdatePackage({ id, version }).then(breakages => breakages),
           },
         },
         bottomBar: {
@@ -104,7 +104,7 @@ export class WizardBaker {
             action,
             verb: 'beginning update for',
             title,
-            executeAction: () => this.apiService.installPackage({ id, version }),
+            executeAction: () => this.embassyApi.installPackage({ id, version }),
           },
         },
         bottomBar: {
@@ -149,7 +149,7 @@ export class WizardBaker {
             action,
             verb: 'beginning update for',
             title,
-            executeAction: () => this.apiService.updateServer({ }),
+            executeAction: () => this.embassyApi.updateServer({ }),
           },
         },
         bottomBar: {
@@ -191,7 +191,7 @@ export class WizardBaker {
             action,
             verb: 'downgrading',
             title,
-            fetchBreakages: () => this.apiService.dryUpdatePackage({ id, version }).then(breakages => breakages),
+            fetchBreakages: () => this.embassyApi.dryUpdatePackage({ id, version }).then(breakages => breakages),
           },
         },
         bottomBar: {
@@ -204,7 +204,7 @@ export class WizardBaker {
             action,
             verb: 'beginning downgrade for',
             title,
-            executeAction: () => this.apiService.installPackage({ id, version }),
+            executeAction: () => this.embassyApi.installPackage({ id, version }),
           },
         },
         bottomBar: {
@@ -246,7 +246,7 @@ export class WizardBaker {
             action,
             verb: 'uninstalling',
             title,
-            fetchBreakages: () => this.apiService.dryRemovePackage({ id }).then(breakages => breakages),
+            fetchBreakages: () => this.embassyApi.dryRemovePackage({ id }).then(breakages => breakages),
           },
         },
         bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Uninstall' },
@@ -258,7 +258,7 @@ export class WizardBaker {
             action,
             verb: 'uninstalling',
             title,
-            executeAction: () => this.apiService.removePackage({ id }),
+            executeAction: () => this.embassyApi.removePackage({ id }),
           },
         },
         bottomBar: { finish: 'Dismiss', cancel: { whileLoading: { } } },

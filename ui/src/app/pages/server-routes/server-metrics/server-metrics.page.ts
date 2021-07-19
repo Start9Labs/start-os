@@ -16,7 +16,7 @@ export class ServerMetricsPage {
 
   constructor (
     private readonly errToast: ErrorToastService,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
   ) { }
 
   ngOnInit () {
@@ -41,7 +41,7 @@ export class ServerMetricsPage {
 
   async getMetrics (): Promise<void> {
     try {
-      this.metrics = await this.apiService.getServerMetrics({ })
+      this.metrics = await this.embassyApi.getServerMetrics({ })
     } catch (e) {
       console.error(e)
       this.errToast.present(e.message)

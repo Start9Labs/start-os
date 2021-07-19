@@ -2,8 +2,9 @@ import { Injectable } from '@angular/core'
 import { BehaviorSubject, combineLatest, fromEvent, merge, Subscription } from 'rxjs'
 import { ConnectionStatus, PatchDbService } from './patch-db/patch-db.service'
 import { HttpService, Method } from './http.service'
-import { distinctUntilChanged } from 'rxjs/operators'
+import { distinctUntilChanged, takeWhile } from 'rxjs/operators'
 import { ConfigService } from './config.service'
+import { AuthState } from './auth.service'
 
 @Injectable({
   providedIn: 'root',
@@ -23,16 +24,35 @@ export class ConnectionService {
     return this.connectionFailure$.asObservable()
   }
 
-  start () {
+  start (auth: AuthState) {
     this.subs = [
       merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
+      .pipe(
+        takeWhile(() => auth === AuthState.VERIFIED),
+      )
       .subscribe(event => {
         this.networkState$.next(event.type === 'online')
       }),
 
-      combineLatest([this.networkState$.pipe(distinctUntilChanged()), this.patch.watchConnection$().pipe(distinctUntilChanged())])
-      .subscribe(async ([network, connectionStatus]) => {
-        const addrs = this.patch.data['server-info']['connection-addresses']
+      combineLatest([
+        // 1
+        this.networkState$
+        .pipe(
+          distinctUntilChanged(),
+        ),
+        // 2
+        this.patch.watchConnection$()
+        .pipe(
+          distinctUntilChanged(),
+        ),
+        // 3
+        this.patch.watch$('server-info', 'connection-addresses')
+        .pipe(
+          takeWhile(() => auth === AuthState.VERIFIED),
+          distinctUntilChanged(),
+        ),
+      ])
+      .subscribe(async ([network, connectionStatus, addrs]) => {
         if (connectionStatus !== ConnectionStatus.Disconnected) {
           this.connectionFailure$.next(ConnectionFailure.None)
         } else if (!network) {
@@ -59,13 +79,6 @@ export class ConnectionService {
         }
       }),
     ]
-  }
-
-  stop () {
-    this.subs.forEach(sub => {
-      sub.unsubscribe()
-    })
-    this.subs = []
   }
 
   private async testAddrs (addrs: string[]): Promise<boolean> {

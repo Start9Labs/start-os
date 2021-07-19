@@ -1,7 +1,7 @@
 import { Inject, Injectable, InjectionToken } from '@angular/core'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
 import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
-import { catchError, debounceTime, finalize, map, tap } from 'rxjs/operators'
+import { catchError, debounceTime, distinctUntilChanged, finalize, map, tap } from 'rxjs/operators'
 import { ApiService } from '../api/embassy/embassy-api.service'
 import { DataModel } from './data-model'
 
@@ -82,7 +82,8 @@ export class PatchDbService {
 
   watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
     console.log('WATCHING', ...args)
-    return this.patchDb.store.watch$(...(args as [])).pipe(
+    return this.patchDb.store.watch$(...(args as []))
+    .pipe(
       tap(cache => console.log('CHANGE IN STORE', cache)),
       catchError(e => {
         console.error(e)

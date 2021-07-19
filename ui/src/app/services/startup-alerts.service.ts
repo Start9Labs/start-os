@@ -5,17 +5,21 @@ import { WizardBaker } from '../components/install-wizard/prebaked-wizards'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
 import { displayEmver } from '../pipes/emver.pipe'
 import { RR } from './api/api.types'
-import { PatchDbService } from './patch-db/patch-db.service'
 import { ConfigService } from './config.service'
 import { Emver } from './emver.service'
 import { MarketplaceService } from '../pages/marketplace-routes/marketplace.service'
 import { MarketplaceApiService } from './api/marketplace/marketplace-api.service'
+import { DataModel, PackageDataEntry } from './patch-db/data-model'
+import { PatchDbService } from './patch-db/patch-db.service'
+import { filter, take } from 'rxjs/operators'
+import { isEmptyObject } from '../util/misc.util'
 
 @Injectable({
   providedIn: 'root',
 })
 export class StartupAlertsService {
   private checks: Check<any>[]
+  data: DataModel
 
   constructor (
     private readonly alertCtrl: AlertController,
@@ -57,7 +61,14 @@ export class StartupAlertsService {
   // Each promise fires more or less concurrently, so each c.check(server) is run concurrently
   // Then, since we await previousDisplay before c.display(res), each promise executing gets hung awaiting the display of the previous run
   async runChecks (): Promise<void> {
-    await this.checks
+    this.patch.watch$()
+    .pipe(
+      filter(data => !isEmptyObject(data)),
+      take(1),
+    )
+    .subscribe(async data => {
+      this.data = data
+      await this.checks
       .filter(c => !c.hasRun && c.shouldRun())
       // returning true in the below block means to continue to next modal
       // returning false means to skip all subsequent modals
@@ -76,18 +87,19 @@ export class StartupAlertsService {
         if (!checkRes) return true
         if (displayRes) return c.display(checkRes)
       }, Promise.resolve(true))
+    })
   }
 
   private shouldRunOsWelcome (): boolean {
-    return this.patch.data.ui['welcome-ack'] !== this.config.version
+    return this.data.ui['welcome-ack'] !== this.config.version
   }
 
   private shouldRunOsUpdateCheck (): boolean {
-    return this.patch.data.ui['auto-check-updates']
+    return this.data.ui['auto-check-updates']
   }
 
   private shouldRunAppsCheck (): boolean {
-    return this.patch.data.ui['auto-check-updates']
+    return this.data.ui['auto-check-updates']
   }
 
   private async osUpdateCheck (): Promise<RR.GetMarketplaceEOSRes | undefined> {
@@ -101,8 +113,8 @@ export class StartupAlertsService {
   }
 
   private async appsCheck (): Promise<boolean> {
-    const updates = await this.marketplaceService.getUpdates(this.patch.data['package-data'])
-    return !!updates.length
+    await this.marketplaceService.getUpdates(this.data['package-data'])
+    return !!this.marketplaceService.updates.length
   }
 
   private async displayOsWelcome (): Promise<boolean> {
