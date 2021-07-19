@@ -161,7 +161,7 @@ pub async fn get(
         .clone()
         .manifest()
         .config()
-        .get(&mut db)
+        .get(&mut db, true)
         .await?
         .to_owned()
         .ok_or_else(|| {
@@ -170,8 +170,13 @@ pub async fn get(
                 crate::ErrorKind::NotFound,
             )
         })?;
-    let version = pkg_model.clone().manifest().version().get(&mut db).await?;
-    let volumes = pkg_model.manifest().volumes().get(&mut db).await?;
+    let version = pkg_model
+        .clone()
+        .manifest()
+        .version()
+        .get(&mut db, true)
+        .await?;
+    let volumes = pkg_model.manifest().volumes().get(&mut db, true).await?;
     action.get(ctx.extension(), &*version, &*volumes).await
 }
 
@@ -295,15 +300,20 @@ pub fn configure<'a, Db: DbHandle>(
             .clone()
             .manifest()
             .config()
-            .get(db)
+            .get(db, true)
             .await?
             .to_owned()
             .ok_or_else(|| {
                 Error::new(anyhow!("{} has no config", id), crate::ErrorKind::NotFound)
             })?;
-        let version = pkg_model.clone().manifest().version().get(db).await?;
-        let dependencies = pkg_model.clone().manifest().dependencies().get(db).await?;
-        let volumes = pkg_model.clone().manifest().volumes().get(db).await?;
+        let version = pkg_model.clone().manifest().version().get(db, true).await?;
+        let dependencies = pkg_model
+            .clone()
+            .manifest()
+            .dependencies()
+            .get(db, true)
+            .await?;
+        let volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
 
         // get current config and current spec
         let ConfigRes {
@@ -406,7 +416,7 @@ pub fn configure<'a, Db: DbHandle>(
         overrides.insert(id.clone(), config.clone());
 
         // handle dependents
-        let dependents = pkg_model.clone().current_dependents().get(db).await?;
+        let dependents = pkg_model.clone().current_dependents().get(db, true).await?;
         let prev = old_config.map(Value::Object).unwrap_or_default();
         let next = Value::Object(config.clone());
         for (dependent, dep_info) in &*dependents {
@@ -447,12 +457,12 @@ pub fn configure<'a, Db: DbHandle>(
                                 .idx_model(dependency)
                                 .expect(db)
                                 .await?
-                                .get(db)
+                                .get(db, true)
                                 .await?
                                 .critical
                             {
                                 status.main.stop();
-                                let dependents = model.current_dependents().get(db).await?;
+                                let dependents = model.current_dependents().get(db, true).await?;
                                 for (dependent, _) in &*dependents {
                                     let dependent_model = crate::db::DatabaseModel::new()
                                         .package_data()
@@ -496,10 +506,15 @@ pub fn configure<'a, Db: DbHandle>(
                 .expect(db)
                 .await?
                 .config()
-                .get(db)
+                .get(db, true)
                 .await?
             {
-                let version = dependent_model.clone().manifest().version().get(db).await?;
+                let version = dependent_model
+                    .clone()
+                    .manifest()
+                    .version()
+                    .get(db, true)
+                    .await?;
                 if let Err(error) = cfg.check(dependent, &*version, &config).await? {
                     let dep_err = DependencyError::ConfigUnsatisfied { error };
                     handle_broken_dependents(

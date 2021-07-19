@@ -74,8 +74,6 @@ pub async fn download_install_s9pk(
     let pkg_id = &temp_manifest.id;
     let version = &temp_manifest.version;
 
-    let mut db = ctx.db.handle();
-
     let pkg_cache_dir = Path::new(PKG_CACHE).join(pkg_id).join(version.as_str());
     tokio::fs::create_dir_all(&pkg_cache_dir).await?;
     let pkg_cache = AsRef::<Path>::as_ref(pkg_id).with_extension("s9pk");
@@ -87,7 +85,8 @@ pub async fn download_install_s9pk(
     let res = (|| async {
         let progress = InstallProgress::new(s9pk.content_length());
         let static_files = StaticFiles::remote(pkg_id, version, temp_manifest.assets.icon_type());
-        let mut pde = pkg_data_entry.get_mut(&mut db).await?;
+        let mut db_handle = ctx.db.handle();
+        let mut pde = pkg_data_entry.get_mut(&mut db_handle).await?;
         match pde.take() {
             Some(PackageDataEntry::Installed {
                 installed,
@@ -115,7 +114,8 @@ pub async fn download_install_s9pk(
                 ))
             }
         }
-        pde.save(&mut db).await?;
+        pde.save(&mut db_handle).await?;
+        drop(db_handle);
         let progress_model = pkg_data_entry.and_then(|pde| pde.install_progress());
 
         async fn check_cache(
@@ -153,9 +153,7 @@ pub async fn download_install_s9pk(
                 pkg_id,
                 version,
                 progress
-                    .track_read_during(model, &ctx.db, db, || {
-                        S9pkReader::from_reader(progress_reader)
-                    })
+                    .track_read_during(model, &ctx.db, || S9pkReader::from_reader(progress_reader))
                     .await,
             )?;
             if hash.as_bytes() == rdr.hash_str().as_bytes() {
@@ -172,7 +170,7 @@ pub async fn download_install_s9pk(
             &progress,
             progress_model.clone(),
             &ctx,
-            &mut db,
+            &mut ctx.db.handle(),
         )
         .await;
 
@@ -188,7 +186,7 @@ pub async fn download_install_s9pk(
                 .await?;
 
             progress
-                .track_download_during(progress_model.clone(), &ctx.db, &mut db, || async {
+                .track_download_during(progress_model.clone(), &ctx.db, || async {
                     let mut progress_writer =
                         InstallProgressTracker::new(&mut dst, progress.clone());
                     tokio::io::copy(
@@ -216,25 +214,26 @@ pub async fn download_install_s9pk(
 
             let progress_reader = InstallProgressTracker::new(dst, progress.clone());
             let rdr = progress
-                .track_read_during(progress_model.clone(), &ctx.db, &mut db, || {
+                .track_read_during(progress_model.clone(), &ctx.db, || {
                     S9pkReader::from_reader(progress_reader)
                 })
                 .await?;
             rdr
         };
-        install_s9pk(&ctx, &mut db, pkg_id, version, &mut s9pk_reader, progress).await?;
+        install_s9pk(&ctx, pkg_id, version, &mut s9pk_reader, progress).await?;
 
         Ok(())
     })()
     .await;
 
     if let Err(e) = res {
+        let mut handle = ctx.db.handle();
         let mut broken = crate::db::DatabaseModel::new()
             .broken_packages()
-            .get_mut(&mut db)
+            .get_mut(&mut handle)
             .await?;
         broken.push(pkg_id.clone());
-        broken.save(&mut db).await?;
+        broken.save(&mut handle).await?;
         Err(e)
     } else {
         Ok(())
@@ -243,7 +242,6 @@ pub async fn download_install_s9pk(
 
 pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     ctx: &RpcContext,
-    mut db: &mut PatchDbHandle,
     pkg_id: &PackageId,
     version: &Version,
     rdr: &mut S9pkReader<InstallProgressTracker<R>>,
@@ -254,7 +252,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let model = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(pkg_id)
-        .check(db)
+        .check(&mut ctx.db.handle())
         .await?
         .ok_or_else(|| {
             Error::new(
@@ -266,7 +264,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
 
     log::info!("Install {}@{}: Unpacking Manifest", pkg_id, version);
     let manifest = progress
-        .track_read_during(progress_model.clone(), &ctx.db, db, || rdr.manifest())
+        .track_read_during(progress_model.clone(), &ctx.db, || rdr.manifest())
         .await?;
     log::info!("Install {}@{}: Unpacked Manifest", pkg_id, version);
 
@@ -277,7 +275,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
 
     log::info!("Install {}@{}: Unpacking LICENSE.md", pkg_id, version);
     progress
-        .track_read_during(progress_model.clone(), &ctx.db, db, || async {
+        .track_read_during(progress_model.clone(), &ctx.db, || async {
             let license_path = public_dir_path.join("LICENSE.md");
             let mut dst = File::create(&license_path).await?;
             tokio::io::copy(&mut rdr.license().await?, &mut dst).await?;
@@ -289,7 +287,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
 
     log::info!("Install {}@{}: Unpacking INSTRUCTIONS.md", pkg_id, version);
     progress
-        .track_read_during(progress_model.clone(), &ctx.db, db, || async {
+        .track_read_during(progress_model.clone(), &ctx.db, || async {
             let instructions_path = public_dir_path.join("INSTRUCTIONS.md");
             let mut dst = File::create(&instructions_path).await?;
             tokio::io::copy(&mut rdr.instructions().await?, &mut dst).await?;
@@ -307,7 +305,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         icon_path.display()
     );
     progress
-        .track_read_during(progress_model.clone(), &ctx.db, db, || async {
+        .track_read_during(progress_model.clone(), &ctx.db, || async {
             let icon_path = public_dir_path.join(&icon_path);
             let mut dst = File::create(&icon_path).await?;
             tokio::io::copy(&mut rdr.icon().await?, &mut dst).await?;
@@ -324,7 +322,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
 
     log::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
     progress
-        .track_read_during(progress_model.clone(), &ctx.db, db, || async {
+        .track_read_during(progress_model.clone(), &ctx.db, || async {
             let mut load = tokio::process::Command::new("docker")
                 .arg("load")
                 .stdin(Stdio::piped())
@@ -359,9 +357,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
 
     progress.read_complete.store(true, Ordering::SeqCst);
 
-    progress_model.put(&mut db, &progress).await?;
+    progress_model.put(&mut ctx.db.handle(), &progress).await?;
 
-    let mut tx = db.begin().await?;
+    let mut handle = ctx.db.handle();
+    let mut tx = handle.begin().await?;
     let mut sql_tx = ctx.secret_store.begin().await?;
 
     log::info!("Install {}@{}: Creating manager", pkg_id, version);
@@ -398,7 +397,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             let mut deps = IndexMap::new();
             for package in crate::db::DatabaseModel::new()
                 .package_data()
-                .keys(&mut tx)
+                .keys(&mut tx, true)
                 .await?
             {
                 if let Some(dep) = crate::db::DatabaseModel::new()
@@ -408,7 +407,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                     .await?
                     .installed()
                     .and_then(|i| i.current_dependencies().idx_model(pkg_id))
-                    .get(&mut tx)
+                    .get(&mut tx, true)
                     .await?
                     .to_owned()
                 {

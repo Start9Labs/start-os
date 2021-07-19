@@ -1564,7 +1564,7 @@ impl PackagePointerSpec {
                     .and_then(|pde| pde.installed())
                     .and_then(|installed| installed.interface_addresses().idx_model(interface))
                     .and_then(|addresses| addresses.tor_address())
-                    .get(db)
+                    .get(db, true)
                     .await
                     .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                 Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
@@ -1576,7 +1576,7 @@ impl PackagePointerSpec {
                     .and_then(|pde| pde.installed())
                     .and_then(|installed| installed.interface_addresses().idx_model(interface))
                     .and_then(|addresses| addresses.lan_address())
-                    .get(db)
+                    .get(db, true)
                     .await
                     .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                 Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
@@ -1594,18 +1594,18 @@ impl PackagePointerSpec {
                     let version = manifest_model
                         .clone()
                         .map(|manifest| manifest.version())
-                        .get(db)
+                        .get(db, true)
                         .await
                         .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                     let cfg_actions = manifest_model
                         .clone()
                         .and_then(|manifest| manifest.config())
-                        .get(db)
+                        .get(db, true)
                         .await
                         .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                     let volumes = manifest_model
                         .map(|manifest| manifest.volumes())
-                        .get(db)
+                        .get(db, true)
                         .await
                         .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                     if let (Some(version), Some(cfg_actions), Some(volumes)) =
