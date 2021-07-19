@@ -144,8 +144,8 @@ impl DepInfo {
             .await?
         {
             (
-                dep_model.clone().manifest().get(db).await?,
-                dep_model.get(db).await?,
+                dep_model.clone().manifest().get(db, true).await?,
+                dep_model.get(db, true).await?,
             )
         } else {
             return Ok(Err(DependencyError::NotInstalled));
