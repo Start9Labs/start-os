@@ -16,7 +16,7 @@ use serde_json::Value;
 use sqlx::{Executor, Sqlite};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::{Error, ResultExt as _};
 
@@ -826,11 +826,17 @@ pub fn parse_duration(arg: &str, matches: &ArgMatches<'_>) -> Result<Duration, E
 
 pub struct Container<T>(RwLock<Option<T>>);
 impl<T> Container<T> {
-    pub fn new() -> Self {
-        Container(RwLock::new(None))
+    pub fn new(value: Option<T>) -> Self {
+        Container(RwLock::new(value))
     }
-    pub async fn set(&self, value: T) {
-        *self.0.write().await = Some(value);
+    pub async fn set(&self, value: T) -> Option<T> {
+        std::mem::replace(&mut *self.0.write().await, Some(value))
+    }
+    pub async fn take(&self) -> Option<T> {
+        std::mem::replace(&mut *self.0.write().await, None)
+    }
+    pub async fn is_empty(&self) -> bool {
+        self.0.read().await.is_none()
     }
     pub async fn drop(&self) {
         *self.0.write().await = None;

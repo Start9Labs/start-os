@@ -119,7 +119,7 @@ impl MdnsControllerInner {
         }
     }
     fn add<'a, I: IntoIterator<Item = (InterfaceId, TorSecretKeyV3)>>(
-        &self,
+        &mut self,
         pkg_id: &PackageId,
         interfaces: I,
     ) {
@@ -130,7 +130,7 @@ impl MdnsControllerInner {
         );
         self.sync();
     }
-    fn remove<I: IntoIterator<Item = InterfaceId>>(&self, pkg_id: &PackageId, interfaces: I) {
+    fn remove<I: IntoIterator<Item = InterfaceId>>(&mut self, pkg_id: &PackageId, interfaces: I) {
         for interface_id in interfaces {
             self.services.remove(&(pkg_id.clone(), interface_id));
         }
