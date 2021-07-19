@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { pauseFor } from '../../../util/misc.util'
 import { ApiService } from './embassy-api.service'
 import { Operation, PatchOp } from 'patch-db-client'
-import { PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
+import { DataModel, InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
 import { RR, WithRevision } from '../api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from '../api.fixures'
@@ -325,18 +325,19 @@ export class MockApiService extends ApiService {
 
   async installPackageRaw (params: RR.InstallPackageReq): Promise<RR.InstallPackageRes> {
     await pauseFor(2000)
+    const initialProgress: InstallProgress = {
+      size: 120,
+      downloaded: 0,
+      'download-complete': false,
+      validated: 0,
+      'validation-complete': false,
+      unpacked: 0,
+      'unpack-complete': false,
+    }
     const pkg: PackageDataEntry = {
-      ...Mock.bitcoinproxy,
+      ...Mock[params.id],
       state: PackageState.Installing,
-      'install-progress': {
-        size: 100,
-        downloaded: 10,
-        'download-complete': false,
-        validated: 1,
-        'validation-complete': true,
-        read: 50,
-        'read-complete': false,
-      },
+      'install-progress': initialProgress,
     }
     const patch = [
       {
@@ -345,7 +346,11 @@ export class MockApiService extends ApiService {
         value: pkg,
       },
     ]
-    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    setTimeout(async () => {
+      this.updateProgress(params.id, initialProgress)
+    }, 1000)
+    return res
   }
 
   async dryUpdatePackage (params: RR.DryUpdatePackageReq): Promise<RR.DryUpdatePackageRes> {
@@ -482,5 +487,46 @@ export class MockApiService extends ApiService {
   async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes> {
     await pauseFor(2000)
     return { }
+  }
+
+  private async updateProgress (id: string, initialProgress: InstallProgress) {
+    const phases = [
+      { progress: 'downloaded', completion: 'download-complete'},
+      { progress: 'validated', completion: 'validation-complete'},
+      { progress: 'unpacked', completion: 'unpack-complete'},
+    ]
+    for (let phase of phases) {
+      let i = initialProgress[phase.progress]
+      console.log('PHASE', phase)
+      console.log('Initial i', i)
+      while (i < initialProgress.size) {
+        console.log(i)
+        await pauseFor(1000)
+        i = Math.min(i + 40, initialProgress.size)
+        initialProgress[phase.progress] = i
+        if (i === initialProgress.size) {
+          initialProgress[phase.completion] = true
+        }
+        const patch = [
+          {
+            op: PatchOp.REPLACE,
+            path: `/package-data/${id}/install-progress`,
+            value: initialProgress,
+          },
+        ]
+        await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+      }
+    }
+
+    setTimeout(() => {
+      const patch = [
+        {
+          op: PatchOp.REPLACE,
+          path: `/package-data/${id}/state`,
+          value: PackageState.Installed,
+        },
+      ]
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    }, 1000)
   }
 }

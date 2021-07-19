@@ -8,7 +8,6 @@ import { TruncateCenterPipe, TruncateEndPipe } from '../pipes/truncate.pipe'
 import { MaskPipe } from '../pipes/mask.pipe'
 import { HasUiPipe, LaunchablePipe } from '../pipes/ui.pipe'
 import { EmptyPipe } from '../pipes/empty.pipe'
-import { StatusPipe } from '../pipes/status.pipe'
 import { NotificationColorPipe } from '../pipes/notification-color.pipe'
 
 @NgModule({
@@ -26,7 +25,6 @@ import { NotificationColorPipe } from '../pipes/notification-color.pipe'
         HasUiPipe,
         LaunchablePipe,
         EmptyPipe,
-        StatusPipe,
         NotificationColorPipe,
     ],
     imports: [],
@@ -44,7 +42,6 @@ import { NotificationColorPipe } from '../pipes/notification-color.pipe'
         HasUiPipe,
         LaunchablePipe,
         EmptyPipe,
-        StatusPipe,
         NotificationColorPipe,
     ],
 })

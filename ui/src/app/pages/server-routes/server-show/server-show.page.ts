@@ -91,9 +91,9 @@ export class ServerShowPage {
     this.settings = {
       'Settings': [
         {
-          title: 'Preferences',
-          icon: 'cog-outline',
-          action: () => this.navCtrl.navigateForward(['preferences'], { relativeTo: this.route }),
+          title: 'Privacy and Security',
+          icon: 'shield-checkmark-outline',
+          action: () => this.navCtrl.navigateForward(['privacy'], { relativeTo: this.route }),
         },
         {
           title: 'LAN',

@@ -5,7 +5,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
-import { distinctUntilChanged } from 'rxjs/operators'
+import { distinctUntilChanged, filter } from 'rxjs/operators'
 
 @Component({
   selector: 'app-list',
@@ -14,7 +14,6 @@ import { distinctUntilChanged } from 'rxjs/operators'
 })
 export class AppListPage {
   subs: Subscription[] = []
-  pkgSubs: { [id: string]: Subscription } = { }
   connectionFailure: boolean
   pkgs: { [id: string]: {
     entry: PackageDataEntry
@@ -22,7 +21,8 @@ export class AppListPage {
       class: string
       img: string
     }
-    statusRendering: PkgStatusRendering
+    statusRendering: PkgStatusRendering | null
+    sub: Subscription | null
   }} = { }
 
   constructor (
@@ -35,18 +35,38 @@ export class AppListPage {
     this.subs = [
       this.patch.watch$('package-data')
       .pipe(
-        // only emit when the list itself changes
-        distinctUntilChanged(),
+        filter(obj => {
+          return Object.keys(obj).length !== Object.keys(this.pkgs).length
+        }),
       )
       .subscribe(pkgs => {
-        Object.keys(pkgs).forEach(id => {
+        const ids = Object.keys(pkgs)
+        console.log('PKGSPKGS', ids)
+
+        Object.keys(this.pkgs).forEach(id => {
+          if (!ids.includes(id)) {
+            this.pkgs[id].sub.unsubscribe()
+            delete this.pkgs[id]
+          }
+        })
+
+        ids.forEach(id => {
           // if already subscribed, return
-          if (this.pkgSubs[id]) return
+          if (this.pkgs[id]) return
+          this.pkgs[id] = {
+            entry: pkgs[id],
+            bulb: {
+              class: 'bulb-off',
+              img: 'assets/img/off-bulb.png',
+            },
+            statusRendering: renderPkgStatus(pkgs[id].state, pkgs[id].installed?.status),
+            sub: null,
+          }
           // subscribe to pkg
-          this.pkgSubs[id] = this.patch.watch$('package-data', id).subscribe(pkg => {
+          this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
             let bulbClass = 'bulb-on'
             let img = ''
-            const statusRendering = renderPkgStatus(pkgs[id].state, pkgs[id].installed.status)
+            const statusRendering = renderPkgStatus(pkgs[id].state, pkgs[id].installed?.status)
             switch (statusRendering.color) {
               case 'danger':
                 img = 'assets/img/danger-bulb.png'
@@ -62,23 +82,12 @@ export class AppListPage {
                 img = 'assets/img/off-bulb.png'
                 break
             }
-            if (!this.pkgs[id]) {
-              this.pkgs[id] = {
-                entry: pkg,
-                bulb: {
-                  class: bulbClass,
-                  img,
-                },
-                statusRendering,
-              }
-            } else {
-              this.pkgs[id].entry = pkg
-              this.pkgs[id].bulb = {
-                class: bulbClass,
-                img,
-              }
-              this.pkgs[id].statusRendering = statusRendering
+            this.pkgs[id].entry = pkg
+            this.pkgs[id].bulb = {
+              class: bulbClass,
+              img,
             }
+            this.pkgs[id].statusRendering = statusRendering
           })
         })
       }),
@@ -91,8 +100,7 @@ export class AppListPage {
   }
 
   ngOnDestroy () {
-    Object.values(this.pkgSubs).forEach(sub => sub.unsubscribe())
-    this.pkgSubs = { }
+    Object.values(this.pkgs).forEach(pkg => pkg.sub.unsubscribe())
     this.subs.forEach(sub => sub.unsubscribe())
   }
 

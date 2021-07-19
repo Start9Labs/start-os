@@ -4,8 +4,6 @@ import { IonContent } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { Subscription } from 'rxjs'
-import { take } from 'rxjs/operators'
 
 @Component({
   selector: 'app-instructions',
@@ -15,7 +13,6 @@ import { take } from 'rxjs/operators'
 export class AppInstructionsPage {
   instructions: string
   loading = true
-  subs: Subscription[] = []
 
   @ViewChild(IonContent) content: IonContent
 
@@ -28,19 +25,16 @@ export class AppInstructionsPage {
 
   async ngOnInit () {
     const pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.patch.watch$('package-data', pkgId, 'static-files', 'instructions')
-    .pipe(
-      take(1),
-    )
-    .subscribe(async url => {
-      try {
-        this.instructions = await this.embassyApi.getStatic(url)
-      } catch (e) {
-        console.error(e)
-        this.errToast.present(e.message)
-      } finally {
-        this.loading = false
-      }
-    })
+
+    const url = this.patch.data['package-data'][pkgId]['static-files'].instructions
+
+    try {
+      this.instructions = await this.embassyApi.getStatic(url)
+    } catch (e) {
+      console.error(e)
+      this.errToast.present(e.message)
+    } finally {
+      this.loading = false
+    }
   }
 }
