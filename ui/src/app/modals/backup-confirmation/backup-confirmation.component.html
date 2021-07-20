@@ -20,10 +20,10 @@
     </div>
 
     <div style="display: flex; justify-content: flex-end; align-items: center;">
-      <ion-button fill="clear" color="medium" (click)="cancel()">
+      <ion-button fill="clear" (click)="cancel()">
         Cancel
       </ion-button>
-      <ion-button fill="clear" (click)="submit()">
+      <ion-button fill="clear" (click)="submit()" [disabled]="!password.length">
         {{ type === 'backup' ? 'Create Backup' : 'Restore Backup' }}
       </ion-button>
     </div>

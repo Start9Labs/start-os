@@ -122,8 +122,7 @@ export class AppPropertiesPage {
       this.properties = await this.embassyApi.getPackageProperties({ id: this.pkgId })
       this.node = JsonPointer.get(this.properties, this.pointer || '')
     } catch (e) {
-      console.error(e)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
     } finally {
       this.loading = false
     }

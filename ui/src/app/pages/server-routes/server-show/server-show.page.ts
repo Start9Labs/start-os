@@ -1,9 +1,8 @@
 import { Component } from '@angular/core'
-import { LoadingOptions } from '@ionic/core'
-import { AlertController, NavController } from '@ionic/angular'
+import { AlertController, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
-import { LoaderService } from 'src/app/services/loader.service'
 import { ActivatedRoute } from '@angular/router'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'server-show',
@@ -15,7 +14,8 @@ export class ServerShowPage {
 
   constructor (
     private readonly alertCtrl: AlertController,
-    private readonly loader: LoaderService,
+    private readonly loadingCtrl: LoadingController,
+    private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
@@ -70,21 +70,37 @@ export class ServerShowPage {
   }
 
   private async restart () {
-    this.loader
-      .of(LoadingSpinner(`Restarting...`))
-      .displayDuringAsync( async () => {
-        await this.embassyApi.restartServer({ })
-      })
-      .catch(console.error)
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Restarting...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.restartServer({ })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   private async shutdown () {
-    this.loader
-      .of(LoadingSpinner(`Shutting down...`))
-      .displayDuringAsync( async () => {
-        await this.embassyApi.shutdownServer({ })
-      })
-      .catch(console.error)
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Shutting down...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.shutdownServer({ })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   private setButtons (): void {
@@ -93,7 +109,7 @@ export class ServerShowPage {
         {
           title: 'Privacy and Security',
           icon: 'shield-checkmark-outline',
-          action: () => this.navCtrl.navigateForward(['privacy'], { relativeTo: this.route }),
+          action: () => this.navCtrl.navigateForward(['security'], { relativeTo: this.route }),
         },
         {
           title: 'LAN',
@@ -104,11 +120,6 @@ export class ServerShowPage {
           title: 'WiFi',
           icon: 'wifi',
           action: () => this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
-        },
-        {
-          title: 'Developer Options',
-          icon: 'terminal-outline',
-          action: () => this.navCtrl.navigateForward(['developer'], { relativeTo: this.route }),
         },
       ],
       'Insights': [
@@ -153,15 +164,6 @@ export class ServerShowPage {
   asIsOrder () {
     return 0
   }
-}
-
-const LoadingSpinner: (m?: string) => LoadingOptions = (m) => {
-  const toMergeIn = m ? { message: m } : { }
-  return {
-    spinner: 'lines',
-    cssClass: 'loader',
-    ...toMergeIn,
-  } as LoadingOptions
 }
 
 interface ServerSettings {

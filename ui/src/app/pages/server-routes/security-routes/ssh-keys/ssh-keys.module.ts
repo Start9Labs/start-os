@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
-import { DevSSHKeysPage } from './dev-ssh-keys.page'
+import { SSHKeysPage } from './ssh-keys.page'
 import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text-spinner.component.module'
@@ -10,7 +10,7 @@ import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text
 const routes: Routes = [
   {
     path: '',
-    component: DevSSHKeysPage,
+    component: SSHKeysPage,
   },
 ]
 
@@ -23,6 +23,6 @@ const routes: Routes = [
     SharingModule,
     TextSpinnerComponentModule,
   ],
-  declarations: [DevSSHKeysPage],
+  declarations: [SSHKeysPage],
 })
-export class DevSSHKeysPageModule { }
+export class SSHKeysPageModule { }

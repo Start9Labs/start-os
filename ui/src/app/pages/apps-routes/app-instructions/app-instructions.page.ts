@@ -31,8 +31,7 @@ export class AppInstructionsPage {
     try {
       this.instructions = await this.embassyApi.getStatic(url)
     } catch (e) {
-      console.error(e)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
     } finally {
       this.loading = false
     }

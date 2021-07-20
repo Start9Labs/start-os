@@ -2,7 +2,7 @@ import { Component, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
-import { LoaderService } from 'src/app/services/loader.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { Action } from 'src/app/services/patch-db/data-model'
 
 @Component({
@@ -20,8 +20,8 @@ export class AppActionInputPage {
 
   constructor (
     private readonly modalCtrl: ModalController,
+    private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
-    private loaderService: LoaderService,
   ) { }
 
   ngOnInit () {
@@ -35,18 +35,21 @@ export class AppActionInputPage {
   }
 
   async save (): Promise<void> {
-    this.loaderService.of({
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Executing action',
       cssClass: 'loader-ontop-of-all',
-    }).displayDuringAsync(async () => {
-      try {
-        await this.execute()
-        this.modalCtrl.dismiss()
-      } catch (e) {
-        this.error = e.message
-      }
     })
+    await loader.present()
+
+    try {
+      await this.execute()
+      this.modalCtrl.dismiss()
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   handleObjectEdit (): void {

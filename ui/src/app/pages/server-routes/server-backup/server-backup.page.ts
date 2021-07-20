@@ -3,6 +3,7 @@ import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
 import { DiskInfo } from 'src/app/services/api/api.types'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'server-backup',
@@ -12,12 +13,12 @@ import { DiskInfo } from 'src/app/services/api/api.types'
 export class ServerBackupPage {
   disks: DiskInfo
   loading = true
-  error: string
   allPartitionsMounted: boolean
 
   constructor (
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
+    private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
   ) { }
 
@@ -35,8 +36,7 @@ export class ServerBackupPage {
       this.disks = await this.embassyApi.getDisks({ })
       this.allPartitionsMounted = Object.values(this.disks).every(d => Object.values(d.partitions).every(p => p['is-mounted']))
     } catch (e) {
-      console.error(e)
-      this.error = e.message
+      this.errToast.present(e)
     } finally {
       this.loading = false
     }
@@ -62,18 +62,17 @@ export class ServerBackupPage {
   }
 
   private async create (logicalname: string, password: string): Promise<void> {
-    this.error = ''
-
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: 'Starting backup...',
+      cssClass: 'loader',
     })
     await loader.present()
 
     try {
       await this.embassyApi.createBackup({ logicalname, password })
     } catch (e) {
-      console.error(e)
-      this.error = e.message
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
