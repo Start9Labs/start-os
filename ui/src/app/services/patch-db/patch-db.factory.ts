@@ -8,7 +8,7 @@ import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 export function PatchDbServiceFactory (
   config: ConfigService,
   bootstrapper: LocalStorageBootstrap,
-  apiService: ApiService,
+  embassyApi: ApiService,
 ): PatchDbService {
 
   const { mocks, patchDb: { poll }, isConsulate } = config
@@ -17,13 +17,13 @@ export function PatchDbServiceFactory (
 
   if (mocks.enabled) {
     if (mocks.connection === 'poll') {
-      source = new PollSource({ ...poll }, apiService)
+      source = new PollSource({ ...poll }, embassyApi)
     } else {
       source = new WebsocketSource(`ws://localhost:${config.mocks.wsPort}/db`)
     }
   } else {
     if (isConsulate) {
-      source = new PollSource({ ...poll }, apiService)
+      source = new PollSource({ ...poll }, embassyApi)
     } else {
       const protocol = window.location.protocol === 'http:' ? 'ws' : 'wss'
       const host = window.location.host
@@ -31,5 +31,5 @@ export function PatchDbServiceFactory (
     }
   }
 
-  return new PatchDbService(source, apiService, bootstrapper)
+  return new PatchDbService(source, embassyApi, bootstrapper)
 }

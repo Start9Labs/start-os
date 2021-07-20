@@ -20,9 +20,10 @@ export enum ConnectionStatus {
 })
 export class PatchDbService {
   connectionStatus$ = new BehaviorSubject(ConnectionStatus.Initializing)
-  data: DataModel
   private patchDb: PatchDB<DataModel>
   private patchSub: Subscription
+
+  get data () { return this.patchDb.store.cache.data }
 
   constructor (
     @Inject(PATCH_SOURCE) private readonly source: Source<DataModel>,
@@ -33,7 +34,6 @@ export class PatchDbService {
   async init (): Promise<void> {
     const cache = await this.bootstrapper.init()
     this.patchDb = new PatchDB([this.source, this.http], this.http, cache)
-    this.data = this.patchDb.store.cache.data
   }
 
   start (): void {
@@ -44,7 +44,7 @@ export class PatchDbService {
       .pipe(debounceTime(500))
       .subscribe({
         next: cache => {
-          console.log('saving cacheee: ', cache)
+          console.log('saving cacheee: ', JSON.parse(JSON.stringify(cache)))
           this.connectionStatus$.next(ConnectionStatus.Connected)
           this.bootstrapper.update(cache)
         },
@@ -82,8 +82,9 @@ export class PatchDbService {
 
   watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
     console.log('WATCHING', ...args)
-    return this.patchDb.store.watch$(...(args as [])).pipe(
-      tap(cache => console.log('CHANGE IN STORE', cache)),
+    return this.patchDb.store.watch$(...(args as []))
+    .pipe(
+      tap(data => console.log('CHANGE IN STORE', data, ...args)),
       catchError(e => {
         console.error(e)
         return of(e.message)

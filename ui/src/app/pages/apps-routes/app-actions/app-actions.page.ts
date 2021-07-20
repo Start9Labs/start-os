@@ -26,7 +26,7 @@ export class AppActionsPage {
 
   constructor (
     private readonly route: ActivatedRoute,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
     private readonly loaderService: LoaderService,
@@ -123,7 +123,7 @@ export class AppActionsPage {
   private async executeAction (pkgId: string, actionId: string) {
     try {
       const res = await this.loaderService.displayDuringP(
-        this.apiService.executePackageAction({ id: pkgId, 'action-id': actionId }),
+        this.embassyApi.executePackageAction({ id: pkgId, 'action-id': actionId }),
       )
 
       const successAlert = await this.alertCtrl.create({

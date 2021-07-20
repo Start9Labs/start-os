@@ -17,7 +17,7 @@ export class ServerBackupPage {
 
   constructor (
     private readonly modalCtrl: ModalController,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly loadingCtrl: LoadingController,
   ) { }
 
@@ -32,7 +32,7 @@ export class ServerBackupPage {
 
   async getExternalDisks (): Promise<void> {
     try {
-      this.disks = await this.apiService.getDisks({ })
+      this.disks = await this.embassyApi.getDisks({ })
       this.allPartitionsMounted = Object.values(this.disks).every(d => Object.values(d.partitions).every(p => p['is-mounted']))
     } catch (e) {
       console.error(e)
@@ -70,7 +70,7 @@ export class ServerBackupPage {
     await loader.present()
 
     try {
-      await this.apiService.createBackup({ logicalname, password })
+      await this.embassyApi.createBackup({ logicalname, password })
     } catch (e) {
       console.error(e)
       this.error = e.message

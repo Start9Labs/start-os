@@ -26,7 +26,7 @@ export class LANPage {
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
     private readonly loader: LoaderService,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly patch: PatchDbService,
   ) { }
 
@@ -54,7 +54,7 @@ export class LANPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync( async () => {
-      await this.apiService.refreshLan({ })
+      await this.embassyApi.refreshLan({ })
     }).catch(e => {
       console.error(e)
     })

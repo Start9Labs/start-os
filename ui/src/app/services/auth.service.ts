@@ -17,7 +17,7 @@ export class AuthService {
   private readonly authState$: BehaviorSubject<AuthState> = new BehaviorSubject(AuthState.INITIALIZING)
 
   constructor (
-    private readonly api: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly storage: Storage,
   ) { }
 
@@ -31,7 +31,7 @@ export class AuthService {
   }
 
   async login (password: string): Promise<void> {
-    await this.api.login({ password })
+    await this.embassyApi.login({ password })
     await this.storage.set(this.LOGGED_IN_KEY, true)
     this.authState$.next(AuthState.VERIFIED)
   }

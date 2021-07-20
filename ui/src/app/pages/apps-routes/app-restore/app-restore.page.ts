@@ -6,6 +6,7 @@ import { DiskInfo } from 'src/app/services/api/api.types'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
+import { take } from 'rxjs/operators'
 
 @Component({
   selector: 'app-restore',
@@ -26,15 +27,13 @@ export class AppRestorePage {
   constructor (
     private readonly route: ActivatedRoute,
     private readonly modalCtrl: ModalController,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly loadingCtrl: LoadingController,
-    private readonly patch: PatchDbService,
+    public readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.title = this.patch.data['package-data'][this.pkgId].manifest.title
-
     this.getExternalDisks()
   }
 
@@ -49,7 +48,7 @@ export class AppRestorePage {
 
   async getExternalDisks (): Promise<void> {
     try {
-      this.disks = await this.apiService.getDisks({ })
+      this.disks = await this.embassyApi.getDisks({ })
       this.allPartitionsMounted = Object.values(this.disks).every(d => Object.values(d.partitions).every(p => p['is-mounted']))
     } catch (e) {
       console.error(e)
@@ -87,7 +86,7 @@ export class AppRestorePage {
     await loader.present()
 
     try {
-      await this.apiService.restorePackage({
+      await this.embassyApi.restorePackage({
         id: this.pkgId,
         logicalname,
         password,

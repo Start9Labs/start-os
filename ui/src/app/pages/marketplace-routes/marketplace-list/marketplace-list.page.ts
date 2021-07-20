@@ -3,12 +3,12 @@ import { MarketplaceData, MarketplaceEOS, MarketplacePkg } from 'src/app/service
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { IonContent, ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { PackageState } from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { MarketplaceApiService } from 'src/app/services/api/marketplace/marketplace-api.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'marketplace-list',
@@ -17,6 +17,8 @@ import { MarketplaceApiService } from 'src/app/services/api/marketplace/marketpl
 })
 export class MarketplaceListPage {
   @ViewChild(IonContent) content: IonContent
+  localPkgs: { [id: string]: PackageDataEntry }
+
   pageLoading = true
   pkgsLoading = true
 
@@ -37,7 +39,7 @@ export class MarketplaceListPage {
 
   constructor (
     private readonly marketplaceService: MarketplaceService,
-    private readonly marketplaceApiService: MarketplaceApiService,
+    private readonly marketplaceApi: MarketplaceApiService,
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
@@ -45,11 +47,16 @@ export class MarketplaceListPage {
   ) { }
 
   async ngOnInit () {
+    this.subs = [
+      this.patch.watch$('package-data').subscribe(pkgs => {
+        this.localPkgs = pkgs
+      }),
+    ]
 
     try {
       const [data, eos] = await Promise.all([
-        this.marketplaceApiService.getMarketplaceData({ }),
-        this.marketplaceApiService.getEos({ }),
+        this.marketplaceApi.getMarketplaceData({ }),
+        this.marketplaceApi.getEos({ }),
         this.getPkgs(),
       ])
       this.eos = eos
@@ -107,7 +114,7 @@ export class MarketplaceListPage {
         if (this.pkgs.length) {
           this.pkgsLoading = false
         }
-        await this.marketplaceService.getUpdates(this.patch.data['package-data'])
+        await this.marketplaceService.getUpdates(this.localPkgs)
         this.pkgs = this.marketplaceService.updates
       } else {
         const pkgs = await this.marketplaceService.getPkgs(
