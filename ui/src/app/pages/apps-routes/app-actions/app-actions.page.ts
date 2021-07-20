@@ -1,17 +1,15 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
-import { AlertController, IonContent, ModalController, NavController } from '@ionic/angular'
-import { LoaderService } from 'src/app/services/loader.service'
-import { HttpErrorResponse } from '@angular/common/http'
+import { AlertController, IonContent, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Action, Manifest, PackageDataEntry, PackageMainStatus } from 'src/app/services/patch-db/data-model'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
-import { AppConfigObjectPage } from 'src/app/modals/app-config-object/app-config-object.page'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { AppActionInputPage } from 'src/app/modals/app-action-input/app-action-input.page'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-actions',
@@ -29,7 +27,8 @@ export class AppActionsPage {
     private readonly embassyApi: ApiService,
     private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
-    private readonly loaderService: LoaderService,
+    private readonly errToast: ErrorToastService,
+    private readonly loadingCtrl: LoadingController,
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
     public readonly patch: PatchDbService,
@@ -120,11 +119,16 @@ export class AppActionsPage {
     return this.navCtrl.navigateRoot('/services')
   }
 
-  private async executeAction (pkgId: string, actionId: string) {
+  private async executeAction (pkgId: string, actionId: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Executing action...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
     try {
-      const res = await this.loaderService.displayDuringP(
-        this.embassyApi.executePackageAction({ id: pkgId, 'action-id': actionId }),
-      )
+      const res = await this.embassyApi.executePackageAction({ id: pkgId, 'action-id': actionId })
 
       const successAlert = await this.alertCtrl.create({
         header: 'Execution Complete',
@@ -132,23 +136,11 @@ export class AppActionsPage {
         buttons: ['OK'],
         cssClass: 'alert-success-message',
       })
-      return await successAlert.present()
+      await successAlert.present()
     } catch (e) {
-      if (e instanceof HttpErrorResponse) {
-        this.presentAlertActionFail(e.status, e.message)
-      } else {
-        this.presentAlertActionFail(-1, e.message || JSON.stringify(e))
-      }
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
     }
-  }
-
-  private async presentAlertActionFail (code: number, message: string): Promise<void> {
-    const failureAlert = await this.alertCtrl.create({
-      header: 'Execution Failed',
-      message: `Error code ${code}. ${message}`,
-      buttons: ['OK'],
-      cssClass: 'alert-error-message',
-    })
-    return await failureAlert.present()
   }
 }

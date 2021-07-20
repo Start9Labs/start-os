@@ -24,8 +24,7 @@ export class MarkdownPage {
     try {
       this.content = await this.embassyApi.getStatic(this.contentUrl)
     } catch (e) {
-      console.error(e.message)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
     } finally {
       this.loading = false
     }

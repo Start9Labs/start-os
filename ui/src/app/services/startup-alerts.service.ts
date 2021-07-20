@@ -13,6 +13,7 @@ import { DataModel, PackageDataEntry } from './patch-db/data-model'
 import { PatchDbService } from './patch-db/patch-db.service'
 import { filter, take } from 'rxjs/operators'
 import { isEmptyObject } from '../util/misc.util'
+import { ApiService } from './api/embassy/embassy-api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -28,6 +29,7 @@ export class StartupAlertsService {
     private readonly modalCtrl: ModalController,
     private readonly marketplaceService: MarketplaceService,
     private readonly marketplaceApi: MarketplaceApiService,
+    private readonly embassyApi: ApiService,
     private readonly emver: Emver,
     private readonly wizardBaker: WizardBaker,
     private readonly patch: PatchDbService,
@@ -120,18 +122,18 @@ export class StartupAlertsService {
   private async displayOsWelcome (): Promise<boolean> {
     return new Promise(async resolve => {
       const modal = await this.modalCtrl.create({
-        backdropDismiss: false,
         component: OSWelcomePage,
         presentingElement: await this.modalCtrl.getTop(),
         componentProps: {
           version: this.config.version,
         },
       })
-
-      await modal.present()
-      modal.onWillDismiss().then(res => {
-        return resolve(res.data)
+      modal.onWillDismiss().then(() => {
+        this.embassyApi.setDbValue({ pointer: '/welcome-ack', value: this.config.version })
+        .catch()
+        return resolve(true)
       })
+      await modal.present()
     })
   }
 

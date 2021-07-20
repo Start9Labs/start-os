@@ -1,10 +1,10 @@
 import { Component, Input } from '@angular/core'
 import { getDefaultConfigValue, getDefaultDescription, Range } from 'src/app/pkg-config/config-utilities'
-import { AlertController, ModalController, ToastController } from '@ionic/angular'
-import { LoaderService } from 'src/app/services/loader.service'
+import { AlertController, LoadingController, ModalController, ToastController } from '@ionic/angular'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { ValueSpecOf } from 'src/app/pkg-config/config-types'
 import { copyToClipboard } from 'src/app/util/web.util'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-config-value',
@@ -29,10 +29,11 @@ export class AppConfigValuePage {
   rangeDescription: string
 
   constructor (
-    private readonly loader: LoaderService,
+    private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
     private readonly toastCtrl: ToastController,
+    private readonly errToast: ErrorToastService,
   ) { }
 
   ngOnInit () {
@@ -68,14 +69,21 @@ export class AppConfigValuePage {
       this.value = Number(this.value)
     }
 
-    this.loader.displayDuringP(
-      this.saveFn(this.value).catch(e => {
-        console.error(e)
-        this.error = e.message
-      }),
-    )
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Saving...',
+      cssClass: 'loader',
+    })
+    await loader.present()
 
-    await this.modalCtrl.dismiss(this.value)
+    try {
+      await this.saveFn(this.value)
+      this.modalCtrl.dismiss(this.value)
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   refreshDefault () {

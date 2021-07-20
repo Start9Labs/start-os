@@ -23,10 +23,6 @@ const routes: Routes = [
     loadChildren: () => import('./server-logs/server-logs.module').then(m => m.ServerLogsPageModule),
   },
   {
-    path: 'privacy',
-    loadChildren: () => import('./privacy/privacy.module').then(m => m.PrivacyPageModule),
-  },
-  {
     path: 'wifi',
     loadChildren: () => import('./wifi/wifi.module').then(m => m.WifiListPageModule),
   },
@@ -35,8 +31,8 @@ const routes: Routes = [
     loadChildren: () => import('./lan/lan.module').then(m => m.LANPageModule),
   },
   {
-    path: 'developer',
-    loadChildren: () => import('./developer-routes/developer-routing.module').then( m => m.DeveloperRoutingModule),
+    path: 'security',
+    loadChildren: () => import('./security-routes/security-routing.module').then( m => m.SecurityRoutingModule),
   },
 ]
 

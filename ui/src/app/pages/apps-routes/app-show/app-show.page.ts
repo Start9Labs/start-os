@@ -1,10 +1,9 @@
 import { Component, ViewChild } from '@angular/core'
-import { AlertController, NavController, ModalController, IonContent } from '@ionic/angular'
+import { AlertController, NavController, ModalController, IonContent, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { chill, isEmptyObject, Recommendation } from 'src/app/util/misc.util'
-import { LoaderService } from 'src/app/services/loader.service'
-import { combineLatest, Observable, of, Subscription } from 'rxjs'
+import { combineLatest, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
@@ -38,7 +37,7 @@ export class AppShowPage {
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly errToast: ErrorToastService,
-    private readonly loader: LoaderService,
+    private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly wizardBaker: WizardBaker,
@@ -77,11 +76,14 @@ export class AppShowPage {
 
   async stop (): Promise<void> {
     const { id, title, version } = this.pkg.manifest
-    await this.loader.of({
+    const loader = await this.loadingCtrl.create({
       message: `Stopping...`,
       spinner: 'lines',
       cssClass: 'loader',
-    }).displayDuringAsync(async () => {
+    })
+    await loader.present()
+
+    try {
       const breakages = await this.embassyApi.dryStopPackage({ id })
 
       console.log('BREAKAGES', breakages)
@@ -96,12 +98,14 @@ export class AppShowPage {
             breakages,
           }),
         )
-
-        if (cancelled) return { }
+        if (cancelled) return
       }
-
       return this.embassyApi.stopPackage({ id }).then(chill)
-    }).catch(e => this.setError(e))
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   async tryStart (): Promise<void> {
@@ -206,19 +210,20 @@ export class AppShowPage {
   }
 
   private async start (): Promise<void> {
-    this.loader.of({
+    const loader = await this.loadingCtrl.create({
       message: `Starting...`,
       spinner: 'lines',
       cssClass: 'loader',
-    }).displayDuringP(
-      this.embassyApi.startPackage({ id: this.pkgId }),
-    ).catch(e => this.setError(e))
-  }
+    })
+    await loader.present()
 
-  private setError (e: Error): Observable<void> {
-    console.error(e)
-    this.errToast.present(e.message)
-    return of()
+    try {
+      await this.embassyApi.startPackage({ id: this.pkgId })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   setButtons (): void {

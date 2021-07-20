@@ -30,8 +30,7 @@ export class ServerLogsPage {
       this.logs = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n')
       setTimeout(async () => await this.content.scrollToBottom(100), 200)
     } catch (e) {
-      console.error(e)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
     } finally {
       this.loading = false
     }
