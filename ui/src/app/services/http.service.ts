@@ -70,7 +70,7 @@ export class HttpService {
       this.fullUrl + httpOpts.url :
       httpOpts.url
 
-    Object.keys(httpOpts.params).forEach(key => {
+    Object.keys(httpOpts.params || { }).forEach(key => {
       if (httpOpts.params[key] === undefined) {
         delete httpOpts.params[key]
       }
