@@ -16,7 +16,7 @@ export class ServerShowPage {
   constructor (
     private readonly alertCtrl: AlertController,
     private readonly loader: LoaderService,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
   ) { }
@@ -73,7 +73,7 @@ export class ServerShowPage {
     this.loader
       .of(LoadingSpinner(`Restarting...`))
       .displayDuringAsync( async () => {
-        await this.apiService.restartServer({ })
+        await this.embassyApi.restartServer({ })
       })
       .catch(console.error)
   }
@@ -82,7 +82,7 @@ export class ServerShowPage {
     this.loader
       .of(LoadingSpinner(`Shutting down...`))
       .displayDuringAsync( async () => {
-        await this.apiService.shutdownServer({ })
+        await this.embassyApi.shutdownServer({ })
       })
       .catch(console.error)
   }
@@ -91,9 +91,9 @@ export class ServerShowPage {
     this.settings = {
       'Settings': [
         {
-          title: 'Preferences',
-          icon: 'cog-outline',
-          action: () => this.navCtrl.navigateForward(['preferences'], { relativeTo: this.route }),
+          title: 'Privacy and Security',
+          icon: 'shield-checkmark-outline',
+          action: () => this.navCtrl.navigateForward(['privacy'], { relativeTo: this.route }),
         },
         {
           title: 'LAN',

@@ -62,8 +62,8 @@ export interface InstallProgress {
   'download-complete': boolean
   validated: number
   'validation-complete': boolean
-  read: number
-  'read-complete': boolean
+  unpacked: number
+  'unpack-complete': boolean
 }
 
 export interface InstalledPackageDataEntry {

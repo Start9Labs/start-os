@@ -10,7 +10,7 @@ export class SSHService {
   private readonly keys$ = new BehaviorSubject<SSHKeys>({ })
 
   constructor (
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
   ) { }
 
   watch$ () {
@@ -18,18 +18,18 @@ export class SSHService {
   }
 
   async getKeys (): Promise<void> {
-    const keys = await this.apiService.getSshKeys({ })
+    const keys = await this.embassyApi.getSshKeys({ })
     this.keys$.next(keys)
   }
 
   async add (pubkey: string): Promise<void> {
-    const key = await this.apiService.addSshKey({ pubkey })
+    const key = await this.embassyApi.addSshKey({ pubkey })
     const keys = this.keys$.getValue()
     this.keys$.next({ ...keys, ...key })
   }
 
   async delete (hash: string): Promise<void> {
-    await this.apiService.deleteSshKey({ hash })
+    await this.embassyApi.deleteSshKey({ hash })
     const keys = this.keys$.getValue()
 
     const filtered = Object.keys(keys)

@@ -19,24 +19,22 @@ export class AppInstructionsPage {
   constructor (
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly patch: PatchDbService,
   ) { }
 
   async ngOnInit () {
     const pkgId = this.route.snapshot.paramMap.get('pkgId')
+
     const url = this.patch.data['package-data'][pkgId]['static-files'].instructions
+
     try {
-      this.instructions = await this.apiService.getStatic(url)
+      this.instructions = await this.embassyApi.getStatic(url)
     } catch (e) {
       console.error(e)
       this.errToast.present(e.message)
     } finally {
       this.loading = false
     }
-  }
-
-  ngAfterViewInit () {
-    this.content.scrollToPoint(undefined, 1)
   }
 }

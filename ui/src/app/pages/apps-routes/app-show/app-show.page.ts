@@ -40,7 +40,7 @@ export class AppShowPage {
     private readonly errToast: ErrorToastService,
     private readonly loader: LoaderService,
     private readonly modalCtrl: ModalController,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly wizardBaker: WizardBaker,
     private readonly config: ConfigService,
     public readonly patch: PatchDbService,
@@ -49,13 +49,13 @@ export class AppShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.pkg = this.patch.data['package-data'][this.pkgId]
     this.subs = [
       combineLatest([
         this.patch.connected$(),
         this.patch.watch$('package-data', this.pkgId),
       ])
       .subscribe(([connected, pkg]) => {
+        this.pkg = pkg
         this.connected = connected
         this.rendering = renderPkgStatus(pkg.state, pkg.installed.status)
       }),
@@ -82,7 +82,7 @@ export class AppShowPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync(async () => {
-      const breakages = await this.apiService.dryStopPackage({ id })
+      const breakages = await this.embassyApi.dryStopPackage({ id })
 
       console.log('BREAKAGES', breakages)
 
@@ -100,7 +100,7 @@ export class AppShowPage {
         if (cancelled) return { }
       }
 
-      return this.apiService.stopPackage({ id }).then(chill)
+      return this.embassyApi.stopPackage({ id }).then(chill)
     }).catch(e => this.setError(e))
   }
 
@@ -211,7 +211,7 @@ export class AppShowPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringP(
-      this.apiService.startPackage({ id: this.pkgId }),
+      this.embassyApi.startPackage({ id: this.pkgId }),
     ).catch(e => this.setError(e))
   }
 
@@ -235,7 +235,8 @@ export class AppShowPage {
         title: 'Monitor',
         icon: 'medkit-outline',
         color: 'danger',
-        disabled: [],
+        // @TODO make the disabled check better. Don't want to list every status here. Monitor should be disabled except is pkg is running.
+        disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
       },
       {
         action: () => this.navCtrl.navigateForward(['config'], { relativeTo: this.route }),

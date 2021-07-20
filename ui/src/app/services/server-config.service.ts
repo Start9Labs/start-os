@@ -13,7 +13,7 @@ export class ServerConfigService {
 
   constructor (
     private readonly trackingModalCtrl: TrackingModalController,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly sshService: SSHService,
   ) { }
 
@@ -35,19 +35,19 @@ export class ServerConfigService {
 
   saveFns: { [key: string]: (val: any) => Promise<any> } = {
     autoCheckUpdates: async (value: boolean) => {
-      return this.apiService.setDbValue({ pointer: 'ui/auto-check-updates', value })
+      return this.embassyApi.setDbValue({ pointer: 'ui/auto-check-updates', value })
     },
     ssh: async (pubkey: string) => {
       return this.sshService.add(pubkey)
     },
     eosMarketplace: async (enabled: boolean) => {
-      return this.apiService.setEosMarketplace(enabled)
+      return this.embassyApi.setEosMarketplace(enabled)
     },
     // packageMarketplace: async (url: string) => {
-    //   return this.apiService.setPackageMarketplace({ url })
+    //   return this.embassyApi.setPackageMarketplace({ url })
     // },
     // password: async (password: string) => {
-    //   return this.apiService.updatePassword({ password })
+    //   return this.embassyApi.updatePassword({ password })
     // },
   }
 }

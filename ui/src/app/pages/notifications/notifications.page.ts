@@ -20,7 +20,7 @@ export class NotificationsPage {
   readonly perPage = 20
 
   constructor (
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly loader: LoaderService,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
@@ -48,7 +48,7 @@ export class NotificationsPage {
   async getNotifications (): Promise<ServerNotifications> {
     let notifications: ServerNotifications = []
     try {
-      notifications = await this.apiService.getNotifications({ page: this.page, 'per-page': this.perPage })
+      notifications = await this.embassyApi.getNotifications({ page: this.page, 'per-page': this.perPage })
       this.needInfinite = notifications.length >= this.perPage
       this.page++
     } catch (e) {
@@ -65,7 +65,7 @@ export class NotificationsPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringP(
-      this.apiService.deleteNotification({ id }).then(() => {
+      this.embassyApi.deleteNotification({ id }).then(() => {
         this.notifications.splice(index, 1)
       }),
     ).catch(e => {
