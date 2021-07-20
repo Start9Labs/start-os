@@ -1,10 +1,11 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent } from '@ionic/angular'
+import { Subscription } from 'rxjs'
 import { Metric } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { MainStatus } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { pauseFor } from 'src/app/util/misc.util'
 
@@ -16,9 +17,10 @@ import { pauseFor } from 'src/app/util/misc.util'
 export class AppMetricsPage {
   loading = true
   pkgId: string
-  pkg: PackageDataEntry
+  mainStatus: MainStatus
   going = false
   metrics: Metric
+  subs: Subscription[] = []
 
   @ViewChild(IonContent) content: IonContent
 
@@ -26,12 +28,17 @@ export class AppMetricsPage {
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
     private readonly patch: PatchDbService,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
   ) { }
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.pkg = this.patch.data['package-data'][this.pkgId]
+    this.subs = [
+      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main')
+      .subscribe(main => {
+        this.mainStatus = main
+      }),
+    ]
 
     this.startDaemon()
   }
@@ -42,6 +49,7 @@ export class AppMetricsPage {
 
   ngOnDestroy () {
     this.stopDaemon()
+    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async startDaemon (): Promise<void> {
@@ -58,7 +66,7 @@ export class AppMetricsPage {
 
   async getMetrics (): Promise<void> {
     try {
-      this.metrics = await this.apiService.getPkgMetrics({ id: this.pkgId})
+      this.metrics = await this.embassyApi.getPkgMetrics({ id: this.pkgId})
     } catch (e) {
       console.error(e)
       this.errToast.present(e.message)

@@ -18,7 +18,7 @@ export class WifiListPage {
   subs: Subscription[] = []
 
   constructor (
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly loader: LoaderService,
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
@@ -62,7 +62,7 @@ export class WifiListPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync(async () => {
-      await this.apiService.connectWifi({ ssid })
+      await this.embassyApi.connectWifi({ ssid })
       this.wifiService.confirmWifi(ssid)
     }).catch(e => {
       console.error(e)
@@ -76,7 +76,7 @@ export class WifiListPage {
       spinner: 'lines',
       cssClass: 'loader',
     }).displayDuringAsync(async () => {
-      await this.apiService.deleteWifi({ ssid })
+      await this.embassyApi.deleteWifi({ ssid })
     }).catch(e => {
       console.error(e)
       this.errToast.present(e.message)

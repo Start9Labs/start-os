@@ -13,12 +13,12 @@ export class OSWelcomePage {
 
   constructor (
     private readonly modalCtrl: ModalController,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly config: ConfigService,
   ) { }
 
   async dismiss () {
-    this.apiService.setDbValue({ pointer: '/welcome-ack', value: this.config.version })
+    this.embassyApi.setDbValue({ pointer: '/welcome-ack', value: this.config.version })
     .catch(console.error)
 
     // return false to skip subsequent alert modals (e.g. check for updates modals)

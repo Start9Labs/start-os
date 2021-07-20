@@ -16,6 +16,7 @@ import { ConnectionFailure, ConnectionService } from './services/connection.serv
 import { StartupAlertsService } from './services/startup-alerts.service'
 import { ConfigService } from './services/config.service'
 import { isEmptyObject } from './util/misc.util'
+import { MarketplaceApiService } from './services/api/marketplace/marketplace-api.service'
 
 @Component({
   selector: 'app-root',
@@ -56,12 +57,13 @@ export class AppComponent {
     private readonly storage: Storage,
     private readonly authService: AuthService,
     private readonly router: Router,
-    private readonly api: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly http: HttpService,
     private readonly alertCtrl: AlertController,
     private readonly loader: LoaderService,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
+    private readonly marketplaceApi: MarketplaceApiService,
     private readonly startupAlertsService: StartupAlertsService,
     private readonly toastCtrl: ToastController,
     private readonly patch: PatchDbService,
@@ -95,26 +97,30 @@ export class AppComponent {
         )
         .subscribe(_ => {
           this.showMenu = true
-          this.router.navigate([''], { replaceUrl: true })
-          this.connectionService.start()
+          // if on the login screen, route to dashboard
+          if (this.router.url.startsWith('/login')) {
+            this.router.navigate([''], { replaceUrl: true })
+          }
+          // start the connection monitor
+          this.connectionService.start(auth)
+          // watch connection to display connectivity issues
+          this.marketplaceApi.init(auth)
           // watch connection to display connectivity issues
           this.watchConnection(auth)
-          // watch router to highlight selected menu item
+          // // watch router to highlight selected menu item
           this.watchRouter(auth)
-          // watch status to display/hide maintenance page
+          // // watch status to display/hide maintenance page
           this.watchStatus(auth)
-          // watch version to refresh browser window
+          // // watch version to refresh browser window
           this.watchVersion(auth)
-          // watch unread notification count to display toast
+          // // watch unread notification count to display toast
           this.watchNotifications(auth)
-          // run startup alerts
+          // // run startup alerts
           this.startupAlertsService.runChecks()
         })
-
       // UNVERIFIED
       } else if (auth === AuthState.UNVERIFIED) {
         this.showMenu = false
-        this.connectionService.stop()
         this.patch.stop()
         this.storage.clear()
         this.router.navigate(['/login'], { replaceUrl: true })
@@ -220,7 +226,6 @@ export class AppComponent {
     this.patch.watch$('server-info', 'unread-notification-count')
     .pipe(
       takeWhile(() => auth === AuthState.VERIFIED),
-      finalize(() => console.log('FINALIZING!!!')),
     )
     .subscribe(count => {
       this.unreadCount = count
@@ -271,7 +276,7 @@ export class AppComponent {
 
   private async logout () {
     this.loader.of(LoadingSpinner('Logging out...'))
-    .displayDuringP(this.api.logout({ }))
+    .displayDuringP(this.embassyApi.logout({ }))
     .then(() => this.authService.setUnverified())
     .catch(e => this.setError(e))
   }

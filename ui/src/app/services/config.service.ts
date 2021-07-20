@@ -101,13 +101,6 @@ export function hasUi (interfaces: { [id: string]: InterfaceDef }): boolean {
   return hasTorUi(interfaces) || hasLanUi(interfaces)
 }
 
-export function getManifest (pkg: PackageDataEntry): Manifest {
-  if (pkg.state === PackageState.Installed) {
-    return pkg.manifest
-  }
-  return pkg['temp-manifest']
-}
-
 function removeProtocol (str: string): string {
   if (str.startsWith('http://')) return str.slice(7)
   if (str.startsWith('https://')) return str.slice(8)

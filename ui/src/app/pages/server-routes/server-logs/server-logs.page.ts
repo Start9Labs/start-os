@@ -15,7 +15,7 @@ export class ServerLogsPage {
 
   constructor (
     private readonly errToast: ErrorToastService,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
   ) { }
 
   ngOnInit () {
@@ -26,7 +26,7 @@ export class ServerLogsPage {
     this.logs = ''
     this.loading = true
     try {
-      const logs = await this.apiService.getServerLogs({ })
+      const logs = await this.embassyApi.getServerLogs({ })
       this.logs = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n')
       setTimeout(async () => await this.content.scrollToBottom(100), 200)
     } catch (e) {
