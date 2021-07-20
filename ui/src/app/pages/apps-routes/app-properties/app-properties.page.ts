@@ -30,7 +30,7 @@ export class AppPropertiesPage {
 
   constructor (
     private readonly route: ActivatedRoute,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly toastCtrl: ToastController,
@@ -41,15 +41,19 @@ export class AppPropertiesPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.running = this.patch.data['package-data'][this.pkgId].installed?.status.main.status === PackageMainStatus.Running
 
     await this.getProperties()
 
     this.subs = [
-      this.route.queryParams.subscribe(queryParams => {
+      this.route.queryParams
+      .subscribe(queryParams => {
         if (queryParams['pointer'] === this.pointer) return
         this.pointer = queryParams['pointer']
         this.node = JsonPointer.get(this.properties, this.pointer || '')
+      }),
+      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main', 'status')
+      .subscribe(status => {
+        this.running = status === PackageMainStatus.Running
       }),
     ]
   }
@@ -115,7 +119,7 @@ export class AppPropertiesPage {
   private async getProperties (): Promise<void> {
     this.loading = true
     try {
-      this.properties = await this.apiService.getPackageProperties({ id: this.pkgId })
+      this.properties = await this.embassyApi.getPackageProperties({ id: this.pkgId })
       this.node = JsonPointer.get(this.properties, this.pointer || '')
     } catch (e) {
       console.error(e)

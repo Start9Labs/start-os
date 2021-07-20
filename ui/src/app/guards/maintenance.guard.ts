@@ -7,6 +7,7 @@ import { PatchDbService } from '../services/patch-db/patch-db.service'
   providedIn: 'root',
 })
 export class MaintenanceGuard implements CanActivate, CanActivateChild {
+
   constructor (
     private readonly router: Router,
     private readonly patch: PatchDbService,

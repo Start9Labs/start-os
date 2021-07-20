@@ -3,7 +3,6 @@ import { ActivatedRoute } from '@angular/router'
 import { Subscription } from 'rxjs'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { getManifest } from 'src/app/services/config.service'
 import * as JsonPointer from 'json-pointer'
 import { IonContent } from '@ionic/angular'
 
@@ -56,7 +55,7 @@ export class AppManifestPage {
   }
 
   private setNode () {
-    this.node = JsonPointer.get(getManifest(this.pkg), this.pointer || '')
+    this.node = JsonPointer.get(this.pkg.manifest, this.pointer || '')
   }
 
   async goToNested (key: string): Promise<any> {

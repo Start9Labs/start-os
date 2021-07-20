@@ -10,7 +10,7 @@
 <ion-content>
     <ion-grid *ngIf="patch.data['package-data'][pkgId] as pkg">
       <ion-row>
-        <ion-col *ngFor="let interface of pkg.manifest.interfaces | keyvalue: asIsOrder" sizeSm="12" sizeMd="6">
+        <ion-col *ngFor="let interface of pkg.manifest.interfaces | keyvalue: asIsOrder" sizeXs="12" sizeSm="12" sizeMd="6">
           <ion-card>
             <ion-card-header>
               <ion-card-title>{{ interface.value.name }}</ion-card-title>

@@ -5,6 +5,7 @@ import { IonicModule } from '@ionic/angular'
 import { AppReleaseNotes } from './app-release-notes.page'
 import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
+import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text-spinner.component.module'
 
 const routes: Routes = [
   {
@@ -20,6 +21,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     PwaBackComponentModule,
     SharingModule,
+    TextSpinnerComponentModule,
   ],
   declarations: [AppReleaseNotes],
 })

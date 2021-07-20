@@ -17,7 +17,7 @@ export class AppLogsPage {
   constructor (
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
   ) { }
 
   ngOnInit () {
@@ -29,7 +29,7 @@ export class AppLogsPage {
     this.logs = ''
 
     try {
-      const logs = await this.apiService.getPackageLogs({ id: this.pkgId })
+      const logs = await this.embassyApi.getPackageLogs({ id: this.pkgId })
       this.logs = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n')
       setTimeout(async () => await this.content.scrollToBottom(100), 200)
     } catch (e) {

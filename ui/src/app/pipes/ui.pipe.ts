@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { PackageDataEntry, Manifest } from '../services/patch-db/data-model'
-import { ConfigService, getManifest, hasUi } from '../services/config.service'
+import { PackageDataEntry } from '../services/patch-db/data-model'
+import { ConfigService, hasUi } from '../services/config.service'
 
 @Pipe({
   name: 'hasUi',
@@ -8,7 +8,7 @@ import { ConfigService, getManifest, hasUi } from '../services/config.service'
 export class HasUiPipe implements PipeTransform {
 
   transform (pkg: PackageDataEntry): boolean {
-    const interfaces = getManifest(pkg).interfaces
+    const interfaces = pkg.manifest.interfaces
     return hasUi(interfaces)
   }
 }
