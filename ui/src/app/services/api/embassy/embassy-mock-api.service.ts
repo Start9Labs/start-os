@@ -471,6 +471,7 @@ export class MockApiService extends ApiService {
         value: PackageState.Removing,
       },
     ]
+
     const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
     setTimeout(async () => {
       const patch = [
@@ -481,6 +482,7 @@ export class MockApiService extends ApiService {
       ]
       this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
     }, this.revertTime)
+
     return res
   }
 
