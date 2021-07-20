@@ -71,8 +71,7 @@ export class MarketplaceShowPage {
     try {
       await this.marketplaceService.getPkg(this.pkgId, version)
     } catch (e) {
-      console.error(e)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
     } finally {
       await pauseFor(100)
       this.loading = false

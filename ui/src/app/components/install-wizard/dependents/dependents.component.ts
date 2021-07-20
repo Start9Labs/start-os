@@ -2,9 +2,8 @@ import { Component, Input, OnInit } from '@angular/core'
 import { BehaviorSubject, from, Subject } from 'rxjs'
 import { takeUntil, tap } from 'rxjs/operators'
 import { Breakages } from 'src/app/services/api/api.types'
-import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
 import { capitalizeFirstLetter, isEmptyObject } from 'src/app/util/misc.util'
-import { Loadable } from '../loadable'
+import { Loadable, markAsLoadingDuring$ } from '../loadable'
 import { WizardAction } from '../wizard-types'
 
 @Component({

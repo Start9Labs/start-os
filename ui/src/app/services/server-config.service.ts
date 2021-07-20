@@ -3,7 +3,7 @@ import { AppConfigValuePage } from '../modals/app-config-value/app-config-value.
 import { ApiService } from './api/embassy/embassy-api.service'
 import { ConfigSpec } from '../pkg-config/config-types'
 import { ConfigCursor } from '../pkg-config/config-cursor'
-import { SSHService } from '../pages/server-routes/developer-routes/dev-ssh-keys/ssh.service'
+import { SSHService } from '../pages/server-routes/security-routes/ssh-keys/ssh.service'
 import { TrackingModalController } from './tracking-modal-controller.service'
 
 @Injectable({
@@ -34,8 +34,8 @@ export class ServerConfigService {
   }
 
   saveFns: { [key: string]: (val: any) => Promise<any> } = {
-    autoCheckUpdates: async (value: boolean) => {
-      return this.embassyApi.setDbValue({ pointer: 'ui/auto-check-updates', value })
+    autoCheckUpdates: async (enabled: boolean) => {
+      return this.embassyApi.setDbValue({ pointer: '/auto-check-updates', value: enabled })
     },
     ssh: async (pubkey: string) => {
       return this.sshService.add(pubkey)
@@ -46,6 +46,9 @@ export class ServerConfigService {
     // packageMarketplace: async (url: string) => {
     //   return this.embassyApi.setPackageMarketplace({ url })
     // },
+    shareStats: async (enabled: boolean) => {
+      return this.embassyApi.setShareStats({ value: enabled })
+    },
     // password: async (password: string) => {
     //   return this.embassyApi.updatePassword({ password })
     // },
@@ -72,8 +75,9 @@ const serverConfig: ConfigSpec = {
   },
   eosMarketplace: {
     type: 'boolean',
-    name: 'Use Tor',
-    description: `Use Start9's Tor Hidden Service Marketplace (instead of clearnet).`,
+    name: 'Tor Only Marketplace',
+    description: `Use Start9's Tor (instead of clearnet) Marketplace.`,
+    changeWarning: 'This will result in higher latency and slower download times.',
     default: false,
   },
   // packageMarketplace: {
@@ -87,6 +91,12 @@ const serverConfig: ConfigSpec = {
   //   masked: false,
   //   copyable: false,
   // },
+  shareStats: {
+    type: 'boolean',
+    name: 'Share Anonymous Statistics',
+    description: 'Start9 uses this information to identify bugs quickly and improve EmbassyOS. The information is 100% anonymous and transmitted over Tor.',
+    default: false,
+  },
   // password: {
   //   type: 'string',
   //   name: 'Change Password',

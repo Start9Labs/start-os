@@ -1,8 +1,7 @@
 import { Component } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
-import { LoaderService } from 'src/app/services/loader.service'
 import { ServerNotification, ServerNotifications } from 'src/app/services/api/api.types'
-import { AlertController } from '@ionic/angular'
+import { AlertController, LoadingController } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
@@ -21,7 +20,7 @@ export class NotificationsPage {
 
   constructor (
     private readonly embassyApi: ApiService,
-    private readonly loader: LoaderService,
+    private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly route: ActivatedRoute,
@@ -52,26 +51,28 @@ export class NotificationsPage {
       this.needInfinite = notifications.length >= this.perPage
       this.page++
     } catch (e) {
-      console.error(e)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
     } finally {
       return notifications
     }
   }
 
   async remove (id: string, index: number): Promise<void> {
-    this.loader.of({
-      message: 'Deleting...',
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: 'Deleting...',
       cssClass: 'loader',
-    }).displayDuringP(
-      this.embassyApi.deleteNotification({ id }).then(() => {
-        this.notifications.splice(index, 1)
-      }),
-    ).catch(e => {
-      console.error(e)
-      this.errToast.present(e.message)
     })
+    await loader.present()
+
+    try {
+      await this.embassyApi.deleteNotification({ id })
+      this.notifications.splice(index, 1)
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   async viewBackupReport (notification: ServerNotification<1>) {

@@ -7,6 +7,7 @@ import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 import { take } from 'rxjs/operators'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-restore',
@@ -18,7 +19,6 @@ export class AppRestorePage {
   pkgId: string
   title: string
   loading = true
-  error: string
   allPartitionsMounted: boolean
 
   @ViewChild(IonContent) content: IonContent
@@ -29,6 +29,7 @@ export class AppRestorePage {
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly loadingCtrl: LoadingController,
+    private readonly errToast: ErrorToastService,
     public readonly patch: PatchDbService,
   ) { }
 
@@ -51,8 +52,7 @@ export class AppRestorePage {
       this.disks = await this.embassyApi.getDisks({ })
       this.allPartitionsMounted = Object.values(this.disks).every(d => Object.values(d.partitions).every(p => p['is-mounted']))
     } catch (e) {
-      console.error(e)
-      this.error = e.message
+      this.errToast.present(e)
     } finally {
       this.loading = false
     }
@@ -74,12 +74,10 @@ export class AppRestorePage {
       this.restore(logicalname, data.password)
     })
 
-    return await m.present()
+    await m.present()
   }
 
   private async restore (logicalname: string, password: string): Promise<void> {
-    this.error = ''
-
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
     })
@@ -92,8 +90,7 @@ export class AppRestorePage {
         password,
       })
     } catch (e) {
-      console.error(e)
-      this.error = e.message
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }

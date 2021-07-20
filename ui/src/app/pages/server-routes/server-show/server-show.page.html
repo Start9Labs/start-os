@@ -9,15 +9,13 @@
 
 <ion-content>
 
-  <ion-grid>
-    <ion-row>
-      <ion-col *ngFor="let cat of settings | keyvalue : asIsOrder" sizeXs="12" sizeMd="6">
-        <ion-item-divider>{{ cat.key }}</ion-item-divider>
-        <ion-item style="cursor: pointer;" button *ngFor="let button of cat.value" (click)="button.action()">
-          <ion-icon slot="start" [name]="button.icon"></ion-icon>
-          <ion-label>{{ button.title }}</ion-label>
-        </ion-item>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+  <ion-item-group>
+    <div *ngFor="let cat of settings | keyvalue : asIsOrder">
+      <ion-item-divider>{{ cat.key }}</ion-item-divider>
+      <ion-item style="cursor: pointer;" button *ngFor="let button of cat.value" (click)="button.action()">
+        <ion-icon slot="start" [name]="button.icon"></ion-icon>
+        <ion-label>{{ button.title }}</ion-label>
+      </ion-item>
+    </div>
+  </ion-item-group>
 </ion-content>

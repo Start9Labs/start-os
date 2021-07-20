@@ -1,16 +1,18 @@
 import { Component } from '@angular/core'
 import { ServerConfigService } from 'src/app/services/server-config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
-  selector: 'dev-options',
-  templateUrl: './dev-options.page.html',
-  styleUrls: ['./dev-options.page.scss'],
+  selector: 'security-options',
+  templateUrl: './security-options.page.html',
+  styleUrls: ['./security-options.page.scss'],
 })
-export class DevOptionsPage {
+export class SecurityOptionsPage {
 
   constructor (
     private readonly serverConfigService: ServerConfigService,
+    public readonly config: ConfigService,
     public readonly patch: PatchDbService,
   ) { }
 

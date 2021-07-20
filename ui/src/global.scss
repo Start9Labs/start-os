@@ -73,6 +73,10 @@ ion-toast {
   --border-color: var(--ion-color-warning);
 }
 
+.success-toast {
+  --border-color: var(--ion-color-success);
+}
+
 .error-toast {
   --border-color: var(--ion-color-danger);
   width: 40%;
