@@ -1,9 +1,8 @@
 import { Component } from '@angular/core'
-import { ActionSheetController } from '@ionic/angular'
+import { ActionSheetController, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
 import { WifiService } from './wifi.service'
-import { LoaderService } from 'src/app/services/loader.service'
 import { WiFiInfo } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
@@ -19,7 +18,7 @@ export class WifiListPage {
 
   constructor (
     private readonly embassyApi: ApiService,
-    private readonly loader: LoaderService,
+    private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
     private readonly wifiService: WifiService,
@@ -57,29 +56,37 @@ export class WifiListPage {
 
   // Let's add country code here
   async connect (ssid: string): Promise<void> {
-    this.loader.of({
-      message: 'Connecting. This could take while...',
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: 'Connecting. This could take while...',
       cssClass: 'loader',
-    }).displayDuringAsync(async () => {
+    })
+    await loader.present()
+
+    try {
       await this.embassyApi.connectWifi({ ssid })
       this.wifiService.confirmWifi(ssid)
-    }).catch(e => {
-      console.error(e)
-      this.errToast.present(e.message)
-    })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   async delete (ssid: string): Promise<void> {
-    this.loader.of({
-      message: 'Deleting...',
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: 'Deleting...',
       cssClass: 'loader',
-    }).displayDuringAsync(async () => {
-      await this.embassyApi.deleteWifi({ ssid })
-    }).catch(e => {
-      console.error(e)
-      this.errToast.present(e.message)
     })
+    await loader.present()
+
+    try {
+      await this.embassyApi.deleteWifi({ ssid })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 }

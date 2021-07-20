@@ -1,11 +1,11 @@
 import { Component } from '@angular/core'
-import { isPlatform, ToastController } from '@ionic/angular'
+import { isPlatform, LoadingController, ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { ConfigService } from 'src/app/services/config.service'
-import { LoaderService } from 'src/app/services/loader.service'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'lan',
@@ -25,7 +25,8 @@ export class LANPage {
   constructor (
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
-    private readonly loader: LoaderService,
+    private readonly loadingCtrl: LoadingController,
+    private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
     private readonly patch: PatchDbService,
   ) { }
@@ -49,15 +50,21 @@ export class LANPage {
   }
 
   async refreshLAN (): Promise<void> {
-    this.loader.of({
-      message: 'Refreshing Network',
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: 'Refreshing LAN...',
       cssClass: 'loader',
-    }).displayDuringAsync( async () => {
-      await this.embassyApi.refreshLan({ })
-    }).catch(e => {
-      console.error(e)
     })
+    await loader.present()
+
+    try {
+      await this.embassyApi.refreshLan({ })
+      this.presentToastSuccess()
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   async copyLAN (): Promise <void> {
@@ -73,6 +80,27 @@ export class LANPage {
 
   installCert (): void {
     document.getElementById('install-cert').click()
+  }
+
+  private async presentToastSuccess (): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      header: 'Success',
+      message: `LAN refreshed.`,
+      position: 'bottom',
+      duration: 3000,
+      buttons: [
+        {
+          side: 'start',
+          icon: 'close',
+          handler: () => {
+            return true
+          },
+        },
+      ],
+      cssClass: 'success-toast',
+    })
+
+    await toast.present()
   }
 }
 

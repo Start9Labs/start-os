@@ -1,24 +1,23 @@
 import { Component } from '@angular/core'
 import { ServerConfigService } from 'src/app/services/server-config.service'
-import { AlertController } from '@ionic/angular'
-import { LoaderService } from 'src/app/services/loader.service'
+import { AlertController, LoadingController } from '@ionic/angular'
 import { SSHService } from './ssh.service'
 import { Subscription } from 'rxjs'
 import { SSHKeys } from 'src/app/services/api/api.types'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
-  selector: 'dev-ssh-keys',
-  templateUrl: 'dev-ssh-keys.page.html',
-  styleUrls: ['dev-ssh-keys.page.scss'],
+  selector: 'ssh-keys',
+  templateUrl: 'ssh-keys.page.html',
+  styleUrls: ['ssh-keys.page.scss'],
 })
-export class DevSSHKeysPage {
+export class SSHKeysPage {
   loading = true
   sshKeys: SSHKeys
   subs: Subscription[] = []
 
   constructor (
-    private readonly loader: LoaderService,
+    private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly serverConfigService: ServerConfigService,
     private readonly alertCtrl: AlertController,
@@ -69,16 +68,20 @@ export class DevSSHKeysPage {
   }
 
   async delete (hash: string): Promise<void> {
-    this.loader.of({
-      message: 'Deleting...',
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: 'Deleting...',
       cssClass: 'loader',
-    }).displayDuringAsync(async () => {
-      await this.sshService.delete(hash)
-    }).catch(e => {
-      console.error(e)
-      this.errToast.present(e.message)
     })
+    await loader.present()
+
+    try {
+      await this.sshService.delete(hash)
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   asIsOrder (a: any, b: any) {

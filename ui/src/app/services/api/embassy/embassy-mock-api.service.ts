@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { pauseFor } from '../../../util/misc.util'
 import { ApiService } from './embassy-api.service'
 import { Operation, PatchOp } from 'patch-db-client'
-import { DataModel, InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
+import { InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
 import { RR, WithRevision } from '../api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from '../api.fixures'
@@ -27,39 +27,14 @@ export class MockApiService extends ApiService {
   // db
 
   async getRevisions (since: number): Promise<RR.GetRevisionsRes> {
-    // await pauseFor(2000)
-    // return {
-    //   ...Mock.DbDump,
-    //   id: this.nextSequence(),
-    // }
     return this.http.rpcRequest<RR.GetRevisionsRes>({ method: 'db.revisions', params: { since } })
   }
 
   async getDump (): Promise<RR.GetDumpRes> {
-    // await pauseFor(2000)
-    // return {
-    //   ...Mock.DbDump,
-    //   id: this.nextSequence(),
-    // }
     return this.http.rpcRequest<RR.GetDumpRes>({ method: 'db.dump' })
   }
 
   async setDbValueRaw (params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
-    // await pauseFor(2000)
-    // return {
-    //   response: null,
-    //   revision: {
-    //     id: this.nextSequence(),
-    //     patch: [
-    //       {
-    //         op: PatchOp.REPLACE,
-    //         path: params.pointer,
-    //         value: params.value,
-    //       },
-    //     ],
-    //     expireId: null,
-    //   },
-    // }
     return this.http.rpcRequest<WithRevision<null>>({ method: 'db.put.ui', params })
   }
 
@@ -76,6 +51,18 @@ export class MockApiService extends ApiService {
   }
 
   // server
+
+  async setShareStatsRaw (params: RR.SetShareStatsReq): Promise<RR.SetShareStatsRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/share-stats',
+        value: params.value,
+      },
+    ]
+    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+  }
 
   async getServerLogs (params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
     await pauseFor(2000)
@@ -94,20 +81,19 @@ export class MockApiService extends ApiService {
 
   async updateServerRaw (params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
-    const path = '/server-info/status'
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path,
+        path: '/server-info/status',
         value: ServerStatus.Updating,
       },
     ]
     const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    setTimeout(() => {
+    setTimeout(async () => {
       const patch = [
         {
           op: PatchOp.REPLACE,
-          path,
+          path: '/server-info/status',
           value: ServerStatus.Running,
         },
         {
@@ -116,7 +102,7 @@ export class MockApiService extends ApiService {
           value: this.config.version + '.1',
         },
       ]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
       // quickly revert patch to proper version to prevent infinite refresh loop
       const patch2 = [
         {

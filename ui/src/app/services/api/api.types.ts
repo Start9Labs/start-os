@@ -24,6 +24,9 @@ export module RR {
 
   // server
 
+  export type SetShareStatsReq = WithExpire<{ value: any }> // server.config.share-stats
+  export type SetShareStatsRes = WithRevision<null>
+
   export type GetServerLogsReq = { before?: string } // server.logs
   export type GetServerLogsRes = Log[]
 

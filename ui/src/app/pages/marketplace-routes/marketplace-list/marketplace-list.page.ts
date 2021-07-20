@@ -68,8 +68,7 @@ export class MarketplaceListPage {
       this.data.categories = [this.category, 'updates'].concat(filterdCategories).concat(['all'])
 
     } catch (e) {
-      console.error(e)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
     } finally {
       this.pageLoading = false
       this.pkgsLoading = false
@@ -128,8 +127,7 @@ export class MarketplaceListPage {
         this.pkgs = doInfinite ? this.pkgs.concat(pkgs) : pkgs
       }
     } catch (e) {
-      console.error(e)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
     } finally {
       this.pkgsLoading = false
     }
