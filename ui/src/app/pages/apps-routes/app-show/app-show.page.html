@@ -25,7 +25,7 @@
           <h5>{{ pkg.manifest.version | displayEmver }}</h5>
         </ion-label>
       </ion-item>
-
+      
       <div class="status-readout">
         <status size="large" weight="500" [rendering]="rendering"></status>
         <ion-button *ngIf="rendering.feStatus === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
@@ -40,13 +40,39 @@
         <ion-button *ngIf="rendering.feStatus === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
           Start
         </ion-button>
+        <br/>
       </div>
-  
-      <ion-button size="small" *ngIf="(pkg | hasUi) && rendering.feStatus !== FeStatus.Installing" [disabled]="!(pkg | isLaunchable)" class="launch-button" expand="block" (click)="launchUiTab()">
-        Launch Web Interface
-        <ion-icon slot="end" name="rocket-outline"></ion-icon>
-      </ion-button>
+
+      <ng-container *ngIf="rendering.feStatus !== FeStatus.Installing">
+        <ion-button size="small" *ngIf="(pkg | hasUi)" [disabled]="!(pkg | isLaunchable)" class="launch-button" expand="block" (click)="launchUiTab()">
+          Launch Web Interface
+          <ion-icon slot="end" name="rocket-outline"></ion-icon>
+        </ion-button>
+      </ng-container>
     </div>
+
+    <div *ngIf="rendering.feStatus === FeStatus.Installing" style="margin: 50px;">
+      <ng-container *ngIf="(pkg['install-progress'].downloaded + pkg['install-progress'].validated + pkg['install-progress'].unpacked) / (pkg['install-progress'].size * 3) as totalProgress">
+        <h4>Total Progress: {{ Math.round(totalProgress * 100) }}%</h4>
+
+        <ion-progress-bar
+          color="primary"
+          [value]="totalProgress"
+          style="height: 20px;"
+        ></ion-progress-bar>
+        <br>
+
+        <p>Installing: {{ Math.round(pkg['install-progress'].downloaded / pkg['install-progress'].size * 100) }}%</p>
+        <ion-progress-bar color="secondary" [value]="pkg['install-progress'].downloaded / pkg['install-progress'].size"></ion-progress-bar>
+
+        <p>Validating: {{ Math.round(pkg['install-progress'].validated / pkg['install-progress'].size * 100) }}%</p>
+        <ion-progress-bar color="secondary" [value]="pkg['install-progress'].validated / pkg['install-progress'].size"></ion-progress-bar>
+
+        <p>Unpacking: {{ Math.round(pkg['install-progress'].unpacked / pkg['install-progress'].size * 100) }}%</p>
+        <ion-progress-bar color="secondary" [value]="pkg['install-progress'].unpacked / pkg['install-progress'].size"></ion-progress-bar>
+      </ng-container>
+    </div>
+
 
     <ng-container *ngIf="!([FeStatus.Installing, FeStatus.Updating, FeStatus.Removing] | includes : rendering.feStatus)">
       <ion-grid class="ion-text-center" style="margin: 0 6px;">
