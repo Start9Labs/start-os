@@ -43,8 +43,7 @@ export class ServerMetricsPage {
     try {
       this.metrics = await this.embassyApi.getServerMetrics({ })
     } catch (e) {
-      console.error(e)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
       this.stopDaemon()
     } finally {
       this.loading = false

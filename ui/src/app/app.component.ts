@@ -3,12 +3,11 @@ import { Storage } from '@ionic/storage'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/embassy/embassy-api.service'
 import { Router, RoutesRecognized } from '@angular/router'
-import { debounceTime, distinctUntilChanged, filter, finalize, skip, take, takeWhile } from 'rxjs/operators'
-import { AlertController, IonicSafeString, ToastController } from '@ionic/angular'
-import { LoaderService } from './services/loader.service'
+import { debounceTime, distinctUntilChanged, filter, take, takeWhile } from 'rxjs/operators'
+import { AlertController, IonicSafeString, LoadingController, ToastController } from '@ionic/angular'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
-import { LoadingOptions, ToastButton } from '@ionic/core'
+import { ToastButton } from '@ionic/core'
 import { PatchDbService } from './services/patch-db/patch-db.service'
 import { HttpService } from './services/http.service'
 import { ServerStatus } from './services/patch-db/data-model'
@@ -17,6 +16,7 @@ import { StartupAlertsService } from './services/startup-alerts.service'
 import { ConfigService } from './services/config.service'
 import { isEmptyObject } from './util/misc.util'
 import { MarketplaceApiService } from './services/api/marketplace/marketplace-api.service'
+import { ErrorToastService } from './services/error-toast.service'
 
 @Component({
   selector: 'app-root',
@@ -32,7 +32,7 @@ export class AppComponent {
   unreadCount: number
   appPages = [
     {
-      title: 'Installed Services',
+      title: 'Services',
       url: '/services',
       icon: 'grid-outline',
     },
@@ -42,7 +42,7 @@ export class AppComponent {
       icon: 'cube-outline',
     },
     {
-      title: 'Service Marketplace',
+      title: 'Marketplace',
       url: '/marketplace',
       icon: 'storefront-outline',
     },
@@ -60,12 +60,13 @@ export class AppComponent {
     private readonly embassyApi: ApiService,
     private readonly http: HttpService,
     private readonly alertCtrl: AlertController,
-    private readonly loader: LoaderService,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
     private readonly marketplaceApi: MarketplaceApiService,
     private readonly startupAlertsService: StartupAlertsService,
     private readonly toastCtrl: ToastController,
+    private readonly loadingCtrl: LoadingController,
+    private readonly errToast: ErrorToastService,
     private readonly patch: PatchDbService,
     private readonly config: ConfigService,
     readonly splitPane: SplitPaneTracker,
@@ -198,8 +199,8 @@ export class AppComponent {
     .subscribe(status => {
       const maintenance = '/maintenance'
       const route = this.router.url
-      console.log('STATUS', status, 'URL', route)
       if (status === ServerStatus.Running && route.startsWith(maintenance)) {
+        this.showMenu = true
         this.router.navigate([''], { replaceUrl: true })
       }
       if ([ServerStatus.Updating, ServerStatus.BackingUp].includes(status) && !route.startsWith(maintenance)) {
@@ -215,6 +216,7 @@ export class AppComponent {
       takeWhile(() => auth === AuthState.VERIFIED),
     )
     .subscribe(version => {
+      console.log('VERSIONS', this.config.version, version)
       if (this.emver.compare(this.config.version, version) !== 0) {
         this.presentAlertRefreshNeeded()
       }
@@ -275,10 +277,21 @@ export class AppComponent {
   }
 
   private async logout () {
-    this.loader.of(LoadingSpinner('Logging out...'))
-    .displayDuringP(this.embassyApi.logout({ }))
-    .then(() => this.authService.setUnverified())
-    .catch(e => this.setError(e))
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Logging out...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.logout({ })
+      this.authService.setUnverified()
+    } catch (e) {
+      await this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   private async presentToastNotifications () {
@@ -347,35 +360,7 @@ export class AppComponent {
     await this.offlineToast.present()
   }
 
-  private async setError (e: Error) {
-    console.error(e)
-    await this.presentError(e.message)
-  }
-
-  private async presentError (e: string) {
-    const alert = await this.alertCtrl.create({
-      backdropDismiss: true,
-      message: `Exception on logout: ${e}`,
-      buttons: [
-        {
-          text: 'Dismiss',
-          role: 'cancel',
-        },
-      ],
-    })
-    await alert.present()
-  }
-
   splitPaneVisible (e: any) {
     this.splitPane.sidebarOpen$.next(e.detail.visible)
   }
-}
-
-const LoadingSpinner: (m?: string) => LoadingOptions = (m) => {
-  const toMergeIn = m ? { message: m } : { }
-  return {
-    spinner: 'lines',
-    cssClass: 'loader',
-    ...toMergeIn,
-  } as LoadingOptions
 }

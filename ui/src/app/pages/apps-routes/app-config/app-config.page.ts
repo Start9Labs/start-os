@@ -1,9 +1,8 @@
 import { Component, ViewChild } from '@angular/core'
-import { NavController, AlertController, ModalController, IonContent } from '@ionic/angular'
+import { NavController, AlertController, ModalController, IonContent, LoadingController } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
-import { LoaderService } from 'src/app/services/loader.service'
 import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
 import { from, fromEvent, of, Subscription } from 'rxjs'
 import { catchError, concatMap, map, take, tap } from 'rxjs/operators'
@@ -13,6 +12,7 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-config',
@@ -51,7 +51,8 @@ export class AppConfigPage {
     private readonly route: ActivatedRoute,
     private readonly wizardBaker: WizardBaker,
     private readonly embassyApi: ApiService,
-    private readonly loader: LoaderService,
+    private readonly errToast: ErrorToastService,
+    private readonly loadingCtrl: LoadingController,
     private readonly alertCtrl: AlertController,
     private readonly modalController: ModalController,
     private readonly trackingModalCtrl: TrackingModalController,
@@ -85,7 +86,7 @@ export class AppConfigPage {
       this.patch.watch$('package-data', pkgId)
       .pipe(
         tap(pkg => this.pkg = pkg),
-        tap(() => this.loadingText = 'Fetching config spec...'),
+        tap(() => this.loadingText = 'Loading config...'),
         concatMap(() => this.embassyApi.getPackageConfig({ id: pkgId })),
         concatMap(({ spec, config }) => {
           const rec = history.state && history.state.configRecommendation as Recommendation
@@ -157,11 +158,14 @@ export class AppConfigPage {
   }
 
   async save (pkg: PackageDataEntry) {
-    return this.loader.of({
-      message: `Saving config...`,
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: `Saving config...`,
       cssClass: 'loader',
-    }).displayDuringAsync(async () => {
+    })
+    await loader.present()
+
+    try {
       const breakages = await this.embassyApi.drySetPackageConfig({ id: pkg.manifest.id, config: this.config })
 
       if (!isEmptyObject(breakages.length)) {
@@ -172,17 +176,16 @@ export class AppConfigPage {
             breakages,
           }),
         )
-        if (cancelled) return { skip: true }
+        if (cancelled) return
       }
 
-      return this.embassyApi.setPackageConfig({ id: pkg.manifest.id, config: this.config })
-        .then(() => ({ skip: false }))
-    })
-    .then(({ skip }) => {
-      if (skip) return
+      await this.embassyApi.setPackageConfig({ id: pkg.manifest.id, config: this.config })
       this.navCtrl.back()
-    })
-    .catch(e => this.error = { text: e.message })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   handleObjectEdit () {

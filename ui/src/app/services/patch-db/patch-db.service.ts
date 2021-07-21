@@ -44,7 +44,6 @@ export class PatchDbService {
       .pipe(debounceTime(500))
       .subscribe({
         next: cache => {
-          console.log('saving cacheee: ', JSON.parse(JSON.stringify(cache)))
           this.connectionStatus$.next(ConnectionStatus.Connected)
           this.bootstrapper.update(cache)
         },
@@ -54,11 +53,11 @@ export class PatchDbService {
           // this.start()
         },
         complete: () => {
-          console.error('patch-db-sync sub COMPLETE')
+          console.warn('patch-db-sync sub COMPLETE')
         },
       })
     } catch (e) {
-      console.log('Failed to initialize PatchDB', e)
+      console.error('Failed to initialize PatchDB', e)
     }
   }
 
@@ -84,12 +83,12 @@ export class PatchDbService {
     console.log('WATCHING', ...args)
     return this.patchDb.store.watch$(...(args as []))
     .pipe(
-      tap(data => console.log('CHANGE IN STORE', data, ...args)),
+      tap(data => console.log('NEW VALUE', data, ...args)),
       catchError(e => {
-        console.error(e)
+        console.error('Error watching Patch DB', e)
         return of(e.message)
       }),
-      finalize(() => console.log('UNSUBSCRIBING')),
+      finalize(() => console.log('UNSUBSCRIBING', ...args)),
     )
   }
 }

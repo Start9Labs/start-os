@@ -68,8 +68,7 @@ export class AppMetricsPage {
     try {
       this.metrics = await this.embassyApi.getPkgMetrics({ id: this.pkgId})
     } catch (e) {
-      console.error(e)
-      this.errToast.present(e.message)
+      this.errToast.present(e)
       this.stopDaemon()
     } finally {
       this.loading = false

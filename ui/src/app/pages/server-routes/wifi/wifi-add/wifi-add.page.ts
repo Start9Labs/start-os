@@ -1,8 +1,7 @@
 import { Component } from '@angular/core'
-import { NavController } from '@ionic/angular'
+import { LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { WifiService } from '../wifi.service'
-import { LoaderService } from 'src/app/services/loader.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
@@ -20,16 +19,19 @@ export class WifiAddPage {
     private readonly navCtrl: NavController,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
-    private readonly loader: LoaderService,
+    private readonly loadingCtrl: LoadingController,
     private readonly wifiService: WifiService,
   ) { }
 
   async save (): Promise<void> {
-    this.loader.of({
-      message: 'Saving...',
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: 'Saving...',
       cssClass: 'loader',
-    }).displayDuringAsync(async () => {
+    })
+    await loader.present()
+
+    try {
       await this.embassyApi.addWifi({
         ssid: this.ssid,
         password: this.password,
@@ -38,18 +40,22 @@ export class WifiAddPage {
         connect: false,
       })
       this.navCtrl.back()
-    }).catch(e => {
-      console.error(e)
-      this.errToast.present(e.message)
-    })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   async saveAndConnect (): Promise<void> {
-    this.loader.of({
-      message: 'Connecting. This could take while...',
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: 'Connecting. This could take while...',
       cssClass: 'loader',
-    }).displayDuringAsync(async () => {
+    })
+    await loader.present()
+
+    try {
       await this.embassyApi.addWifi({
         ssid: this.ssid,
         password: this.password,
@@ -58,13 +64,14 @@ export class WifiAddPage {
         connect: true,
       })
       const success = this.wifiService.confirmWifi(this.ssid)
-        if (success) {
-          this.navCtrl.back()
-        }
-      }).catch (e => {
-      console.error(e)
-      this.errToast.present(e.message)
-    })
+      if (success) {
+        this.navCtrl.back()
+      }
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   asIsOrder (a: any, b: any) {

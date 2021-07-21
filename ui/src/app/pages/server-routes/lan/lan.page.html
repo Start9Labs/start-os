@@ -21,6 +21,10 @@
       <ion-icon slot="start" name="list-outline"></ion-icon>
       <ion-label>View Instructions</ion-label>
     </ion-item>
+    <ion-item button (click)="installCert()" [disabled]="lanDisabled">
+      <ion-icon slot="start" name="download-outline"></ion-icon>
+      <ion-label>Download Root Certificate Authority</ion-label>
+    </ion-item>
 
     <ng-container *ngIf="lanDisabled">
       <ion-item-divider></ion-item-divider>
@@ -37,38 +41,13 @@
     <ion-item>
       <ion-label class="ion-text-wrap">
         <p style="padding-bottom: 6px;">Troubleshooting</p>
-        <h2>If you are having issues connecting to your Embassy over LAN, try refreshing the network by clicking the button below.</h2>
+        <h2>If you are having issues connecting to your Embassy over LAN, try refreshing your LAN services by clicking the button below.</h2>
       </ion-label>
     </ion-item>
     <ion-item button (click)="refreshLAN()" detail="false">
       <ion-icon slot="start" name="refresh-outline"></ion-icon>
-      <ion-label>Refresh Network</ion-label>
+      <ion-label>Refresh LAN</ion-label>
     </ion-item>
-
-    <ion-item-divider></ion-item-divider>
-
-    <!-- Certificate and Lan Address -->
-    <ng-container *ngIf="!lanDisabled">
-      <ion-item>
-        <ion-label class="ion-text-wrap">
-          <h2>Root Certificate Authority</h2>
-          <p>Embassy Local CA</p>
-        </ion-label>
-        <ion-button slot="end" fill="clear" (click)="installCert()">
-          <ion-icon slot="icon-only" name="download-outline"></ion-icon>
-        </ion-button>
-      </ion-item>
-
-      <ion-item>
-        <ion-label class="ion-text-wrap">
-          <h2>LAN Address</h2>
-          <p>{{ lanAddress }}</p>
-        </ion-label>
-        <ion-button slot="end" fill="clear" (click)="copyLAN()">
-          <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-        </ion-button>
-      </ion-item>
-    </ng-container>
   </ion-item-group>
 
   <!-- hidden element for downloading cert -->
