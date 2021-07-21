@@ -51,7 +51,7 @@
       </ng-container>
     </div>
 
-    <div *ngIf="rendering.feStatus === FeStatus.Installing" style="margin: 50px;">
+    <div *ngIf="rendering.feStatus === FeStatus.Installing" style="padding-top: 30px; max-width: 1000px; margin: auto;">
       <ng-container *ngIf="(pkg['install-progress'].downloaded + pkg['install-progress'].validated + pkg['install-progress'].unpacked) / (pkg['install-progress'].size * 3) as totalProgress">
         <h4>Total Progress: {{ Math.round(totalProgress * 100) }}%</h4>
 
@@ -63,13 +63,22 @@
         <br>
 
         <p>Installing: {{ Math.round(pkg['install-progress'].downloaded / pkg['install-progress'].size * 100) }}%</p>
-        <ion-progress-bar color="secondary" [value]="pkg['install-progress'].downloaded / pkg['install-progress'].size"></ion-progress-bar>
+        <ion-progress-bar 
+          [color]="pkg['install-progress'].downloaded === pkg['install-progress'].size ? 'success' : 'secondary'" 
+          [value]="pkg['install-progress'].downloaded / pkg['install-progress'].size"
+        ></ion-progress-bar>
 
         <p>Validating: {{ Math.round(pkg['install-progress'].validated / pkg['install-progress'].size * 100) }}%</p>
-        <ion-progress-bar color="secondary" [value]="pkg['install-progress'].validated / pkg['install-progress'].size"></ion-progress-bar>
+        <ion-progress-bar
+          [color]="pkg['install-progress'].validated === pkg['install-progress'].size ? 'success' : 'secondary'" 
+          [value]="pkg['install-progress'].validated / pkg['install-progress'].size"
+        ></ion-progress-bar>
 
         <p>Unpacking: {{ Math.round(pkg['install-progress'].unpacked / pkg['install-progress'].size * 100) }}%</p>
-        <ion-progress-bar color="secondary" [value]="pkg['install-progress'].unpacked / pkg['install-progress'].size"></ion-progress-bar>
+        <ion-progress-bar 
+          [color]="pkg['install-progress'].unpacked === pkg['install-progress'].size ? 'success' : 'secondary'" 
+          [value]="pkg['install-progress'].unpacked / pkg['install-progress'].size"
+        ></ion-progress-bar>
       </ng-container>
     </div>
 

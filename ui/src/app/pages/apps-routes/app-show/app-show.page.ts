@@ -63,10 +63,6 @@ export class AppShowPage {
     this.setButtons()
   }
 
-  // ngAfterViewInit () {
-  //   this.content.scrollToPoint(undefined, 1)
-  // }
-
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
   }

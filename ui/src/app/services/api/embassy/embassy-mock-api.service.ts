@@ -489,7 +489,7 @@ export class MockApiService extends ApiService {
       while (i < initialProgress.size) {
         console.log(i)
         await pauseFor(1000)
-        i = Math.min(i + 20, initialProgress.size)
+        i = Math.min(i + 5, initialProgress.size)
         initialProgress[phase.progress] = i
         if (i === initialProgress.size) {
           initialProgress[phase.completion] = true
