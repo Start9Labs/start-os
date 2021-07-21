@@ -22,14 +22,17 @@ export class PatchDbService {
   connectionStatus$ = new BehaviorSubject(ConnectionStatus.Initializing)
   private patchDb: PatchDB<DataModel>
   private patchSub: Subscription
+  data: DataModel
 
-  get data () { return this.patchDb.store.cache.data }
+  getData () { return this.patchDb.store.cache.data }
 
   constructor (
     @Inject(PATCH_SOURCE) private readonly source: Source<DataModel>,
     @Inject(PATCH_HTTP) private readonly http: ApiService,
     @Inject(BOOTSTRAPPER) private readonly bootstrapper: Bootstrapper<DataModel>,
-  ) { }
+  ) {
+    this.data = this.patchDb.store.cache.data
+   }
 
   async init (): Promise<void> {
     const cache = await this.bootstrapper.init()
