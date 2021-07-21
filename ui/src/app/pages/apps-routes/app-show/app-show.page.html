@@ -42,7 +42,7 @@
         </ion-button>
       </div>
   
-      <ion-button size="small" *ngIf="pkg | hasUi" [disabled]="!(pkg | isLaunchable)" class="launch-button" expand="block" (click)="launchUiTab()">
+      <ion-button size="small" *ngIf="(pkg | hasUi) && rendering.feStatus !== FeStatus.Installing" [disabled]="!(pkg | isLaunchable)" class="launch-button" expand="block" (click)="launchUiTab()">
         Launch Web Interface
         <ion-icon slot="end" name="rocket-outline"></ion-icon>
       </ion-button>
