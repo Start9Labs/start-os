@@ -31,10 +31,10 @@
                   </p>
                   <!-- installedPkg -->
                   <ng-template #local>
-                    <p *ngIf="installedPkg.state !== PackageState.Installed; else installed">
+                    <p *ngIf="installedPkg.state !== PackageState.Installed; else installed" style="display: flex; flex-direction: row; align-items: center;">
                       <!-- installing, updating, removing -->
-                      <ion-text [color]="installedPkg.state === PackageState.Removing ? 'danger' : 'primary'">{{ installedPkg.state }}</ion-text>
-                      <ion-spinner class="dots dots-medium" name="dots" [color]="installedPkg.state === PackageState.Removing ? 'danger' : 'primary'"></ion-spinner>
+                      <ion-text [color]="installedPkg.state === PackageState.Removing ? 'warning' : 'primary'">{{ installedPkg.state }}</ion-text>
+                      <ion-spinner name="crescent" style="height: 12px; width: 17px; margin-left: 3px; margin-right: -4px;" [color]="installedPkg.state === PackageState.Removing ? 'warning' : 'primary'"></ion-spinner>
                     </p>
                     <!-- installed -->
                     <ng-template #installed>
