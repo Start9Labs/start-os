@@ -9,7 +9,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 })
 export class MarketplaceService {
   pkgs: { [id: string]: MarketplacePkg } = { }
-  updates: MarketplacePkg[] = null
+  updates: MarketplacePkg[] = []
   releaseNotes: { [id: string]: {
     [version: string]: string
   } } = { }
