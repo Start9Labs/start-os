@@ -131,8 +131,6 @@ export class MarketplaceShowPage {
       }),
     )
     if (cancelled) return
-    await pauseFor(250)
-    this.navCtrl.back()
   }
 
   async update (action: 'update' | 'downgrade') {

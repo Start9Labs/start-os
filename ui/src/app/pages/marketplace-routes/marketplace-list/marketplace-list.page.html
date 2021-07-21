@@ -11,7 +11,7 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <text-spinner *ngIf="pageLoading; else pageLoaded" [text]="'loading marketplace'"></text-spinner>
+  <text-spinner *ngIf="pageLoading; else pageLoaded" text="Loading Marketplace"></text-spinner>
 
   <ng-template #pageLoaded>
     <ion-card *ngIf="eos" class="eos-card" (click)="updateEos()">
@@ -39,7 +39,7 @@
     </div>
 
     <div *ngIf="pkgsLoading; else loaded" style="margin-top: 64px;" class="ion-text-center">
-      <ion-spinner name="lines" color="warning"></ion-spinner>
+      <text-spinner [text]="'Loading ' + (category | titlecase)"></text-spinner>
     </div>
 
     <ng-template #loaded>
@@ -53,7 +53,7 @@
               <ion-label>
                 <h2 style="font-family: 'Montserrat';">{{ pkg.manifest.title }}</h2>
                 <p>{{ pkg.manifest.description.short }}</p>
-                <ng-container *ngIf="localPkgs[pkg.id] as localPkg">
+                <ng-container *ngIf="localPkgs[pkg.manifest.id] as localPkg">
                   <p *ngIf="localPkg.state === PackageState.Installed">
                     <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 0" color="success">Installed</ion-text>
                     <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1" color="warning">Update Available</ion-text>
