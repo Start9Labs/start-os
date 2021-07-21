@@ -30,13 +30,12 @@ export class PatchDbService {
     @Inject(PATCH_SOURCE) private readonly source: Source<DataModel>,
     @Inject(PATCH_HTTP) private readonly http: ApiService,
     @Inject(BOOTSTRAPPER) private readonly bootstrapper: Bootstrapper<DataModel>,
-  ) {
-    this.data = this.patchDb.store.cache.data
-   }
+  ) { }
 
   async init (): Promise<void> {
     const cache = await this.bootstrapper.init()
     this.patchDb = new PatchDB([this.source, this.http], this.http, cache)
+    this.data = this.patchDb.store.cache.data
   }
 
   start (): void {
