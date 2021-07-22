@@ -22,7 +22,7 @@ export class MarketplaceShowPage {
   @ViewChild(IonContent) content: IonContent
   loading = true
   pkgId: string
-  installedPkg: PackageDataEntry
+  localPkg: PackageDataEntry
   PackageState = PackageState
   rec: Recommendation | null = null
   showRec = true
@@ -48,7 +48,7 @@ export class MarketplaceShowPage {
     this.subs = [
       this.patch.watch$('package-data', this.pkgId)
       .subscribe(pkg => {
-        this.installedPkg = pkg
+        this.localPkg = pkg
       }),
     ]
 

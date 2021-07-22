@@ -22,7 +22,7 @@ export class MaintenanceGuard implements CanActivate, CanActivateChild {
   }
 
   private runServerStatusCheck (): boolean {
-    if ([ServerStatus.Updating, ServerStatus.BackingUp].includes(this.patch.data['server-info']?.status)) {
+    if ([ServerStatus.Updating, ServerStatus.BackingUp].includes(this.patch.getData()['server-info']?.status)) {
       this.router.navigate(['/maintenance'], { replaceUrl: true })
       return false
     } else {
