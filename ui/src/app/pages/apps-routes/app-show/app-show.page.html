@@ -40,10 +40,9 @@
         <ion-button *ngIf="rendering.feStatus === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
           Start
         </ion-button>
-        <br/>
       </div>
 
-      <ng-container *ngIf="rendering.feStatus !== FeStatus.Installing">
+      <ng-container *ngIf="pkg.state !== PackageState.Installing">
         <ion-button size="small" *ngIf="(pkg | hasUi)" [disabled]="!(pkg | isLaunchable)" class="launch-button" expand="block" (click)="launchUiTab()">
           Launch Web Interface
           <ion-icon slot="end" name="rocket-outline"></ion-icon>
@@ -51,30 +50,23 @@
       </ng-container>
     </div>
 
-    <div *ngIf="rendering.feStatus === FeStatus.Installing" style="padding: 16px;">
-      <ng-container *ngIf="(pkg['install-progress'].downloaded + pkg['install-progress'].validated + pkg['install-progress'].unpacked) / (pkg['install-progress'].size * 3) as totalProgress">
-        <ion-progress-bar
-          color="primary"
-          [value]="totalProgress"
-          style="height: 20px;"
-        ></ion-progress-bar>
-        <br>
-
+    <div *ngIf="pkg.state === PackageState.Installing" style="padding: 16px;">
+      <ng-container *ngIf="(pkg['install-progress'] | installState).totalProgress / 100 as totalProgress">
         <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
         <ion-progress-bar 
-          [color]="(pkg['install-progress'] | installState).downloadProgress === 100 ? 'success' : 'secondary'" 
+          [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'" 
           [value]="(pkg['install-progress'] | installState).downloadProgress / 100"
         ></ion-progress-bar>
 
         <p>Validating: {{ (pkg['install-progress'] | installState).validateProgress }}%</p>
         <ion-progress-bar
-          [color]="(pkg['install-progress'] | installState).validateProgress === 100 ? 'success' : 'secondary'" 
+          [color]="pkg['install-progress']['validation-complete'] ? 'success' : 'secondary'" 
           [value]="(pkg['install-progress'] | installState).validateProgress / 100"
         ></ion-progress-bar>
 
         <p>Installing: {{ (pkg['install-progress'] | installState).unpackProgress }}%</p>
         <ion-progress-bar 
-          [color]="(pkg['install-progress'] | installState).unpackProgress === 100 ? 'success' : 'secondary'" 
+          [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'" 
           [value]="(pkg['install-progress'] | installState).unpackProgress / 100"
         ></ion-progress-bar>
       </ng-container>

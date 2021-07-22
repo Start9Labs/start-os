@@ -9,7 +9,7 @@ import { MaskPipe } from '../pipes/mask.pipe'
 import { HasUiPipe, LaunchablePipe } from '../pipes/ui.pipe'
 import { EmptyPipe } from '../pipes/empty.pipe'
 import { NotificationColorPipe } from '../pipes/notification-color.pipe'
-import { InstallState } from '../pipes/install-progress.pipe'
+import { InstallState } from '../pipes/install-state.pipe'
 
 @NgModule({
     declarations: [
