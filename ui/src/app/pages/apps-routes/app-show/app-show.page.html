@@ -42,7 +42,7 @@
         </ion-button>
       </div>
 
-      <ng-container *ngIf="pkg.state !== PackageState.Installing">
+      <ng-container *ngIf="pkg.state === PackageState.Installed">
         <ion-button size="small" *ngIf="(pkg | hasUi)" [disabled]="!(pkg | isLaunchable)" class="launch-button" expand="block" (click)="launchUiTab()">
           Launch Web Interface
           <ion-icon slot="end" name="rocket-outline"></ion-icon>
@@ -50,26 +50,24 @@
       </ng-container>
     </div>
 
-    <div *ngIf="pkg.state === PackageState.Installing" style="padding: 16px;">
-      <ng-container *ngIf="(pkg['install-progress'] | installState).totalProgress / 100 as totalProgress">
-        <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
-        <ion-progress-bar 
-          [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'" 
-          [value]="(pkg['install-progress'] | installState).downloadProgress / 100"
-        ></ion-progress-bar>
+    <div *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.state" style="padding: 16px;">
+      <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
+      <ion-progress-bar 
+        [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'" 
+        [value]="(pkg['install-progress'] | installState).downloadProgress / 100"
+      ></ion-progress-bar>
 
-        <p>Validating: {{ (pkg['install-progress'] | installState).validateProgress }}%</p>
-        <ion-progress-bar
-          [color]="pkg['install-progress']['validation-complete'] ? 'success' : 'secondary'" 
-          [value]="(pkg['install-progress'] | installState).validateProgress / 100"
-        ></ion-progress-bar>
+      <p>Validating: {{ (pkg['install-progress'] | installState).validateProgress }}%</p>
+      <ion-progress-bar
+        [color]="pkg['install-progress']['validation-complete'] ? 'success' : 'secondary'" 
+        [value]="(pkg['install-progress'] | installState).validateProgress / 100"
+      ></ion-progress-bar>
 
-        <p>Installing: {{ (pkg['install-progress'] | installState).unpackProgress }}%</p>
-        <ion-progress-bar 
-          [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'" 
-          [value]="(pkg['install-progress'] | installState).unpackProgress / 100"
-        ></ion-progress-bar>
-      </ng-container>
+      <p>Installing: {{ (pkg['install-progress'] | installState).unpackProgress }}%</p>
+      <ion-progress-bar 
+        [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'" 
+        [value]="(pkg['install-progress'] | installState).unpackProgress / 100"
+      ></ion-progress-bar>
     </div>
 
 
