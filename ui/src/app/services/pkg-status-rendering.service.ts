@@ -2,7 +2,7 @@ import { HealthCheckResultLoading, MainStatusRunning, PackageMainStatus, Package
 
 export function renderPkgStatus (state: PackageState, status: Status): PkgStatusRendering {
   switch (state) {
-    case PackageState.Installing: return { display: 'Installing', color: 'primary', showDots: false, feStatus: FEStatus.Installing }
+    case PackageState.Installing: return { display: 'Installing', color: 'primary', showDots: true, feStatus: FEStatus.Installing }
     case PackageState.Updating: return { display: 'Updating', color: 'primary', showDots: true, feStatus: FEStatus.Updating }
     case PackageState.Removing: return { display: 'Removing', color: 'warning', showDots: true, feStatus: FEStatus.Removing }
     case PackageState.Installed: return handleInstalledState(status)
