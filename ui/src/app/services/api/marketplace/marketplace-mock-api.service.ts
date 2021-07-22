@@ -85,7 +85,7 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return params.ids.reduce((obj, id) => {
-        obj[id] = this.patch.data['package-data']?.[id]?.manifest.version.replace('0', '1')
+        obj[id] = this.patch.getData()['package-data']?.[id]?.manifest.version.replace('0', '1')
         return obj
       }, { })
     }

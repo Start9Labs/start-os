@@ -28,6 +28,7 @@ export class AppShowPage {
   PackageState = PackageState
   DependencyErrorType = DependencyErrorType
   rendering: PkgStatusRendering
+  Math = Math
 
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []

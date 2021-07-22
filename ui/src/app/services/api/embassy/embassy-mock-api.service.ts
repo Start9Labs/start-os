@@ -485,12 +485,11 @@ export class MockApiService extends ApiService {
     ]
     for (let phase of phases) {
       let i = initialProgress[phase.progress]
-      console.log('PHASE', phase)
       console.log('Initial i', i)
       while (i < initialProgress.size) {
         console.log(i)
         await pauseFor(1000)
-        i = Math.min(i + 40, initialProgress.size)
+        i = Math.min(i + 5, initialProgress.size)
         initialProgress[phase.progress] = i
         if (i === initialProgress.size) {
           initialProgress[phase.completion] = true

@@ -25,41 +25,43 @@
                 <h1 class="header-title">{{ pkg.manifest.title }}</h1>
                 <p class="header-version">{{ pkg.manifest.version | displayEmver }}</p>
                 <div class="header-status">
-                  <!-- no installedPkg -->
-                  <p *ngIf="!installedPkg; else local">
+                  <!-- no localPkg -->
+                  <p *ngIf="!localPkg; else local">
                     <ion-text color="medium">Not Installed</ion-text>
                   </p>
-                  <!-- installedPkg -->
+                  <!-- localPkg -->
                   <ng-template #local>
-                    <p *ngIf="installedPkg.state !== PackageState.Installed; else installed">
-                      <!-- installing, updating, removing -->
-                      <ion-text [color]="installedPkg.state === PackageState.Removing ? 'danger' : 'primary'">{{ installedPkg.state }}</ion-text>
-                      <ion-spinner class="dots dots-medium" name="dots" [color]="installedPkg.state === PackageState.Removing ? 'danger' : 'primary'"></ion-spinner>
-                    </p>
                     <!-- installed -->
-                    <ng-template #installed>
-                      <p>
-                        <ion-text color="medium">Installed at {{ installedPkg.manifest.version | displayEmver }}</ion-text>
-                      </p>
-                    </ng-template>
+                    <p *ngIf="localPkg.state === PackageState.Installed">
+                      <ion-text color="medium">Installed at {{ localPkg.manifest.version | displayEmver }}</ion-text>
+                    </p>
+                    <!-- installing, updating -->
+                    <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state">
+                      <ion-text color="primary">{{ localPkg.state | titlecase }}...{{ (localPkg['install-progress'] | installState).totalProgress }}%</ion-text>
+                    </p>
+                    <!-- removing -->
+                    <p *ngIf="localPkg.state === PackageState.Removing">
+                      <ion-text color="warning">{{ localPkg.state | titlecase }}</ion-text>
+                      <ion-spinner name="dots" color="warning"></ion-spinner>
+                    </p>
                   </ng-template>
                 </div>
               </div>
             </div>
           </ion-col>
           <ion-col sizeXl="3" sizeLg="3" sizeMd="3" sizeSm="12" sizeXs="12" class="ion-align-self-center">
-            <!-- no installedPkg -->
-            <ion-button *ngIf="!installedPkg; else installedPkg2" class="main-action-button" expand="block" (click)="install()">
+            <!-- no localPkg -->
+            <ion-button *ngIf="!localPkg; else localPkg2" class="main-action-button" expand="block" (click)="install()">
               Install
             </ion-button>
-            <!-- installedPkg -->
-            <ng-template #installedPkg2>
+            <!-- localPkg -->
+            <ng-template #localPkg2>
               <!-- not installing, updating, or removing -->
-              <ng-container *ngIf="installedPkg.state === PackageState.Installed">
-                <ion-button *ngIf="(installedPkg.manifest.version | compareEmver : pkg.manifest.version) === -1" class="main-action-button" expand="block" (click)="update('update')">
+              <ng-container *ngIf="localPkg.state === PackageState.Installed">
+                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === -1" class="main-action-button" expand="block" (click)="update('update')">
                   Update
                 </ion-button>
-                <ion-button *ngIf="(installedPkg.manifest.version | compareEmver : pkg.manifest.version) === 1" class="main-action-button" expand="block" color="warning" (click)="update('downgrade')">
+                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === 1" class="main-action-button" expand="block" color="warning" (click)="update('downgrade')">
                   Downgrade
                 </ion-button>
               </ng-container>

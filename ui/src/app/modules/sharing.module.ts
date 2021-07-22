@@ -9,6 +9,7 @@ import { MaskPipe } from '../pipes/mask.pipe'
 import { HasUiPipe, LaunchablePipe } from '../pipes/ui.pipe'
 import { EmptyPipe } from '../pipes/empty.pipe'
 import { NotificationColorPipe } from '../pipes/notification-color.pipe'
+import { InstallState } from '../pipes/install-state.pipe'
 
 @NgModule({
     declarations: [
@@ -16,6 +17,7 @@ import { NotificationColorPipe } from '../pipes/notification-color.pipe'
         EmverSatisfiesPipe,
         TypeofPipe,
         IncludesPipe,
+        InstallState,
         MarkdownPipe,
         AnnotationStatusPipe,
         TruncateCenterPipe,
@@ -40,6 +42,7 @@ import { NotificationColorPipe } from '../pipes/notification-color.pipe'
         MaskPipe,
         EmverDisplayPipe,
         HasUiPipe,
+        InstallState,
         LaunchablePipe,
         EmptyPipe,
         NotificationColorPipe,
