@@ -26,7 +26,7 @@ export class AppInstructionsPage {
   async ngOnInit () {
     const pkgId = this.route.snapshot.paramMap.get('pkgId')
 
-    const url = this.patch.data['package-data'][pkgId]['static-files'].instructions
+    const url = this.patch.getData()['package-data'][pkgId]['static-files'].instructions
 
     try {
       this.instructions = await this.embassyApi.getStatic(url)

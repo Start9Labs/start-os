@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core'
 import { CanActivate, Router } from '@angular/router'
-import { tap } from 'rxjs/operators'
 import { ServerStatus } from '../services/patch-db/data-model'
 import { PatchDbService } from '../services/patch-db/patch-db.service'
 
