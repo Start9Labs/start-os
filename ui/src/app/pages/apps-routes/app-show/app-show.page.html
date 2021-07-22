@@ -25,7 +25,7 @@
           <h5>{{ pkg.manifest.version | displayEmver }}</h5>
         </ion-label>
       </ion-item>
-
+      
       <div class="status-readout">
         <status size="large" weight="500" [rendering]="rendering"></status>
         <ion-button *ngIf="rendering.feStatus === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
@@ -41,12 +41,35 @@
           Start
         </ion-button>
       </div>
-  
-      <ion-button size="small" *ngIf="pkg | hasUi" [disabled]="!(pkg | isLaunchable)" class="launch-button" expand="block" (click)="launchUiTab()">
-        Launch Web Interface
-        <ion-icon slot="end" name="rocket-outline"></ion-icon>
-      </ion-button>
+
+      <ng-container *ngIf="pkg.state === PackageState.Installed">
+        <ion-button size="small" *ngIf="(pkg | hasUi)" [disabled]="!(pkg | isLaunchable)" class="launch-button" expand="block" (click)="launchUiTab()">
+          Launch Web Interface
+          <ion-icon slot="end" name="rocket-outline"></ion-icon>
+        </ion-button>
+      </ng-container>
     </div>
+
+    <div *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.state" style="padding: 16px;">
+      <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
+      <ion-progress-bar 
+        [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'" 
+        [value]="(pkg['install-progress'] | installState).downloadProgress / 100"
+      ></ion-progress-bar>
+
+      <p>Validating: {{ (pkg['install-progress'] | installState).validateProgress }}%</p>
+      <ion-progress-bar
+        [color]="pkg['install-progress']['validation-complete'] ? 'success' : 'secondary'" 
+        [value]="(pkg['install-progress'] | installState).validateProgress / 100"
+      ></ion-progress-bar>
+
+      <p>Installing: {{ (pkg['install-progress'] | installState).unpackProgress }}%</p>
+      <ion-progress-bar 
+        [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'" 
+        [value]="(pkg['install-progress'] | installState).unpackProgress / 100"
+      ></ion-progress-bar>
+    </div>
+
 
     <ng-container *ngIf="!([FeStatus.Installing, FeStatus.Updating, FeStatus.Removing] | includes : rendering.feStatus)">
       <ion-grid class="ion-text-center" style="margin: 0 6px;">

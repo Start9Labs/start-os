@@ -2,10 +2,10 @@ import { Component } from '@angular/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
-import { distinctUntilChanged, filter } from 'rxjs/operators'
+import { filter } from 'rxjs/operators'
 
 @Component({
   selector: 'app-list',
@@ -24,6 +24,7 @@ export class AppListPage {
     statusRendering: PkgStatusRendering | null
     sub: Subscription | null
   }} = { }
+  PackageState = PackageState
 
   constructor (
     private readonly config: ConfigService,
@@ -41,7 +42,6 @@ export class AppListPage {
       )
       .subscribe(pkgs => {
         const ids = Object.keys(pkgs)
-        console.log('PKGSPKGS', ids)
 
         Object.keys(this.pkgs).forEach(id => {
           if (!ids.includes(id)) {
