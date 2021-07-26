@@ -43,7 +43,7 @@ pub const PKG_PUBLIC_DIR: &'static str = "/mnt/embassy-os/public/package-data";
 
 #[command(display(display_none))]
 pub async fn install(#[context] ctx: EitherContext, #[arg] id: String) -> Result<(), Error> {
-    let rpc_ctx = ctx.as_rpc().unwrap();
+    let rpc_ctx = ctx.to_rpc().unwrap();
     let (pkg_id, version_str) = if let Some(split) = id.split_once("@") {
         split
     } else {
@@ -63,7 +63,13 @@ pub async fn install(#[context] ctx: EitherContext, #[arg] id: String) -> Result
     )
     .with_kind(crate::ErrorKind::Registry)?;
     let man = man_res.json().await.with_kind(crate::ErrorKind::Registry)?;
-    download_install_s9pk(rpc_ctx, &man, s9pk).await
+    tokio::spawn(async move {
+        if let Err(e) = download_install_s9pk(&rpc_ctx, &man, s9pk).await {
+            log::error!("Install of {}@{} Failed: {}", man.id, man.version, e);
+        }
+    });
+
+    Ok(())
 }
 
 pub async fn download_install_s9pk(
@@ -126,7 +132,6 @@ pub async fn download_install_s9pk(
             progress: &Arc<InstallProgress>,
             model: OptionModel<InstallProgress>,
             ctx: &RpcContext,
-            db: &mut PatchDbHandle,
         ) -> Option<S9pkReader<InstallProgressTracker<File>>> {
             fn warn_ok<T, E: Display>(
                 pkg_id: &PackageId,
@@ -170,7 +175,6 @@ pub async fn download_install_s9pk(
             &progress,
             progress_model.clone(),
             &ctx,
-            &mut ctx.db.handle(),
         )
         .await;
 
@@ -363,13 +367,24 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let mut tx = handle.begin().await?;
     let mut sql_tx = ctx.secret_store.begin().await?;
 
-    log::info!("Install {}@{}: Creating manager", pkg_id, version);
-    todo!("create manager");
-    log::info!("Install {}@{}: Created manager", pkg_id, version);
+    log::info!("Install {}@{}: Creating volumes", pkg_id, version);
+    manifest.volumes.install(pkg_id, version).await?;
+    log::info!("Install {}@{}: Created volumes", pkg_id, version);
 
     log::info!("Install {}@{}: Installing interfaces", pkg_id, version);
     let interface_addresses = manifest.interfaces.install(&mut sql_tx, pkg_id).await?;
     log::info!("Install {}@{}: Installed interfaces", pkg_id, version);
+
+    log::info!("Install {}@{}: Creating manager", pkg_id, version);
+    ctx.managers
+        .add(
+            ctx.docker.clone(),
+            ctx.net_controller.clone(),
+            manifest.clone(),
+            manifest.interfaces.tor_keys(&mut sql_tx, pkg_id).await?,
+        )
+        .await?;
+    log::info!("Install {}@{}: Created manager", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
     let current_dependencies = manifest
@@ -472,6 +487,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         }
     }
 
+    sql_tx.commit().await?;
     tx.commit(None).await?;
 
     log::info!("Install {}@{}: Complete", pkg_id, version);
