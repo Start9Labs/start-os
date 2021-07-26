@@ -15,7 +15,7 @@
     <ion-grid class="ion-text-center" style="margin: 0 6px;">
       <ion-row>
         <ion-col *ngFor="let action of pkg.manifest.actions | keyvalue: asIsOrder"  size="6">
-            <ion-card button style="width: 100%; cursor: pointer !important; height: 88%;" color="light" (click)="handleAction(pkg, action)">
+            <ion-card button style="cursor: pointer !important; height: 88%;" color="light" (click)="handleAction(pkg, action)">
               <ion-card-header>
                 <ion-card-subtitle>
                   <ion-icon size="large" *ngIf="!(action.value['allowed-statuses'] | includes: pkg.installed.status.main.status); else goodIcon" color="danger" name="close-outline"></ion-icon>
@@ -29,7 +29,7 @@
             </ion-card>
         </ion-col>
         <ion-col  size="6">
-          <ion-card button style="width: 100%; cursor: pointer !important; height: 88%;" color="light" (click)="uninstall(pkg.manifest)">
+          <ion-card button style="cursor: pointer !important; height: 88%;" color="light" (click)="uninstall(pkg.manifest)">
             <ion-card-header>
               <ion-card-subtitle>
                 <ion-icon size="large" #goAhead name="trash-outline"></ion-icon>
