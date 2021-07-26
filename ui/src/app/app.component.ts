@@ -71,9 +71,7 @@ export class AppComponent {
     private readonly config: ConfigService,
     readonly splitPane: SplitPaneTracker,
   ) {
-    // set dark theme
-    document.body.classList.toggle('dark', true)
-    this.init()
+      this.init()
   }
 
   async init () {

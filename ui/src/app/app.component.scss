@@ -1,18 +1,9 @@
-.selected {
-  --background: linear-gradient(120deg, #1e1e1e -1%, var(--ion-color-danger) 100%);
+.bold {
+  font-weight: bold;
 }
 
-.menu-style {
-  border-style: solid;
-  border-width: 0px 1px 0px 0px;
-  border-color: var(--ion-color-danger);
-  ion-item::part(native) {
-    height: 56px;
-  }
-}
-
-.selected-badge {
-  background-color: #1e1e1e;
+.dim {
+  color: var(--ion-color-dark-shade);
 }
 
 ion-split-pane {

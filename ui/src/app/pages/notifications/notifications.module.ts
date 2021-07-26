@@ -6,6 +6,7 @@ import { NotificationsPage } from './notifications.page'
 import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
+import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text-spinner.component.module'
 
 const routes: Routes = [
   {
@@ -22,6 +23,7 @@ const routes: Routes = [
     PwaBackComponentModule,
     BadgeMenuComponentModule,
     SharingModule,
+    TextSpinnerComponentModule,
   ],
   declarations: [NotificationsPage],
 })

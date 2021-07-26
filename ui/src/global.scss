@@ -25,10 +25,6 @@
 @import "~@ionic/angular/css/text-transformation.css";
 @import "~@ionic/angular/css/flex-utils.css";
 
-.ios ion-title {
-  padding-inline-start: 60px;
-  padding-inline-end: 60px;
-}
 
 .select-change-warning .alert-sub-title {
   color: var(--ion-color-warning)
@@ -101,17 +97,15 @@ ion-toast {
 }
 
 ion-card-title {
+  font-weight: bold;
   color: var(--ion-color-dark);
   font-family: 'Montserrat';
 }
 
 ion-title {
+  font-weight: bold;
+  color: var(--ion-color-dark);
   font-family: 'Montserrat';
-}
-
-ion-textarea {
-  margin-top: 0;
-  padding-left: 12px;
 }
 
 ion-note {
@@ -125,23 +119,20 @@ ion-badge {
   font-weight: bold;
 }
 
-ion-item-divider {
-  --background: transparent;
-  text-transform: uppercase;
-  margin-top: 12px;
-  font-weight: 400;
+ion-content {
+  --ion-background-color: var(--ion-color-dark);
+}
+
+ion-toolbar {
+  --min-height: 73px;
+  --ion-background-color: var(--ion-color-light); 
 }
 
 ion-infinite-scroll ion-infinite-scroll-content {
-  --color: var(--ion-color-warning) !important;
-}
-
-ion-action-sheet {
-  --backdrop-opacity: 0.75 !important;
+  --color: var(--ion-color-dark) !important;
 }
 
 ion-alert {
-  --backdrop-opacity: 0.75 !important;
   .alert-button {
     color: var(--ion-color-dark) !important;
   }
@@ -151,23 +142,11 @@ ion-button {
   --color: var(--ion-color-dark) !important;
 }
 
-ion-loading {
-  --backdrop-opacity: 0.75 !important;
-}
-
 * {
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
   user-select: text;
-}
-
-ion-popover {
-  --background: var(--ion-color-warning) !important;
-
-  ion-backdrop {
-      --backdrop-opacity: 0.45 !important;
-  }
 }
 
 .text-ellipses {
@@ -243,10 +222,6 @@ ion-loading {
   z-index: 100 !important;
 }
 
-ion-modal {
-  --backdrop-opacity: 0.75 !important;
-}
-
 .swiper-pagination {
   position: fixed;
   bottom: 0px;
@@ -277,10 +252,18 @@ ion-avatar {
   --padding-start: 10px;
 }
 
+.divider {
+  background: linear-gradient(90deg,var(--ion-color-light) 0,var(--ion-color-dark) 50%,var(--ion-color-light) 100%);
+  height: 1px;
+}
+
 ion-item-divider {
-  color: var(--ion-color-medium);
+  --background: transparent;
+  text-transform: uppercase;
+  margin-top: 12px;
+  font-weight: 500;
+  border: none;
   font-size: medium;
-  padding-left: 10px;
 }
 
 .dots {

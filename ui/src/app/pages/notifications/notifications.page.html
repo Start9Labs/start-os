@@ -15,7 +15,7 @@
     <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
   </ion-refresher>
 
-  <ion-spinner *ngIf="loading" class="center" name="lines" color="warning"></ion-spinner>
+  <text-spinner *ngIf="loading" text="Loading Notifications"></text-spinner>
 
   <ion-item-group *ngIf="!notifications.length && !loading">
     <ion-item>
