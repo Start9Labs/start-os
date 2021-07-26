@@ -10,20 +10,26 @@
       "nullable": []
     }
   },
-  "3e57a0e52b69f33e9411c13b03a5d82c5856d63f0375eb4c23b255a09c54f8b1": {
-    "query": "SELECT key FROM tor WHERE package = ? AND interface = ?",
+  "8595651866e7db772260bd79e19d55b7271fd795b82a99821c935a9237c1aa16": {
+    "query": "SELECT interface, key FROM tor WHERE package = ?",
     "describe": {
       "columns": [
         {
-          "name": "key",
+          "name": "interface",
           "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "key",
+          "ordinal": 1,
           "type_info": "Blob"
         }
       ],
       "parameters": {
-        "Right": 2
+        "Right": 1
       },
       "nullable": [
+        false,
         false
       ]
     }

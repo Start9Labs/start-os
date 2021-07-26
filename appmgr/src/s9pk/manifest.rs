@@ -25,6 +25,11 @@ pub const SYSTEM_PACKAGE_ID: PackageId<&'static str> = PackageId(SYSTEM_ID);
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PackageId<S: AsRef<str> = String>(Id<S>);
+impl<'a> PackageId<&'a str> {
+    pub fn owned(&self) -> PackageId {
+        PackageId(self.0.owned())
+    }
+}
 impl FromStr for PackageId {
     type Err = InvalidId;
     fn from_str(s: &str) -> Result<Self, Self::Err> {

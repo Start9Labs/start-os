@@ -29,58 +29,17 @@ pub mod health_check;
 
 // Assume docker for now
 pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
     let mut pkg_ids = crate::db::DatabaseModel::new()
         .package_data()
-        .keys(&mut db, true)
+        .keys(&mut ctx.db.handle(), true)
         .await?;
-    let mut container_names = Vec::with_capacity(pkg_ids.len());
-    for id in pkg_ids.clone().into_iter() {
-        if let Some(version) = &*crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(&id)
-            .expect(&mut db)
-            .await?
-            .installed()
-            .map(|i| i.manifest().version())
-            .get(&mut db, true)
-            .await?
-        {
-            container_names.push(DockerAction::container_name(id.as_ref(), None));
-        } else {
-            pkg_ids.remove(&id);
-        }
-    }
-    let mut filters = HashMap::new();
-    filters.insert("name".to_owned(), container_names);
-    let info = ctx
-        .docker
-        .list_containers(Some(ListContainersOptions {
-            all: true,
-            size: false,
-            limit: None,
-            filters,
-        }))
-        .await?;
-    for summary in info {
-        let id = if let Some(id) = summary.names.iter().flatten().find_map(|s| {
-            // DockerAction::uncontainer_name(s.as_str()).and_then(|(id, _)| pkg_ids.take(&id))
-            todo!()
-        }) {
-            id
-        } else {
-            continue;
-        };
-        async fn status<Db: DbHandle>(
-            docker: &Docker,
-            id: &PackageId,
-            db: &mut Db,
-            summary: &ContainerSummaryInner,
-        ) -> Result<(), Error> {
+    for id in pkg_ids {
+        async fn status(ctx: &RpcContext, id: PackageId) -> Result<(), Error> {
+            let mut db = ctx.db.handle();
             let pkg_data = crate::db::DatabaseModel::new()
                 .package_data()
-                .idx_model(id)
-                .check(db)
+                .idx_model(&id)
+                .check(&mut db)
                 .await?
                 .ok_or_else(|| {
                     Error::new(
@@ -88,29 +47,38 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
                         crate::ErrorKind::Database,
                     )
                 })?;
-            let (mut status, manifest) =
-                if let Some(installed) = pkg_data.installed().check(db).await? {
+            let (mut status, manager) =
+                if let Some(installed) = pkg_data.installed().check(&mut db).await? {
                     (
-                        installed.clone().status().get_mut(db).await?,
-                        installed.manifest().get(db, true).await?,
+                        installed.clone().status().get_mut(&mut db).await?,
+                        ctx.managers
+                            .get(&(
+                                id,
+                                installed
+                                    .manifest()
+                                    .version()
+                                    .get(&mut db, true)
+                                    .await?
+                                    .to_owned(),
+                            ))
+                            .await
+                            .ok_or_else(|| {
+                                Error::new(anyhow!("No Manager"), crate::ErrorKind::Docker)
+                            })?,
                     )
                 } else {
                     return Ok(());
                 };
 
-            let res = status.main.synchronize(todo!()).await?;
+            let res = status.main.synchronize(&manager).await?;
 
-            status.save(db).await?;
+            status.save(&mut db).await?;
 
             Ok(res)
         }
-        if let Err(e) = status(&ctx.docker, &id, &mut db, &summary).await {
+        if let Err(e) = status(ctx, id.clone()).await {
             log::error!("Error syncronizing status of {}: {}", id, e);
         }
-    }
-
-    for id in pkg_ids {
-        log::warn!("No container for {}", id);
     }
 
     Ok(())

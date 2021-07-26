@@ -20,6 +20,7 @@ pub mod action;
 pub mod backup;
 pub mod config;
 pub mod context;
+pub mod control;
 pub mod db;
 pub mod dependencies;
 pub mod developer;
@@ -50,16 +51,20 @@ pub fn echo(#[context] _ctx: EitherContext, #[arg] message: String) -> Result<St
 }
 
 #[command(subcommands(
-    config::config,
     version::git_info,
     echo,
     s9pk::pack,
     s9pk::verify,
     developer::init,
-    install::install,
     inspect::inspect,
+    package,
 ))]
 pub fn main_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
+    Ok(ctx)
+}
+
+#[command(subcommands(install::install, config::config, control::start, control::stop))]
+pub fn package(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
     Ok(ctx)
 }
 
