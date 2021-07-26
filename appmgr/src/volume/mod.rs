@@ -10,6 +10,7 @@ use crate::id::{Id, IdUnchecked};
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
+use crate::Error;
 
 pub mod disk;
 
@@ -69,6 +70,12 @@ where
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Volumes(IndexMap<VolumeId, Volume>);
 impl Volumes {
+    pub async fn install(&self, pkg_id: &PackageId, version: &Version) -> Result<(), Error> {
+        for (volume_id, volume) in &self.0 {
+            volume.install(pkg_id, version, volume_id).await?; // TODO: concurrent?
+        }
+        Ok(())
+    }
     pub fn get_path_for(
         &self,
         pkg_id: &PackageId,
@@ -139,6 +146,20 @@ pub enum Volume {
     Backup { readonly: bool },
 }
 impl Volume {
+    pub async fn install(
+        &self,
+        pkg_id: &PackageId,
+        version: &Version,
+        volume_id: &VolumeId,
+    ) -> Result<(), Error> {
+        match self {
+            Volume::Data { .. } => {
+                tokio::fs::create_dir_all(self.path_for(pkg_id, version, volume_id)).await?;
+            }
+            _ => (),
+        }
+        Ok(())
+    }
     pub fn path_for(&self, pkg_id: &PackageId, version: &Version, volume_id: &VolumeId) -> PathBuf {
         match self {
             Volume::Data { .. } => Path::new(PKG_VOLUME_DIR)
