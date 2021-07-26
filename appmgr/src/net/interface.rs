@@ -1,6 +1,10 @@
+use std::collections::HashMap;
 use std::path::Path;
 
+use anyhow::anyhow;
+use futures::TryStreamExt;
 use indexmap::IndexMap;
+use itertools::Either;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Sqlite};
 use torut::onion::TorSecretKeyV3;
@@ -53,10 +57,47 @@ impl Interfaces {
         }
         Ok(interface_addresses)
     }
+
+    pub async fn tor_keys<Ex>(
+        &self,
+        secrets: &mut Ex,
+        package_id: &PackageId,
+    ) -> Result<HashMap<InterfaceId, TorSecretKeyV3>, Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    {
+        Ok(sqlx::query!(
+            "SELECT interface, key FROM tor WHERE package = ?",
+            **package_id
+        )
+        .fetch_many(secrets)
+        .map_err(Error::from)
+        .try_filter_map(|qr| async move {
+            Ok(if let Either::Right(r) = qr {
+                let mut buf = [0; 64];
+                buf.clone_from_slice(r.key.get(0..64).ok_or_else(|| {
+                    Error::new(
+                        anyhow!("Invalid Tor Key Length"),
+                        crate::ErrorKind::Database,
+                    )
+                })?);
+                Some((InterfaceId::from(Id::try_from(r.interface)?), buf.into()))
+            } else {
+                None
+            })
+        })
+        .try_collect()
+        .await?)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct InterfaceId<S: AsRef<str> = String>(Id<S>);
+impl<S: AsRef<str>> From<Id<S>> for InterfaceId<S> {
+    fn from(id: Id<S>) -> Self {
+        Self(id)
+    }
+}
 impl<S: AsRef<str>> std::fmt::Display for InterfaceId<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", &self.0)
