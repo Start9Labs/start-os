@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::net::Ipv4Addr;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::task::Poll;
@@ -8,7 +7,7 @@ use std::task::Poll;
 use anyhow::anyhow;
 use bollard::container::StopContainerOptions;
 use bollard::Docker;
-use patch_db::{DbHandle, PatchDbHandle};
+use patch_db::DbHandle;
 use sqlx::{Executor, Sqlite};
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
@@ -34,16 +33,30 @@ impl ManagerMap {
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
     {
-        // let mut res = ManagerMap(RwLock::new(HashMap::new()));
-        // for package in crate::db::DatabaseModel::new()
-        //     .package_data()
-        //     .keys(db, true)
-        //     .await?
-        // {
-        //     let man = crate::db::DatabaseModel::new().package_data().idx_model(&package).
-        //     res.add(docker.clone(), net_ctl.clone(), manifest, tor_keys)
-        // }
-        todo!()
+        let mut res = HashMap::new();
+        for package in crate::db::DatabaseModel::new()
+            .package_data()
+            .keys(db, true)
+            .await?
+        {
+            let man = if let Some(installed) = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package)
+                .and_then(|pkg| pkg.installed())
+                .check(db)
+                .await?
+            {
+                installed.manifest().get(db, true).await?.to_owned()
+            } else {
+                continue;
+            };
+            let tor_keys = man.interfaces.tor_keys(secrets, &package).await?;
+            res.insert(
+                (package, man.version.clone()),
+                Arc::new(Manager::create(docker.clone(), net_ctl.clone(), man, tor_keys).await?),
+            );
+        }
+        Ok(ManagerMap(RwLock::new(res)))
     }
 
     pub async fn add(
@@ -124,7 +137,7 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
             )
             .await
     });
-    let mut ip;
+    let ip;
     loop {
         match state
             .docker
@@ -132,14 +145,18 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
             .await
         {
             Ok(res) => {
-                ip = res
+                if let Some(ip_addr) = res
                     .network_settings
                     .and_then(|ns| ns.networks)
                     .and_then(|mut n| n.remove("start9"))
                     .and_then(|es| es.ip_address)
+                    .filter(|ip| !ip.is_empty())
                     .map(|ip| ip.parse())
-                    .transpose()?;
-                break;
+                    .transpose()?
+                {
+                    ip = ip_addr;
+                    break;
+                }
             }
             Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => (),
             Err(e) => Err(e)?,
@@ -158,12 +175,6 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
             _ => (),
         }
     }
-    let ip = ip.ok_or_else(|| {
-        Error::new(
-            anyhow!("inspect did not return ip"),
-            crate::ErrorKind::Docker,
-        )
-    })?;
 
     state
         .net_ctl
@@ -283,7 +294,7 @@ impl Manager {
                         todo!("application crashed")
                     }
                     Err(e) => {
-                        todo!("failed to start application")
+                        todo!("failed to start application: {}", e)
                     }
                 }
             }

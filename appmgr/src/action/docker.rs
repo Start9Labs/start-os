@@ -54,7 +54,10 @@ impl DockerAction {
                 .arg("--name")
                 .arg(Self::container_name(pkg_id, name));
         }
-        cmd.args(self.docker_args(pkg_id, pkg_version, volumes, allow_inject));
+        cmd.args(
+            self.docker_args(pkg_id, pkg_version, volumes, allow_inject)
+                .await,
+        );
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -63,7 +66,7 @@ impl DockerAction {
         };
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
-        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
+        let mut handle = dbg!(cmd).spawn().with_kind(crate::ErrorKind::Docker)?;
         if let (Some(input), Some(stdin)) = (&input_buf, &mut handle.stdin) {
             use tokio::io::AsyncWriteExt;
             stdin
@@ -111,7 +114,10 @@ impl DockerAction {
     ) -> Result<Result<O, (i32, String)>, Error> {
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run").arg("--rm").arg("--network=none");
-        cmd.args(self.docker_args(pkg_id, pkg_version, &Volumes::default(), false));
+        cmd.args(
+            self.docker_args(pkg_id, pkg_version, &Volumes::default(), false)
+                .await,
+        );
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -178,7 +184,7 @@ impl DockerAction {
         }
     }
 
-    fn docker_args<'a>(
+    async fn docker_args<'a>(
         &'a self,
         pkg_id: &PackageId,
         pkg_version: &Version,
@@ -197,9 +203,8 @@ impl DockerAction {
             } else {
                 continue;
             };
-            let src = volume.path_for(pkg_id, pkg_version, volume_id);
-            if !src.exists() {
-                // TODO: this is a blocking call, make this async?
+            let src = dbg!(volume.path_for(pkg_id, pkg_version, volume_id));
+            if tokio::fs::metadata(&src).await.is_err() {
                 continue;
             }
             res.push(OsStr::new("--mount").into());
