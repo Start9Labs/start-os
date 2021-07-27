@@ -1,4 +1,8 @@
+use std::path::Path;
+
 use rpc_toolkit::command;
+use sqlx::{query, Pool, Sqlite};
+use tokio::sync;
 
 use crate::util::display_none;
 use crate::{context::EitherContext, Error};
@@ -26,24 +30,66 @@ pub fn ssh(#[context] ctx: EitherContext) -> Result<EitherContext, Error> {
 }
 
 #[command(display(display_none))]
-pub fn add(#[context] ctx: EitherContext, #[arg] key: PubKey) -> Result<(), Error> {
+pub async fn add(#[context] ctx: EitherContext, #[arg] key: PubKey) -> Result<String, Error> {
     let pool = &ctx.as_rpc().unwrap().secret_store;
     // check fingerprint for duplicates
     let fp = key.0.fingerprint_md5();
-    // if no duplicates, insert into DB
-    // insert into live key file
+    if sqlx::query!("SELECT * FROM ssh_keys WHERE fingerprint = ?", fp)
+        .fetch_optional(pool)
+        .await?
+        .is_none()
+    {
+        // if no duplicates, insert into DB
+        let raw_key = format!("{}", key.0);
+        sqlx::query!(
+            "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES (?, ?, datetime('now'))"
+        , fp, raw_key).execute(pool).await?;
+        // insert into live key file, for now we actually do a wholesale replacement of the keys file, for maximum
+        // consistency
+        sync_keys_from_db(pool, todo!()).await?;
+    }
     // return fingerprint
-    todo!()
+    Ok(fp)
 }
 #[command(display(display_none))]
-pub fn remove(#[context] ctx: EitherContext, #[arg] fingerprint: String) -> Result<(), Error> {
+pub async fn remove(
+    #[context] ctx: EitherContext,
+    #[arg] fingerprint: String,
+) -> Result<(), Error> {
+    let pool = &ctx.as_rpc().unwrap().secret_store;
     // check if fingerprint is in DB
-    // if in DB, remove it from DB AND overlay key file
+    // if in DB, remove it from DB
+    let n = sqlx::query!("DELETE FROM ssh_keys WHERE fingerprint = ?", fingerprint)
+        .execute(pool)
+        .await?
+        .rows_affected();
     // if not in DB, Err404
-    todo!()
+    if n == 0 {
+        Err(Error {
+            source: anyhow::anyhow!("SSH Key Not Found"),
+            kind: crate::error::ErrorKind::NotFound,
+            revision: None,
+        })
+    } else {
+        // AND overlay key file
+        sync_keys_from_db(pool, todo!()).await?;
+        Ok(())
+    }
 }
+
 #[command(display(display_none))]
 pub fn list(#[context] ctx: EitherContext) -> Result<Vec<String>, Error> {
     // list keys in DB and return them
     todo!()
+}
+
+pub async fn sync_keys_from_db(pool: &Pool<Sqlite>, dest: &Path) -> Result<(), Error> {
+    let keys = sqlx::query!("SELECT openssh_pubkey FROM ssh_keys")
+        .fetch_all(pool)
+        .await?;
+    let contents: String = keys
+        .into_iter()
+        .map(|k| format!("{}\n", k.openssh_pubkey))
+        .collect();
+    std::fs::write(dest, contents).map_err(|e| e.into())
 }
