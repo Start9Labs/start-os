@@ -7,12 +7,24 @@ use tokio::sync;
 use crate::util::display_none;
 use crate::{context::EitherContext, Error};
 
+static SSH_AUTHORIZED_KEYS_FILE: &str = "/root/.ssh/authorized_keys";
+
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct PubKey(
     #[serde(serialize_with = "crate::util::serialize_display")]
     #[serde(deserialize_with = "crate::util::deserialize_from_str")]
     openssh_keys::PublicKey,
 );
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SshKeyResponse {
+    pub alg: String,
+    pub hash: String,
+    pub hostname: String,
+    #[serde(rename = "camelCase")]
+    pub created_at: String,
+}
+
 impl std::str::FromStr for PubKey {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -46,7 +58,7 @@ pub async fn add(#[context] ctx: EitherContext, #[arg] key: PubKey) -> Result<St
         , fp, raw_key).execute(pool).await?;
         // insert into live key file, for now we actually do a wholesale replacement of the keys file, for maximum
         // consistency
-        sync_keys_from_db(pool, todo!()).await?;
+        sync_keys_from_db(pool, Path::new(SSH_AUTHORIZED_KEYS_FILE)).await?;
     }
     // return fingerprint
     Ok(fp)
@@ -72,14 +84,18 @@ pub async fn remove(
         })
     } else {
         // AND overlay key file
-        sync_keys_from_db(pool, todo!()).await?;
+        sync_keys_from_db(pool, Path::new(SSH_AUTHORIZED_KEYS_FILE)).await?;
         Ok(())
     }
 }
 
 #[command(display(display_none))]
-pub fn list(#[context] ctx: EitherContext) -> Result<Vec<String>, Error> {
+pub async fn list(#[context] ctx: EitherContext) -> Result<Vec<SshKeyResponse>, Error> {
+    let pool = &ctx.as_rpc().unwrap().secret_store;
     // list keys in DB and return them
+    let entries = sqlx::query("SELECT * FROM ssh_keys")
+        .fetch_all(pool)
+        .await?;
     todo!()
 }
 
