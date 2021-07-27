@@ -96,15 +96,15 @@ ion-toast {
   white-space: normal !important;
 }
 
+img {
+  border-radius: 100%;
+}
+
 ion-card-title {
-  font-weight: bold;
-  color: var(--ion-color-dark);
   font-family: 'Montserrat';
 }
 
 ion-title {
-  font-weight: bold;
-  color: var(--ion-color-dark);
   font-family: 'Montserrat';
 }
 
@@ -119,17 +119,13 @@ ion-badge {
   font-weight: bold;
 }
 
-ion-content {
-  --ion-background-color: var(--ion-color-dark);
-}
-
 ion-toolbar {
-  --min-height: 73px;
+  --min-height: 72px;
   --ion-background-color: var(--ion-color-light); 
 }
 
 ion-infinite-scroll ion-infinite-scroll-content {
-  --color: var(--ion-color-dark) !important;
+  --color: var(--ion-color-warning) !important;
 }
 
 ion-alert {
@@ -167,10 +163,10 @@ ion-button {
 @media (min-width:1000px) {
   .modal-wrapper {
     position: absolute;
-    height: 60% !important;
-    top: 20%;
-    width: 50% !important;
-    left: 25%;
+    height: 70% !important;
+    top: 15%;
+    width: 60% !important;
+    left: 20%;
     display: block;
   }
 }
@@ -218,6 +214,15 @@ ion-slides {
   --background: transparent !important;
 }
 
+ion-item-divider {
+  text-transform: uppercase;
+  margin-top: 24px;
+  font-weight: 600;
+  --color: var(--ion-color-dark);
+  border: none;
+  font-size: medium;
+}
+
 ion-loading {
   z-index: 100 !important;
 }
@@ -226,10 +231,6 @@ ion-loading {
   position: fixed;
   bottom: 0px;
   padding-bottom: 3px;
-}
-
-ion-avatar {
-  --border-radius: var(--icon-border-radius);
 }
 
 .notifier-item {
@@ -255,15 +256,6 @@ ion-avatar {
 .divider {
   background: linear-gradient(90deg,var(--ion-color-light) 0,var(--ion-color-dark) 50%,var(--ion-color-light) 100%);
   height: 1px;
-}
-
-ion-item-divider {
-  --background: transparent;
-  text-transform: uppercase;
-  margin-top: 12px;
-  font-weight: 500;
-  border: none;
-  font-size: medium;
 }
 
 .dots {

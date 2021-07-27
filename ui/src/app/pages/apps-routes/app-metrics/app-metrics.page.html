@@ -36,7 +36,7 @@
                     <ion-icon *ngIf="health.value.result === 'starting'" name="timer-outline" color="warning"></ion-icon>
                     <ion-icon *ngIf="health.value.result === 'loading' || health.value.result ==='warming-up'" name="sync-circle-outline" color="warning"></ion-icon>
                     <ion-icon *ngIf="health.value.result === 'failure'" name="close-outline" color="danger"></ion-icon>
-                    <ion-icon *ngIf="health.value.result === 'disabled'" name="remove-outline" color="medium"></ion-icon>
+                    <ion-icon *ngIf="health.value.result === 'disabled'" name="remove-outline" color="dark"></ion-icon>
                   </div>
                 </ion-col>
                 <ion-col size-lg="2" size-md="3" size-sm="4" size-xs="6">
@@ -61,9 +61,7 @@
       <skeleton-list *ngIf="loading" rows="3"></skeleton-list>
       <ion-item-group *ngIf="!loading">
         <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
-          <ion-label>
-            <ion-text color="medium">{{ metric.key }}</ion-text>
-          </ion-label>
+          <ion-label>{{ metric.key }}</ion-label>
           <ion-note *ngIf="metric.value" slot="end" class="metric-note">
             <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
           </ion-note>

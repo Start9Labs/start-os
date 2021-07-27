@@ -75,7 +75,7 @@
       <ion-grid class="ion-text-center" style="margin: 0 6px;">
         <ion-row>
           <ion-col *ngFor="let button of buttons" sizeMd="4" sizeSm="6" sizeXs="6">
-              <ion-button style="width: 100%; min-height: 120px;" color="medium" [disabled]="button.disabled | includes : rendering.feStatus" (click)="button.action()">
+              <ion-button style="width: 100%; min-height: 120px;" color="light" [disabled]="button.disabled | includes : rendering.feStatus" (click)="button.action()">
                 <div>
                   <ion-icon size="large" [name]="button.icon"></ion-icon>
                   <br/><br/>
@@ -93,7 +93,7 @@
           <!-- A current-dependency is a subset of the pkg.manifest.dependencies that is currently required as determined by the service config. -->
           <ion-grid>
             <ion-row>
-              <ion-col *ngFor="let dep of pkg.installed['current-dependencies'] | keyvalue" sizeXs="12" sizeMd="6">
+              <ion-col *ngFor="let dep of pkg.installed['current-dependencies'] | keyvalue" sizeXs="12" sizeSm="12" sizeMd="6" sizeLg="6" sizeXl="6">
                 <ion-item>
                   <ion-thumbnail slot="start">
                     <img [src]="patch.data['package-data'][dep.key] ? patch.data['package-data'][dep.key]['static-files'].icon : pkg.installed.status['dependency-errors'][dep.key]?.icon" />

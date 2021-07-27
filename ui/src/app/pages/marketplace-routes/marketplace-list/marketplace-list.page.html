@@ -1,16 +1,18 @@
 <ion-header>
   <ion-toolbar *ngIf="!pageLoading">
-    <ion-searchbar (ionChange)="search($event)" debounce="400"></ion-searchbar>
+    <ion-searchbar color="dark" (ionChange)="search($event)" debounce="400"></ion-searchbar>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top" color="light">
+<ion-content class="ion-padding">
   <text-spinner *ngIf="pageLoading; else pageLoaded" text="Loading Marketplace"></text-spinner>
 
   <ng-template #pageLoaded>
+    <h1 style="font-family: 'Montserrat'; font-weight: 100px; margin: 0 0 32px 0;" class="ion-text-center">Embassy Marketplace</h1>
+
     <ion-card *ngIf="eos" class="eos-card" (click)="updateEos()">
       <ion-card-header>
         <ion-card-subtitle>Now Available...</ion-card-subtitle>
@@ -21,35 +23,36 @@
       </ion-card-content>
     </ion-card>
 
-    <h2 class="ion-margin-start">Categories</h2>
+    <!-- <h2 class="ion-margin-start">Categories</h2> -->
 
     <div class="scrollable">
       <ion-button
         *ngFor="let cat of data.categories"
         fill="clear"
-        [color]="cat === category ? 'primary' : 'dark'"
-        [class.cat-selected]="cat === category"
+        [class]="cat === category ? 'selected' : 'dim'"
         (click)="switchCategory(cat)"
       >
         {{ cat }}
       </ion-button>
     </div>
 
+    <div class="divider" style="margin-bottom: 24px;"></div>
+
     <div *ngIf="pkgsLoading; else loaded" style="margin-top: 64px;" class="ion-text-center">
-      <text-spinner [text]="'Loading ' + (category | titlecase)"></text-spinner>
+      <text-spinner text="Loading Packages"></text-spinner>
     </div>
 
     <ng-template #loaded>
       <ion-grid>
         <ion-row>
           <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeSm="12" sizeMd="6">
-            <ion-item color="medium" style="border-radius: 5px;" [routerLink]="['/marketplace', pkg.manifest.id]">
+            <ion-item style="border-radius: 5px;" [routerLink]="['/marketplace', pkg.manifest.id]">
               <ion-thumbnail slot="start">
-                <img style="border-radius: 100%;" [src]="pkg.icon" />
+                <img [src]="pkg.icon" />
               </ion-thumbnail>
               <ion-label>
-                <h2 style="font-family: 'Montserrat';">{{ pkg.manifest.title }}</h2>
-                <p>{{ pkg.manifest.description.short }}</p>
+                <h2 style="font-family: 'Montserrat'; font-weight: bold;">{{ pkg.manifest.title }}</h2>
+                <h3>{{ pkg.manifest.description.short }}</h3>
                 <ng-container *ngIf="localPkgs[pkg.manifest.id] as localPkg; else none">
                   <p *ngIf="localPkg.state === PackageState.Installed">
                     <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 0" color="success">Installed</ion-text>
@@ -64,7 +67,7 @@
                   </p>
                 </ng-container>
                 <ng-template #none>
-                  <p><ion-text color="medium">Not Installed</ion-text></p>
+                  <p>Not Installed</p>
                 </ng-template>
               </ion-label>
             </ion-item>
