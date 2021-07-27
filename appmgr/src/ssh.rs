@@ -24,6 +24,20 @@ pub struct SshKeyResponse {
     #[serde(rename = "camelCase")]
     pub created_at: String,
 }
+impl std::fmt::Display for SshKeyResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{} {} {} {}",
+            self.created_at, self.alg, self.hash, self.hostname
+        )
+    }
+}
+fn display_all_ssh_keys(all: &Vec<SshKeyResponse>, _f: &clap::ArgMatches<'_>) -> () {
+    for s in all {
+        println!("{}", s)
+    }
+}
 
 impl std::str::FromStr for PubKey {
     type Err = Error;
@@ -89,14 +103,29 @@ pub async fn remove(
     }
 }
 
-#[command(display(display_none))]
+#[command(display(display_all_ssh_keys))]
 pub async fn list(#[context] ctx: EitherContext) -> Result<Vec<SshKeyResponse>, Error> {
     let pool = &ctx.as_rpc().unwrap().secret_store;
     // list keys in DB and return them
-    let entries = sqlx::query("SELECT * FROM ssh_keys")
+    let entries = sqlx::query!("SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys")
         .fetch_all(pool)
         .await?;
-    todo!()
+    Ok(entries
+        .into_iter()
+        .map(|r| {
+            let k = PubKey(r.openssh_pubkey.parse().unwrap()).0;
+            let alg = k.keytype().to_owned();
+            let hash = k.fingerprint();
+            let hostname = k.comment.unwrap_or("".to_owned());
+            let created_at = r.created_at;
+            SshKeyResponse {
+                alg,
+                hash,
+                hostname,
+                created_at,
+            }
+        })
+        .collect())
 }
 
 pub async fn sync_keys_from_db(pool: &Pool<Sqlite>, dest: &Path) -> Result<(), Error> {
