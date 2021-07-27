@@ -29,6 +29,7 @@ pub mod id;
 pub mod inspect;
 pub mod install;
 pub mod manager;
+pub mod middleware;
 pub mod migration;
 pub mod net;
 pub mod registry;
@@ -45,7 +46,7 @@ use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 pub use version::{init, self_update};
 
-#[command]
+#[command(metadata(authenticated = false))]
 pub fn echo(#[context] _ctx: EitherContext, #[arg] message: String) -> Result<String, RpcError> {
     Ok(message)
 }
