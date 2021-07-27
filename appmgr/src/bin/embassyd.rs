@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use embassy::context::{EitherContext, RpcContext};
 use embassy::db::model::Database;
+use embassy::middleware::cors::cors;
 use embassy::status::{check_all, synchronize_all};
 use embassy::util::daemon;
 use embassy::{Error, ErrorKind};
@@ -28,6 +29,9 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
         command: embassy::main_api,
         context: ctx,
         status: status_fn,
+        middleware: [
+            cors
+        ]
     });
     let status_ctx = rpc_ctx.clone();
     let status_daemon = daemon(
