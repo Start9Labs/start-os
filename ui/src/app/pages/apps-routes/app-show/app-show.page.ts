@@ -60,7 +60,11 @@ export class AppShowPage {
         this.pkg = pkg
         this.connected = connected
         this.rendering = renderPkgStatus(pkg.state, pkg.installed.status)
-        this.mainStatus = pkg.installed?.status.main
+      }),
+      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main')
+      .subscribe(main => {
+        this.mainStatus = main
+        console.log(this.mainStatus)
       }),
     ]
     this.setButtons()

@@ -3,6 +3,17 @@
     <ion-buttons slot="start">
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
+    <ion-item lines="none">
+      <ion-thumbnail slot="start">
+        <img [src]="pkg['static-files'].icon" />
+      </ion-thumbnail>
+      <ion-label class="ion-text-wrap">
+        <h1 style="font-family: 'Montserrat';" [class.less-large]="pkg.manifest.title.length > 20">
+          {{ pkg.manifest.title }}
+        </h1>
+        <h5>{{ pkg.manifest.version | displayEmver }}</h5>
+      </ion-label>
+    </ion-item>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
@@ -11,45 +22,6 @@
 
 <ion-content>
   <ng-container *ngIf="pkg">
-    <div class="status-readout" style="margin: 0 10px;">
-      <ion-item lines="none">
-        <ion-thumbnail slot="start">
-          <img [src]="pkg['static-files'].icon" />
-        </ion-thumbnail>
-        <ion-label class="ion-text-wrap">
-          <h1 style="font-family: 'Montserrat';" [class.less-large]="pkg.manifest.title.length > 20">
-            {{ pkg.manifest.title }}
-          </h1>
-          <h5>{{ pkg.manifest.version | displayEmver }}</h5>
-        </ion-label>
-      </ion-item>
-      <div class="side-by-side-buttons">
-        <ion-button 
-          *ngIf="pkg.state === PackageState.Installed && (pkg | hasUi)"
-          slot="start"
-          expand="block"
-          [routerLink]="['config']"
-          [disabled]="!(pkg | isLaunchable)"
-          (click)="launchUiTab()"
-        >
-          Web
-          <ion-icon slot="end" name="rocket-outline"></ion-icon>
-        </ion-button>
-        <ion-button slot="end" *ngIf="rendering.feStatus === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
-          Configure
-        </ion-button>
-        <ion-button slot="end" *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : rendering.feStatus" expand="block" color="danger" (click)="stop()">
-          Stop
-        </ion-button>
-        <ion-button slot="end" *ngIf="rendering.feStatus === FeStatus.DependencyIssue" expand="block" (click)="scrollToRequirements()">
-          Fix
-        </ion-button>
-        <ion-button slot="end" *ngIf="rendering.feStatus === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
-          Start
-        </ion-button>
-      </div>
-    </div>
-
     <div *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.state" style="padding: 16px;">
       <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
       <ion-progress-bar 
@@ -72,9 +44,6 @@
 
     <ion-card>
       <ion-card-header>
-        <ion-card-subtitle>
-          <status size="large" weight="500" [rendering]="rendering"></status>
-        </ion-card-subtitle>
         <ion-card-title>
           <ion-icon style="vertical-align: middle; padding-right: 12px;" name="medkit-outline"></ion-icon>
           <span style="vertical-align: middle;">Health Checks</span>
@@ -113,6 +82,36 @@
         </ng-template>
       </ion-card-content>
     </ion-card>
+
+    <div class="status-readout" style="margin: 0 10px;">
+      <status size="large" weight="500" [rendering]="rendering"></status>
+
+      <div class="side-by-side-buttons">
+        <ion-button 
+          *ngIf="pkg.state === PackageState.Installed && (pkg | hasUi)"
+          slot="start"
+          expand="block"
+          [routerLink]="['config']"
+          [disabled]="!(pkg | isLaunchable)"
+          (click)="launchUiTab()"
+        >
+          Web
+          <ion-icon slot="end" name="rocket-outline"></ion-icon>
+        </ion-button>
+        <ion-button slot="end" *ngIf="rendering.feStatus === FeStatus.NeedsConfig" expand="block" [routerLink]="['config']">
+          Configure
+        </ion-button>
+        <ion-button slot="end" *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : rendering.feStatus" expand="block" color="danger" (click)="stop()">
+          Stop
+        </ion-button>
+        <ion-button slot="end" *ngIf="rendering.feStatus === FeStatus.DependencyIssue" expand="block" (click)="scrollToRequirements()">
+          Fix
+        </ion-button>
+        <ion-button slot="end" *ngIf="rendering.feStatus === FeStatus.Stopped" expand="block" color="success" (click)="tryStart()">
+          Start
+        </ion-button>
+      </div>
+    </div>
 
     <ng-container *ngIf="!([FeStatus.Installing, FeStatus.Updating, FeStatus.Removing] | includes : rendering.feStatus)">
       <ion-grid class="ion-text-center" style="margin: 0 6px;">
