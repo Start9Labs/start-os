@@ -300,13 +300,6 @@ export class AppShowPage {
         color: 'danger',
         disabled: [],
       },
-      {
-        action: () => this.navCtrl.navigateForward(['/marketplace', this.pkgId], { relativeTo: this.route }),
-        title: 'Marketplace Listing',
-        icon: 'storefront-outline',
-        color: 'danger',
-        disabled: [],
-      },
     ]
   }
 }
