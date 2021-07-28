@@ -13,11 +13,17 @@
 <ion-content>
   <ng-container *ngIf="pkg">
     <div class="status-readout" style="margin: 0 10px;">
-      <div>
-        <h2 style="font-family: 'Montserrat';">
-          {{ pkg.manifest.title }}: <span style="font-size: 14px;">Version {{ pkg.manifest.version | displayEmver }} </span>
-        </h2>
-      </div>
+      <ion-item lines="none">
+        <ion-thumbnail slot="start">
+          <img [src]="pkg['static-files'].icon" />
+        </ion-thumbnail>
+        <ion-label class="ion-text-wrap">
+          <h1 style="font-family: 'Montserrat';" [class.less-large]="pkg.manifest.title.length > 20">
+            {{ pkg.manifest.title }}
+          </h1>
+          <h5>{{ pkg.manifest.version | displayEmver }}</h5>
+        </ion-label>
+      </ion-item>
       <div class="side-by-side-buttons">
         <ion-button 
           *ngIf="pkg.state === PackageState.Installed && (pkg | hasUi)"
@@ -44,23 +50,6 @@
         </ion-button>
       </div>
     </div>
-    <div style="width: 100%; text-align: center;">
-      <img style="width: 200px" [src]="pkg['static-files'].icon" />
-    </div>
-    <!-- top plate -->
-    <!-- <div class="top-plate">
-      <ion-item lines="none">
-        <ion-thumbnail slot="start">
-          <img [src]="pkg['static-files'].icon" />
-        </ion-thumbnail>
-        <ion-label class="ion-text-wrap">
-          <h1 style="font-family: 'Montserrat';" [class.less-large]="pkg.manifest.title.length > 20">
-            {{ pkg.manifest.title }}
-          </h1>
-          <h5>{{ pkg.manifest.version | displayEmver }}</h5>
-        </ion-label>
-      </ion-item>
-    </div> -->
 
     <div *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.state" style="padding: 16px;">
       <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
