@@ -244,16 +244,8 @@ export class AppShowPage {
         disabled: [],
       },
       {
-        action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
-        title: 'Monitor',
-        icon: 'pulse-outline',
-        color: 'danger',
-        // @TODO make the disabled check better. Don't want to list every status here. Monitor should be disabled except is pkg is running.
-        disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
-      },
-      {
         action: () => this.navCtrl.navigateForward(['config'], { relativeTo: this.route }),
-        title: 'Configure',
+        title: 'Settings',
         icon: 'construct-outline',
         color: 'danger',
         disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
@@ -280,6 +272,14 @@ export class AppShowPage {
         disabled: [],
       },
       {
+        action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
+        title: 'Monitor',
+        icon: 'pulse-outline',
+        color: 'danger',
+        // @TODO make the disabled check better. Don't want to list every status here. Monitor should be disabled except is pkg is running.
+        disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
+      },
+      {
         action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         title: 'Logs',
         icon: 'receipt-outline',
@@ -302,7 +302,7 @@ export class AppShowPage {
       },
       {
         action: () => this.donate(),
-        title: 'Support Project',
+        title: 'Donate',
         icon: 'logo-bitcoin',
         color: 'danger',
         disabled: [],

@@ -41,6 +41,14 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'auth.logout', params })
   }
 
+  async getSessions (params: RR.GetSessionsReq): Promise<RR.GetSessionsRes> {
+    return this.http.rpcRequest({ method: 'auth.session.list', params })
+  }
+
+  async killSessions (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
+    return this.http.rpcRequest({ method: 'auth.session.kill', params })
+  }
+
   // server
 
   async setShareStatsRaw (params: RR.SetShareStatsReq): Promise<RR.SetShareStatsRes> {
@@ -71,16 +79,6 @@ export class LiveApiService extends ApiService {
 
   async refreshLan (params: RR.RefreshLanReq): Promise<RR.RefreshLanRes> {
     return this.http.rpcRequest({ method: 'network.lan.refresh', params })
-  }
-
-  // sessions
-
-  async getSessions (params: RR.GetSessionsReq): Promise<RR.GetSessionsRes> {
-    return this.http.rpcRequest({ method: 'sessions.list', params })
-  }
-
-  async killSessions (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
-    return this.http.rpcRequest({ method: 'sessions.kill', params })
   }
 
   // marketplace URLs

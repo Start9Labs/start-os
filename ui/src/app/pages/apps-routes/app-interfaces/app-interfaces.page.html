@@ -7,43 +7,37 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
-    <ion-grid *ngIf="patch.data['package-data'][pkgId] as pkg">
-      <ion-row>
-        <ion-col *ngFor="let interface of pkg.manifest.interfaces | keyvalue: asIsOrder" sizeXs="12" sizeSm="12" sizeMd="6">
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title>{{ interface.value.name }}</ion-card-title>
-              <ion-card-subtitle>{{ interface.value.description }}</ion-card-subtitle>
-              <ion-button style="margin-top: 12px;" *ngIf="interface.value.ui" [disabled]="!(pkg | isLaunchable)" fill="outline" color="dark" expand="block" (click)="launch(pkg)">
-                Launch
-                <ion-icon slot="end" name="rocket-outline"></ion-icon>
-              </ion-button>
-            </ion-card-header>
-            <ion-card-content>
-              <ng-container *ngIf="pkg.installed['interface-info'].addresses[interface.key] as int">
-                <ion-item>
-                  <ion-label class="ion-text-wrap">
-                    <h2>Tor Address</h2>
-                    <p>{{ 'http://' + int['tor-address'] }}</p>
-                  </ion-label>
-                  <ion-button slot="end" fill="clear" (click)="copy('http://' + int['tor-address'])">
-                    <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
-                  </ion-button>
-                </ion-item>
-                <ion-item>
-                  <ion-label class="ion-text-wrap">
-                    <h2>LAN Address</h2>
-                    <p>{{ 'https://' + int['lan-address'] }}</p>
-                  </ion-label>
-                  <ion-button slot="end" fill="clear" (click)="copy('https://' + int['lan-address'])">
-                    <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
-                  </ion-button>
-                </ion-item>
-              </ng-container>
-            </ion-card-content>
-          </ion-card>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
+<ion-content *ngIf="patch.data['package-data'][pkgId] as pkg">
+  <ion-card *ngFor="let interface of pkg.manifest.interfaces | keyvalue: asIsOrder">
+    <ion-card-header>
+      <ion-card-title>{{ interface.value.name }}</ion-card-title>
+      <ion-card-subtitle>{{ interface.value.description }}</ion-card-subtitle>
+      <ion-button style="margin-top: 12px;" *ngIf="interface.value.ui" [disabled]="!(pkg | isLaunchable)" fill="outline" color="dark" expand="block" (click)="launch(pkg)">
+        Launch
+        <ion-icon slot="end" name="rocket-outline"></ion-icon>
+      </ion-button>
+    </ion-card-header>
+    <ion-card-content>
+      <ng-container *ngIf="pkg.installed['interface-info'].addresses[interface.key] as int">
+        <ion-item>
+          <ion-label class="ion-text-wrap">
+            <h2>Tor Address</h2>
+            <p>{{ 'http://' + int['tor-address'] }}</p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" (click)="copy('http://' + int['tor-address'])">
+            <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
+          </ion-button>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap">
+            <h2>LAN Address</h2>
+            <p>{{ 'https://' + int['lan-address'] }}</p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" (click)="copy('https://' + int['lan-address'])">
+            <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </ng-container>
+    </ion-card-content>
+  </ion-card>
 </ion-content>

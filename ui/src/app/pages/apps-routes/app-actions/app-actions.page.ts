@@ -79,7 +79,7 @@ export class AppActionsPage {
         await alert.present()
       }
     } else {
-      const statuses = [...action.value['allowedStatuses']]
+      const statuses = [...action.value['allowed-statuses']]
       const last = statuses.pop()
       let statusesStr = statuses.join(', ')
       let error = null
