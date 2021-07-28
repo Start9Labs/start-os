@@ -1,18 +1,10 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="start">
-      <pwa-back-button></pwa-back-button>
-    </ion-buttons>
-    <ion-title>Service Details</ion-title>
-    <ion-buttons slot="end">
-      <badge-menu-button></badge-menu-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content>
-  <ng-container *ngIf="pkg">
+    
     <div class="status-readout" style="margin: 0 10px;">
+      <ion-buttons slot="start">
+        <pwa-back-button></pwa-back-button>
+      </ion-buttons>
       <ion-item lines="none">
         <ion-thumbnail slot="start">
           <img [src]="pkg['static-files'].icon" />
@@ -50,6 +42,11 @@
         </ion-button>
       </div>
     </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ng-container *ngIf="pkg">
 
     <div *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.state" style="padding: 16px;">
       <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
