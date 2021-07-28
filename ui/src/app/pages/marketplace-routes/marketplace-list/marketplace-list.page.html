@@ -13,16 +13,6 @@
   <ng-template #pageLoaded>
     <h1 style="font-family: 'Montserrat'; font-weight: 100px; margin: 0 0 32px 0;" class="ion-text-center">Embassy Marketplace</h1>
 
-    <ion-card *ngIf="eos" class="eos-card" (click)="updateEos()">
-      <ion-card-header>
-        <ion-card-subtitle>Now Available...</ion-card-subtitle>
-        <ion-card-title>EmbassyOS Version {{ eos.version }}</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        {{ eos.headline }}
-      </ion-card-content>
-    </ion-card>
-
     <!-- <h2 class="ion-margin-start">Categories</h2> -->
 
     <div class="scrollable">
@@ -36,7 +26,7 @@
       </ion-button>
     </div>
 
-    <div class="divider" style="margin-bottom: 24px;"></div>
+    <div class="divider" style="margin: 24px;"></div>
 
     <div *ngIf="pkgsLoading; else loaded" style="margin-top: 64px;" class="ion-text-center">
       <text-spinner text="Loading Packages"></text-spinner>
@@ -45,8 +35,20 @@
     <ng-template #loaded>
       <ion-grid>
         <ion-row>
+          <ion-col *ngIf="eos" sizeXs="12" sizeSm="12" sizeMd="6">
+            <ion-item button class="eos-item" (click)="updateEos()">
+              <ion-thumbnail slot="start">
+                <img src="assets/img/icon.png" />
+              </ion-thumbnail>
+              <ion-label>
+                <h3>Now Available...</h3>
+                <h2>Embassy OS {{ eos.version }}</h2>
+                <p>{{ eos.headline }}</p>
+              </ion-label>
+            </ion-item>
+          </ion-col>
           <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeSm="12" sizeMd="6">
-            <ion-item style="border-radius: 5px;" [routerLink]="['/marketplace', pkg.manifest.id]">
+            <ion-item [routerLink]="['/marketplace', pkg.manifest.id]">
               <ion-thumbnail slot="start">
                 <img [src]="pkg.icon" />
               </ion-thumbnail>

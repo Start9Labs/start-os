@@ -14,9 +14,10 @@
   scrollbar-width: none;  /* Firefox */
 }
 
-.eos-card {
-  margin-bottom: 36px;
-  --background: linear-gradient(45deg, var(--ion-color-light) 11%, var(--ion-color-danger) 180%);
+.eos-item {
+  --border-style: none;
+  --border-radius: 4px;
+  --background: linear-gradient(45deg, var(--ion-color-dark) -100%, var(--ion-color-light) 100%);
 }
 
 .selected {
