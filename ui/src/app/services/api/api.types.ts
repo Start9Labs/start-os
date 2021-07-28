@@ -16,7 +16,7 @@ export module RR {
 
   // auth
 
-  export type LoginReq = { password: string } // auth.login - unauthed
+  export type LoginReq = { password: string, metadata: SessionMetadata } // auth.login - unauthed
   export type loginRes = null
 
   export type LogoutReq = { } // auth.logout
@@ -36,9 +36,6 @@ export module RR {
   export type UpdateServerReq = WithExpire<{ }> // server.update
   export type UpdateServerRes = WithRevision<null>
 
-  export type KillSessionsReq = WithExpire<{ ids: string[] }>
-  export type KillSessionsRes = WithRevision<null>
-
   export type RestartServerReq = { } // server.restart
   export type RestartServerRes = null
 
@@ -49,6 +46,17 @@ export module RR {
 
   export type RefreshLanReq = { } // network.lan.refresh
   export type RefreshLanRes = null
+
+  // sessions
+
+  export type GetSessionsReq = { } // sessions.list
+  export type GetSessionsRes = {
+    current: string,
+    sessions: { [hash: string]: Session }
+  }
+
+  export type KillSessionsReq = WithExpire<{ hashes: string[] }> // sessions.kill
+  export type KillSessionsRes = WithRevision<null>
 
   // marketplace URLs
 
@@ -255,6 +263,18 @@ export interface Metric {
     unit?: string
   }
 }
+
+export interface Session {
+  'last-active': string
+  'user-agent': string
+  metadata: SessionMetadata
+}
+
+export interface SessionMetadata {
+  platforms: PlatformType[]
+}
+
+export type PlatformType = 'ios' | 'ipad' | 'iphone' | 'android' | 'phablet' | 'tablet' | 'cordova' | 'capacitor' | 'electron' | 'pwa' | 'mobile' | 'mobileweb' | 'desktop' | 'hybrid'
 
 export interface DiskInfo {
   [id: string]: DiskInfoEntry

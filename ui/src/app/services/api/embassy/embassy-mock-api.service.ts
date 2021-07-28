@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '../../../util/misc.util'
 import { ApiService } from './embassy-api.service'
-import { AddOperation, Operation, PatchOp, RemoveOperation } from 'patch-db-client'
-import { InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus, Session } from 'src/app/services/patch-db/data-model'
+import { Operation, PatchOp } from 'patch-db-client'
+import { InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
 import { RR, WithRevision } from '../api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from '../api.fixures'
@@ -117,37 +117,6 @@ export class MockApiService extends ApiService {
     return res
   }
 
-  async killSessionsRaw (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
-    await pauseFor(2000)
-
-    const ops: RemoveOperation[] = []
-    const unduOps: AddOperation<Session>[] = []
-    params.ids.forEach(id => {
-      ops.push({
-        op: PatchOp.REMOVE,
-        path: `/server-info/sessions/${id}`,
-      })
-      unduOps.push({
-        op: PatchOp.ADD,
-        path: `/server-info/sessions/${id}`,
-        value: {
-          'last-active': new Date().toISOString(),
-          'user-agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0',
-        },
-      })
-    })
-    const patch = [...ops]
-
-    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-
-    setTimeout(() => {
-      const patch = [...unduOps]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    }, this.revertTime)
-
-    return res
-  }
-
   async restartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
     await pauseFor(2000)
     return null
@@ -161,6 +130,18 @@ export class MockApiService extends ApiService {
   // network
 
   async refreshLan (params: RR.RefreshLanReq): Promise<RR.RefreshLanRes> {
+    await pauseFor(2000)
+    return null
+  }
+
+  // sessions
+
+  async getSessions (params: RR.GetSessionsReq): Promise<RR.GetSessionsRes> {
+    await pauseFor(2000)
+    return Mock.Sessions
+  }
+
+  async killSessions (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
     await pauseFor(2000)
     return null
   }

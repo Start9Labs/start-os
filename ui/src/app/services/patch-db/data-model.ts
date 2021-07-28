@@ -30,9 +30,6 @@ export interface ServerInfo {
     tor: string[]
     clearnet: string[]
   }
-  sessions: {
-    [id: string]: Session
-  }
 }
 
 export enum ServerStatus {
@@ -45,11 +42,6 @@ export interface WiFiInfo {
   ssids: string[]
   selected: string | null
   connected: string | null
-}
-
-export interface Session {
-  'last-active': string
-  'user-agent': string
 }
 
 export interface PackageDataEntry {

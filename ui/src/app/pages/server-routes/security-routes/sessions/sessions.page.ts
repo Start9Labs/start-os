@@ -1,9 +1,8 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
+import { AlertController, getPlatforms, LoadingController } from '@ionic/angular'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
-import { Session } from 'src/app/services/patch-db/data-model'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PlatformType, RR, SessionMetadata } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'sessions',
@@ -12,22 +11,22 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 })
 export class SessionsPage {
   loading = true
-  sessions: { [id: string]: Session } = { }
+  sessionInfo: RR.GetSessionsRes
 
   constructor (
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly embassyApi: ApiService,
-    public readonly patch: PatchDbService,
   ) { }
 
   async ngOnInit () {
-    // await this.embassyApi.getSessions()
+    getPlatforms()
+    this.sessionInfo = await this.embassyApi.getSessions({ })
     this.loading = false
   }
 
-  async presentAlertKill (id: string) {
+  async presentAlertKill (hash: string) {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Caution',
@@ -40,7 +39,7 @@ export class SessionsPage {
         {
           text: 'Kill',
           handler: () => {
-            this.kill(id)
+            this.kill(hash)
           },
         },
       ],
@@ -48,7 +47,7 @@ export class SessionsPage {
     await alert.present()
   }
 
-  async kill (id: string): Promise<void> {
+  async kill (hash: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Killing session...',
@@ -57,11 +56,32 @@ export class SessionsPage {
     await loader.present()
 
     try {
-      await this.embassyApi.killSessions({ ids: [id] })
+      await this.embassyApi.killSessions({ hashes: [hash] })
+      delete this.sessionInfo.sessions[hash]
     } catch (e) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
+    }
+  }
+
+  getPlatformIcon (platforms: PlatformType[]): string {
+    return platforms.includes('desktop') ? 'desktop-outline' : 'phone-portrait-outline'
+  }
+
+  getPlatformName (platforms: PlatformType[]): string {
+    if (platforms.includes('desktop')) {
+      return 'Desktop/Laptop'
+    } else if (platforms.includes('android')) {
+      return 'Android Device'
+    } else if (platforms.includes('iphone')) {
+      return 'iPhone'
+    } else if (platforms.includes('ipad')) {
+      return 'iPad'
+    } else if (platforms.includes('ios')) {
+      return 'iOS Device'
+    } else {
+      return 'Unknown Device'
     }
   }
 

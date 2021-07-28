@@ -59,10 +59,6 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'server.update', params })
   }
 
-  async killSessionsRaw (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
-    return this.http.rpcRequest({ method: 'server.sessions.kill', params })
-  }
-
   async restartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
     return this.http.rpcRequest({ method: 'server.restart', params })
   }
@@ -75,6 +71,16 @@ export class LiveApiService extends ApiService {
 
   async refreshLan (params: RR.RefreshLanReq): Promise<RR.RefreshLanRes> {
     return this.http.rpcRequest({ method: 'network.lan.refresh', params })
+  }
+
+  // sessions
+
+  async getSessions (params: RR.GetSessionsReq): Promise<RR.GetSessionsRes> {
+    return this.http.rpcRequest({ method: 'sessions.list', params })
+  }
+
+  async killSessions (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
+    return this.http.rpcRequest({ method: 'sessions.kill', params })
   }
 
   // marketplace URLs
