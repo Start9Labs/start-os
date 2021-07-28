@@ -3,15 +3,7 @@
 }
 
 .top-plate {
-  background: var(--ion-item-background);
-  margin: 0 16px;
-  padding: 12px;
-  border-radius: 10px;
-  border-style: solid;
   border-color: #373737;
-  ion-item {
-    border-radius: 10px;
-  }
 }
 
 .status-readout {
@@ -19,13 +11,15 @@
   display: flex;
   justify-content: space-between;
   padding: 8px 16px;
-  border-radius: 10px;
   align-items: center;
-  background: var(--ion-background-color);
   margin: 10px;
-  border-style: solid;
-  border-width: 1px;
-  border-color: #404040;
+}
+
+.side-by-side-buttons {
+  --background: transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .launch-button {
