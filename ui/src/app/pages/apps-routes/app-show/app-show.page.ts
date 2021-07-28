@@ -8,7 +8,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, MainStatus, PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -29,6 +29,8 @@ export class AppShowPage {
   DependencyErrorType = DependencyErrorType
   rendering: PkgStatusRendering
   Math = Math
+  mainStatus: MainStatus
+
 
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []
@@ -58,6 +60,7 @@ export class AppShowPage {
         this.pkg = pkg
         this.connected = connected
         this.rendering = renderPkgStatus(pkg.state, pkg.installed.status)
+        this.mainStatus = pkg.installed?.status.main
       }),
     ]
     this.setButtons()
@@ -239,7 +242,7 @@ export class AppShowPage {
       {
         action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
         title: 'Monitor',
-        icon: 'medkit-outline',
+        icon: 'pulse-outline',
         color: 'danger',
         // @TODO make the disabled check better. Don't want to list every status here. Monitor should be disabled except is pkg is running.
         disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],

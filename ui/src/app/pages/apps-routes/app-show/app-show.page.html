@@ -12,9 +12,12 @@
 
 <ion-content>
   <ng-container *ngIf="pkg">
-    <div class="status-readout">
-      <status size="large" weight="500" [rendering]="rendering"></status>
-    
+    <div class="status-readout" style="margin: 0 10px;">
+      <div>
+        <h2 style="font-family: 'Montserrat';">
+          {{ pkg.manifest.title }}: <span style="font-size: 14px;">Version {{ pkg.manifest.version | displayEmver }} </span>
+        </h2>
+      </div>
       <div class="side-by-side-buttons">
         <ion-button 
           *ngIf="pkg.state === PackageState.Installed && (pkg | hasUi)"
@@ -79,6 +82,49 @@
       ></ion-progress-bar>
     </div>
 
+    <ion-card>
+      <ion-card-header>
+        <ion-card-subtitle>
+          <status size="large" weight="500" [rendering]="rendering"></status>
+        </ion-card-subtitle>
+        <ion-card-title>
+          <ion-icon style="vertical-align: middle; padding-right: 12px;" name="medkit-outline"></ion-icon>
+          <span style="vertical-align: middle;">Health Checks</span>
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item *ngIf="mainStatus.health | empty; else health">
+          <ion-label>
+            No health checks
+          </ion-label>
+        </ion-item>
+        <ng-template #health>
+          <ion-item *ngIf="!(mainStatus.health | empty); else noHealth" color="light" style="margin: 10px;">
+            <ion-label>
+              <ion-grid>
+                <ion-row *ngFor="let health of mainStatus.health | keyvalue : asIsOrder">
+                  <ion-col size-lg="2" size-md="3" size-sm="4" size-xs="6">
+                    <h2>{{ health.key }}:</h2>
+                  </ion-col>
+                  <ion-col size-lg="2" size-md="3" size-sm="4" size-xs="6">
+                    <div style="padding-top: 4px;">
+                      <ion-icon *ngIf="health.value.result === 'success'" name="checkmark-outline" color="success"></ion-icon>
+                      <ion-icon *ngIf="health.value.result === 'starting'" name="timer-outline" color="warning"></ion-icon>
+                      <ion-icon *ngIf="health.value.result === 'loading' || health.value.result ==='warming-up'" name="sync-circle-outline" color="warning"></ion-icon>
+                      <ion-icon *ngIf="health.value.result === 'failure'" name="close-outline" color="danger"></ion-icon>
+                      <ion-icon *ngIf="health.value.result === 'disabled'" name="remove-outline" color="dark"></ion-icon>
+                    </div>
+                  </ion-col>
+                  <ion-col size-lg="2" size-md="3" size-sm="4" size-xs="6">
+                    <p style="margin-left: 24px;" *ngIf="health.value.result === 'failure'"><ion-text color="danger">*{{ health.value.error }}</ion-text></p>
+                  </ion-col>
+                </ion-row>
+              </ion-grid>
+            </ion-label>
+          </ion-item>
+        </ng-template>
+      </ion-card-content>
+    </ion-card>
 
     <ng-container *ngIf="!([FeStatus.Installing, FeStatus.Updating, FeStatus.Removing] | includes : rendering.feStatus)">
       <ion-grid class="ion-text-center" style="margin: 0 6px;">
