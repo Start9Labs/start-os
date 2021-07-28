@@ -7,24 +7,15 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
-  <ion-card>
-    <ion-card-header>
-      <ion-card-title>
-        <ion-icon style="vertical-align: middle; padding-right: 12px;" name="pulse-outline"></ion-icon>
-        <span style="vertical-align: middle;">Metrics</span>
-      </ion-card-title>
-    </ion-card-header>
-    <ion-card-content>
-      <skeleton-list *ngIf="loading" rows="3"></skeleton-list>
-      <ion-item-group *ngIf="!loading">
-        <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
-          <ion-label>{{ metric.key }}</ion-label>
-          <ion-note *ngIf="metric.value" slot="end" class="metric-note">
-            <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
-          </ion-note>
-        </ion-item>
-      </ion-item-group>
-    </ion-card-content>
-  </ion-card>
+<ion-content class="ion-padding">
+
+  <skeleton-list *ngIf="loading" rows="3"></skeleton-list>
+  <ion-item-group *ngIf="!loading">
+    <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
+      <ion-label>{{ metric.key }}</ion-label>
+      <ion-note *ngIf="metric.value" slot="end" class="metric-note">
+        <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
+      </ion-note>
+    </ion-item>
+  </ion-item-group>
 </ion-content>

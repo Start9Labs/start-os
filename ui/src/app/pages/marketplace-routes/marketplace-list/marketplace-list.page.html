@@ -13,9 +13,7 @@
   <ng-template #pageLoaded>
     <h1 style="font-family: 'Montserrat'; font-weight: 100px; margin: 0 0 32px 0;" class="ion-text-center">Embassy Marketplace</h1>
 
-    <!-- <h2 class="ion-margin-start">Categories</h2> -->
-
-    <div class="scrollable">
+    <div class="scrollable ion-text-center">
       <ion-button
         *ngFor="let cat of data.categories"
         fill="clear"
@@ -35,7 +33,7 @@
     <ng-template #loaded>
       <ion-grid>
         <ion-row>
-          <ion-col *ngIf="eos" sizeXs="12" sizeSm="12" sizeMd="6">
+          <ion-col *ngIf="eos && category === 'featured'" sizeXs="12" sizeSm="12" sizeMd="6">
             <ion-item button class="eos-item" (click)="updateEos()">
               <ion-thumbnail slot="start">
                 <img src="assets/img/icon.png" />

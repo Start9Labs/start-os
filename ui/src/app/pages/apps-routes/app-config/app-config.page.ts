@@ -206,7 +206,6 @@ export class AppConfigPage {
         },
         {
           text: `Leave`,
-          cssClass: 'alert-danger',
           handler: () => {
             this.navCtrl.back()
           },

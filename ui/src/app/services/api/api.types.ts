@@ -36,6 +36,9 @@ export module RR {
   export type UpdateServerReq = WithExpire<{ }> // server.update
   export type UpdateServerRes = WithRevision<null>
 
+  export type KillSessionsReq = WithExpire<{ ids: string[] }>
+  export type KillSessionsRes = WithRevision<null>
+
   export type RestartServerReq = { } // server.restart
   export type RestartServerRes = null
 

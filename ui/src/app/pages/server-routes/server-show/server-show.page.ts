@@ -37,7 +37,6 @@ export class ServerShowPage {
         },
         {
           text: 'Restart',
-          cssClass: 'alert-danger',
           handler: () => {
             this.restart()
           },
@@ -59,7 +58,6 @@ export class ServerShowPage {
         },
         {
           text: 'Shutdown',
-          cssClass: 'alert-danger',
           handler: () => {
             this.shutdown()
           },

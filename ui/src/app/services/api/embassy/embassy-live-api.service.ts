@@ -59,6 +59,10 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'server.update', params })
   }
 
+  async killSessionsRaw (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
+    return this.http.rpcRequest({ method: 'server.sessions.kill', params })
+  }
+
   async restartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
     return this.http.rpcRequest({ method: 'server.restart', params })
   }

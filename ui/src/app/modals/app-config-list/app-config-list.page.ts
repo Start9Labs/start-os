@@ -118,7 +118,6 @@ export class AppConfigListPage extends ModalPresentable {
         },
         {
           text: 'Delete',
-          cssClass: 'alert-danger',
           handler: () => {
             if (typeof key === 'number') {
               (this.value as any[]).splice(key, 1)

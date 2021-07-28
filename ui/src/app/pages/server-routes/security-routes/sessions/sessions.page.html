@@ -1,0 +1,25 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Active Sessions</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <text-spinner *ngIf="loading" text="Loading Sessions"></text-spinner>
+
+  <ion-item-group>
+    <ion-item *ngFor="let s of patch.data['server-info'].sessions | keyvalue : asIsOrder">
+      <ion-label class="ion-text-wrap">
+        <h2>Last Active: {{ s.value['last-active'] | date : 'medium' }}</h2>
+        <p>{{ s.value['user-agent'] }}</p>
+      </ion-label>
+      <ion-button slot="end" fill="clear" (click)="presentAlertKill(s.key)">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-item>
+  </ion-item-group>
+
+</ion-content>

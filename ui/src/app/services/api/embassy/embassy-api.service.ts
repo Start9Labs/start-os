@@ -50,6 +50,11 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     () => this.updateServerRaw(params),
   )()
 
+  protected abstract killSessionsRaw (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes>
+  killSessions = (params: RR.KillSessionsReq) => this.syncResponse(
+    () => this.killSessionsRaw(params),
+  )()
+
   abstract restartServer (params: RR.UpdateServerReq): Promise<RR.RestartServerRes>
 
   abstract shutdownServer (params: RR.ShutdownServerReq): Promise<RR.ShutdownServerRes>

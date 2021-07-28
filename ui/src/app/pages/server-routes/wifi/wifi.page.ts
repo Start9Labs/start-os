@@ -29,7 +29,6 @@ export class WifiListPage {
     const buttons: ActionSheetButton[] = [
       {
         text: 'Forget',
-        cssClass: 'alert-danger',
         handler: () => {
           this.delete(ssid)
         },
