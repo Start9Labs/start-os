@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use async_trait::async_trait;
-use clap::ArgMatches;
+use clap::{Arg, ArgMatches};
 use digest::Digest;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
