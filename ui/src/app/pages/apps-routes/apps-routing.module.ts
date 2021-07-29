@@ -51,10 +51,6 @@ const routes: Routes = [
     path: ':pkgId/properties',
     loadChildren: () => import('./app-properties/app-properties.module').then(m => m.AppPropertiesPageModule),
   },
-  {
-    path: ':pkgId/restore',
-    loadChildren: () => import('./app-restore/app-restore.module').then(m => m.AppRestorePageModule),
-  },
 ]
 
 @NgModule({

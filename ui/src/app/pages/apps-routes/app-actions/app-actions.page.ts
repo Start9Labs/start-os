@@ -10,6 +10,7 @@ import { Subscription } from 'rxjs'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { AppActionInputPage } from 'src/app/modals/app-action-input/app-action-input.page'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { AppRestoreComponent } from 'src/app/modals/app-restore/app-restore.component'
 
 @Component({
   selector: 'app-actions',
@@ -79,7 +80,7 @@ export class AppActionsPage {
         await alert.present()
       }
     } else {
-      const statuses = [...action.value['allowedStatuses']]
+      const statuses = [...action.value['allowed-statuses']]
       const last = statuses.pop()
       let statusesStr = statuses.join(', ')
       let error = null
@@ -101,6 +102,23 @@ export class AppActionsPage {
       })
       await alert.present()
     }
+  }
+
+  async restore (): Promise<void> {
+    const m = await this.modalCtrl.create({
+      componentProps: {
+        pkgId: this.pkgId,
+      },
+      component: AppRestoreComponent,
+      backdropDismiss: false,
+    })
+
+    m.onWillDismiss().then(res => {
+      const data = res.data
+      if (data.error) this.errToast.present(data.error)
+    })
+
+    return await m.present()
   }
 
   async uninstall (manifest: Manifest) {
@@ -134,7 +152,6 @@ export class AppActionsPage {
         header: 'Execution Complete',
         message: res.message.split('\n').join('</br ></br />'),
         buttons: ['OK'],
-        cssClass: 'alert-success-message',
       })
       await successAlert.present()
     } catch (e) {

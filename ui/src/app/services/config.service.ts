@@ -67,6 +67,7 @@ export class ConfigService {
   }
 
   launchableURL (pkg: PackageDataEntry): string {
+    console.log('PKGPKGPKG', pkg)
     return this.isTor() ? `http://${torUiAddress(pkg)}` : `https://${lanUiAddress(pkg)}`
   }
 }
@@ -85,7 +86,7 @@ export function torUiAddress (pkg: PackageDataEntry): string {
     const val = interfaces[key]
     return val.ui && val['tor-config']
   })
-  return pkg['interface-info'].addresses[id]['tor-address']
+  return pkg.installed['interface-info'].addresses[id]['tor-address']
 }
 
 export function lanUiAddress (pkg: PackageDataEntry): string {
@@ -94,7 +95,7 @@ export function lanUiAddress (pkg: PackageDataEntry): string {
     const val = interfaces[key]
     return val.ui && val['lan-config']
   })
-  return pkg['interface-info'].addresses[id]['lan-address']
+  return pkg.installed['interface-info'].addresses[id]['lan-address']
 }
 
 export function hasUi (interfaces: { [id: string]: InterfaceDef }): boolean {

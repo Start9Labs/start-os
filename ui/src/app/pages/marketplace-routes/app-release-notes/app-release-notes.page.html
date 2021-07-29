@@ -11,11 +11,23 @@
   <text-spinner *ngIf="!marketplaceService.releaseNotes[pkgId]; else loaded" text="Loading Release Notes"></text-spinner>
 
   <ng-template #loaded>
-    <div *ngFor="let note of marketplaceService.releaseNotes[pkgId] | keyvalue : asIsOrder">
-      <ion-button (click)="setSelected(note.key)"  expand="full" color="light" style="height: 50px;" >
+    <div style="margin: 0px;" *ngFor="let note of marketplaceService.releaseNotes[pkgId] | keyvalue : asIsOrder">
+      <ion-button 
+        (click)="setSelected(note.key)" 
+        expand="full" color="light" 
+        style="height: 50px; margin: 1px;" 
+        [class]="selected === note.key ? 'ion-activated' : ''"
+      >
         <p style="position: absolute; left: 10px;">{{ note.key | displayEmver }}</p>
       </ion-button>
-      <ion-card *ngIf="selected === note.key" class="acc-text" color="light" >
+      <ion-card
+        [id]="note.key"
+        [ngStyle]="{
+          'max-height': selected === note.key ? getDocSize(note.key) : '0px',
+          'transition': 'max-height 0.2s ease-out'
+        }"
+        class="panel"
+        color="light" >
         <ion-text id='release-notes' [innerHTML]="note.value | markdown"></ion-text>
       </ion-card>
     </div>

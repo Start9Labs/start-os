@@ -1,59 +1,59 @@
 <ion-header>
-  <ion-toolbar>
-    <ion-title>Service Marketplace</ion-title>
+  <ion-toolbar *ngIf="!pageLoading">
+    <ion-searchbar color="dark" (ionChange)="search($event)" debounce="400"></ion-searchbar>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
   </ion-toolbar>
-  <ion-toolbar *ngIf="!pageLoading">
-    <ion-searchbar (ionChange)="search($event)" debounce="400"></ion-searchbar>
-  </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top">
+<ion-content class="ion-padding">
   <text-spinner *ngIf="pageLoading; else pageLoaded" text="Loading Marketplace"></text-spinner>
 
   <ng-template #pageLoaded>
-    <ion-card *ngIf="eos" class="eos-card" (click)="updateEos()">
-      <ion-card-header>
-        <ion-card-subtitle>Now Available...</ion-card-subtitle>
-        <ion-card-title>EmbassyOS Version {{ eos.version }}</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        {{ eos.headline }}
-      </ion-card-content>
-    </ion-card>
+    <h1 style="font-family: 'Montserrat'; font-weight: 100px; margin: 0 0 32px 0;" class="ion-text-center">Embassy Marketplace</h1>
 
-    <h2 class="ion-margin-start">Categories</h2>
-
-    <div class="scrollable">
+    <div class="scrollable ion-text-center">
       <ion-button
         *ngFor="let cat of data.categories"
         fill="clear"
-        [color]="cat === category ? 'primary' : 'dark'"
-        [class.cat-selected]="cat === category"
+        [class]="cat === category ? 'selected' : 'dim'"
         (click)="switchCategory(cat)"
       >
         {{ cat }}
       </ion-button>
     </div>
 
+    <div class="divider" style="margin: 24px;"></div>
+
     <div *ngIf="pkgsLoading; else loaded" style="margin-top: 64px;" class="ion-text-center">
-      <text-spinner [text]="'Loading ' + (category | titlecase)"></text-spinner>
+      <text-spinner text="Loading Packages"></text-spinner>
     </div>
 
     <ng-template #loaded>
       <ion-grid>
         <ion-row>
+          <ion-col *ngIf="eos && category === 'featured'" sizeXs="12" sizeSm="12" sizeMd="6">
+            <ion-item button class="eos-item" (click)="updateEos()">
+              <ion-thumbnail slot="start">
+                <img src="assets/img/icon.png" />
+              </ion-thumbnail>
+              <ion-label>
+                <h3>Now Available...</h3>
+                <h2>Embassy OS {{ eos.version }}</h2>
+                <p>{{ eos.headline }}</p>
+              </ion-label>
+            </ion-item>
+          </ion-col>
           <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeSm="12" sizeMd="6">
             <ion-item [routerLink]="['/marketplace', pkg.manifest.id]">
               <ion-thumbnail slot="start">
                 <img [src]="pkg.icon" />
               </ion-thumbnail>
               <ion-label>
-                <h2 style="font-family: 'Montserrat';">{{ pkg.manifest.title }}</h2>
-                <p>{{ pkg.manifest.description.short }}</p>
-                <ng-container *ngIf="localPkgs[pkg.manifest.id] as localPkg">
+                <h2 style="font-family: 'Montserrat'; font-weight: bold;">{{ pkg.manifest.title }}</h2>
+                <h3>{{ pkg.manifest.description.short }}</h3>
+                <ng-container *ngIf="localPkgs[pkg.manifest.id] as localPkg; else none">
                   <p *ngIf="localPkg.state === PackageState.Installed">
                     <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 0" color="success">Installed</ion-text>
                     <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1" color="warning">Update Available</ion-text>
@@ -66,6 +66,9 @@
                     <ion-spinner name="dots" color="warning"></ion-spinner>
                   </p>
                 </ng-container>
+                <ng-template #none>
+                  <p>Not Installed</p>
+                </ng-template>
               </ion-label>
             </ion-item>
           </ion-col>

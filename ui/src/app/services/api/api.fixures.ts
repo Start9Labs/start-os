@@ -739,6 +739,26 @@ export module Mock {
     },
   ]
 
+  export const Sessions: RR.GetSessionsRes = {
+    current: 'b7b1a9cef4284f00af9e9dda6e676177',
+    sessions: {
+      '9513226517c54ddd8107d6d7b9d8aed7': {
+        'last-active': '2021-07-14T20:49:17.774Z',
+        'user-agent': 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
+        metadata: {
+          platforms: ['iphone', 'mobileweb', 'mobile', 'ios'],
+        },
+      },
+      'b7b1a9cef4284f00af9e9dda6e676177': {
+        'last-active': '2021-06-14T20:49:17.774Z',
+        'user-agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0',
+        metadata: {
+          platforms: ['desktop'],
+        },
+      },
+    },
+  }
+
   export const SshKeys: RR.GetSSHKeysRes = {
     '28:d2:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53': {
       alg: 'ed25519',

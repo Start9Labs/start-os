@@ -15,14 +15,12 @@
     <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
   </ion-refresher>
 
-  <ion-spinner *ngIf="loading" class="center" name="lines" color="warning"></ion-spinner>
+  <text-spinner *ngIf="loading" text="Loading Notifications"></text-spinner>
 
   <ion-item-group *ngIf="!notifications.length && !loading">
     <ion-item>
       <ion-label class="ion-text-wrap">
-        <h2>
-          <ion-text color="medium">Notifications about Embassy and services will appear here.</ion-text>
-        </h2>
+        Notifications about Embassy and services will appear here.
       </ion-label>
     </ion-item>
   </ion-item-group>
@@ -47,7 +45,7 @@
         </p>
       </ion-label>
       <ion-button slot="end" fill="clear" (click)="remove(not.id, i)">
-        <ion-icon slot="icon-only" name="close-outline" color="medium"></ion-icon>
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
       </ion-button>
     </ion-item>
   </ion-item-group>
