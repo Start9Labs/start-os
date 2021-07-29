@@ -265,7 +265,6 @@ export type HealthCheckResult = HealthCheckResultStarting | HealthCheckResultLoa
 export enum HealthResult {
   Starting = 'starting',
   Loading = 'loading',
-  WarmingUp = 'warming-up',
   Disabled = 'disabled',
   Success = 'success',
   Failure = 'failure',

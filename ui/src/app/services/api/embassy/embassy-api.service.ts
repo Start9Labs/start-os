@@ -32,6 +32,10 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract logout (params: RR.LogoutReq): Promise<RR.LogoutRes>
 
+  abstract getSessions (params: RR.GetSessionsReq): Promise<RR.GetSessionsRes>
+
+  abstract killSessions (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes>
+
   // server
 
   protected abstract setShareStatsRaw (params: RR.SetShareStatsReq): Promise<RR.SetShareStatsRes>

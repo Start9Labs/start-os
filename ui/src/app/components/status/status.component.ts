@@ -8,7 +8,7 @@ import { PkgStatusRendering } from 'src/app/services/pkg-status-rendering.servic
 })
 export class StatusComponent {
   @Input() rendering: PkgStatusRendering
-  @Input() size?: 'small' | 'medium' | 'large' = 'large'
+  @Input() size?: 'small' | 'medium' | 'large' | 'x-large' = 'large'
   @Input() style?: string = 'regular'
   @Input() weight?: string = 'normal'
 }

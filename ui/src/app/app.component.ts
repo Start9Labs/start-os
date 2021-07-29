@@ -264,7 +264,6 @@ export class AppComponent {
         },
         {
           text: 'Logout',
-          cssClass: 'alert-danger',
           handler: () => {
             this.logout()
           },
