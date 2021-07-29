@@ -1,17 +1,3 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <pwa-back-button></pwa-back-button>
-    </ion-buttons>
-    <ion-title>Restore From Backup</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="refresh()">
-        <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
 <ion-content class="ion-padding-top">
 
   <text-spinner *ngIf="loading; else loaded" text="Loading Drives"></text-spinner>
@@ -56,5 +42,10 @@
         </ion-item-group>
       </ion-card-content>
     </ion-card>
+    <div style="display: flex; justify-content: flex-end; align-items: center;">
+      <ion-button fill="clear" (click)="cancel()">
+        Cancel
+      </ion-button>
+    </div>
   </ng-template>
 </ion-content>

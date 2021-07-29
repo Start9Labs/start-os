@@ -287,13 +287,6 @@ export class AppShowPage {
         disabled: [],
       },
       {
-        action: () => this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
-        title: 'Restore From Backup',
-        icon: 'color-wand-outline',
-        color: 'danger',
-        disabled: [FEStatus.Connecting, FEStatus.Installing, FEStatus.Updating, FEStatus.Stopping, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
-      },
-      {
         action: () => this.navCtrl.navigateForward(['manifest'], { relativeTo: this.route }),
         title: 'Package Details',
         icon: 'finger-print-outline',

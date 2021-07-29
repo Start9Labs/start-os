@@ -10,6 +10,7 @@ import { Subscription } from 'rxjs'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { AppActionInputPage } from 'src/app/modals/app-action-input/app-action-input.page'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { AppRestoreComponent } from 'src/app/modals/app-restore/app-restore.component'
 
 @Component({
   selector: 'app-actions',
@@ -142,5 +143,24 @@ export class AppActionsPage {
     } finally {
       loader.dismiss()
     }
+  }
+
+  private async restore (): Promise<void> {
+    const m = await this.modalCtrl.create({
+      componentProps: {
+        pkgId: this.pkgId,
+      },
+      cssClass: 'alertlike-modal',
+      component: AppRestoreComponent,
+      backdropDismiss: false,
+    })
+
+    // m.onWillDismiss().then(res => {
+    //   const data = res.data
+    //   if (data.cancel) return
+    //   this.create(logicalname, data.password)
+    // })
+
+    return await m.present()
   }
 }
