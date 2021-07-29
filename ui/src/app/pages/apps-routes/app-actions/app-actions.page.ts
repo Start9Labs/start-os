@@ -104,6 +104,23 @@ export class AppActionsPage {
     }
   }
 
+  async restore (): Promise<void> {
+    const m = await this.modalCtrl.create({
+      componentProps: {
+        pkgId: this.pkgId,
+      },
+      component: AppRestoreComponent,
+      backdropDismiss: false,
+    })
+
+    m.onWillDismiss().then(res => {
+      const data = res.data
+      if (data.error) this.errToast.present(data.error)
+    })
+
+    return await m.present()
+  }
+
   async uninstall (manifest: Manifest) {
     const { id, title, version, alerts } = manifest
     const data = await wizardModal(
@@ -135,7 +152,6 @@ export class AppActionsPage {
         header: 'Execution Complete',
         message: res.message.split('\n').join('</br ></br />'),
         buttons: ['OK'],
-        cssClass: 'alert-success-message',
       })
       await successAlert.present()
     } catch (e) {
@@ -143,23 +159,5 @@ export class AppActionsPage {
     } finally {
       loader.dismiss()
     }
-  }
-
-  private async restore (): Promise<void> {
-    const m = await this.modalCtrl.create({
-      componentProps: {
-        pkgId: this.pkgId,
-      },
-      cssClass: 'alertlike-modal custom-modal',
-      component: AppRestoreComponent,
-      backdropDismiss: false,
-    })
-
-    m.onWillDismiss().then(res => {
-      const data = res.data
-      if (data.error) this.errToast.present(data.error)
-    })
-
-    return await m.present()
   }
 }
