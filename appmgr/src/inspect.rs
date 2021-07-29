@@ -9,7 +9,7 @@ use crate::util::{display_none, display_serializable, IoFormat};
 use crate::Error;
 
 #[command(subcommands(hash, manifest, license, icon, instructions, docker_images))]
-pub fn inspect(#[context] ctx: EitherContext) -> Result<(), Error> {
+pub fn inspect(#[context] _ctx: EitherContext) -> Result<(), Error> {
     Ok(())
 }
 

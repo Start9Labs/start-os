@@ -4,11 +4,12 @@ use rpc_toolkit::hyper::{Body, Method, Request, Response};
 use rpc_toolkit::rpc_server_helpers::{
     DynMiddlewareStage2, DynMiddlewareStage3, DynMiddlewareStage4,
 };
-use serde::Deserialize;
+use rpc_toolkit::Metadata;
 
-pub async fn cors<Params: for<'de> Deserialize<'de> + 'static, Metadata>(
+pub async fn cors<M: Metadata>(
     req: &mut Request<Body>,
-) -> Result<Result<DynMiddlewareStage2<Params>, Response<Body>>, HttpError> {
+    _metadata: M,
+) -> Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError> {
     if req.method() == Method::OPTIONS {
         Ok(Err(Response::builder()
             .header(
@@ -24,9 +25,9 @@ pub async fn cors<Params: for<'de> Deserialize<'de> + 'static, Metadata>(
             .header("Access-Control-Allow-Credentials", "true")
             .body(Body::empty())?))
     } else {
-        Ok(Ok(Box::new(|_| {
+        Ok(Ok(Box::new(|_, _| {
             async move {
-                let res: DynMiddlewareStage3 = Box::new(|_| {
+                let res: DynMiddlewareStage3 = Box::new(|_, _| {
                     async move {
                         let res: DynMiddlewareStage4 = Box::new(|res| {
                             async move {
