@@ -55,6 +55,7 @@ chrono = { version = "0.4.19", features = ["serde"] }
 clap = "2.33"
 cookie_store = "0.15.0"
 digest = "0.9.0"
+divrem = "1.0.0"
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
 emver = { version = "0.1.2", features = ["serde"] }
 futures = "0.3.8"
