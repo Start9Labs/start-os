@@ -6,7 +6,7 @@
 
   <div class="organizer">
     <ion-label class="ion-text-wrap">
-      <ion-text color="medium">{{ spec.name }}</ion-text>
+      {{ spec.name }}
       <ion-text class="new-tag" *ngIf="anno | annotationStatus: 'Added'">(new)</ion-text>
     </ion-label>
   </div>

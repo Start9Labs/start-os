@@ -10,10 +10,10 @@
 <ion-content style="position: relative">
   <div *ngIf="pkgs | empty; else list" class="ion-text-center ion-padding">
     <div style="display: flex; flex-direction: column; justify-content: center; height: 40vh">
-      <h2>Welcome to your <span style="font-style: italic; color: var(--ion-color-danger)">Embassy</span></h2>
+      <h2>Welcome to <ion-text color="danger" style="font-family: 'Montserrat';">Embassy</ion-text></h2>
       <p class="ion-text-wrap">Get started by installing your first service.</p>
     </div>
-    <ion-button [routerLink]="['/marketplace']" style="width: 50%;" fill="outline">
+    <ion-button color="dark" [routerLink]="['/marketplace']" style="width: 50%;">
       <ion-icon slot="start" name="storefront-outline"></ion-icon>
       Marketplace
     </ion-button>

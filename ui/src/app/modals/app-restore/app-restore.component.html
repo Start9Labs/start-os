@@ -1,22 +1,21 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      <pwa-back-button></pwa-back-button>
-    </ion-buttons>
-    <ion-title>Restore From Backup</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="refresh()">
-        <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
+      <ion-button (click)="dismiss()">
+        <ion-icon name="arrow-back"></ion-icon>
       </ion-button>
     </ion-buttons>
+    <ion-title>
+      Restore From Backup
+    </ion-title>
   </ion-toolbar>
 </ion-header>
-
 <ion-content class="ion-padding-top">
 
-  <text-spinner *ngIf="loading; else loaded" text="Loading Drives"></text-spinner>
+  <text-spinner *ngIf="loading" text="Loading Drives"></text-spinner>
+  <text-spinner *ngIf="submitting" text="Initiating Backup"></text-spinner>
 
-  <ng-template #loaded>
+  <ion-content *ngIf="!loading && !submitting">
     <ion-item class="ion-margin-bottom">
       <ion-label class="ion-text-wrap">
         <p class="ion-padding-bottom"><ion-text color="warning">Warning</ion-text></p>
@@ -56,5 +55,5 @@
         </ion-item-group>
       </ion-card-content>
     </ion-card>
-  </ng-template>
+  </ion-content>
 </ion-content>

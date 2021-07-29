@@ -37,7 +37,6 @@ export class ServerShowPage {
         },
         {
           text: 'Restart',
-          cssClass: 'alert-danger',
           handler: () => {
             this.restart()
           },
@@ -59,7 +58,6 @@ export class ServerShowPage {
         },
         {
           text: 'Shutdown',
-          cssClass: 'alert-danger',
           handler: () => {
             this.shutdown()
           },
@@ -110,16 +108,19 @@ export class ServerShowPage {
           title: 'Privacy and Security',
           icon: 'shield-checkmark-outline',
           action: () => this.navCtrl.navigateForward(['security'], { relativeTo: this.route }),
+          detail: true,
         },
         {
           title: 'LAN',
           icon: 'home-outline',
           action: () => this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
+          detail: true,
         },
         {
           title: 'WiFi',
           icon: 'wifi',
           action: () => this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
+          detail: true,
         },
       ],
       'Insights': [
@@ -127,16 +128,19 @@ export class ServerShowPage {
           title: 'About',
           icon: 'information-circle-outline',
           action: () => this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
+          detail: true,
         },
         {
           title: 'Monitor',
           icon: 'pulse',
           action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
+          detail: true,
         },
         {
           title: 'Logs',
           icon: 'newspaper-outline',
           action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
+          detail: true,
         },
       ],
       'Backups': [
@@ -144,6 +148,7 @@ export class ServerShowPage {
           title: 'Create Backup',
           icon: 'save-outline',
           action: () => this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
+          detail: true,
         },
       ],
       'Power': [
@@ -151,11 +156,13 @@ export class ServerShowPage {
           title: 'Restart',
           icon: 'reload-outline',
           action: () => this.presentAlertRestart(),
+          detail: false,
         },
         {
           title: 'Shutdown',
           icon: 'power',
           action: () => this.presentAlertShutdown(),
+          detail: false,
         },
       ],
     }
@@ -171,5 +178,6 @@ interface ServerSettings {
     title: string
     icon: string
     action: Function
+    detail: boolean
   }[]
 }

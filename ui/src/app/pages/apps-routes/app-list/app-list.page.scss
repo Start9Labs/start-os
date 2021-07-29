@@ -25,7 +25,6 @@
 .main-img {
   width: 50%;
   margin: 12px;
-  border-radius: var(--icon-border-radius);
 }
 
 .bulb-on {
@@ -70,7 +69,7 @@
     border-color: transparent;
   }
   ion-icon {
-    color: var(--ion-color-medium);
+    color: var(--ion-color-dark-shade);
   }
 }
 

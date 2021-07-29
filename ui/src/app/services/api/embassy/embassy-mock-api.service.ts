@@ -50,6 +50,16 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async getSessions (params: RR.GetSessionsReq): Promise<RR.GetSessionsRes> {
+    await pauseFor(2000)
+    return Mock.Sessions
+  }
+
+  async killSessions (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   // server
 
   async setShareStatsRaw (params: RR.SetShareStatsReq): Promise<RR.SetShareStatsRes> {

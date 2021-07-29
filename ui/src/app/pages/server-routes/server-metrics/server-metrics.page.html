@@ -7,16 +7,14 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
+<ion-content class="ion-padding">
   <skeleton-list *ngIf="loading; else loaded" groups="3"></skeleton-list>
 
   <ng-template #loaded>
     <ion-item-group *ngFor="let metricGroup of metrics | keyvalue : asIsOrder">
-      <ion-item-divider class="divider">{{ metricGroup.key }}</ion-item-divider>
+      <ion-item-divider>{{ metricGroup.key }}</ion-item-divider>
       <ion-item *ngFor="let metric of metricGroup.value | keyvalue : asIsOrder">
-        <ion-label>
-          <ion-text color="medium">{{ metric.key }}</ion-text>
-        </ion-label>
+        <ion-label>{{ metric.key }}</ion-label>
         <ion-note *ngIf="metric.value" slot="end" class="metric-note">
           <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
         </ion-note>
