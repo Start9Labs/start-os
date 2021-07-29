@@ -274,7 +274,7 @@ export interface SessionMetadata {
   platforms: PlatformType[]
 }
 
-export type PlatformType = 'ios' | 'ipad' | 'iphone' | 'android' | 'phablet' | 'tablet' | 'cordova' | 'capacitor' | 'electron' | 'pwa' | 'mobile' | 'mobileweb' | 'desktop' | 'hybrid'
+export type PlatformType = 'cli' | 'ios' | 'ipad' | 'iphone' | 'android' | 'phablet' | 'tablet' | 'cordova' | 'capacitor' | 'electron' | 'pwa' | 'mobile' | 'mobileweb' | 'desktop' | 'hybrid'
 
 export interface DiskInfo {
   [id: string]: DiskInfoEntry
