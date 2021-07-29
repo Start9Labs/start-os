@@ -17,6 +17,7 @@ lazy_static::lazy_static! {
 }
 
 pub mod action;
+pub mod auth;
 pub mod backup;
 pub mod config;
 pub mod context;
