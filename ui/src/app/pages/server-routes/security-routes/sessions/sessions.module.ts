@@ -1,17 +1,16 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
-import { AppRestorePage } from './app-restore.page'
 import { RouterModule, Routes } from '@angular/router'
+import { SessionsPage } from './sessions.page'
 import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
-import { BackupConfirmationComponentModule } from 'src/app/modals/backup-confirmation/backup-confirmation.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text-spinner.component.module'
 
 const routes: Routes = [
   {
     path: '',
-    component: AppRestorePage,
+    component: SessionsPage,
   },
 ]
 
@@ -19,14 +18,11 @@ const routes: Routes = [
   imports: [
     CommonModule,
     IonicModule,
-    SharingModule,
     RouterModule.forChild(routes),
-    BackupConfirmationComponentModule,
     PwaBackComponentModule,
+    SharingModule,
     TextSpinnerComponentModule,
   ],
-  declarations: [
-    AppRestorePage,
-  ],
+  declarations: [SessionsPage],
 })
-export class AppRestorePageModule { }
+export class SessionsPageModule { }

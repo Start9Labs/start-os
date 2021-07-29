@@ -1,31 +1,28 @@
-import { Component, ViewChild } from '@angular/core'
-import { IonContent, LoadingController, ModalController } from '@ionic/angular'
+import { Component, Input } from '@angular/core'
+import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
 import { DiskInfo } from 'src/app/services/api/api.types'
-import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
-import { take } from 'rxjs/operators'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-restore',
-  templateUrl: './app-restore.page.html',
-  styleUrls: ['./app-restore.page.scss'],
+  templateUrl: './app-restore.component.html',
+  styleUrls: ['./app-restore.component.scss'],
 })
-export class AppRestorePage {
+export class AppRestoreComponent {
+  @Input() pkgId: string
   disks: DiskInfo
-  pkgId: string
   title: string
   loading = true
+  submitting = false
   allPartitionsMounted: boolean
 
-  @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []
 
   constructor (
-    private readonly route: ActivatedRoute,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly loadingCtrl: LoadingController,
@@ -34,13 +31,13 @@ export class AppRestorePage {
   ) { }
 
   ngOnInit () {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    console.log('initing')
     this.getExternalDisks()
   }
 
-  ngAfterViewInit () {
-    this.content.scrollToPoint(undefined, 1)
-  }
+  // ngAfterViewInit () {
+  //   this.content.scrollToPoint(undefined, 1)
+  // }
 
   async refresh () {
     this.loading = true
@@ -54,6 +51,7 @@ export class AppRestorePage {
     } catch (e) {
       this.errToast.present(e)
     } finally {
+      console.log('loading false')
       this.loading = false
     }
   }
@@ -77,11 +75,14 @@ export class AppRestorePage {
     await m.present()
   }
 
+  dismiss () {
+    this.modalCtrl.dismiss({ })
+  }
+
   private async restore (logicalname: string, password: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-    })
-    await loader.present()
+    console.log('here here here')
+    this.submitting = true
+    // await loader.present()
 
     try {
       await this.embassyApi.restorePackage({
@@ -90,9 +91,9 @@ export class AppRestorePage {
         password,
       })
     } catch (e) {
-      this.errToast.present(e)
+      this.modalCtrl.dismiss({ error: e })
     } finally {
-      loader.dismiss()
+      this.modalCtrl.dismiss({ })
     }
   }
 }

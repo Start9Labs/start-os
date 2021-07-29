@@ -41,7 +41,6 @@ export class AppConfigObjectPage {
         },
         {
           text: 'Delete',
-          cssClass: 'alert-danger',
           handler: () => {
             this.dismiss(true)
           },

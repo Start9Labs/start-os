@@ -33,7 +33,7 @@
         <ion-button *ngIf="spec.masked" fill="clear" [color]="unmasked ? 'danger' : 'primary'" (click)="toggleMask()">
           <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
         </ion-button>
-        <ion-button *ngIf="value && spec.nullable" fill="clear" color="medium" (click)="clear()">
+        <ion-button *ngIf="value && spec.nullable" fill="clear" (click)="clear()">
           <ion-icon slot="icon-only" name="close" size="small"></ion-icon>
         </ion-button>
       </div>
@@ -41,8 +41,8 @@
     <!-- number -->
     <ion-item *ngIf="spec.type === 'number'">
       <ion-input type="tel" placeholder="Enter value" [(ngModel)]="value" (ngModelChange)="handleInput()"></ion-input>
-      <span slot="end" *ngIf="spec.units"><ion-text color="medium">{{ spec.units }}</ion-text></span>
-      <ion-button *ngIf="value && spec.nullable" slot="end" fill="clear" color="medium" (click)="clear()">
+      <span slot="end" *ngIf="spec.units"><ion-text>{{ spec.units }}</ion-text></span>
+      <ion-button *ngIf="value && spec.nullable" slot="end" fill="clear" (click)="clear()">
         <ion-icon slot="icon-only" name="close" size="small"></ion-icon>
       </ion-button>
     </ion-item>
@@ -63,20 +63,18 @@
     <!-- metadata -->
     <div class="ion-padding-start">
       <p *ngIf="spec.type === 'string' && spec.patternDescription">
-        <ion-text color="medium">{{ spec.patternDescription }}</ion-text>
+        {{ spec.patternDescription }}
       </p>
       <p *ngIf="spec.type === 'number' && spec.integral">
-        <ion-text color="medium">{{ integralDescription }}</ion-text>
+        {{ integralDescription }}
       </p>
       <p *ngIf="rangeDescription">
-        <ion-text color="medium">{{ rangeDescription }}</ion-text>
+        {{ rangeDescription }}
       </p>
-      <p *ngIf="spec.default !== undefined">
-        <ion-text color="medium">
-          <p>Default: {{ defaultDescription }} <ion-icon style="padding-left: 8px;" name="refresh-outline" color="dark" style="cursor: pointer;" (click)="refreshDefault()"></ion-icon></p>
-          <p *ngIf="spec.type === 'number' && spec.units">Units: {{ spec.units }}</p>
-        </ion-text>
-      </p>
+      <ng-container *ngIf="spec.default !== undefined">
+        <p>Default: {{ defaultDescription }} <ion-icon style="padding-left: 8px;" name="refresh-outline" color="dark" style="cursor: pointer;" (click)="refreshDefault()"></ion-icon></p>
+        <p *ngIf="spec.type === 'number' && spec.units">Units: {{ spec.units }}</p>
+      </ng-container>
     </div>
   </ion-item-group>
 

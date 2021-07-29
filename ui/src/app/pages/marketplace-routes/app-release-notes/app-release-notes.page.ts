@@ -37,6 +37,11 @@ export class AppReleaseNotes {
     }
   }
 
+  getDocSize (selected: string) {
+    const element = document.getElementById(selected)
+    return `${element.scrollHeight}px`
+  }
+
   asIsOrder (a: any, b: any) {
     return 0
   }

@@ -1,0 +1,41 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Active Sessions</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <text-spinner *ngIf="loading" text="Loading Sessions"></text-spinner>
+
+  <ion-item-group *ngIf="!loading">
+
+    <ion-item-divider>Current Session</ion-item-divider>
+    <ion-item *ngIf="sessionInfo.sessions[sessionInfo.current] as current">
+      <ion-icon slot="start" [name]="getPlatformIcon(current.metadata.platforms)"></ion-icon>
+      <ion-label class="ion-text-wrap">
+        <h1>{{ getPlatformName(current.metadata.platforms) }}</h1>
+        <h2>Last Active: {{ current['last-active'] | date : 'medium' }}</h2>
+        <p>{{ current['user-agent'] }}</p>
+      </ion-label>
+    </ion-item>
+
+    <ion-item-divider>Other Sessions</ion-item-divider>
+    <div *ngFor="let session of sessionInfo.sessions | keyvalue : asIsOrder">
+      <ion-item *ngIf="session.key !== sessionInfo.current">
+        <ion-icon slot="start" [name]="getPlatformIcon(session.value.metadata.platforms)"></ion-icon>
+        <ion-label class="ion-text-wrap">
+          <h1>{{ getPlatformName(session.value.metadata.platforms) }}</h1>
+          <h2>Last Active: {{ session.value['last-active'] | date : 'medium' }}</h2>
+          <p>{{ session.value['user-agent'] }}</p>
+        </ion-label>
+        <ion-button slot="end" fill="clear" (click)="presentAlertKill(session.key)">
+          <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+        </ion-button>
+      </ion-item>
+    </div>
+  </ion-item-group>
+
+</ion-content>

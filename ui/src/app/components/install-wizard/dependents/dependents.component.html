@@ -26,12 +26,12 @@
         <ion-text color="warning">Will Stop</ion-text>
       </div>
       <ion-item
-        style="--ion-item-background: rgb(0,0,0,0); margin-top: 5px"
+        style="--ion-item-background: margin-top: 5px"
         *ngFor="let dep of dependentBreakages | keyvalue"
       >
-        <ion-avatar style="position: relative; height: 4vh; width: 4vh" slot="start">
+        <ion-thumbnail style="position: relative; height: 4vh; width: 4vh" slot="start">
           <img [src]="dep.value.iconURL" />
-        </ion-avatar>
+        </ion-thumbnail>
         <ion-label>
             <h5>{{ dep.value.title }}</h5>
         </ion-label>

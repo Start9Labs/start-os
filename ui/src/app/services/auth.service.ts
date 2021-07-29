@@ -3,6 +3,7 @@ import { BehaviorSubject, Observable } from 'rxjs'
 import { distinctUntilChanged } from 'rxjs/operators'
 import { ApiService } from './api/embassy/embassy-api.service'
 import { Storage } from '@ionic/storage'
+import { getPlatforms, isPlatform } from '@ionic/angular'
 
 export enum AuthState {
   UNVERIFIED,
@@ -31,7 +32,10 @@ export class AuthService {
   }
 
   async login (password: string): Promise<void> {
-    await this.embassyApi.login({ password })
+    await this.embassyApi.login({
+      password,
+      metadata: { platforms: getPlatforms() },
+    })
     await this.storage.set(this.LOGGED_IN_KEY, true)
     this.authState$.next(AuthState.VERIFIED)
   }

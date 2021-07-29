@@ -2,7 +2,7 @@
   <ion-toolbar>
     <ion-label class="toolbar-label text-ellipses">
       <h1 class="toolbar-title">{{ params.toolbar.title }}</h1>
-      <h3 style="font-size: large; font-style: italic">{{ params.toolbar.action }} <ion-text style="font-size: medium;" color="medium">{{ params.toolbar.version | displayEmver }}</ion-text></h3>
+      <h3 style="font-size: large; font-style: italic">{{ params.toolbar.action }} <ion-text style="font-size: medium;">{{ params.toolbar.version | displayEmver }}</ion-text></h3>
     </ion-label>
   </ion-toolbar>
 </ion-header>
@@ -37,11 +37,11 @@
     <ng-container *ngIf="!initializing && !error">
 
       <!-- cancel button if loading/not loading -->
-      <ion-button slot="start" *ngIf="(currentSlide.loading$ | async) && currentBottomBar.cancel.whileLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline" color="medium">
+      <ion-button slot="start" *ngIf="(currentSlide.loading$ | async) && currentBottomBar.cancel.whileLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline">
         <ion-text *ngIf="cancel.text" [class.smaller-text]="cancel.text > 16">{{ cancel.text }}</ion-text>
         <ion-icon *ngIf="!cancel.text" name="close-outline"></ion-icon>
       </ion-button>
-      <ion-button slot="start" *ngIf="!(currentSlide.loading$ | async) && currentBottomBar.cancel.afterLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline" color="medium">
+      <ion-button slot="start" *ngIf="!(currentSlide.loading$ | async) && currentBottomBar.cancel.afterLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline">
         <ion-text *ngIf="cancel.text" [class.smaller-text]="cancel.text > 16">{{ cancel.text }}</ion-text>
         <ion-icon *ngIf="!cancel.text" name="close-outline"></ion-icon>
       </ion-button>
