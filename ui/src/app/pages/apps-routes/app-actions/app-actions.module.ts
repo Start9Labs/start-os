@@ -7,6 +7,7 @@ import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-b
 import { QRComponentModule } from 'src/app/components/qr/qr.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { AppActionInputPageModule } from 'src/app/modals/app-action-input/app-action-input.module'
+import { AppRestoreComponentModule } from 'src/app/modals/app-restore/app-restore.component.module'
 
 const routes: Routes = [
   {
@@ -24,6 +25,7 @@ const routes: Routes = [
     QRComponentModule,
     SharingModule,
     AppActionInputPageModule,
+    AppRestoreComponentModule,
   ],
   declarations: [AppActionsPage],
 })
