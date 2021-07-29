@@ -176,7 +176,6 @@ export class AppConfigValuePage {
         },
         {
           text: `Leave`,
-          cssClass: 'alert-danger',
           handler: () => {
             this.modalCtrl.dismiss()
           },

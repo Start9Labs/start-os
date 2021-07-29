@@ -57,7 +57,6 @@ export class SSHKeysPage {
         },
         {
           text: 'Delete',
-          cssClass: 'alert-danger',
           handler: () => {
             this.delete(hash)
           },

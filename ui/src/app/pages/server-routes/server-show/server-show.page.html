@@ -7,12 +7,11 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
-
+<ion-content class="ion-padding">
   <ion-item-group>
     <div *ngFor="let cat of settings | keyvalue : asIsOrder">
-      <ion-item-divider>{{ cat.key }}</ion-item-divider>
-      <ion-item style="cursor: pointer;" button *ngFor="let button of cat.value" (click)="button.action()">
+      <ion-item-divider><ion-text color="dark">{{ cat.key }}</ion-text></ion-item-divider>
+      <ion-item [detail]="button.detail" button *ngFor="let button of cat.value" (click)="button.action()">
         <ion-icon slot="start" [name]="button.icon"></ion-icon>
         <ion-label>{{ button.title }}</ion-label>
       </ion-item>

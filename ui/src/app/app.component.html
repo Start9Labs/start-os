@@ -1,34 +1,48 @@
 <ion-app>
   <ion-split-pane [disabled]="!showMenu" (ionSplitPaneVisible)="splitPaneVisible($event)" contentId="main-content">
     <ion-menu contentId="main-content" type="overlay">
-      <ion-content scrollY="false" class="menu-style">
-        <ion-list style="padding: 0px">
+      <ion-content color="light" scrollY="false">
+        <div style="text-align: center;" class="ion-padding">
+          <img style="width: 45%;" src="assets/img/logo.png">
+        </div>
+        <div class="divider"></div>
+        <ion-item-group style="padding: 30px 0px;">
           <ion-menu-toggle auto-hide="false" *ngFor="let page of appPages; let i = index">
             <ion-item
+              style="padding-left: 10px;"
+              color="transparent"
               button
               (click)="selectedIndex = i"
               routerDirection="root"
               [routerLink]="[page.url]"
               lines="none"
               detail="false"
-              [class.selected]="selectedIndex === i"
             >
-              <ion-icon slot="start" [name]="page.icon"></ion-icon>
-              <ion-label style="font-family: 'Montserrat';">{{ page.title }}</ion-label>
+              <ion-icon slot="start" [name]="page.icon" [class]="selectedIndex === i ? 'bold' : 'dim'"></ion-icon>
+              <ion-label
+                style="font-family: 'Montserrat';"
+                [class]="selectedIndex === i ? 'bold' : 'dim'"
+              >
+                {{ page.title }}
+              </ion-label>
               <ion-badge *ngIf="page.url === '/notifications' && unreadCount" color="danger" style="margin-right: 3%;" [class.selected-badge]="selectedIndex == i">{{ unreadCount }}</ion-badge>
             </ion-item>
           </ion-menu-toggle>
-        </ion-list>
+        </ion-item-group>
+        <div style="text-align: center; height: 75px; position:absolute; bottom:0; right:0; width: 100%;">
+          <div class="divider" style="margin-bottom: 10px;"></div>
+          <ion-menu-toggle auto-hide="false">
+            <ion-item button lines="none" style="--background: transparent; margin-bottom: 86px; text-align: center;" fill="clear" (click)="presentAlertLogout()">
+              <ion-label><ion-text
+                style="font-family: 'Montserrat';"
+                color="dark"
+                >
+                  Log Out
+                </ion-text></ion-label>
+            </ion-item>
+          </ion-menu-toggle>
+        </div>
       </ion-content>
-      <ion-footer style="padding-bottom: 16px; text-align: center;" class="menu-style">
-        <ion-menu-toggle auto-hide="false">
-          <ion-item button style="--background:var(--ion-background-color); margin-bottom: 16px;" fill="clear" (click)="presentAlertLogout()">
-            <ion-icon size="small" slot="start" color="dark" name="log-out-outline"></ion-icon>
-            <ion-label><ion-text color="danger">Logout</ion-text></ion-label>
-          </ion-item>
-        </ion-menu-toggle>
-        <img style="width: 25%;" src="assets/img/logo.png">
-      </ion-footer>
     </ion-menu>
     <ion-router-outlet id="main-content"></ion-router-outlet>
   </ion-split-pane>
@@ -80,6 +94,8 @@
     <ion-icon name="newspaper-outline"></ion-icon>
     <ion-icon name="notifications-outline"></ion-icon>
     <ion-icon name="rocket-outline"></ion-icon>
+    <ion-icon name="phone-portrait-outline"></ion-icon>
+    <ion-icon name="play-circle-outline"></ion-icon>
     <ion-icon name="power"></ion-icon>
     <ion-icon name="pulse"></ion-icon>
     <ion-icon name="qr-code-outline"></ion-icon>
@@ -89,10 +105,8 @@
     <ion-icon name="remove-outline"></ion-icon>
     <ion-icon name="save-outline"></ion-icon>
     <ion-icon name="shield-checkmark-outline"></ion-icon>
-    <ion-icon name="sync-circle-outline"></ion-icon>
     <ion-icon name="storefront-outline"></ion-icon>
     <ion-icon name="terminal-outline"></ion-icon>
-    <ion-icon name="timer-outline"></ion-icon>
     <ion-icon name="trash-outline"></ion-icon>
     <ion-icon name="warning-outline"></ion-icon>
     <ion-icon name="wifi"></ion-icon>
@@ -100,7 +114,6 @@
     <!-- Ionic components -->
     <ion-action-sheet></ion-action-sheet>
     <ion-alert></ion-alert>
-    <ion-avatar></ion-avatar>
     <ion-badge></ion-badge>
     <ion-button></ion-button>
     <ion-buttons></ion-buttons>
@@ -137,11 +150,9 @@
     <ion-select></ion-select>
     <ion-select-option></ion-select-option>
     <ion-slides></ion-slides>
-    <ion-spinner name="dots"></ion-spinner>
     <ion-spinner name="lines"></ion-spinner>
     <ion-text></ion-text>
     <ion-text style="font-weight: bold">load bold</ion-text>
-    <ion-textarea></ion-textarea>
     <ion-title></ion-title>
     <ion-toast></ion-toast>
     <ion-toggle></ion-toggle>

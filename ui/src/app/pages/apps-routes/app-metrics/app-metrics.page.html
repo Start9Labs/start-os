@@ -3,62 +3,19 @@
     <ion-buttons slot="start">
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
-    <ion-title>Health</ion-title>
+    <ion-title>Monitor</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
+<ion-content class="ion-padding">
 
-  <ion-card *ngIf="mainStatus">
-    <ion-card-header>
-      <ion-card-title>
-        <ion-icon style="vertical-align: middle; padding-right: 12px;" name="medkit-outline"></ion-icon>
-        <span style="vertical-align: middle;">Health Checks</span>
-      </ion-card-title>
-    </ion-card-header>
-    <ion-card-content>
-      <ion-item *ngIf="mainStatus.health | empty; else health">
-        <ion-label>
-          No health checks
-        </ion-label>
-      </ion-item>
-      <ng-template #health>
-        <ion-item *ngIf="!(mainStatus.health | empty); else noHealth" color="light" style="margin: 10px;">
-          <ion-label>
-            <div *ngFor="let health of mainStatus.health | keyvalue : asIsOrder" class="align" style="margin-left: 12px;">
-              <ion-icon *ngIf="health.value.result === 'success'" name="checkmark-outline" color="success"></ion-icon>
-              <ion-icon *ngIf="health.value.result === 'starting'" name="timer-outline" color="warning"></ion-icon>
-              <ion-icon *ngIf="health.value.result === 'loading'" name="sync-circle-outline" color="warning"></ion-icon>
-              <ion-icon *ngIf="health.value.result === 'failure'" name="close-outline" color="danger"></ion-icon>
-              <ion-icon *ngIf="health.value.result === 'disabled'" name="remove-outline" color="medium"></ion-icon>
-              <h2>{{ health.key }}</h2>
-              <p style="margin-left: 24px;" *ngIf="health.value.result === 'failure'"><ion-text color="danger">{{ health.value.error }}</ion-text></p>
-            </div>
-          </ion-label>
-        </ion-item>
-      </ng-template>
-    </ion-card-content>
-  </ion-card>
-
-  <ion-card>
-    <ion-card-header>
-      <ion-card-title>
-        <ion-icon style="vertical-align: middle; padding-right: 12px;" name="pulse-outline"></ion-icon>
-        <span style="vertical-align: middle;">Metrics</span>
-      </ion-card-title>
-    </ion-card-header>
-    <ion-card-content>
-      <skeleton-list *ngIf="loading" rows="3"></skeleton-list>
-      <ion-item-group *ngIf="!loading">
-        <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
-          <ion-label>
-            <ion-text color="medium">{{ metric.key }}</ion-text>
-          </ion-label>
-          <ion-note *ngIf="metric.value" slot="end" class="metric-note">
-            <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
-          </ion-note>
-        </ion-item>
-      </ion-item-group>
-    </ion-card-content>
-  </ion-card>
+  <skeleton-list *ngIf="loading" rows="3"></skeleton-list>
+  <ion-item-group *ngIf="!loading">
+    <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
+      <ion-label>{{ metric.key }}</ion-label>
+      <ion-note *ngIf="metric.value" slot="end" class="metric-note">
+        <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
+      </ion-note>
+    </ion-item>
+  </ion-item-group>
 </ion-content>

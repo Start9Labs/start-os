@@ -4,9 +4,6 @@
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
     <ion-title>Listing</ion-title>
-    <ion-buttons slot="end">
-      <badge-menu-button></badge-menu-button>
-    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -27,13 +24,14 @@
                 <div class="header-status">
                   <!-- no localPkg -->
                   <p *ngIf="!localPkg; else local">
-                    <ion-text color="medium">Not Installed</ion-text>
+                    Not Installed
                   </p>
                   <!-- localPkg -->
                   <ng-template #local>
                     <!-- installed -->
                     <p *ngIf="localPkg.state === PackageState.Installed">
-                      <ion-text color="medium">Installed at {{ localPkg.manifest.version | displayEmver }}</ion-text>
+                      <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 0" color="success">Installed</ion-text>
+                      <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1" color="warning">Update Available</ion-text>
                     </p>
                     <!-- installing, updating -->
                     <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state">
@@ -51,17 +49,17 @@
           </ion-col>
           <ion-col sizeXl="3" sizeLg="3" sizeMd="3" sizeSm="12" sizeXs="12" class="ion-align-self-center">
             <!-- no localPkg -->
-            <ion-button *ngIf="!localPkg; else localPkg2" class="main-action-button" expand="block" (click)="install()">
+            <ion-button *ngIf="!localPkg; else localPkg2" expand="block" (click)="install()">
               Install
             </ion-button>
             <!-- localPkg -->
             <ng-template #localPkg2>
               <!-- not installing, updating, or removing -->
               <ng-container *ngIf="localPkg.state === PackageState.Installed">
-                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === -1" class="main-action-button" expand="block" (click)="update('update')">
+                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === -1" expand="block" (click)="update('update')">
                   Update
                 </ion-button>
-                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === 1" class="main-action-button" expand="block" color="warning" (click)="update('downgrade')">
+                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === 1" expand="block" color="warning" (click)="update('downgrade')">
                   Downgrade
                 </ion-button>
               </ng-container>
@@ -74,9 +72,9 @@
       <ion-item *ngIf="rec && showRec" class="rec-item">
         <ion-label class="ion-text-wrap">
           <h2 style="display: flex; align-items: center;">
-            <ion-avatar style="height: 3vh; width: 3vh; margin: 5px" slot="start">
+            <ion-thumbnail style="height: 3vh; width: 3vh; margin: 5px" slot="start">
               <img [src]="rec.dependentIcon" [alt]="rec.dependentTitle"/>
-            </ion-avatar>
+            </ion-thumbnail>
             <ion-text style="margin: 5px; font-family: 'Montserrat'; font-size: smaller;">{{ rec.dependentTitle }}</ion-text>
           </h2>
           <div style="margin: 7px 5px;">
