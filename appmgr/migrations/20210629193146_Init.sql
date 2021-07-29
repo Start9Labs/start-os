@@ -9,7 +9,13 @@ CREATE TABLE IF NOT EXISTS tor
 CREATE TABLE IF NOT EXISTS session
 (
     id         TEXT NOT NULL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    metadata   JSON
+    logged_in TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    logged_out TIMESTAMP,
+    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_agent TEXT,
+    metadata   TEXT NOT NULL DEFAULT 'null'
+);
+CREATE TABLE IF NOT EXISTS password
+(
+    hash TEXT NOT NULL PRIMARY KEY
 );
