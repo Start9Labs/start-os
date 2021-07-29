@@ -150,16 +150,15 @@ export class AppActionsPage {
       componentProps: {
         pkgId: this.pkgId,
       },
-      cssClass: 'alertlike-modal',
+      cssClass: 'alertlike-modal custom-modal',
       component: AppRestoreComponent,
       backdropDismiss: false,
     })
 
-    // m.onWillDismiss().then(res => {
-    //   const data = res.data
-    //   if (data.cancel) return
-    //   this.create(logicalname, data.password)
-    // })
+    m.onWillDismiss().then(res => {
+      const data = res.data
+      if (data.error) this.errToast.present(data.error)
+    })
 
     return await m.present()
   }

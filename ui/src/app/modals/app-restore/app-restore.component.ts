@@ -17,6 +17,7 @@ export class AppRestoreComponent {
   disks: DiskInfo
   title: string
   loading = true
+  submitting = false
   allPartitionsMounted: boolean
 
   subs: Subscription[] = []
@@ -74,11 +75,14 @@ export class AppRestoreComponent {
     await m.present()
   }
 
+  dismiss () {
+    this.modalCtrl.dismiss({ })
+  }
+
   private async restore (logicalname: string, password: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-    })
-    await loader.present()
+    console.log('here here here')
+    this.submitting = true
+    // await loader.present()
 
     try {
       await this.embassyApi.restorePackage({
@@ -87,9 +91,9 @@ export class AppRestoreComponent {
         password,
       })
     } catch (e) {
-      this.errToast.present(e)
+      this.modalCtrl.dismiss({ error: e })
     } finally {
-      loader.dismiss()
+      this.modalCtrl.dismiss({ })
     }
   }
 }

@@ -138,6 +138,12 @@ ion-button {
   --color: var(--ion-color-dark) !important;
 }
 
+.modal-wrapper.sc-ion-modal-md {
+  border-radius: 6px;
+  border: 2px solid rgba(255,255,255,.03);
+  box-shadow: 0 0 70px 70px black;
+}
+
 * {
   -webkit-user-select: text;
   -moz-user-select: text;
@@ -200,6 +206,10 @@ ion-button {
   .alert-title {
     color: var(--ion-color-success);
   }
+}
+
+.custom-modal {
+  border-radius: 8px;
 }
 
 ion-slides {
