@@ -66,11 +66,19 @@ export class SessionsPage {
   }
 
   getPlatformIcon (platforms: PlatformType[]): string {
-    return platforms.includes('desktop') ? 'desktop-outline' : 'phone-portrait-outline'
+    if (platforms.includes('cli')) {
+      return 'terminal-outline'
+    } else if (platforms.includes('desktop')) {
+      return 'desktop-outline'
+    } else {
+      return 'phone-portrait-outline'
+    }
   }
 
   getPlatformName (platforms: PlatformType[]): string {
-    if (platforms.includes('desktop')) {
+    if (platforms.includes('cli')) {
+      return 'CLI'
+    } else if (platforms.includes('desktop')) {
       return 'Desktop/Laptop'
     } else if (platforms.includes('android')) {
       return 'Android Device'
