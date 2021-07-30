@@ -1,11 +1,12 @@
 use std::path::Path;
 
+use anyhow::anyhow;
+use clap::ArgMatches;
 use rpc_toolkit::command;
-use sqlx::{query, Pool, Sqlite};
-use tokio::sync;
+use sqlx::{Pool, Sqlite};
 
 use crate::context::EitherContext;
-use crate::util::display_none;
+use crate::util::{display_none, display_serializable, IoFormat};
 use crate::Error;
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "~/.ssh/authorized_keys";
@@ -32,11 +33,6 @@ impl std::fmt::Display for SshKeyResponse {
             "{} {} {} {}",
             self.created_at, self.alg, self.hash, self.hostname
         )
-    }
-}
-fn display_all_ssh_keys(all: &Vec<SshKeyResponse>, _f: &clap::ArgMatches<'_>) -> () {
-    for s in all {
-        println!("{}", s)
     }
 }
 
@@ -104,8 +100,39 @@ pub async fn remove(
     }
 }
 
+fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches<'_>) {
+    use prettytable::*;
+
+    if matches.is_present("format") {
+        return display_serializable(all, matches);
+    }
+
+    let mut table = Table::new();
+    table.add_row(row![bc =>
+        "CREATED AT",
+        "ALGORITHM",
+        "HASH",
+        "HOSTNAME",
+    ]);
+    for key in all {
+        let row = row![
+            &format!("{}", key.created_at),
+            &key.alg,
+            &key.hash,
+            &key.hostname,
+        ];
+        table.add_row(row);
+    }
+    table.print_tty(false);
+}
+
 #[command(display(display_all_ssh_keys))]
-pub async fn list(#[context] ctx: EitherContext) -> Result<Vec<SshKeyResponse>, Error> {
+pub async fn list(
+    #[context] ctx: EitherContext,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
+) -> Result<Vec<SshKeyResponse>, Error> {
     let pool = &ctx.as_rpc().unwrap().secret_store;
     // list keys in DB and return them
     let entries = sqlx::query!("SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys")
