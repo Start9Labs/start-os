@@ -1,12 +1,14 @@
 use std::fs::File;
-use std::io::Read;
-use std::net::IpAddr;
+use std::io::{BufReader, Read};
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::anyhow;
 use clap::ArgMatches;
+use cookie_store::CookieStore;
 use reqwest::Proxy;
+use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
 use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
@@ -21,20 +23,36 @@ pub struct CliContextConfig {
     #[serde(deserialize_with = "deserialize_host")]
     pub host: Option<Host>,
     pub port: Option<u16>,
+    pub url: Option<Url>,
     #[serde(deserialize_with = "crate::util::deserialize_from_str_opt")]
     pub proxy: Option<Url>,
     pub developer_key_path: Option<PathBuf>,
+    pub cookie_path: Option<PathBuf>,
     #[serde(flatten)]
     pub server_config: RpcContextConfig,
 }
 
 #[derive(Debug)]
 pub struct CliContextSeed {
-    pub host: Host,
-    pub port: u16,
+    pub url: Url,
     pub client: Client,
+    pub cookie_store: Arc<CookieStoreMutex>,
+    pub cookie_path: PathBuf,
     pub developer_key_path: PathBuf,
 }
+impl Drop for CliContextSeed {
+    fn drop(&mut self) {
+        let tmp = format!("{}.tmp", self.cookie_path.display());
+        let mut writer = File::create(&tmp).unwrap();
+        let store = self.cookie_store.lock().unwrap();
+        store.save_json(&mut writer).unwrap();
+        writer.sync_all().unwrap();
+        std::fs::rename(tmp, &self.cookie_path).unwrap();
+    }
+}
+
+const DEFAULT_HOST: Host<&'static str> = Host::Ipv4(Ipv4Addr::new(127, 0, 0, 1));
+const DEFAULT_PORT: u16 = 5959;
 
 #[derive(Debug, Clone)]
 pub struct CliContext(Arc<CliContextSeed>);
@@ -62,26 +80,55 @@ impl CliContext {
                 base.port = Some(bind.port())
             }
         }
-        if let Some(host) = matches.value_of("host") {
-            base.host = Some(Host::parse(host).with_kind(crate::ErrorKind::ParseUrl)?);
-        }
-        if let Some(port) = matches.value_of("port") {
-            base.port = Some(port.parse()?);
-        }
-        if let Some(proxy) = matches.value_of("proxy") {
-            base.proxy = Some(proxy.parse()?);
-        }
+        let host = if let Some(host) = matches.value_of("host") {
+            Some(Host::parse(host).with_kind(crate::ErrorKind::ParseUrl)?)
+        } else {
+            base.host
+        };
+        let port = if let Some(port) = matches.value_of("port") {
+            Some(port.parse()?)
+        } else {
+            base.port
+        };
+        let proxy = if let Some(proxy) = matches.value_of("proxy") {
+            Some(proxy.parse()?)
+        } else {
+            base.proxy
+        };
+
+        let cookie_path = base.cookie_path.unwrap_or_else(|| {
+            cfg_path
+                .parent()
+                .unwrap_or(Path::new("/"))
+                .join(".cookies.json")
+        });
+        let cookie_store = Arc::new(CookieStoreMutex::new(if cookie_path.exists() {
+            CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
+                .map_err(|e| anyhow!("{}", e))
+                .with_kind(crate::ErrorKind::Deserialization)?
+        } else {
+            CookieStore::default()
+        }));
         Ok(CliContext(Arc::new(CliContextSeed {
-            host: base.host.unwrap_or(Host::Ipv4([127, 0, 0, 1].into())),
-            port: base.port.unwrap_or(5959),
-            client: if let Some(proxy) = base.proxy {
-                Client::builder()
-                    .proxy(Proxy::all(proxy).with_kind(crate::ErrorKind::ParseUrl)?)
-                    .build()
-                    .expect("cannot fail")
-            } else {
-                Client::new()
+            url: base.url.unwrap_or_else(|| {
+                format!(
+                    "http://{}:{}",
+                    host.unwrap_or_else(|| DEFAULT_HOST.to_owned()),
+                    port.unwrap_or(DEFAULT_PORT)
+                )
+                .parse()
+                .unwrap()
+            }),
+            client: {
+                let mut builder = Client::builder().cookie_provider(cookie_store.clone());
+                if let Some(proxy) = proxy {
+                    builder =
+                        builder.proxy(Proxy::all(proxy).with_kind(crate::ErrorKind::ParseUrl)?)
+                }
+                builder.build().expect("cannot fail")
             },
+            cookie_store,
+            cookie_path,
             developer_key_path: base.developer_key_path.unwrap_or_else(|| {
                 cfg_path
                     .parent()
@@ -107,15 +154,20 @@ impl std::ops::Deref for CliContext {
     }
 }
 impl Context for CliContext {
+    fn protocol(&self) -> &str {
+        self.0.url.scheme()
+    }
     fn host(&self) -> Host<&str> {
-        match &self.0.host {
-            Host::Domain(a) => Host::Domain(a.as_str()),
-            Host::Ipv4(a) => Host::Ipv4(*a),
-            Host::Ipv6(a) => Host::Ipv6(*a),
-        }
+        self.0.url.host().unwrap_or(DEFAULT_HOST)
     }
     fn port(&self) -> u16 {
-        self.0.port
+        self.0.url.port().unwrap_or(DEFAULT_PORT)
+    }
+    fn path(&self) -> &str {
+        self.0.url.path()
+    }
+    fn url(&self) -> Url {
+        self.0.url.clone()
     }
     fn client(&self) -> &Client {
         &self.0.client
