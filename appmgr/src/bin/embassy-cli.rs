@@ -44,6 +44,7 @@ fn inner_main() -> Result<(), Error> {
                 Some(a) => eprintln!("{}: {}", e.message, a),
                 None => eprintln!("{}", e.message),
             }
+
             std::process::exit(e.code);
         }
     );

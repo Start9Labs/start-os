@@ -4,12 +4,13 @@ use chrono::Utc;
 use digest::Digest;
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use http::StatusCode;
 use rpc_toolkit::command_helpers::prelude::RequestParts;
 use rpc_toolkit::hyper::header::COOKIE;
 use rpc_toolkit::hyper::http::Error as HttpError;
 use rpc_toolkit::hyper::{Body, Request, Response};
 use rpc_toolkit::rpc_server_helpers::{
-    noop3, noop4, DynMiddleware, DynMiddlewareStage2, DynMiddlewareStage3,
+    noop3, noop4, to_response, DynMiddleware, DynMiddlewareStage2, DynMiddlewareStage3,
 };
 use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Metadata;
@@ -60,11 +61,12 @@ async fn is_authed(ctx: &RpcContext, req: &RequestParts) -> Result<(), Error> {
     }
 }
 
-pub async fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
+pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
     Box::new(
-        |req: &mut Request<Body>,
-         metadata: M|
-         -> BoxFuture<Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError>> {
+        move |req: &mut Request<Body>,
+              metadata: M|
+              -> BoxFuture<Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError>> {
+            let ctx = ctx.clone();
             async move {
                 let mut header_stub = Request::new(Body::empty());
                 *header_stub.headers_mut() = req.headers().clone();
@@ -75,14 +77,13 @@ pub async fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                             .unwrap_or(true)
                         {
                             if let Err(e) = is_authed(&ctx, req).await {
-                                let m3: DynMiddlewareStage3 = Box::new(|_, rpc_res| {
-                                    async move {
-                                        *rpc_res = Err(e.into());
-                                        Ok(Ok(noop4()))
-                                    }
-                                    .boxed()
-                                });
-                                return Ok(Ok(m3));
+                                let (res_parts, _) = Response::new(()).into_parts();
+                                return Ok(Err(to_response(
+                                    &req.headers,
+                                    res_parts,
+                                    Err(e.into()),
+                                    |_| StatusCode::OK,
+                                )?));
                             }
                         }
                         Ok(Ok(noop3()))
