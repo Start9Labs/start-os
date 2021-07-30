@@ -4,10 +4,11 @@ use rpc_toolkit::command;
 use sqlx::{query, Pool, Sqlite};
 use tokio::sync;
 
+use crate::context::EitherContext;
 use crate::util::display_none;
-use crate::{context::EitherContext, Error};
+use crate::Error;
 
-static SSH_AUTHORIZED_KEYS_FILE: &str = "/root/.ssh/authorized_keys";
+static SSH_AUTHORIZED_KEYS_FILE: &str = "~/.ssh/authorized_keys";
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct PubKey(
@@ -17,11 +18,11 @@ pub struct PubKey(
 );
 
 #[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct SshKeyResponse {
     pub alg: String,
     pub hash: String,
     pub hostname: String,
-    #[serde(rename = "camelCase")]
     pub created_at: String,
 }
 impl std::fmt::Display for SshKeyResponse {
@@ -136,5 +137,14 @@ pub async fn sync_keys_from_db(pool: &Pool<Sqlite>, dest: &Path) -> Result<(), E
         .into_iter()
         .map(|k| format!("{}\n", k.openssh_pubkey))
         .collect();
+    let ssh_dir = dest.parent().ok_or_else(|| {
+        Error::new(
+            anyhow!("SSH Key File cannot be \"/\""),
+            crate::ErrorKind::Filesystem,
+        )
+    })?;
+    if tokio::fs::metadata(ssh_dir).await.is_err() {
+        tokio::fs::create_dir_all(ssh_dir).await?;
+    }
     std::fs::write(dest, contents).map_err(|e| e.into())
 }
