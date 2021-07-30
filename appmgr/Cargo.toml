@@ -53,6 +53,7 @@ basic-cookies = "0.1.4"
 bollard = "0.11.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "2.33"
+cookie_store = "0.15.0"
 digest = "0.9.0"
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
 emver = { version = "0.1.2", features = ["serde"] }
@@ -73,6 +74,7 @@ prettytable-rs = "0.8.0"
 rand = "0.7.3"
 regex = "1.4.2"
 reqwest = { version = "0.11.2", features = ["stream", "json"] }
+reqwest_cookie_store = "0.2.0"
 rpassword = "5.0.0"
 rpc-toolkit = { version = "*", path = "../../rpc-toolkit/rpc-toolkit" }
 rust-argon2 = "0.8.3"
