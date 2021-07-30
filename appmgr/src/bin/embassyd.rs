@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use embassy::context::{EitherContext, RpcContext};
 use embassy::db::model::Database;
+use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
 use embassy::status::{check_all, synchronize_all};
 use embassy::util::daemon;
@@ -11,6 +12,7 @@ use futures::TryFutureExt;
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::hyper::StatusCode;
 use rpc_toolkit::rpc_server;
+use rpc_toolkit::rpc_server_helpers::DynMiddleware;
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
@@ -24,13 +26,15 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             .put(&<JsonPointer>::default(), &Database::init(), None)
             .await?;
     }
+    let auth = auth(rpc_ctx.clone());
     let ctx = EitherContext::Rpc(rpc_ctx.clone());
     let server = rpc_server!({
         command: embassy::main_api,
         context: ctx,
         status: status_fn,
         middleware: [
-            cors
+            cors,
+            auth,
         ]
     });
     let status_ctx = rpc_ctx.clone();

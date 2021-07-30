@@ -1,5 +1,15 @@
 {
   "db": "SQLite",
+  "118d59de5cf930d5a3b5667b2220e9a3d593bd84276beb2b76c93b2694b0fd72": {
+    "query": "INSERT INTO session (id, user_agent, metadata) VALUES (?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
   "121a1c1c0c11c5588c17bbd9b2baeca4d27d1a6d82d6487fad142ffb58d1da0c": {
     "query": "INSERT INTO tor (package, interface, key) VALUES (?, ?, ?)",
     "describe": {
@@ -8,6 +18,100 @@
         "Right": 3
       },
       "nullable": []
+    }
+  },
+  "18aa5fba13df20495611fbbf7cb331f4b6da5b906148e0d9565905d3bb10071c": {
+    "query": "SELECT logged_out FROM session WHERE id = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "logged_out",
+          "ordinal": 0,
+          "type_info": "Datetime"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        true
+      ]
+    }
+  },
+  "2932aa02735b6422fca4ba889abfb3de8598178d4690076dc278898753d9df62": {
+    "query": "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
+  "3efd0daa61f4f8bead1adbe78a8225bc31fb940406d0415b578d3adc03a5e414": {
+    "query": "SELECT hash FROM password",
+    "describe": {
+      "columns": [
+        {
+          "name": "hash",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "4691e3a2ce80b59009ac17124f54f925f61dc5ea371903e62cdffa5d7b67ca96": {
+    "query": "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP",
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "logged_in",
+          "ordinal": 1,
+          "type_info": "Datetime"
+        },
+        {
+          "name": "logged_out",
+          "ordinal": 2,
+          "type_info": "Datetime"
+        },
+        {
+          "name": "last_active",
+          "ordinal": 3,
+          "type_info": "Datetime"
+        },
+        {
+          "name": "user_agent",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "metadata",
+          "ordinal": 5,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false,
+        false,
+        true,
+        false,
+        true,
+        false
+      ]
     }
   },
   "8595651866e7db772260bd79e19d55b7271fd795b82a99821c935a9237c1aa16": {
