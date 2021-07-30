@@ -1,17 +1,110 @@
+use std::{path::Path, time::Duration};
+
 use divrem::DivRem;
-use futures::stream::repeat_with;
+
+use crate::{Error, ErrorKind};
 
 lazy_static::lazy_static! {
     static ref SEMITONE_K: f64 = 2f64.powf(1f64 / 12f64);
+    static ref A_4: f64 = 440f64;
+    static ref C_0: f64 = *A_4 / SEMITONE_K.powf(9f64) / 2f64.powf(4f64);
+    static ref EXPORT_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/export");
+    static ref UNEXPORT_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/unexport");
+    static ref PERIOD_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/period");
+    static ref DUTY_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/duty_cycle");
+    static ref SWITCH_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/enable");
 }
 
-fn export() {}
-fn unexport() {}
+#[derive(Debug)]
+struct SoundInterface();
+impl SoundInterface {
+    pub fn lease() -> Result<Self, Error> {
+        // TODO: Lock the sound interface
+        // TODO: possibly asyncify this?
+        std::fs::write(&*EXPORT_FILE, "0").map_err(|e| Error {
+            source: e.into(),
+            kind: ErrorKind::SoundError,
+            revision: None,
+        });
+        Ok(SoundInterface())
+    }
+    pub fn play(&mut self, note: &Note) -> Result<(), Error> {
+        {
+            let curr_period = std::fs::read_to_string(&*PERIOD_FILE)?;
+            if curr_period == "0\n" {
+                std::fs::write(&*PERIOD_FILE, "1000")?;
+            }
+            let new_period = ((1.0 / note.frequency()) * 1_000_000_000.0).round() as u64;
+            std::fs::write(&*DUTY_FILE, "0")?;
+            std::fs::write(&*PERIOD_FILE, format!("{}", new_period))?;
+            std::fs::write(&*DUTY_FILE, format!("{}", new_period / 2))?;
+            std::fs::write(&*SWITCH_FILE, "1")
+        }
+        .map_err(|e| Error {
+            source: e.into(),
+            kind: ErrorKind::SoundError,
+            revision: None,
+        })
+    }
+    pub fn play_for_time_slice(
+        &mut self,
+        tempo_qpm: u16,
+        note: &Note,
+        time_slice: &TimeSlice,
+    ) -> Result<(), Error> {
+        {
+            self.play(note)?;
+            std::thread::sleep(time_slice.to_duration((tempo_qpm as u64 * 19 / 20) as u16));
+            self.stop()?;
+            std::thread::sleep(time_slice.to_duration(tempo_qpm / 20));
+            Ok(())
+        }
+        .or_else(|e: Error| self.stop())
+    }
+    pub fn stop(&mut self) -> Result<(), Error> {
+        std::fs::write(&*SWITCH_FILE, "0").map_err(|e| Error {
+            source: e.into(),
+            kind: ErrorKind::SoundError,
+            revision: None,
+        })
+    }
+}
 
-#[derive(Clone)]
+pub struct Song<Notes> {
+    tempo_qpm: u16,
+    note_sequence: Notes,
+}
+impl<'a, T: 'a> Song<T>
+where
+    &'a T: IntoIterator<Item = &'a (Option<Note>, TimeSlice)>,
+{
+    pub fn play(&'a self) -> Result<(), Error> {
+        let mut sound = SoundInterface::lease()?;
+        for (note, slice) in &self.note_sequence {
+            match note {
+                None => std::thread::sleep(slice.to_duration(self.tempo_qpm)),
+                Some(n) => sound.play_for_time_slice(self.tempo_qpm, n, slice)?,
+            };
+        }
+        Ok(())
+    }
+}
+
+impl Drop for SoundInterface {
+    fn drop(&mut self) {
+        std::fs::write(&*UNEXPORT_FILE, "0").unwrap()
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct Note {
     semitone: Semitone,
     octave: u8,
+}
+impl Note {
+    pub fn frequency(&self) -> f64 {
+        SEMITONE_K.powf((self.semitone as isize) as f64) * (*C_0) * (2f64.powf(self.octave as f64))
+    }
 }
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Semitone {
@@ -57,18 +150,35 @@ impl Semitone {
 }
 
 pub struct Interval(isize);
+
+#[derive(Clone, Copy)]
 pub enum TimeSlice {
     Sixteenth,
     Eighth,
     Quarter,
     Half,
     Whole,
-    Triplet(Box<TimeSlice>),
-    Dot(Box<TimeSlice>),
-    Tie(Box<TimeSlice>, Box<TimeSlice>),
+    Triplet(&'static TimeSlice),
+    Dot(&'static TimeSlice),
+    Tie(&'static TimeSlice, &'static TimeSlice),
+}
+impl TimeSlice {
+    pub fn to_duration(&self, tempo_qpm: u16) -> Duration {
+        let micros_per_quarter = (tempo_qpm as f64) * 1_000_000f64;
+        match &self {
+            &Self::Sixteenth => Duration::from_micros((micros_per_quarter / 4.0) as u64),
+            &Self::Eighth => Duration::from_micros((micros_per_quarter / 2.0) as u64),
+            &Self::Quarter => Duration::from_micros(micros_per_quarter as u64),
+            &Self::Half => Duration::from_micros((micros_per_quarter * 2.0) as u64),
+            &Self::Whole => Duration::from_micros((micros_per_quarter * 4.0) as u64),
+            &Self::Triplet(ts) => ts.to_duration(tempo_qpm) * 2 / 3,
+            &Self::Dot(ts) => ts.to_duration(tempo_qpm) * 3 / 2,
+            &Self::Tie(ts0, ts1) => ts0.to_duration(tempo_qpm) + ts1.to_duration(tempo_qpm),
+        }
+    }
 }
 
-fn interval(i: &Interval, note: &Note) -> Note {
+pub fn interval(i: &Interval, note: &Note) -> Note {
     match (i, note) {
         (Interval(n), Note { semitone, octave }) => {
             use std::cmp::Ordering::*;
@@ -87,10 +197,10 @@ fn interval(i: &Interval, note: &Note) -> Note {
     }
 }
 
-static MINOR_THIRD: Interval = Interval(3);
-static MAJOR_THIRD: Interval = Interval(4);
-static FOURTH: Interval = Interval(5);
-static FIFTH: Interval = Interval(7);
+pub static MINOR_THIRD: Interval = Interval(3);
+pub static MAJOR_THIRD: Interval = Interval(4);
+pub static FOURTH: Interval = Interval(5);
+pub static FIFTH: Interval = Interval(7);
 
 fn iterate<T: Clone, F: Fn(&T) -> T>(f: F, init: &T) -> impl Iterator<Item = T> {
     let mut temp = init.clone();
@@ -102,10 +212,140 @@ fn iterate<T: Clone, F: Fn(&T) -> T>(f: F, init: &T) -> impl Iterator<Item = T> 
     std::iter::repeat_with(ff)
 }
 
-fn circle_of_fifths(note: &Note) -> impl Iterator<Item = Note> {
+pub fn circle_of_fifths(note: &Note) -> impl Iterator<Item = Note> {
     iterate(|n| interval(&FIFTH, n), note)
 }
 
-fn circle_of_fourths(note: &Note) -> impl Iterator<Item = Note> {
+pub fn circle_of_fourths(note: &Note) -> impl Iterator<Item = Note> {
     iterate(|n| interval(&FOURTH, n), note)
 }
+
+pub struct CircleOf {
+    current: Note,
+    duration: TimeSlice,
+    interval: Interval,
+}
+impl CircleOf {
+    pub const fn new(interval: Interval, start: Note, duration: TimeSlice) -> Self {
+        CircleOf {
+            current: start,
+            duration,
+            interval,
+        }
+    }
+}
+impl Iterator for CircleOf {
+    type Item = (Option<Note>, TimeSlice);
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.current;
+        let prev = std::mem::replace(&mut self.current, interval(&self.interval, &current));
+        Some((Some(prev), self.duration.clone()))
+    }
+}
+
+macro_rules! song {
+    ($tempo:expr, [$($note:expr;)*]) => {
+        {
+            const fn note(semi: Semitone, octave: u8, duration: TimeSlice) -> (Option<Note>, TimeSlice) {
+                (
+                    Some(Note {
+                        semitone: semi,
+                        octave,
+                    }),
+                    duration,
+                )
+            }
+            const fn rest(duration: TimeSlice) -> (Option<Note>, TimeSlice) {
+                (None, duration)
+            }
+
+            use crate::sound::Semitone::*;
+            use crate::sound::TimeSlice::*;
+            Song {
+                tempo_qpm: $tempo as u16,
+                note_sequence: [
+                    $(
+                        $note,
+                    )*
+                ]
+            }
+        }
+    };
+}
+
+// song!(400, [note(B, 4, Quarter); rest(Quarter)]);
+
+pub const MARIO_DEATH: Song<[(Option<Note>, TimeSlice); 12]> = song!(400, [
+    note(B, 4, Quarter);
+    note(F, 5, Quarter);
+    rest(Quarter);
+    note(F, 5, Quarter);
+    note(F, 5, Triplet(&Half));
+    note(E, 5, Triplet(&Half));
+    note(D, 5, Triplet(&Half));
+    note(C, 5, Quarter);
+    note(E, 5, Quarter);
+    rest(Quarter);
+    note(E, 5, Quarter);
+    note(C, 4, Half);
+]);
+
+pub const MARIO_POWER_UP: Song<[(Option<Note>, TimeSlice); 15]> = song!(400, [
+    note(G,4,Triplet(&Eighth));
+    note(B,4,Triplet(&Eighth));
+    note(D,5,Triplet(&Eighth));
+    note(G,5,Triplet(&Eighth));
+    note(B,5,Triplet(&Eighth));
+    note(Ab,4,Triplet(&Eighth));
+    note(C,5,Triplet(&Eighth));
+    note(Eb,5,Triplet(&Eighth));
+    note(Ab,5,Triplet(&Eighth));
+    note(C,5,Triplet(&Eighth));
+    note(Bb,4,Triplet(&Eighth));
+    note(D,5,Triplet(&Eighth));
+    note(F,5,Triplet(&Eighth));
+    note(Bb,5,Triplet(&Eighth));
+    note(D,6,Triplet(&Eighth));
+]);
+
+pub const MARIO_COIN: Song<[(Option<Note>, TimeSlice); 2]> = song!(400, [
+    note(B, 5, Eighth);
+    note(E, 6, Tie(&Dot(&Quarter), &Half));
+]);
+
+pub const BEETHOVEN: Song<[(Option<Note>, TimeSlice); 9]> = song!(216, [
+    note(E, 5, Eighth);
+    note(E, 5, Eighth);
+    note(E, 5, Eighth);
+    note(C, 5, Half);
+    rest(Half);
+    note(D, 5, Eighth);
+    note(D, 5, Eighth);
+    note(D, 5, Eighth);
+    note(B, 4, Half);
+]);
+
+pub const CIRCLE_OF_5THS: Song<CircleOf> = Song {
+    tempo_qpm: 400,
+    note_sequence: CircleOf::new(
+        FIFTH,
+        Note {
+            semitone: Semitone::Bb,
+            octave: 5,
+        },
+        TimeSlice::Quarter,
+    ),
+};
+
+pub const CIRCLE_OF_5THS_SHORT: Song<std::iter::Take<CircleOf>> = Song {
+    tempo_qpm: 400,
+    note_sequence: CircleOf::new(
+        FIFTH,
+        Note {
+            semitone: Semitone::Bb,
+            octave: 5,
+        },
+        TimeSlice::Quarter,
+    )
+    .take(5),
+};

@@ -48,6 +48,7 @@ pub enum ErrorKind {
     Uninitialized = 40,
     ParseNetAddress = 41,
     ParseSshKey = 42,
+    SoundError = 43,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -95,6 +96,7 @@ impl ErrorKind {
             Uninitialized => "Uninitialized",
             ParseNetAddress => "Net Address Parsing Error",
             ParseSshKey => "SSH Key Parsing Error",
+            SoundError => "Sound Interface Error",
         }
     }
 }
