@@ -12,6 +12,7 @@ import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, Dependen
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 
 @Component({
   selector: 'app-show',
@@ -30,7 +31,6 @@ export class AppShowPage {
   rendering: PkgStatusRendering
   Math = Math
   mainStatus: MainStatus
-
 
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []
@@ -236,6 +236,7 @@ export class AppShowPage {
 
   setButtons (): void {
     this.buttons = [
+      // instructions
       {
         action: () => this.navCtrl.navigateForward(['instructions'], { relativeTo: this.route }),
         title: 'Instructions',
@@ -243,13 +244,23 @@ export class AppShowPage {
         color: 'danger',
         disabled: [],
       },
+      // config
       {
-        action: () => this.navCtrl.navigateForward(['config'], { relativeTo: this.route }),
-        title: 'Settings',
+        action: async () => {
+          const modal = await this.modalCtrl.create({
+            component: AppConfigPage,
+            componentProps: {
+              pkgId: this.pkgId,
+            },
+          })
+          await modal.present()
+        },
+        title: 'Config',
         icon: 'construct-outline',
         color: 'danger',
         disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
       },
+      // properties
       {
         action: () => this.navCtrl.navigateForward(['properties'], { relativeTo: this.route }),
         title: 'Properties',
@@ -257,6 +268,7 @@ export class AppShowPage {
         color: 'danger',
         disabled: [],
       },
+      // interfaces
       {
         action: () => this.navCtrl.navigateForward(['interfaces'], { relativeTo: this.route }),
         title: 'Interfaces',
@@ -264,6 +276,7 @@ export class AppShowPage {
         color: 'danger',
         disabled: [],
       },
+      // actions
       {
         action: () => this.navCtrl.navigateForward(['actions'], { relativeTo: this.route }),
         title: 'Actions',
@@ -271,6 +284,7 @@ export class AppShowPage {
         color: 'danger',
         disabled: [],
       },
+      // metrics
       {
         action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
         title: 'Monitor',
@@ -279,17 +293,11 @@ export class AppShowPage {
         // @TODO make the disabled check better. Don't want to list every status here. Monitor should be disabled except is pkg is running.
         disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
       },
+      // logs
       {
         action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         title: 'Logs',
         icon: 'receipt-outline',
-        color: 'danger',
-        disabled: [],
-      },
-      {
-        action: () => this.navCtrl.navigateForward(['manifest'], { relativeTo: this.route }),
-        title: 'Package Details',
-        icon: 'finger-print-outline',
         color: 'danger',
         disabled: [],
       },

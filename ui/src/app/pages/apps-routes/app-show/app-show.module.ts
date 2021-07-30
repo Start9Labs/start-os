@@ -7,6 +7,7 @@ import { StatusComponentModule } from 'src/app/components/status/status.componen
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
+import { AppConfigPageModule } from 'src/app/modals/app-config/app-config.module'
 
 const routes: Routes = [
   {
@@ -24,6 +25,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     PwaBackComponentModule,
     InstallWizardComponentModule,
+    AppConfigPageModule,
   ],
   declarations: [AppShowPage],
 })

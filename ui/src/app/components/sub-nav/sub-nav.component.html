@@ -1,0 +1,16 @@
+<ion-header>
+  <ion-toolbar class="subheader" color="dark">
+    <ion-buttons slot="start" *ngIf="subNav.path.length > 1">
+      <ion-button color="light" (click)="subNav.pop(nav)">
+        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>
+      <span *ngFor="let segment of subNav.path; let i = index">
+        / <a style="cursor: pointer;" (click)="subNav.popTo(i, nav)">{{ segment }}</a>
+      </span>
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-nav [root]="rootPage" [rootParams]="rootParams"></ion-nav>

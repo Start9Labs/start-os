@@ -4,7 +4,8 @@ import { ApiService } from './api/embassy/embassy-api.service'
 import { ConfigSpec } from '../pkg-config/config-types'
 import { ConfigCursor } from '../pkg-config/config-cursor'
 import { SSHService } from '../pages/server-routes/security-routes/ssh-keys/ssh.service'
-import { TrackingModalController } from './tracking-modal-controller.service'
+import { SubNavService } from './sub-nav.service'
+import { ModalController } from '@ionic/angular'
 
 @Injectable({
   providedIn: 'root',
@@ -12,7 +13,8 @@ import { TrackingModalController } from './tracking-modal-controller.service'
 export class ServerConfigService {
 
   constructor (
-    private readonly trackingModalCtrl: TrackingModalController,
+    private readonly modalCtrl: ModalController,
+    private readonly subNav: SubNavService,
     private readonly embassyApi: ApiService,
     private readonly sshService: SSHService,
   ) { }
@@ -20,16 +22,13 @@ export class ServerConfigService {
   async presentModalValueEdit (key: string, current?: string) {
     const cursor = new ConfigCursor(serverConfig, { [key]: current }).seekNext(key)
 
-    const modal = await this.trackingModalCtrl.create({
-      backdropDismiss: false,
+    const modal = await this.modalCtrl.create({
       component: AppConfigValuePage,
-      presentingElement: await this.trackingModalCtrl.getTop(),
       componentProps: {
         cursor,
         saveFn: this.saveFns[key],
       },
     })
-
     await modal.present()
   }
 

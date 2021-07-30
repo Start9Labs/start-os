@@ -1,7 +1,6 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { FormsModule } from '@angular/forms'
-import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppConfigPage } from './app-config.page'
 import { ObjectConfigComponentModule } from 'src/app/components/object-config/object-config.component.module'
@@ -11,15 +10,10 @@ import { AppConfigUnionPageModule } from 'src/app/modals/app-config-union/app-co
 import { AppConfigValuePageModule } from 'src/app/modals/app-config-value/app-config-value.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text-spinner.component.module'
-
-const routes: Routes = [
-  {
-    path: '',
-    component: AppConfigPage,
-  },
-]
+import { SubNavComponentModule } from 'src/app/components/sub-nav/sub-nav.component.module'
 
 @NgModule({
+  declarations: [AppConfigPage],
   imports: [
     ObjectConfigComponentModule,
     AppConfigListPageModule,
@@ -31,8 +25,9 @@ const routes: Routes = [
     CommonModule,
     FormsModule,
     IonicModule,
-    RouterModule.forChild(routes),
+    SubNavComponentModule,
   ],
-  declarations: [AppConfigPage],
+  entryComponents: [AppConfigPage],
+  exports: [AppConfigPage],
 })
 export class AppConfigPageModule { }

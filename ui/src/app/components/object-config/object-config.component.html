@@ -1,5 +1,6 @@
-<div *ngFor="let keyval of (spec.type === 'object' ? spec.spec : spec.variants[value[spec.tag.id]]) | keyvalue: asIsOrder">
+<ion-item-group>
   <object-config-item
+    *ngFor="let keyval of (spec.type === 'object' ? spec.spec : spec.variants[value[spec.tag.id]]) | keyvalue: asIsOrder"
     [key]="keyval.key"
     [spec]="keyval.value"
     [value]="value[keyval.key]"
@@ -7,4 +8,4 @@
     (onClick)="handleClick(keyval.key)"
     [class.add-margin]="keyval.key === 'advanced'"
   ></object-config-item>
-</div>
+</ion-item-group>
