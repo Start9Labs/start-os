@@ -2,7 +2,7 @@ import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
-import { chill, isEmptyObject, Recommendation } from 'src/app/util/misc.util'
+import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { combineLatest, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
@@ -108,7 +108,7 @@ export class AppShowPage {
         )
         if (cancelled) return
       }
-      return this.embassyApi.stopPackage({ id }).then(chill)
+      await this.embassyApi.stopPackage({ id })
     } catch (e) {
       this.errToast.present(e)
     } finally {

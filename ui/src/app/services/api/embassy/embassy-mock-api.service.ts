@@ -439,6 +439,7 @@ export class MockApiService extends ApiService {
       },
     ]
     const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    console.log('hereererer')
     setTimeout(() => {
       const patch = [
         {

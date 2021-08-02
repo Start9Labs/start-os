@@ -2,6 +2,10 @@
 
   <config-header [spec]="spec" [error]="error"></config-header>
 
+  <ion-button *ngIf="spec.subtype !== 'enum'" (click)="createOrEdit()">
+    <ion-icon name="add" color="primary"></ion-icon>
+  </ion-button>
+
   <!-- enum list -->
   <ion-item-group *ngIf="spec.subtype === 'enum'">
     <ion-item-divider class="borderless"></ion-item-divider>
@@ -30,7 +34,7 @@
       </ion-item-divider>
 
       <div *ngFor="let v of value; index as i;">
-        <ion-item button detail="false" (click)="navToVal(i)">
+        <ion-item button detail="false" (click)="createOrEdit(i)">
           <ion-icon size="small" slot="start" *ngIf="!annotations.members[i] || (annotations.members[i] | annotationStatus: 'NoChange')" style="margin-right: 15px; color: rgba(0,0,0,0); background: radial-gradient(#2a4e8970, #2a4e8970 35%, transparent 35%, transparent);" name="ellipse"></ion-icon>
           <ion-icon size="small" slot="start" *ngIf="!annotations.members[i] || (annotations.members[i] | annotationStatus: 'Added')" style="margin-right: 15px; color: rgba(0,0,0,0); background: radial-gradient(#2a4e8970, #2a4e8970 35%, transparent 35%, transparent);" name="ellipse"></ion-icon>
           <ion-icon size="small" slot="start" *ngIf="annotations.members[i] && (annotations.members[i] | annotationStatus: 'Edited')" style="margin-right: 15px" color="primary" name="ellipse"></ion-icon>

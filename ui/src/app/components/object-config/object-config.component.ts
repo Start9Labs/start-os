@@ -45,7 +45,6 @@ export class ObjectConfigComponent {
   templateUrl: './object-config-item.component.html',
   styleUrls: ['./object-config.component.scss'],
 })
-
 export class ObjectConfigItemComponent {
   @Input() key: string
   @Input() spec: ValueSpec

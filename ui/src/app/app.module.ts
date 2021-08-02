@@ -21,6 +21,7 @@ import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstr
 import { SharingModule } from './modules/sharing.module'
 import { MarketplaceApiService } from './services/api/marketplace/marketplace-api.service'
 import { APP_CONFIG_COMPONENT_MAPPING } from './services/sub-nav.service'
+import { FormBuilder } from '@angular/forms'
 
 @NgModule({
   declarations: [AppComponent],
@@ -42,6 +43,7 @@ import { APP_CONFIG_COMPONENT_MAPPING } from './services/sub-nav.service'
     SharingModule,
   ],
   providers: [
+    FormBuilder,
     IonNav,
     Storage,
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },

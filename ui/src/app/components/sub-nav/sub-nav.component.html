@@ -1,13 +1,15 @@
-<ion-header>
+<ion-header *ngIf="subNav.path.length as length">
   <ion-toolbar class="subheader" color="dark">
-    <ion-buttons slot="start" *ngIf="subNav.path.length > 1">
+    <ion-buttons slot="start" *ngIf="length > 1">
       <ion-button color="light" (click)="subNav.pop(nav)">
         <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
     <ion-title>
       <span *ngFor="let segment of subNav.path; let i = index">
-        / <a style="cursor: pointer;" (click)="subNav.popTo(i, nav)">{{ segment }}</a>
+        /
+        <span *ngIf="i === length -1"> {{ segment }}</span>
+        <a *ngIf="i !== length -1" style="cursor: pointer;" (click)="subNav.popTo(i, nav)"> {{ segment }}</a>
       </span>
     </ion-title>
   </ion-toolbar>

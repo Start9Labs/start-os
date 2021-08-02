@@ -1,0 +1,27 @@
+<ion-item>
+  <ion-icon slot="start" name="terminal-outline"></ion-icon>
+  <ion-label class="ion-text-wrap">
+    <h1>{{ interface.def.name }}</h1>
+    <h2>{{ interface.def.description }}</h2>
+  </ion-label>
+</ion-item>
+<div style="padding-left: 54px;">
+  <ion-item *ngIf="interface.addresses['tor-address'] as tor">
+    <ion-label class="ion-text-wrap">
+      <h2>Tor Address</h2>
+      <p>{{ 'http://' + tor }}</p>
+    </ion-label>
+    <ion-button slot="end" fill="clear" (click)="copy('http://' + tor)">
+      <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
+    </ion-button>
+  </ion-item>
+  <ion-item *ngIf="interface.addresses['lan-address'] as lan">
+    <ion-label class="ion-text-wrap">
+      <h2>LAN Address</h2>
+      <p>{{ 'https://' + lan }}</p>
+    </ion-label>
+    <ion-button slot="end" fill="clear" (click)="copy('https://' + lan)">
+      <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
+    </ion-button>
+  </ion-item>
+</div>

@@ -4,7 +4,6 @@ import { ApiService } from './api/embassy/embassy-api.service'
 import { ConfigSpec } from '../pkg-config/config-types'
 import { ConfigCursor } from '../pkg-config/config-cursor'
 import { SSHService } from '../pages/server-routes/security-routes/ssh-keys/ssh.service'
-import { SubNavService } from './sub-nav.service'
 import { ModalController } from '@ionic/angular'
 
 @Injectable({
@@ -14,7 +13,6 @@ export class ServerConfigService {
 
   constructor (
     private readonly modalCtrl: ModalController,
-    private readonly subNav: SubNavService,
     private readonly embassyApi: ApiService,
     private readonly sshService: SSHService,
   ) { }

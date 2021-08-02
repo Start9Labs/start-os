@@ -149,9 +149,6 @@ export function partitionArray<T> (ts: T[], condition: (t: T) => boolean): [T[],
   return [yes, no]
 }
 
-export const chill = () => { }
-export const chillAsync = async () => { }
-
 export function uniqueBy<T> (ts: T[], uniqueBy: (t: T) => string, prioritize: (t1: T, t2: T) => T) {
   return Object.values(ts.reduce((acc, next) => {
     const previousValue = acc[uniqueBy(next)]

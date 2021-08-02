@@ -235,11 +235,11 @@ ion-slides {
 
 ion-item-divider {
   text-transform: uppercase;
-  margin-top: 24px;
+  --padding-top: 24px;
   font-weight: 600;
   --color: var(--ion-color-dark);
-  border: none;
   font-size: medium;
+  border-bottom: none;
 }
 
 ion-item {

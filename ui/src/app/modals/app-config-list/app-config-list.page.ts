@@ -91,7 +91,7 @@ export class AppConfigListPage {
     this.updateCaches()
   }
 
-  async navToVal (index?: number) {
+  async createOrEdit (index?: number) {
     const nextCursor = this.cursor.seekNext(index === undefined ? this.value.length : index)
     nextCursor.createFirstEntryForList()
     this.subNav.push(String(index), nextCursor, this.nav)

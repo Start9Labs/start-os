@@ -10,66 +10,37 @@
 
 
 <ion-content class="ion-padding-top">
-  <ng-container *ngIf="patch.data['package-data'][pkgId] as pkg">
+  <ion-item-group *ngIf="patch.data['package-data'][pkgId] as pkg">
 
-    <ion-grid class="ion-text-center" style="margin: 0 6px;">
-      <ion-row>
-        <ion-col *ngFor="let action of pkg.manifest.actions | keyvalue: asIsOrder"  size="6">
-            <ion-card button style="cursor: pointer !important; height: 88%;" color="light" (click)="handleAction(pkg, action)">
-              <ion-card-header>
-                <ion-card-subtitle>
-                  <ion-icon size="large" *ngIf="!(action.value['allowed-statuses'] | includes: pkg.installed.status.main.status); else goodIcon" color="danger" name="close-outline"></ion-icon>
-                  <ion-icon size="large" #goAhead name="play-circle-outline"></ion-icon>
-                </ion-card-subtitle>
-                <ion-card-title>{{ action.value.name }}</ion-card-title>
-              </ion-card-header>
-              <ion-card-content>
-                {{ action.value.description }}
-              </ion-card-content>
-            </ion-card>
-        </ion-col>
-        <ion-col size="6">
-          <ion-card button style="cursor: pointer !important; height: 88%;" color="light" (click)="restore()">
-            <ion-card-header>
-              <ion-card-subtitle>
-                <ion-icon size="large" name="color-wand-outline"></ion-icon>
-              </ion-card-subtitle>
-              <ion-card-title>Restore From Backup</ion-card-title>
-            </ion-card-header>
-            <ion-card-content>
-              All changes since backup will be lost.
-            </ion-card-content>
-          </ion-card>
-        </ion-col>
-        <ion-col  size="6">
-          <ion-card button style="cursor: pointer !important; height: 88%;" color="light" (click)="uninstall(pkg.manifest)">
-            <ion-card-header>
-              <ion-card-subtitle>
-                <ion-icon size="large" name="trash-outline"></ion-icon>
-              </ion-card-subtitle>
-              <ion-card-title>Uninstall</ion-card-title>
-            </ion-card-header>
-            <ion-card-content>
-              This will uninstall the service from your Embassy and delete all data permanently.
-            </ion-card-content>
-          </ion-card>
-      </ion-col>
-      </ion-row>
-    </ion-grid>
+    <!-- ** standard actions ** -->
+    <ion-item-divider>Standard Actions</ion-item-divider>
+    <app-actions-item
+      [action]="{
+        name: 'Restore From Backup',
+        description: 'All changes since backup will be lost.',
+        icon: 'color-wand-outline'
+      }"
+      (click)="restore()">
+    </app-actions-item>
+    <app-actions-item
+      [action]="{
+        name: 'Uninstall',
+        description: 'This will uninstall the service from your Embassy and delete all data permanently.',
+        icon: 'trash-outline'
+      }"
+      (click)="uninstall(pkg.manifest)">
+    </app-actions-item>
 
-    <!-- <ion-item-group>
-      <ion-item button *ngFor="let action of pkg.manifest.actions | keyvalue: asIsOrder" (click)="handleAction(pkg, action)" >
-        <ion-label class="ion-text-wrap">
-          <h2><ion-text color="primary">{{ action.value.name }}</ion-text><ion-icon *ngIf="!(action.value['allowed-statuses'] | includes: pkg.installed.status.main.status)" color="danger" name="close-outline"></ion-icon></h2>
-          <p><ion-text color="dark">{{ action.value.description }}</ion-text></p>
-        </ion-label>
-      </ion-item>
-      <ion-item button (click)="uninstall(pkg.manifest)" >
-        <ion-label class="ion-text-wrap">
-          <h2><ion-text color="primary">Uninstall</ion-text></h2>
-          <p><ion-text color="dark">This will uninstall the service from your Embassy and delete all data permanently.</ion-text></p>
-        </ion-label>
-      </ion-item>
-    </ion-item-group> -->
-  </ng-container>
+    <!-- ** specific actions ** -->
+    <ion-item-divider>Actions for {{ pkg.manifest.title }}</ion-item-divider>
+    <app-actions-item
+      *ngFor="let action of pkg.manifest.actions | keyvalue: asIsOrder"
+      [action]="{
+        name: action.value.name,
+        description: action.value.description,
+        icon: 'play-circle-outline'
+      }"
+      (click)="handleAction(pkg, action)">
+    </app-actions-item>
+  </ion-item-group>
 </ion-content>
