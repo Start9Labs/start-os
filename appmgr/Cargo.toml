@@ -60,6 +60,7 @@ emver = { version = "0.1.2", features = ["serde"] }
 futures = "0.3.8"
 git-version = "0.3.4"
 http = "0.2.3"
+hyper-ws-listener = { git = "https://github.com/Start9Labs/hyper-ws-listener.git", branch = "main" }
 indexmap = { version = "1.6.2", features = ["serde"] }
 itertools = "0.10.0"
 jsonpath_lib = "0.3.0"
@@ -98,6 +99,7 @@ tokio = { version = "1.8.1", features = ["full"] }
 tokio-compat-02 = "0.2.0"
 tokio-stream = { version = "0.1.5", features = ["io-util", "sync"] }
 tokio-tar = "0.3.0"
+tokio-tungstenite = "0.14.0"
 tokio-util = { version = "0.6.6", features = ["io"] }
 torut = "0.1.9"
 typed-builder = "0.9.0"
