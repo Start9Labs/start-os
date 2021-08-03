@@ -1,21 +1,30 @@
 use std::path::Path;
 use std::time::Duration;
 
+use anyhow::anyhow;
 use embassy::context::{EitherContext, RpcContext};
 use embassy::db::model::Database;
+use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
 use embassy::status::{check_all, synchronize_all};
 use embassy::util::daemon;
-use embassy::{Error, ErrorKind};
+use embassy::{Error, ErrorKind, ResultExt};
 use futures::TryFutureExt;
 use patch_db::json_ptr::JsonPointer;
-use rpc_toolkit::hyper::StatusCode;
+use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
 use rpc_toolkit::rpc_server;
-use rpc_toolkit::rpc_server_helpers::DynMiddleware;
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
+}
+
+fn err_to_500(e: Error) -> Response<Body> {
+    log::error!("{}", e);
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .body(Body::empty())
+        .unwrap()
 }
 
 async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
@@ -37,6 +46,51 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             auth,
         ]
     });
+
+    let rev_cache_ctx = rpc_ctx.clone();
+    let revision_cache_task = tokio::spawn(async move {
+        let mut sub = rev_cache_ctx.db.subscribe();
+        loop {
+            let rev = match sub.recv().await {
+                Ok(a) => a,
+                Err(_) => {
+                    rev_cache_ctx.revision_cache.write().await.truncate(0);
+                    continue;
+                }
+            }; // TODO: handle falling behind
+            let mut cache = rev_cache_ctx.revision_cache.write().await;
+            cache.push_back(rev);
+            if cache.len() > rev_cache_ctx.revision_cache_size {
+                cache.pop_front();
+            }
+        }
+    });
+
+    let ws_ctx = rpc_ctx.clone();
+    let ws_server = {
+        let builder = Server::bind(&ws_ctx.bind_ws);
+
+        let make_svc = ::rpc_toolkit::hyper::service::make_service_fn(move |_| {
+            let ctx = ws_ctx.clone();
+            async move {
+                Ok::<_, ::rpc_toolkit::hyper::Error>(::rpc_toolkit::hyper::service::service_fn(
+                    move |req| {
+                        let ctx = ctx.clone();
+                        async move {
+                            match req.uri().path() {
+                                "/db" => Ok(subscribe(ctx, req).await.unwrap_or_else(err_to_500)),
+                                _ => Response::builder()
+                                    .status(StatusCode::NOT_FOUND)
+                                    .body(Body::empty()),
+                            }
+                        }
+                    },
+                ))
+            }
+        });
+        builder.serve(make_svc)
+    };
+
     let status_ctx = rpc_ctx.clone();
     let status_daemon = daemon(
         move || {
@@ -69,6 +123,11 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
     );
     futures::try_join!(
         server.map_err(|e| Error::new(e, ErrorKind::Network)),
+        revision_cache_task.map_err(|e| Error::new(
+            anyhow!("{}", e).context("Revision Cache daemon panicked!"),
+            ErrorKind::Unknown
+        )),
+        ws_server.map_err(|e| Error::new(e, ErrorKind::Network)),
         status_daemon.map_err(|e| Error::new(
             e.context("Status Sync daemon panicked!"),
             ErrorKind::Unknown
