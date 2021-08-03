@@ -26,6 +26,19 @@ pub fn parse_metadata(_: &str, _: &ArgMatches<'_>) -> Result<Value, Error> {
     }))
 }
 
+#[test]
+fn gen_pwd() {
+    println!(
+        "{:?}",
+        argon2::hash_encoded(
+            b"testing1234",
+            &rand::random::<[u8; 16]>()[..],
+            &argon2::Config::default()
+        )
+        .unwrap()
+    )
+}
+
 #[command(display(display_none), metadata(authenticated = false))]
 pub async fn login(
     #[context] ctx: EitherContext,
@@ -69,8 +82,11 @@ pub async fn login(
     .await?;
     res.headers.insert(
         "set-cookie",
-        HeaderValue::from_str(&format!("session={}; HttpOnly; SameSite=Strict", token))
-            .with_kind(crate::ErrorKind::Unknown)?, // Should be impossible, but don't want to panic
+        HeaderValue::from_str(&format!(
+            "session={}; HttpOnly; SameSite=Strict; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
+            token
+        ))
+        .with_kind(crate::ErrorKind::Unknown)?, // Should be impossible, but don't want to panic
     );
 
     Ok(())
