@@ -1,16 +1,18 @@
+use std::collections::VecDeque;
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bollard::Docker;
-use patch_db::PatchDb;
+use patch_db::{PatchDb, Revision};
 use reqwest::Url;
 use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use tokio::fs::File;
+use tokio::sync::RwLock;
 
 use crate::manager::ManagerMap;
 use crate::net::NetController;
@@ -25,6 +27,7 @@ pub struct RpcContextConfig {
     pub tor_control: Option<SocketAddr>,
     pub db: Option<PathBuf>,
     pub secret_store: Option<PathBuf>,
+    pub revision_cache_size: Option<usize>,
 }
 
 pub struct RpcContextSeed {
@@ -35,6 +38,8 @@ pub struct RpcContextSeed {
     pub docker: Docker,
     pub net_controller: Arc<NetController>,
     pub managers: ManagerMap,
+    pub revision_cache_size: usize,
+    pub revision_cache: RwLock<VecDeque<Arc<Revision>>>,
 }
 
 #[derive(Clone)]
@@ -88,6 +93,8 @@ impl RpcContext {
             docker,
             net_controller,
             managers,
+            revision_cache_size: base.revision_cache_size.unwrap_or(512),
+            revision_cache: RwLock::new(VecDeque::new()),
         });
         Ok(Self(seed))
     }
