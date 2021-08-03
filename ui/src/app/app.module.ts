@@ -22,6 +22,7 @@ import { SharingModule } from './modules/sharing.module'
 import { MarketplaceApiService } from './services/api/marketplace/marketplace-api.service'
 import { APP_CONFIG_COMPONENT_MAPPING } from './services/sub-nav.service'
 import { FormBuilder } from '@angular/forms'
+import { FormService } from './services/form.service'
 
 @NgModule({
   declarations: [AppComponent],

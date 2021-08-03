@@ -64,7 +64,6 @@ export class AppShowPage {
       this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main')
       .subscribe(main => {
         this.mainStatus = main
-        console.log(this.mainStatus)
       }),
     ]
     this.setButtons()
@@ -93,8 +92,6 @@ export class AppShowPage {
 
     try {
       const breakages = await this.embassyApi.dryStopPackage({ id })
-
-      console.log('BREAKAGES', breakages)
 
       if (!isEmptyObject(breakages)) {
         const { cancelled } = await wizardModal(

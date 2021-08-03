@@ -216,7 +216,7 @@ export function mapBooleanSpec (spec: ValueSpecBoolean, value: any): boolean {
 export function getDefaultConfigValue (spec: ValueSpec): string | number | object | string[] | number[] | object[] | boolean | null {
   switch (spec.type) {
     case 'object':
-      return spec.nullByDefault ? null : getDefaultObject(spec.spec)
+      return getDefaultObject(spec.spec)
     case 'union':
       return getDefaultUnion(spec)
     case 'string':

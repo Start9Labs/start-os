@@ -78,7 +78,6 @@ export class StartupAlertsService {
         let checkRes: any
         try {
           checkRes = await c.check()
-          console.log('CHECK RES', checkRes)
         } catch (e) {
           console.error(`Exception in ${c.name} check:`, e)
           return true

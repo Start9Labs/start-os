@@ -6,7 +6,12 @@
 
 <ion-content class="ion-padding">
   <form [formGroup]="actionForm" (ngSubmit)="save()" novalidate>
-    <form-object [objectSpec]="action['input-spec']" [formGroup]="actionForm"></form-object>
+    <form-object
+      id="formObj"
+      [objectSpec]="action['input-spec']"
+      [formGroup]="actionForm"
+      [original]="current"
+    ></form-object>
   </form>
 </ion-content>
 
@@ -18,7 +23,7 @@
       </ion-button>
     </ion-buttons>
     <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button fill="outline" color="primary" [disabled]="!actionForm.valid" (click)="save()">
+      <ion-button fill="outline" color="primary" (click)="save()">
         Execute
       </ion-button>
     </ion-buttons>

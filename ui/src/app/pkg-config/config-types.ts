@@ -52,8 +52,6 @@ export interface ValueSpecPointer extends WithStandalone {
 
 export interface ValueSpecObject extends ListValueSpecObject, WithStandalone {
   type: 'object'
-  nullable: boolean
-  nullByDefault: boolean
 }
 
 export interface WithStandalone {
@@ -117,16 +115,16 @@ export type UniqueBy = null | string | { any: UniqueBy[] } | { all: UniqueBy[] }
 export interface ListValueSpecUnion {
   tag: UnionTagSpec
   variants: { [key: string]: ConfigSpec }
-  displayAs?: string //this may be a handlebars template which can conditionally (on tag.id) make use of each union's entries, or if left blank will display as tag.id
+  displayAs?: string // this may be a handlebars template which can conditionally (on tag.id) make use of each union's entries, or if left blank will display as tag.id
   uniqueBy: UniqueBy
-  default: string //this should be the variantName which one prefers a user to start with by default when creating a new union instance in a list
+  default: string // this should be the variantName which one prefers a user to start with by default when creating a new union instance in a list
 }
 
 export interface UnionTagSpec {
-  id: string //The name of the field containing one of the union variants
+  id: string // The name of the field containing one of the union variants
   name: string
   description?: string
-  variantNames: { //the name of each variant
+  variantNames: { // the name of each variant
     [variant: string]: string
   }
 }

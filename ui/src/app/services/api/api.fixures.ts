@@ -1060,16 +1060,12 @@ export module Mock {
         'uniqueBy': null,
         'description': 'rpc username and password',
         'changeWarning': 'Adding RPC users gives them special permissions on your node.',
-        'nullable': false,
-        'nullByDefault': false,
         'spec': {
           'laws': {
             'name': 'Laws',
             'type': 'object',
             'uniqueBy': 'law1',
             'description': 'the law of the realm',
-            'nullable': true,
-            'nullByDefault': true,
             'spec': {
               'law1': {
                 'name': 'First Law',
@@ -1155,8 +1151,6 @@ export module Mock {
         'type': 'object',
         'uniqueBy': null,
         'description': 'Advanced settings',
-        'nullable': false,
-        'nullByDefault': false,
         'spec': {
           'notifications': {
             'name': 'Notification Preferences',

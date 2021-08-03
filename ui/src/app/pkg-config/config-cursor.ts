@@ -121,8 +121,6 @@ export class ConfigCursor<T extends ValueType> {
     let ret: ValueSpec = {
       type: 'object',
       spec: this.rootSpec,
-      nullable: false,
-      nullByDefault: false,
       name: 'Config',
       displayAs: 'Config',
       uniqueBy: null,
@@ -247,7 +245,7 @@ export class ConfigCursor<T extends ValueType> {
         }
       case 'object':
         if (!cfg) {
-          return spec.nullable ? null : `${spec.name} is missing.`
+          return `${spec.name} is missing.`
         } else if (typeof cfg === 'object' && !Array.isArray(cfg)) {
           for (let idx in spec.spec) {
             if (this.seekNext(idx).checkInvalid()) {

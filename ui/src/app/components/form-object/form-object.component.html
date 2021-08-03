@@ -1,12 +1,10 @@
 <ion-item-group [formGroup]="formGroup">
   <div *ngFor="let entry of formGroup.controls | keyvalue : asIsOrder">
-    <!-- {{ console.log(entry.value) }}
-    {{ console.log('OBJECT SPEC', objectSpec) }} -->
     <ng-container *ngIf="unionSpec && entry.key === 'type'">
-        <p class="input-label">Type</p>
+        <p class="input-label">{{ unionSpec.tag.name }}</p>
         <ion-item color="dark">
-          <ion-label>Type</ion-label>
-          <ion-select slot="end" placeholder="Select" formControlName="type" [selectedText]="unionSpec.tag.variantNames[entry.value.value]" (ionChange)="updateUnion($event)">
+          <ion-label>{{ unionSpec.tag.name }}</ion-label>
+          <ion-select slot="end" placeholder="Select" [formControlName]="unionSpec.tag.id" [selectedText]="unionSpec.tag.variantNames[entry.value.value]" (ionChange)="updateUnion($event)">
             <ion-select-option *ngFor="let option of Object.keys(unionSpec.variants)" [value]="option">
               {{ unionSpec.tag.variantNames[option] }}
             </ion-select-option>
@@ -14,32 +12,29 @@
         </ion-item>
     </ng-container>
     <ng-container *ngIf="objectSpec[entry.key] as spec">
-      <!-- string -->
-      <ng-container *ngIf="spec.type === 'string'">
-        <p class="input-label">{{ spec.name }}</p>
-        <ion-item color="dark">
+      <!-- primitive -->
+      <ng-container *ngIf="['string', 'number', 'boolean', 'enum'] | includes : spec.type">
+        <!-- header -->
+        <p class="input-label">
+          <form-object-header [data]="{ key: key, spec: spec, original: original }"></form-object-header>
+        </p>
+
+        <!-- string -->
+        <ion-item color="dark" *ngIf="spec.type === 'string'">
           <ion-input [placeholder]="'Enter ' + spec.name" [formControlName]="entry.key"></ion-input>
         </ion-item>
-      </ng-container>
-      <!-- number -->
-      <ng-container *ngIf="spec.type === 'number'">
-        <p class="input-label">{{ spec.name }}</p>
-        <ion-item color="dark">
+        <!-- number -->
+        <ion-item color="dark" *ngIf="spec.type === 'number'">
           <ion-input type="tel" [placeholder]="'Enter ' + spec.name" [formControlName]="entry.key"></ion-input>
+          <ion-note *ngIf="spec.units" slot="end" color="light" style="font-size: medium;">{{ spec.units }}</ion-note>
         </ion-item>
-      </ng-container>
-      <!-- boolean -->
-      <ng-container *ngIf="spec.type === 'boolean'">
-        <p class="input-label">{{ spec.name }}</p>
-        <ion-item color="dark">
+        <!-- boolean -->
+        <ion-item color="dark" *ngIf="spec.type === 'boolean'">
           <ion-label>{{ spec.name }}</ion-label>
           <ion-toggle style="--background: var(--ion-color-step-600);" slot="end" color="light" [formControlName]="entry.key"></ion-toggle>
         </ion-item>
-      </ng-container>
-      <!-- enum -->
-      <ng-container *ngIf="spec.type === 'enum'">
-        <p class="input-label">{{ spec.name }}</p>
-        <ion-item color="dark">
+        <!-- enum -->
+        <ion-item color="dark" *ngIf="spec.type === 'enum'">
           <ion-label>{{ spec.name }}</ion-label>
           <ion-select slot="end" placeholder="Select" [formControlName]="entry.key" [selectedText]="spec.valueNames[formGroup.get(entry.key).value]">
             <ion-select-option *ngFor="let option of spec.values" [value]="option">
@@ -48,29 +43,36 @@
           </ion-select>
         </ion-item>
       </ng-container>
-      <!-- object -->
-      <ng-container *ngIf="spec.type === 'object'">
+      <!-- object or union -->
+      <ng-container *ngIf="spec.type === 'object' || spec.type ==='union'">
+        <!-- header -->
         <ion-item-divider>
-          {{ spec.name }}
+          <form-object-header [data]="{ key: key, spec: spec, original: original }"></form-object-header>
         </ion-item-divider>
-        <div class="nested-wrapper">
-          <form-object [objectSpec]="spec.spec" [formGroup]="entry.value"></form-object>
+        
+        <!-- object -->
+        <div class="nested-wrapper" *ngIf="spec.type === 'object'">
+          <form-object
+            [objectSpec]="spec.spec"
+            [formGroup]="entry.value"
+            [original]="original ? original[key] : undefined"
+          ></form-object>
         </div>
-      </ng-container>
-      <!-- union -->
-      <ng-container *ngIf="spec.type === 'union'">
-        <ion-item-divider>
-          {{ spec.name }}
-        </ion-item-divider>
-        <div class="nested-wrapper">
-          <form-object [objectSpec]="spec.variants[entry.value.controls.type.value]" [formGroup]="entry.value" [unionSpec]="spec"></form-object>
+        <!-- union -->
+        <div class="nested-wrapper" *ngIf="spec.type === 'union'">
+          <form-object
+            [objectSpec]="spec.variants[entry.value.controls.type.value]"
+            [formGroup]="entry.value"
+            [original]="original ? original[key] : undefined"
+            [unionSpec]="spec"
+          ></form-object>
         </div>
       </ng-container>
       <!-- list (not enum) -->
       <ng-container *ngIf="spec.type === 'list' && spec.subtype !== 'enum'">
         <ng-container *ngIf="formGroup.get(entry.key) as formArr" [formArrayName]="entry.key">
           <ion-item-divider>
-            {{ spec.name }}
+            <form-object-header [data]="{ key: key, spec: spec, original: original }"></form-object-header>
           </ion-item-divider>
           <div class="nested-wrapper">
             <ion-item-group>
@@ -78,7 +80,7 @@
                 <ion-item color="dark">
                   <ion-input [placeholder]="'Enter ' + spec.name" [formControlName]="i"></ion-input>
                   <ion-button slot="end" color="danger" (click)="presentAlertDelete(entry.key, i)">
-                    <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+                    <ion-icon slot="icon-only" name="close"></ion-icon>
                   </ion-button>
                 </ion-item>
                 <ng-container *ngFor="let validation of formService.validationMessages[entry.key + '/' + i]">
@@ -100,22 +102,24 @@
       <!-- list (enum) -->
       <ng-container *ngIf="spec.type === 'list' && spec.subtype === 'enum'">
         <ng-container *ngIf="formGroup.get(entry.key) as formArr" [formArrayName]="entry.key">
-          <p class="input-label">{{ spec.name }}</p>
-          <ion-item color="dark">
-            <ion-label>{{ spec.name }}</ion-label>
-            <ion-select slot="end" multiple placeholder="Select" [value]="formArr.value" [selectedText]="getEnumListDisplay(formArr.value, spec.spec)" (ionChange)="updateEnumList(entry.key, formArr.value, $event)">
-              <ion-select-option *ngFor="let option of spec.spec.values" [value]="option">
-                {{ spec.spec.valueNames[option] }}
-              </ion-select-option>
-            </ion-select>
+          <p class="input-label">
+            <form-object-header [data]="{ key: key, spec: spec, original: original }"></form-object-header>
+          </p>
+          <ion-item button detail="false" color="dark" (click)="presentModalEnumList(entry.key, spec, formArr.value)">
+            <ion-label>
+              <h2>{{ getEnumListDisplay(formArr.value, spec.spec) }}</h2>
+            </ion-label>
+            <ion-button slot="end" fill="clear" color="light">
+              <ion-icon slot="icon-only" name="chevron-down"></ion-icon>
+            </ion-button>
           </ion-item>
         </ng-container>
       </ng-container>
-      <ng-container *ngFor="let validation of formService.validationMessages[entry.key]">
-        <p style="font-size: small;" *ngIf="formGroup.get(entry.key).hasError(validation.type) && (formGroup.get(entry.key).dirty || formGroup.get(entry.key).touched)">
-          <ion-text color="danger">{{ spec.name }}: {{ validation.message }}</ion-text>
+      <div *ngFor="let validation of formService.validationMessages[entry.key]">
+        <p class="validation-error" *ngIf="formGroup.get(entry.key).hasError(validation.type)">
+          <ion-text *ngIf="(formGroup.get(entry.key).dirty || formGroup.get(entry.key).touched)" color="danger">{{ spec.name }}: {{ validation.message }}</ion-text>
         </p>
-      </ng-container>
+      </div>
     </ng-container>
   </div>
 </ion-item-group>

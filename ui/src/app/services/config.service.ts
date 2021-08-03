@@ -67,7 +67,6 @@ export class ConfigService {
   }
 
   launchableURL (pkg: PackageDataEntry): string {
-    console.log('PKGPKGPKG', pkg)
     return this.isTor() ? `http://${torUiAddress(pkg)}` : `https://${lanUiAddress(pkg)}`
   }
 }

@@ -99,9 +99,6 @@ export class NotificationsPage {
     if (embassyFailed || packagesFailed) {
       buttons.push({
         text: 'Retry',
-        handler: () => {
-          console.log('retry backup')
-        },
       })
     }
 

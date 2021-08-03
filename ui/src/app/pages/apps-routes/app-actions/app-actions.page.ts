@@ -57,7 +57,6 @@ export class AppActionsPage {
         })
         modal.onWillDismiss().then(({ data }) => {
           if (!data) return
-          console.log('DATA', data)
           this.executeAction(pkg.manifest.id, action.key, data)
         })
         await modal.present()

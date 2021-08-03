@@ -1,8 +1,10 @@
 import { Component, Input } from '@angular/core'
 import { FormArray, FormControl, FormGroup } from '@angular/forms'
-import { AlertController } from '@ionic/angular'
-import { ConfigSpec, ListValueSpecOf, ValueSpecList, ValueSpecUnion } from 'src/app/pkg-config/config-types'
+import { AlertController, ModalController } from '@ionic/angular'
+import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecList, ValueSpecListOf, ValueSpecUnion } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
+import { Range } from 'src/app/pkg-config/config-utilities'
+import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
 
 @Component({
   selector: 'form-object',
@@ -13,13 +15,19 @@ export class FormObjectComponent {
   @Input() objectSpec: ConfigSpec
   @Input() formGroup: FormGroup
   @Input() unionSpec: ValueSpecUnion
+  @Input() original?: { [key: string]: any } = { }
   Object = Object
-  console = console
 
   constructor (
     private readonly alertCtrl: AlertController,
+    private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
   ) { }
+
+  ngOnInit () {
+    console.log('ObjSpec', this.objectSpec)
+    console.log('form Group', this.formGroup)
+  }
 
   getEnumListDisplay (arr: string[], spec: ListValueSpecOf<'enum'>): string {
     return arr.map((v: string) => spec.valueNames[v]).join(',')
@@ -52,16 +60,33 @@ export class FormObjectComponent {
     arr.removeAt(index)
   }
 
-  updateEnumList (key: string, current: string[], e: any) {
+  updateEnumList (key: string, current: string[], updated: string[]) {
     this.formGroup.get(key).markAsDirty()
-
-    const updated = e.detail.value as string[]
 
     let deleted = current.filter(x => !updated.includes(x))
     deleted.forEach((_, index) => this.deleteListItem(key, index, false))
 
     let added = updated.filter(x => !current.includes(x))
     added.forEach(val => this.addListItem(key, val, false))
+  }
+
+  async presentModalEnumList (key: string, spec: ValueSpecListOf<'enum'>, current: string[]) {
+    const modal = await this.modalCtrl.create({
+      componentProps: {
+        key,
+        spec,
+        current,
+      },
+      component: EnumListPage,
+    })
+
+    modal.onWillDismiss().then(res => {
+      const data = res.data
+      if (!data) return
+      this.updateEnumList(key, current, data)
+    })
+
+    await modal.present()
   }
 
   async presentAlertDelete (key: string, index: number) {
@@ -90,3 +115,33 @@ export class FormObjectComponent {
   }
 }
 
+interface HeaderData {
+  key: string
+  original: any
+  spec: ValueSpec
+}
+
+@Component({
+  selector: 'form-object-header',
+  templateUrl: './form-object-header.component.html',
+  styleUrls: ['./form-object.component.scss'],
+})
+export class FormObjectHeaderComponent {
+  Range = Range
+  @Input() data: HeaderData
+
+  constructor (
+    private readonly alertCtrl: AlertController,
+  ) { }
+
+  async presentAlertDescription () {
+    const { name, description } = this.data.spec
+
+    const alert = await this.alertCtrl.create({
+      header: name,
+      message: description,
+      buttons: ['Ok'],
+    })
+    await alert.present()
+  }
+}
