@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
-import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecString, ValueSpec, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString } from '../pkg-config/config-types'
+import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecString, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
 import { Range } from '../pkg-config/config-utilities'
 
 @Injectable({
@@ -27,6 +27,20 @@ export class FormService {
     } else if (isValueSpecListOf(spec, 'object')) {
       return this.objectValidators(listKey, spec.spec)
     }
+  }
+
+  getUnionObject (spec: ValueSpecUnion, type: string): FormGroup {
+    const { name, description, changeWarning, variants, tag } = spec
+    const typeSpec: ValueSpecEnum = {
+      type: 'enum',
+      name,
+      description,
+      changeWarning,
+      default: type,
+      values: Object.keys(variants),
+      valueNames: tag.variantNames,
+    }
+    return this.getFormGroup({ type: typeSpec, ...spec.variants[type] })
   }
 
   private getFormGroup (config: ConfigSpec, validators: ValidatorFn[] = []): FormGroup {
@@ -66,9 +80,7 @@ export class FormService {
         })
         return this.formBuilder.array(mapped, validators)
       case 'union':
-        // control[0] = spec.default
-        // group[spec.default] = this.formBuilder.group(spec.variants[spec.default])
-        break
+        return this.getUnionObject(spec, spec.default)
       case 'pointer':
         return this.formBuilder.control('System Defined')
       case 'boolean':
