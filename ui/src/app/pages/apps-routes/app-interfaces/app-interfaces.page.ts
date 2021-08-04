@@ -8,9 +8,9 @@ import { ConfigService } from 'src/app/services/config.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 
 @Component({
-  selector: 'app-Interfaces',
-  templateUrl: './app-Interfaces.page.html',
-  styleUrls: ['./app-Interfaces.page.scss'],
+  selector: 'app-interfaces',
+  templateUrl: './app-interfaces.page.html',
+  styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesPage {
   pkg: PackageDataEntry
@@ -36,7 +36,7 @@ export class AppInterfacesPage {
   async copy (address: string): Promise<void> {
     let message = ''
     await copyToClipboard(address || '')
-      .then(success => { message = success ? 'copied to clipboard!' : 'failed to copy'})
+      .then(success => { message = success ? 'copied to clipboard!' : 'failed to copy' })
 
     const toast = await this.toastCtrl.create({
       header: message,
