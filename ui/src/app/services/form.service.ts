@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
-import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecString, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
-import { Range } from '../pkg-config/config-utilities'
+import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecString, ListValueSpecUnion, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
+import { getDefaultString, Range } from '../pkg-config/config-utilities'
 
 @Injectable({
   providedIn: 'root',
@@ -27,27 +27,44 @@ export class FormService {
     }
   }
 
-  getUnionObject (spec: ValueSpecUnion, type: string, current?: { [key: string]: any }): FormGroup {
-    const { name, description, changeWarning, variants, tag } = spec
-    const typeSpec: ValueSpecEnum = {
+  getUnionObject (spec: ValueSpecUnion | ListValueSpecUnion, selection: string, current?: { [key: string]: any }): FormGroup {
+    const { variants, tag } = spec
+    const { name, description, changeWarning } = isFullUnion(spec) ? spec : { ...spec.tag, changeWarning: undefined }
+
+    const enumSpec: ValueSpecEnum = {
       type: 'enum',
       name,
       description,
       changeWarning,
-      default: type,
+      default: selection,
       values: Object.keys(variants),
       valueNames: tag.variantNames,
     }
-    return this.getFormGroup({ type: typeSpec, ...spec.variants[type] }, [], current)
+    return this.getFormGroup({ [spec.tag.id]: enumSpec, ...spec.variants[selection] }, [], current)
   }
 
   getFormGroup (config: ConfigSpec, validators: ValidatorFn[] = [], current: { [key: string]: any } = { }): FormGroup {
-    const group = { }
+    let group = { }
     Object.entries(config).map(([key, spec]) => {
       if (spec.type === 'pointer') return
-      group[key] = this.getFormEntry(key, spec, current[key])
+      group[key] = this.getFormEntry(key, spec, current ? current[key] : { })
     })
     return this.formBuilder.group(group, { validators } )
+  }
+
+  getListItem (key: string, index: number, spec: ValueSpecList, entry: any) {
+    const listItemValidators = this.getListItemValidators(spec, key, index)
+    if (isValueSpecListOf(spec, 'string')) {
+      return this.formBuilder.control(entry, listItemValidators)
+    } else if (isValueSpecListOf(spec, 'number')) {
+      return this.formBuilder.control(entry, listItemValidators)
+    } else if (isValueSpecListOf(spec, 'enum')) {
+      return this.formBuilder.control(entry)
+    } else if (isValueSpecListOf(spec, 'object')) {
+      return this.getFormGroup(spec.spec.spec, listItemValidators, entry)
+    } else if (isValueSpecListOf(spec, 'union')) {
+      return this.getUnionObject(spec.spec, spec.spec.default, entry)
+    }
   }
 
   private getFormEntry (key: string, spec: ValueSpec, currentValue: any): FormGroup | FormArray | FormControl {
@@ -57,27 +74,26 @@ export class FormService {
     switch (spec.type) {
       case 'string':
         validators = this.stringValidators(key, spec)
-        value = currentValue === undefined ? spec.default || null : currentValue
+        if (currentValue !== undefined) {
+          value = currentValue
+        } else {
+          value = spec.default ? getDefaultString(spec.default) : null
+        }
         return this.formBuilder.control(value, validators)
       case 'number':
         validators = this.numberValidators(key, spec)
-        value = currentValue === undefined ? spec.default || null : currentValue
-        return this.formBuilder.control(spec.default, validators)
+        if (currentValue !== undefined) {
+          value = currentValue
+        } else {
+          value = spec.default || null
+        }
+        return this.formBuilder.control(value, validators)
       case 'object':
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
         validators = this.listValidators(key, spec)
         const mapped = (Array.isArray(currentValue) ? currentValue : spec.default as any[]).map((entry: any, index) => {
-          const listItemValidators = this.getListItemValidators(spec, key, index)
-          if (isValueSpecListOf(spec, 'string')) {
-            return this.formBuilder.control(entry, listItemValidators)
-          } else if (isValueSpecListOf(spec, 'number')) {
-            return this.formBuilder.control(entry, listItemValidators)
-          } else if (isValueSpecListOf(spec, 'enum')) {
-            return this.formBuilder.control(entry)
-          } else if (isValueSpecListOf(spec, 'object')) {
-            return this.getFormGroup(spec.spec.spec, listItemValidators)
-          }
+          return this.getListItem(key, index, spec, entry)
         })
         return this.formBuilder.array(mapped, validators)
       case 'union':
@@ -158,6 +174,10 @@ export class FormService {
 
     return validators
   }
+}
+
+function isFullUnion (spec: ValueSpecUnion | ListValueSpecUnion): spec is ValueSpecUnion {
+  return !!(spec as ValueSpecUnion).name
 }
 
 export function numberInRange (stringRange: string): ValidatorFn {

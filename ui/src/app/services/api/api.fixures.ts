@@ -881,7 +881,7 @@ export module Mock {
         'type': 'boolean',
         'description': 'determines whether your node is running on testnet or mainnet',
         'changeWarning': 'Chain will have to resync!',
-        'default': false,
+        'default': true,
       },
       'objectList': {
         'name': 'Object List',
@@ -1265,24 +1265,37 @@ export module Mock {
     },
     // actual config
     config: {
-      testnet: undefined,
-      objectList: undefined,
+      testnet: false,
+      objectList: [
+        {
+          'firstName': 'Admin',
+          'lastName': 'User',
+          'age': 40,
+        },
+        {
+          'firstName': 'Admin2',
+          'lastName': 'User',
+          'age': 40,
+        },
+      ],
       unionList: undefined,
       randomEnum: 'option1',
       favoriteNumber: 8,
       secondaryNumbers: undefined,
       rpcsettings: {
-        laws: null,
+        laws: {
+          law1: 'The first law',
+          law2: 'The second law',
+        },
         rpcpass: null,
         rpcuser: '123',
         rulemakers: [],
       },
       advanced: {
-        notifications: ['call'],
+        notifications: ['email'],
       },
       bitcoinNode: undefined,
       port: 5959,
-      maxconnections: null,
       rpcallowip: undefined,
       rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
     },
@@ -1306,7 +1319,6 @@ export module Mock {
     },
     bitcoinNode: { type: 'internal' },
     port: 5959,
-    maxconnections: null,
     rpcallowip: [],
     rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
   }

@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { FormArray, FormControl, FormGroup } from '@angular/forms'
+import { FormArray, FormGroup } from '@angular/forms'
 import { AlertController, ModalController } from '@ionic/angular'
 import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecList, ValueSpecListOf, ValueSpecUnion } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
@@ -15,7 +15,10 @@ export class FormObjectComponent {
   @Input() objectSpec: ConfigSpec
   @Input() formGroup: FormGroup
   @Input() unionSpec: ValueSpecUnion
-  @Input() original?: { [key: string]: any } = { }
+  @Input() current: { [key: string]: any }
+  @Input() showEdited: boolean = false
+  warningAck: { [key: string]: boolean } = { }
+  unmasked: { [key: string]: boolean } = { }
   Object = Object
 
   constructor (
@@ -24,13 +27,8 @@ export class FormObjectComponent {
     private readonly formService: FormService,
   ) { }
 
-  ngOnInit () {
-    console.log('ObjSpec', this.objectSpec)
-    console.log('form Group', this.formGroup)
-  }
-
   getEnumListDisplay (arr: string[], spec: ListValueSpecOf<'enum'>): string {
-    return arr.map((v: string) => spec.valueNames[v]).join(',')
+    return arr.map((v: string) => spec.valueNames[v]).join(', ')
   }
 
   updateUnion (e: any): void {
@@ -47,27 +45,12 @@ export class FormObjectComponent {
     })
   }
 
-  addListItem (key: string, value = '', markDirty = true): void {
+  addListItem (key: string, markDirty = true, val?: string): void {
     const arr = this.formGroup.get(key) as FormArray
     if (markDirty) arr.markAsDirty()
-    const validators = this.formService.getListItemValidators(this.objectSpec[key] as ValueSpecList, key, arr.length)
-    arr.push(new FormControl(value, validators))
-  }
-
-  deleteListItem (key: string, index: number, markDirty = true): void {
-    const arr = this.formGroup.get(key) as FormArray
-    if (markDirty) arr.markAsDirty()
-    arr.removeAt(index)
-  }
-
-  updateEnumList (key: string, current: string[], updated: string[]) {
-    this.formGroup.get(key).markAsDirty()
-
-    let deleted = current.filter(x => !updated.includes(x))
-    deleted.forEach((_, index) => this.deleteListItem(key, index, false))
-
-    let added = updated.filter(x => !current.includes(x))
-    added.forEach(val => this.addListItem(key, val, false))
+    // const validators = this.formService.getListItemValidators(this.objectSpec[key] as ValueSpecList, key, arr.length)
+    // arr.push(new FormControl(value, validators))
+    arr.insert(0, this.formService.getListItem(key, arr.length, this.objectSpec[key] as ValueSpecList, val))
   }
 
   async presentModalEnumList (key: string, spec: ValueSpecListOf<'enum'>, current: string[]) {
@@ -89,11 +72,24 @@ export class FormObjectComponent {
     await modal.present()
   }
 
+  async presentAlertChangeWarning (key: string, spec: ValueSpec) {
+    if (!spec.changeWarning || this.warningAck[key]) return
+    this.warningAck[key] = true
+
+    const alert = await this.alertCtrl.create({
+      header: 'Warning',
+      subHeader: `Editing ${spec.name} has consequences:`,
+      message: spec.changeWarning,
+      buttons: ['Ok'],
+    })
+    await alert.present()
+  }
+
   async presentAlertDelete (key: string, index: number) {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
-      header: 'Caution',
-      message: `Are you sure you want to delete this entry?`,
+      header: 'Confirm',
+      message: 'Are you sure you want to delete this entry?',
       buttons: [
         {
           text: 'Cancel',
@@ -110,23 +106,39 @@ export class FormObjectComponent {
     await alert.present()
   }
 
+  private deleteListItem (key: string, index: number, markDirty = true): void {
+    const arr = this.formGroup.get(key) as FormArray
+    if (markDirty) arr.markAsDirty()
+    arr.removeAt(index)
+  }
+
+  private updateEnumList (key: string, current: string[], updated: string[]) {
+    this.formGroup.get(key).markAsDirty()
+
+    let deleted = current.filter(x => !updated.includes(x))
+    deleted.forEach((_, index) => this.deleteListItem(key, index, false))
+
+    let added = updated.filter(x => !current.includes(x))
+    added.forEach(val => this.addListItem(key, false, val))
+  }
+
   asIsOrder () {
     return 0
   }
 }
 
 interface HeaderData {
-  key: string
-  original: any
   spec: ValueSpec
+  isEdited: boolean
+  isNew: boolean
 }
 
 @Component({
-  selector: 'form-object-header',
-  templateUrl: './form-object-header.component.html',
+  selector: 'form-label',
+  templateUrl: './form-label.component.html',
   styleUrls: ['./form-object.component.scss'],
 })
-export class FormObjectHeaderComponent {
+export class FormLabelComponent {
   Range = Range
   @Input() data: HeaderData
 

@@ -1,20 +1,15 @@
 <ion-header>
   <ion-toolbar *ngIf="patch.data['package-data'][pkgId] as pkg">
-    <ion-buttons slot="start">
-      <ion-button (click)="cancel()">
-        <ion-icon name="close"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>{{ pkg.manifest.title }} Config</ion-title>
-    <ion-buttons slot="end">
-      <ion-button color="dark" [disabled]="loadingText || invalid || !pkg" (click)="save(pkg)">
-        Save
+    <ion-title>Config</ion-title>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button fill="clear" [disabled]="loadingText" (click)="resetDefaults()">
+        Reset Defaults
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
+<ion-content class="ion-padding">
 
   <!-- loading -->
   <text-spinner *ngIf="loadingText; else loaded" [text]="loadingText"></text-spinner>
@@ -71,7 +66,29 @@
       </ion-item>
 
       <!-- has config -->
-      <sub-nav *ngIf="hasConfig" path="config" [rootPage]="rootPage" [rootParams]="{ cursor: rootCursor }"></sub-nav>
+      <form [formGroup]="configForm" (ngSubmit)="save()" novalidate>
+        <form-object
+          [objectSpec]="configSpec"
+          [formGroup]="configForm"
+          [current]="current"
+          showEdited
+        ></form-object>
+      </form>
     </ng-container>
   </ng-template>
 </ion-content>
+
+<ion-footer>
+  <ion-toolbar *ngIf="patch.data['package-data'][pkgId] as pkg">
+    <ion-buttons slot="start" class="ion-padding-start">
+      <ion-button fill="outline" (click)="dismiss()">
+        Cancel
+      </ion-button>
+    </ion-buttons>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button fill="outline" color="primary" [disabled]="loadingText" (click)="save(pkg)">
+        Save
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>

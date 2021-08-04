@@ -1,6 +1,6 @@
-import { Component, ElementRef, Input, ViewChild } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { FormGroup } from '@angular/forms'
-import { AlertController, ModalController } from '@ionic/angular'
+import { ModalController } from '@ionic/angular'
 import { Action } from 'src/app/services/patch-db/data-model'
 import { FormService } from 'src/app/services/form.service'
 
@@ -12,33 +12,6 @@ import { FormService } from 'src/app/services/form.service'
 export class AppActionInputPage {
   @Input() action: Action
   actionForm: FormGroup
-  current = {
-    'bitcoinNode': {
-      'type': 'external',
-      'public-domain': 'My Node',
-    },
-    // 'days-ago': 100,
-    'emergency-contact': {
-        'email': 'matt@test.com',
-        'name': 'Matt',
-    },
-    'ips': [
-        '19',
-    ],
-    'notifications': [
-        'email',
-        'text',
-    ],
-    'profile': {
-        'email': null,
-        // 'firstName': 'Drew',
-        'lastName': 'Ans',
-        'password': 'testestpass',
-    },
-    'randomEnum': 'bad',
-    'reason': 'TestingTesting',
-    'testnet': true,
-  }
 
   constructor (
     private readonly modalCtrl: ModalController,
@@ -46,7 +19,7 @@ export class AppActionInputPage {
   ) { }
 
   ngOnInit () {
-    this.actionForm = this.formService.createForm(this.action['input-spec'], this.current)
+    this.actionForm = this.formService.createForm(this.action['input-spec'])
   }
 
   async dismiss (): Promise<void> {

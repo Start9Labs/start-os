@@ -7,10 +7,8 @@
 <ion-content class="ion-padding">
   <form [formGroup]="actionForm" (ngSubmit)="save()" novalidate>
     <form-object
-      id="formObj"
       [objectSpec]="action['input-spec']"
       [formGroup]="actionForm"
-      [original]="current"
     ></form-object>
   </form>
 </ion-content>

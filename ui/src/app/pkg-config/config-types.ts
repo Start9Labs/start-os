@@ -88,6 +88,7 @@ export function isValueSpecListOf<S extends ListValueSpecType> (t: ValueSpecList
 }
 
 export interface ListValueSpecString {
+  // @TODO add masked?
   pattern?: string
   patternDescription?: string
 }
@@ -105,9 +106,9 @@ export interface ListValueSpecEnum {
 }
 
 export interface ListValueSpecObject {
-  spec: ConfigSpec //this is a mapped type of the config object at this level, replacing the object's values with specs on those values
-  uniqueBy: UniqueBy //indicates whether duplicates can be permitted in the list
-  displayAs?: string //this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
+  spec: ConfigSpec // this is a mapped type of the config object at this level, replacing the object's values with specs on those values
+  uniqueBy: UniqueBy // indicates whether duplicates can be permitted in the list
+  displayAs?: string // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
 }
 
 export type UniqueBy = null | string | { any: UniqueBy[] } | { all: UniqueBy[] }

@@ -4,6 +4,7 @@
   padding-bottom: 2px;
   font-size: 18px;
   color: var(--ion-color-dark);
+  cursor: pointer;
 }
 
 ion-input {
@@ -18,7 +19,7 @@ ion-item-divider {
 }
 
 .input-label {
-  padding-top: 10px;
+  // padding-top: 10px;
   margin-bottom: 5px;
   font-size: medium;
   font-weight: bold;

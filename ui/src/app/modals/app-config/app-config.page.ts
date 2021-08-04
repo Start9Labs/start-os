@@ -5,11 +5,11 @@ import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
-import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { AppConfigObjectPage } from 'src/app/modals/app-config-object/app-config-object.page'
+import { FormGroup } from '@angular/forms'
+import { FormService } from 'src/app/services/form.service'
 
 @Component({
   selector: 'app-config',
@@ -19,19 +19,16 @@ import { AppConfigObjectPage } from 'src/app/modals/app-config-object/app-config
 export class AppConfigPage {
   @Input() pkgId: string
   loadingText: string | undefined
-
+  configSpec: ConfigSpec
+  configForm: FormGroup
+  current: object
   hasConfig = false
 
   rec: Recommendation | null = null
   showRec = true
   openRec = false
 
-  invalid: string
-  edited: boolean
-  rootCursor: ConfigCursor<'object'>
   @ViewChild(IonContent) content: IonContent
-
-  rootPage = AppConfigObjectPage
 
   constructor (
     private readonly wizardBaker: WizardBaker,
@@ -40,8 +37,8 @@ export class AppConfigPage {
     private readonly loadingCtrl: LoadingController,
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
+    private readonly formService: FormService,
     public readonly patch: PatchDbService,
-
   ) { }
 
   async ngOnInit () {
@@ -60,7 +57,7 @@ export class AppConfigPage {
     } catch (e) {
       this.errToast.present(e)
     } finally {
-      this.loadingText = ''
+      this.loadingText = undefined
     }
   }
 
@@ -68,18 +65,49 @@ export class AppConfigPage {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  setConfig (spec: ConfigSpec, config: object, dependencyConfig?: object) {
-    this.rootCursor = new ConfigCursor(spec, config, null, dependencyConfig)
-    this.handleObjectEdit()
-    this.hasConfig = !isEmptyObject(this.rootCursor.spec().spec)
+  setConfig (spec: ConfigSpec, config: object, depConfig?: object) {
+    this.configSpec = spec
+    this.current = config
+    this.hasConfig = !isEmptyObject(config)
+    this.configForm = this.formService.createForm(spec, { ...config, ...depConfig })
+    this.configForm.markAllAsTouched()
+
+    if (depConfig) {
+      this.markDirtyRecursive(this.configForm, depConfig)
+    }
+  }
+
+  markDirtyRecursive (group: FormGroup, config: object) {
+    Object.keys(config).forEach(key => {
+      const next = group.get(key)
+      if (!next) throw new Error('Dependency config not compatible with service version. Please contact support')
+      const newVal = config[key]
+      // check if val is an object
+      if (newVal && typeof newVal === 'object' && !Array.isArray(newVal)) {
+        this.markDirtyRecursive(next as FormGroup, newVal)
+      } else {
+        let val1 = group.get(key).value
+        let val2 = config[key]
+        if (Array.isArray(newVal)) {
+          val1 = JSON.stringify(val1)
+          val2 = JSON.stringify(val2)
+        }
+        if (val1 != val2) next.markAsDirty()
+      }
+    })
+  }
+
+  resetDefaults () {
+    this.configForm = this.formService.createForm(this.configSpec)
+    this.markDirtyRecursive(this.configForm, this.current)
   }
 
   dismissRec () {
     this.showRec = false
   }
 
-  async cancel () {
-    if (this.edited) {
+  async dismiss () {
+    if (this.configForm.dirty) {
       await this.presentAlertUnsaved()
     } else {
       this.modalCtrl.dismiss()
@@ -87,7 +115,10 @@ export class AppConfigPage {
   }
 
   async save (pkg: PackageDataEntry) {
-    const config = this.rootCursor.config()
+    if (this.configForm.invalid) {
+      document.getElementsByClassName('validation-error')[0].parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
+      return
+    }
 
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
@@ -96,8 +127,13 @@ export class AppConfigPage {
     })
     await loader.present()
 
+    const config = this.configForm.value
+
     try {
-      const breakages = await this.embassyApi.drySetPackageConfig({ id: pkg.manifest.id, config })
+      const breakages = await this.embassyApi.drySetPackageConfig({
+        id: pkg.manifest.id,
+        config,
+      })
 
       if (!isEmptyObject(breakages.length)) {
         const { cancelled } = await wizardModal(
@@ -110,7 +146,10 @@ export class AppConfigPage {
         if (cancelled) return
       }
 
-      await this.embassyApi.setPackageConfig({ id: pkg.manifest.id, config })
+      await this.embassyApi.setPackageConfig({
+        id: pkg.manifest.id,
+        config,
+      })
       this.modalCtrl.dismiss()
     } catch (e) {
       this.errToast.present(e)
@@ -119,14 +158,8 @@ export class AppConfigPage {
     }
   }
 
-  handleObjectEdit () {
-    this.edited = this.rootCursor.isEdited()
-    this.invalid = this.rootCursor.checkInvalid()
-  }
-
   private async presentAlertUnsaved () {
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
       header: 'Unsaved Changes',
       message: 'You have unsaved changes. Are you sure you want to leave?',
       buttons: [
