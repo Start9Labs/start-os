@@ -85,7 +85,7 @@ export class AppInterfacesItemComponent {
   async copy (address: string): Promise<void> {
     let message = ''
     await copyToClipboard(address || '')
-      .then(success => { message = success ? 'copied to clipboard!' : 'failed to copy'})
+      .then(success => { message = success ? 'copied to clipboard!' : 'failed to copy' })
 
     const toast = await this.toastCtrl.create({
       header: message,
