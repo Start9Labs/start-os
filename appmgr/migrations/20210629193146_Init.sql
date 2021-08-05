@@ -19,3 +19,10 @@ CREATE TABLE IF NOT EXISTS password
 (
     hash TEXT NOT NULL PRIMARY KEY
 );
+CREATE TABLE IF NOT EXISTS ssh_keys
+(
+    fingerprint     TEXT NOT NULL,
+    openssh_pubkey  TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    PRIMARY KEY (fingerprint)
+);
