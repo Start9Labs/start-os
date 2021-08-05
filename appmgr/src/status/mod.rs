@@ -193,6 +193,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
 pub struct Status {
     pub configured: bool,
     pub main: MainStatus,

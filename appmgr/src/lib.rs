@@ -62,6 +62,7 @@ pub fn echo(#[context] _ctx: EitherContext, #[arg] message: String) -> Result<St
     inspect::inspect,
     package,
     auth::auth,
+    db::db,
 ))]
 pub fn main_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
     Ok(ctx)
