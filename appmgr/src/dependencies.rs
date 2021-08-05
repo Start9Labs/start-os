@@ -121,6 +121,7 @@ impl HasModel for Dependencies {
 pub struct DepInfo {
     pub version: VersionRange,
     pub optional: Option<String>,
+    pub recommended: bool,
     pub description: Option<String>,
     pub critical: bool,
     #[serde(default)]
