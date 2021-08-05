@@ -1291,7 +1291,7 @@ dependencies = [
  "hyper",
  "log",
  "sha-1",
- "tokio 1.8.1",
+ "tokio 1.9.0",
  "tokio-tungstenite",
 ]
 
@@ -3209,7 +3209,7 @@ dependencies = [
  "futures-util",
  "log",
  "pin-project",
- "tokio 1.8.1",
+ "tokio 1.9.0",
  "tungstenite",
 ]
 
@@ -3312,7 +3312,7 @@ dependencies = [
  "httparse",
  "input_buffer",
  "log",
- "rand 0.8.3",
+ "rand 0.8.4",
  "sha-1",
  "thiserror",
  "url",
