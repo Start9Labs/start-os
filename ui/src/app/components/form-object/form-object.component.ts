@@ -49,7 +49,7 @@ export class FormObjectComponent {
       if (spec.type === 'list' && ['object', 'union'].includes(spec.subtype)) {
         this.objectListInfo[key] = [];
         (this.formGroup.get(key).value as any[]).forEach((obj, index) => {
-          const displayAs = (spec.spec as ListValueSpecOf<'object'>).displayAs
+          const displayAs = (spec.spec as ListValueSpecOf<'object'>)['display-as']
           this.objectListInfo[key][index] = {
             expanded: false,
             displayAs: displayAs ? handlebars.compile(displayAs)(obj) : '',
@@ -60,7 +60,7 @@ export class FormObjectComponent {
   }
 
   getEnumListDisplay (arr: string[], spec: ListValueSpecOf<'enum'>): string {
-    return arr.map((v: string) => spec.valueNames[v]).join(', ')
+    return arr.map((v: string) => spec['value-names'][v]).join(', ')
   }
 
   updateUnion (e: any): void {
@@ -87,7 +87,7 @@ export class FormObjectComponent {
     newItem.markAllAsTouched()
     arr.insert(0, newItem)
     if (['object', 'union'].includes(listSpec.subtype)) {
-      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>).displayAs
+      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>)['display-as']
       this.objectListInfo[key].unshift({
         expanded: true,
         displayAs: displayAs ? handlebars.compile(displayAs)(newItem.value) : '',
@@ -115,13 +115,13 @@ export class FormObjectComponent {
   }
 
   async presentAlertChangeWarning (key: string, spec: ValueSpec) {
-    if (!spec.changeWarning || this.warningAck[key]) return
+    if (!spec['change-warning'] || this.warningAck[key]) return
     this.warningAck[key] = true
 
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       subHeader: `Editing ${spec.name} has consequences:`,
-      message: spec.changeWarning,
+      message: spec['change-warning'],
       buttons: ['Ok'],
     })
     await alert.present()

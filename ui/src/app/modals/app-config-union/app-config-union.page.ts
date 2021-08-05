@@ -46,8 +46,8 @@ export class AppConfigUnionPage {
   setSelectOptions () {
     return {
       header: this.spec.tag.name,
-      subHeader: this.spec.changeWarning ? 'Warning!' : undefined,
-      message: this.spec.changeWarning ? `${this.spec.changeWarning}` : undefined,
+      subHeader: this.spec['change-warning'] ? 'Warning!' : undefined,
+      message: this.spec['change-warning'] ? `${this.spec['change-warning']}` : undefined,
       cssClass: 'select-change-warning',
     }
   }
