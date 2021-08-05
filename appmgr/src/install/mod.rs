@@ -406,6 +406,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             dependency_errors: DependencyErrors::init(&mut tx, &manifest, &current_dependencies)
                 .await?,
         },
+        manifest: manifest.clone(),
         system_pointers: Vec::new(),
         current_dependents: {
             // search required dependencies

@@ -95,7 +95,8 @@ impl HealthCheck {
             result: match res {
                 Ok(()) => HealthCheckResultVariant::Success,
                 Err((59, _)) => HealthCheckResultVariant::Disabled,
-                Err((60, _)) => HealthCheckResultVariant::WarmingUp,
+                Err((60, _)) => HealthCheckResultVariant::Starting,
+                Err((61, message)) => HealthCheckResultVariant::Loading { message },
                 Err((_, error)) => HealthCheckResultVariant::Failure { error },
             },
         })
@@ -123,17 +124,19 @@ impl HealthCheckResult {
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "result")]
 pub enum HealthCheckResultVariant {
-    WarmingUp,
-    Disabled,
     Success,
+    Disabled,
+    Starting,
+    Loading { message: String },
     Failure { error: String },
 }
 impl std::fmt::Display for HealthCheckResultVariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HealthCheckResultVariant::WarmingUp => write!(f, "Warming Up"),
-            HealthCheckResultVariant::Disabled => write!(f, "Disabled"),
             HealthCheckResultVariant::Success => write!(f, "Succeeded"),
+            HealthCheckResultVariant::Disabled => write!(f, "Disabled"),
+            HealthCheckResultVariant::Starting => write!(f, "Starting"),
+            HealthCheckResultVariant::Loading { message } => write!(f, "Loading ({})", message),
             HealthCheckResultVariant::Failure { error } => write!(f, "Failed ({})", error),
         }
     }

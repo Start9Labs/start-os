@@ -22,9 +22,9 @@ export interface ServerInfo {
   wifi: WiFiInfo
   'unread-notification-count': number
   specs: {
-    CPU: string
-    Disk: string
-    Memory: string
+    cpu: Usage
+    disk: Usage
+    memory: Usage
   }
   'connection-addresses': {
     tor: string[]
@@ -42,6 +42,11 @@ export interface WiFiInfo {
   ssids: string[]
   selected: string | null
   connected: string | null
+}
+
+export interface Usage {
+  used: number
+  total: number
 }
 
 export interface PackageDataEntry {
@@ -68,10 +73,13 @@ export interface InstallProgress {
 
 export interface InstalledPackageDataEntry {
   status: Status
-  'interface-info': InterfaceInfo
+  manifest: Manifest,
   'system-pointers': any[]
   'current-dependents': { [id: string]: CurrentDependencyInfo }
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
+  'interface-addresses': {
+    [id: string]: { 'tor-address': string, 'lan-address': string }
+  }
 }
 
 export interface CurrentDependencyInfo {
@@ -152,6 +160,10 @@ export interface VolumeData {
   readonly: boolean
 }
 
+export interface VolumeAssets {
+  type: VolumeType.Assets
+}
+
 export interface VolumePointer {
   type: VolumeType.Pointer
   'package-id': string
@@ -165,11 +177,6 @@ export interface VolumeCertificate {
   'interface-id': string
 }
 
-export interface VolumeHiddenService {
-  type: VolumeType.HiddenService
-  'interface-id': string
-}
-
 export interface VolumeBackup {
   type: VolumeType.Backup
   readonly: boolean
@@ -177,23 +184,22 @@ export interface VolumeBackup {
 
 export enum VolumeType {
   Data = 'data',
+  Assets = 'assets',
   Pointer = 'pointer',
   Certificate = 'certificate',
-  HiddenService = 'hidden-service',
   Backup = 'backup',
 }
 
 export interface InterfaceDef {
   name: string
   description: string
-  ui: boolean
   'tor-config': TorConfig | null
   'lan-config': LanConfig | null
+  ui: boolean
   protocols: string[]
 }
 
 export interface TorConfig {
-  'hidden-service-version': string
   'port-mapping': { [port: number]: number }
 }
 
@@ -348,35 +354,10 @@ export interface DependencyEntry {
   optional: string | null
   recommended: boolean
   description: string | null
-  config: ConfigRuleEntryWithSuggestions[] // @TODO when do we use this?
-  interfaces: any[] // @TODO placeholder
-}
-
-export interface ConfigRuleEntryWithSuggestions {
-  rule: string
-  description: string
-  suggestions: Suggestion[]
-}
-
-export interface Suggestion {
-  condition: string | null
-  set?: {
-    var: string
-    to?: string
-    'to-value'?: any
-    'to-entropy'?: { charset: string, len: number }
-  }
-  delete?: string
-  push?: {
-    to: string
-    value: any
-  }
-}
-
-export interface InterfaceInfo {
-  ip: string
-  addresses: {
-    [id: string]: { 'tor-address': string, 'lan-address': string }
+  critical: boolean,
+  config: {
+    check: ActionImpl,
+    'auto-configure': ActionImpl
   }
 }
 
