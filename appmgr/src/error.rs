@@ -47,6 +47,7 @@ pub enum ErrorKind {
     MigrationFailed = 39,
     Uninitialized = 40,
     ParseNetAddress = 41,
+    ParseSshKey = 42,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -93,6 +94,7 @@ impl ErrorKind {
             MigrationFailed => "Migration Failed",
             Uninitialized => "Uninitialized",
             ParseNetAddress => "Net Address Parsing Error",
+            ParseSshKey => "SSH Key Parsing Error",
         }
     }
 }
