@@ -39,9 +39,33 @@ impl Database {
                     "http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion"
                         .parse()
                         .unwrap(),
-                updating: false,
-                registry: "https://beta-registry-0-3.start9labs.com".parse().unwrap(),
+                status: ServerStatus::Running,
+                eos_marketplace: "https://beta-registry-0-3.start9labs.com".parse().unwrap(),
+                package_marketplace: None,
+                wifi: WifiInfo {
+                    ssids: Vec::new(),
+                    connected: None,
+                    selected: None,
+                },
                 unread_notification_count: 0,
+                specs: ServerSpecs {
+                    cpu: Usage {
+                        used: 0_f64,
+                        total: 1_f64,
+                    },
+                    disk: Usage {
+                        used: 0_f64,
+                        total: 1_f64,
+                    },
+                    memory: Usage {
+                        used: 0_f64,
+                        total: 1_f64,
+                    },
+                },
+                connection_addresses: ConnectionAddresses {
+                    tor: Vec::new(),
+                    clearnet: Vec::new(),
+                },
             },
             package_data: AllPackageData::default(),
             broken_packages: Vec::new(),
@@ -62,9 +86,51 @@ pub struct ServerInfo {
     version: Version,
     lan_address: Url,
     tor_address: Url,
-    updating: bool,
-    registry: Url,
+    status: ServerStatus,
+    eos_marketplace: Url,
+    package_marketplace: Option<Url>,
+    wifi: WifiInfo,
     unread_notification_count: u64,
+    specs: ServerSpecs,
+    connection_addresses: ConnectionAddresses,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ServerStatus {
+    Running,
+    Updating,
+    BackingUp,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct WifiInfo {
+    pub ssids: Vec<String>,
+    pub selected: Option<String>,
+    pub connected: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ServerSpecs {
+    pub cpu: Usage,
+    pub disk: Usage,
+    pub memory: Usage,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Usage {
+    pub used: f64,
+    pub total: f64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ConnectionAddresses {
+    pub tor: Vec<String>,
+    pub clearnet: Vec<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -150,6 +216,8 @@ impl PackageDataEntryModel {
 pub struct InstalledPackageDataEntry {
     #[model]
     pub status: Status,
+    #[model]
+    pub manifest: Manifest,
     pub system_pointers: Vec<SystemPointerSpec>,
     #[model]
     pub current_dependents: IndexMap<PackageId, CurrentDependencyInfo>,
@@ -157,13 +225,6 @@ pub struct InstalledPackageDataEntry {
     pub current_dependencies: IndexMap<PackageId, CurrentDependencyInfo>,
     #[model]
     pub interface_addresses: InterfaceAddressMap,
-}
-impl InstalledPackageDataEntryModel {
-    pub fn manifest(self) -> ManifestModel {
-        let mut ptr = JsonPointer::from(self);
-        ptr.pop_end();
-        PackageDataEntryModel::from(ptr).manifest()
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]

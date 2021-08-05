@@ -135,6 +135,8 @@ impl<S: AsRef<str>> AsRef<Path> for InterfaceId<S> {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Interface {
+    pub name: String,
+    pub description: String,
     pub tor_config: Option<TorConfig>,
     pub lan_config: Option<IndexMap<Port, LanPortConfig>>,
     pub ui: bool,
