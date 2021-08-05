@@ -46,14 +46,14 @@ export module Mock {
       system: true,
       entrypoint: '',
       args: [''],
-      mounts: { },
+      mounts: {},
       'io-format': DockerIoFormat.Yaml,
       inject: false,
       'shm-size': '',
     },
-    'health-checks': { },
+    'health-checks': {},
     config: null,
-    volumes: { },
+    volumes: {},
     'min-os-version': '0.2.12',
     interfaces: {
       ui: {
@@ -61,10 +61,9 @@ export module Mock {
         description: 'Web application for viewing information about your node and the Bitcoin network.',
         ui: true,
         'tor-config': {
-          'hidden-service-version': 'v3',
-          'port-mapping': { },
+          'port-mapping': {},
         },
-        'lan-config': { },
+        'lan-config': {},
         protocols: [],
       },
       rpc: {
@@ -72,10 +71,9 @@ export module Mock {
         description: 'Used by wallets to interact with your Bitcoin Core node.',
         ui: false,
         'tor-config': {
-          'hidden-service-version': 'v3',
-          'port-mapping': { },
+          'port-mapping': {},
         },
-        'lan-config': { },
+        'lan-config': {},
         protocols: [],
       },
       p2p: {
@@ -83,10 +81,9 @@ export module Mock {
         description: 'Used by other Bitcoin nodes to communicate and interact with your node.',
         ui: false,
         'tor-config': {
-          'hidden-service-version': 'v3',
-          'port-mapping': { },
+          'port-mapping': {},
         },
-        'lan-config': { },
+        'lan-config': {},
         protocols: [],
       },
     },
@@ -97,7 +94,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: { },
+        mounts: {},
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -108,7 +105,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: { },
+        mounts: {},
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -127,7 +124,7 @@ export module Mock {
           system: true,
           entrypoint: '',
           args: [''],
-          mounts: { },
+          mounts: {},
           'io-format': DockerIoFormat.Yaml,
           inject: false,
           'shm-size': '',
@@ -135,8 +132,8 @@ export module Mock {
         'input-spec': null,
       },
     },
-    permissions: { },
-    dependencies: { },
+    permissions: {},
+    dependencies: {},
   }
 
   export const MockManifestLnd: Manifest = {
@@ -167,14 +164,14 @@ export module Mock {
       system: true,
       entrypoint: '',
       args: [''],
-      mounts: { },
+      mounts: {},
       'io-format': DockerIoFormat.Yaml,
       inject: false,
       'shm-size': '',
     },
-    'health-checks': { },
+    'health-checks': {},
     config: null,
-    volumes: { },
+    volumes: {},
     'min-os-version': '0.2.12',
     interfaces: {
       rpc: {
@@ -182,8 +179,7 @@ export module Mock {
         description: 'Good for connecting to your node at a distance.',
         ui: true,
         'tor-config': {
-          'hidden-service-version': 'v3',
-          'port-mapping': { },
+          'port-mapping': {},
         },
         'lan-config': {
           44: {
@@ -198,8 +194,7 @@ export module Mock {
         description: 'Certain wallet use grpc.',
         ui: false,
         'tor-config': {
-          'hidden-service-version': 'v3',
-          'port-mapping': { },
+          'port-mapping': {},
         },
         'lan-config': {
           66: {
@@ -217,7 +212,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: { },
+        mounts: {},
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -228,7 +223,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: { },
+        mounts: {},
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -247,7 +242,7 @@ export module Mock {
           system: true,
           entrypoint: '',
           args: [''],
-          mounts: { },
+          mounts: {},
           'io-format': DockerIoFormat.Yaml,
           inject: false,
           'shm-size': '',
@@ -263,23 +258,69 @@ export module Mock {
         },
       },
     },
-    permissions: { },
+    permissions: {},
     dependencies: {
       'bitcoind': {
         version: '=0.21.0',
         description: 'LND needs bitcoin to live.',
         optional: null,
         recommended: true,
-        config: [],
-        interfaces: [],
+        critical: true,
+        config: {
+          check: {
+            type: 'docker',
+            image: 'alpine',
+            system: true,
+            entrypoint: 'true',
+            args: [],
+            mounts: {},
+            'io-format': DockerIoFormat.Cbor,
+            inject: false,
+            "shm-size": '10m'
+          },
+          "auto-configure": {
+            type: 'docker',
+            image: 'alpine',
+            system: true,
+            entrypoint: 'cat',
+            args: [],
+            mounts: {},
+            'io-format': DockerIoFormat.Cbor,
+            inject: false,
+            "shm-size": '10m'
+          }
+        },
       },
       'bitcoin-proxy': {
         version: '>=0.2.2',
         description: 'As long as Bitcoin is pruned, LND needs Bitcoin Proxy to fetch block over the P2P network.',
         optional: null,
         recommended: true,
-        config: [],
-        interfaces: [],
+        critical: true,
+        config: {
+          check: {
+            type: 'docker',
+            image: 'alpine',
+            system: true,
+            entrypoint: 'true',
+            args: [],
+            mounts: {},
+            'io-format': DockerIoFormat.Cbor,
+            inject: false,
+            "shm-size": '10m'
+          },
+          "auto-configure": {
+            type: 'docker',
+            image: 'alpine',
+            system: true,
+            entrypoint: 'cat',
+            args: [],
+            mounts: {},
+            'io-format': DockerIoFormat.Cbor,
+            inject: false,
+            "shm-size": '10m'
+          }
+        },
       },
     },
   }
@@ -312,14 +353,14 @@ export module Mock {
       system: true,
       entrypoint: '',
       args: [''],
-      mounts: { },
+      mounts: {},
       'io-format': DockerIoFormat.Yaml,
       inject: false,
       'shm-size': '',
     },
-    'health-checks': { },
+    'health-checks': {},
     config: null,
-    volumes: { },
+    volumes: {},
     'min-os-version': '0.2.12',
     interfaces: {
       rpc: {
@@ -327,8 +368,7 @@ export module Mock {
         description: 'Good for connecting to your node at a distance.',
         ui: true,
         'tor-config': {
-          'hidden-service-version': 'v3',
-          'port-mapping': { },
+          'port-mapping': {},
         },
         'lan-config': {
           44: {
@@ -346,7 +386,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: { },
+        mounts: {},
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -357,23 +397,46 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: { },
+        mounts: {},
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
       },
     },
     migrations: null,
-    actions: { },
-    permissions: { },
+    actions: {},
+    permissions: {},
     dependencies: {
       'bitcoind': {
         version: '>=0.20.0',
         description: 'Bitcoin Proxy requires a Bitcoin node.',
         optional: null,
         recommended: true,
-        config: [],
-        interfaces: [],
+        critical: false,
+        config: {
+          check: {
+            type: 'docker',
+            image: 'alpine',
+            system: true,
+            entrypoint: 'true',
+            args: [],
+            mounts: {},
+            'io-format': DockerIoFormat.Cbor,
+            inject: false,
+            "shm-size": '10m'
+          },
+          "auto-configure": {
+            type: 'docker',
+            image: 'alpine',
+            system: true,
+            entrypoint: 'cat',
+            args: [],
+            mounts: {},
+            'io-format': DockerIoFormat.Cbor,
+            inject: false,
+            "shm-size": '10m'
+          }
+        },
       },
     },
   }
@@ -394,7 +457,7 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': { },
+        'dependency-metadata': {},
       },
       '0.20.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
@@ -406,7 +469,7 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': { },
+        'dependency-metadata': {},
       },
       '0.21.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
@@ -419,7 +482,7 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': { },
+        'dependency-metadata': {},
       },
       'latest': {
         icon: 'assets/img/service-icons/bitcoind.png',
@@ -431,7 +494,7 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': { },
+        'dependency-metadata': {},
       },
     },
     'lnd': {
@@ -532,17 +595,15 @@ export module Mock {
         main: {
           status: PackageMainStatus.Running,
           started: new Date().toISOString(),
-          health: { },
+          health: {},
         },
-        'dependency-errors': { },
+        'dependency-errors': {},
       },
-      'interface-info': {
-        ip: '10.0.0.1',
-        addresses: {
-          rpc: {
-            'tor-address': 'bitcoinproxy-rpc-address.onion',
-            'lan-address': 'bitcoinproxy-rpc-address.local',
-          },
+      manifest: MockManifestBitcoinProxy,
+      'interface-addresses': {
+        rpc: {
+          'tor-address': 'bitcoinproxy-rpc-address.onion',
+          'lan-address': 'bitcoinproxy-rpc-address.local',
         },
       },
       'system-pointers': [],
@@ -956,55 +1017,55 @@ export module Mock {
         ],
         'range': '[0, 2]',
         'spec': {
-            'tag': {
-              'id': 'preference',
-              'name': 'Preferences',
-              'variant-names': {
-                'summer': 'Summer',
-                'winter': 'Winter',
-                'other': 'Other',
+          'tag': {
+            'id': 'preference',
+            'name': 'Preferences',
+            'variant-names': {
+              'summer': 'Summer',
+              'winter': 'Winter',
+              'other': 'Other',
+            },
+          },
+          // this default is used to make a union selection when a new list element is first created
+          'default': 'summer',
+          'variants': {
+            'summer': {
+              'favorite-tree': {
+                'name': 'Favorite Tree',
+                'type': 'string',
+                'nullable': false,
+                'description': 'What is your favorite tree?',
+                'default': 'Maple',
+                'masked': false,
+                'copyable': false,
+              },
+              'favorite-flower': {
+                'name': 'Favorite Flower',
+                'type': 'enum',
+                'description': 'Select your favorite flower',
+                'value-names': {
+                  'none': 'Hate Flowers',
+                  'red': 'Red',
+                  'blue': 'Blue',
+                  'purple': 'Purple',
+                },
+                'values': [
+                  'none',
+                  'red',
+                  'blue',
+                  'purple',
+                ],
+                'default': 'none',
               },
             },
-            // this default is used to make a union selection when a new list element is first created
-            'default': 'summer',
-            'variants': {
-                'summer': {
-                  'favorite-tree': {
-                    'name': 'Favorite Tree',
-                    'type': 'string',
-                    'nullable': false,
-                    'description': 'What is your favorite tree?',
-                    'default': 'Maple',
-                    'masked': false,
-                    'copyable': false,
-                  },
-                  'favorite-flower': {
-                    'name': 'Favorite Flower',
-                    'type': 'enum',
-                    'description': 'Select your favorite flower',
-                    'value-names': {
-                      'none': 'Hate Flowers',
-                      'red': 'Red',
-                      'blue': 'Blue',
-                      'purple': 'Purple',
-                    },
-                    'values': [
-                      'none',
-                      'red',
-                      'blue',
-                      'purple',
-                    ],
-                    'default': 'none',
-                  },
-                },
-                'winter': {
-                  'like-snow': {
-                    'name': 'Like Snow?',
-                    'type': 'boolean',
-                    'description': 'Do you like snow or not?',
-                    'default': true,
-                  },
-                },
+            'winter': {
+              'like-snow': {
+                'name': 'Like Snow?',
+                'type': 'boolean',
+                'description': 'Do you like snow or not?',
+                'default': true,
+              },
+            },
           },
           'unique-by': 'preference',
         },
@@ -1188,12 +1249,12 @@ export module Mock {
         'default': 'internal',
         'change-warning': 'Careful changing this',
         'tag': {
-            'id': 'type',
-            'name': 'Type',
-            'variant-names': {
-              'internal': 'Internal',
-              'external': 'External',
-            },
+          'id': 'type',
+          'name': 'Type',
+          'variant-names': {
+            'internal': 'Internal',
+            'external': 'External',
+          },
         },
         'variants': {
           'internal': {
@@ -1260,7 +1321,7 @@ export module Mock {
         'description': 'api keys that are authorized to access your Bitcoin node.',
         'range': '[0,*)',
         'default': [],
-        'spec': { },
+        'spec': {},
       },
     },
     // actual config
@@ -1395,21 +1456,19 @@ export module Mock {
           },
         },
       },
-      'interface-info': {
-        ip: '10.0.0.1',
-        addresses: {
-          rpc: {
-            'tor-address': 'lnd-rpc-address.onion',
-            'lan-address': 'lnd-rpc-address.local',
-          },
-          grpc: {
-            'tor-address': 'lnd-grpc-address.onion',
-            'lan-address': 'lnd-grpc-address.local',
-          },
+      manifest: MockManifestLnd,
+      'interface-addresses': {
+        rpc: {
+          'tor-address': 'lnd-rpc-address.onion',
+          'lan-address': 'lnd-rpc-address.local',
+        },
+        grpc: {
+          'tor-address': 'lnd-grpc-address.onion',
+          'lan-address': 'lnd-grpc-address.local',
         },
       },
       'system-pointers': [],
-      'current-dependents': { },
+      'current-dependents': {},
       'current-dependencies': {
         'bitcoind': {
           pointers: [],
