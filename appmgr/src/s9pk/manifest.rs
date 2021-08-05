@@ -113,6 +113,7 @@ pub struct Manifest {
     pub upstream_repo: Url,
     pub support_site: Option<Url>,
     pub marketing_site: Option<Url>,
+    pub donation_url: Option<Url>,
     #[serde(default)]
     pub alerts: Alerts,
     #[model]
