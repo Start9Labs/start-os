@@ -1,10 +1,11 @@
-import { Component, Input } from '@angular/core'
+import { Component, Input, SimpleChange } from '@angular/core'
 import { FormArray, FormGroup } from '@angular/forms'
 import { AlertController, ModalController } from '@ionic/angular'
 import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecList, ValueSpecListOf, ValueSpecUnion } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
 import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
+import * as handlebars from 'handlebars'
 
 @Component({
   selector: 'form-object',
@@ -19,6 +20,9 @@ export class FormObjectComponent {
   @Input() showEdited: boolean = false
   warningAck: { [key: string]: boolean } = { }
   unmasked: { [key: string]: boolean } = { }
+  // @TODO for when we want to expand/collapse normal objects/union in addition to list ones
+  // objectExpanded: { [key: string]: boolean } = { }
+  objectListInfo: { [key: string]: { expanded: boolean, displayAs: string }[] } = { }
   Object = Object
 
   constructor (
@@ -26,6 +30,34 @@ export class FormObjectComponent {
     private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
   ) { }
+
+  ngOnChanges (changes: { [propName: string]: SimpleChange }) {
+    // @TODO figure out why changes are being triggered so often. If too heavy, switch to ngOnInit and figure out another way to manually reset defaults is executed. Needed because otherwise ObjectListInfo won't be accurate.
+
+    // if ( changes['current'] && changes['current'].previousValue != changes['current'].currentValue ) {
+    //   console.log('CURRENT')
+    // }
+    // if ( changes['formGroup'] && changes['formGroup'].previousValue != changes['formGroup'].currentValue ) {
+    //   console.log('FORM GROUP')
+    // }
+    // if ( changes['objectSpec'] && changes['objectSpec'].previousValue != changes['objectSpec'].currentValue ) {
+    //   console.log('OBJECT SPEC')
+    // }
+    // Lists are automatically expanded, but their members are not
+    Object.keys(this.objectSpec).forEach(key => {
+      const spec = this.objectSpec[key]
+      if (spec.type === 'list' && ['object', 'union'].includes(spec.subtype)) {
+        this.objectListInfo[key] = [];
+        (this.formGroup.get(key).value as any[]).forEach((obj, index) => {
+          const displayAs = (spec.spec as ListValueSpecOf<'object'>).displayAs
+          this.objectListInfo[key][index] = {
+            expanded: false,
+            displayAs: displayAs ? handlebars.compile(displayAs)(obj) : '',
+          }
+        })
+      }
+    })
+  }
 
   getEnumListDisplay (arr: string[], spec: ListValueSpecOf<'enum'>): string {
     return arr.map((v: string) => spec.valueNames[v]).join(', ')
@@ -50,7 +82,17 @@ export class FormObjectComponent {
     if (markDirty) arr.markAsDirty()
     // const validators = this.formService.getListItemValidators(this.objectSpec[key] as ValueSpecList, key, arr.length)
     // arr.push(new FormControl(value, validators))
-    arr.insert(0, this.formService.getListItem(key, arr.length, this.objectSpec[key] as ValueSpecList, val))
+    const listSpec = this.objectSpec[key] as ValueSpecList
+    const newItem = this.formService.getListItem(key, arr.length, listSpec, val)
+    newItem.markAllAsTouched()
+    arr.insert(0, newItem)
+    if (['object', 'union'].includes(listSpec.subtype)) {
+      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>).displayAs
+      this.objectListInfo[key].unshift({
+        expanded: true,
+        displayAs: displayAs ? handlebars.compile(displayAs)(newItem.value) : '',
+      })
+    }
   }
 
   async presentModalEnumList (key: string, spec: ValueSpecListOf<'enum'>, current: string[]) {

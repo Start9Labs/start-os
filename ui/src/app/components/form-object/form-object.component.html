@@ -93,32 +93,34 @@
               <!-- nested -->
               <ng-container *ngIf="spec.subtype === 'object' || spec.subtype === 'union'">
                 <!-- nested label -->
-                <!-- <ion-item-divider>
+                <ion-item-divider (click)="objectListInfo[entry.key][i].expanded = !objectListInfo[entry.key][i].expanded" style="cursor: pointer;">
                   <form-label [data]="{
                     spec: {
-                      name: spec.spec.displayAs || 'Entry ' + i
+                      name: objectListInfo[entry.key][i].displayAs || 'Entry ' + (i + 1)
                     },
                     isNew: false,
                     isEdited: abstractControl.dirty
                   }"></form-label>
-                </ion-item-divider> -->
+                  <ion-icon slot="end" [name]="objectListInfo[entry.key][i].expanded ? 'chevron-up' : 'chevron-down'"></ion-icon>
+                </ion-item-divider>
                 <!-- nested body -->
-                <form-object
-                  [objectSpec]="
-                    spec.subtype === 'union' ? 
-                      spec.spec.variants[abstractControl.controls[spec.spec.tag.id].value] :
-                      spec.spec.spec"
-                  [formGroup]="abstractControl"
-                  [current]="current && current[entry.key] ? current[entry.key][i] : undefined"
-                  [unionSpec]="spec.subtype === 'union' ? spec.spec : undefined"
-                ></form-object>
-                <div style="text-align: right; padding-top: 12px;">
-                  <ion-button (click)="presentAlertDelete(entry.key, i)" color="danger">
-                    <ion-icon slot="start" name="close"></ion-icon>
-                    Delete
-                  </ion-button>
+                <div [hidden]="objectListInfo[entry.key][i].expanded ? false : true">
+                  <form-object
+                    [objectSpec]="
+                      spec.subtype === 'union' ? 
+                        spec.spec.variants[abstractControl.controls[spec.spec.tag.id].value] :
+                        spec.spec.spec"
+                    [formGroup]="abstractControl"
+                    [current]="current && current[entry.key] ? current[entry.key][i] : undefined"
+                    [unionSpec]="spec.subtype === 'union' ? spec.spec : undefined"
+                  ></form-object>
+                  <div style="text-align: right; padding-top: 12px;">
+                    <ion-button fill="clear" (click)="presentAlertDelete(entry.key, i)" color="danger">
+                      <ion-icon slot="start" name="close"></ion-icon>
+                      Delete
+                    </ion-button>
+                  </div>
                 </div>
-                <ion-item-divider style="--padding-top: 0;"></ion-item-divider>
               </ng-container>
               <!-- string or number -->
               <ion-item-group *ngIf="spec.subtype === 'string' || spec.subtype === 'number'">
