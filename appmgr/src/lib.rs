@@ -35,6 +35,7 @@ pub mod migration;
 pub mod net;
 pub mod registry;
 pub mod s9pk;
+pub mod ssh;
 pub mod status;
 pub mod util;
 pub mod version;

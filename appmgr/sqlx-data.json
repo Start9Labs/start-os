@@ -1,5 +1,15 @@
 {
   "db": "SQLite",
+  "06f2423bb5f9b9520cc3cf010132a5cb6157cccdcdb6b8a5695261fa7434f176": {
+    "query": "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES (?, ?, datetime('now'))",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 2
+      },
+      "nullable": []
+    }
+  },
   "118d59de5cf930d5a3b5667b2220e9a3d593bd84276beb2b76c93b2694b0fd72": {
     "query": "INSERT INTO session (id, user_agent, metadata) VALUES (?, ?, ?)",
     "describe": {
@@ -114,6 +124,16 @@
       ]
     }
   },
+  "6440354d73a67c041ea29508b43b5f309d45837a44f1a562051ad540d894c7d6": {
+    "query": "DELETE FROM ssh_keys WHERE fingerprint = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
   "8595651866e7db772260bd79e19d55b7271fd795b82a99821c935a9237c1aa16": {
     "query": "SELECT interface, key FROM tor WHERE package = ?",
     "describe": {
@@ -133,6 +153,84 @@
         "Right": 1
       },
       "nullable": [
+        false,
+        false
+      ]
+    }
+  },
+  "a6b0c8909a3a5d6d9156aebfb359424e6b5a1d1402e028219e21726f1ebd282e": {
+    "query": "SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys",
+    "describe": {
+      "columns": [
+        {
+          "name": "fingerprint",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "openssh_pubkey",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "d5117054072476377f3c4f040ea429d4c9b2cf534e76f35c80a2bf60e8599cca": {
+    "query": "SELECT openssh_pubkey FROM ssh_keys",
+    "describe": {
+      "columns": [
+        {
+          "name": "openssh_pubkey",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "de2a5e90798d606047ab8180c044baac05469c0cdf151316bd58ee8c7196fdef": {
+    "query": "SELECT * FROM ssh_keys WHERE fingerprint = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "fingerprint",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "openssh_pubkey",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
         false,
         false
       ]

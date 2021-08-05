@@ -68,6 +68,7 @@ lazy_static = "1.4"
 libc = "0.2.86"
 log = "0.4.11"
 nix = "0.22.0"
+openssh-keys = "0.5.0"
 openssl = { version = "0.10.30", features = ["vendored"] }
 patch-db = { version = "*", path = "../../patch-db/patch-db" }
 pin-project = "1.0.6"
