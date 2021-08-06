@@ -31,7 +31,6 @@ export class AppRestoreComponent {
   ) { }
 
   ngOnInit () {
-    console.log('initing')
     this.getExternalDisks()
   }
 
@@ -51,7 +50,6 @@ export class AppRestoreComponent {
     } catch (e) {
       this.errToast.present(e)
     } finally {
-      console.log('loading false')
       this.loading = false
     }
   }
@@ -80,7 +78,6 @@ export class AppRestoreComponent {
   }
 
   private async restore (logicalname: string, password: string): Promise<void> {
-    console.log('here here here')
     this.submitting = true
     // await loader.present()
 

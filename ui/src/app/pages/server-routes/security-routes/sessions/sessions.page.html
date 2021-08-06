@@ -31,8 +31,9 @@
           <h2>Last Active: {{ session.value['last-active'] | date : 'medium' }}</h2>
           <p>{{ session.value['user-agent'] }}</p>
         </ion-label>
-        <ion-button slot="end" fill="clear" (click)="presentAlertKill(session.key)">
-          <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+        <ion-button slot="end" fill="clear" color="danger" (click)="presentAlertKill(session.key)">
+          <ion-icon slot="start" name="close"></ion-icon>
+          Kill
         </ion-button>
       </ion-item>
     </div>

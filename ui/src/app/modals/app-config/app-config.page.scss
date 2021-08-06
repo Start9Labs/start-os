@@ -1,0 +1,8 @@
+.notifier-item {
+  margin: 12px;
+  margin-top: 0px;
+  border-radius: 12px;
+  // kills the lines
+  --border-width: 0;
+  --inner-border-width: 0;
+}

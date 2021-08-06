@@ -1,4 +1,5 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
+import { IonContent } from '@ionic/angular'
 import { Metrics } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -13,6 +14,7 @@ export class ServerMetricsPage {
   loading = true
   going = false
   metrics: Metrics = { }
+  @ViewChild(IonContent) content: IonContent
 
   constructor (
     private readonly errToast: ErrorToastService,
@@ -21,6 +23,10 @@ export class ServerMetricsPage {
 
   ngOnInit () {
     this.startDaemon()
+  }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy () {

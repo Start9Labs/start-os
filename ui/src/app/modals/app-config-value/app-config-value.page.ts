@@ -127,7 +127,7 @@ export class AppConfigValuePage {
     }
     // test pattern if string
     if (this.spec.type === 'string' && this.value) {
-      const { pattern, patternDescription } = this.spec
+      const { pattern, 'pattern-description' : patternDescription } = this.spec
       if (pattern && !RegExp(pattern).test(this.value as string)) {
         this.error = patternDescription || `Must match ${pattern}`
         return false

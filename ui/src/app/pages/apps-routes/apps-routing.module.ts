@@ -20,14 +20,6 @@ const routes: Routes = [
     loadChildren: () => import('./app-actions/app-actions.module').then(m => m.AppActionsPageModule),
   },
   {
-    path: ':pkgId/config',
-    loadChildren: () => import('./app-config/app-config.module').then(m => m.AppConfigPageModule),
-  },
-  {
-    path: ':pkgId/config/:edit',
-    loadChildren: () => import('./app-config/app-config.module').then(m => m.AppConfigPageModule),
-  },
-  {
     path: ':pkgId/instructions',
     loadChildren: () => import('./app-instructions/app-instructions.module').then(m => m.AppInstructionsPageModule),
   },
@@ -38,10 +30,6 @@ const routes: Routes = [
   {
     path: ':pkgId/logs',
     loadChildren: () => import('./app-logs/app-logs.module').then(m => m.AppLogsPageModule),
-  },
-  {
-    path: ':pkgId/manifest',
-    loadChildren: () => import('./app-manifest/app-manifest.module').then(m => m.AppManifestPageModule),
   },
   {
     path: ':pkgId/metrics',

@@ -1,36 +1,85 @@
-import { Component, ViewChild } from '@angular/core'
+import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent, ToastController } from '@ionic/angular'
-import { Subscription } from 'rxjs'
-import { InstalledPackageDataEntry, PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { InterfaceDef, InterfaceInfo } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { ConfigService } from 'src/app/services/config.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 
+interface LocalInterface {
+  def: InterfaceDef
+  addresses: InterfaceInfo['addresses'][string]
+}
+
 @Component({
-  selector: 'app-Interfaces',
-  templateUrl: './app-Interfaces.page.html',
-  styleUrls: ['./app-Interfaces.page.scss'],
+  selector: 'app-interfaces',
+  templateUrl: './app-interfaces.page.html',
+  styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesPage {
-  pkg: PackageDataEntry
-
   @ViewChild(IonContent) content: IonContent
-  pkgId: string
+  ui: LocalInterface | null
+  other: LocalInterface[]
 
   constructor (
     private readonly route: ActivatedRoute,
-    private readonly toastCtrl: ToastController,
-    private readonly config: ConfigService,
     public readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    const pkgId = this.route.snapshot.paramMap.get('pkgId')
+    const pkg = this.patch.data['package-data'][pkgId]
+    const interfaces = pkg.manifest.interfaces
+    const addressesMap = pkg.installed['interface-info'].addresses
+    const ui = interfaces['ui']
+
+    if (ui) {
+      const uiAddresses = addressesMap['ui']
+      this.ui = {
+        def: ui,
+        addresses: {
+          'lan-address': uiAddresses['lan-address'] ? 'https://' + uiAddresses['lan-address'] : null,
+          'tor-address': uiAddresses['tor-address'] ? 'http://' + uiAddresses['tor-address'] : null,
+        },
+      }
+    }
+
+    this.other = Object.keys(interfaces)
+      .filter(key => key !== 'ui')
+      .map(key => {
+        const addresses = addressesMap[key]
+        return {
+          def: interfaces[key],
+          addresses: {
+            'lan-address': addresses['lan-address'] ? 'https://' + addresses['lan-address'] : null,
+            'tor-address': addresses['tor-address'] ? 'http://' + addresses['tor-address'] : null,
+          },
+        }
+      })
   }
 
   ngAfterViewInit () {
     this.content.scrollToPoint(undefined, 1)
+  }
+
+  asIsOrder () {
+    return 0
+  }
+}
+
+@Component({
+  selector: 'app-interfaces-item',
+  templateUrl: './app-interfaces-item.component.html',
+  styleUrls: ['./app-interfaces.page.scss'],
+})
+export class AppInterfacesItemComponent {
+  @Input() interface: LocalInterface
+
+  constructor (
+    private readonly toastCtrl: ToastController,
+  ) { }
+
+  launch (url: string): void {
+    window.open(url, '_blank')
   }
 
   async copy (address: string): Promise<void> {
@@ -44,13 +93,5 @@ export class AppInterfacesPage {
       duration: 1000,
     })
     await toast.present()
-  }
-
-  launch (pkg: PackageDataEntry): void {
-    window.open(this.config.launchableURL(pkg), '_blank')
-  }
-
-  asIsOrder () {
-    return 0
   }
 }

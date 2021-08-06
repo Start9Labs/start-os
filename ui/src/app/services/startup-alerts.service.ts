@@ -9,7 +9,7 @@ import { ConfigService } from './config.service'
 import { Emver } from './emver.service'
 import { MarketplaceService } from '../pages/marketplace-routes/marketplace.service'
 import { MarketplaceApiService } from './api/marketplace/marketplace-api.service'
-import { DataModel, PackageDataEntry } from './patch-db/data-model'
+import { DataModel } from './patch-db/data-model'
 import { PatchDbService } from './patch-db/patch-db.service'
 import { filter, take } from 'rxjs/operators'
 import { isEmptyObject } from '../util/misc.util'
@@ -78,7 +78,6 @@ export class StartupAlertsService {
         let checkRes: any
         try {
           checkRes = await c.check()
-          console.log('CHECK RES', checkRes)
         } catch (e) {
           console.error(`Exception in ${c.name} check:`, e)
           return true

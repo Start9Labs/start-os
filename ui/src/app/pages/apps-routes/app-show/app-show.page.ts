@@ -2,7 +2,7 @@ import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
-import { chill, isEmptyObject, Recommendation } from 'src/app/util/misc.util'
+import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { combineLatest, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
@@ -12,6 +12,7 @@ import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, Dependen
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 
 @Component({
   selector: 'app-show',
@@ -30,7 +31,6 @@ export class AppShowPage {
   rendering: PkgStatusRendering
   Math = Math
   mainStatus: MainStatus
-
 
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []
@@ -64,21 +64,20 @@ export class AppShowPage {
       this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main')
       .subscribe(main => {
         this.mainStatus = main
-        console.log(this.mainStatus)
       }),
     ]
     this.setButtons()
   }
 
-  // ngAfterViewInit () {
-  //   this.content.scrollToPoint(undefined, 1)
-  // }
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
+  }
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  launchUiTab (): void {
+  launchUi (): void {
     window.open(this.config.launchableURL(this.pkg), '_blank')
   }
 
@@ -94,8 +93,6 @@ export class AppShowPage {
     try {
       const breakages = await this.embassyApi.dryStopPackage({ id })
 
-      console.log('BREAKAGES', breakages)
-
       if (!isEmptyObject(breakages)) {
         const { cancelled } = await wizardModal(
           this.modalCtrl,
@@ -108,7 +105,7 @@ export class AppShowPage {
         )
         if (cancelled) return
       }
-      return this.embassyApi.stopPackage({ id }).then(chill)
+      await this.embassyApi.stopPackage({ id })
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -156,8 +153,14 @@ export class AppShowPage {
     }
   }
 
-  asIsOrder () {
-    return 0
+  async presentModalConfig (): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: AppConfigPage,
+      componentProps: {
+        pkgId: this.pkgId,
+      },
+    })
+    await modal.present()
   }
 
   private async installDep (depId: string): Promise<void> {
@@ -234,8 +237,9 @@ export class AppShowPage {
     }
   }
 
-  setButtons (): void {
+  private setButtons (): void {
     this.buttons = [
+      // instructions
       {
         action: () => this.navCtrl.navigateForward(['instructions'], { relativeTo: this.route }),
         title: 'Instructions',
@@ -243,13 +247,15 @@ export class AppShowPage {
         color: 'danger',
         disabled: [],
       },
+      // config
       {
-        action: () => this.navCtrl.navigateForward(['config'], { relativeTo: this.route }),
-        title: 'Settings',
+        action: async () => this.presentModalConfig(),
+        title: 'Config',
         icon: 'construct-outline',
         color: 'danger',
         disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
       },
+      // properties
       {
         action: () => this.navCtrl.navigateForward(['properties'], { relativeTo: this.route }),
         title: 'Properties',
@@ -257,6 +263,7 @@ export class AppShowPage {
         color: 'danger',
         disabled: [],
       },
+      // interfaces
       {
         action: () => this.navCtrl.navigateForward(['interfaces'], { relativeTo: this.route }),
         title: 'Interfaces',
@@ -264,6 +271,7 @@ export class AppShowPage {
         color: 'danger',
         disabled: [],
       },
+      // actions
       {
         action: () => this.navCtrl.navigateForward(['actions'], { relativeTo: this.route }),
         title: 'Actions',
@@ -271,6 +279,7 @@ export class AppShowPage {
         color: 'danger',
         disabled: [],
       },
+      // metrics
       {
         action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
         title: 'Monitor',
@@ -279,6 +288,7 @@ export class AppShowPage {
         // @TODO make the disabled check better. Don't want to list every status here. Monitor should be disabled except is pkg is running.
         disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
       },
+      // logs
       {
         action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         title: 'Logs',
@@ -287,20 +297,17 @@ export class AppShowPage {
         disabled: [],
       },
       {
-        action: () => this.navCtrl.navigateForward(['manifest'], { relativeTo: this.route }),
-        title: 'Package Details',
-        icon: 'finger-print-outline',
-        color: 'danger',
-        disabled: [],
-      },
-      {
         action: () => this.donate(),
-        title: 'Donate',
+        title: `Donate to ${this.pkg.manifest.title}`,
         icon: 'logo-bitcoin',
         color: 'danger',
         disabled: [],
       },
     ]
+  }
+
+  asIsOrder () {
+    return 0
   }
 }
 

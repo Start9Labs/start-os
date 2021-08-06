@@ -17,41 +17,52 @@
 
   <text-spinner *ngIf="loading" text="Loading Notifications"></text-spinner>
 
-  <ion-item-group *ngIf="!notifications.length && !loading">
-    <ion-item>
-      <ion-label class="ion-text-wrap">
-        Notifications about Embassy and services will appear here.
-      </ion-label>
-    </ion-item>
-  </ion-item-group>
-
-  <ion-item-group style="margin-bottom: 16px;">
-    <ion-item *ngFor="let not of notifications; let i = index">
-      <ion-label class="ion-text-wrap">
-        <h2>
-          <ion-text [color]="not | notificationColor"><b>{{ not.title }}</b></ion-text>
-        </h2>
-        <h2 class="notification-message">
-          {{ not.message }}
-          <a *ngIf="not.code === 1" style="text-decoration: none;" (click)="viewBackupReport(not)">
-            View Report
-          </a>
-        </h2>
-        <p>
-          {{ not['created-at'] | date: 'short' }}
-          <a *ngIf="not['package-id'] as pkgId" style="text-decoration: none;" [routerLink]="['/services', not['package-id']]">
-            - {{ not['package-id'] }} 
-          </a>
-        </p>
-      </ion-label>
-      <ion-button slot="end" fill="clear" (click)="remove(not.id, i)">
-        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-      </ion-button>
-    </ion-item>
-  </ion-item-group>
-
-  <ion-infinite-scroll [disabled]="!needInfinite" (ionInfinite)="doInfinite($event)">
-    <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
-  </ion-infinite-scroll>
+  <!-- no notifications -->
+  <ng-container *ngIf="!loading">
+    <ion-item-group *ngIf="!notifications.length">
+      <ion-item>
+        <ion-label class="ion-text-wrap">
+          Notifications about Embassy and services will appear here.
+        </ion-label>
+      </ion-item>
+    </ion-item-group>
+  
+    <!-- has notifications  -->
+    <ng-container *ngIf="notifications.length">
+      <ion-item-group style="margin-bottom: 16px;">
+        <ion-item-divider>
+          <ion-button slot="end" fill="clear" (click)="deleteAll()">
+            Delete All
+          </ion-button>
+        </ion-item-divider>
+        <ion-item *ngFor="let not of notifications; let i = index">
+          <ion-label class="ion-text-wrap">
+            <h2>
+              <ion-text [color]="not | notificationColor"><b>{{ not.title }}</b></ion-text>
+            </h2>
+            <h2 class="notification-message">
+              {{ not.message }}
+              <a *ngIf="not.code === 1" style="text-decoration: none;" (click)="viewBackupReport(not)">
+                View Report
+              </a>
+            </h2>
+            <p>
+              {{ not['created-at'] | date: 'short' }}
+              <a *ngIf="not['package-id'] as pkgId" style="text-decoration: none;" [routerLink]="['/services', not['package-id']]">
+                - {{ not['package-id'] }} 
+              </a>
+            </p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" (click)="delete(not.id, i)">
+            <ion-icon slot="icon-only" name="close"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </ion-item-group>
+    
+      <ion-infinite-scroll [disabled]="!needInfinite" (ionInfinite)="doInfinite($event)">
+        <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
+      </ion-infinite-scroll>
+    </ng-container>
+  </ng-container>
 
 </ion-content>

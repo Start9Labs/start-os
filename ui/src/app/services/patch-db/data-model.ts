@@ -348,7 +348,7 @@ export interface DependencyEntry {
   optional: string | null
   recommended: boolean
   description: string | null
-  config: ConfigRuleEntryWithSuggestions[]
+  config: ConfigRuleEntryWithSuggestions[] // @TODO when do we use this?
   interfaces: any[] // @TODO placeholder
 }
 

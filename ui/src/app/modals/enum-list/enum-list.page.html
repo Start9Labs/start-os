@@ -1,0 +1,36 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      {{ spec.name }}
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button slot="end" fill="clear" color="primary" (click)="toggleSelectAll()">
+        {{ selectAll ? 'All' : 'None' }}
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-item-group>
+    <ion-item *ngFor="let option of options | keyvalue : asIsOrder">
+      <ion-label>{{ option.key }}</ion-label>
+      <ion-checkbox slot="end" [(ngModel)]="option.value" (click)="toggleSelected(option.key)"></ion-checkbox>
+    </ion-item>
+  </ion-item-group>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="start" class="ion-padding-start">
+      <ion-button fill="outline" (click)="dismiss()">
+        Cancel
+      </ion-button>
+    </ion-buttons>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button fill="outline" color="primary" (click)="save()">
+        Done
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>
