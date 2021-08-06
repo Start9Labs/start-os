@@ -27,8 +27,8 @@
           <status size="x-large" weight="500" [rendering]="rendering"></status>
         </ion-label>
         <ion-button slot="end" class="action-button" *ngIf="pkg.state === PackageState.Installed && (pkg | hasUi)" [disabled]="!(pkg | isLaunchable)" (click)="launchUiTab()">
-          Web
-          <ion-icon slot="end" name="rocket-outline"></ion-icon>
+          <ion-icon slot="start" name="open-outline"></ion-icon>
+          Open UI
         </ion-button>
         <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.NeedsConfig" [routerLink]="['config']">
           Configure
@@ -53,7 +53,7 @@
           <ion-item *ngFor="let health of mainStatus.health | keyvalue : asIsOrder">
             <ion-spinner class="icon-spinner" color="warning" slot="start" *ngIf="['starting', 'loading'] | includes : health.value.result"></ion-spinner>
             <ion-icon slot="start" *ngIf="health.value.result === 'success'" name="checkmark-outline" color="success"></ion-icon>
-            <ion-icon slot="start" *ngIf="health.value.result === 'failure'" name="close-outline" color="danger"></ion-icon>
+            <ion-icon slot="start" *ngIf="health.value.result === 'failure'" name="close" color="danger"></ion-icon>
             <ion-icon slot="start" *ngIf="health.value.result === 'disabled'" name="remove-outline" color="dark"></ion-icon>
             <ion-label>
               <p>{{ health.key }}</p>

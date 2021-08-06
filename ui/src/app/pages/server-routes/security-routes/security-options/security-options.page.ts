@@ -1,7 +1,8 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ServerConfigService } from 'src/app/services/server-config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ConfigService } from 'src/app/services/config.service'
+import { IonContent } from '@ionic/angular'
 
 @Component({
   selector: 'security-options',
@@ -9,14 +10,15 @@ import { ConfigService } from 'src/app/services/config.service'
   styleUrls: ['./security-options.page.scss'],
 })
 export class SecurityOptionsPage {
+  @ViewChild(IonContent) content: IonContent
 
   constructor (
-    private readonly serverConfigService: ServerConfigService,
+    public readonly serverConfig: ServerConfigService,
     public readonly config: ConfigService,
     public readonly patch: PatchDbService,
   ) { }
 
-  async presentModalValueEdit (key: string, current?: any): Promise<void> {
-    await this.serverConfigService.presentModalValueEdit(key, current)
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
   }
 }

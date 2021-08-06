@@ -1,22 +1,10 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button (click)="dismiss()">
-        <ion-icon name="arrow-back"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>{{ spec.name }}</ion-title>
-    <ion-buttons *ngIf="spec.subtype !== 'enum'" slot="end">
-      <ion-button (click)="presentModalValueEdit()">
-        <ion-icon name="add" color="primary"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content>
+<ion-content class="subheader-padding">
 
   <config-header [spec]="spec" [error]="error"></config-header>
+
+  <ion-button *ngIf="spec.subtype !== 'enum'" (click)="createOrEdit()">
+    <ion-icon name="add" color="primary"></ion-icon>
+  </ion-button>
 
   <!-- enum list -->
   <ion-item-group *ngIf="spec.subtype === 'enum'">
@@ -46,7 +34,7 @@
       </ion-item-divider>
 
       <div *ngFor="let v of value; index as i;">
-        <ion-item button detail="false" (click)="presentModalValueEdit(i)">
+        <ion-item button detail="false" (click)="createOrEdit(i)">
           <ion-icon size="small" slot="start" *ngIf="!annotations.members[i] || (annotations.members[i] | annotationStatus: 'NoChange')" style="margin-right: 15px; color: rgba(0,0,0,0); background: radial-gradient(#2a4e8970, #2a4e8970 35%, transparent 35%, transparent);" name="ellipse"></ion-icon>
           <ion-icon size="small" slot="start" *ngIf="!annotations.members[i] || (annotations.members[i] | annotationStatus: 'Added')" style="margin-right: 15px; color: rgba(0,0,0,0); background: radial-gradient(#2a4e8970, #2a4e8970 35%, transparent 35%, transparent);" name="ellipse"></ion-icon>
           <ion-icon size="small" slot="start" *ngIf="annotations.members[i] && (annotations.members[i] | annotationStatus: 'Edited')" style="margin-right: 15px" color="primary" name="ellipse"></ion-icon>
@@ -55,7 +43,7 @@
           <ion-label>{{ valueString[i] }}</ion-label>
 
           <ion-button slot="end" fill="clear" (click)="presentAlertDelete(i, $event)">
-            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+            <ion-icon slot="icon-only" name="close"></ion-icon>
           </ion-button>
         </ion-item>
       </div>

@@ -3,8 +3,7 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { ServerLogsPage } from './server-logs.page'
-import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
-import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text-spinner.component.module'
+import { SharingModule } from 'src/app/modules/sharing.module'
 
 const routes: Routes = [
   {
@@ -18,8 +17,7 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    PwaBackComponentModule,
-    TextSpinnerComponentModule,
+    SharingModule,
   ],
   declarations: [ServerLogsPage],
 })

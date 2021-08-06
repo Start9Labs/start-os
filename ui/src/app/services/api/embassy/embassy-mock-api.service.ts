@@ -35,6 +35,7 @@ export class MockApiService extends ApiService {
   }
 
   async setDbValueRaw (params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
+    await pauseFor(2000)
     return this.http.rpcRequest<WithRevision<null>>({ method: 'db.put.ui', params })
   }
 
@@ -198,6 +199,11 @@ export class MockApiService extends ApiService {
   }
 
   async deleteNotification (params: RR.DeleteNotificationReq): Promise<RR.DeleteNotificationRes> {
+    await pauseFor(2000)
+    return null
+  }
+
+  async deleteAllNotifications (params: RR.DeleteAllNotificationsReq): Promise<RR.DeleteAllNotificationsRes> {
     await pauseFor(2000)
     return null
   }
@@ -484,7 +490,30 @@ export class MockApiService extends ApiService {
 
   async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes> {
     await pauseFor(2000)
-    return { }
+    return {
+      testnet: true,
+      // objectList: [],
+      // unionList: [],
+      randomEnum: 'option2',
+      favoriteNumber: 9,
+      secondaryNumbers: [2, 3, 5, 6],
+      rpcsettings: {
+        laws: {
+          law1: 'The 1st law',
+          law2: 'The 2nd law',
+        },
+        rpcpass: null,
+        rpcuser: '123',
+        rulemakers: [],
+      },
+      advanced: {
+        notifications: ['call', 'text'],
+      },
+      // bitcoinNode: undefined,
+      port: 22,
+      // rpcallowip: undefined,
+      // rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
+    }
   }
 
   private async updateProgress (id: string, initialProgress: InstallProgress) {
@@ -495,9 +524,7 @@ export class MockApiService extends ApiService {
     ]
     for (let phase of phases) {
       let i = initialProgress[phase.progress]
-      console.log('Initial i', i)
       while (i < initialProgress.size) {
-        console.log(i)
         await pauseFor(1000)
         i = Math.min(i + 5, initialProgress.size)
         initialProgress[phase.progress] = i

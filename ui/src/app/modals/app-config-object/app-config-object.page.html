@@ -1,27 +1,4 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button (click)="dismiss()">
-        <ion-icon name="arrow-back"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>{{ spec.name }}</ion-title>
-    <ion-buttons *ngIf="spec.nullable" slot="end">
-      <ion-button color="danger" (click)="presentAlertDestroy()">
-        Delete
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content>
-
+<ion-content class="subheader-padding">
   <config-header [spec]="spec" [error]="error"></config-header>
-
-  <!-- object -->
-  <ion-item-group>
-    <ion-item-divider></ion-item-divider>
-    <object-config [cursor]="cursor" (onEdit)="handleObjectEdit()"></object-config>
-  </ion-item-group>
-
+  <object-config [cursor]="cursor" (onEdit)="handleObjectEdit()" (onClick)="updatePath($event)"></object-config>
 </ion-content>

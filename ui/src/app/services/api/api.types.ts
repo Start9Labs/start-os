@@ -78,6 +78,9 @@ export module RR {
   export type DeleteNotificationReq = { id: string } // notification.delete
   export type DeleteNotificationRes = null
 
+  export type DeleteAllNotificationsReq = { } // notification.delete.all
+  export type DeleteAllNotificationsRes = null
+
   // wifi
 
   export type AddWifiReq = { // wifi.add

@@ -4,10 +4,8 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { MarketplaceShowPage } from './marketplace-show.page'
 import { SharingModule } from 'src/app/modules/sharing.module'
-import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
-import { TextSpinnerComponentModule } from 'src/app/components/text-spinner/text-spinner.component.module'
 
 const routes: Routes = [
   {
@@ -21,10 +19,8 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     StatusComponentModule,
-    TextSpinnerComponentModule,
     RouterModule.forChild(routes),
     SharingModule,
-    PwaBackComponentModule,
     InstallWizardComponentModule,
   ],
   declarations: [MarketplaceShowPage],

@@ -1,0 +1,94 @@
+<ion-header>
+  <ion-toolbar *ngIf="patch.data['package-data'][pkgId] as pkg">
+    <ion-title>Config</ion-title>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button fill="clear" [disabled]="loadingText" (click)="resetDefaults()">
+        Reset Defaults
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <!-- loading -->
+  <text-spinner *ngIf="loadingText; else loaded" [text]="loadingText"></text-spinner>
+
+  <!-- not loading -->
+  <ng-template #loaded>
+
+    <ng-container *ngIf="patch.data['package-data'][pkgId] as pkg">
+      <ng-container *ngIf="pkg.manifest.config && !pkg.installed.status.configured && !edited">
+        <ion-item class="notifier-item">
+          <ion-label class="ion-text-wrap">
+            <h2 style="display: flex; align-items: center; margin-bottom: 3px;">
+              <ion-icon size="small" style="margin-right: 5px" slot="start" color="dark" slot="start" name="alert-circle-outline"></ion-icon>
+              <ion-text style="font-size: smaller;">Initial Config</ion-text>
+            </h2>
+            <p style="font-size: small">To use the default config for {{ pkg.manifest.title }}, click "Save" above.</p>
+          </ion-label>
+        </ion-item>
+      </ng-container>
+
+      <ng-container *ngIf="rec && showRec">
+        <ion-item class="rec-item">
+          <ion-label class="ion-text-wrap">
+            <h2 style="display: flex; align-items: center;">
+              <ion-icon size="small" style="margin: 4px" slot="start" color="primary" slot="start" name="ellipse"></ion-icon>
+              <ion-thumbnail style="width: 3vh; height: 3vh; margin: 0px 2px 0px 5px;" slot="start">
+                <img [src]="rec.dependentIcon" [alt]="rec.dependentTitle"/>
+              </ion-thumbnail>
+              <ion-text style="margin: 5px; font-family: 'Montserrat'; font-size: smaller;">{{ rec.dependentTitle }}</ion-text>
+            </h2>
+            <div style="margin: 7px 5px;">
+              <p style="font-size: small; color: var(--ion-color-medium)"> {{ pkg.manifest.title }} config has been modified to satisfy {{ rec.dependentTitle }}.
+                <ion-text color="dark">To accept the changes, click “Save” above.</ion-text>
+              </p>
+              <a style="font-size: small" *ngIf="!openRec" (click)="openRec = true">More Info</a>
+              <ng-container *ngIf="openRec">
+                <p style="margin-top: 10px; color: var(--ion-color-medium); font-size: small" [innerHTML]="rec.description"></p>
+                <a style="font-size: x-small; font-style: italic;" (click)="openRec = false">hide</a>
+              </ng-container>
+              <ion-button style="position: absolute; right: 0; top: 0" color="primary" fill="clear" (click)="dismissRec()">
+                <ion-icon name="close"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-label>
+        </ion-item>
+        <ion-item-divider></ion-item-divider>
+      </ng-container>
+
+      <!-- no config -->
+      <ion-item *ngIf="!hasConfig">
+        <ion-label class="ion-text-wrap">
+          <p>No config options for {{ pkg.manifest.title }} {{ pkg.manifest.version }}.</p>
+        </ion-label>
+      </ion-item>
+    </ng-container>
+
+    <!-- has config -->
+    <form [formGroup]="configForm" (ngSubmit)="save()" novalidate>
+      <form-object
+        [objectSpec]="configSpec"
+        [formGroup]="configForm"
+        [current]="current"
+        showEdited
+      ></form-object>
+    </form>
+  </ng-template>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar *ngIf="patch.data['package-data'][pkgId] as pkg">
+    <ion-buttons slot="start" class="ion-padding-start">
+      <ion-button fill="outline" (click)="dismiss()">
+        Cancel
+      </ion-button>
+    </ion-buttons>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button fill="outline" color="primary" [disabled]="loadingText" (click)="save(pkg)">
+        Save
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>
