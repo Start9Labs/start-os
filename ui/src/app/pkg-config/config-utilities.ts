@@ -114,7 +114,7 @@ export function listInnerSpec (listSpec: ValueSpecList): ValueSpecOf<ListValueSp
     nullable: false,
     name: listSpec.name,
     description: listSpec.description,
-    changeWarning: listSpec.changeWarning,
+    changeWarning: listSpec['change-warning'],
     ...listSpec.spec as any, //listSpec.spec is a ListValueSpecOf listSpec.subtype
   }
 }
@@ -162,7 +162,7 @@ export function mapUnionSpec (spec: ValueSpecUnion, value: any): object {
       type: 'enum',
       default: spec.default,
       values: Object.keys(spec.variants),
-      valueNames: spec.tag.variantNames,
+      'value-names': spec.tag['variant-names'],
     }, value[spec.tag.id])
     value = mapConfigSpec(spec.variants[variant], value)
     value[spec.tag.id] = variant
@@ -216,7 +216,7 @@ export function mapBooleanSpec (spec: ValueSpecBoolean, value: any): boolean {
 export function getDefaultConfigValue (spec: ValueSpec): string | number | object | string[] | number[] | object[] | boolean | null {
   switch (spec.type) {
     case 'object':
-      return spec.nullByDefault ? null : getDefaultObject(spec.spec)
+      return getDefaultObject(spec.spec)
     case 'union':
       return getDefaultUnion(spec)
     case 'string':
@@ -306,7 +306,7 @@ export function getDefaultDescription (spec: ValueSpec): string {
       toReturn = spec.default === true ? 'True' : 'False'
       break
     case 'enum':
-      toReturn = spec.valueNames[spec.default]
+      toReturn = spec['value-names'][spec.default]
       break
   }
 

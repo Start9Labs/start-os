@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { InterfaceDef, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from './patch-db/data-model'
+import { InterfaceDef, PackageDataEntry, PackageMainStatus, PackageState } from './patch-db/data-model'
 
 const { start9Marketplace, patchDb, api, mocks } = require('../../../config.json') as UiConfig
 
@@ -67,7 +67,6 @@ export class ConfigService {
   }
 
   launchableURL (pkg: PackageDataEntry): string {
-    console.log('PKGPKGPKG', pkg)
     return this.isTor() ? `http://${torUiAddress(pkg)}` : `https://${lanUiAddress(pkg)}`
   }
 }

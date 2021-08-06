@@ -1,17 +1,16 @@
 import { Component, Input } from '@angular/core'
-import { AlertController } from '@ionic/angular'
+import { AlertController, IonNav } from '@ionic/angular'
 import { Annotations, Range } from '../../pkg-config/config-utilities'
-import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { ValueSpecList, isValueSpecListOf } from 'src/app/pkg-config/config-types'
-import { ModalPresentable } from 'src/app/pkg-config/modal-presentable'
+import { SubNavService } from 'src/app/services/sub-nav.service'
 
 @Component({
   selector: 'app-config-list',
   templateUrl: './app-config-list.page.html',
   styleUrls: ['./app-config-list.page.scss'],
 })
-export class AppConfigListPage extends ModalPresentable {
+export class AppConfigListPage {
   @Input() cursor: ConfigCursor<'list'>
 
   spec: ValueSpecList
@@ -22,7 +21,6 @@ export class AppConfigListPage extends ModalPresentable {
   // enum only
   options: { value: string, checked: boolean }[] = []
   selectAll = true
-  //
 
   min: number | undefined
   max: number | undefined
@@ -34,10 +32,9 @@ export class AppConfigListPage extends ModalPresentable {
 
   constructor (
     private readonly alertCtrl: AlertController,
-    trackingModalCtrl: TrackingModalController,
-  ) {
-    super(trackingModalCtrl)
-  }
+    private readonly subNav: SubNavService,
+    private readonly nav: IonNav,
+  ) { }
 
   ngOnInit () {
     this.spec = this.cursor.spec()
@@ -57,10 +54,6 @@ export class AppConfigListPage extends ModalPresentable {
       }
     }
     this.updateCaches()
-  }
-
-  async dismiss () {
-    return this.dismissModal(this.value)
   }
 
   // enum only
@@ -98,10 +91,10 @@ export class AppConfigListPage extends ModalPresentable {
     this.updateCaches()
   }
 
-  async presentModalValueEdit (index?: number) {
+  async createOrEdit (index?: number) {
     const nextCursor = this.cursor.seekNext(index === undefined ? this.value.length : index)
     nextCursor.createFirstEntryForList()
-    return this.presentModal(nextCursor, () => this.updateCaches())
+    this.subNav.push(String(index), nextCursor, this.nav)
   }
 
   async presentAlertDelete (key: number, e: Event) {

@@ -139,7 +139,7 @@ export class WizardBaker {
           },
         },
         bottomBar: {
-          cancel: { afterLoading: { text: 'Cancel' } }, next: 'Update OS',
+          cancel: { afterLoading: { text: 'Cancel' } }, next: 'Begin Update',
         },
       },
       {

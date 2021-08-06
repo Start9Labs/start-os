@@ -2,16 +2,17 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { AppActionInputPage } from './app-action-input.page'
-import { ObjectConfigComponentModule } from 'src/app/components/object-config/object-config.component.module'
-import { ConfigHeaderComponentModule } from 'src/app/components/config-header/config-header.component.module'
+import { FormsModule, ReactiveFormsModule } from '@angular/forms'
+import { FormObjectComponentModule } from 'src/app/components/form-object/form-object.component.module'
 
 @NgModule({
   declarations: [AppActionInputPage],
   imports: [
     CommonModule,
     IonicModule,
-    ObjectConfigComponentModule,
-    ConfigHeaderComponentModule,
+    FormsModule,
+    ReactiveFormsModule,
+    FormObjectComponentModule,
   ],
   entryComponents: [AppActionInputPage],
   exports: [AppActionInputPage],

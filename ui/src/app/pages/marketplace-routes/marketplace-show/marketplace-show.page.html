@@ -81,8 +81,8 @@
             <p style="color: var(--ion-color-dark); font-size: small">{{ rec.description }}</p>
             <p *ngIf="pkg.manifest.version | satisfiesEmver: rec.version" class="recommendation-text">{{ pkg.manifest.title }} version {{ pkg.manifest.version | displayEmver }} is compatible.</p>
             <p *ngIf="!(pkg.manifest.version | satisfiesEmver: rec.version)" class="recommendation-text recommendation-error">{{ pkg.manifest.title }} version {{ pkg.manifest.version | displayEmver }} is NOT compatible.</p>
-            <ion-button style="position: absolute; right: 0; top: 0" color="primary" fill="clear" (click)="dismissRec()">
-              <ion-icon name="close-outline"></ion-icon>
+            <ion-button style="position: absolute; right: 0; top: 0" fill="clear" (click)="dismissRec()">
+              <ion-icon name="close"></ion-icon>
             </ion-button>
           </div>
         </ion-label>

@@ -880,8 +880,8 @@ export module Mock {
         'name': 'Testnet',
         'type': 'boolean',
         'description': 'determines whether your node is running on testnet or mainnet',
-        'changeWarning': 'Chain will have to resync!',
-        'default': false,
+        'change-warning': 'Chain will have to resync!',
+        'default': true,
       },
       'objectList': {
         'name': 'Object List',
@@ -905,8 +905,8 @@ export module Mock {
         // it just so happens that ValueSpecObject's have the field { spec: ConfigSpec }
         // see 'unionList' below for a different example.
         'spec': {
-          'uniqueBy': 'lastName',
-          'displayAs': `I'm {{lastName}}, {{firstName}} {{lastName}}`,
+          'unique-by': 'lastName',
+          'display-as': `I'm {{lastName}}, {{firstName}} {{lastName}}`,
           'spec': {
             'firstName': {
               'name': 'First Name',
@@ -927,7 +927,7 @@ export module Mock {
                 'len': 12,
               },
               'pattern': '^[a-zA-Z]+$',
-              'patternDescription': 'must contain only letters.',
+              'pattern-description': 'must contain only letters.',
               'masked': false,
               'copyable': true,
             },
@@ -938,7 +938,7 @@ export module Mock {
               'nullable': true,
               'default': null,
               'integral': false,
-              'changeWarning': 'User must be at least 18.',
+              'change-warning': 'User must be at least 18.',
               'range': '[18,*)',
             },
           },
@@ -949,7 +949,7 @@ export module Mock {
         'type': 'list',
         'subtype': 'union',
         'description': 'This is a sample list of unions',
-        'changeWarning': 'If you change this, things may work.',
+        'change-warning': 'If you change this, things may work.',
         // a list of union selections. e.g. 'summer', 'winter',...
         'default': [
           'summer',
@@ -959,7 +959,7 @@ export module Mock {
             'tag': {
               'id': 'preference',
               'name': 'Preferences',
-              'variantNames': {
+              'variant-names': {
                 'summer': 'Summer',
                 'winter': 'Winter',
                 'other': 'Other',
@@ -982,7 +982,7 @@ export module Mock {
                     'name': 'Favorite Flower',
                     'type': 'enum',
                     'description': 'Select your favorite flower',
-                    'valueNames': {
+                    'value-names': {
                       'none': 'Hate Flowers',
                       'red': 'Red',
                       'blue': 'Blue',
@@ -1006,13 +1006,13 @@ export module Mock {
                   },
                 },
           },
-          'uniqueBy': 'preference',
+          'unique-by': 'preference',
         },
       },
       'randomEnum': {
         'name': 'Random Enum',
         'type': 'enum',
-        'valueNames': {
+        'value-names': {
           'null': 'Null',
           'option1': 'One 1',
           'option2': 'Two 2',
@@ -1020,7 +1020,7 @@ export module Mock {
         },
         'default': 'null',
         'description': 'This is not even real.',
-        'changeWarning': 'Be careful chnaging this!',
+        'change-warning': 'Be careful chnaging this!',
         'values': [
           'null',
           'option1',
@@ -1033,7 +1033,7 @@ export module Mock {
         'type': 'number',
         'integral': false,
         'description': 'Your favorite number of all time',
-        'changeWarning': 'Once you set this number, it can never be changed without severe consequences.',
+        'change-warning': 'Once you set this number, it can never be changed without severe consequences.',
         'nullable': false,
         'default': 7,
         'range': '(-100,100]',
@@ -1057,19 +1057,15 @@ export module Mock {
       'rpcsettings': {
         'name': 'RPC Settings',
         'type': 'object',
-        'uniqueBy': null,
+        'unique-by': null,
         'description': 'rpc username and password',
-        'changeWarning': 'Adding RPC users gives them special permissions on your node.',
-        'nullable': false,
-        'nullByDefault': false,
+        'change-warning': 'Adding RPC users gives them special permissions on your node.',
         'spec': {
           'laws': {
             'name': 'Laws',
             'type': 'object',
-            'uniqueBy': 'law1',
+            'unique-by': 'law1',
             'description': 'the law of the realm',
-            'nullable': true,
-            'nullByDefault': true,
             'spec': {
               'law1': {
                 'name': 'First Law',
@@ -1097,7 +1093,7 @@ export module Mock {
             'range': '[0,2]',
             'default': [],
             'spec': {
-              'uniqueBy': null,
+              'unique-by': null,
               'spec': {
                 'rulemakername': {
                   'name': 'Rulemaker Name',
@@ -1118,7 +1114,7 @@ export module Mock {
                   'nullable': false,
                   'default': '192.168.1.0',
                   'pattern': '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
-                  'patternDescription': 'may only contain numbers and periods',
+                  'pattern-description': 'may only contain numbers and periods',
                   'masked': false,
                   'copyable': true,
                 },
@@ -1132,7 +1128,7 @@ export module Mock {
             'nullable': false,
             'default': 'defaultrpcusername',
             'pattern': '^[a-zA-Z]+$',
-            'patternDescription': 'must contain only letters.',
+            'pattern-description': 'must contain only letters.',
             'masked': false,
             'copyable': true,
           },
@@ -1153,10 +1149,8 @@ export module Mock {
       'advanced': {
         'name': 'Advanced',
         'type': 'object',
-        'uniqueBy': null,
+        'unique-by': null,
         'description': 'Advanced settings',
-        'nullable': false,
-        'nullByDefault': false,
         'spec': {
           'notifications': {
             'name': 'Notification Preferences',
@@ -1168,7 +1162,7 @@ export module Mock {
               'email',
             ],
             'spec': {
-              'valueNames': {
+              'value-names': {
                 'email': 'EEEEmail',
                 'text': 'Texxxt',
                 'call': 'Ccccall',
@@ -1189,14 +1183,14 @@ export module Mock {
       'bitcoinNode': {
         'name': 'Bitcoin Node Settings',
         'type': 'union',
-        'uniqueBy': null,
+        'unique-by': null,
         'description': 'The node settings',
         'default': 'internal',
-        'changeWarning': 'Careful changing this',
+        'change-warning': 'Careful changing this',
         'tag': {
             'id': 'type',
             'name': 'Type',
-            'variantNames': {
+            'variant-names': {
               'internal': 'Internal',
               'external': 'External',
             },
@@ -1220,7 +1214,7 @@ export module Mock {
               'nullable': false,
               'default': 'bitcoinnode.com',
               'pattern': '.*',
-              'patternDescription': 'anything',
+              'pattern-description': 'anything',
               'masked': false,
               'copyable': true,
             },
@@ -1249,14 +1243,14 @@ export module Mock {
         'type': 'list',
         'subtype': 'string',
         'description': 'external ip addresses that are authorized to access your Bitcoin node',
-        'changeWarning': 'Any IP you allow here will have RPC access to your Bitcoin node.',
+        'change-warning': 'Any IP you allow here will have RPC access to your Bitcoin node.',
         'range': '[1,10]',
         'default': [
           '192.168.1.1',
         ],
         'spec': {
           'pattern': '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))',
-          'patternDescription': 'must be a valid ipv4, ipv6, or domain name',
+          'pattern-description': 'must be a valid ipv4, ipv6, or domain name',
         },
       },
       'rpcauth': {
@@ -1271,24 +1265,37 @@ export module Mock {
     },
     // actual config
     config: {
-      testnet: undefined,
-      objectList: undefined,
+      testnet: false,
+      objectList: [
+        {
+          'firstName': 'Admin',
+          'lastName': 'User',
+          'age': 40,
+        },
+        {
+          'firstName': 'Admin2',
+          'lastName': 'User',
+          'age': 40,
+        },
+      ],
       unionList: undefined,
       randomEnum: 'option1',
       favoriteNumber: 8,
       secondaryNumbers: undefined,
       rpcsettings: {
-        laws: null,
+        laws: {
+          law1: 'The first law',
+          law2: 'The second law',
+        },
         rpcpass: null,
         rpcuser: '123',
         rulemakers: [],
       },
       advanced: {
-        notifications: ['call'],
+        notifications: ['email'],
       },
       bitcoinNode: undefined,
       port: 5959,
-      maxconnections: null,
       rpcallowip: undefined,
       rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
     },
@@ -1312,7 +1319,6 @@ export module Mock {
     },
     bitcoinNode: { type: 'internal' },
     port: 5959,
-    maxconnections: null,
     rpcallowip: [],
     rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
   }

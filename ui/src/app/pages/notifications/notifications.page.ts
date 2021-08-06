@@ -57,7 +57,7 @@ export class NotificationsPage {
     }
   }
 
-  async remove (id: string, index: number): Promise<void> {
+  async delete (id: string, index: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -68,6 +68,24 @@ export class NotificationsPage {
     try {
       await this.embassyApi.deleteNotification({ id })
       this.notifications.splice(index, 1)
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  async deleteAll (): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Deleting...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.deleteAllNotifications({ })
+      this.notifications = []
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -99,9 +117,6 @@ export class NotificationsPage {
     if (embassyFailed || packagesFailed) {
       buttons.push({
         text: 'Retry',
-        handler: () => {
-          console.log('retry backup')
-        },
       })
     }
 

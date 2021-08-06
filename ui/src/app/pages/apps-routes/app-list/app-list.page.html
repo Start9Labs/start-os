@@ -26,7 +26,7 @@
           <ion-card class="installed-card" [routerLink]="['/services', pkg.value.entry.manifest.id]">
             <div class="launch-container" *ngIf="pkg.value.entry | hasUi">
               <div class="launch-button-triangle"  (click)="launchUi(pkg.value.entry, $event)" [class.launch-disabled]="!(pkg.value.entry | isLaunchable)">
-                <ion-icon name="rocket-outline"></ion-icon>
+                <ion-icon name="open-outline"></ion-icon>
               </div>
             </div>
   

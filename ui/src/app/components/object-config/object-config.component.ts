@@ -1,17 +1,17 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 import { Annotation, Annotations } from '../../pkg-config/config-utilities'
-import { TrackingModalController } from 'src/app/services/tracking-modal-controller.service'
 import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
-import { ModalPresentable } from 'src/app/pkg-config/modal-presentable'
 import { ValueSpecOf, ValueSpec } from 'src/app/pkg-config/config-types'
 import { MaskPipe } from 'src/app/pipes/mask.pipe'
+import { IonNav } from '@ionic/angular'
+import { SubNavService } from 'src/app/services/sub-nav.service'
 
 @Component({
   selector: 'object-config',
   templateUrl: './object-config.component.html',
   styleUrls: ['./object-config.component.scss'],
 })
-export class ObjectConfigComponent extends ModalPresentable {
+export class ObjectConfigComponent {
   @Input() cursor: ConfigCursor<'object' | 'union'>
   @Output() onEdit = new EventEmitter<boolean>()
   spec: ValueSpecOf<'object' | 'union'>
@@ -19,10 +19,9 @@ export class ObjectConfigComponent extends ModalPresentable {
   annotations: Annotations<'object' | 'union'>
 
   constructor (
-    trackingModalCtrl: TrackingModalController,
-  ) {
-    super(trackingModalCtrl)
-  }
+    private readonly subNav: SubNavService,
+    private readonly nav: IonNav,
+  ) { }
 
   ngOnInit () {
     this.spec = this.cursor.spec()
@@ -33,11 +32,7 @@ export class ObjectConfigComponent extends ModalPresentable {
   async handleClick (key: string) {
     const nextCursor = this.cursor.seekNext(key)
     nextCursor.createFirstEntryForList()
-
-    await this.presentModal(nextCursor, () => {
-      this.onEdit.emit(true)
-      this.annotations = this.cursor.getAnnotations()
-    })
+    this.subNav.push(key, nextCursor, this.nav)
   }
 
   asIsOrder () {
@@ -50,7 +45,6 @@ export class ObjectConfigComponent extends ModalPresentable {
   templateUrl: './object-config-item.component.html',
   styleUrls: ['./object-config.component.scss'],
 })
-
 export class ObjectConfigItemComponent {
   @Input() key: string
   @Input() spec: ValueSpec
@@ -84,7 +78,7 @@ export class ObjectConfigItemComponent {
         }
         break
       case 'enum':
-        this.displayValue = this.spec.valueNames[this.value]
+        this.displayValue = this.spec['value-names'][this.value]
         break
       case 'pointer':
         this.displayValue = 'System Defined'

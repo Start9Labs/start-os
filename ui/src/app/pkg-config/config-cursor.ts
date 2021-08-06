@@ -93,9 +93,9 @@ export class ConfigCursor<T extends ValueType> {
       case 'number':
         return `${config}${spec.units ? ' ' + spec.units : ''}`
       case 'object':
-        return spec.displayAs ? handlebars.compile(spec.displayAs)(config) : ''
+        return spec['display-as'] ? handlebars.compile(spec['display-as'])(config) : ''
       case 'union':
-        return spec.displayAs ? handlebars.compile(spec.displayAs)(config) : config[spec.tag.id]
+        return spec['display-as'] ? handlebars.compile(spec['display-as'])(config) : config[spec.tag.id]
       case 'pointer':
         return 'System Defined'
       default:
@@ -121,11 +121,9 @@ export class ConfigCursor<T extends ValueType> {
     let ret: ValueSpec = {
       type: 'object',
       spec: this.rootSpec,
-      nullable: false,
-      nullByDefault: false,
       name: 'Config',
-      displayAs: 'Config',
-      uniqueBy: null,
+      'display-as': 'Config',
+      'unique-by': null,
     }
     let ptr = []
     for (let seg of parsed) {
@@ -141,7 +139,7 @@ export class ConfigCursor<T extends ValueType> {
               values: Object.keys(ret.variants),
               name: ret.tag.name,
               description: ret.tag.description,
-              valueNames: ret.tag.variantNames,
+              'value-names': ret.tag['variant-names'],
             }
           } else {
             const cfg = this.unseek().seek(pointer.compile(ptr))
@@ -176,7 +174,7 @@ export class ConfigCursor<T extends ValueType> {
           if (!spec.pattern || new RegExp(spec.pattern).test(cfg)) {
             return null
           } else {
-            return spec.patternDescription
+            return spec['pattern-description']
           }
         } else {
           throw new TypeError(`${this.ptr}: expected string, got ${Array.isArray(cfg) ? 'array' : typeof cfg}`)
@@ -205,8 +203,8 @@ export class ConfigCursor<T extends ValueType> {
         }
       case 'enum':
         if (typeof cfg === 'string') {
-          spec.valuesSet = spec.valuesSet || new Set(spec.values)
-          return spec.valuesSet.has(cfg) ? null : `${cfg} is not a valid selection.`
+          spec['values-set'] = spec['values-set'] || new Set(spec.values)
+          return spec['values-set'].has(cfg) ? null : `${cfg} is not a valid selection.`
         } else {
           throw new TypeError(`${this.ptr}: expected string, got ${Array.isArray(cfg) ? 'array' : typeof cfg}`)
         }
@@ -233,7 +231,7 @@ export class ConfigCursor<T extends ValueType> {
               if (cursor.equals(this.seekNext(idx2))) {
                 return `Item #${idx + 1} is not unique.` + ('uniqueBy' in cursor.spec()) ? `${
                   displayUniqueBy(
-                    (cursor.spec() as ValueSpecObject | ValueSpecUnion).uniqueBy,
+                    (cursor.spec() as ValueSpecObject | ValueSpecUnion)['unique-by'],
                     (cursor.spec() as ValueSpecObject | ValueSpecUnion),
                     cursor.config(),
                   )
@@ -247,7 +245,7 @@ export class ConfigCursor<T extends ValueType> {
         }
       case 'object':
         if (!cfg) {
-          return spec.nullable ? null : `${spec.name} is missing.`
+          return `${spec.name} is missing.`
         } else if (typeof cfg === 'object' && !Array.isArray(cfg)) {
           for (let idx in spec.spec) {
             if (this.seekNext(idx).checkInvalid()) {
@@ -328,7 +326,7 @@ export class ConfigCursor<T extends ValueType> {
         return lhs === rhs
       case 'object':
       case 'union':
-        return isEqual(spec.uniqueBy, this as ConfigCursor<'object' | 'union'>, cursor as ConfigCursor<'object' | 'union'>)
+        return isEqual(spec['unique-by'], this as ConfigCursor<'object' | 'union'>, cursor as ConfigCursor<'object' | 'union'>)
       case 'list':
         if (lhs.length !== rhs.length) {
           return false

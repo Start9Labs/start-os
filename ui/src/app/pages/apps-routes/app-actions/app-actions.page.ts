@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core'
+import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { AlertController, IonContent, LoadingController, ModalController, NavController } from '@ionic/angular'
@@ -7,7 +7,6 @@ import { Action, Manifest, PackageDataEntry, PackageMainStatus } from 'src/app/s
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
-import { ConfigCursor } from 'src/app/pkg-config/config-cursor'
 import { AppActionInputPage } from 'src/app/modals/app-action-input/app-action-input.page'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppRestoreComponent } from 'src/app/modals/app-restore/app-restore.component'
@@ -49,15 +48,16 @@ export class AppActionsPage {
 
   async handleAction (pkg: PackageDataEntry, action: { key: string, value: Action }) {
     if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(pkg.installed.status.main.status)) {
-      const inputSpec = action.value['input-spec']
-      if (inputSpec) {
+      if (action.value['input-spec']) {
         const modal = await this.modalCtrl.create({
           component: AppActionInputPage,
           componentProps: {
             action: action.value,
-            cursor: new ConfigCursor(inputSpec, { }),
-            execute: () => this.executeAction(pkg.manifest.id, action.key),
           },
+        })
+        modal.onWillDismiss().then(({ data }) => {
+          if (!data) return
+          this.executeAction(pkg.manifest.id, action.key, data)
         })
         await modal.present()
       } else {
@@ -105,7 +105,7 @@ export class AppActionsPage {
   }
 
   async restore (): Promise<void> {
-    const m = await this.modalCtrl.create({
+    const modal = await this.modalCtrl.create({
       componentProps: {
         pkgId: this.pkgId,
       },
@@ -113,12 +113,12 @@ export class AppActionsPage {
       backdropDismiss: false,
     })
 
-    m.onWillDismiss().then(res => {
+    modal.onWillDismiss().then(res => {
       const data = res.data
       if (data.error) this.errToast.present(data.error)
     })
 
-    return await m.present()
+    return await modal.present()
   }
 
   async uninstall (manifest: Manifest) {
@@ -137,7 +137,7 @@ export class AppActionsPage {
     return this.navCtrl.navigateRoot('/services')
   }
 
-  private async executeAction (pkgId: string, actionId: string): Promise<void> {
+  private async executeAction (pkgId: string, actionId: string, input?: object): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Executing action...',
@@ -146,7 +146,11 @@ export class AppActionsPage {
     await loader.present()
 
     try {
-      const res = await this.embassyApi.executePackageAction({ id: pkgId, 'action-id': actionId })
+      const res = await this.embassyApi.executePackageAction({
+        id: pkgId,
+        'action-id': actionId,
+        input,
+      })
 
       const successAlert = await this.alertCtrl.create({
         header: 'Execution Complete',
@@ -160,4 +164,19 @@ export class AppActionsPage {
       loader.dismiss()
     }
   }
+}
+
+interface LocalAction {
+  name: string
+  description: string
+  icon: string
+}
+
+@Component({
+  selector: 'app-actions-item',
+  templateUrl: './app-actions-item.component.html',
+  styleUrls: ['./app-actions.page.scss'],
+})
+export class AppActionsItemComponent {
+  @Input() action: LocalAction
 }

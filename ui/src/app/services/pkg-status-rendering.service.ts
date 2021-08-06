@@ -20,7 +20,7 @@ function handleInstalledState (status: Status): PkgStatusRendering {
 
   switch (status.main.status) {
     case PackageMainStatus.Stopping: return { display: 'Stopping', color: 'dark', showDots: true, feStatus: FEStatus.Stopping }
-    case PackageMainStatus.Stopped: return { display: 'Stopped', color: 'medium', showDots: false, feStatus: FEStatus.Stopped }
+    case PackageMainStatus.Stopped: return { display: 'Stopped', color: 'dark', showDots: false, feStatus: FEStatus.Stopped }
     case PackageMainStatus.BackingUp: return { display: 'Backing Up', color: 'warning', showDots: true, feStatus: FEStatus.BackingUp }
     case PackageMainStatus.Restoring: return { display: 'Restoring', color: 'primary', showDots: true, feStatus: FEStatus.Restoring }
     case PackageMainStatus.Running: return handleRunningState(status.main)
