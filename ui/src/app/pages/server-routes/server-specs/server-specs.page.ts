@@ -1,8 +1,7 @@
-import { Component } from '@angular/core'
-import { ToastController } from '@ionic/angular'
+import { Component, ViewChild } from '@angular/core'
+import { IonContent, ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { Subscription } from 'rxjs'
 
 @Component({
   selector: 'server-specs',
@@ -10,12 +9,16 @@ import { Subscription } from 'rxjs'
   styleUrls: ['./server-specs.page.scss'],
 })
 export class ServerSpecsPage {
-  subs: Subscription[] = []
+  @ViewChild(IonContent) content: IonContent
 
   constructor (
     private readonly toastCtrl: ToastController,
     public readonly patch: PatchDbService,
   ) { }
+
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
+  }
 
   async copy (address: string) {
     let message = ''

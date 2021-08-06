@@ -1,0 +1,54 @@
+<ion-item>
+  <ion-icon slot="start" [name]="interface.def.ui ? 'desktop-outline' : 'terminal-outline'"></ion-icon>
+  <ion-label class="ion-text-wrap">
+    <h1>{{ interface.def.name }}</h1>
+    <h2>{{ interface.def.description }}</h2>
+  </ion-label>
+</ion-item>
+<div style="padding-left: 54px;">
+  <!-- has tor -->
+  <ion-item *ngIf="interface.addresses['tor-address'] as tor">
+    <ion-label class="ion-text-wrap">
+      <h2>Tor Address</h2>
+      <p>{{ tor }}</p>
+    </ion-label>
+    <ion-buttons slot="end">
+      <ion-button *ngIf="interface.def.ui" fill="clear" (click)="launch(tor)">
+        <ion-icon size="small" slot="icon-only" name="open-outline"></ion-icon>
+      </ion-button>
+      <ion-button fill="clear" (click)="copy(tor)">
+        <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-item>
+  <!-- no tor -->
+  <ion-item *ngIf="!interface.addresses['tor-address']">
+    <ion-label class="ion-text-wrap">
+      <h2>Tor Address</h2>
+      <p>Service does not use a Tor Address</p>
+    </ion-label>
+  </ion-item>
+
+  <!-- lan -->
+  <ion-item *ngIf="interface.addresses['lan-address'] as lan">
+    <ion-label class="ion-text-wrap">
+      <h2>LAN Address</h2>
+      <p>{{ lan }}</p>
+    </ion-label>
+    <ion-buttons slot="end">
+      <ion-button *ngIf="interface.def.ui" fill="clear" (click)="launch(lan)">
+        <ion-icon size="small" slot="icon-only" name="open-outline"></ion-icon>
+      </ion-button>
+      <ion-button fill="clear" (click)="copy(lan)">
+        <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-item>
+  <!-- no lan -->
+  <ion-item *ngIf="!interface.addresses['lan-address']">
+    <ion-label class="ion-text-wrap">
+      <h2>LAN Address</h2>
+      <p>Service does not use a LAN Address</p>
+    </ion-label>
+  </ion-item>
+</div>

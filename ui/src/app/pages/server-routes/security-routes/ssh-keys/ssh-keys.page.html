@@ -5,7 +5,7 @@
     </ion-buttons>
     <ion-title>SSH Keys</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="presentModalAdd()">
+      <ion-button (click)="serverConfig.presentAlert('ssh')">
         <ion-icon slot="icon-only" name="add-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
@@ -15,14 +15,25 @@
 <ion-content class="ion-padding-top">
   <text-spinner *ngIf="loading" text="Loading Keys"></text-spinner>
 
-  <ion-item-group>
+  <ion-item-group *ngIf="!loading">
+    <!-- about -->
+    <ion-item>
+      <ion-label class="ion-text-wrap">
+        <p class="ion-padding-bottom">About</p>
+        <h2>Adding an SSH key to your Embassy can be useful for advanced usage from the command line, as well as for debugging purposes.</h2>
+      </ion-label>
+    </ion-item>
+    <ion-item [href]="docsUrl" target="_blank" detail="false">
+      <ion-icon slot="start" name="list-outline"></ion-icon>
+      <ion-label>View Instructions</ion-label>
+    </ion-item>
     <ion-item-divider>Saved Keys</ion-item-divider>
     <ion-item *ngFor="let ssh of sshKeys | keyvalue : asIsOrder">
       <ion-label class="ion-text-wrap">
         {{ ssh.value.alg }} {{ ssh.key }} {{ ssh.value.hostname }}
       </ion-label>
       <ion-button slot="end" fill="clear" (click)="presentAlertDelete(ssh.key)">
-        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+        <ion-icon slot="icon-only" name="close"></ion-icon>
       </ion-button>
     </ion-item>
   </ion-item-group>

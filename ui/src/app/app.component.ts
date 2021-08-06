@@ -214,7 +214,6 @@ export class AppComponent {
       takeWhile(() => auth === AuthState.VERIFIED),
     )
     .subscribe(version => {
-      console.log('VERSIONS', this.config.version, version)
       if (this.emver.compare(this.config.version, version) !== 0) {
         this.presentAlertRefreshNeeded()
       }

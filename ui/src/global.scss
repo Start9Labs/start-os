@@ -25,6 +25,15 @@
 @import "~@ionic/angular/css/text-transformation.css";
 @import "~@ionic/angular/css/flex-utils.css";
 
+$subheader-height: 48px;
+
+.subheader-padding {
+  --padding-top: #{$subheader-height} + 10px;
+}
+
+.subheader {
+  --min-height: #{$subheader-height};
+}
 
 .select-change-warning .alert-sub-title {
   color: var(--ion-color-warning)
@@ -151,6 +160,12 @@ ion-button {
   white-space: nowrap;
 }
 
+.modal-wrapper.sc-ion-modal-md {
+  border-radius: 6px;
+  border: 2px solid rgba(255,255,255,.03);
+  box-shadow: 0 0 70px 70px black;
+}
+
 .modal-wrapper {
   position: absolute;
   height: 90% !important;
@@ -160,17 +175,11 @@ ion-button {
   display: block;
 }
 
-.modal-wrapper.sc-ion-modal-md {
-  border-radius: 6px;
-  border: 2px solid rgba(255,255,255,.03);
-  box-shadow: 0 0 70px 70px black;
-}
-
 @media (min-width:1000px) {
   .modal-wrapper {
     position: absolute;
-    height: 70% !important;
-    top: 15%;
+    height: 80% !important;
+    top: 10%;
     width: 60% !important;
     left: 20%;
     display: block;
@@ -226,11 +235,11 @@ ion-slides {
 
 ion-item-divider {
   text-transform: uppercase;
-  margin-top: 24px;
+  --padding-top: 24px;
   font-weight: 600;
   --color: var(--ion-color-dark);
-  border: none;
   font-size: medium;
+  border-bottom: none;
 }
 
 ion-item {
@@ -245,15 +254,6 @@ ion-loading {
   position: fixed;
   bottom: 0px;
   padding-bottom: 3px;
-}
-
-.notifier-item {
-  margin: 12px;
-  margin-top: 0px;
-  border-radius: 12px;
-  // kills the lines
-  --border-width: 0;
-  --inner-border-width: 0;
 }
 
 .rec-item {

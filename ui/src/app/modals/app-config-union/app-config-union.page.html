@@ -1,15 +1,4 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button (click)="dismiss()">
-        <ion-icon name="arrow-back"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>{{ spec.name }}</ion-title>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content>
+<ion-content class="subheader-padding">
 
   <config-header [spec]="spec" [error]="error"></config-header>
 
@@ -24,10 +13,10 @@
       </ion-icon>
       <ion-label>{{ spec.tag.name }}</ion-label>
       <ion-select slot="end" [interfaceOptions]="setSelectOptions()" placeholder="Select One"
-        [(ngModel)]="value[spec.tag.id]" [selectedText]="spec.tag.variantNames[value[spec.tag.id]]"
+        [(ngModel)]="value[spec.tag.id]" [selectedText]="spec.tag['variant-names'][value[spec.tag.id]]"
         (ngModelChange)="handleUnionChange()">
         <ion-select-option *ngFor="let option of spec.variants | keyvalue: asIsOrder" [value]="option.key">
-          {{ spec.tag.variantNames[option.key] }}
+          {{ spec.tag['variant-names'][option.key] }}
           <span *ngIf="option.key === spec.default"> (default)</span>
         </ion-select-option>
       </ion-select>

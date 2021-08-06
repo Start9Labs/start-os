@@ -1,22 +1,4 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button (click)="dismiss()">
-        <ion-icon name="arrow-back"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>
-      {{ spec.name }}
-    </ion-title>
-    <ion-buttons *ngIf="!!saveFn" slot="end">
-      <ion-button [disabled]="!!error" (click)="save()">
-        Save
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content>
+<ion-content class="subheader-padding">
 
   <config-header [spec]="spec" [error]="error"></config-header>
 
@@ -55,15 +37,15 @@
     <ion-list *ngIf="spec.type === 'enum'">
       <ion-radio-group [(ngModel)]="value">
         <ion-item *ngFor="let option of spec.values">
-          <ion-label>{{ spec.valueNames[option] }}</ion-label>
+          <ion-label>{{ spec['value-names'][option] }}</ion-label>
           <ion-radio slot="start" [value]="option"></ion-radio>
         </ion-item>
       </ion-radio-group>
     </ion-list>
     <!-- metadata -->
     <div class="ion-padding-start">
-      <p *ngIf="spec.type === 'string' && spec.patternDescription">
-        {{ spec.patternDescription }}
+      <p *ngIf="spec.type === 'string' && spec['pattern-description']">
+        {{ spec['pattern-description'] }}
       </p>
       <p *ngIf="spec.type === 'number' && spec.integral">
         {{ integralDescription }}

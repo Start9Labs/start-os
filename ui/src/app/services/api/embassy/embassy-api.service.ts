@@ -86,6 +86,8 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract deleteNotification (params: RR.DeleteNotificationReq): Promise<RR.DeleteNotificationRes>
 
+  abstract deleteAllNotifications (params: RR.DeleteAllNotificationsReq): Promise<RR.DeleteAllNotificationsRes>
+
   // wifi
 
   abstract addWifi (params: RR.AddWifiReq): Promise<RR.AddWifiRes>

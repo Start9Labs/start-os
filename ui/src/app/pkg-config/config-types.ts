@@ -52,14 +52,12 @@ export interface ValueSpecPointer extends WithStandalone {
 
 export interface ValueSpecObject extends ListValueSpecObject, WithStandalone {
   type: 'object'
-  nullable: boolean
-  nullByDefault: boolean
 }
 
 export interface WithStandalone {
   name: string
   description?: string
-  changeWarning?: string
+  'change-warning'?: string
 }
 
 // no lists of booleans, lists, pointers
@@ -90,8 +88,9 @@ export function isValueSpecListOf<S extends ListValueSpecType> (t: ValueSpecList
 }
 
 export interface ListValueSpecString {
+  // @TODO add masked?
   pattern?: string
-  patternDescription?: string
+  'pattern-description'?: string
 }
 
 export interface ListValueSpecNumber {
@@ -102,14 +101,14 @@ export interface ListValueSpecNumber {
 
 export interface ListValueSpecEnum {
   values: string[]
-  valuesSet?: Set<string>
-  valueNames: { [value: string]: string }
+  'values-set'?: Set<string>
+  'value-names': { [value: string]: string }
 }
 
 export interface ListValueSpecObject {
-  spec: ConfigSpec //this is a mapped type of the config object at this level, replacing the object's values with specs on those values
-  uniqueBy: UniqueBy //indicates whether duplicates can be permitted in the list
-  displayAs?: string //this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
+  spec: ConfigSpec // this is a mapped type of the config object at this level, replacing the object's values with specs on those values
+  'unique-by': UniqueBy // indicates whether duplicates can be permitted in the list
+  'display-as'?: string // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
 }
 
 export type UniqueBy = null | string | { any: UniqueBy[] } | { all: UniqueBy[] }
@@ -117,16 +116,16 @@ export type UniqueBy = null | string | { any: UniqueBy[] } | { all: UniqueBy[] }
 export interface ListValueSpecUnion {
   tag: UnionTagSpec
   variants: { [key: string]: ConfigSpec }
-  displayAs?: string //this may be a handlebars template which can conditionally (on tag.id) make use of each union's entries, or if left blank will display as tag.id
-  uniqueBy: UniqueBy
-  default: string //this should be the variantName which one prefers a user to start with by default when creating a new union instance in a list
+  'display-as'?: string // this may be a handlebars template which can conditionally (on tag.id) make use of each union's entries, or if left blank will display as tag.id
+  'unique-by': UniqueBy
+  default: string // this should be the variantName which one prefers a user to start with by default when creating a new union instance in a list
 }
 
 export interface UnionTagSpec {
-  id: string //The name of the field containing one of the union variants
+  id: string // The name of the field containing one of the union variants
   name: string
   description?: string
-  variantNames: { //the name of each variant
+  'variant-names': { // the name of each variant
     [variant: string]: string
   }
 }

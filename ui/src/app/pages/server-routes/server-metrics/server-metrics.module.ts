@@ -3,8 +3,8 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { ServerMetricsPage } from './server-metrics.page'
-import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
 import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
+import { SharingModule } from 'src/app/modules/sharing.module'
 
 const routes: Routes = [
   {
@@ -18,8 +18,8 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    PwaBackComponentModule,
     SkeletonListComponentModule,
+    SharingModule,
   ],
   declarations: [ServerMetricsPage],
 })

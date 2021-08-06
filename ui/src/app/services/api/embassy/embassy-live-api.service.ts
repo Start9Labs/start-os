@@ -102,11 +102,15 @@ export class LiveApiService extends ApiService {
   // notification
 
   async getNotificationsRaw (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes> {
-    return this.http.rpcRequest({ method: 'notifications.list', params })
+    return this.http.rpcRequest({ method: 'notification.list', params })
   }
 
   async deleteNotification (params: RR.DeleteNotificationReq): Promise<RR.DeleteNotificationRes> {
-    return this.http.rpcRequest({ method: 'notifications.delete', params })
+    return this.http.rpcRequest({ method: 'notification.delete', params })
+  }
+
+  async deleteAllNotifications (params: RR.DeleteAllNotificationsReq): Promise<RR.DeleteAllNotificationsRes> {
+    return this.http.rpcRequest({ method: 'notification.delete.all', params })
   }
 
   // wifi

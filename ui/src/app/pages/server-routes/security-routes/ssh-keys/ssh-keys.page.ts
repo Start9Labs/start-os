@@ -15,13 +15,14 @@ export class SSHKeysPage {
   loading = true
   sshKeys: SSHKeys
   subs: Subscription[] = []
+  readonly docsUrl = 'https://docs.start9.com/user-manual/general/developer-options/ssh-setup.html'
 
   constructor (
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
-    private readonly serverConfigService: ServerConfigService,
     private readonly alertCtrl: AlertController,
     private readonly sshService: SSHService,
+    public readonly serverConfig: ServerConfigService,
   ) { }
 
   async ngOnInit () {
@@ -39,10 +40,6 @@ export class SSHKeysPage {
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
-  }
-
-  async presentModalAdd () {
-    await this.serverConfigService.presentModalValueEdit('ssh')
   }
 
   async presentAlertDelete (hash: string) {

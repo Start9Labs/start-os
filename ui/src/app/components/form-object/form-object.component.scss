@@ -1,0 +1,41 @@
+.help-icon {
+  display: inline-block;
+  vertical-align: middle;
+  padding-bottom: 2px;
+  font-size: 18px;
+  color: var(--ion-color-dark);
+  cursor: pointer;
+}
+
+ion-input {
+  font-weight: 500;
+  --placeholder-font-weight: 400;
+}
+
+ion-item-divider {
+  text-transform: unset;
+  --padding-start: 0;
+  border-bottom: 1px solid var(--ion-item-border-color, var(--ion-border-color, var(--ion-color-step-150, rgba(0, 0, 0, 0.13))))
+}
+
+.input-label {
+  // padding-top: 10px;
+  margin-bottom: 5px;
+  font-size: medium;
+  font-weight: bold;
+  * {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
+.nested-wrapper {
+  padding: 0 0 30px 30px;
+  // border-bottom: 1px solid var(--ion-item-border-color, var(--ion-border-color, var(--ion-color-step-150, rgba(0, 0, 0, 0.13))))
+}
+
+.validation-error {
+  p {
+    font-size: small;
+  }
+}
