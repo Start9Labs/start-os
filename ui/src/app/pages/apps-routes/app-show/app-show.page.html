@@ -27,8 +27,8 @@
           <status size="x-large" weight="500" [rendering]="rendering"></status>
         </ion-label>
         <ion-button slot="end" class="action-button" *ngIf="pkg.state === PackageState.Installed && (pkg | hasUi)" [disabled]="!(pkg | isLaunchable)" (click)="launchUiTab()">
-          Web
-          <ion-icon slot="end" name="rocket-outline"></ion-icon>
+          <ion-icon slot="start" name="open-outline"></ion-icon>
+          Open UI
         </ion-button>
         <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.NeedsConfig" [routerLink]="['config']">
           Configure

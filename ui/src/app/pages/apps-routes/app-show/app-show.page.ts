@@ -69,15 +69,15 @@ export class AppShowPage {
     this.setButtons()
   }
 
-  // ngAfterViewInit () {
-  //   this.content.scrollToPoint(undefined, 1)
-  // }
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
+  }
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  launchUiTab (): void {
+  launchUi (): void {
     window.open(this.config.launchableURL(this.pkg), '_blank')
   }
 
@@ -153,8 +153,14 @@ export class AppShowPage {
     }
   }
 
-  asIsOrder () {
-    return 0
+  async presentModalConfig (): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: AppConfigPage,
+      componentProps: {
+        pkgId: this.pkgId,
+      },
+    })
+    await modal.present()
   }
 
   private async installDep (depId: string): Promise<void> {
@@ -231,7 +237,7 @@ export class AppShowPage {
     }
   }
 
-  setButtons (): void {
+  private setButtons (): void {
     this.buttons = [
       // instructions
       {
@@ -243,15 +249,7 @@ export class AppShowPage {
       },
       // config
       {
-        action: async () => {
-          const modal = await this.modalCtrl.create({
-            component: AppConfigPage,
-            componentProps: {
-              pkgId: this.pkgId,
-            },
-          })
-          await modal.present()
-        },
+        action: async () => this.presentModalConfig(),
         title: 'Config',
         icon: 'construct-outline',
         color: 'danger',
@@ -300,12 +298,16 @@ export class AppShowPage {
       },
       {
         action: () => this.donate(),
-        title: 'Donate',
+        title: `Donate to ${this.pkg.manifest.title}`,
         icon: 'logo-bitcoin',
         color: 'danger',
         disabled: [],
       },
     ]
+  }
+
+  asIsOrder () {
+    return 0
   }
 }
 

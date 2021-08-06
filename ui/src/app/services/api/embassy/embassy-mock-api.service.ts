@@ -203,6 +203,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async deleteAllNotifications (params: RR.DeleteAllNotificationsReq): Promise<RR.DeleteAllNotificationsRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   // wifi
 
   async addWifi (params: RR.AddWifiReq): Promise<RR.AddWifiRes> {
