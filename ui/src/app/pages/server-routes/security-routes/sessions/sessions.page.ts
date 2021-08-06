@@ -2,7 +2,7 @@ import { Component } from '@angular/core'
 import { AlertController, getPlatforms, LoadingController } from '@ionic/angular'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
-import { PlatformType, RR, SessionMetadata } from 'src/app/services/api/api.types'
+import { PlatformType, RR } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'sessions',

@@ -35,6 +35,7 @@ export class MockApiService extends ApiService {
   }
 
   async setDbValueRaw (params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
+    await pauseFor(2000)
     return this.http.rpcRequest<WithRevision<null>>({ method: 'db.put.ui', params })
   }
 
