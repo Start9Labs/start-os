@@ -52,13 +52,10 @@ export class FormObjectComponent {
         (this.formGroup.get(key).value as any[]).forEach((obj, index) => {
           const displayAs = (spec.spec as ListValueSpecOf<'object'>)['display-as']
           this.objectListInfo[key][index] = {
-            expanded: true,
+            expanded: false,
             height: '0px',
             displayAs: displayAs ? handlebars.compile(displayAs)(obj) : '',
           }
-          pauseFor(200).then(() => {
-            this.objectListInfo[key][index].height = this.getDocSize(key)
-          })
         })
       }
     })
