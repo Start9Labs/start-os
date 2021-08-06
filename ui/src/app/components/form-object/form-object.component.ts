@@ -6,6 +6,7 @@ import { FormService } from 'src/app/services/form.service'
 import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
 import * as handlebars from 'handlebars'
+import { pauseFor } from 'src/app/util/misc.util'
 
 @Component({
   selector: 'form-object',
@@ -22,7 +23,7 @@ export class FormObjectComponent {
   unmasked: { [key: string]: boolean } = { }
   // @TODO for when we want to expand/collapse normal objects/union in addition to list ones
   // objectExpanded: { [key: string]: boolean } = { }
-  objectListInfo: { [key: string]: { expanded: boolean, displayAs: string }[] } = { }
+  objectListInfo: { [key: string]: { expanded: boolean, height: string, displayAs: string }[] } = { }
   Object = Object
 
   constructor (
@@ -49,18 +50,22 @@ export class FormObjectComponent {
       if (spec.type === 'list' && ['object', 'union'].includes(spec.subtype)) {
         this.objectListInfo[key] = [];
         (this.formGroup.get(key).value as any[]).forEach((obj, index) => {
-          const displayAs = (spec.spec as ListValueSpecOf<'object'>).displayAs
+          const displayAs = (spec.spec as ListValueSpecOf<'object'>)['display-as']
           this.objectListInfo[key][index] = {
-            expanded: false,
+            expanded: true,
+            height: '0px',
             displayAs: displayAs ? handlebars.compile(displayAs)(obj) : '',
           }
+          pauseFor(200).then(() => {
+            this.objectListInfo[key][index].height = this.getDocSize(key)
+          })
         })
       }
     })
   }
 
   getEnumListDisplay (arr: string[], spec: ListValueSpecOf<'enum'>): string {
-    return arr.map((v: string) => spec.valueNames[v]).join(', ')
+    return arr.map((v: string) => spec['value-names'][v]).join(', ')
   }
 
   updateUnion (e: any): void {
@@ -87,12 +92,23 @@ export class FormObjectComponent {
     newItem.markAllAsTouched()
     arr.insert(0, newItem)
     if (['object', 'union'].includes(listSpec.subtype)) {
-      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>).displayAs
-      this.objectListInfo[key].unshift({
+      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>)['display-as']
+      this.objectListInfo[key].push({
+        height: '0px',
         expanded: true,
         displayAs: displayAs ? handlebars.compile(displayAs)(newItem.value) : '',
       })
     }
+    pauseFor(200).then(() => {
+      const index = this.objectListInfo[key].length - 1
+      this.objectListInfo[key][index].height = this.getDocSize(key)
+    })
+  }
+
+  toggleExpand (key: string, i: number) {
+    this.objectListInfo[key][i].expanded = !this.objectListInfo[key][i].expanded
+    this.objectListInfo[key][i].height = this.objectListInfo[key][i].expanded ? this.getDocSize(key) : '0px'
+
   }
 
   async presentModalEnumList (key: string, spec: ValueSpecListOf<'enum'>, current: string[]) {
@@ -115,13 +131,13 @@ export class FormObjectComponent {
   }
 
   async presentAlertChangeWarning (key: string, spec: ValueSpec) {
-    if (!spec.changeWarning || this.warningAck[key]) return
+    if (!spec['change-warning'] || this.warningAck[key]) return
     this.warningAck[key] = true
 
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       subHeader: `Editing ${spec.name} has consequences:`,
-      message: spec.changeWarning,
+      message: spec['change-warning'],
       buttons: ['Ok'],
     })
     await alert.present()
@@ -149,9 +165,13 @@ export class FormObjectComponent {
   }
 
   private deleteListItem (key: string, index: number, markDirty = true): void {
+    this.objectListInfo[key][index].height = '0px'
     const arr = this.formGroup.get(key) as FormArray
     if (markDirty) arr.markAsDirty()
-    arr.removeAt(index)
+    pauseFor(500).then(() => {
+      this.objectListInfo[key].splice(index, 1)
+      arr.removeAt(index)
+    })
   }
 
   private updateEnumList (key: string, current: string[], updated: string[]) {
@@ -162,6 +182,11 @@ export class FormObjectComponent {
 
     let added = updated.filter(x => !current.includes(x))
     added.forEach(val => this.addListItem(key, false, val))
+  }
+
+   getDocSize (selected: string) {
+    const element = document.getElementById(selected)
+    return `${element.scrollHeight}px`
   }
 
   asIsOrder () {

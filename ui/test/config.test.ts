@@ -206,7 +206,7 @@ function test () {
                 tag: {
                     id: 'variant',
                     name: 'Variant',
-                    variantNames: {
+                    'variant-names': {
                         'variant-a': 'Variant A',
                         'variant-b': 'Variant B',
                     },

@@ -4,9 +4,9 @@
         <p class="input-label">{{ unionSpec.tag.name }}</p>
         <ion-item color="dark">
           <ion-label>{{ unionSpec.tag.name }}</ion-label>
-          <ion-select slot="end" placeholder="Select" [formControlName]="unionSpec.tag.id" [selectedText]="unionSpec.tag.variantNames[entry.value.value]" (ionChange)="presentAlertChangeWarning(entry.key, unionSpec); updateUnion($event)">
+          <ion-select slot="end" placeholder="Select" [formControlName]="unionSpec.tag.id" [selectedText]="unionSpec.tag['variant-names'][entry.value.value]" (ionChange)="presentAlertChangeWarning(entry.key, unionSpec); updateUnion($event)">
             <ion-select-option *ngFor="let option of Object.keys(unionSpec.variants)" [value]="option">
-              {{ unionSpec.tag.variantNames[option] }}
+              {{ unionSpec.tag['variant-names'][option] }}
             </ion-select-option>
           </ion-select>
         </ion-item>
@@ -42,9 +42,9 @@
         <!-- enum -->
         <ion-item color="dark" *ngIf="spec.type === 'enum'">
           <ion-label>{{ spec.name }}</ion-label>
-          <ion-select slot="end" placeholder="Select" [formControlName]="entry.key" [selectedText]="spec.valueNames[formGroup.get(entry.key).value]" (ionChange)="presentAlertChangeWarning(entry.key, spec)">
+          <ion-select slot="end" placeholder="Select" [formControlName]="entry.key" [selectedText]="spec['value-names'][formGroup.get(entry.key).value]" (ionChange)="presentAlertChangeWarning(entry.key, spec)">
             <ion-select-option *ngFor="let option of spec.values" [value]="option">
-              {{ spec.valueNames[option] }}
+              {{ spec['value-names'][option] }}
             </ion-select-option>
           </ion-select>
         </ion-item>
@@ -89,11 +89,14 @@
           </ion-item-divider>
           <!-- body -->
           <div class="nested-wrapper">
-            <div *ngFor="let abstractControl of formArr.controls; let i = index;" class="ion-padding-top">
+            <div
+              *ngFor="let abstractControl of formArr.controls; let i = index;"
+              class="ion-padding-top"
+            >
               <!-- nested -->
               <ng-container *ngIf="spec.subtype === 'object' || spec.subtype === 'union'">
                 <!-- nested label -->
-                <ion-item-divider (click)="objectListInfo[entry.key][i].expanded = !objectListInfo[entry.key][i].expanded" style="cursor: pointer;">
+                <ion-item-divider (click)="toggleExpand(entry.key, i)" style="cursor: pointer;">
                   <form-label [data]="{
                     spec: {
                       name: objectListInfo[entry.key][i].displayAs || 'Entry ' + (i + 1)
@@ -101,10 +104,28 @@
                     isNew: false,
                     isEdited: abstractControl.dirty
                   }"></form-label>
-                  <ion-icon slot="end" [name]="objectListInfo[entry.key][i].expanded ? 'chevron-up' : 'chevron-down'"></ion-icon>
+                  <ion-icon
+                    slot="end"
+                    name="chevron-up"
+                    [ngStyle]="{
+                      'transform': objectListInfo[entry.key][i].expanded ? 'rotate(0deg)' : 'rotate(180deg)',
+                      'transition': 'transform 0.4s ease-out'
+                    }"
+                  ></ion-icon>
                 </ion-item-divider>
                 <!-- nested body -->
-                <div [hidden]="objectListInfo[entry.key][i].expanded ? false : true">
+                <div
+                  [id]="entry.key"
+                  [ngStyle]="{
+                    'max-height': objectListInfo[entry.key][i].height,
+                    'overflow': 'hidden',
+                    'transition-property': 'max-height',
+                    'transition-duration': '.5s',
+                    'transition-delay': '.05s'
+                  }"
+                  >
+                <!-- [hidden]="objectListInfo[entry.key][i].expanded ? false : true" -->
+
                   <form-object
                     [objectSpec]="
                       spec.subtype === 'union' ? 

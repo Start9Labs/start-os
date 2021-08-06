@@ -13,10 +13,10 @@
       </ion-icon>
       <ion-label>{{ spec.tag.name }}</ion-label>
       <ion-select slot="end" [interfaceOptions]="setSelectOptions()" placeholder="Select One"
-        [(ngModel)]="value[spec.tag.id]" [selectedText]="spec.tag.variantNames[value[spec.tag.id]]"
+        [(ngModel)]="value[spec.tag.id]" [selectedText]="spec.tag['variant-names'][value[spec.tag.id]]"
         (ngModelChange)="handleUnionChange()">
         <ion-select-option *ngFor="let option of spec.variants | keyvalue: asIsOrder" [value]="option.key">
-          {{ spec.tag.variantNames[option.key] }}
+          {{ spec.tag['variant-names'][option.key] }}
           <span *ngIf="option.key === spec.default"> (default)</span>
         </ion-select-option>
       </ion-select>

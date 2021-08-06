@@ -78,7 +78,7 @@ export class ObjectConfigItemComponent {
         }
         break
       case 'enum':
-        this.displayValue = this.spec.valueNames[this.value]
+        this.displayValue = this.spec['value-names'][this.value]
         break
       case 'pointer':
         this.displayValue = 'System Defined'

@@ -29,16 +29,16 @@ export class FormService {
 
   getUnionObject (spec: ValueSpecUnion | ListValueSpecUnion, selection: string, current?: { [key: string]: any }): FormGroup {
     const { variants, tag } = spec
-    const { name, description, changeWarning } = isFullUnion(spec) ? spec : { ...spec.tag, changeWarning: undefined }
+    const { name, description, 'change-warning' : changeWarning } = isFullUnion(spec) ? spec : { ...spec.tag, 'change-warning': undefined }
 
     const enumSpec: ValueSpecEnum = {
       type: 'enum',
       name,
       description,
-      changeWarning,
+      'change-warning': changeWarning,
       default: selection,
       values: Object.keys(variants),
-      valueNames: tag.variantNames,
+      'value-names': tag['variant-names'],
     }
     return this.getFormGroup({ [spec.tag.id]: enumSpec, ...spec.variants[selection] }, [], current)
   }
@@ -120,7 +120,7 @@ export class FormService {
       validators.push(Validators.pattern(spec.pattern))
       this.validationMessages[key].push({
         type: 'pattern',
-        message: spec.patternDescription,
+        message: spec['pattern-description'],
       })
     }
 

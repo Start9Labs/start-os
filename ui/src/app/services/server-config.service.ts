@@ -66,7 +66,7 @@ const serverConfig: ConfigSpec = {
     nullable: false,
     // @TODO regex for SSH Key
     // pattern: '',
-    patternDescription: 'Must be a valid SSH key',
+    'pattern-description': 'Must be a valid SSH key',
     masked: false,
     copyable: false,
   },
@@ -74,7 +74,7 @@ const serverConfig: ConfigSpec = {
     type: 'boolean',
     name: 'Tor Only Marketplace',
     description: `Use Start9's Tor (instead of clearnet) Marketplace.`,
-    changeWarning: 'This will result in higher latency and slower download times.',
+    'change-warning': 'This will result in higher latency and slower download times.',
     default: false,
   },
   // packageMarketplace: {
@@ -84,7 +84,7 @@ const serverConfig: ConfigSpec = {
   //   nullable: true,
   //   // @TODO regex for URL
   //   // pattern: '',
-  //   patternDescription: 'Must be a valid URL.',
+  //   'pattern-description': 'Must be a valid URL.',
   //   masked: false,
   //   copyable: false,
   // },
@@ -101,8 +101,8 @@ const serverConfig: ConfigSpec = {
   //   nullable: false,
   //   // @TODO regex for 12 chars
   //   // pattern: '',
-  //   patternDescription: 'Must contain at least 12 characters.',
-  //   changeWarning: 'If you forget your master password, there is absolutely no way to recover your data. This can result in loss of money! Keep in mind, old backups will still be encrypted by the password used to encrypt them.',
+  //   'pattern-description': 'Must contain at least 12 characters.',
+  //   'change-warning': 'If you forget your master password, there is absolutely no way to recover your data. This can result in loss of money! Keep in mind, old backups will still be encrypted by the password used to encrypt them.',
   //   masked: false,
   //   copyable: false,
   // },
