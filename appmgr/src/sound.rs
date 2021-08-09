@@ -142,13 +142,8 @@ pub enum Semitone {
 impl Semitone {
     pub fn rotate(&self, n: isize) -> Semitone {
         let mut temp = (*self as isize) + n;
-        while temp >= 12 {
-            temp -= 12;
-        }
-        while temp < 0 {
-            temp += 12;
-        }
-        match temp {
+
+        match temp.rem_euclid(12) {
             0 => Semitone::C,
             1 => Semitone::Db,
             2 => Semitone::D,
@@ -411,4 +406,5 @@ proptest::proptest! {
     fn freq_conversion_preserves_ordering(a in arb_note(), b in arb_note()) {
         proptest::prop_assert_eq!(Some(a.cmp(&b)), a.frequency().partial_cmp(&b.frequency()))
     }
+
 }
