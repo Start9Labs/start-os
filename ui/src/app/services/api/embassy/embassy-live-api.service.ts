@@ -14,7 +14,11 @@ export class LiveApiService extends ApiService {
   ) { super() }
 
   async getStatic (url: string): Promise<string> {
-    return this.http.httpRequest({ method: Method.GET, url })
+    return this.http.httpRequest({
+      method: Method.GET,
+      url,
+      responseType: 'text',
+    })
   }
 
   // db
