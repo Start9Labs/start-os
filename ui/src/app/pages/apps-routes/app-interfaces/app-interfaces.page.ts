@@ -1,13 +1,13 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent, ToastController } from '@ionic/angular'
-import { InterfaceDef, InterfaceInfo } from 'src/app/services/patch-db/data-model'
+import { InstalledPackageDataEntry, InterfaceDef } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 
 interface LocalInterface {
   def: InterfaceDef
-  addresses: InterfaceInfo['addresses'][string]
+  addresses: InstalledPackageDataEntry['interface-addresses'][string]
 }
 
 @Component({
@@ -29,7 +29,7 @@ export class AppInterfacesPage {
     const pkgId = this.route.snapshot.paramMap.get('pkgId')
     const pkg = this.patch.data['package-data'][pkgId]
     const interfaces = pkg.manifest.interfaces
-    const addressesMap = pkg.installed['interface-info'].addresses
+    const addressesMap = pkg.installed['interface-addresses']
     const ui = interfaces['ui']
 
     if (ui) {

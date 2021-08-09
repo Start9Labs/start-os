@@ -46,14 +46,14 @@ export module Mock {
       system: true,
       entrypoint: '',
       args: [''],
-      mounts: {},
+      mounts: { },
       'io-format': DockerIoFormat.Yaml,
       inject: false,
       'shm-size': '',
     },
-    'health-checks': {},
+    'health-checks': { },
     config: null,
-    volumes: {},
+    volumes: { },
     'min-os-version': '0.2.12',
     interfaces: {
       ui: {
@@ -61,9 +61,9 @@ export module Mock {
         description: 'Web application for viewing information about your node and the Bitcoin network.',
         ui: true,
         'tor-config': {
-          'port-mapping': {},
+          'port-mapping': { },
         },
-        'lan-config': {},
+        'lan-config': { },
         protocols: [],
       },
       rpc: {
@@ -71,9 +71,9 @@ export module Mock {
         description: 'Used by wallets to interact with your Bitcoin Core node.',
         ui: false,
         'tor-config': {
-          'port-mapping': {},
+          'port-mapping': { },
         },
-        'lan-config': {},
+        'lan-config': { },
         protocols: [],
       },
       p2p: {
@@ -81,9 +81,9 @@ export module Mock {
         description: 'Used by other Bitcoin nodes to communicate and interact with your node.',
         ui: false,
         'tor-config': {
-          'port-mapping': {},
+          'port-mapping': { },
         },
-        'lan-config': {},
+        'lan-config': { },
         protocols: [],
       },
     },
@@ -94,7 +94,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: {},
+        mounts: { },
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -105,7 +105,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: {},
+        mounts: { },
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -124,7 +124,7 @@ export module Mock {
           system: true,
           entrypoint: '',
           args: [''],
-          mounts: {},
+          mounts: { },
           'io-format': DockerIoFormat.Yaml,
           inject: false,
           'shm-size': '',
@@ -132,8 +132,8 @@ export module Mock {
         'input-spec': null,
       },
     },
-    permissions: {},
-    dependencies: {},
+    permissions: { },
+    dependencies: { },
   }
 
   export const MockManifestLnd: Manifest = {
@@ -164,14 +164,14 @@ export module Mock {
       system: true,
       entrypoint: '',
       args: [''],
-      mounts: {},
+      mounts: { },
       'io-format': DockerIoFormat.Yaml,
       inject: false,
       'shm-size': '',
     },
-    'health-checks': {},
+    'health-checks': { },
     config: null,
-    volumes: {},
+    volumes: { },
     'min-os-version': '0.2.12',
     interfaces: {
       rpc: {
@@ -179,7 +179,7 @@ export module Mock {
         description: 'Good for connecting to your node at a distance.',
         ui: true,
         'tor-config': {
-          'port-mapping': {},
+          'port-mapping': { },
         },
         'lan-config': {
           44: {
@@ -194,7 +194,7 @@ export module Mock {
         description: 'Certain wallet use grpc.',
         ui: false,
         'tor-config': {
-          'port-mapping': {},
+          'port-mapping': { },
         },
         'lan-config': {
           66: {
@@ -212,7 +212,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: {},
+        mounts: { },
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -223,7 +223,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: {},
+        mounts: { },
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -242,7 +242,7 @@ export module Mock {
           system: true,
           entrypoint: '',
           args: [''],
-          mounts: {},
+          mounts: { },
           'io-format': DockerIoFormat.Yaml,
           inject: false,
           'shm-size': '',
@@ -258,7 +258,7 @@ export module Mock {
         },
       },
     },
-    permissions: {},
+    permissions: { },
     dependencies: {
       'bitcoind': {
         version: '=0.21.0',
@@ -273,22 +273,22 @@ export module Mock {
             system: true,
             entrypoint: 'true',
             args: [],
-            mounts: {},
+            mounts: { },
             'io-format': DockerIoFormat.Cbor,
             inject: false,
-            "shm-size": '10m'
+            'shm-size': '10m',
           },
-          "auto-configure": {
+          'auto-configure': {
             type: 'docker',
             image: 'alpine',
             system: true,
             entrypoint: 'cat',
             args: [],
-            mounts: {},
+            mounts: { },
             'io-format': DockerIoFormat.Cbor,
             inject: false,
-            "shm-size": '10m'
-          }
+            'shm-size': '10m',
+          },
         },
       },
       'bitcoin-proxy': {
@@ -304,22 +304,22 @@ export module Mock {
             system: true,
             entrypoint: 'true',
             args: [],
-            mounts: {},
+            mounts: { },
             'io-format': DockerIoFormat.Cbor,
             inject: false,
-            "shm-size": '10m'
+            'shm-size': '10m',
           },
-          "auto-configure": {
+          'auto-configure': {
             type: 'docker',
             image: 'alpine',
             system: true,
             entrypoint: 'cat',
             args: [],
-            mounts: {},
+            mounts: { },
             'io-format': DockerIoFormat.Cbor,
             inject: false,
-            "shm-size": '10m'
-          }
+            'shm-size': '10m',
+          },
         },
       },
     },
@@ -353,14 +353,14 @@ export module Mock {
       system: true,
       entrypoint: '',
       args: [''],
-      mounts: {},
+      mounts: { },
       'io-format': DockerIoFormat.Yaml,
       inject: false,
       'shm-size': '',
     },
-    'health-checks': {},
+    'health-checks': { },
     config: null,
-    volumes: {},
+    volumes: { },
     'min-os-version': '0.2.12',
     interfaces: {
       rpc: {
@@ -368,7 +368,7 @@ export module Mock {
         description: 'Good for connecting to your node at a distance.',
         ui: true,
         'tor-config': {
-          'port-mapping': {},
+          'port-mapping': { },
         },
         'lan-config': {
           44: {
@@ -386,7 +386,7 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: {},
+        mounts: { },
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
@@ -397,15 +397,15 @@ export module Mock {
         system: true,
         entrypoint: '',
         args: [''],
-        mounts: {},
+        mounts: { },
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
       },
     },
     migrations: null,
-    actions: {},
-    permissions: {},
+    actions: { },
+    permissions: { },
     dependencies: {
       'bitcoind': {
         version: '>=0.20.0',
@@ -420,22 +420,22 @@ export module Mock {
             system: true,
             entrypoint: 'true',
             args: [],
-            mounts: {},
+            mounts: { },
             'io-format': DockerIoFormat.Cbor,
             inject: false,
-            "shm-size": '10m'
+            'shm-size': '10m',
           },
-          "auto-configure": {
+          'auto-configure': {
             type: 'docker',
             image: 'alpine',
             system: true,
             entrypoint: 'cat',
             args: [],
-            mounts: {},
+            mounts: { },
             'io-format': DockerIoFormat.Cbor,
             inject: false,
-            "shm-size": '10m'
-          }
+            'shm-size': '10m',
+          },
         },
       },
     },
@@ -457,7 +457,7 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': {},
+        'dependency-metadata': { },
       },
       '0.20.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
@@ -469,7 +469,7 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': {},
+        'dependency-metadata': { },
       },
       '0.21.0': {
         icon: 'assets/img/service-icons/bitcoind.png',
@@ -482,7 +482,7 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': {},
+        'dependency-metadata': { },
       },
       'latest': {
         icon: 'assets/img/service-icons/bitcoind.png',
@@ -494,7 +494,7 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': {},
+        'dependency-metadata': { },
       },
     },
     'lnd': {
@@ -595,9 +595,9 @@ export module Mock {
         main: {
           status: PackageMainStatus.Running,
           started: new Date().toISOString(),
-          health: {},
+          health: { },
         },
-        'dependency-errors': {},
+        'dependency-errors': { },
       },
       manifest: MockManifestBitcoinProxy,
       'interface-addresses': {
@@ -1321,7 +1321,7 @@ export module Mock {
         'description': 'api keys that are authorized to access your Bitcoin node.',
         'range': '[0,*)',
         'default': [],
-        'spec': {},
+        'spec': { },
       },
     },
     // actual config
@@ -1468,7 +1468,7 @@ export module Mock {
         },
       },
       'system-pointers': [],
-      'current-dependents': {},
+      'current-dependents': { },
       'current-dependencies': {
         'bitcoind': {
           pointers: [],
@@ -1502,9 +1502,9 @@ export module Mock {
   //       'package-marketplace': 'https://registry.start9.com',
   //       'unread-notification-count': 4,
   //       specs: {
-  //         CPU: 'Cortex-A72: 4 Cores @1500MHz',
-  //         Disk: '1TB SSD',
-  //         Memory: '8GB',
+  //         cpu: 'Cortex-A72: 4 Cores @1500MHz',
+  //         disk: '1TB SSD',
+  //         memory: '8GB',
   //       },
   //       'connection-addresses': {
   //         tor: ['http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion'],

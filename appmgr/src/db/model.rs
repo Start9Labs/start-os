@@ -49,18 +49,9 @@ impl Database {
                 },
                 unread_notification_count: 0,
                 specs: ServerSpecs {
-                    cpu: Usage {
-                        used: 0_f64,
-                        total: 1_f64,
-                    },
-                    disk: Usage {
-                        used: 0_f64,
-                        total: 1_f64,
-                    },
-                    memory: Usage {
-                        used: 0_f64,
-                        total: 1_f64,
-                    },
+                    cpu: "".to_owned(),
+                    disk: "".to_owned(),
+                    memory: "".to_owned(),
                 },
                 connection_addresses: ConnectionAddresses {
                     tor: Vec::new(),
@@ -114,16 +105,9 @@ pub struct WifiInfo {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ServerSpecs {
-    pub cpu: Usage,
-    pub disk: Usage,
-    pub memory: Usage,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct Usage {
-    pub used: f64,
-    pub total: f64,
+    pub cpu: String,
+    pub disk: String,
+    pub memory: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
