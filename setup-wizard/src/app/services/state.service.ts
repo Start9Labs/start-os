@@ -1,15 +1,15 @@
 import { Injectable } from '@angular/core'
-import { ApiService, DataDrive, RecoveryDrive } from './api/api.service'
+import { ApiService, EmbassyDrive, RecoveryDrive } from './api/api.service'
 
 @Injectable({
   providedIn: 'root'
 })
 export class StateService {
-  loading = true
   polling = false
 
-  dataDrive: DataDrive;
+  embassyDrive: EmbassyDrive;
   recoveryDrive: RecoveryDrive;
+  recoveryPassword: string
   dataTransferProgress: { bytesTransfered: number; totalBytes: number } | null;
   dataProgress = 0;
 
@@ -17,15 +17,14 @@ export class StateService {
     private readonly apiService: ApiService
   ) {}
 
-  async getState() {
-    this.loading = true
-    const state = await this.apiService.getState()
-    if(state) {
-      this.dataDrive = state['data-drive']
-      this.recoveryDrive = state['recovery-drive']
+  reset() {
+    this.polling = false
 
-      this.loading = false
-    }
+    this.embassyDrive = null
+    this.recoveryDrive = null
+    this.recoveryPassword = null
+    this.dataTransferProgress = null
+    this.dataProgress = 0
   }
 
   async pollDataTransferProgress() {

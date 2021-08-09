@@ -1,7 +1,5 @@
 .selected {
-  border-radius: 8px;
-  border: 4px solid var(--ion-color-secondary);
-  box-shadow: 4px 4px 16px var(--ion-color-light);
+  border: 4px solid gray;
 }
 
 ion-card-title {
@@ -11,12 +9,12 @@ ion-card-title {
   --color: var(--ion-color-light);
 }
 
-ion-item {
-  --border-radius: 4px;
-  --border-style: solid;
-  --border-width: 1px;
-  --border-color: var(--ion-color-light);
-}
+// ion-item {
+//   --border-radius: 4px;
+//   --border-style: solid;
+//   --border-width: 1px;
+//   --border-color: var(--ion-color-light);
+// }
 
 .input-label {
   text-align: left;

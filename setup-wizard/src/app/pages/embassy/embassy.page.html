@@ -1,0 +1,57 @@
+<ion-content color="light">
+  <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
+    <ion-row class="ion-align-items-center" style="height: 100%;">
+      <ion-col class="ion-text-center">
+
+        <div style="padding-bottom: 32px;">
+          <img src="assets/png/logo.png" style="max-width: 240px;" />
+        </div>
+
+        <ion-card color="dark">
+          <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
+            <ion-card-title>{{ loading ? 'Loading Embassy Drives' : 'Select Embassy Drive'}}</ion-card-title>
+          </ion-card-header>
+
+          <ion-card-content class="ion-margin">
+            <ng-container *ngIf="!loading && !embassyDrives.length">
+              <h2 color="light">No Embassy drives found</h2>
+              <p color="light">Please connect an Embassy drive to your embassy and refresh the page.</p>
+              <ion-button 
+                (click)="window.location.reload()"
+                style="text-align:center"
+                class="claim-button"
+              >
+                Refresh
+              </ion-button>
+            </ng-container>
+
+            <ion-item-group>
+              <ng-container *ngIf="loading">
+                <ion-item button color="light" lines="none">
+                  <ion-avatar slot="start">
+                    <ion-skeleton-text animated></ion-skeleton-text>
+                  </ion-avatar>
+                  <ion-label class="ion-text-wrap">
+                    <ion-skeleton-text style="width: 80%; margin: 13px 0;" animated></ion-skeleton-text>
+                    <ion-skeleton-text style="width: 60%; margin: 10px 0;" animated></ion-skeleton-text>
+                    <ion-skeleton-text style="width: 30%; margin: 8px 0;" animated></ion-skeleton-text>
+                  </ion-label>
+                </ion-item>
+              </ng-container>
+              <ng-container *ngIf="embassyDrives.length">
+                <ion-item (click)="chooseDrive(drive)" class="ion-margin-bottom" button color="light" lines="none" *ngFor="let drive of embassyDrives">
+                  <ion-icon slot="start" name="save-outline"></ion-icon>
+                  <ion-label class="ion-text-wrap">
+                    <h1>{{ drive.logicalname }}</h1>
+                    <h2 style="min-height: 19px;">{{ drive.labels.length ? drive.labels.join(' / ') : 'unnamed' }}</h2>
+                    <p> Using {{drive.used.toFixed(2)}} of {{drive.capacity.toFixed(2)}} GiB</p>
+                  </ion-label>
+                </ion-item>
+              </ng-container>
+            </ion-item-group>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>
