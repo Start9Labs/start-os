@@ -14,14 +14,14 @@ export class MockApiService extends ApiService {
   async getState() {
     await pauseFor(2000)
     return {
-      'data-drive': 
-      // null,
-      {
-        logicalname: 'name1',
-        labels: ['label 1', 'label 2'],
-        capacity: 1600,
-        used: 200,
-      },
+      'embassy-drive': 
+      null,
+      // {
+      //   logicalname: 'name1',
+      //   labels: ['label 1', 'label 2'],
+      //   capacity: 1600,
+      //   used: 200,
+      // },
       'recovery-drive': 
       null,
       // {
@@ -40,25 +40,25 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getDataDrives() {
+  async getEmbassyDrives() {
     await pauseFor(2000)
     return [
       {
         logicalname: 'Name1',
         labels: ['label 1', 'label 2'],
-        capacity: 1600,
-        used: 200,
+        capacity: 1600.66666,
+        used: 200.1255312,
       },
       {
         logicalname: 'Name2',
         labels: [],
-        capacity: 1600,
-        used: 0,
+        capacity: 1600.01234,
+        used: 0.00,
       }
     ]
   }
 
-  async selectDataDrive(drive) {
+  async selectEmbassyDrive(drive) {
     await pauseFor(2000)
     return
   }
@@ -67,8 +67,13 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return [
       {
-        logicalname: 'name1',
+        logicalname: 'Name1',
         version: '0.3.3',
+        name: 'My Embassy'
+      },
+      {
+        logicalname: 'Name2',
+        version: '0.2.7',
         name: 'My Embassy'
       }
     ]
@@ -82,6 +87,11 @@ export class MockApiService extends ApiService {
   async submitPassword(password) {
     await pauseFor(2000)
     return
+  }
+
+  async verifyRecoveryPassword(logicalname, password) {
+    await pauseFor(2000)
+    return password.length > 8
   }
 }
 
