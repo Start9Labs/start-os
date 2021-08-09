@@ -7,50 +7,61 @@
           <img src="assets/png/logo.png" style="max-width: 240px;" />
         </div>
 
-        <ion-card>
+        <ion-card color="dark">
           <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
-            <ion-card-title>{{ stateService.recoveryDrive && stateService.polling ? 'Recovery Progress: ' + (100 * stateService.dataProgress) + '%' : 'Select Recovery Drive'}}</ion-card-title>
+            <ion-card-title>{{ loading ? 'Loading Recovery Drives' : 'Select Recovery Drive'}}</ion-card-title>
           </ion-card-header>
 
+
           <ion-card-content class="ion-margin">
-            <div *ngIf="!loading && recoveryDrives && !recoveryDrives.length">
+            <ng-container *ngIf="!loading && !recoveryDrives.length">
               <h2 color="light">No recovery drives found</h2>
               <p color="light">Please connect a recovery drive to your embassy and refresh the page.</p>
-            </div>
-            <div *ngIf="!stateService.polling && recoveryDrives?.length">
-              <div>
-                <ion-card 
-                  class="wiz-card"
-                  *ngFor="let drive of recoveryDrives"
-                  (click)="selectDrive(drive)"
-                  button="true"
-                  [class.selected]="selectedDrive?.logicalname === drive.logicalname"
-                  color="light"
-                >
-                  <ion-card-header>
-                    <ion-card-title>{{drive.logicalname}}</ion-card-title>
-                    <ion-card-subtitle>{{drive.name}}</ion-card-subtitle>
-                  </ion-card-header>
-            
-                  <ion-card-content>
-                    Currently running {{drive.version}}
-                  </ion-card-content>
-                </ion-card>
-                <div style="width: 100%; text-align: center;;">
-                  <ion-button 
-                  (click)="presentPasswordModal()"
-                  [disabled]="!selectedDrive"
-                  style="text-align:center"
-                  size="large"
+              <ion-button 
+                (click)="window.location.reload()"
+                style="text-align:center"
+                class="claim-button"
+              >
+                Refresh
+              </ion-button>
+            </ng-container>
+
+            <ion-item-group>
+              <ng-container *ngIf="loading">
+                <ion-item button color="light" lines="none">
+                  <ion-avatar slot="start">
+                    <ion-skeleton-text animated></ion-skeleton-text>
+                  </ion-avatar>
+                  <ion-label class="ion-text-wrap">
+                    <ion-skeleton-text style="width: 80%; margin: 13px 0;" animated></ion-skeleton-text>
+                    <ion-skeleton-text style="width: 60%; margin: 10px 0;" animated></ion-skeleton-text>
+                    <ion-skeleton-text style="width: 30%; margin: 8px 0;" animated></ion-skeleton-text>
+                  </ion-label>
+                </ion-item>
+              </ng-container>
+              <ng-container *ngIf="recoveryDrives.length">
+                <ion-item (click)="chooseDrive(drive)" class="ion-margin-bottom" button color="light" lines="none" *ngFor="let drive of recoveryDrives" [ngClass]="drive.logicalname === selectedDrive?.logicalname ? 'selected' : null">
+                  <ion-icon slot="start" name="save-outline"></ion-icon>
+                  <ion-label class="ion-text-wrap">
+                    <h1>{{ drive.logicalname }}</h1>
+                    <h2>{{ drive.name }}</h2>
+                    <p> Embassy version: {{drive.version}}</p>
+                  </ion-label>
+                  <ion-icon *ngIf="drive.version.startsWith('0.2') || passwords[drive.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
+                  <ion-icon *ngIf="!drive.version.startsWith('0.2') && !passwords[drive.logicalname]" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
+
+                </ion-item>
+              </ng-container>
+              <ion-button 
+                  (click)="selectRecoveryDrive()"
+                  [disabled]="!selectedDrive || (!passwords[selectedDrive.logicalname] && !selectedDrive.version.startsWith('0.2'))"
                   class="claim-button"
-                  >
-                    Next
-                  </ion-button>
-                </div>
-              </div>
-              
-            </div>
-            <div *ngIf="stateService.polling" style="width: 100%; text-align: center;">
+                >
+                  Next
+                </ion-button>
+            </ion-item-group>
+
+            <!-- <div *ngIf="stateService.polling" style="width: 100%; text-align: center;">
               <ion-progress-bar color="primary" style="max-width: 700px; margin: auto; padding-bottom: 20px; margin-bottom: 40px;" value="{{stateService.dataProgress}}"></ion-progress-bar>
               <ion-button 
                 (click)="navToEmbassy()"
@@ -60,35 +71,9 @@
               >
                 Go To Embassy
               </ion-button>
-            </div>
+            </div> -->
           </ion-card-content>
-
-          <ion-card-header class="card-footer">
-            <ion-item lines="none">
-              <ion-label class="ion-text-wrap">
-                <p *ngIf="!stateService.recoveryDrive">
-                  Choose drive recover Embassy data from.
-                </p>
-                <p *ngIf="stateService.recoveryDrive && stateService.polling">
-                  Recovering old Embassy data.
-                </p>
-              </ion-label>
-            </ion-item>
-          </ion-card-header>
         </ion-card>
-
-        <div class="divider"></div>
-
-        <div class="footer">
-          <p style="margin-bottom: 30px;">Contact/Community</p>
-          <ion-icon name="logo-youtube"></ion-icon>
-          <ion-icon name="paper-plane"></ion-icon>
-          <ion-icon name="mail"></ion-icon>
-          <ion-icon name="logo-github"></ion-icon>
-          <ion-icon name="logo-twitter"></ion-icon>
-          <ion-icon name="logo-mastodon"></ion-icon>
-          <ion-icon name="logo-medium"></ion-icon>
-        </div>
       </ion-col>
     </ion-row>
   </ion-grid>

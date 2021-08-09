@@ -3,18 +3,13 @@ import { Subject } from 'rxjs'
 export abstract class ApiService {
   protected error$: Subject<string> = new Subject();
   watchError$ = this.error$.asObservable();
-  abstract getState (): Promise<State>;
-  abstract getDataDrives (): Promise<DataDrive[]>;
-  abstract selectDataDrive (logicalName: string): Promise<void>;
+  abstract getEmbassyDrives (): Promise<EmbassyDrive[]>;
+  abstract selectEmbassyDrive (logicalName: string): Promise<void>;
   abstract getRecoveryDrives (): Promise<RecoveryDrive[]>;
   abstract selectRecoveryDrive (logicalName: string, password: string): Promise<void>;
   abstract getDataTransferProgress (): Promise<TransferProgress>;
   abstract submitPassword (password: string): Promise<void>;
-}
-
-export interface State {
-  'data-drive': DataDrive | null;
-  'recovery-drive': RecoveryDrive | null;
+  abstract verifyRecoveryPassword (logicalname: string, password: string): Promise<boolean>;
 }
 
 export interface TransferProgress {
@@ -22,7 +17,7 @@ export interface TransferProgress {
   'total-bytes': number;
 }
 
-export interface DataDrive {
+export interface EmbassyDrive {
   logicalname: string;
   labels: string[];
   capacity: number;

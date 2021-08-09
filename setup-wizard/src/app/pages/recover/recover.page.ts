@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { AlertController, ModalController, LoadingController } from '@ionic/angular'
+import { ModalController, NavController } from '@ionic/angular'
 import { ApiService, RecoveryDrive } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
@@ -10,86 +10,58 @@ import { PasswordPage } from '../password/password.page'
   styleUrls: ['recover.page.scss'],
 })
 export class RecoverPage {
+  passwords = {}
   recoveryDrives = []
   selectedDrive: RecoveryDrive = null
   loading = true
 
   constructor(
     private readonly apiService: ApiService,
-    private readonly stateService: StateService,
-    public alertController: AlertController,
+    private readonly navCtrl: NavController,
     private modalController: ModalController,
-    private readonly loadingCtrl: LoadingController,
+    private stateService: StateService
   ) {}
 
   async ngOnInit() {
-    if(!this.stateService.recoveryDrive) {
-      const loader = await this.loadingCtrl.create({
-        message: 'Fetching recovery drives'
-      })
-      await loader.present()
-      this.recoveryDrives = await this.apiService.getRecoveryDrives()
-
-      loader.dismiss()  
-      this.loading = false
-    } else {
-      this.loading = false
-      this.stateService.pollDataTransferProgress()
-    }
+    this.recoveryDrives = await this.apiService.getRecoveryDrives()
+    this.loading = false
   }
 
-  selectDrive(drive: RecoveryDrive) {
-    if (drive.logicalname === this.selectedDrive?.logicalname) {
+  async chooseDrive(drive: RecoveryDrive) {
+
+    if (this.selectedDrive?.logicalname === drive.logicalname) {
       this.selectedDrive = null
+      return
     } else {
       this.selectedDrive = drive
     }
-  }
 
-  async chooseDrive() {
-    this.presentPasswordModal()
-  }
+    if (drive.version.startsWith('0.2') || this.passwords[drive.logicalname]) return
 
-  async presentPasswordModal() {
     const modal = await this.modalController.create({
       component: PasswordPage,
-      backdropDismiss: false,
-      cssClass: 'pw-modal',
       componentProps: {
         recoveryDrive: this.selectedDrive,
+        verify: true
       }
     })
-    modal.onDidDismiss().then(ret => {
-      if(ret.data) {
-        const pass = ret.data.password
-        if(pass) {
-          this.submitPWAndDrive(pass)
-        }
+    modal.onDidDismiss().then(async ret => {
+      if (!ret.data) {
+        this.selectedDrive = null
+      } else if(ret.data.password) {
+        this.passwords[drive.logicalname] = ret.data.password
       }
+      
     })
     await modal.present();
   }
 
-  async submitPWAndDrive(pw: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Validating password'
-    })
-    await loader.present()
-
-    try {
-      this.stateService.recoveryDrive = this.selectedDrive
-      await this.apiService.selectRecoveryDrive(this.selectedDrive.logicalname, pw)
-      this.stateService.pollDataTransferProgress()
-    } catch (e) {
-    } finally {
-      loader.dismiss()
-    }
-
-
+  async selectRecoveryDrive() {
+    this.stateService.recoveryDrive = this.selectedDrive
+    const pw = this.passwords[this.selectedDrive.logicalname]
+    if(pw) {
+      this.stateService.recoveryPassword = pw
+    } 
+    await this.navCtrl.navigateForward(`/embassy`, { animationDirection: 'forward' })
   }
-
-  async navToEmbassy() {
-    location.reload()
-  }
-
 }
