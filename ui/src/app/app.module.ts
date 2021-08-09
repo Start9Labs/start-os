@@ -13,16 +13,13 @@ import { PatchDbServiceFactory } from './services/patch-db/patch-db.factory'
 import { HttpService } from './services/http.service'
 import { ConfigService } from './services/config.service'
 import { QRCodeModule } from 'angularx-qrcode'
-import { appConfigComponents } from './modals/app-config-injectable'
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
 import { MarkdownPageModule } from './modals/markdown/markdown.module'
 import { PatchDbService } from './services/patch-db/patch-db.service'
 import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstrap'
 import { SharingModule } from './modules/sharing.module'
 import { MarketplaceApiService } from './services/api/marketplace/marketplace-api.service'
-import { APP_CONFIG_COMPONENT_MAPPING } from './services/sub-nav.service'
 import { FormBuilder } from '@angular/forms'
-import { FormService } from './services/form.service'
 
 @NgModule({
   declarations: [AppComponent],
@@ -51,7 +48,6 @@ import { FormService } from './services/form.service'
     { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },    { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },
     { provide: MarketplaceApiService , useFactory: MarketplaceApiServiceFactory, deps: [ConfigService, HttpService, PatchDbService] },
     { provide: PatchDbService, useFactory: PatchDbServiceFactory, deps: [ConfigService, LocalStorageBootstrap, ApiService] },
-    { provide: APP_CONFIG_COMPONENT_MAPPING, useValue: appConfigComponents },
   ],
   bootstrap: [AppComponent],
   schemas: [ CUSTOM_ELEMENTS_SCHEMA ],

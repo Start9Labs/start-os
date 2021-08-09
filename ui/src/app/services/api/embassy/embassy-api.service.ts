@@ -2,6 +2,7 @@ import { Subject, Observable } from 'rxjs'
 import { Http, Update, Operation, Revision, Source, Store } from 'patch-db-client'
 import { RR } from '../api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { RequestError, RPCError } from '../../http.service'
 
 export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   protected readonly sync = new Subject<Update<DataModel>>()
@@ -189,10 +190,15 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
       //   this.sync.next({ patch: [temp], expiredBy: expireId })
       // }
 
-      return f(a).then(({ response, revision }) => {
-        if (revision) this.sync.next(revision)
-        return response
-      }) as any
+      return f(a)
+        .catch((e: RequestError) => {
+          if (e.revision) this.sync.next(e.revision)
+          throw e
+        })
+        .then(({ response, revision }) => {
+          if (revision) this.sync.next(revision)
+          return response
+        })
     }
   }
 }
