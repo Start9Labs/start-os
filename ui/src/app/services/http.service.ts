@@ -29,7 +29,7 @@ export class HttpService {
     rpcOpts.params = rpcOpts.params || { }
     const httpOpts = {
       method: Method.POST,
-      data: rpcOpts,
+      body: rpcOpts,
       url: `/${url}/${version}`,
     }
 
@@ -44,28 +44,11 @@ export class HttpService {
   }
 
   async httpRequest<T> (httpOpts: HttpOptions): Promise<T> {
-    let { body, timeout, url, ...rest} = this.translateOptions(httpOpts)
-    let req: Observable<{ body: T }>
-    switch (httpOpts.method){
-      case Method.GET:    req = this.http.get(url, rest) as any;          break
-      case Method.POST:   req = this.http.post(url, body, rest) as any;   break
-      case Method.PUT:    req = this.http.put(url, body, rest) as any;    break
-      case Method.PATCH:  req = this.http.patch(url, body, rest) as any;  break
-      case Method.DELETE: req = this.http.delete(url, rest) as any;       break
-    }
-
-    return (timeout ? withTimeout(req, timeout) : req)
-      .toPromise()
-      .then(res => res.body)
-      .catch(e => { throw new HttpError(e) })
-  }
-
-  private translateOptions (httpOpts: HttpOptions): HttpJsonOptions {
     if (httpOpts.withCredentials !== false) {
       httpOpts.withCredentials = this.config.mocks.enabled ? false : true
     }
 
-    const urlIsRelative = !httpOpts.url || httpOpts.url.startsWith('/')
+    const urlIsRelative = httpOpts.url.startsWith('/')
     const url = urlIsRelative ?
       this.fullUrl + httpOpts.url :
       httpOpts.url
@@ -76,17 +59,30 @@ export class HttpService {
       }
     })
 
-    return {
+    const options = {
+      responseType: httpOpts.responseType || 'json',
+      body: httpOpts.body,
       observe: 'events',
-      responseType: 'json',
       reportProgress: false,
       withCredentials: httpOpts.withCredentials,
       headers: httpOpts.headers,
       params: httpOpts.params,
-      body: httpOpts.data || { },
-      url,
-      timeout: httpOpts.readTimeout,
+      timeout: httpOpts.timeout,
+    } as any
+
+    let req: Observable<{ body: T }>
+    switch (httpOpts.method) {
+      case Method.GET:    req = this.http.get(url, options) as any; break
+      case Method.POST:   req = this.http.post(url, httpOpts.body, options) as any; break
+      case Method.PUT:    req = this.http.put(url, httpOpts.body, options) as any; break
+      case Method.PATCH:  req = this.http.patch(url, httpOpts.body, options) as any; break
+      case Method.DELETE: req = this.http.delete(url, options) as any; break
     }
+
+    return (httpOpts.timeout ? withTimeout(req, httpOpts.timeout) : req)
+      .toPromise()
+      .then(res => res.body)
+      .catch(e => { throw new HttpError(e) })
   }
 }
 
@@ -175,33 +171,18 @@ export type RPCResponse<T> = RPCSuccess<T> | RPCError
 type HttpError = HttpErrorResponse & { error: { code: string, message: string } }
 
 export interface HttpOptions {
-  withCredentials?: boolean
   method: Method
-  params?: {
+  url: string
+  headers?: HttpHeaders | {
+    [header: string]: string | string[]
+  }
+  params?: HttpParams | {
     [param: string]: string | string[]
   }
-  data?: any
-  headers?: {
-    [key: string]: string;
-  }
-  url: string
-  readTimeout?: number
-}
-
-export interface HttpJsonOptions {
-  headers?: HttpHeaders | {
-      [header: string]: string | string[]
-  }
-  observe: 'events'
-  params?: HttpParams | {
-      [param: string]: string | string[]
-  }
-  reportProgress?: boolean
-  responseType?: 'json'
+  responseType?: 'json' | 'text'
   withCredentials?: boolean
   body?: any
-  url: string
-  timeout: number
+  timeout?: number
 }
 
 function withTimeout<U> (req: Observable<U>, timeout: number): Observable<U> {
