@@ -53,4 +53,8 @@ export class EnumListPage {
   async toggleSelected (key: string) {
     this.options[key] = !this.options[key]
   }
+
+  asIsOrder () {
+    return 0
+  }
 }
