@@ -1,7 +1,8 @@
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, ResultExt};
 use divrem::DivRem;
 use proptest_derive::Arbitrary;
 use std::{cmp::Ordering, path::Path, time::Duration};
+use tokio::sync::{Mutex, MutexGuard};
 
 lazy_static::lazy_static! {
     static ref SEMITONE_K: f64 = 2f64.powf(1f64 / 12f64);
@@ -12,32 +13,49 @@ lazy_static::lazy_static! {
     static ref PERIOD_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/period");
     static ref DUTY_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/duty_cycle");
     static ref SWITCH_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/enable");
+    static ref SOUND_MUTEX: Mutex<Option<fd_lock_rs::FdLock<tokio::fs::File>>> = Mutex::new(None);
 }
 
-#[derive(Debug)]
-struct SoundInterface();
+pub const SOUND_LOCK_FILE: &'static str = "/TODO/AIDEN/CHANGEME";
+
+struct SoundInterface(Option<MutexGuard<'static, Option<fd_lock_rs::FdLock<tokio::fs::File>>>>);
 impl SoundInterface {
-    pub fn lease() -> Result<Self, Error> {
-        // TODO: Lock the sound interface
-        // TODO: possibly asyncify this?
-        std::fs::write(&*EXPORT_FILE, "0").map_err(|e| Error {
-            source: e.into(),
-            kind: ErrorKind::SoundError,
-            revision: None,
-        })?;
-        Ok(SoundInterface())
+    pub async fn lease() -> Result<Self, Error> {
+        tokio::fs::write(&*EXPORT_FILE, "0")
+            .await
+            .map_err(|e| Error {
+                source: e.into(),
+                kind: ErrorKind::SoundError,
+                revision: None,
+            })?;
+        let mut guard = SOUND_MUTEX.lock().await;
+        let sound_file = tokio::fs::File::create(SOUND_LOCK_FILE).await?;
+        *guard = Some(
+            tokio::task::spawn_blocking(move || {
+                fd_lock_rs::FdLock::lock(sound_file, fd_lock_rs::LockType::Exclusive, true)
+            })
+            .await
+            .map_err(|e| {
+                Error::new(
+                    anyhow::anyhow!("Sound file lock panicked: {}", e),
+                    ErrorKind::SoundError,
+                )
+            })?
+            .with_kind(ErrorKind::SoundError)?,
+        );
+        Ok(SoundInterface(Some(guard)))
     }
-    pub fn play(&mut self, note: &Note) -> Result<(), Error> {
+    pub async fn play(&mut self, note: &Note) -> Result<(), Error> {
         {
-            let curr_period = std::fs::read_to_string(&*PERIOD_FILE)?;
+            let curr_period = tokio::fs::read_to_string(&*PERIOD_FILE).await?;
             if curr_period == "0\n" {
-                std::fs::write(&*PERIOD_FILE, "1000")?;
+                tokio::fs::write(&*PERIOD_FILE, "1000").await?;
             }
             let new_period = ((1.0 / note.frequency()) * 1_000_000_000.0).round() as u64;
-            std::fs::write(&*DUTY_FILE, "0")?;
-            std::fs::write(&*PERIOD_FILE, format!("{}", new_period))?;
-            std::fs::write(&*DUTY_FILE, format!("{}", new_period / 2))?;
-            std::fs::write(&*SWITCH_FILE, "1")
+            tokio::fs::write(&*DUTY_FILE, "0").await?;
+            tokio::fs::write(&*PERIOD_FILE, format!("{}", new_period)).await?;
+            tokio::fs::write(&*DUTY_FILE, format!("{}", new_period / 2)).await?;
+            tokio::fs::write(&*SWITCH_FILE, "1").await
         }
         .map_err(|e| Error {
             source: e.into(),
@@ -45,17 +63,17 @@ impl SoundInterface {
             revision: None,
         })
     }
-    pub fn play_for_time_slice(
+    pub async fn play_for_time_slice(
         &mut self,
         tempo_qpm: u16,
         note: &Note,
         time_slice: &TimeSlice,
     ) -> Result<(), Error> {
         {
-            self.play(note)?;
+            self.play(note).await?;
             std::thread::sleep(time_slice.to_duration((tempo_qpm as u64 * 19 / 20) as u16));
-            self.stop()?;
-            std::thread::sleep(time_slice.to_duration(tempo_qpm / 20));
+            self.stop().await?;
+            tokio::time::sleep(time_slice.to_duration(tempo_qpm / 20)).await;
             Ok(())
         }
         .or_else(|e: Error| {
@@ -64,12 +82,14 @@ impl SoundInterface {
             Err(e)
         })
     }
-    pub fn stop(&mut self) -> Result<(), Error> {
-        std::fs::write(&*SWITCH_FILE, "0").map_err(|e| Error {
-            source: e.into(),
-            kind: ErrorKind::SoundError,
-            revision: None,
-        })
+    pub async fn stop(&mut self) -> Result<(), Error> {
+        tokio::fs::write(&*SWITCH_FILE, "0")
+            .await
+            .map_err(|e| Error {
+                source: e.into(),
+                kind: ErrorKind::SoundError,
+                revision: None,
+            })
     }
 }
 
@@ -81,12 +101,12 @@ impl<'a, T: 'a> Song<T>
 where
     &'a T: IntoIterator<Item = &'a (Option<Note>, TimeSlice)>,
 {
-    pub fn play(&'a self) -> Result<(), Error> {
-        let mut sound = SoundInterface::lease()?;
+    pub async fn play(&'a self) -> Result<(), Error> {
+        let mut sound = SoundInterface::lease().await?;
         for (note, slice) in &self.note_sequence {
             match note {
                 None => std::thread::sleep(slice.to_duration(self.tempo_qpm)),
-                Some(n) => sound.play_for_time_slice(self.tempo_qpm, n, slice)?,
+                Some(n) => sound.play_for_time_slice(self.tempo_qpm, n, slice).await?,
             };
         }
         Ok(())
@@ -95,7 +115,22 @@ where
 
 impl Drop for SoundInterface {
     fn drop(&mut self) {
-        std::fs::write(&*UNEXPORT_FILE, "0").unwrap()
+        let guard = self.0.take();
+        tokio::spawn(async move {
+            if let Err(e) = tokio::fs::write(&*UNEXPORT_FILE, "0").await {
+                log::error!("Failed to Unexport Sound Interface: {}", e)
+            }
+            if let Some(mut guard) = guard {
+                if let Some(lock) = guard.take() {
+                    if let Err(e) = tokio::task::spawn_blocking(|| lock.unlock(true))
+                        .await
+                        .unwrap()
+                    {
+                        log::error!("Failed to drop Sound Interface File Lock: {}", e.1)
+                    }
+                }
+            }
+        });
     }
 }
 

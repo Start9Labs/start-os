@@ -795,6 +795,7 @@ dependencies = [
  "divrem",
  "ed25519-dalek",
  "emver",
+ "fd-lock-rs",
  "futures",
  "git-version",
  "http",
