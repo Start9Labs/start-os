@@ -16,9 +16,8 @@ export class HttpService {
     private readonly http: HttpClient,
     private readonly config: ConfigService,
   ) {
-    const { url, version } = this.config.api
     const port = config.mocks.enabled ? this.config.mocks.rpcPort : window.location.port
-    this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}/${url}/${version}`
+    this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}`
   }
 
   watchUnauth$ (): Observable<{ }> {
@@ -26,11 +25,12 @@ export class HttpService {
   }
 
   async rpcRequest<T> (rpcOpts: RPCOptions): Promise<T> {
+    const { url, version } = this.config.api
     rpcOpts.params = rpcOpts.params || { }
     const httpOpts = {
       method: Method.POST,
       data: rpcOpts,
-      url: '',
+      url: `/${url}/${version}`,
     }
 
     const res = await this.httpRequest<RPCResponse<T>>(httpOpts)
@@ -91,21 +91,27 @@ export class HttpService {
 }
 
 function RpcError (e: RPCError['error']): void {
-  const { code, message } = e
-  this.status = code
+  const { code, message, data } = e
+
+  this.code = code
   this.message = message
-  if (typeof e.data === 'string') {
-    throw new Error(`unexpected response for RPC Error data: ${e.data}`)
+
+  if (typeof data === 'string') {
+    this.details = e.data
+    this.revision = null
+  } else {
+    this.details = data.details
+    this.revision = data.revision
   }
-  const data = e.data || { message: 'unknown RPC error', revision: null }
-  this.data = { ...data, code }
 }
 
 function HttpError (e: HttpErrorResponse): void {
-  const { status, statusText, error } = e
-  this.status = status
+  const { status, statusText } = e
+
+  this.code = status
   this.message = statusText
-  this.data = error || { } // error = { code: string, message: string }
+  this.details = null
+  this.revision = null
 }
 
 function isRpcError<Error, Result> (arg: { error: Error } | { result: Result}): arg is { error: Error } {
@@ -117,9 +123,10 @@ function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result})
 }
 
 export interface RequestError {
-  status: number
+  code: number
   message: string
-  data: { code: string, message: string, revision: Revision | null }
+  details: string
+  revision: Revision | null
 }
 
 export enum Method {
@@ -157,7 +164,7 @@ export interface RPCError extends RPCBase {
     code: number,
     message: string
     data?: {
-      message: string
+      details: string
       revision: Revision | null
     } | string
   }

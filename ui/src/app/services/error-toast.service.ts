@@ -19,9 +19,9 @@ export class ErrorToastService {
 
     let message: string | IonicSafeString
 
-    if (e.status) message = String(e.status)
+    if (e.code) message = String(e.code)
     if (e.message) message = `${message ? message + ' ' : ''}${e.message}`
-    if (e.data) message = `${message ? message + '. ' : ''}${e.data.code}: ${e.data.message}`
+    if (e.details) message = `${message ? message + ': ' : ''}${e.details}`
 
     if (!message) {
       message = 'Unknown Error.'
