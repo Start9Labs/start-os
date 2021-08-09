@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { AlertController, getPlatforms, LoadingController } from '@ionic/angular'
+import { AlertController, LoadingController } from '@ionic/angular'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
 import { PlatformType, RR } from 'src/app/services/api/api.types'
@@ -21,9 +21,13 @@ export class SessionsPage {
   ) { }
 
   async ngOnInit () {
-    getPlatforms()
-    this.sessionInfo = await this.embassyApi.getSessions({ })
-    this.loading = false
+    try {
+      this.sessionInfo = await this.embassyApi.getSessions({ })
+    } catch (e) {
+      this.errToast.present(e.message)
+    } finally {
+      this.loading = false
+    }
   }
 
   async presentAlertKill (hash: string) {
