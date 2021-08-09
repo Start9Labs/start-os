@@ -1,12 +1,7 @@
 <ion-app>
-  <ion-header>
-    <ion-toolbar color="primary">
-      <ion-title>
-        Embassy Setup Wizard
-      </ion-title>
-    </ion-toolbar>
-  </ion-header>
-  <ion-content *ngIf="!stateService.loading" class="has-header">
-    <ion-router-outlet></ion-router-outlet>
-  </ion-content>
+  <body>
+    <ion-content *ngIf="!stateService.loading" class="has-header">
+      <ion-router-outlet></ion-router-outlet>
+    </ion-content>
+  </body>
 </ion-app>

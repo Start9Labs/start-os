@@ -10,8 +10,9 @@ import { PasswordPage } from '../password/password.page'
   styleUrls: ['home.page.scss'],
 })
 export class HomePage {
-  dataDrives = null
+  dataDrives = []
   selectedDrive: DataDrive = null
+  console = console
 
   constructor(
     private readonly apiService: ApiService,
@@ -22,9 +23,6 @@ export class HomePage {
   ) {}
 
   async ngOnInit() {
-    const loader = await this.loadingCtrl.create({
-      message: 'Selecting data drive'
-    })
     if(!this.stateService.dataDrive) {
       const loader = await this.loadingCtrl.create({
         message: 'Fetching data drives'
@@ -47,7 +45,7 @@ export class HomePage {
     const alert = await this.alertController.create({
       cssClass: 'my-custom-class',
       header: 'Warning!',
-      message: 'This drive will be entirely wiped of all memory.',
+      message: 'This drive will be entirely wiped of all existing memory.',
       backdropDismiss: false,
       buttons: [
         {
@@ -91,9 +89,11 @@ export class HomePage {
       cssClass: 'pw-modal',
     })
     modal.onDidDismiss().then(ret => {
-      const pass = ret.data.password
-      if (pass) {
-        this.submitPassword(pass)
+      if(ret.data) {
+        const pass = ret.data.password
+        if (pass) {
+          this.submitPassword(pass)
+        }
       }
     })
     await modal.present();
@@ -107,6 +107,7 @@ export class HomePage {
 
     try {
       await this.apiService.submitPassword(pw)
+      console.log('reloading')
       location.reload()
     } catch (e) {
     } finally {
