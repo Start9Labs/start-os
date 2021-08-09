@@ -80,6 +80,8 @@ export interface InstalledPackageDataEntry {
 export interface CurrentDependencyInfo {
   pointers: any[]
   'health-checks': string[] // array of health check IDs
+  title: string
+  icon: URL
 }
 
 export enum PackageState {
@@ -311,8 +313,6 @@ export enum DependencyErrorType {
 
 export interface DependencyErrorNotInstalled {
   type: DependencyErrorType.NotInstalled
-  title: string
-  icon: URL
 }
 
 export interface DependencyErrorNotRunning {
