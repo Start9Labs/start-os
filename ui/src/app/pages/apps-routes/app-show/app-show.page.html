@@ -76,10 +76,10 @@
           <!-- A current-dependency is a subset of the pkg.manifest.dependencies that is currently required as determined by the service config. -->
           <ion-item *ngFor="let dep of pkg.installed['current-dependencies'] | keyvalue">
             <ion-thumbnail slot="start">
-              <img [src]="dep.icon" />
+              <img [src]="pkg.installed['dependency-info'][dep.key].icon" />
             </ion-thumbnail>
             <ion-label class="ion-text-wrap">
-              <h2 style="font-family: 'Montserrat'">{{ dep.title }}</h2>
+              <h2 style="font-family: 'Montserrat'">{{ pkg.installed['dependency-info'][dep.key].title }}</h2>
               <p>{{ pkg.manifest.dependencies[dep.key].version | displayEmver }}</p>
               <p><ion-text [color]="pkg.installed.status['dependency-errors'][dep.key] ? 'warning' : 'success'">{{ pkg.installed.status['dependency-errors'][dep.key] ? pkg.installed.status['dependency-errors'][dep.key].type : 'satisfied' }}</ion-text></p>
             </ion-label>

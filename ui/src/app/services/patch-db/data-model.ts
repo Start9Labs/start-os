@@ -72,6 +72,12 @@ export interface InstalledPackageDataEntry {
   'system-pointers': any[]
   'current-dependents': { [id: string]: CurrentDependencyInfo }
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
+  'dependency-info': {
+    [id: string]: {
+      title: string
+      icon: URL
+    }
+  }
   'interface-addresses': {
     [id: string]: { 'tor-address': string, 'lan-address': string }
   }
@@ -80,8 +86,6 @@ export interface InstalledPackageDataEntry {
 export interface CurrentDependencyInfo {
   pointers: any[]
   'health-checks': string[] // array of health check IDs
-  title: string
-  icon: URL
 }
 
 export enum PackageState {

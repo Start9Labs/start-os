@@ -619,6 +619,16 @@ export module Mock {
           'health-checks': [],
         },
       },
+      'dependency-info': {
+        'lnd': {
+          title: Mock.MockManifestLnd.title,
+          icon: 'assets/img/service-icons/lnd.png',
+        },
+        'bitcoind': {
+          title: Mock.MockManifestBitcoind.title,
+          icon: 'assets/img/service-icons/bitcoind.png',
+        },
+      },
     },
     'install-progress': undefined,
   }
@@ -1451,8 +1461,6 @@ export module Mock {
         'dependency-errors': {
           'bitcoin-proxy': {
             type: DependencyErrorType.NotInstalled,
-            title: Mock.MockManifestBitcoinProxy.title,
-            icon: 'assets/img/service-icons/bitcoin-proxy.png',
           },
         },
       },
@@ -1477,6 +1485,16 @@ export module Mock {
         'bitcoin-proxy': {
           pointers: [],
           'health-checks': [],
+        },
+      },
+      'dependency-info': {
+        'bitcoind': {
+          title: Mock.MockManifestBitcoind.title,
+          icon: 'assets/img/service-icons/bitcoind.png',
+        },
+        'bitcoin-proxy': {
+          title: Mock.MockManifestBitcoinProxy.title,
+          icon: 'assets/img/service-icons/bitcoin-proxy.png',
         },
       },
     },

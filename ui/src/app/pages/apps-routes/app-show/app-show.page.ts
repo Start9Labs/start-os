@@ -164,6 +164,7 @@ export class AppShowPage {
   }
 
   private async installDep (depId: string): Promise<void> {
+    const title = this.pkg.installed['dependency-info'][depId].title
     const version = this.pkg.manifest.dependencies[depId].version
     const dependentTitle = this.pkg.manifest.title
 
@@ -172,7 +173,7 @@ export class AppShowPage {
       dependentTitle,
       dependentIcon: this.pkg['static-files'].icon,
       version,
-      description: `${dependentTitle} requires an install of ${(this.pkg.installed.status['dependency-errors'][depId] as DependencyErrorNotInstalled)?.title} satisfying ${version}.`,
+      description: `${dependentTitle} requires an install of ${title} satisfying ${version}.`,
     }
     const navigationExtras: NavigationExtras = {
       state: { installRec },
