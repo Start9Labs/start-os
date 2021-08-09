@@ -22,9 +22,9 @@ export interface ServerInfo {
   wifi: WiFiInfo
   'unread-notification-count': number
   specs: {
-    cpu: Usage
-    disk: Usage
-    memory: Usage
+    cpu: string
+    disk: string
+    memory: string
   }
   'connection-addresses': {
     tor: string[]
@@ -42,11 +42,6 @@ export interface WiFiInfo {
   ssids: string[]
   selected: string | null
   connected: string | null
-}
-
-export interface Usage {
-  used: number
-  total: number
 }
 
 export interface PackageDataEntry {
