@@ -25,19 +25,48 @@
 @import "~@ionic/angular/css/text-transformation.css";
 @import "~@ionic/angular/css/flex-utils.css";
 
-.cancel-button {
-  color: #FF4961 !important;
+
+.alert-error .alert-title {
+  color: var(--ion-color-danger) !important;
 }
 
-.okay-button {
-  color: #00AACC !important;
+.loader {
+  --spinner-color: var(--ion-color-light) !important;
 }
 
-.wiz-card {
-  max-width: 800px; margin: auto; margin-bottom: 10px;
+ion-avatar {
+  width: 27px;
+  height: 27px;
 }
 
-.pw-modal .modal-wrapper{
-  width: 400px;
-  height: 300px;
+ion-action-sheet {
+  --backdrop-opacity: 0.75 !important;
+}
+
+ion-alert {
+  --backdrop-opacity: 0.75 !important;
+}
+
+ion-loading {
+  --backdrop-opacity: 0.75 !important;
+}
+
+ion-item {
+  --highlight-color-valid: transparent;
+  --highlight-color-invalid: transparent;
+  --highlight-color-focused: var(--ion-color-light);
+}
+
+.divider {
+  margin: 50px 0;
+  height: 2px;
+  background: linear-gradient(90deg,rgba(255,255,255,0) 0,rgba(255, 255, 255, 0.31) 50%,rgba(255,255,255,0) 100%);
+}
+
+.footer {
+  margin-bottom: 24px;
+  ion-icon {
+    font-size: 28px;
+    margin-right: 10px;
+  }
 }

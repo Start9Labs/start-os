@@ -15,13 +15,13 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       'data-drive': 
-      null,
-      // {
-      //   logicalname: 'name1',
-      //   labels: ['label 1', 'label 2'],
-      //   capacity: 1600,
-      //   used: 200,
-      // },
+      // null,
+      {
+        logicalname: 'name1',
+        labels: ['label 1', 'label 2'],
+        capacity: 1600,
+        used: 200,
+      },
       'recovery-drive': 
       null,
       // {
@@ -44,13 +44,13 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return [
       {
-        logicalname: 'name1',
+        logicalname: 'Name1',
         labels: ['label 1', 'label 2'],
         capacity: 1600,
         used: 200,
       },
       {
-        logicalname: 'name2',
+        logicalname: 'Name2',
         labels: [],
         capacity: 1600,
         used: 0,

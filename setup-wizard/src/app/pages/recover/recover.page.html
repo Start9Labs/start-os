@@ -1,53 +1,95 @@
-<ion-content>
-  <div *ngIf="!stateService.polling && dataDrives?.length">
-    <div *ngIf="!dataDrives.length">
-      <h2 color="light">No recovery drives found</h2>
-      <p color="light">Please connect a recovery drive to your embassy and refresh the page.</p>
-    </div>
-    <div>
-      <h2 style="text-align: center;" color="secondary">Select Recovery Drive</h2>
-      <ion-card 
-        class="wiz-card"
-        *ngFor="let drive of dataDrives"
-        (click)="selectDrive(drive)"
-        button="true"
-        [class.selected]="selectedDrive?.logicalname === drive.logicalname"
-        color="light"
-      >
-        <ion-card-header>
-          <ion-card-title>{{drive.logicalname}}</ion-card-title>
-          <ion-card-subtitle>{{drive.name}}</ion-card-subtitle>
-        </ion-card-header>
-  
-        <ion-card-content>
-          Currently running {{drive.version}}
-        </ion-card-content>
-      </ion-card>
-      <div style="width: 100%; text-align: center;;">
-        <ion-button 
-        (click)="presentPasswordModal()"
-        color="primary"
-        [disabled]="!selectedDrive"
-        style="text-align:center"
-        size="large"
-        >
-          Next
-        </ion-button>
-      </div>
-    </div>
-    
-  </div>
-  <div *ngIf="stateService.polling" style="width: 100%; text-align: center;">
-    <h2 style="padding-bottom: 30px; padding-top: 70px;">Recovery Progress: {{ 100 * stateService.dataProgress }}% </h2>
-    <ion-progress-bar color="primary" style="max-width: 700px; margin: auto; padding-bottom: 20px; margin-bottom: 40px;" value="{{stateService.dataProgress}}"></ion-progress-bar>
-    <ion-button 
-      (click)="navToEmbassy()"
-      color="primary" 
-      [disabled]="stateService.dataProgress !== 1"
-      style="text-align:center"
-      size="large"
-    >
-      Go To Embassy
-    </ion-button>
-  </div>
+<ion-content color="light">
+  <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
+    <ion-row class="ion-align-items-center" style="height: 100%;">
+      <ion-col class="ion-text-center">
+
+        <div style="padding-bottom: 32px;">
+          <img src="assets/png/logo.png" style="max-width: 240px;" />
+        </div>
+
+        <ion-card>
+          <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
+            <ion-card-title>{{ stateService.recoveryDrive && stateService.polling ? 'Recovery Progress: ' + (100 * stateService.dataProgress) + '%' : 'Select Recovery Drive'}}</ion-card-title>
+          </ion-card-header>
+
+          <ion-card-content class="ion-margin">
+            <div *ngIf="!loading && recoveryDrives && !recoveryDrives.length">
+              <h2 color="light">No recovery drives found</h2>
+              <p color="light">Please connect a recovery drive to your embassy and refresh the page.</p>
+            </div>
+            <div *ngIf="!stateService.polling && recoveryDrives?.length">
+              <div>
+                <ion-card 
+                  class="wiz-card"
+                  *ngFor="let drive of recoveryDrives"
+                  (click)="selectDrive(drive)"
+                  button="true"
+                  [class.selected]="selectedDrive?.logicalname === drive.logicalname"
+                  color="light"
+                >
+                  <ion-card-header>
+                    <ion-card-title>{{drive.logicalname}}</ion-card-title>
+                    <ion-card-subtitle>{{drive.name}}</ion-card-subtitle>
+                  </ion-card-header>
+            
+                  <ion-card-content>
+                    Currently running {{drive.version}}
+                  </ion-card-content>
+                </ion-card>
+                <div style="width: 100%; text-align: center;;">
+                  <ion-button 
+                  (click)="presentPasswordModal()"
+                  [disabled]="!selectedDrive"
+                  style="text-align:center"
+                  size="large"
+                  class="claim-button"
+                  >
+                    Next
+                  </ion-button>
+                </div>
+              </div>
+              
+            </div>
+            <div *ngIf="stateService.polling" style="width: 100%; text-align: center;">
+              <ion-progress-bar color="primary" style="max-width: 700px; margin: auto; padding-bottom: 20px; margin-bottom: 40px;" value="{{stateService.dataProgress}}"></ion-progress-bar>
+              <ion-button 
+                (click)="navToEmbassy()"
+                [disabled]="stateService.dataProgress !== 1"
+                style="text-align:center"
+                class="claim-button"
+              >
+                Go To Embassy
+              </ion-button>
+            </div>
+          </ion-card-content>
+
+          <ion-card-header class="card-footer">
+            <ion-item lines="none">
+              <ion-label class="ion-text-wrap">
+                <p *ngIf="!stateService.recoveryDrive">
+                  Choose drive recover Embassy data from.
+                </p>
+                <p *ngIf="stateService.recoveryDrive && stateService.polling">
+                  Recovering old Embassy data.
+                </p>
+              </ion-label>
+            </ion-item>
+          </ion-card-header>
+        </ion-card>
+
+        <div class="divider"></div>
+
+        <div class="footer">
+          <p style="margin-bottom: 30px;">Contact/Community</p>
+          <ion-icon name="logo-youtube"></ion-icon>
+          <ion-icon name="paper-plane"></ion-icon>
+          <ion-icon name="mail"></ion-icon>
+          <ion-icon name="logo-github"></ion-icon>
+          <ion-icon name="logo-twitter"></ion-icon>
+          <ion-icon name="logo-mastodon"></ion-icon>
+          <ion-icon name="logo-medium"></ion-icon>
+        </div>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
 </ion-content>
