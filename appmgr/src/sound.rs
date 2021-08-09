@@ -1,8 +1,7 @@
-use std::{path::Path, time::Duration};
-
-use divrem::DivRem;
-
 use crate::{Error, ErrorKind};
+use divrem::DivRem;
+use proptest_derive::Arbitrary;
+use std::{cmp::Ordering, path::Path, time::Duration};
 
 lazy_static::lazy_static! {
     static ref SEMITONE_K: f64 = 2f64.powf(1f64 / 12f64);
@@ -25,7 +24,7 @@ impl SoundInterface {
             source: e.into(),
             kind: ErrorKind::SoundError,
             revision: None,
-        });
+        })?;
         Ok(SoundInterface())
     }
     pub fn play(&mut self, note: &Note) -> Result<(), Error> {
@@ -59,7 +58,11 @@ impl SoundInterface {
             std::thread::sleep(time_slice.to_duration(tempo_qpm / 20));
             Ok(())
         }
-        .or_else(|e: Error| self.stop())
+        .or_else(|e: Error| {
+            // we could catch this error and propagate but I'd much prefer the original error bubble up
+            let _mute = self.stop();
+            Err(e)
+        })
     }
     pub fn stop(&mut self) -> Result<(), Error> {
         std::fs::write(&*SWITCH_FILE, "0").map_err(|e| Error {
@@ -96,17 +99,31 @@ impl Drop for SoundInterface {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Arbitrary)]
 pub struct Note {
     semitone: Semitone,
-    octave: u8,
+    octave: i8,
 }
 impl Note {
     pub fn frequency(&self) -> f64 {
         SEMITONE_K.powf((self.semitone as isize) as f64) * (*C_0) * (2f64.powf(self.octave as f64))
     }
 }
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+impl PartialOrd for Note {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Note {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.octave == other.octave {
+            self.semitone.cmp(&other.semitone)
+        } else {
+            self.octave.cmp(&other.octave)
+        }
+    }
+}
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Arbitrary)]
 pub enum Semitone {
     C = 0,
     Db = 1,
@@ -149,6 +166,7 @@ impl Semitone {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Arbitrary)]
 pub struct Interval(isize);
 
 #[derive(Clone, Copy)]
@@ -191,16 +209,16 @@ pub fn interval(i: &Interval, note: &Note) -> Note {
             };
             Note {
                 semitone: new_semitone,
-                octave: new_octave as u8,
+                octave: new_octave as i8,
             }
         }
     }
 }
 
-pub static MINOR_THIRD: Interval = Interval(3);
-pub static MAJOR_THIRD: Interval = Interval(4);
-pub static FOURTH: Interval = Interval(5);
-pub static FIFTH: Interval = Interval(7);
+pub const MINOR_THIRD: Interval = Interval(3);
+pub const MAJOR_THIRD: Interval = Interval(4);
+pub const FOURTH: Interval = Interval(5);
+pub const FIFTH: Interval = Interval(7);
 
 fn iterate<T: Clone, F: Fn(&T) -> T>(f: F, init: &T) -> impl Iterator<Item = T> {
     let mut temp = init.clone();
@@ -220,13 +238,13 @@ pub fn circle_of_fourths(note: &Note) -> impl Iterator<Item = Note> {
     iterate(|n| interval(&FOURTH, n), note)
 }
 
-pub struct CircleOf {
+pub struct CircleOf<'a> {
     current: Note,
     duration: TimeSlice,
-    interval: Interval,
+    interval: &'a Interval,
 }
-impl CircleOf {
-    pub const fn new(interval: Interval, start: Note, duration: TimeSlice) -> Self {
+impl<'a> CircleOf<'a> {
+    pub const fn new(interval: &'a Interval, start: Note, duration: TimeSlice) -> Self {
         CircleOf {
             current: start,
             duration,
@@ -234,7 +252,7 @@ impl CircleOf {
         }
     }
 }
-impl Iterator for CircleOf {
+impl<'a> Iterator for CircleOf<'a> {
     type Item = (Option<Note>, TimeSlice);
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.current;
@@ -246,7 +264,7 @@ impl Iterator for CircleOf {
 macro_rules! song {
     ($tempo:expr, [$($note:expr;)*]) => {
         {
-            const fn note(semi: Semitone, octave: u8, duration: TimeSlice) -> (Option<Note>, TimeSlice) {
+            const fn note(semi: Semitone, octave: i8, duration: TimeSlice) -> (Option<Note>, TimeSlice) {
                 (
                     Some(Note {
                         semitone: semi,
@@ -272,8 +290,6 @@ macro_rules! song {
         }
     };
 }
-
-// song!(400, [note(B, 4, Quarter); rest(Quarter)]);
 
 pub const MARIO_DEATH: Song<[(Option<Note>, TimeSlice); 12]> = song!(400, [
     note(B, 4, Quarter);
@@ -325,27 +341,74 @@ pub const BEETHOVEN: Song<[(Option<Note>, TimeSlice); 9]> = song!(216, [
     note(B, 4, Half);
 ]);
 
-pub const CIRCLE_OF_5THS: Song<CircleOf> = Song {
-    tempo_qpm: 400,
-    note_sequence: CircleOf::new(
-        FIFTH,
-        Note {
-            semitone: Semitone::Bb,
-            octave: 5,
-        },
-        TimeSlice::Quarter,
-    ),
-};
+lazy_static::lazy_static! {
+    pub static ref CIRCLE_OF_5THS_SHORT: Song<std::iter::Take<CircleOf<'static>>> = Song {
+        tempo_qpm: 300,
+        note_sequence: CircleOf::new(
+            &FIFTH,
+            Note {
+                semitone: Semitone::A,
+                octave: 3,
+            },
+            TimeSlice::Triplet(&TimeSlice::Eighth),
+        )
+        .take(6),
+    };
+    pub static ref CIRCLE_OF_4THS_SHORT: Song<std::iter::Take<CircleOf<'static>>> = Song {
+        tempo_qpm: 300,
+        note_sequence: CircleOf::new(
+            &FOURTH,
+            Note {
+                semitone: Semitone::C,
+                octave: 4,
+            },
+            TimeSlice::Triplet(&TimeSlice::Eighth)
+        ).take(6)
+    };
+}
 
-pub const CIRCLE_OF_5THS_SHORT: Song<std::iter::Take<CircleOf>> = Song {
-    tempo_qpm: 400,
-    note_sequence: CircleOf::new(
-        FIFTH,
+proptest::prop_compose! {
+    fn arb_interval() (i in -88isize..88isize) -> Interval {
+        Interval(i)
+    }
+}
+proptest::prop_compose! {
+    fn arb_note() (o in 0..8i8, s: Semitone) -> Note {
         Note {
-            semitone: Semitone::Bb,
-            octave: 5,
-        },
-        TimeSlice::Quarter,
-    )
-    .take(5),
-};
+            semitone: s,
+            octave: o,
+        }
+    }
+}
+
+proptest::proptest! {
+    #[test]
+    fn positive_interval_greater(a in arb_note(), i in arb_interval()) {
+        proptest::prop_assume!(i > Interval(0));
+        proptest::prop_assert!(interval(&i, &a) > a)
+    }
+
+    #[test]
+    fn negative_interval_less(a in arb_note(), i in arb_interval()) {
+        proptest::prop_assume!(i < Interval(0));
+        proptest::prop_assert!(interval(&i, &a) < a)
+    }
+
+    #[test]
+    fn zero_interval_equal(a in arb_note()) {
+        proptest::prop_assert!(interval(&Interval(0), &a) == a)
+    }
+
+    #[test]
+    fn positive_negative_cancellation(a in arb_note(), i in arb_interval()) {
+        let neg_i = match i {
+            Interval(n) => Interval(0-n)
+        };
+        proptest::prop_assert_eq!(interval(&neg_i, &interval(&i, &a)), a)
+    }
+
+    #[test]
+    fn freq_conversion_preserves_ordering(a in arb_note(), b in arb_note()) {
+        proptest::prop_assert_eq!(Some(a.cmp(&b)), a.frequency().partial_cmp(&b.frequency()))
+    }
+}

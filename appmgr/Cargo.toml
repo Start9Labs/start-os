@@ -74,6 +74,8 @@ openssl = { version = "0.10.30", features = ["vendored"] }
 patch-db = { version = "*", path = "../../patch-db/patch-db" }
 pin-project = "1.0.6"
 prettytable-rs = "0.8.0"
+proptest = "1.0.0"
+proptest-derive = "0.3.0"
 rand = "0.7.3"
 regex = "1.4.2"
 reqwest = { version = "0.11.2", features = ["stream", "json"] }
