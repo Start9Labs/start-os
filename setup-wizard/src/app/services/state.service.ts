@@ -18,6 +18,7 @@ export class StateService {
   ) {}
 
   async getState() {
+    this.loading = true
     const state = await this.apiService.getState()
     if(state) {
       this.dataDrive = state['data-drive']
