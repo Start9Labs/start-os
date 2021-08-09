@@ -10,8 +10,9 @@ import { PasswordPage } from '../password/password.page'
   styleUrls: ['recover.page.scss'],
 })
 export class RecoverPage {
-  dataDrives = null
+  recoveryDrives = []
   selectedDrive: RecoveryDrive = null
+  loading = true
 
   constructor(
     private readonly apiService: ApiService,
@@ -27,10 +28,12 @@ export class RecoverPage {
         message: 'Fetching recovery drives'
       })
       await loader.present()
-      this.dataDrives = await this.apiService.getRecoveryDrives()
+      this.recoveryDrives = await this.apiService.getRecoveryDrives()
 
-      loader.dismiss()
+      loader.dismiss()  
+      this.loading = false
     } else {
+      this.loading = false
       this.stateService.pollDataTransferProgress()
     }
   }
@@ -57,9 +60,11 @@ export class RecoverPage {
       }
     })
     modal.onDidDismiss().then(ret => {
-      const pass = ret.data.password
-      if(pass) {
-        this.submitPWAndDrive(pass)
+      if(ret.data) {
+        const pass = ret.data.password
+        if(pass) {
+          this.submitPWAndDrive(pass)
+        }
       }
     })
     await modal.present();

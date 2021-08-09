@@ -26,15 +26,31 @@ export class PasswordPage {
 
   async submitPassword () {
     if(!this.needsVer) {
-      if (this.password.length < 12) {
-        this.error="*passwords must be 12 characters or greater"
-      } else if (this.password !== this.passwordVer) {
-        this.error="*passwords dont match"
+      this.validate()
+      if(!this.error) {
+        this.checkMatch()
       }
+      this.modalController.dismiss({
+        password: this.password,
+      })
     } else {
       this.modalController.dismiss({
         password: this.password,
       })
+    }
+  }
+
+  validate () {
+    if (this.password.length < 12) {
+      this.error="*passwords must be 12 characters or greater"
+    }
+  }
+
+  checkMatch () {
+    if (this.password !== this.passwordVer) {
+      this.error="*passwords dont match"
+    } else {
+      this.error = ''
     }
   }
 

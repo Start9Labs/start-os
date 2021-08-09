@@ -1,76 +1,114 @@
-<ion-content>
-  <div *ngIf="!stateService.dataDrive && dataDrives">
-    <div *ngIf="!dataDrives.length">
-      <h2 color="light">No data drives found</h2>
-      <p color="light">Please connect a data drive to your embassy and refresh the page.</p>
-    </div>
-    <div *ngIf="dataDrives.length">
-      <h2 style="text-align: center;" color="secondary">Select Data Drive</h2>
-      
-      <ion-card 
-        color="medium"
-        *ngFor="let drive of dataDrives"
-        (click)="selectDrive(drive)"
-        button="true"
-        [class.selected]="selectedDrive?.logicalname === drive.logicalname"
-        color="light"
-        class="wiz-card"
-      >
-        <ion-card-header>
-          <ion-card-title>{{drive.logicalname}}</ion-card-title>
-          <ion-card-subtitle>{{drive.labels}}</ion-card-subtitle>
-        </ion-card-header>
-      
-        <ion-card-content>
-          Currently using {{drive.used}} out of {{drive.capacity}} bytes.
-        </ion-card-content>
-      </ion-card>
-      <div style="width: 100%; text-align: center;">
-        <ion-button 
-        (click)="warn()"
-        color="primary"
-        [disabled]="!selectedDrive"
-        style="text-align:center"
-        size="large"
-        >
-          Next
-        </ion-button>
-      </div>
-    </div>
-  </div>
-  <div *ngIf="stateService.dataDrive">
-    <ion-grid style="max-width: 800px; margin: auto; margin-top: 30px;">
-      <ion-row>
-        <ion-col size-xs="12" size-sm="6">
-          <ion-card
-            (click)="presentPasswordModal()"
-            button="true"
-            color="light"
-            class="wiz-card"
-            style="text-align: center; background-color: #00919b !important; height: 160px;"
-          >
-            <ion-card-header style="margin-top: 25px;">
-              <ion-card-title style="font-size: 40px">Start Fresh</ion-card-title>
-              <ion-card-subtitle>Get started with a brand new Embassy</ion-card-subtitle>
-            </ion-card-header>
-          </ion-card>
-        </ion-col>
-        <ion-col size-xs="12" size-sm="6">
-          <ion-card
-            [routerLink]="['/recover']"
-            button="true"
-            color="light"
-            class="wiz-card"
-            style="text-align: center; background-color: #bf5900 !important; height: 160px;"
-          >
-            <ion-card-header style="margin-top: 25px;">
-              <ion-card-title style="font-size: 40px">Recover</ion-card-title>
-              <ion-card-subtitle>Recover the data from an old embassy</ion-card-subtitle>
-            </ion-card-header>
-          </ion-card>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
+<ion-content color="light">
+  <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
+    <ion-row class="ion-align-items-center" style="height: 100%;">
+      <ion-col class="ion-text-center">
 
-  </div>
+        <div style="padding-bottom: 32px;">
+          <img src="assets/png/logo.png" style="max-width: 240px;" />
+        </div>
+
+        <ion-card>
+          <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
+            <ion-card-title>{{ stateService.dataDrive ? 'Startup Options' : 'Select Data Drive'}}</ion-card-title>
+          </ion-card-header>
+
+          <ion-card-content class="ion-margin">
+            <div *ngIf="!stateService.loading && !stateService.dataDrive && dataDrives">
+              <div *ngIf="!dataDrives.length">
+                <h2 color="light">No data drives found</h2>
+                <p color="light">Please connect a data drive to your embassy and refresh the page.</p>
+                <ion-button 
+                    (click)="window.location.reload()"
+                    style="text-align:center"
+                    class="claim-button"
+                  >
+                    Refresh
+                  </ion-button>
+              </div>
+              <div *ngIf="dataDrives.length">
+                <ion-card
+                  color="light"
+                  *ngFor="let drive of dataDrives"
+                  (click)="selectDrive(drive)"
+                  button="true"
+                  style="border-radius: 11px;"
+                  [class.selected]="selectedDrive?.logicalname === drive.logicalname"
+                >
+                  <ion-card-header>
+                    <ion-card-title>{{drive.logicalname}}</ion-card-title>
+                    <ion-card-subtitle>{{drive.labels}}</ion-card-subtitle>
+                  </ion-card-header>
+                
+                  <ion-card-content>
+                    Using {{drive.used}} out of {{drive.capacity}} bytes.
+                  </ion-card-content>
+                </ion-card>
+                <div style="width: 100%; text-align: center;">
+                  <ion-button 
+                    (click)="warn()"
+                    [disabled]="!selectedDrive"
+                    class="claim-button"
+                  >
+                    Next
+                  </ion-button>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="stateService.dataDrive">
+                    <ion-card
+                      (click)="presentPasswordModal()"
+                      button="true"
+                      color="light"
+                      class="wiz-card"
+                      style="text-align: center; background-color: #00919b !important; height: 160px;"
+                    >
+                      <ion-card-header>
+                        <ion-card-title style="font-size: 40px">Start Fresh</ion-card-title>
+                        <ion-card-subtitle>Get started with a brand new Embassy</ion-card-subtitle>
+                      </ion-card-header>
+                    </ion-card>
+                    <ion-card
+                      [routerLink]="['/recover']"
+                      button="true"
+                      color="light"
+                      class="wiz-card"
+                      style="text-align: center; background-color: #bf5900 !important; height: 160px;"
+                    >
+                      <ion-card-header>
+                        <ion-card-title style="font-size: 40px">Recover</ion-card-title>
+                        <ion-card-subtitle>Recover the data from an old embassy</ion-card-subtitle>
+                      </ion-card-header>
+                    </ion-card>
+            </div>
+          </ion-card-content>
+
+          <ion-card-header class="card-footer">
+            <ion-item lines="none">
+              <ion-label class="ion-text-wrap">
+                <p *ngIf="!stateService.dataDrive">
+                  Choose drive to save all Embassy data to.
+                </p>
+                <p *ngIf="stateService.dataDrive">
+                  Spin up a brand new Embassy, or recover data from an old device.
+                </p>
+              </ion-label>
+            </ion-item>
+          </ion-card-header>
+        </ion-card>
+
+        <div class="divider"></div>
+
+        <div class="footer">
+          <p style="margin-bottom: 30px;">Contact/Community</p>
+          <ion-icon name="logo-youtube"></ion-icon>
+          <ion-icon name="paper-plane"></ion-icon>
+          <ion-icon name="mail"></ion-icon>
+          <ion-icon name="logo-github"></ion-icon>
+          <ion-icon name="logo-twitter"></ion-icon>
+          <ion-icon name="logo-mastodon"></ion-icon>
+          <ion-icon name="logo-medium"></ion-icon>
+        </div>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
 </ion-content>
