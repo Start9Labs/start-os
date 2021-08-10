@@ -621,11 +621,11 @@ export module Mock {
       },
       'dependency-info': {
         'lnd': {
-          title: Mock.MockManifestLnd.title,
+          manifest: Mock.MockManifestLnd,
           icon: 'assets/img/service-icons/lnd.png',
         },
         'bitcoind': {
-          title: Mock.MockManifestBitcoind.title,
+          manifest: Mock.MockManifestBitcoind,
           icon: 'assets/img/service-icons/bitcoind.png',
         },
       },
@@ -1489,11 +1489,11 @@ export module Mock {
       },
       'dependency-info': {
         'bitcoind': {
-          title: Mock.MockManifestBitcoind.title,
+          manifest: Mock.MockManifestBitcoind,
           icon: 'assets/img/service-icons/bitcoind.png',
         },
         'bitcoin-proxy': {
-          title: Mock.MockManifestBitcoinProxy.title,
+          manifest: Mock.MockManifestBitcoinProxy,
           icon: 'assets/img/service-icons/bitcoin-proxy.png',
         },
       },
