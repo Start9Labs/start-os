@@ -70,3 +70,13 @@ ion-item {
     margin-right: 10px;
   }
 }
+
+.success-alert .alert-wrapper {
+  box-shadow: 4px 4px 30px var(--ion-color-light);
+  border: 1px solid rgba(255,255,255,.3);
+  background: var(--ion-color-light);
+}
+
+.success-alert .alert-title {
+  color: var(--ion-color-success);
+}

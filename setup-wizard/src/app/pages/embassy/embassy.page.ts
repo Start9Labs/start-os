@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ModalController, NavController } from '@ionic/angular'
+import { AlertController, ModalController, NavController } from '@ionic/angular'
 import { ApiService, EmbassyDrive } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
@@ -18,7 +18,8 @@ export class EmbassyPage {
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private modalController: ModalController,
-    private stateService: StateService
+    private stateService: StateService,
+    private readonly alertCtrl: AlertController,
   ) {}
 
   async ngOnInit() {
@@ -30,12 +31,31 @@ export class EmbassyPage {
     const modal = await this.modalController.create({
       component: PasswordPage,
       componentProps: {
-        embassyDrive: drive,
-        verify: false
+        embassyDrive: drive
       }
     })
     modal.onDidDismiss().then(async ret => {
-      if (!ret.data) return
+      if (!ret.data && !ret.data.success) return
+
+      if(!!this.stateService.recoveryDrive) {
+        await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward' })
+      } else {
+        const alert = await this.alertCtrl.create({
+          cssClass: 'success-alert',
+          header: 'Success!',
+          subHeader: `Your Embassy is set up and ready to go.`,
+          backdropDismiss: false,
+          buttons: [
+            {
+              text: 'Go To Embassy',
+              handler: () => {
+                window.location.reload()
+              }
+            }
+          ]
+        })
+        await alert.present()
+      }
     })
     await modal.present();
   }
