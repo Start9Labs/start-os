@@ -20,11 +20,17 @@
   <!-- no notifications -->
   <ng-container *ngIf="!loading">
     <ion-item-group *ngIf="!notifications.length">
-      <ion-item>
-        <ion-label class="ion-text-wrap">
-          Notifications about Embassy and services will appear here.
-        </ion-label>
-      </ion-item>
+      <div 
+        style="
+          text-align: center;
+          position: absolute;
+          top: 40%;
+          left: 50%;
+          transform: translate(-50%, -50%);"
+      >
+        <ion-icon style="font-size: 84px; color: #282c33" name="mail-outline"></ion-icon>
+        <h4 style="color: #282c33; margin-top: 0px">Inbox Empty</h4>
+      </div>
     </ion-item-group>
   
     <!-- has notifications  -->
