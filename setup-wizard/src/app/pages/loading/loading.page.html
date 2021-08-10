@@ -1,0 +1,36 @@
+<ion-content color="light">
+  <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
+    <ion-row class="ion-align-items-center" style="height: 100%;">
+      <ion-col class="ion-text-center">
+
+        <div style="padding-bottom: 32px;">
+          <img src="assets/png/logo.png" style="max-width: 240px;" />
+        </div>
+
+        <ion-card color="dark">
+          <ion-card-header>
+            <ion-card-title style="font-size: 40px;">Loading Embassy</ion-card-title>
+            <ion-card-subtitle>Progress: {{(stateService.dataProgress * 100).toFixed(0) }}%</ion-card-subtitle>
+          </ion-card-header>
+
+          <ion-card-content class="ion-margin">
+            <ion-progress-bar color="primary" style="max-width: 700px; margin: auto; padding-bottom: 20px; margin-bottom: 40px;" value="{{stateService.dataProgress}}"></ion-progress-bar>
+            
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>
+
+<!-- <div *ngIf="stateService.polling" style="width: 100%; text-align: center;">
+              <ion-progress-bar color="primary" style="max-width: 700px; margin: auto; padding-bottom: 20px; margin-bottom: 40px;" value="{{stateService.dataProgress}}"></ion-progress-bar>
+              <ion-button 
+                (click)="navToEmbassy()"
+                [disabled]="stateService.dataProgress !== 1"
+                style="text-align:center"
+                class="claim-button"
+              >
+                Go To Embassy
+              </ion-button>
+            </div> -->
