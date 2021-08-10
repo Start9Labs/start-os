@@ -164,7 +164,7 @@ export class AppShowPage {
   }
 
   private async installDep (depId: string): Promise<void> {
-    const title = this.pkg.installed['dependency-info'][depId].title
+    const title = this.pkg.installed['dependency-info'][depId].manifest.title
     const version = this.pkg.manifest.dependencies[depId].version
     const dependentTitle = this.pkg.manifest.title
 

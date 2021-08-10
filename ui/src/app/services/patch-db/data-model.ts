@@ -74,7 +74,7 @@ export interface InstalledPackageDataEntry {
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
   'dependency-info': {
     [id: string]: {
-      title: string
+      manifest: Manifest
       icon: URL
     }
   }
