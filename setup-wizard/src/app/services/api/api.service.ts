@@ -4,12 +4,15 @@ export abstract class ApiService {
   protected error$: Subject<string> = new Subject();
   watchError$ = this.error$.asObservable();
   abstract getEmbassyDrives (): Promise<EmbassyDrive[]>;
-  abstract selectEmbassyDrive (logicalName: string): Promise<void>;
   abstract getRecoveryDrives (): Promise<RecoveryDrive[]>;
-  abstract selectRecoveryDrive (logicalName: string, password: string): Promise<void>;
   abstract getDataTransferProgress (): Promise<TransferProgress>;
-  abstract submitPassword (password: string): Promise<void>;
   abstract verifyRecoveryPassword (logicalname: string, password: string): Promise<boolean>;
+  abstract setupEmbassy (setupInfo: {
+    embassyLogicalname: string,
+    embassyPassword: string
+    recoveryLogicalname?: string,
+    recoveryPassword?: string
+  }): Promise<void>
 }
 
 export interface TransferProgress {

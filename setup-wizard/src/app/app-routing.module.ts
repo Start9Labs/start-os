@@ -13,6 +13,10 @@ const routes: Routes = [
     path: 'embassy',
     loadChildren: () => import('./pages/embassy/embassy.module').then( m => m.EmbassyPageModule),
   },
+  {
+    path: 'loading',
+    loadChildren: () => import('./pages/loading/loading.module').then( m => m.LoadingPageModule),
+  },
 ];
 
 @NgModule({

@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core'
+import { BehaviorSubject } from 'rxjs';
 import { ApiService, EmbassyDrive, RecoveryDrive } from './api/api.service'
 
 @Injectable({
@@ -8,11 +9,12 @@ export class StateService {
   polling = false
 
   embassyDrive: EmbassyDrive;
+  embassyPassword: string
   recoveryDrive: RecoveryDrive;
   recoveryPassword: string
   dataTransferProgress: { bytesTransfered: number; totalBytes: number } | null;
   dataProgress = 0;
-
+  dataProgSubject = new BehaviorSubject(this.dataProgress)
   constructor(
     private readonly apiService: ApiService
   ) {}
@@ -21,15 +23,16 @@ export class StateService {
     this.polling = false
 
     this.embassyDrive = null
+    this.embassyPassword = null
     this.recoveryDrive = null
     this.recoveryPassword = null
     this.dataTransferProgress = null
     this.dataProgress = 0
   }
 
-  async pollDataTransferProgress() {
+  async pollDataTransferProgress(callback?: () => void) {
     this.polling = true
-    await pauseFor(7000)
+    await pauseFor(1000)
 
     if (
       this.dataTransferProgress?.totalBytes &&
@@ -43,8 +46,18 @@ export class StateService {
     }
     if (this.dataTransferProgress.totalBytes) {
       this.dataProgress = this.dataTransferProgress.bytesTransfered / this.dataTransferProgress.totalBytes
+      this.dataProgSubject.next(this.dataProgress)
     }
-    this.pollDataTransferProgress()
+    this.pollDataTransferProgress(callback)
+  }
+
+  async setupEmbassy () {
+    await this.apiService.setupEmbassy({
+      embassyLogicalname: this.embassyDrive.logicalname,
+      embassyPassword: this.embassyPassword,
+      recoveryLogicalname: this.recoveryDrive?.logicalname,
+      recoveryPassword: this.recoveryPassword
+    })
   }
 }
 

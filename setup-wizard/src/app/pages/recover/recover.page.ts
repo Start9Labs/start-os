@@ -41,8 +41,7 @@ export class RecoverPage {
     const modal = await this.modalController.create({
       component: PasswordPage,
       componentProps: {
-        recoveryDrive: this.selectedDrive,
-        verify: true
+        recoveryDrive: this.selectedDrive
       }
     })
     modal.onDidDismiss().then(async ret => {
