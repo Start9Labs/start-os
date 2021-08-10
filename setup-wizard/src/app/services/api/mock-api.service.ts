@@ -58,11 +58,6 @@ export class MockApiService extends ApiService {
     ]
   }
 
-  async selectEmbassyDrive(drive) {
-    await pauseFor(2000)
-    return
-  }
-
   async getRecoveryDrives() {
     await pauseFor(2000)
     return [
@@ -79,19 +74,14 @@ export class MockApiService extends ApiService {
     ]
   }
 
-  async selectRecoveryDrive(logicalName, password) {
-    await pauseFor(2000)
-    return
-  }
-
-  async submitPassword(password) {
-    await pauseFor(2000)
-    return
-  }
-
   async verifyRecoveryPassword(logicalname, password) {
     await pauseFor(2000)
     return password.length > 8
+  }
+
+  async setupEmbassy (setupInfo){
+    await pauseFor(2000)
+    return
   }
 }
 

@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService, EmbassyDrive, RecoveryDrive } from 'src/app/services/api/api.service'
+import { StateService } from 'src/app/services/state.service'
 
 @Component({
   selector: 'password',
@@ -10,7 +11,6 @@ import { ApiService, EmbassyDrive, RecoveryDrive } from 'src/app/services/api/ap
 export class PasswordPage {
   @Input() recoveryDrive: RecoveryDrive
   @Input() embassyDrive: EmbassyDrive
-  @Input() verify: boolean
 
   error = ''
   password = ''
@@ -19,7 +19,8 @@ export class PasswordPage {
   constructor(
     private modalController: ModalController,
     private apiService: ApiService,
-    private loadingCtrl: LoadingController
+    private loadingCtrl: LoadingController,
+    private stateService: StateService
   ) {}
 
   ngOnInit() { }
@@ -48,16 +49,34 @@ export class PasswordPage {
 
   async submitPw () {
     this.validate()
+    if (!this.error && this.password !== this.passwordVer) {
+      this.error="*passwords dont match"
+    }
+
     if(this.error) return
+    const loader = await this.loadingCtrl.create({
+      message: 'Setting up your Embassy!'
+    })
+    
+    await loader.present()
 
 
+    this.stateService.embassyDrive = this.embassyDrive
+    this.stateService.embassyPassword = this.password
+
+    try {
+      await this.stateService.setupEmbassy()
+      this.modalController.dismiss({ success: true })
+    } catch (e) {
+      this.error = e.message
+    } finally {
+      loader.dismiss()
+    }
   }
 
   validate () {
     if (this.password.length < 12) {
-      this.error="*passwords must be 12 characters or greater"
-    } else if (this.password !== this.passwordVer) {
-      this.error="*passwords dont match"
+      this.error="*password must be 12 characters or greater"
     } else {
       this.error = ''
     }
