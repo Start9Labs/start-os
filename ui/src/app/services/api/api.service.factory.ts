@@ -5,6 +5,7 @@ import { ConfigService } from '../config.service'
 import { PatchDbService } from '../patch-db/patch-db.service'
 import { MarketplaceLiveApiService } from './marketplace/marketplace-live-api.service'
 import { MarketplaceMockApiService } from './marketplace/marketplace-mock-api.service'
+import { ApiService } from './embassy/embassy-api.service'
 
 export function ApiServiceFactory (config: ConfigService, http: HttpService) {
   if (config.mocks.enabled) {
@@ -14,10 +15,10 @@ export function ApiServiceFactory (config: ConfigService, http: HttpService) {
   }
 }
 
-export function MarketplaceApiServiceFactory (config: ConfigService, http: HttpService, patch: PatchDbService) {
+export function MarketplaceApiServiceFactory (apiService: ApiService, config: ConfigService, http: HttpService, patch: PatchDbService) {
   if (config.mocks.enabled) {
     return new MarketplaceMockApiService(http, config, patch)
   } else {
-    return new MarketplaceLiveApiService(http, config, patch)
+    return new MarketplaceLiveApiService(apiService, config, patch)
   }
 }

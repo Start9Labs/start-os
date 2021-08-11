@@ -111,8 +111,8 @@ export class ServerConfigService {
     ssh: async (pubkey: string) => {
       return this.sshService.add(pubkey)
     },
-    'eos-marketplace': async (enabled: boolean) => {
-      return this.embassyApi.setEosMarketplace(enabled)
+    'eos-marketplace': async () => {
+      return this.embassyApi.setEosMarketplace()
     },
     // 'package-marketplace': async (url: string) => {
     //   return this.embassyApi.setPackageMarketplace({ url })

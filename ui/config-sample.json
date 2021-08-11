@@ -1,7 +1,6 @@
 {
   "start9Marketplace": {
-    "clearnet": "",
-    "tor": ""
+    "clearnet": ""
   },
   "patchDb": {
     "poll": {

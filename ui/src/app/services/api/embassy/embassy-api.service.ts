@@ -2,7 +2,7 @@ import { Subject, Observable } from 'rxjs'
 import { Http, Update, Operation, Revision, Source, Store } from 'patch-db-client'
 import { RR } from '../api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { RequestError, RPCError } from '../../http.service'
+import { Method, RequestError } from '../../http.service'
 
 export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   protected readonly sync = new Subject<Update<DataModel>>()
@@ -65,9 +65,11 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // marketplace URLs
 
-  protected abstract setEosMarketplaceRaw (isTor: boolean): Promise<RR.SetEosMarketplaceRes>
-  setEosMarketplace = (isTor: boolean) => this.syncResponse(
-    () => this.setEosMarketplaceRaw(isTor),
+  abstract marketplaceProxy (params: { isEos: boolean, relativePath: string, params: { }, method: Method, withCredentials: boolean }): Promise<any>
+
+  protected abstract setEosMarketplaceRaw (): Promise<RR.SetEosMarketplaceRes>
+  setEosMarketplace = () => this.syncResponse(
+    () => this.setEosMarketplaceRaw(),
   )()
 
   // protected abstract setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes>

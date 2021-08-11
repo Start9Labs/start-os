@@ -147,10 +147,14 @@ export class MockApiService extends ApiService {
 
   // marketplace URLs
 
-  async setEosMarketplaceRaw (isTor: boolean): Promise<RR.SetEosMarketplaceRes> {
+  async marketplaceProxy (params) {
+    return null
+  }
+
+  async setEosMarketplaceRaw (): Promise<RR.SetEosMarketplaceRes> {
     await pauseFor(2000)
     const params: RR.SetEosMarketplaceReq = {
-      url: isTor ? this.config.start9Marketplace.tor : this.config.start9Marketplace.clearnet,
+      url: this.config.start9Marketplace.clearnet,
     }
     const patch = [
       {

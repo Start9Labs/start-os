@@ -87,11 +87,15 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async setEosMarketplaceRaw (isTor: boolean): Promise<RR.SetEosMarketplaceRes> {
+  async setEosMarketplaceRaw (): Promise<RR.SetEosMarketplaceRes> {
     const params: RR.SetEosMarketplaceReq = {
-      url: isTor ? this.config.start9Marketplace.tor : this.config.start9Marketplace.clearnet,
+      url: this.config.start9Marketplace.clearnet,
     }
     return this.http.rpcRequest({ method: 'marketplace.eos.set', params })
+  }
+
+  async marketplaceProxy (params: { isEos: boolean, relativePath: string, params: { }, method: Method, withCredentials: boolean }) {
+    return this.http.rpcRequest({ method: 'marketplace.proxy', params })
   }
 
   // async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
