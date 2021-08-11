@@ -95,11 +95,12 @@ export class FormObjectComponent {
         expanded: true,
         displayAs: displayAs ? handlebars.compile(displayAs)(newItem.value) : '',
       })
+
+      pauseFor(200).then(() => {
+        const index = this.objectListInfo[key].length - 1
+        this.objectListInfo[key][index].height = this.getDocSize(key)
+      })
     }
-    pauseFor(200).then(() => {
-      const index = this.objectListInfo[key].length - 1
-      this.objectListInfo[key][index].height = this.getDocSize(key)
-    })
   }
 
   toggleExpand (key: string, i: number) {
