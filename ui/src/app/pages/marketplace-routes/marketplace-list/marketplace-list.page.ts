@@ -17,7 +17,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 })
 export class MarketplaceListPage {
   @ViewChild(IonContent) content: IonContent
-  localPkgs: { [id: string]: PackageDataEntry }
+  localPkgs: { [id: string]: PackageDataEntry } = { }
 
   pageLoading = true
   pkgsLoading = true

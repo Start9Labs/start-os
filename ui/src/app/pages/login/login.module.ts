@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms'
 import { IonicModule } from '@ionic/angular'
 import { LoginPage } from './login.page'
 import { SharingModule } from 'src/app/modules/sharing.module'
-// import { MarketplaceLibModule } from 'marketplace-lib'
 
 const routes: Routes = [
   {
@@ -21,7 +20,6 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     SharingModule,
-    // MarketplaceLibModule,
   ],
   declarations: [LoginPage],
 })

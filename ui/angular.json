@@ -14,7 +14,8 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "allowedCommonJsDependencies": ["json-pointer"],
+            "preserveSymlinks": true,
+            "allowedCommonJsDependencies": ["json-pointer", "ng-qrcode"],
             "outputPath": "www",
             "index": "src/index.html",
             "main": "src/main.ts",
