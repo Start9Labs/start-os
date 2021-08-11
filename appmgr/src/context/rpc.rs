@@ -40,6 +40,7 @@ pub struct RpcContextSeed {
     pub managers: ManagerMap,
     pub revision_cache_size: usize,
     pub revision_cache: RwLock<VecDeque<Arc<Revision>>>,
+    pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
 }
 
 #[derive(Clone)]
@@ -95,6 +96,7 @@ impl RpcContext {
             managers,
             revision_cache_size: base.revision_cache_size.unwrap_or(512),
             revision_cache: RwLock::new(VecDeque::new()),
+            metrics_cache: RwLock::new(None),
         });
         Ok(Self(seed))
     }
