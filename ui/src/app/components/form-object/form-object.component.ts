@@ -5,7 +5,7 @@ import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecList, ValueSpecListOf,
 import { FormService } from 'src/app/services/form.service'
 import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
-import * as handlebars from 'handlebars'
+const Mustache = require('mustache')
 import { pauseFor } from 'src/app/util/misc.util'
 
 @Component({
@@ -54,7 +54,7 @@ export class FormObjectComponent {
           this.objectListInfo[key][index] = {
             expanded: false,
             height: '0px',
-            displayAs: displayAs ? handlebars.compile(displayAs)(obj) : '',
+            displayAs: displayAs ? (Mustache as any).render(displayAs, obj) : '',
           }
         })
       }
@@ -93,7 +93,7 @@ export class FormObjectComponent {
       this.objectListInfo[key].push({
         height: '0px',
         expanded: true,
-        displayAs: displayAs ? handlebars.compile(displayAs)(newItem.value) : '',
+        displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',
       })
 
       pauseFor(200).then(() => {

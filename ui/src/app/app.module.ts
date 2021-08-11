@@ -12,7 +12,7 @@ import { ApiServiceFactory, MarketplaceApiServiceFactory } from './services/api/
 import { PatchDbServiceFactory } from './services/patch-db/patch-db.factory'
 import { HttpService } from './services/http.service'
 import { ConfigService } from './services/config.service'
-import { QRCodeModule } from 'angularx-qrcode'
+import { QrCodeModule } from 'ng-qrcode'
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
 import { MarkdownPageModule } from './modals/markdown/markdown.module'
 import { PatchDbService } from './services/patch-db/patch-db.service'
@@ -35,7 +35,7 @@ import { FormBuilder } from '@angular/forms'
       name: '_embassystorage',
       driverOrder: [Drivers.LocalStorage, Drivers.IndexedDB],
     }),
-    QRCodeModule,
+    QrCodeModule,
     OSWelcomePageModule,
     MarkdownPageModule,
     SharingModule,

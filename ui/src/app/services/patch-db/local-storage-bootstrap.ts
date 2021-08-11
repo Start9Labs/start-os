@@ -1,7 +1,7 @@
 import { Bootstrapper, DBCache } from 'patch-db-client'
 import { DataModel } from './data-model'
 import { Injectable } from '@angular/core'
-import { Storage } from '@ionic/storage'
+import { Storage } from '@ionic/storage-angular'
 
 @Injectable({
   providedIn: 'root',
