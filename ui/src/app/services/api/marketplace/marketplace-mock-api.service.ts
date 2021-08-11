@@ -20,7 +20,7 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
   // marketplace
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
-    const url = getMarketplaceURL('eos')
+    const url = this.config.start9Marketplace.clearnet
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return Mock.MarketplaceEos
@@ -34,7 +34,7 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
   }
 
   async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
-    const url = getMarketplaceURL('package')
+    const url = this.config.start9Marketplace.clearnet
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return {
@@ -50,7 +50,7 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
   }
 
   async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
-    const url = getMarketplaceURL('package')
+    const url = this.config.start9Marketplace.clearnet
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return Mock.MarketplacePkgsList
@@ -67,7 +67,7 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
   }
 
   async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
-    const url = getMarketplaceURL('package')
+    const url = this.config.start9Marketplace.clearnet
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return Mock.ReleaseNotes
@@ -81,7 +81,7 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
   }
 
   async getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes> {
-    const url = getMarketplaceURL('package')
+    const url = this.config.start9Marketplace.clearnet
     if (this.useLocal(url)) {
       await pauseFor(2000)
       return params.ids.reduce((obj, id) => {
@@ -100,16 +100,5 @@ export class MarketplaceMockApiService extends MarketplaceApiService {
 
   private useLocal (url: string): boolean {
     return !url || this.config.mocks.marketplace
-  }
-}
-
-
-function getMarketplaceURL (type: 'eos' | 'package'): string {
-  const packageMarketplace = this.server['package-marketplace']
-  const eosMarketplace = this.server['eos-marketplace'] || this.config.start9Marketplace.clearnet
-  if (type === 'eos') {
-    return eosMarketplace
-  } else {
-    return packageMarketplace || eosMarketplace
   }
 }

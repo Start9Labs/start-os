@@ -6,7 +6,6 @@ const { start9Marketplace, patchDb, api, mocks } = require('../../../config.json
 type UiConfig = {
   start9Marketplace: {
     clearnet: string
-    tor: string
   }
   patchDb: {
     poll: {
