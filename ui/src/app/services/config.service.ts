@@ -27,6 +27,7 @@ type UiConfig = {
     skipStartupAlerts: boolean
   }
 }
+
 @Injectable({
   providedIn: 'root',
 })
