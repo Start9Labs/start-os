@@ -18,7 +18,7 @@ interface LocalInterface {
 export class AppInterfacesPage {
   @ViewChild(IonContent) content: IonContent
   ui: LocalInterface | null
-  other: LocalInterface[]
+  other: LocalInterface[] = []
 
   constructor (
     private readonly route: ActivatedRoute,

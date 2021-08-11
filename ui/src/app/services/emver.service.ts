@@ -12,7 +12,10 @@ export class Emver {
   }
 
   compare (lhs: string, rhs: string): number {
-    return this.e.compare(lhs, rhs)
+    console.log('EMVER', this.e)
+    const compare = this.e.compare(lhs, rhs)
+    console.log('COMPARE', compare)
+    return compare
   }
 
   satisfies (version: string, range: string): boolean {

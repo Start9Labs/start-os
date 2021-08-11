@@ -5,7 +5,8 @@
     "outDir": "./out-tsc/app",
     "sourceMap": true,
     "declaration": false,
-    "module": "esnext",
+    "downlevelIteration": true,
+    "module": "es2020",
     "moduleResolution": "node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -26,7 +27,10 @@
     ]
   },
   "angularCompilerOptions": {
-    "strictInjectionParameters": true
+    "strictInjectionParameters": true,
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
   },
   "files": [
     "src/main.ts",
