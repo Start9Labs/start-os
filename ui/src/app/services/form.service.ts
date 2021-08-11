@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
-import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecString, ListValueSpecUnion, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
+import { By } from '@angular/platform-browser'
+import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecOf, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
 import { getDefaultString, Range } from '../pkg-config/config-utilities'
 
 @Injectable({
@@ -213,32 +214,98 @@ export function listInRange (stringRange: string): ValidatorFn {
   }
 }
 
-export function listUnique (spec: ValueSpec): ValidatorFn {
+export function listUnique (spec: ValueSpecList): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     for (let idx = 0; idx < control.value.length; idx++) {
       for (let idx2 = idx + 1; idx2 < control.value.length; idx2++) {
-        if (equals(spec, control.value[idx], control.value[idx2])) {
+        if (listItemEquals(spec, control.value[idx], control.value[idx2])) {
           return { listNotUnique: { value: control.value } }
-        } else {
-          return null
         }
       }
     }
+    return null
   }
 }
 
-export function equals (spec: ValueSpec, val1: any, val2: any): boolean {
+function listItemEquals (spec: ValueSpecList, val1: any, val2: any): boolean {
+  switch (spec.subtype) {
+    case 'string':
+    case 'number':
+    case 'enum':
+      return val1 == val2
+    case 'object':
+    case 'union':
+      return listObjEquals(spec.spec['unique-by'], (spec.spec as ListValueSpecObject), val1, val2)
+    default:
+      return false
+  }
+}
+
+function itemEquals (spec: ValueSpec, val1: any, val2: any): boolean {
   switch (spec.type) {
     case 'string':
     case 'number':
     case 'boolean':
     case 'enum':
-      return val1 === val2
+      return val1 == val2
     case 'object':
     case 'union':
-      // @TODO how to check this
-      return false
+      return objEquals(spec['unique-by'], (spec as ValueSpec), val1, val2)
+    case 'list':
+      if (val1.length !== val2.length) {
+        return false
+      }
+      for (let idx = 0; idx < val1.length; idx++) {
+        if (listItemEquals(spec, val1[idx], val2[idx])) {
+          return false
+        }
+      }
+      return true
     default:
       return false
+  }
+}
+
+function listObjEquals (uniqueBy: UniqueBy, spec: ListValueSpecObject, val1: any, val2: any): boolean {
+  if (uniqueBy === null) {
+    return false
+  } else if (typeof uniqueBy === 'string') {
+    return itemEquals(spec.spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
+  } else if ('any' in uniqueBy) {
+    for (let subSpec of uniqueBy.any) {
+      if (listObjEquals(subSpec, spec, val1, val2)) {
+        return true
+      }
+    }
+    return false
+  } else if ('all' in uniqueBy) {
+    for (let subSpec of uniqueBy.all) {
+      if (!listObjEquals(subSpec, spec, val1, val2)) {
+        return false
+      }
+    }
+    return true
+  }
+}
+
+function objEquals (uniqueBy: UniqueBy, spec: ValueSpec, val1: any, val2: any): boolean {
+  if (uniqueBy === null) {
+    return false
+  } else if (typeof uniqueBy === 'string') {
+    return itemEquals(spec, val1, val2)
+  } else if ('any' in uniqueBy) {
+    for (let subSpec of uniqueBy.any) {
+      if (objEquals(subSpec, spec, val1, val2)) {
+        return true
+      }
+    }
+    return false
+  } else if ('all' in uniqueBy) {
+    for (let subSpec of uniqueBy.all) {
+      if (!objEquals(subSpec, spec, val1, val2)) {
+        return false
+      }
+    }
+    return true
   }
 }
