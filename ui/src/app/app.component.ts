@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { Storage } from '@ionic/storage'
+import { Storage } from '@ionic/storage-angular'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/embassy/embassy-api.service'
 import { Router, RoutesRecognized } from '@angular/router'

@@ -4,6 +4,6 @@
 <ion-text color="success" *ngIf="data.isNew">&nbsp;(New)</ion-text>
 <ion-text color="warning" *ngIf="data.isEdited">&nbsp;(Edited)</ion-text>
 
-<span *ngIf="(['string', 'number'] | includes : data.spec.type) && !data.spec.nullable">&nbsp;*</span>
+<span *ngIf="(['string', 'number'] | includes : data.spec.type) && !$any(data.spec).nullable">&nbsp;*</span>
 
 <span *ngIf="data.spec.type === 'list' && Range.from(data.spec.range).min">&nbsp;*</span>

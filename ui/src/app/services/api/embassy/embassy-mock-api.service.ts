@@ -7,7 +7,7 @@ import { RR, WithRevision } from '../api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from '../api.fixures'
 import { HttpService } from '../../http.service'
-import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
+import markdown from '!!raw-loader!src/assets/markdown/md-sample.md'
 import { ConfigService } from '../../config.service'
 
 @Injectable()
