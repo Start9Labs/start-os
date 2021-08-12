@@ -4,7 +4,7 @@ import { ApiService, EmbassyDrive, RecoveryDrive } from 'src/app/services/api/ap
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  selector: 'password',
+  selector: 'app-password',
   templateUrl: 'password.page.html',
   styleUrls: ['password.page.scss'],
 })

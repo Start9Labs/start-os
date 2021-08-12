@@ -1,10 +1,9 @@
 import { Component } from '@angular/core'
-import { AlertController, NavController } from '@ionic/angular'
-import { BehaviorSubject } from 'rxjs'
+import { AlertController } from '@ionic/angular'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  selector: 'loading',
+  selector: 'app-loading',
   templateUrl: 'loading.page.html',
   styleUrls: ['loading.page.scss'],
 })
