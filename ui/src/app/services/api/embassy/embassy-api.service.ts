@@ -65,7 +65,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // marketplace URLs
 
-  abstract marketplaceProxy (params: { isEos: boolean, relativePath: string, params: { }, method: Method, withCredentials: boolean }): Promise<any>
+  abstract marketplaceProxy (url: string, params: { [key: string]: any }): Promise<any>
 
   protected abstract setEosMarketplaceRaw (): Promise<RR.SetEosMarketplaceRes>
   setEosMarketplace = () => this.syncResponse(

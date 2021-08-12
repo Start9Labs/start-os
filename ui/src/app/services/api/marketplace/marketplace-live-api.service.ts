@@ -18,55 +18,22 @@ export class MarketplaceLiveApiService extends MarketplaceApiService {
   }
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
-    return this.embassyApiService.marketplaceProxy({
-      isEos: true,
-      relativePath: '/eos',
-      params,
-      withCredentials: false,
-      method: Method.GET,
-    })
+    return this.embassyApiService.marketplaceProxy('/marketplace/eos', params)
   }
 
-  async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
-    return this.embassyApiService.marketplaceProxy({
-      isEos: false,
-      relativePath: '/data',
-      params,
-      withCredentials: false,
-      method: Method.GET,
-    })
+  async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise < RR.GetMarketplaceDataRes > {
+    return this.embassyApiService.marketplaceProxy('/marketplace/package/data', params)
   }
 
-  async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
-    return this.embassyApiService.marketplaceProxy({
-      isEos: false,
-      relativePath: '/packages',
-      params: {
-        ...params,
-        ids: JSON.stringify(params.ids),
-      },
-      withCredentials: false,
-      method: Method.GET,
-    })
+  async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise < RR.GetMarketplacePackagesRes > {
+    return this.embassyApiService.marketplaceProxy('/marketplace/package/packages', { ...params, ids: JSON.stringify(params.ids) })
   }
 
-  async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
-    return this.embassyApiService.marketplaceProxy({
-      isEos: false,
-      relativePath: '/release-notes',
-      params,
-      withCredentials: false,
-      method: Method.GET,
-    })
+  async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise < RR.GetReleaseNotesRes > {
+    return this.embassyApiService.marketplaceProxy('/marketplace/package/release-notes', params)
   }
 
-  async getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes> {
-    return this.embassyApiService.marketplaceProxy({
-      isEos: false,
-      relativePath: '/latest-version',
-      params,
-      withCredentials: false,
-      method: Method.GET,
-    })
+  async getLatestVersion (params: RR.GetLatestVersionReq): Promise < RR.GetLatestVersionRes > {
+    return this.embassyApiService.marketplaceProxy('/marketplace/package/latest-version', params)
   }
 }
