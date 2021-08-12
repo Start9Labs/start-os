@@ -1,0 +1,32 @@
+<ion-content color="light">
+  <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
+    <ion-row class="ion-align-items-center" style="height: 100%;">
+      <ion-col class="ion-text-center">
+
+        <div style="padding-bottom: 32px;">
+          <img src="assets/png/logo.png" style="max-width: 240px;" />
+        </div>
+
+        <ion-card color="dark">
+          <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
+            <ion-card-title>Enter Product Key</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <form (submit)="submit()">
+              <p class="input-label">Product Key</p>
+              <ion-item color="light" class="ion-padding-bottom">
+                <ion-label>
+                  <ion-icon slot="start" name="key-outline" style="margin-right: 16px;"></ion-icon>
+                  <ion-input placeholder="Enter Product Key"></ion-input>
+                </ion-label>
+              </ion-item>
+              <ion-button type="submit" color="light">
+                Submit
+              </ion-button>
+            </form>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>

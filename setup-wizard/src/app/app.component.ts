@@ -17,6 +17,6 @@ export class AppComponent implements OnInit {
 
   async ngOnInit() {
     this.stateService.reset()
-    await this.navCtrl.navigateForward(`/wizard`)
+    await this.navCtrl.navigateForward(`/home`)
   }
 }
