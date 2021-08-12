@@ -15,9 +15,9 @@ export function ApiServiceFactory (config: ConfigService, http: HttpService) {
   }
 }
 
-export function MarketplaceApiServiceFactory (config: ConfigService, http: HttpService, patch: PatchDbService, apiService: ApiService) {
+export function MarketplaceApiServiceFactory (config: ConfigService, patch: PatchDbService, apiService: ApiService) {
   if (config.mocks.enabled) {
-    return new MarketplaceMockApiService(http, config, patch)
+    return new MarketplaceMockApiService(config, patch)
   } else {
     return new MarketplaceLiveApiService(apiService, config, patch)
   }

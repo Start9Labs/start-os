@@ -87,13 +87,6 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async setEosMarketplaceRaw (): Promise<RR.SetEosMarketplaceRes> {
-    const params: RR.SetEosMarketplaceReq = {
-      url: this.config.start9Marketplace.clearnet,
-    }
-    return this.http.rpcRequest({ method: 'marketplace.eos.set', params })
-  }
-
   async marketplaceProxy (url: string, params: { [key: string]: any }) {
     return this.http.httpRequest({
       method: Method.GET,

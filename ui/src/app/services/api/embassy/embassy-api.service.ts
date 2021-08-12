@@ -67,11 +67,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract marketplaceProxy (url: string, params: { [key: string]: any }): Promise<any>
 
-  protected abstract setEosMarketplaceRaw (): Promise<RR.SetEosMarketplaceRes>
-  setEosMarketplace = () => this.syncResponse(
-    () => this.setEosMarketplaceRaw(),
-  )()
-
   // protected abstract setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes>
   // setPackageMarketplace = (params: RR.SetPackageMarketplaceReq) => this.syncResponse(
   //   () => this.setPackageMarketplaceRaw(params),

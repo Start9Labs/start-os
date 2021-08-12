@@ -151,21 +151,6 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setEosMarketplaceRaw (): Promise<RR.SetEosMarketplaceRes> {
-    await pauseFor(2000)
-    const params: RR.SetEosMarketplaceReq = {
-      url: this.config.start9Marketplace.clearnet,
-    }
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/server-info/eos-marketplace',
-        value: params.url,
-      },
-    ]
-    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-  }
-
   // async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
   //   await pauseFor(2000)
   //   const patch = [
