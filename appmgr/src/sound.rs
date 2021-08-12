@@ -71,7 +71,7 @@ impl SoundInterface {
     ) -> Result<(), Error> {
         {
             self.play(note).await?;
-            std::thread::sleep(time_slice.to_duration((tempo_qpm as u64 * 19 / 20) as u16));
+            tokio::time::sleep(time_slice.to_duration((tempo_qpm as u64 * 19 / 20) as u16)).await;
             self.stop().await?;
             tokio::time::sleep(time_slice.to_duration(tempo_qpm / 20)).await;
             Ok(())
@@ -105,7 +105,7 @@ where
         let mut sound = SoundInterface::lease().await?;
         for (note, slice) in &self.note_sequence {
             match note {
-                None => std::thread::sleep(slice.to_duration(self.tempo_qpm)),
+                None => tokio::time::sleep(slice.to_duration(self.tempo_qpm)).await,
                 Some(n) => sound.play_for_time_slice(self.tempo_qpm, n, slice).await?,
             };
         }
