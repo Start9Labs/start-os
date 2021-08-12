@@ -21,10 +21,6 @@
       <ion-label>Auto Check for Updates</ion-label>
       <ion-note slot="end">{{ patch.data.ui['auto-check-updates'] ? 'Enabled' : 'Disabled' }}</ion-note>
     </ion-item>
-    <ion-item button (click)="serverConfig.presentAlert('eos-marketplace', server['eos-marketplace'] === config.start9Marketplace.tor)">
-      <ion-label>Tor Only Marketplace</ion-label>
-      <ion-note slot="end">{{ server['eos-marketplace'] === config.start9Marketplace.tor ? 'Enabled' : 'Disabled' }}</ion-note>
-    </ion-item>
     <!-- <ion-item button (click)="presentModalValueEdit('packageMarketplace', server['package-marketplace'])">
       <ion-label>Package Marketplace</ion-label>
       <ion-note slot="end">{{ server['package-marketplace'] }}</ion-note>

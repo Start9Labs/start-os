@@ -111,9 +111,9 @@ export class ServerConfigService {
     ssh: async (pubkey: string) => {
       return this.sshService.add(pubkey)
     },
-    'eos-marketplace': async (enabled: boolean) => {
-      return this.embassyApi.setEosMarketplace(enabled)
-    },
+    // 'eos-marketplace': async () => {
+    //   return this.embassyApi.setEosMarketplace()
+    // },
     // 'package-marketplace': async (url: string) => {
     //   return this.embassyApi.setPackageMarketplace({ url })
     // },
@@ -144,13 +144,13 @@ export const serverConfig: ConfigSpec = {
     masked: false,
     copyable: false,
   },
-  'eos-marketplace': {
-    type: 'boolean',
-    name: 'Tor Only Marketplace',
-    description: `Use Start9's Tor (instead of clearnet) Marketplace.`,
-    'change-warning': 'This will result in higher latency and slower download times.',
-    default: false,
-  },
+  // 'eos-marketplace': {
+  //   type: 'boolean',
+  //   name: 'Tor Only Marketplace',
+  //   description: `Use Start9's Tor (instead of clearnet) Marketplace.`,
+  //   'change-warning': 'This will result in higher latency and slower download times.',
+  //   default: false,
+  // },
   // 'package-marketplace': {
   //   type: 'string',
   //   name: 'Package Marketplace',

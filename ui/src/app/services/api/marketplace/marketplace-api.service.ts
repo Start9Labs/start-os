@@ -32,17 +32,4 @@ export abstract class MarketplaceApiService {
   abstract getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes>
 
   abstract getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes>
-
-  getMarketplaceURL (type: 'eos' | 'package', defaultToTor = false): string {
-    const packageMarketplace = this.server['package-marketplace']
-    if (defaultToTor && !packageMarketplace) {
-      return this.config.start9Marketplace.tor
-    }
-    const eosMarketplace = this.server['eos-marketplace'] || this.config.start9Marketplace.clearnet
-    if (type === 'eos') {
-      return eosMarketplace
-    } else {
-      return packageMarketplace || eosMarketplace
-    }
-  }
 }
