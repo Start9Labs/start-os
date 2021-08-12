@@ -23,8 +23,11 @@
     </ion-item>
 
     <ion-item-divider>Other Sessions</ion-item-divider>
-    <div *ngFor="let session of sessionInfo.sessions | keyvalue : asIsOrder">
-      <ion-item *ngIf="session.key !== sessionInfo.current">
+    <div *ngFor="let session of sessionInfo.sessions | keyvalue : asIsOrder;">
+      <ion-item 
+        [id]="session.key"
+        *ngIf="session.key !== sessionInfo.current"
+      >
         <ion-icon slot="start" [name]="getPlatformIcon(session.value.metadata.platforms)"></ion-icon>
         <ion-label class="ion-text-wrap">
           <h1>{{ getPlatformName(session.value.metadata.platforms) }}</h1>

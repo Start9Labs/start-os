@@ -3,7 +3,7 @@ import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from './data-model'
 import { LocalStorageBootstrap } from './local-storage-bootstrap'
 import { PatchDbService } from './patch-db.service'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 export function PatchDbServiceFactory (
   config: ConfigService,

@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { ActionSheetController, LoadingController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
 import { WifiService } from './wifi.service'
 import { WiFiInfo } from 'src/app/services/patch-db/data-model'

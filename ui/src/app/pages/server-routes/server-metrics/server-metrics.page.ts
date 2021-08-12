@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
 import { Metrics } from 'src/app/services/api/api.types'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { pauseFor } from 'src/app/util/misc.util'
 

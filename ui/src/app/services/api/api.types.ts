@@ -55,7 +55,7 @@ export module RR {
     sessions: { [hash: string]: Session }
   }
 
-  export type KillSessionsReq = WithExpire<{ hashes: string[] }> // sessions.kill
+  export type KillSessionsReq = WithExpire<{ ids: string[] }> // sessions.kill
   export type KillSessionsRes = WithRevision<null>
 
   // marketplace URLs

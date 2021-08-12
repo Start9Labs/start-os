@@ -7,8 +7,8 @@ import { IonicStorageModule } from '@ionic/storage-angular'
 import { HttpClientModule } from '@angular/common/http'
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
-import { ApiService } from './services/api/embassy/embassy-api.service'
-import { ApiServiceFactory, MarketplaceApiServiceFactory } from './services/api/api.service.factory'
+import { ApiService } from './services/api/embassy-api.service'
+import { ApiServiceFactory } from './services/api/api.service.factory'
 import { PatchDbServiceFactory } from './services/patch-db/patch-db.factory'
 import { HttpService } from './services/http.service'
 import { ConfigService } from './services/config.service'
@@ -18,7 +18,6 @@ import { MarkdownPageModule } from './modals/markdown/markdown.module'
 import { PatchDbService } from './services/patch-db/patch-db.service'
 import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstrap'
 import { SharingModule } from './modules/sharing.module'
-import { MarketplaceApiService } from './services/api/marketplace/marketplace-api.service'
 import { FormBuilder } from '@angular/forms'
 
 @NgModule({
@@ -46,7 +45,6 @@ import { FormBuilder } from '@angular/forms'
     Storage,
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },    { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },
-    { provide: MarketplaceApiService , useFactory: MarketplaceApiServiceFactory, deps: [ConfigService, HttpService, PatchDbService, ApiService] },
     { provide: PatchDbService, useFactory: PatchDbServiceFactory, deps: [ConfigService, LocalStorageBootstrap, ApiService] },
   ],
   bootstrap: [AppComponent],

@@ -1,6 +1,6 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { AlertController, ModalController, IonContent, LoadingController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'

@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { AlertController, LoadingController } from '@ionic/angular'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PlatformType, RR } from 'src/app/services/api/api.types'
 
 @Component({
@@ -30,7 +30,7 @@ export class SessionsPage {
     }
   }
 
-  async presentAlertKill (hash: string) {
+  async presentAlertKill (id: string) {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Caution',
@@ -43,7 +43,7 @@ export class SessionsPage {
         {
           text: 'Kill',
           handler: () => {
-            this.kill(hash)
+            this.kill(id)
           },
         },
       ],
@@ -51,7 +51,7 @@ export class SessionsPage {
     await alert.present()
   }
 
-  async kill (hash: string): Promise<void> {
+  async kill (id: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Killing session...',
@@ -60,8 +60,8 @@ export class SessionsPage {
     await loader.present()
 
     try {
-      await this.embassyApi.killSessions({ hashes: [hash] })
-      delete this.sessionInfo.sessions[hash]
+      await this.embassyApi.killSessions({ ids: [id] })
+      delete this.sessionInfo.sessions[id]
     } catch (e) {
       this.errToast.present(e)
     } finally {

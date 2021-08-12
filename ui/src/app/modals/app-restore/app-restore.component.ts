@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
 import { DiskInfo } from 'src/app/services/api/api.types'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'

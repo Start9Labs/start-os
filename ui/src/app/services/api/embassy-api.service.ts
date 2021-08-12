@@ -1,8 +1,8 @@
 import { Subject, Observable } from 'rxjs'
 import { Http, Update, Operation, Revision, Source, Store } from 'patch-db-client'
-import { RR } from '../api.types'
+import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Method, RequestError } from '../../http.service'
+import { RequestError } from '../http.service'
 
 export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   protected readonly sync = new Subject<Update<DataModel>>()
@@ -65,7 +65,15 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // marketplace URLs
 
-  abstract marketplaceProxy (url: string, params: { [key: string]: any }): Promise<any>
+  abstract getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes>
+
+  abstract getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes>
+
+  abstract getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes>
+
+  abstract getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes>
+
+  abstract getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes>
 
   // protected abstract setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes>
   // setPackageMarketplace = (params: RR.SetPackageMarketplaceReq) => this.syncResponse(

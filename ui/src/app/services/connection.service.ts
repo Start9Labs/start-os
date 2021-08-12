@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject, combineLatest, fromEvent, merge, Subscription } from 'rxjs'
-import { ConnectionStatus, PatchDbService } from './patch-db/patch-db.service'
+import { PatchConnection, PatchDbService } from './patch-db/patch-db.service'
 import { HttpService, Method } from './http.service'
 import { distinctUntilChanged, takeWhile } from 'rxjs/operators'
 import { ConfigService } from './config.service'
@@ -12,7 +12,6 @@ import { AuthState } from './auth.service'
 export class ConnectionService {
   private readonly networkState$ = new BehaviorSubject<boolean>(true)
   private readonly connectionFailure$ = new BehaviorSubject<ConnectionFailure>(ConnectionFailure.None)
-  private subs: Subscription[] = []
 
   constructor (
     private readonly httpService: HttpService,
@@ -25,60 +24,58 @@ export class ConnectionService {
   }
 
   start (auth: AuthState) {
-    this.subs = [
-      merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
+    merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
+    .pipe(
+      takeWhile(() => auth === AuthState.VERIFIED),
+    )
+    .subscribe(event => {
+      this.networkState$.next(event.type === 'online')
+    }),
+
+    combineLatest([
+      // 1
+      this.networkState$
+      .pipe(
+        distinctUntilChanged(),
+      ),
+      // 2
+      this.patch.watchPatchConnection$()
+      .pipe(
+        distinctUntilChanged(),
+      ),
+      // 3
+      this.patch.watch$('server-info', 'connection-addresses')
       .pipe(
         takeWhile(() => auth === AuthState.VERIFIED),
-      )
-      .subscribe(event => {
-        this.networkState$.next(event.type === 'online')
-      }),
-
-      combineLatest([
-        // 1
-        this.networkState$
-        .pipe(
-          distinctUntilChanged(),
-        ),
-        // 2
-        this.patch.watchConnection$()
-        .pipe(
-          distinctUntilChanged(),
-        ),
-        // 3
-        this.patch.watch$('server-info', 'connection-addresses')
-        .pipe(
-          takeWhile(() => auth === AuthState.VERIFIED),
-          distinctUntilChanged(),
-        ),
-      ])
-      .subscribe(async ([network, connectionStatus, addrs]) => {
-        if (connectionStatus !== ConnectionStatus.Disconnected) {
-          this.connectionFailure$.next(ConnectionFailure.None)
-        } else if (!network) {
-          this.connectionFailure$.next(ConnectionFailure.Network)
-        } else if (!this.configService.isTor()) {
-          this.connectionFailure$.next(ConnectionFailure.Lan)
+        distinctUntilChanged(),
+      ),
+    ])
+    .subscribe(async ([network, patchConnection, addrs]) => {
+      if (patchConnection !== PatchConnection.Disconnected) {
+        this.connectionFailure$.next(ConnectionFailure.None)
+      } else if (!network) {
+        this.connectionFailure$.next(ConnectionFailure.Network)
+      } else if (!this.configService.isTor()) {
+        this.connectionFailure$.next(ConnectionFailure.Lan)
+      } else {
+        // diagnosing
+        this.connectionFailure$.next(ConnectionFailure.Diagnosing)
+        const torSuccess = await this.testAddrs(addrs.tor)
+        if (torSuccess) {
+          // TOR SUCCESS, EMBASSY IS PROBLEM
+          this.connectionFailure$.next(ConnectionFailure.Embassy)
         } else {
-          // diagnosing
-          this.connectionFailure$.next(ConnectionFailure.Diagnosing)
-          const torSuccess = await this.testAddrs(addrs.tor)
-          if (torSuccess) {
-            // TOR SUCCESS, EMBASSY IS PROBLEM
-            this.connectionFailure$.next(ConnectionFailure.Embassy)
+          const clearnetSuccess = await this.testAddrs(addrs.clearnet)
+          if (clearnetSuccess) {
+            // CLEARNET SUCCESS, TOR IS PROBLEM
+            this.connectionFailure$.next(ConnectionFailure.Tor)
           } else {
-            const clearnetSuccess = await this.testAddrs(addrs.clearnet)
-            if (clearnetSuccess) {
-              // CLEARNET SUCCESS, TOR IS PROBLEM
-              this.connectionFailure$.next(ConnectionFailure.Tor)
-            } else {
-              // INTERNET IS PROBLEM
-              this.connectionFailure$.next(ConnectionFailure.Internet)
-            }
+            // INTERNET IS PROBLEM
+            this.connectionFailure$.next(ConnectionFailure.Internet)
           }
         }
-      }),
-    ]
+      }
+    })
   }
 
   private async testAddrs (addrs: string[]): Promise<boolean> {
