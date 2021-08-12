@@ -5,7 +5,7 @@ import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
 
 @Component({
-  selector: 'embassy',
+  selector: 'app-embassy',
   templateUrl: 'embassy.page.html',
   styleUrls: ['embassy.page.scss'],
 })
