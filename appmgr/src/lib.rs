@@ -38,6 +38,7 @@ pub mod s9pk;
 pub mod sound;
 pub mod ssh;
 pub mod status;
+pub mod system;
 pub mod util;
 pub mod version;
 pub mod volume;
