@@ -4,14 +4,12 @@ use clap::ArgMatches;
 use rpc_toolkit::command;
 use tokio::process::Command;
 
+use crate::ResultExt;
+
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
 fn parse_datetime(text: &str, _matches: &ArgMatches) -> Result<DateTime<Utc>, Error> {
-    text.parse().map_err(|e: chrono::ParseError| Error {
-        source: e.into(),
-        kind: ErrorKind::ParseTimestamp,
-        revision: None,
-    })
+    text.parse().with_kind(ErrorKind::ParseTimestamp)
 }
 
 #[command(rpc_only)]
@@ -52,7 +50,7 @@ pub async fn logs(
             (ts.to_owned(), l.to_owned())
         })
         .collect::<Vec<(String, String)>>();
-    // reverse output again because we
+    // reverse output again because we reversed it above
     split_lines.reverse();
     Ok(split_lines)
 }
