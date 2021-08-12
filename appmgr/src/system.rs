@@ -1,10 +1,10 @@
-use crate::{context::RpcContext, Error, ErrorKind};
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use rpc_toolkit::command;
 use tokio::process::Command;
 
-use crate::ResultExt;
+use crate::context::RpcContext;
+use crate::{Error, ErrorKind, ResultExt};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
