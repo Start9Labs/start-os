@@ -55,8 +55,10 @@ chrono = { version = "0.4.19", features = ["serde"] }
 clap = "2.33"
 cookie_store = "0.15.0"
 digest = "0.9.0"
+divrem = "1.0.0"
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
 emver = { version = "0.1.2", features = ["serde"] }
+fd-lock-rs = "*"
 futures = "0.3.8"
 git-version = "0.3.4"
 http = "0.2.3"
@@ -73,6 +75,8 @@ openssl = { version = "0.10.30", features = ["vendored"] }
 patch-db = { version = "*", path = "../../patch-db/patch-db" }
 pin-project = "1.0.6"
 prettytable-rs = "0.8.0"
+proptest = "1.0.0"
+proptest-derive = "0.3.0"
 rand = "0.7.3"
 regex = "1.4.2"
 reqwest = { version = "0.11.2", features = ["stream", "json"] }
