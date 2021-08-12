@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { Breakages } from 'src/app/services/api/api.types'
 import { exists } from 'src/app/util/misc.util'
-import { ApiService } from '../../services/api/embassy/embassy-api.service'
+import { ApiService } from '../../services/api/embassy-api.service'
 import { InstallWizardComponent, SlideDefinition, TopbarParams } from './install-wizard.component'
 
 @Injectable({ providedIn: 'root' })

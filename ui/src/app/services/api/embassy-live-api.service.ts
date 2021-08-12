@@ -1,16 +1,14 @@
 import { Injectable } from '@angular/core'
-import { HttpService, Method } from '../../http.service'
+import { HttpService, Method } from '../http.service'
 import { ApiService  } from './embassy-api.service'
-import { RR } from '../api.types'
+import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
-import { ConfigService } from '../../config.service'
 
 @Injectable()
 export class LiveApiService extends ApiService {
 
   constructor (
     private readonly http: HttpService,
-    private readonly config: ConfigService,
   ) { super() }
 
   async getStatic (url: string): Promise<string> {
@@ -87,10 +85,45 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy (url: string, params: { [key: string]: any }) {
+  async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
     return this.http.httpRequest({
       method: Method.GET,
-      url,
+      url: '/marketplace/eos/latest',
+      params,
+    })
+  }
+
+  async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise <RR.GetMarketplaceDataRes> {
+    return this.http.httpRequest({
+      method: Method.GET,
+      url: '/marketplace/package/data',
+      params,
+    })
+  }
+
+  async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise <RR.GetMarketplacePackagesRes> {
+    return this.http.httpRequest({
+      method: Method.GET,
+      url: '/marketplace/package/index',
+      params: {
+        ...params,
+        ids: JSON.stringify(params.ids),
+      },
+    })
+  }
+
+  async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise <RR.GetReleaseNotesRes> {
+    return this.http.httpRequest({
+      method: Method.GET,
+      url: '/marketplace/package/release-notes',
+      params,
+    })
+  }
+
+  async getLatestVersion (params: RR.GetLatestVersionReq): Promise <RR.GetLatestVersionRes> {
+    return this.http.httpRequest({
+      method: Method.GET,
+      url: '/marketplace/latest-version',
       params,
     })
   }

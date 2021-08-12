@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { Storage } from '@ionic/storage-angular'
 import { AuthService, AuthState } from './services/auth.service'
-import { ApiService } from './services/api/embassy/embassy-api.service'
+import { ApiService } from './services/api/embassy-api.service'
 import { Router, RoutesRecognized } from '@angular/router'
 import { debounceTime, distinctUntilChanged, filter, take, takeWhile } from 'rxjs/operators'
 import { AlertController, IonicSafeString, LoadingController, ToastController } from '@ionic/angular'
@@ -15,7 +15,6 @@ import { ConnectionFailure, ConnectionService } from './services/connection.serv
 import { StartupAlertsService } from './services/startup-alerts.service'
 import { ConfigService } from './services/config.service'
 import { isEmptyObject } from './util/misc.util'
-import { MarketplaceApiService } from './services/api/marketplace/marketplace-api.service'
 import { ErrorToastService } from './services/error-toast.service'
 
 @Component({
@@ -62,7 +61,6 @@ export class AppComponent {
     private readonly alertCtrl: AlertController,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
-    private readonly marketplaceApi: MarketplaceApiService,
     private readonly startupAlertsService: StartupAlertsService,
     private readonly toastCtrl: ToastController,
     private readonly loadingCtrl: LoadingController,
@@ -102,8 +100,6 @@ export class AppComponent {
           }
           // start the connection monitor
           this.connectionService.start(auth)
-          // watch connection to display connectivity issues
-          this.marketplaceApi.init(auth)
           // watch connection to display connectivity issues
           this.watchConnection(auth)
           // // watch router to highlight selected menu item

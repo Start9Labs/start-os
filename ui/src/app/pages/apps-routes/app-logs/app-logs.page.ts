@@ -1,6 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { IonContent } from '@ionic/angular'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 

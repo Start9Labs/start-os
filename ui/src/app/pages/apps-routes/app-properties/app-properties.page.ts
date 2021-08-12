@@ -1,6 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Subscription } from 'rxjs'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { AlertController, IonContent, NavController, PopoverController, ToastController } from '@ionic/angular'

@@ -8,12 +8,11 @@ import { RR } from './api/api.types'
 import { ConfigService } from './config.service'
 import { Emver } from './emver.service'
 import { MarketplaceService } from '../pages/marketplace-routes/marketplace.service'
-import { MarketplaceApiService } from './api/marketplace/marketplace-api.service'
 import { DataModel } from './patch-db/data-model'
 import { PatchDbService } from './patch-db/patch-db.service'
 import { filter, take } from 'rxjs/operators'
 import { isEmptyObject } from '../util/misc.util'
-import { ApiService } from './api/embassy/embassy-api.service'
+import { ApiService } from './api/embassy-api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -28,8 +27,7 @@ export class StartupAlertsService {
     private readonly config: ConfigService,
     private readonly modalCtrl: ModalController,
     private readonly marketplaceService: MarketplaceService,
-    private readonly marketplaceApi: MarketplaceApiService,
-    private readonly embassyApi: ApiService,
+    private readonly api: ApiService,
     private readonly emver: Emver,
     private readonly wizardBaker: WizardBaker,
     private readonly patch: PatchDbService,
@@ -104,7 +102,7 @@ export class StartupAlertsService {
   }
 
   private async osUpdateCheck (): Promise<RR.GetMarketplaceEOSRes | undefined> {
-    const res = await this.marketplaceApi.getEos({ })
+    const res = await this.api.getEos({ })
 
     if (this.emver.compare(this.config.version, res.version) === -1) {
       return res
@@ -128,7 +126,7 @@ export class StartupAlertsService {
         },
       })
       modal.onWillDismiss().then(() => {
-        this.embassyApi.setDbValue({ pointer: '/welcome-ack', value: this.config.version })
+        this.api.setDbValue({ pointer: '/welcome-ack', value: this.config.version })
         .catch()
         return resolve(true)
       })

@@ -1,6 +1,6 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AlertController, IonContent, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Action, Manifest, PackageDataEntry, PackageMainStatus } from 'src/app/services/patch-db/data-model'

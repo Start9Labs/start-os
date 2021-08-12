@@ -1,6 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, LoadingController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { combineLatest, Subscription } from 'rxjs'
