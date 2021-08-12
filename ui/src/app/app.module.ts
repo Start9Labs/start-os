@@ -46,7 +46,7 @@ import { FormBuilder } from '@angular/forms'
     Storage,
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },    { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },
-    { provide: MarketplaceApiService , useFactory: MarketplaceApiServiceFactory, deps: [ConfigService, HttpService, PatchDbService] },
+    { provide: MarketplaceApiService , useFactory: MarketplaceApiServiceFactory, deps: [ConfigService, HttpService, PatchDbService, ApiService] },
     { provide: PatchDbService, useFactory: PatchDbServiceFactory, deps: [ConfigService, LocalStorageBootstrap, ApiService] },
   ],
   bootstrap: [AppComponent],
