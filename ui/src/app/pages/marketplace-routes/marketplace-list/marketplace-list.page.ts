@@ -7,7 +7,7 @@ import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-m
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
-import { MarketplaceApiService } from 'src/app/services/api/marketplace/marketplace-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
@@ -39,7 +39,7 @@ export class MarketplaceListPage {
 
   constructor (
     private readonly marketplaceService: MarketplaceService,
-    private readonly marketplaceApi: MarketplaceApiService,
+    private readonly api: ApiService,
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
@@ -55,8 +55,8 @@ export class MarketplaceListPage {
 
     try {
       const [data, eos] = await Promise.all([
-        this.marketplaceApi.getMarketplaceData({ }),
-        this.marketplaceApi.getEos({ }),
+        this.api.getMarketplaceData({ }),
+        this.api.getEos({ }),
         this.getPkgs(),
       ])
       this.eos = eos

@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerNotification, ServerNotifications } from 'src/app/services/api/api.types'
 import { AlertController, LoadingController } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'

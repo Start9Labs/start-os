@@ -2,14 +2,14 @@ import { Inject, Injectable, InjectionToken } from '@angular/core'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
 import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
 import { catchError, debounceTime, finalize, map, tap } from 'rxjs/operators'
-import { ApiService } from '../api/embassy/embassy-api.service'
+import { ApiService } from '../api/embassy-api.service'
 import { DataModel } from './data-model'
 
 export const PATCH_HTTP = new InjectionToken<Source<DataModel>>('app.config')
 export const PATCH_SOURCE = new InjectionToken<Source<DataModel>>('app.config')
 export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('app.config')
 
-export enum ConnectionStatus {
+export enum PatchConnection {
   Initializing = 'initializing',
   Connected = 'connected',
   Disconnected = 'disconnected',
@@ -19,7 +19,7 @@ export enum ConnectionStatus {
   providedIn: 'root',
 })
 export class PatchDbService {
-  connectionStatus$ = new BehaviorSubject(ConnectionStatus.Initializing)
+  patchConnection$ = new BehaviorSubject(PatchConnection.Initializing)
   private patchDb: PatchDB<DataModel>
   private patchSub: Subscription
   data: DataModel
@@ -46,12 +46,12 @@ export class PatchDbService {
       .pipe(debounceTime(500))
       .subscribe({
         next: cache => {
-          this.connectionStatus$.next(ConnectionStatus.Connected)
+          this.patchConnection$.next(PatchConnection.Connected)
           this.bootstrapper.update(cache)
         },
         error: e => {
           console.error('patch-db-sync sub ERROR', e)
-          this.connectionStatus$.next(ConnectionStatus.Disconnected)
+          this.patchConnection$.next(PatchConnection.Disconnected)
           // this.start()
         },
         complete: () => {
@@ -64,6 +64,7 @@ export class PatchDbService {
   }
 
   stop (): void {
+    this.patchConnection$.next(PatchConnection.Initializing)
     if (this.patchSub) {
       this.patchSub.unsubscribe()
       this.patchSub = undefined
@@ -71,14 +72,14 @@ export class PatchDbService {
   }
 
   connected$ (): Observable<boolean> {
-    return this.connectionStatus$
+    return this.patchConnection$
     .pipe(
-      map(status => status === ConnectionStatus.Connected),
+      map(status => status === PatchConnection.Connected),
     )
   }
 
-  watchConnection$ (): Observable<ConnectionStatus> {
-    return this.connectionStatus$.asObservable()
+  watchPatchConnection$ (): Observable<PatchConnection> {
+    return this.patchConnection$.asObservable()
   }
 
   watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { AlertInput, AlertButton } from '@ionic/core'
 // import { AppConfigValuePage } from '../modals/app-config-value/app-config-value.page'
-import { ApiService } from './api/embassy/embassy-api.service'
+import { ApiService } from './api/embassy-api.service'
 import { ConfigSpec } from '../pkg-config/config-types'
 import { SSHService } from '../pages/server-routes/security-routes/ssh-keys/ssh.service'
 import { AlertController, LoadingController } from '@ionic/angular'

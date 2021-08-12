@@ -1,14 +1,13 @@
 import { Injectable } from '@angular/core'
-import { pauseFor } from '../../../util/misc.util'
+import { pauseFor } from '../../util/misc.util'
 import { ApiService } from './embassy-api.service'
 import { Operation, PatchOp } from 'patch-db-client'
 import { InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
-import { RR, WithRevision } from '../api.types'
+import { RR, WithRevision } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
-import { Mock } from '../api.fixures'
-import { HttpService } from '../../http.service'
-import markdown from '!!raw-loader!src/assets/markdown/md-sample.md'
-import { ConfigService } from '../../config.service'
+import { Mock } from './api.fixures'
+import { HttpService } from '../http.service'
+import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
 
 @Injectable()
 export class MockApiService extends ApiService {
@@ -16,7 +15,6 @@ export class MockApiService extends ApiService {
 
   constructor (
     private readonly http: HttpService,
-    private readonly config: ConfigService,
   ) { super() }
 
   async getStatic (url: string): Promise<string> {
@@ -110,7 +108,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: '/server-info/version',
-          value: this.config.version + '.1',
+          value: '3.1.0',
         },
       ]
       await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
@@ -119,7 +117,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: '/server-info/version',
-          value: this.config.version,
+          value: require('../../../../package.json').version,
         },
       ]
       this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch2 } })
@@ -147,8 +145,34 @@ export class MockApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy (params) {
-    return null
+  async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
+    await pauseFor(2000)
+    return Mock.MarketplaceEos
+  }
+
+  async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
+    await pauseFor(2000)
+    return {
+      categories: ['featured', 'bitcoin', 'lightning', 'data', 'messaging', 'social', 'alt coin'],
+    }
+  }
+
+  async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
+    await pauseFor(2000)
+    return Mock.MarketplacePkgsList
+  }
+
+  async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
+    await pauseFor(2000)
+    return Mock.ReleaseNotes
+  }
+
+  async getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes> {
+    await pauseFor(2000)
+    return params.ids.reduce((obj, id) => {
+      obj[id] = '1.3.0'
+      return obj
+    }, { })
   }
 
   // async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {

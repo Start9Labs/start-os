@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { MarketplacePkg } from 'src/app/services/api/api.types'
-import { MarketplaceApiService } from 'src/app/services/api/marketplace/marketplace-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Emver } from 'src/app/services/emver.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
@@ -15,13 +15,13 @@ export class MarketplaceService {
   } } = { }
 
   constructor (
-    private readonly marketplaceApi: MarketplaceApiService,
+    private readonly api: ApiService,
     private readonly emver: Emver,
   ) { }
 
   async getUpdates (localPkgs: { [id: string]: PackageDataEntry }) : Promise<void>   {
     const idAndCurrentVersions =  Object.keys(localPkgs).map(key => ({ id: key, version: localPkgs[key].manifest.version }))
-    const latestPkgs = (await this.marketplaceApi.getMarketplacePkgs({
+    const latestPkgs = (await this.api.getMarketplacePkgs({
       ids: idAndCurrentVersions,
     }))
 
@@ -35,7 +35,7 @@ export class MarketplaceService {
   }
 
   async getPkgs (category: string, query: string, page: number, perPage: number) : Promise<MarketplacePkg[]> {
-    const pkgs = await this.marketplaceApi.getMarketplacePkgs({
+    const pkgs = await this.api.getMarketplacePkgs({
       category: category !== 'all' ? category : undefined,
       query,
       page: String(page),
@@ -49,7 +49,7 @@ export class MarketplaceService {
   }
 
   async getPkg (id: string, version?: string): Promise<void> {
-    const pkgs = await this.marketplaceApi.getMarketplacePkgs({
+    const pkgs = await this.api.getMarketplacePkgs({
       ids: [{ id, version: version || '*' }],
     })
     const pkg = pkgs[0]
@@ -61,7 +61,7 @@ export class MarketplaceService {
   }
 
   async getReleaseNotes (id: string): Promise<void> {
-    this.releaseNotes[id] = await this.marketplaceApi.getReleaseNotes({ id })
+    this.releaseNotes[id] = await this.api.getReleaseNotes({ id })
   }
 }
 

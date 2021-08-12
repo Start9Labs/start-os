@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { AlertController, LoadingController, NavController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
