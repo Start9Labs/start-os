@@ -1,3 +1,5 @@
+use std::fmt;
+
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use rpc_toolkit::command;
@@ -204,12 +206,7 @@ pub async fn launch_metrics_task(cache: &RwLock<Option<Metrics>>) {
     let mem_task = launch_mem_task(cache);
     // launch persistent disk task
     let disk_task = launch_disk_task(cache);
-    tokio::join!(
-        temp_task,
-        cpu_task,
-        mem_task,
-        disk_task,
-    );
+    tokio::join!(temp_task, cpu_task, mem_task, disk_task,);
 }
 
 async fn launch_temp_task(cache: &RwLock<Option<Metrics>>) {
@@ -322,10 +319,12 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
         .split_whitespace()
         .skip(1)
         .map(|s| {
-            s.parse::<u64>().map_err(|e| Error::new(
-                anyhow::anyhow!("Invalid /proc/stat column value: {}", e),
-                ErrorKind::ParseSysInfo
-            ))
+            s.parse::<u64>().map_err(|e| {
+                Error::new(
+                    anyhow::anyhow!("Invalid /proc/stat column value: {}", e),
+                    ErrorKind::ParseSysInfo,
+                )
+            })
         })
         .collect::<Result<Vec<u64>, Error>>()?;
 
@@ -368,86 +367,86 @@ async fn get_cpu_info(last: &mut ProcStat) -> Result<MetricsCpu, Error> {
 }
 
 pub struct MemInfo {
-    mem_total: u64,
-    mem_free: u64,
-    mem_available: u64,
-    buffers: u64,
-    cached: u64,
-    slab: u64,
-    swap_total: u64,
-    swap_free: u64,
+    mem_total: Option<u64>,
+    mem_free: Option<u64>,
+    mem_available: Option<u64>,
+    buffers: Option<u64>,
+    cached: Option<u64>,
+    slab: Option<u64>,
+    swap_total: Option<u64>,
+    swap_free: Option<u64>,
 }
 async fn get_mem_info() -> Result<MetricsMemory, Error> {
     let contents = tokio::fs::read_to_string("/proc/meminfo").await?;
     let mut mem_info = MemInfo {
-        mem_total: 0,
-        mem_free: 0,
-        mem_available: 0,
-        buffers: 0,
-        cached: 0,
-        slab: 0,
-        swap_total: 0,
-        swap_free: 0,
+        mem_total: None,
+        mem_free: None,
+        mem_available: None,
+        buffers: None,
+        cached: None,
+        slab: None,
+        swap_total: None,
+        swap_free: None,
     };
-    let mut counter = 0;
-    for entry in contents.lines() {
-        if entry.starts_with("MemTotal") {
-            mem_info.mem_total = entry.split_whitespace().skip(1).next().unwrap().parse()?;
-            counter += 1;
-        } else if entry.starts_with("MemFree") {
-            mem_info.mem_free = entry.split_whitespace().skip(1).next().unwrap().parse()?;
-            counter += 1;
-        } else if entry.starts_with("MemAvailable") {
-            mem_info.mem_available = entry.split_whitespace().skip(1).next().unwrap().parse()?;
-            counter += 1;
-        } else if entry.starts_with("Buffers") {
-            mem_info.buffers = entry.split_whitespace().skip(1).next().unwrap().parse()?;
-            counter += 1;
-        } else if entry.starts_with("Cached") {
-            mem_info.cached = entry.split_whitespace().skip(1).next().unwrap().parse()?;
-            counter += 1;
-        } else if entry.starts_with("Slab") {
-            mem_info.slab = entry.split_whitespace().skip(1).next().unwrap().parse()?;
-            counter += 1;
-        } else if entry.starts_with("SwapTotal") {
-            mem_info.swap_total = entry.split_whitespace().skip(1).next().unwrap().parse()?;
-            counter += 1;
-        } else if entry.starts_with("SwapFree") {
-            mem_info.swap_free = entry.split_whitespace().skip(1).next().unwrap().parse()?;
-            counter += 1;
+    fn get_num_kb(l: &str) -> Result<u64, Error> {
+        let e = Error::new(
+            anyhow::anyhow!("Invalid meminfo line: {}", l),
+            ErrorKind::ParseSysInfo,
+        );
+        match l.split_whitespace().skip(1).next() {
+            Some(x) => match x.parse() {
+                Ok(y) => Ok(y),
+                Err(_) => Err(e),
+            },
+            None => Err(e),
         }
     }
-    if counter != 8 {
-        Err(Error {
-            source: anyhow::anyhow!("Invalid Output from /proc/meminfo: {}", contents),
-            kind: ErrorKind::ParseSysInfo,
-            revision: None,
-        })
-    } else {
-        let total = MebiBytes(mem_info.mem_total as f64 / 1024.0);
-        let available = MebiBytes(mem_info.mem_available as f64 / 1024.0);
-        let used = MebiBytes(
-            (mem_info.mem_total
-                - mem_info.mem_free
-                - mem_info.buffers
-                - mem_info.cached
-                - mem_info.slab) as f64
-                / 1024.0,
-        );
-        let swap_total = MebiBytes(mem_info.swap_total as f64 / 1024.0);
-        let swap_free = MebiBytes(mem_info.swap_free as f64 / 1024.0);
-        let swap_used = MebiBytes((mem_info.swap_total - mem_info.swap_free) as f64 / 1024.0);
-        let percentage_used = Percentage(used.0 / total.0 * 100.0);
-        Ok(MetricsMemory {
-            percentage_used,
-            total,
-            available,
-            used,
-            swap_total,
-            swap_free,
-            swap_used,
-        })
+    for entry in contents.lines() {
+        match entry {
+            _ if entry.starts_with("MemTotal") => mem_info.mem_total = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("MemFree") => mem_info.mem_free = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("MemAvailable") => {
+                mem_info.mem_available = Some(get_num_kb(entry)?)
+            }
+            _ if entry.starts_with("Buffers") => mem_info.buffers = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("Cached") => mem_info.cached = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("Slab") => mem_info.slab = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("SwapTotal") => mem_info.swap_total = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("SwapFree") => mem_info.swap_free = Some(get_num_kb(entry)?),
+            _ => (),
+        }
     }
+    fn ensure_present(a: Option<u64>, field: &str) -> Result<u64, Error> {
+        a.ok_or(Error::new(
+            anyhow::anyhow!("{} missing from /proc/meminfo", field),
+            ErrorKind::ParseSysInfo,
+        ))
+    }
+    let mem_total = ensure_present(mem_info.mem_total, "MemTotal")?;
+    let mem_free = ensure_present(mem_info.mem_free, "MemFree")?;
+    let mem_available = ensure_present(mem_info.mem_available, "MemAvailable")?;
+    let buffers = ensure_present(mem_info.buffers, "Buffers")?;
+    let cached = ensure_present(mem_info.cached, "Cached")?;
+    let slab = ensure_present(mem_info.slab, "Slab")?;
+    let swap_total_k = ensure_present(mem_info.swap_total, "SwapTotal")?;
+    let swap_free_k = ensure_present(mem_info.swap_free, "SwapFree")?;
+
+    let total = MebiBytes(mem_total as f64 / 1024.0);
+    let available = MebiBytes(mem_available as f64 / 1024.0);
+    let used = MebiBytes((mem_total - mem_free - buffers - cached - slab) as f64 / 1024.0);
+    let swap_total = MebiBytes(swap_total_k as f64 / 1024.0);
+    let swap_free = MebiBytes(swap_free_k as f64 / 1024.0);
+    let swap_used = MebiBytes((swap_total_k - swap_free_k) as f64 / 1024.0);
+    let percentage_used = Percentage(used.0 / total.0 * 100.0);
+    Ok(MetricsMemory {
+        percentage_used,
+        total,
+        available,
+        used,
+        swap_total,
+        swap_free,
+        swap_used,
+    })
 }
 
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
