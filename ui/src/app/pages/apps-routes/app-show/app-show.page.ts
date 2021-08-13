@@ -8,7 +8,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, MainStatus, PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, MainStatus, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -31,6 +31,7 @@ export class AppShowPage {
   rendering: PkgStatusRendering
   Math = Math
   mainStatus: MainStatus
+  PackageMainStatus = PackageMainStatus
 
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []

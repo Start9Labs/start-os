@@ -1,10 +1,9 @@
 import { Component, Input } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
+import { ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
 import { DiskInfo } from 'src/app/services/api/api.types'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
@@ -15,28 +14,21 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 export class AppRestoreComponent {
   @Input() pkgId: string
   disks: DiskInfo
-  title: string
   loading = true
-  submitting = false
   allPartitionsMounted: boolean
-
-  subs: Subscription[] = []
+  modal: HTMLIonModalElement
 
   constructor (
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
-    private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     public readonly patch: PatchDbService,
   ) { }
 
-  ngOnInit () {
+  async ngOnInit () {
     this.getExternalDisks()
+    this.modal = await this.modalCtrl.getTop()
   }
-
-  // ngAfterViewInit () {
-  //   this.content.scrollToPoint(undefined, 1)
-  // }
 
   async refresh () {
     this.loading = true
@@ -55,42 +47,36 @@ export class AppRestoreComponent {
   }
 
   async presentModal (logicalname: string): Promise<void> {
-    const m = await this.modalCtrl.create({
+    const modal = await this.modalCtrl.create({
       componentProps: {
-        type: 'restore',
+        title: 'Enter Password',
+        message: 'Backup encrypted. Enter the password that was originally used to encrypt this backup.',
+        label: 'Password',
+        useMask: true,
+        buttonText: 'Restore',
+        submitFn: async (value: string) => await this.restore(logicalname, value),
       },
       cssClass: 'alertlike-modal',
+      presentingElement: await this.modalCtrl.getTop(),
       component: BackupConfirmationComponent,
-      backdropDismiss: false,
     })
 
-    m.onWillDismiss().then(res => {
-      const data = res.data
-      if (data.cancel) return
-      this.restore(logicalname, data.password)
+    modal.onWillDismiss().then(res => {
+      if (res.role === 'success') this.modal.dismiss(undefined, 'success')
     })
 
-    await m.present()
+    await modal.present()
   }
 
   dismiss () {
-    this.modalCtrl.dismiss({ })
+    this.modalCtrl.dismiss()
   }
 
   private async restore (logicalname: string, password: string): Promise<void> {
-    this.submitting = true
-    // await loader.present()
-
-    try {
-      await this.embassyApi.restorePackage({
-        id: this.pkgId,
-        logicalname,
-        password,
-      })
-    } catch (e) {
-      this.modalCtrl.dismiss({ error: e })
-    } finally {
-      this.modalCtrl.dismiss({ })
-    }
+    await this.embassyApi.restorePackage({
+      id: this.pkgId,
+      logicalname,
+      password,
+    })
   }
 }

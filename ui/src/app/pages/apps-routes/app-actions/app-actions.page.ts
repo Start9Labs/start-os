@@ -110,15 +110,13 @@ export class AppActionsPage {
         pkgId: this.pkgId,
       },
       component: AppRestoreComponent,
-      backdropDismiss: false,
     })
 
     modal.onWillDismiss().then(res => {
-      const data = res.data
-      if (data.error) this.errToast.present(data.error)
+      if (res.role === 'success') this.navCtrl.back()
     })
 
-    return await modal.present()
+    await modal.present()
   }
 
   async uninstall (manifest: Manifest) {

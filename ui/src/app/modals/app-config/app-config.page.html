@@ -1,8 +1,9 @@
-<ion-header>
+<ion-header style="min-height: unset;">
   <ion-toolbar *ngIf="patch.data['package-data'][pkgId] as pkg">
     <ion-title>Config</ion-title>
     <ion-buttons slot="end" class="ion-padding-end">
       <ion-button fill="clear" [disabled]="loadingText" (click)="resetDefaults()">
+        <ion-icon slot="start" name="refresh-outline"></ion-icon>
         Reset Defaults
       </ion-button>
     </ion-buttons>
@@ -20,7 +21,7 @@
     <ng-container *ngIf="patch.data['package-data'][pkgId] as pkg">
       <ng-container *ngIf="pkg.manifest.config && !pkg.installed.status.configured && !edited">
         <ion-item class="notifier-item">
-          <ion-label class="ion-text-wrap">
+          <ion-label>
             <h2 style="display: flex; align-items: center; margin-bottom: 3px;">
               <ion-icon size="small" style="margin-right: 5px" slot="start" color="dark" slot="start" name="alert-circle-outline"></ion-icon>
               <ion-text style="font-size: smaller;">Initial Config</ion-text>
@@ -32,7 +33,7 @@
 
       <ng-container *ngIf="rec && showRec">
         <ion-item class="rec-item">
-          <ion-label class="ion-text-wrap">
+          <ion-label>
             <h2 style="display: flex; align-items: center;">
               <ion-icon size="small" style="margin: 4px" slot="start" color="primary" slot="start" name="ellipse"></ion-icon>
               <ion-thumbnail style="width: 3vh; height: 3vh; margin: 0px 2px 0px 5px;" slot="start">
@@ -60,7 +61,7 @@
 
       <!-- no config -->
       <ion-item *ngIf="!hasConfig">
-        <ion-label class="ion-text-wrap">
+        <ion-label>
           <p>No config options for {{ pkg.manifest.title }} {{ pkg.manifest.version }}.</p>
         </ion-label>
       </ion-item>

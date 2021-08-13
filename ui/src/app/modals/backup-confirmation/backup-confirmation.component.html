@@ -1,31 +1,37 @@
 <ion-content>
-  <div style="height: 85%; margin: 24px; display: flex; flex-direction: column; justify-content: space-between;">
-    <div *ngIf="type === 'backup'">
-      <h4><ion-text color="dark">Encrypt Backup</ion-text></h4>
-      <p><ion-text>Enter your master password to create an encrypted backup.</ion-text></p>  
-    </div>
-    <div *ngIf="type === 'restore'">
-      <h4><ion-text color="dark">Decrypt Backup</ion-text></h4>
-      <p><ion-text>Enter the password that was originally used to encrypt this backup.</ion-text></p>  
-    </div>
+  <div style="margin: 24px 24px 12px 24px; display: flex; flex-direction: column;">
 
-    <div>
-      <ion-item lines="none" style="--background: var(--ion-background-color); --border-color: var(--ion-color-medium);">
-        <ion-label style="font-size: small" position="floating">Master Password</ion-label>
-        <ion-input style="border-style: solid; border-width: 0px 0px 1px 0px; border-color: var(--ion-color-dark);" [(ngModel)]="password" type="password" (ionChange)="error = ''"></ion-input>
-      </ion-item>
-      <ion-item *ngIf="error" lines="none" style="--background: var(--ion-background-color);">
-        <ion-label style="font-size: small" color="danger" class="ion-text-wrap">{{ error }}</ion-label>
-      </ion-item>
-    </div>
+    <ion-item style="padding-bottom: 8px;">
+      <ion-label>
+        <h1>{{ title }}</h1>
+        <br />
+        <p>{{ message }}</p>
+      </ion-label>
+    </ion-item>    
 
-    <div style="display: flex; justify-content: flex-end; align-items: center;">
-      <ion-button fill="clear" (click)="cancel()">
-        Cancel
-      </ion-button>
-      <ion-button fill="clear" (click)="submit()" [disabled]="!password.length">
-        {{ type === 'backup' ? 'Create Backup' : 'Restore Backup' }}
-      </ion-button>
-    </div>
+    <form (ngSubmit)="submit()">
+      <div style="margin-left: 16px;">
+        <p class="input-label">{{ label }}</p>
+        <ion-item lines="none" color="dark">
+          <ion-input [type]="useMask && !unmasked ? 'password' : 'text'" [(ngModel)]="value" name="value" (ionChange)="error = ''"></ion-input>
+          <ion-button slot="end" *ngIf="useMask" fill="clear" color="light" (click)="toggleMask()">
+            <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
+          </ion-button>
+        </ion-item>
+        <!-- error -->
+        <p>
+          <ion-text [color]="error ? 'danger' : 'medium'">{{ error || 'placeholder' }}</ion-text>
+        </p>
+      </div>
+  
+      <div class="ion-text-right">
+        <ion-button fill="clear" (click)="cancel()">
+          Cancel
+        </ion-button>
+        <ion-button fill="clear" type="submit" [disabled]="!value">
+          {{ buttonText }}
+        </ion-button>
+      </div>
+    </form>
   </div>
 </ion-content>

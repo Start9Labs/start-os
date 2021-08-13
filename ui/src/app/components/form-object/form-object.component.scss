@@ -1,7 +1,8 @@
 .help-icon {
   display: inline-block;
   vertical-align: middle;
-  padding-bottom: 2px;
+  padding-bottom: 1px;
+  padding-right: 6px;
   font-size: 18px;
   color: var(--ion-color-dark);
   cursor: pointer;
@@ -16,17 +17,6 @@ ion-item-divider {
   text-transform: unset;
   --padding-start: 0;
   border-bottom: 1px solid var(--ion-item-border-color, var(--ion-border-color, var(--ion-color-step-150, rgba(0, 0, 0, 0.13))))
-}
-
-.input-label {
-  // padding-top: 10px;
-  margin-bottom: 5px;
-  font-size: medium;
-  font-weight: bold;
-  * {
-    display: inline-block;
-    vertical-align: middle;
-  }
 }
 
 .nested-wrapper {
