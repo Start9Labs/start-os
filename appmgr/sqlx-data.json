@@ -30,34 +30,6 @@
       "nullable": []
     }
   },
-  "18aa5fba13df20495611fbbf7cb331f4b6da5b906148e0d9565905d3bb10071c": {
-    "query": "SELECT logged_out FROM session WHERE id = ?",
-    "describe": {
-      "columns": [
-        {
-          "name": "logged_out",
-          "ordinal": 0,
-          "type_info": "Datetime"
-        }
-      ],
-      "parameters": {
-        "Right": 1
-      },
-      "nullable": [
-        true
-      ]
-    }
-  },
-  "2932aa02735b6422fca4ba889abfb3de8598178d4690076dc278898753d9df62": {
-    "query": "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = ?",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Right": 1
-      },
-      "nullable": []
-    }
-  },
   "3efd0daa61f4f8bead1adbe78a8225bc31fb940406d0415b578d3adc03a5e414": {
     "query": "SELECT hash FROM password",
     "describe": {
@@ -122,6 +94,16 @@
         true,
         false
       ]
+    }
+  },
+  "63785dc5f193ea31e6f641a910c75857ccd288a3f6e9c4f704331531e4f0689f": {
+    "query": "UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = ? AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
     }
   },
   "6440354d73a67c041ea29508b43b5f309d45837a44f1a562051ad540d894c7d6": {

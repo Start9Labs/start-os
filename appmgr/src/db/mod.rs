@@ -20,6 +20,7 @@ use tokio_tungstenite::WebSocketStream;
 pub use self::model::DatabaseModel;
 use self::util::WithRevision;
 use crate::context::{EitherContext, RpcContext};
+use crate::middleware::auth::is_authed;
 use crate::util::{display_serializable, IoFormat};
 use crate::{Error, ResultExt};
 
@@ -55,6 +56,9 @@ async fn ws_handler<
 }
 
 pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<Body>, Error> {
+    let (parts, body) = req.into_parts();
+    // is_authed(&ctx, &parts).await?;
+    let req = Request::from_parts(parts, body);
     let (res, ws_fut) = hyper_ws_listener::create_ws(req).with_kind(crate::ErrorKind::Network)?;
     if let Some(ws_fut) = ws_fut {
         tokio::task::spawn(async move {
