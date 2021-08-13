@@ -49,7 +49,7 @@ pub enum ErrorKind {
     ParseNetAddress = 41,
     ParseSshKey = 42,
     SoundError = 43,
-    ParseTimestamp = 43,
+    ParseTimestamp = 44,
     ParseSysInfo = 45,
 }
 impl ErrorKind {

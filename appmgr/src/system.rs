@@ -109,8 +109,7 @@ pub struct Metrics {
 
 #[command(rpc_only)]
 pub async fn metrics(#[context] ctx: RpcContext) -> Result<Metrics, Error> {
-    let metrics_val = ctx.metrics_cache.read().await;
-    match (*metrics_val).clone() {
+    match ctx.metrics_cache.read().await.clone() {
         None => Err(Error {
             source: anyhow::anyhow!("No Metrics Found"),
             kind: ErrorKind::NotFound,
@@ -205,10 +204,12 @@ pub async fn launch_metrics_task(cache: &RwLock<Option<Metrics>>) {
     let mem_task = launch_mem_task(cache);
     // launch persistent disk task
     let disk_task = launch_disk_task(cache);
-    temp_task.await;
-    cpu_task.await;
-    mem_task.await;
-    disk_task.await;
+    tokio::join!(
+        temp_task,
+        cpu_task,
+        mem_task,
+        disk_task,
+    );
 }
 
 async fn launch_temp_task(cache: &RwLock<Option<Metrics>>) {
@@ -220,8 +221,6 @@ async fn launch_temp_task(cache: &RwLock<Option<Metrics>>) {
             }
             Err(e) => {
                 log::error!("Could not get new temperature: {}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                continue;
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
@@ -238,8 +237,6 @@ async fn launch_cpu_task(cache: &RwLock<Option<Metrics>>, mut init: ProcStat) {
             }
             Err(e) => {
                 log::error!("Could not get new CPU Metrics: {}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                continue;
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
@@ -256,8 +253,6 @@ async fn launch_mem_task(cache: &RwLock<Option<Metrics>>) {
             }
             Err(e) => {
                 log::error!("Could not get new Memory Metrics: {}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                continue;
             }
         }
 
@@ -274,8 +269,6 @@ async fn launch_disk_task(cache: &RwLock<Option<Metrics>>) {
             }
             Err(e) => {
                 log::error!("Could not get new Disk Metrics: {}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                continue;
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
@@ -307,9 +300,6 @@ pub struct ProcStat {
 impl ProcStat {
     fn total(&self) -> u64 {
         self.user + self.nice + self.system + self.idle + self.iowait + self.irq + self.softirq
-        // self.steal +
-        // self.guest +
-        // self.guest_nice
     }
     fn user(&self) -> u64 {
         self.user + self.nice
@@ -332,11 +322,10 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
         .split_whitespace()
         .skip(1)
         .map(|s| {
-            s.parse::<u64>().map_err(|e| Error {
-                source: anyhow::anyhow!("Invalid /proc/stat column value: {}", e),
-                kind: ErrorKind::ParseSysInfo,
-                revision: None,
-            })
+            s.parse::<u64>().map_err(|e| Error::new(
+                anyhow::anyhow!("Invalid /proc/stat column value: {}", e),
+                ErrorKind::ParseSysInfo
+            ))
         })
         .collect::<Result<Vec<u64>, Error>>()?;
 
@@ -351,13 +340,13 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
         })
     } else {
         Ok(ProcStat {
-            user: stats.get(0).unwrap().clone(),
-            nice: stats.get(1).unwrap().clone(),
-            system: stats.get(2).unwrap().clone(),
-            idle: stats.get(3).unwrap().clone(),
-            iowait: stats.get(4).unwrap().clone(),
-            irq: stats.get(5).unwrap().clone(),
-            softirq: stats.get(6).unwrap().clone(),
+            user: stats[0],
+            nice: stats[1],
+            system: stats[2],
+            idle: stats[3],
+            iowait: stats[4],
+            irq: stats[5],
+            softirq: stats[6],
         })
     }
 }
