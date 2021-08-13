@@ -2,14 +2,14 @@
   <ion-item-group>
     <ng-container *ngFor="let g of groupsArr">
       <ion-item-divider>
-        <ion-skeleton-text style="width: 15%"></ion-skeleton-text>
+        <ion-skeleton-text animated style="width: 120px; height: 16px;"></ion-skeleton-text>
       </ion-item-divider>
       <ion-item *ngFor="let r of rowsArr">
         <ion-label>
-          <ion-skeleton-text animated style="width: 50%"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 200px; height: 14px;"></ion-skeleton-text>
         </ion-label>
         <ion-note slot="end">
-          <ion-skeleton-text animated style="width: 100%"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 80px; height: 14px;"></ion-skeleton-text>
         </ion-note>
       </ion-item>
     </ng-container>
@@ -17,12 +17,14 @@
 </ng-container>
 
 <ng-container *ngIf="!groups">
-  <ion-item *ngFor="let r of rowsArr">
-    <ion-label>
-      <ion-skeleton-text animated style="width: 50%"></ion-skeleton-text>
-    </ion-label>
-    <ion-note slot="end">
-      <ion-skeleton-text animated style="width: 50%"></ion-skeleton-text>
-    </ion-note>
-  </ion-item>
+  <ion-item-group>
+    <ion-item *ngFor="let r of rowsArr">
+      <ion-label>
+        <ion-skeleton-text animated style="width: 200px; height: 14px;"></ion-skeleton-text>
+      </ion-label>
+      <ion-note slot="end">
+        <ion-skeleton-text animated style="width: 80px; height: 14px;"></ion-skeleton-text>
+      </ion-note>
+    </ion-item>
+  </ion-item-group>
 </ng-container>

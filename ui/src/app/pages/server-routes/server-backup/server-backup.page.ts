@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
+import { ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
 import { DiskInfo } from 'src/app/services/api/api.types'
@@ -19,7 +19,6 @@ export class ServerBackupPage {
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
-    private readonly loadingCtrl: LoadingController,
   ) { }
 
   ngOnInit () {
@@ -45,36 +44,21 @@ export class ServerBackupPage {
   async presentModal (logicalname: string): Promise<void> {
     const m = await this.modalCtrl.create({
       componentProps: {
-        type: 'backup',
+        title: 'Create Backup',
+        message: `Enter your master password to create an encrypted backup of your Embassy and all its installed services.`,
+        label: 'Password',
+        useMask: true,
+        buttonText: 'Create Backup',
+        submitFn: async (value: string) => await this.create(logicalname, value),
       },
       cssClass: 'alertlike-modal',
       component: BackupConfirmationComponent,
-      backdropDismiss: false,
-    })
-
-    m.onWillDismiss().then(res => {
-      const data = res.data
-      if (data.cancel) return
-      this.create(logicalname, data.password)
     })
 
     return await m.present()
   }
 
   private async create (logicalname: string, password: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      message: 'Starting backup...',
-      cssClass: 'loader',
-    })
-    await loader.present()
-
-    try {
-      await this.embassyApi.createBackup({ logicalname, password })
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+    await this.embassyApi.createBackup({ logicalname, password })
   }
 }

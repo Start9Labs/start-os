@@ -49,15 +49,15 @@ export class ConfigService {
     return this.isConsulate || (mocks.enabled && mocks.connection === 'poll')
   }
 
-  isLaunchable (pkg: PackageDataEntry): boolean {
-    if (this.isConsulate || pkg.state !== PackageState.Installed) {
+  isLaunchable (state: PackageState, status: PackageMainStatus, interfaces: { [id: string]: InterfaceDef }): boolean {
+    if (this.isConsulate || state !== PackageState.Installed) {
       return false
     }
 
-    return pkg.installed.status.main.status === PackageMainStatus.Running &&
+    return status === PackageMainStatus.Running &&
     (
-      (hasTorUi(pkg.manifest.interfaces) && this.isTor()) ||
-      (hasLanUi(pkg.manifest.interfaces) && !this.isTor())
+      (hasTorUi(interfaces) && this.isTor()) ||
+      (hasLanUi(interfaces) && !this.isTor())
     )
   }
 

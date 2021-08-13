@@ -1,5 +1,6 @@
 import { Component, Input } from '@angular/core'
-import { ModalController } from '@ionic/angular'
+import { IonicSafeString, LoadingController, ModalController } from '@ionic/angular'
+import { getErrorMessage } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'backup-confirmation',
@@ -7,13 +8,19 @@ import { ModalController } from '@ionic/angular'
   styleUrls: ['./backup-confirmation.component.scss'],
 })
 export class BackupConfirmationComponent {
-  @Input() type: 'backup' | 'restore'
+  @Input() title: string
+  @Input() message: string
+  @Input() label = 'Enter value'
+  @Input() buttonText = 'Submit'
+  @Input() useMask = false
+  @Input() value = ''
+  @Input() submitFn: (value: string) => Promise<any>
   unmasked = false
-  password = ''
-  error = ''
+  error: string | IonicSafeString
 
   constructor (
     private readonly modalCtrl: ModalController,
+    private readonly loadingCtrl: LoadingController,
   ) { }
 
   toggleMask () {
@@ -21,15 +28,23 @@ export class BackupConfirmationComponent {
   }
 
   cancel () {
-    this.modalCtrl.dismiss({ cancel: true })
+    this.modalCtrl.dismiss()
   }
 
-  submit () {
-    if (!this.password || this.password.length < 12) {
-      this.error = 'Password must be at least 12 characters in length.'
-      return
+  async submit () {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      cssClass: 'loader',
+    })
+    loader.present()
+
+    try {
+      await this.submitFn(this.value)
+      this.modalCtrl.dismiss(undefined, 'success')
+    } catch (e) {
+      this.error = getErrorMessage(e)
+    } finally {
+      loader.dismiss()
     }
-    const { password } = this
-    this.modalCtrl.dismiss({ password })
   }
 }
