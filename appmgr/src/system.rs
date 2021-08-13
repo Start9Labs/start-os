@@ -451,10 +451,11 @@ async fn get_mem_info() -> Result<MetricsMemory, Error> {
 
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
     tokio::task::spawn_blocking(move || {
-        let fs_res = nix::sys::statfs::statfs("/").map_err(|e| Error {
-            source: anyhow::anyhow!("statfs panicked: {}", e),
-            kind: ErrorKind::ParseSysInfo,
-            revision: None,
+        let fs_res = nix::sys::statfs::statfs("/").map_err(|e| {
+            Error::new(
+                anyhow::anyhow!("statfs panicked: {}", e),
+                ErrorKind::ParseSysInfo,
+            )
         })?;
         let block_size = fs_res.block_size() as u64;
         let blocks = fs_res.blocks();
