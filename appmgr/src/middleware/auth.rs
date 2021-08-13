@@ -47,18 +47,18 @@ pub fn hash_token(token: &str) -> String {
     .to_lowercase()
 }
 
-async fn is_authed(ctx: &RpcContext, req: &RequestParts) -> Result<(), Error> {
+pub async fn is_authed(ctx: &RpcContext, req: &RequestParts) -> Result<(), Error> {
     let id = get_id(req)?;
-    let exp = sqlx::query!("SELECT logged_out FROM session WHERE id = ?", id)
-        .fetch_one(&mut ctx.secret_store.acquire().await?)
+    let session = sqlx::query!("UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = ? AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP", id)
+        .execute(&mut ctx.secret_store.acquire().await?)
         .await?;
-    match exp.logged_out {
-        Some(exp) if exp >= Utc::now().naive_utc() => Err(Error::new(
+    if session.rows_affected() == 0 {
+        return Err(Error::new(
             anyhow!("UNAUTHORIZED"),
             crate::ErrorKind::Authorization,
-        )),
-        _ => Ok(()),
+        ));
     }
+    Ok(())
 }
 
 pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
