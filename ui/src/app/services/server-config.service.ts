@@ -1,12 +1,12 @@
 import { Injectable } from '@angular/core'
 import { AlertInput, AlertButton } from '@ionic/core'
-// import { AppConfigValuePage } from '../modals/app-config-value/app-config-value.page'
 import { ApiService } from './api/embassy-api.service'
-import { ConfigSpec } from '../pkg-config/config-types'
+import { ConfigSpec, ValueSpecString } from '../pkg-config/config-types'
 import { SSHService } from '../pages/server-routes/security-routes/ssh-keys/ssh.service'
 import { AlertController, LoadingController } from '@ionic/angular'
 import { ErrorToastService } from './error-toast.service'
-// import { ModalController } from '@ionic/angular'
+import { ModalController } from '@ionic/angular'
+import { BackupConfirmationComponent } from '../modals/backup-confirmation/backup-confirmation.component'
 
 @Injectable({
   providedIn: 'root',
@@ -14,7 +14,7 @@ import { ErrorToastService } from './error-toast.service'
 export class ServerConfigService {
 
   constructor (
-    // private readonly modalCtrl: ModalController,
+    private readonly modalCtrl: ModalController,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
@@ -71,16 +71,8 @@ export class ServerConfigService {
           },
         ]
         break
-      case 'string':
-        inputs = [
-          {
-            name: key,
-            type: 'textarea',
-            placeholder: 'Enter SSH public key',
-            value: current,
-          },
-        ]
-        break
+      default:
+        return
     }
 
     const alert = await this.alertCtrl.create({
@@ -90,6 +82,24 @@ export class ServerConfigService {
       buttons,
     })
     await alert.present()
+  }
+
+  async presentInputModal (key: string, current?: string) {
+    const { name, description, masked } = serverConfig[key] as ValueSpecString
+
+    const modal = await this.modalCtrl.create({
+      component: BackupConfirmationComponent,
+      componentProps: {
+        title: name,
+        message: description,
+        label: name,
+        useMask: masked,
+        value: current,
+        submitFn: this.saveFns[key],
+      },
+      cssClass: 'alertlike-modal',
+    })
+    await modal.present()
   }
 
   // async presentModalForm (key: string, current?: string) {
@@ -105,7 +115,6 @@ export class ServerConfigService {
 
   saveFns: { [key: string]: (val: any) => Promise<any> } = {
     'auto-check-updates': async (enabled: boolean) => {
-      console.log('SAVING auto check', enabled)
       return this.embassyApi.setDbValue({ pointer: '/auto-check-updates', value: enabled })
     },
     ssh: async (pubkey: string) => {
@@ -136,7 +145,7 @@ export const serverConfig: ConfigSpec = {
   ssh: {
     type: 'string',
     name: 'SSH Key',
-    description: 'Enter an SSH public key to authorize root access from the command line.',
+    description: 'Enter the SSH public key of you would like to authorize for root access to your Embassy.',
     nullable: false,
     // @TODO regex for SSH Key
     // pattern: '',

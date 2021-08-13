@@ -1,6 +1,5 @@
 <ion-header>
-  <ion-toolbar *ngIf="!pageLoading">
-    <ion-searchbar color="dark" (ionChange)="search($event)" debounce="400"></ion-searchbar>
+  <ion-toolbar>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
@@ -8,11 +7,23 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <text-spinner *ngIf="pageLoading; else pageLoaded" text="Loading Marketplace"></text-spinner>
+  <h1 style="font-family: 'Montserrat'; font-weight: 100px; margin: 32px 0;" class="ion-text-center">Embassy Marketplace</h1>
 
+  <ion-searchbar color="dark" (ionChange)="search($event)" debounce="400" style="padding-bottom: 32px;"></ion-searchbar>
+
+  <!-- page loading -->
+  <ng-container *ngIf="pageLoading; else pageLoaded">
+    <div class="scrollable ion-text-center">
+      <ion-button *ngFor="let cat of ['', '', '', '', '', '', '']" fill="clear">
+        <ion-skeleton-text animated style="width: 80px; border-radius: 0;"></ion-skeleton-text>
+      </ion-button>
+    </div>
+
+    <div class="divider" style="margin: 24px 0;"></div>
+  </ng-container>
+
+  <!-- page loaded -->
   <ng-template #pageLoaded>
-    <h1 style="font-family: 'Montserrat'; font-weight: 100px; margin: 0 0 32px 0;" class="ion-text-center">Embassy Marketplace</h1>
-
     <div class="scrollable ion-text-center">
       <ion-button
         *ngFor="let cat of data.categories"
@@ -25,57 +36,75 @@
     </div>
 
     <div class="divider" style="margin: 24px;"></div>
-
-    <div *ngIf="pkgsLoading; else loaded" style="margin-top: 64px;" class="ion-text-center">
-      <text-spinner text="Loading Packages"></text-spinner>
-    </div>
-
-    <ng-template #loaded>
-      <ion-grid>
-        <ion-row>
-          <ion-col *ngIf="eos && category === 'featured'" sizeXs="12" sizeSm="12" sizeMd="6">
-            <ion-item button class="eos-item" (click)="updateEos()">
-              <ion-thumbnail slot="start">
-                <img src="assets/img/icon.png" />
-              </ion-thumbnail>
-              <ion-label>
-                <h3>Now Available...</h3>
-                <h2>Embassy OS {{ eos.version }}</h2>
-                <p>{{ eos.headline }}</p>
-              </ion-label>
-            </ion-item>
-          </ion-col>
-          <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeSm="12" sizeMd="6">
-            <ion-item [routerLink]="['/marketplace', pkg.manifest.id]">
-              <ion-thumbnail slot="start">
-                <img [src]="pkg.icon" />
-              </ion-thumbnail>
-              <ion-label>
-                <h2 style="font-family: 'Montserrat'; font-weight: bold;">{{ pkg.manifest.title }}</h2>
-                <h3>{{ pkg.manifest.description.short }}</h3>
-                <ng-container *ngIf="localPkgs[pkg.manifest.id] as localPkg; else none">
-                  <p *ngIf="localPkg.state === PackageState.Installed">
-                    <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 0" color="success">Installed</ion-text>
-                    <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1" color="warning">Update Available</ion-text>
-                  </p>
-                  <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state">
-                    <ion-text color="primary">{{ localPkg.state | titlecase }}...{{ (localPkg['install-progress'] | installState).totalProgress }}%</ion-text>
-                  </p>
-                  <p *ngIf="localPkg.state === PackageState.Removing">
-                    <ion-text color="warning">{{ localPkg.state | Removing }}</ion-text>
-                    <ion-spinner name="dots" color="warning"></ion-spinner>
-                  </p>
-                </ng-container>
-                <ng-template #none>
-                  <p>Not Installed</p>
-                </ng-template>
-              </ion-label>
-            </ion-item>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
-    </ng-template>
   </ng-template>
+
+  <!-- packages loading -->
+  <ng-container *ngIf="pkgsLoading; else pkgsLoaded">
+    <ion-grid>
+      <ion-row>
+        <ion-col *ngFor="let pkg of ['', '', '', '']" sizeXs="12" sizeSm="12" sizeMd="6">
+          <ion-item>
+            <ion-thumbnail slot="start">
+              <ion-skeleton-text style="border-radius: 100%;" animated></ion-skeleton-text>
+            </ion-thumbnail>
+            <ion-label>
+              <ion-skeleton-text animated style="width: 150px; height: 18px; margin-bottom: 8px;"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 400px;"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 400px;"></ion-skeleton-text>
+            </ion-label>
+          </ion-item>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </ng-container>
+
+  <!-- packages loaded -->
+  <ng-template #pkgsLoaded>
+    <ion-grid>
+      <ion-row>
+        <ion-col *ngIf="eos && category === 'featured'" sizeXs="12" sizeSm="12" sizeMd="6">
+          <ion-item button class="eos-item" (click)="updateEos()">
+            <ion-thumbnail slot="start">
+              <img src="assets/img/icon.png" />
+            </ion-thumbnail>
+            <ion-label>
+              <h3>Now Available...</h3>
+              <h2>Embassy OS {{ eos.version }}</h2>
+              <p>{{ eos.headline }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-col>
+        <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeSm="12" sizeMd="6">
+          <ion-item [routerLink]="['/marketplace', pkg.manifest.id]">
+            <ion-thumbnail slot="start">
+              <img [src]="pkg.icon" />
+            </ion-thumbnail>
+            <ion-label>
+              <h2 style="font-family: 'Montserrat'; font-weight: bold;">{{ pkg.manifest.title }}</h2>
+              <h3>{{ pkg.manifest.description.short }}</h3>
+              <ng-container *ngIf="localPkgs[pkg.manifest.id] as localPkg; else none">
+                <p *ngIf="localPkg.state === PackageState.Installed">
+                  <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 0" color="success">Installed</ion-text>
+                  <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1" color="warning">Update Available</ion-text>
+                </p>
+                <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state">
+                  <ion-text color="primary">{{ localPkg.state | titlecase }}...{{ (localPkg['install-progress'] | installState).totalProgress }}%</ion-text>
+                </p>
+                <p *ngIf="localPkg.state === PackageState.Removing">
+                  <ion-text color="warning">{{ localPkg.state | Removing }}</ion-text>
+                  <ion-spinner name="dots" color="warning"></ion-spinner>
+                </p>
+              </ng-container>
+              <ng-template #none>
+                <p>Not Installed</p>
+              </ng-template>
+            </ion-label>
+          </ion-item>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </ng-template>
+
   <ion-infinite-scroll [disabled]="!needInfinite" (ionInfinite)="doInfinite($event)">
     <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
   </ion-infinite-scroll>

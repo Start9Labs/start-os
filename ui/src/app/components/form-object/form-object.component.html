@@ -15,13 +15,13 @@
       <!-- primitive -->
       <ng-container *ngIf="['string', 'number', 'boolean', 'enum'] | includes : spec.type">
         <!-- label -->
-        <p class="input-label">
+        <h4 class="input-label">
           <form-label [data]="{
             spec: spec,
             isNew: current && current[entry.key] === undefined,
             isEdited: entry.value.dirty
           }"></form-label>
-        </p>
+        </h4>
         <!-- string -->
         <ion-item color="dark" *ngIf="spec.type === 'string'">
           <ion-input [type]="spec.masked && !unmasked[entry.key] ? 'password' : 'text'" [placeholder]="'Enter ' + spec.name" [formControlName]="entry.key" (ionChange)="presentAlertChangeWarning(entry.key, spec)"></ion-input>

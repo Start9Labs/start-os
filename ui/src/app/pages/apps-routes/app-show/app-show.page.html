@@ -18,35 +18,35 @@
 </ion-header>
 
 <ion-content>
-  <ng-container *ngIf="pkg">
-    <ion-item-group>
-      <!-- ** always ** -->
-      <ion-item-divider>Status</ion-item-divider>
-      <ion-item>
-        <ion-label style="overflow: visible;">
-          <status size="x-large" weight="500" [rendering]="rendering"></status>
-        </ion-label>
-        <ion-button slot="end" class="action-button" *ngIf="pkg.state === PackageState.Installed && (pkg | hasUi)" [disabled]="!(pkg | isLaunchable)" (click)="launchUiTab()">
-          <ion-icon slot="start" name="open-outline"></ion-icon>
-          Open UI
-        </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.NeedsConfig" [routerLink]="['config']">
-          Configure
-        </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : rendering.feStatus" color="danger" (click)="stop()">
-          Stop
-        </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.DependencyIssue" (click)="scrollToRequirements()">
-          Fix
-        </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.Stopped" color="success" (click)="tryStart()">
-          Start
-        </ion-button>
-      </ion-item>
+  <ion-item-group>
+    <!-- ** always ** -->
+    <ion-item-divider>Status</ion-item-divider>
+    <ion-item>
+      <ion-label style="overflow: visible;">
+        <status size="x-large" weight="500" [rendering]="rendering"></status>
+      </ion-label>
+      <ion-button slot="end" class="action-button" *ngIf="pkg.state === PackageState.Installed && (pkg.manifest.interfaces | hasUi)" [disabled]="!(pkg.state | isLaunchable : pkg.installed.status.main.status : pkg.manifest.interfaces)" (click)="launchUiTab()">
+        <ion-icon slot="start" name="open-outline"></ion-icon>
+        Open UI
+      </ion-button>
+      <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.NeedsConfig" [routerLink]="['config']">
+        Configure
+      </ion-button>
+      <ion-button slot="end" class="action-button" *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : rendering.feStatus" color="danger" (click)="stop()">
+        Stop
+      </ion-button>
+      <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.DependencyIssue" (click)="scrollToRequirements()">
+        Fix
+      </ion-button>
+      <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.Stopped" color="success" (click)="tryStart()">
+        Start
+      </ion-button>
+    </ion-item>
 
-      <!-- ** iff installed ** -->
-      <ng-container *ngIf="pkg.state === PackageState.Installed">
-
+    <!-- ** iff  && !restoring/backing-up ** -->
+    <ng-container *ngIf="pkg.state === PackageState.Installed">
+      <!-- ** iff !restoring/backing-up ** -->
+      <ng-container *ngIf="!([PackageMainStatus.BackingUp, PackageMainStatus.Restoring] | includes : mainStatus.status); else maintenance">
         <!-- ** iff health checks ** -->
         <ng-container *ngIf="!(mainStatus.health | empty)">
           <ion-item-divider>Health Checks</ion-item-divider>
@@ -78,7 +78,7 @@
             <ion-thumbnail slot="start">
               <img [src]="pkg.installed['dependency-info'][dep.key].icon" />
             </ion-thumbnail>
-            <ion-label class="ion-text-wrap">
+            <ion-label>
               <h2 style="font-family: 'Montserrat'">{{ pkg.installed['dependency-info'][dep.key].manifest.title }}</h2>
               <p>{{ pkg.manifest.dependencies[dep.key].version | displayEmver }}</p>
               <p><ion-text [color]="pkg.installed.status['dependency-errors'][dep.key] ? 'warning' : 'success'">{{ pkg.installed.status['dependency-errors'][dep.key] ? pkg.installed.status['dependency-errors'][dep.key].type : 'satisfied' }}</ion-text></p>
@@ -112,27 +112,30 @@
           </ion-item>
         </ng-container>  
       </ng-container>
-    </ion-item-group>
+      <ng-template #maintenance>
+        App is undergoing maintenance.
+      </ng-template>
+    </ng-container>
+  </ion-item-group>
 
-    <!-- ** installed or updating ** -->
-    <div *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.state" style="padding: 16px;">
-      <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
-      <ion-progress-bar 
-        [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'" 
-        [value]="(pkg['install-progress'] | installState).downloadProgress / 100"
-      ></ion-progress-bar>
+  <!-- ** installing or updating ** -->
+  <div *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.state" style="padding: 16px;">
+    <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
+    <ion-progress-bar 
+      [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'" 
+      [value]="(pkg['install-progress'] | installState).downloadProgress / 100"
+    ></ion-progress-bar>
 
-      <p>Validating: {{ (pkg['install-progress'] | installState).validateProgress }}%</p>
-      <ion-progress-bar
-        [color]="pkg['install-progress']['validation-complete'] ? 'success' : 'secondary'" 
-        [value]="(pkg['install-progress'] | installState).validateProgress / 100"
-      ></ion-progress-bar>
+    <p>Validating: {{ (pkg['install-progress'] | installState).validateProgress }}%</p>
+    <ion-progress-bar
+      [color]="pkg['install-progress']['validation-complete'] ? 'success' : 'secondary'" 
+      [value]="(pkg['install-progress'] | installState).validateProgress / 100"
+    ></ion-progress-bar>
 
-      <p>Installing: {{ (pkg['install-progress'] | installState).unpackProgress }}%</p>
-      <ion-progress-bar 
-        [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'" 
-        [value]="(pkg['install-progress'] | installState).unpackProgress / 100"
-      ></ion-progress-bar>
-    </div>
-  </ng-container>
+    <p>Installing: {{ (pkg['install-progress'] | installState).unpackProgress }}%</p>
+    <ion-progress-bar 
+      [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'" 
+      [value]="(pkg['install-progress'] | installState).unpackProgress / 100"
+    ></ion-progress-bar>
+  </div>
 </ion-content>

@@ -832,11 +832,13 @@ export module Mock {
 
   export const SshKeys: RR.GetSSHKeysRes = {
     '28:d2:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53': {
+      'created-at': new Date().toISOString(),
       alg: 'ed25519',
       hostname: 'Matt Key',
       hash: 'VeryLongHashOfSSHKey1',
     },
     '12:f8:7e:78:61:b4:bf:e2:de:24:15:96:4e:d4:72:53': {
+      'created-at': new Date().toISOString(),
       alg: 'ed25519',
       hostname: 'Aiden Key',
       hash: 'VeryLongHashOfSSHKey2',
@@ -845,6 +847,7 @@ export module Mock {
 
   export const SshKey: RR.AddSSHKeyRes = {
     '44:44:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53': {
+      'created-at': new Date().toISOString(),
       alg: 'ed25519',
       hostname: 'Lucy Key',
       hash: 'VeryLongHashOfSSHKey3',

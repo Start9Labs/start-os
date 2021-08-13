@@ -308,6 +308,7 @@ export interface SSHKeys {
 }
 
 export interface SSHKeyEntry {
+  'created-at': string
   alg: string
   hostname: string
   hash: string

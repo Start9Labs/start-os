@@ -6,7 +6,8 @@
     <ion-title>Properties</ion-title>
     <ion-buttons slot="end">
       <ion-button (click)="refresh()">
-        <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
+        <ion-icon slot="start" name="refresh-outline"></ion-icon>
+        Refresh
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
@@ -18,14 +19,14 @@
   <ng-template #loaded>
     <!-- not running -->
     <ion-item *ngIf="!running" class="ion-margin-bottom">
-      <ion-label class="ion-text-wrap">
+      <ion-label>
         <p><ion-text color="warning">Service not running. Information on this page could be inaccurate.</ion-text></p>
       </ion-label>
     </ion-item>
 
     <!-- no properties -->
     <ion-item *ngIf="properties | empty">
-      <ion-label class="ion-text-wrap">
+      <ion-label>
         <p>No properties.</p>
       </ion-label>
     </ion-item>
@@ -38,7 +39,7 @@
           <ion-button *ngIf="prop.value.description" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
             <ion-icon slot="icon-only" name="help-circle-outline"></ion-icon>
           </ion-button>
-          <ion-label class="ion-text-wrap">
+          <ion-label>
             <h2>{{ prop.key }}</h2>
           </ion-label>
         </ion-item>
@@ -47,7 +48,7 @@
           <ion-button *ngIf="prop.value.description" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
             <ion-icon slot="icon-only" name="help-circle-outline"></ion-icon>
           </ion-button>
-          <ion-label class="ion-text-wrap">
+          <ion-label>
             <h2>{{ prop.key }}</h2>
             <p>{{ prop.value.masked && !unmasked[prop.key] ? (prop.value.value | mask ) : (prop.value.value | truncateEnd : 100) }}</p>
           </ion-label>

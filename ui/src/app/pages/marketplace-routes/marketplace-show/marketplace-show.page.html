@@ -70,7 +70,7 @@
 
       <!-- recommendation -->
       <ion-item *ngIf="rec && showRec" class="rec-item">
-        <ion-label class="ion-text-wrap">
+        <ion-label>
           <h2 style="display: flex; align-items: center;">
             <ion-thumbnail style="height: 3vh; width: 3vh; margin: 5px" slot="start">
               <img [src]="rec.dependentIcon" [alt]="rec.dependentTitle"/>
@@ -98,14 +98,14 @@
           </ion-button>
         </ion-item-divider>
         <ion-item lines="none" color="transparent">
-          <ion-label class="ion-text-wrap" >
+          <ion-label>
             <div id='release-notes' [innerHTML]="pkg.manifest['release-notes'] | markdown"></div>
           </ion-label>
         </ion-item>
         <!-- description -->
         <ion-item-divider>Description</ion-item-divider>
         <ion-item lines="none" color="transparent">
-          <ion-label class="ion-text-wrap">
+          <ion-label>
             <div id="release-notes" class="release-notes">{{ pkg.manifest.description.long }}</div>
           </ion-label>
         </ion-item>
@@ -119,7 +119,7 @@
                     <ion-thumbnail slot="start">
                       <img [src]="pkg['dependency-metadata'][dep.key].icon" />
                     </ion-thumbnail>
-                    <ion-label class="ion-text-wrap">
+                    <ion-label>
                       <h2>
                         {{ pkg['dependency-metadata'][dep.key].title }}
                         <span *ngIf="dep.value.recommended"> (recommended)</span>

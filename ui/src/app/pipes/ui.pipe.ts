@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { PackageDataEntry } from '../services/patch-db/data-model'
+import { InterfaceDef, PackageMainStatus, PackageState } from '../services/patch-db/data-model'
 import { ConfigService, hasUi } from '../services/config.service'
 
 @Pipe({
@@ -7,8 +7,7 @@ import { ConfigService, hasUi } from '../services/config.service'
 })
 export class HasUiPipe implements PipeTransform {
 
-  transform (pkg: PackageDataEntry): boolean {
-    const interfaces = pkg.manifest.interfaces
+  transform (interfaces: { [id: string]: InterfaceDef }): boolean {
     return hasUi(interfaces)
   }
 }
@@ -20,7 +19,7 @@ export class LaunchablePipe implements PipeTransform {
 
   constructor (private configService: ConfigService) { }
 
-  transform (pkg: PackageDataEntry): boolean {
-    return this.configService.isLaunchable(pkg)
+  transform (state: PackageState, status: PackageMainStatus, interfaces: { [id: string]: InterfaceDef }): boolean {
+    return this.configService.isLaunchable(state, status, interfaces)
   }
 }

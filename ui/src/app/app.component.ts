@@ -75,7 +75,6 @@ export class AppComponent {
   async init () {
     await this.storage.create()
     await this.authService.init()
-    await this.emver.init()
     await this.patch.init()
 
     this.router.initialNavigation()
