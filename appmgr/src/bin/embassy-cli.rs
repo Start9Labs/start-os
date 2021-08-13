@@ -38,7 +38,7 @@ fn inner_main() -> Result<(), Error> {
         |e: RpcError| {
             match e.data {
                 Some(Value::String(s)) => eprintln!("{}: {}", e.message, s),
-                Some(Value::Object(o)) => if let Some(Value::String(s)) = o.get("message") {
+                Some(Value::Object(o)) => if let Some(Value::String(s)) = o.get("details") {
                     eprintln!("{}: {}", e.message, s)
                 }
                 Some(a) => eprintln!("{}: {}", e.message, a),

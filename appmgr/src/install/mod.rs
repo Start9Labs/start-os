@@ -11,7 +11,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use emver::VersionRange;
 use futures::TryStreamExt;
-use http::HeaderMap;
+use http::{HeaderMap, StatusCode};
 use indexmap::{IndexMap, IndexSet};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{
@@ -28,7 +28,8 @@ use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 use self::progress::{InstallProgress, InstallProgressTracker};
 use crate::context::{EitherContext, ExtendedContext, RpcContext};
 use crate::db::model::{
-    CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, StaticFiles,
+    CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, StaticDependencyInfo,
+    StaticFiles,
 };
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
@@ -272,6 +273,76 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .await?;
     log::info!("Install {}@{}: Unpacked Manifest", pkg_id, version);
 
+    log::info!("Install {}@{}: Fetching Dependency Info", pkg_id, version);
+    let mut dependency_info = IndexMap::with_capacity(manifest.dependencies.0.len());
+    let reg_url = ctx.package_registry_url().await?;
+    for (dep, info) in &manifest.dependencies.0 {
+        let manifest: Option<Manifest> = match reqwest::get(format!(
+            "{}/package/manifest/{}?version={}",
+            reg_url, dep, info.version
+        ))
+        .await
+        .with_kind(crate::ErrorKind::Registry)?
+        .error_for_status()
+        {
+            Ok(a) => Ok(Some(
+                a.json()
+                    .await
+                    .with_kind(crate::ErrorKind::Deserialization)?,
+            )),
+            Err(e) if e.status() == Some(StatusCode::BAD_REQUEST) => Ok(None),
+            Err(e) => Err(e),
+        }
+        .with_kind(crate::ErrorKind::Registry)?;
+        if let Some(manifest) = manifest {
+            let dir = Path::new(PKG_PUBLIC_DIR)
+                .join(&manifest.id)
+                .join(manifest.version.as_str());
+            let icon_path = dir.join(format!("icon.{}", manifest.assets.icon_type()));
+            if tokio::fs::metadata(&icon_path).await.is_err() {
+                tokio::fs::create_dir_all(&dir).await?;
+                let icon = reqwest::get(format!(
+                    "{}/package/icon/{}?version={}",
+                    reg_url, dep, info.version
+                ))
+                .await
+                .with_kind(crate::ErrorKind::Registry)?;
+                let mut dst = File::create(&icon_path).await?;
+                tokio::io::copy(
+                    &mut tokio_util::io::StreamReader::new(icon.bytes_stream().map_err(|e| {
+                        std::io::Error::new(
+                            if e.is_connect() {
+                                std::io::ErrorKind::ConnectionRefused
+                            } else if e.is_timeout() {
+                                std::io::ErrorKind::TimedOut
+                            } else {
+                                std::io::ErrorKind::Other
+                            },
+                            e,
+                        )
+                    })),
+                    &mut dst,
+                )
+                .await?;
+                dst.sync_all().await?;
+            }
+
+            dependency_info.insert(
+                dep.clone(),
+                StaticDependencyInfo {
+                    icon: format!(
+                        "/public/package-data/{}/{}/icon.{}",
+                        manifest.id,
+                        manifest.version,
+                        manifest.assets.icon_type()
+                    ),
+                    manifest: Some(manifest),
+                },
+            );
+        }
+    }
+    log::info!("Install {}@{}: Fetched Dependency Info", pkg_id, version);
+
     let public_dir_path = Path::new(PKG_PUBLIC_DIR)
         .join(pkg_id)
         .join(version.as_str());
@@ -408,6 +479,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         },
         manifest: manifest.clone(),
         system_pointers: Vec::new(),
+        dependency_info,
         current_dependents: {
             // search required dependencies
             let mut deps = IndexMap::new();

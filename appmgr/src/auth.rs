@@ -1,21 +1,22 @@
 use anyhow::anyhow;
 use basic_cookies::Cookie;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use clap::ArgMatches;
 use http::header::COOKIE;
 use http::HeaderValue;
 use indexmap::IndexMap;
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
+use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::context::EitherContext;
 use crate::middleware::auth::{get_id, hash_token};
 use crate::util::{display_none, display_serializable, IoFormat};
-use crate::{Error, ResultExt};
+use crate::{ensure_code, Error, ResultExt};
 
-#[command(subcommands(login, logout))]
+#[command(subcommands(login, logout, session))]
 pub fn auth(#[context] ctx: EitherContext) -> Result<EitherContext, Error> {
     Ok(ctx)
 }
@@ -58,12 +59,16 @@ pub async fn login(
         .fetch_one(&mut handle)
         .await?
         .hash;
-    argon2::verify_encoded(&pw_hash, password.as_bytes()).map_err(|_| {
-        Error::new(
-            anyhow!("Password Incorrect"),
-            crate::ErrorKind::Authorization,
-        )
-    })?;
+    ensure_code!(
+        argon2::verify_encoded(&pw_hash, password.as_bytes()).map_err(|_| {
+            Error::new(
+                anyhow!("Password Incorrect"),
+                crate::ErrorKind::Authorization,
+            )
+        })?,
+        crate::ErrorKind::Authorization,
+        "Password Incorrect"
+    );
     let token = base32::encode(
         base32::Alphabet::RFC4648 { padding: false },
         &rand::random::<[u8; 16]>(),
@@ -107,7 +112,7 @@ pub async fn logout(
         if let Some(session) = cookies.iter().find(|c| c.get_name() == "session") {
             let token = session.get_value();
             let id = hash_token(token);
-            kill(ctx, id).await?;
+            kill(ctx, vec![id]).await?;
         }
     }
     Ok(())
@@ -116,8 +121,8 @@ pub async fn logout(
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Session {
-    logged_in: NaiveDateTime,
-    last_active: NaiveDateTime,
+    logged_in: DateTime<Utc>,
+    last_active: DateTime<Utc>,
     user_agent: Option<String>,
     metadata: Value,
 }
@@ -187,8 +192,8 @@ pub async fn list(
             Ok((
                 row.id,
                 Session {
-                    logged_in: row.logged_in,
-                    last_active: row.last_active,
+                    logged_in: DateTime::from_utc(row.logged_in, Utc),
+                    last_active: DateTime::from_utc(row.last_active, Utc),
                     user_agent: row.user_agent,
                     metadata: serde_json::from_str(&row.metadata)
                         .with_kind(crate::ErrorKind::Database)?,
@@ -199,13 +204,20 @@ pub async fn list(
     })
 }
 
+fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<String>, RpcError> {
+    Ok(arg.split(",").map(|s| s.to_owned()).collect())
+}
+
 #[command(display(display_none))]
-pub async fn kill(#[context] ctx: EitherContext, #[arg] id: String) -> Result<(), Error> {
+pub async fn kill(
+    #[context] ctx: EitherContext,
+    #[arg(parse(parse_comma_separated))] ids: Vec<String>,
+) -> Result<(), Error> {
     let rpc_ctx = ctx.as_rpc().unwrap();
-    sqlx::query!(
-        "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = ?",
-        id
-    )
+    sqlx::query(&format!(
+        "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id IN ('{}')",
+        ids.join("','")
+    ))
     .execute(&mut rpc_ctx.secret_store.acquire().await?)
     .await?;
     Ok(())

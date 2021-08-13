@@ -204,11 +204,20 @@ pub struct InstalledPackageDataEntry {
     pub manifest: Manifest,
     pub system_pointers: Vec<SystemPointerSpec>,
     #[model]
+    pub dependency_info: IndexMap<PackageId, StaticDependencyInfo>,
+    #[model]
     pub current_dependents: IndexMap<PackageId, CurrentDependencyInfo>,
     #[model]
     pub current_dependencies: IndexMap<PackageId, CurrentDependencyInfo>,
     #[model]
     pub interface_addresses: InterfaceAddressMap,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+pub struct StaticDependencyInfo {
+    pub manifest: Option<Manifest>,
+    pub icon: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]

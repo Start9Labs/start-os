@@ -22,7 +22,7 @@ export class SessionsPage {
 
   async ngOnInit () {
     try {
-      this.sessionInfo = await this.embassyApi.getSessions({ })
+      this.sessionInfo = await this.embassyApi.getSessions({})
     } catch (e) {
       this.errToast.present(e.message)
     } finally {
