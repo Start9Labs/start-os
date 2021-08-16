@@ -13,6 +13,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult, HealthCheckResultVariant};
 use crate::status::{DependencyErrors, MainStatus, Status};
 use crate::util::Version;
+use crate::volume::Volumes;
 use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
@@ -136,6 +137,7 @@ impl DepInfo {
         dependency_config: Option<Config>, // fetch if none
         dependent_id: &PackageId,
         dependent_version: &Version,
+        dependent_volumes: &Volumes,
     ) -> Result<Result<(), DependencyError>, Error> {
         let (manifest, info) = if let Some(dep_model) = crate::db::DatabaseModel::new()
             .package_data()
@@ -170,7 +172,12 @@ impl DepInfo {
         };
         if let Some(cfg_req) = &self.config {
             if let Err(e) = cfg_req
-                .check(dependent_id, dependent_version, &dependency_config)
+                .check(
+                    dependent_id,
+                    dependent_version,
+                    dependent_volumes,
+                    &dependency_config,
+                )
                 .await
             {
                 if e.kind == crate::ErrorKind::ConfigRulesViolation {
@@ -215,11 +222,17 @@ impl DependencyConfig {
         &self,
         dependent_id: &PackageId,
         dependent_version: &Version,
+        dependent_volumes: &Volumes,
         dependency_config: &Config,
     ) -> Result<Result<(), String>, Error> {
         Ok(self
             .check
-            .sandboxed(dependent_id, dependent_version, Some(dependency_config))
+            .sandboxed(
+                dependent_id,
+                dependent_version,
+                dependent_volumes,
+                Some(dependency_config),
+            )
             .await?
             .map_err(|(_, e)| e))
     }
@@ -227,10 +240,16 @@ impl DependencyConfig {
         &self,
         dependent_id: &PackageId,
         dependent_version: &Version,
+        dependent_volumes: &Volumes,
         old: &Config,
     ) -> Result<Config, Error> {
         self.auto_configure
-            .sandboxed(dependent_id, dependent_version, Some(old))
+            .sandboxed(
+                dependent_id,
+                dependent_version,
+                dependent_volumes,
+                Some(old),
+            )
             .await?
             .map_err(|e| Error::new(anyhow!("{}", e.1), crate::ErrorKind::AutoConfigure))
     }
