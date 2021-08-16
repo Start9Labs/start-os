@@ -1,6 +1,6 @@
 # EmbassyOS Service Packaging Guide
 
-Welcome!  The following guide will use an example to demonstrate how to package up a service for EmbassyOS.  This essentially means you will take an existing app (or one you have written yourself), and wrap it up into an .s9pk so that it can be added to an Embassy Marketplace.
+Welcome!  The following guide will provide the prerequisites, introduce a brief overview of the packaging process, use an example demonstrating how to package a service, and finally describe the submission process.  This essentially describes how you can take an existing app (or one you have written yourself), and wrap it up such that it can be added to an EmbassyOS Marketplace!
 
 ## Prerequisites
 
@@ -30,6 +30,8 @@ The following are recommended:
 
 ## Overview
 
+### Components
+
 Simply, the package is made up of the following parts:
     1. Image - Each service is running in a Docker image.  Best results will come from an arm based linux; [Alpine](https://www.alpinelinux.org/) is highly recommended.
     2. Volume - Each service gets a volume, allocated by EOS.  The volume directory (for seeding data into the volume) is typically: /root/volumes/<service-id>
@@ -40,17 +42,30 @@ Simply, the package is made up of the following parts:
 
 Check [here](https://docs.start9.com/contributing/services/overview.html) for a detailed overview of package components.
 
-## Service Wrapper Repo
+### Service Wrapper Repo and Submodules
 
-See [here](https://docs.start9.com/contributing/services/wrapper.html) for the advised structure for your service wrapper's git repository.
+See [here](https://docs.start9.com/contributing/services/wrapper.html) for how to structure your service wrapper's git repository.
+
+Git submodules allow the use of another project while in the working project directory.  In this case, you can use an existing app's git repo in order to source its code into your service wrapper.
+
+Simply run:
+```git submodule add <link_to_source_project>```
 
 ## Example - Embassy Pages
 
-Okay, let's actually package a service!  For this example, we're going to use the existing EOS service Embassy Pages.  This will give a good overview of service packaging, but obviously your app will be different.
+Okay, let's actually package a service!  For this example, we're going to use the existing EOS service [Embassy Pages](https://github.com/Start9Labs/embassy-pages-wrapper).  This will give a good overview of service packaging, but obviously your app will be different.  This will assume a Linux development environment with all the recommended dependencies listed above.
 
-### Clone Start9's Service Wrapper Template
+### Use Start9's Wrapper Template
 
+1. Clone and rename the repo (or alternatively, use the template generation button found on the github [repo](https://github.com/Start9Labs/hello-world-wrapper))
+```
+git clone https://github.com/Start9Labs/hello-world-wrapper
+mv hello-world-wrapper embassy-pages-wrapper && cd embassy-pages-wrapper
+```
 
+2. Edit the `README.md` to explain what the service is, what dependencies are required, and build/install instructions.
+
+3. Edit the `manifest.yaml`
 
 ## Submission Process
 
