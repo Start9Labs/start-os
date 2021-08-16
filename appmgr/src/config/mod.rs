@@ -509,13 +509,11 @@ pub fn configure<'a, Db: DbHandle>(
                 .get(db, true)
                 .await?
             {
-                let version = dependent_model
-                    .clone()
-                    .manifest()
-                    .version()
-                    .get(db, true)
-                    .await?;
-                if let Err(error) = cfg.check(dependent, &*version, &config).await? {
+                let manifest = dependent_model.clone().manifest().get(db, true).await?;
+                if let Err(error) = cfg
+                    .check(dependent, &manifest.version, &manifest.volumes, &config)
+                    .await?
+                {
                     let dep_err = DependencyError::ConfigUnsatisfied { error };
                     handle_broken_dependents(
                         db,

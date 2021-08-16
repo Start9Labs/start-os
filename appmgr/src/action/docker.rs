@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::{IoFormat, Version};
-use crate::volume::{VolumeId, Volumes};
+use crate::volume::{Volume, VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &'static str = "embassy";
@@ -110,12 +110,13 @@ impl DockerAction {
         &self,
         pkg_id: &PackageId,
         pkg_version: &Version,
+        volumes: &Volumes,
         input: Option<I>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run").arg("--rm").arg("--network=none");
         cmd.args(
-            self.docker_args(pkg_id, pkg_version, &Volumes::default(), false)
+            self.docker_args(pkg_id, pkg_version, &volumes.to_readonly(), false)
                 .await,
         );
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
