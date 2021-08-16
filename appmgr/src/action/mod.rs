@@ -140,11 +140,12 @@ impl ActionImplementation {
         &self,
         pkg_id: &PackageId,
         pkg_version: &Version,
+        volumes: &Volumes,
         input: Option<I>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         match self {
             ActionImplementation::Docker(action) => {
-                action.sandboxed(pkg_id, pkg_version, input).await
+                action.sandboxed(pkg_id, pkg_version, volumes, input).await
             }
         }
     }
