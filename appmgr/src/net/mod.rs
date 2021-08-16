@@ -13,6 +13,7 @@ pub mod interface;
 #[cfg(feature = "avahi")]
 pub mod mdns;
 pub mod tor;
+pub mod wifi;
 
 pub struct NetController {
     tor: TorController,

@@ -93,10 +93,10 @@ serde_yaml = "0.8.14"
 sha2 = "0.9.3"
 simple-logging = "2.0"
 sqlx = { version = "0.5", features = [
+  "chrono",
+  "offline",
   "runtime-tokio-rustls",
   "sqlite",
-  "offline",
-  "chrono",
 ] }
 tar = "0.4.35"
 thiserror = "1.0.24"
@@ -109,3 +109,4 @@ tokio-util = { version = "0.6.6", features = ["io"] }
 torut = "0.1.9"
 typed-builder = "0.9.0"
 url = { version = "2.2.1", features = ["serde"] }
+wifi-rs = "0.2.2"
