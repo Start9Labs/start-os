@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
+import { AlertController, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { ApiService, EmbassyDrive } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
@@ -20,6 +20,7 @@ export class EmbassyPage {
     private modalController: ModalController,
     private stateService: StateService,
     private readonly alertCtrl: AlertController,
+    private loadingCtrl: LoadingController
   ) {}
 
   async ngOnInit() {
@@ -35,26 +36,28 @@ export class EmbassyPage {
       }
     })
     modal.onDidDismiss().then(async ret => {
-      if (!ret.data && !ret.data.success) return
+      if (!ret.data || !ret.data.password) return
 
-      if(!!this.stateService.recoveryDrive) {
-        await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward' })
-      } else {
-        const alert = await this.alertCtrl.create({
-          cssClass: 'success-alert',
-          header: 'Success!',
-          subHeader: `Your Embassy is set up and ready to go.`,
-          backdropDismiss: false,
-          buttons: [
-            {
-              text: 'Go To Embassy',
-              handler: () => {
-                window.location.reload()
-              }
-            }
-          ]
-        })
-        await alert.present()
+      const loader = await this.loadingCtrl.create({
+        message: 'Setting up your Embassy!'
+      })
+      
+      await loader.present()
+  
+      this.stateService.embassyDrive = drive
+      this.stateService.embassyPassword = ret.data.password
+  
+      try {
+        this.stateService.torAddress = (await this.stateService.setupEmbassy()).torAddress
+      } catch (e) {
+        console.log(e.message)
+      } finally {
+        loader.dismiss()
+        if(!!this.stateService.recoveryDrive) {
+          await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward' })
+        } else {
+          await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward' })
+        }
       }
     })
     await modal.present();

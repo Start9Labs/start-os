@@ -1,0 +1,42 @@
+<ion-content color="light">
+  <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
+    <ion-row style="height: 100%;">
+      <ion-col class="ion-text-center">
+
+        <div style="padding-bottom: 32px;">
+          <img src="assets/png/logo.png" style="max-width: 240px;" />
+        </div>
+
+        <ion-card color="dark">
+          <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
+            <ion-card-title>Setup Complete!</ion-card-title>
+          </ion-card-header>
+          <div class="divider"></div>
+          <ion-card-content class="ion-margin">
+            <p class="input-label">Tor Address:</p>
+            <ion-item style="--border-radius: 8px 8px 0 0 !important;" color="light">
+              <ion-label>
+                <p>{{ stateService.torAddress }}</p>
+              </ion-label>
+              <ion-buttons slot="end">
+                <ion-button fill="clear" (click)="copy(lan)">
+                  <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
+                </ion-button>
+              </ion-buttons>
+            </ion-item>
+            <ion-item style="--border-radius: 0 0 8px 8px !important;" color="medium" lines="none">
+              <ion-label class="ion-text-wrap">
+                <p>We suggest you copy and save your tor adress in a safe place.  If you happen to loose it, no worries!  You can always retrieve it by coming back to <b>{{ window.location.hostname }}</b>.</p>
+              </ion-label>
+            </ion-item>
+
+            <ion-button (click)="goToEmbassy()" style="height: 60px; margin-top: 30px;" type="submit" expand="block">
+              <span style="font-size: larger; font-weight: bold; padding: 10px 20px">Go To Embassy!</span>
+            </ion-button>
+
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>
