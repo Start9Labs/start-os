@@ -10,7 +10,8 @@ use reqwest::Url;
 use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
-use sqlx::SqlitePool;
+use sqlx::migrate::MigrateDatabase;
+use sqlx::{Sqlite, SqlitePool};
 use tokio::fs::File;
 use tokio::sync::RwLock;
 
@@ -63,13 +64,20 @@ impl RpcContext {
                 .unwrap_or_else(|| Path::new("/mnt/embassy-os/embassy.db").to_owned()),
         )
         .await?;
-        let secret_store = SqlitePool::connect(&format!(
+        let secret_store_url = format!(
             "sqlite://{}",
             base.secret_store
                 .unwrap_or_else(|| Path::new("/mnt/embassy-os/secrets.db").to_owned())
                 .display()
-        ))
-        .await?;
+        );
+        if !Sqlite::database_exists(&secret_store_url).await? {
+            Sqlite::create_database(&secret_store_url).await?;
+        }
+        let secret_store = SqlitePool::connect(&secret_store_url).await?;
+        sqlx::migrate!()
+            .run(&secret_store)
+            .await
+            .with_kind(crate::ErrorKind::Database)?;
         let docker = Docker::connect_with_unix_defaults()?;
         let net_controller = Arc::new(
             NetController::init(
