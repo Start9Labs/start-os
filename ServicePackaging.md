@@ -229,11 +229,45 @@ EXPOSE 80
 ENTRYPOINT ["/usr/local/bin/docker_entrypoint.sh"]
 ```
 
+Additional details on the `Dockerfile` can be found [here](https://docs.start9.com/contributing/services/docker.html).
+
 ### Makefile (Optional)
 
-Here, we will create a Makefile, which is optional, but recommended as it outlines the build and streamlines additional developer contributions.  Alternatively, you could use the `nix` specification.
+Here, we will create a `Makefile`, which is optional, but recommended as it outlines the build and streamlines additional developer contributions.  Alternatively, you could use the `nix` specification instead of `make`.
 
-1. 
+Our example `Makefile` is fairly simple for Embassy Pages.  Let's take a look:
+
+```
+.DELETE_ON_ERROR:
+
+all: embassy-pages.s9pk
+
+install: embassy-pages.s9pk
+	appmgr install embassy-pages.s9pk
+
+embassy-pages.s9pk: manifest.toml assets/compat/config_spec.yaml image.tar instructions.md
+	embassy-sdk pack
+
+image.tar: Dockerfile docker_entrypoint.sh
+	DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/embassy-pages/main:0.1.3 --platform=linux/arm/v7 -o type=docker,dest=image.tar .
+```
+
+1. The first line simply removes the progress of a `make` process if it fails.
+`.DELETE_ON_ERROR:`
+
+2. The `all` step is run when the `make` command is issued.  This means that the `embassy-pages.s9pk` must first be built, and so on.
+
+3. Each step essentially requires the next, with the `image.tar` being required for all the above steps with the `docker` command, which is supplied with the `Dockerfile` and `docker_entrypoint.sh` files.  
+
+4. Next the `.s9pk` is created with the `embassy-sdk pack` command, supplied with the `manifest`, `config_spec`, previously created `image.tar`, and `instructions.md`.  Your project may likely also contain a `config_rules` file.  Some of these files we have not yet edited, but that will come shortly.
+
+For more details on creating a `Makefile` for your project, please check [here](https://docs.start9.com/contributing/services/makefile.html).
+
+### Service Config Specification
+
+Most self-hosted packages require a configuration.  With EmbassyOS, these config options are provided to the user in a friendly GUI, and invalid configs are not permitted.  This allows the user to manage their software without a lot of technical skill.
+
+
 
 ## Submission Process
 
