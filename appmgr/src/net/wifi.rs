@@ -135,7 +135,6 @@ pub async fn delete(#[context] _ctx: EitherContext, #[arg] ssid: String) -> Resu
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct WiFiInfo {
     ssids: Vec<String>,
-    selected: Option<String>,
     connected: Option<String>,
     country: String,
     ethernet: bool,
@@ -173,7 +172,6 @@ pub async fn get(#[context] _ctx: EitherContext) -> Result<WiFiInfo, Error> {
     };
     Ok(WiFiInfo {
         ssids: ssids_res?,
-        selected: current.clone(),
         connected: current,
         country: country_res?,
         ethernet: ethernet_res?,
