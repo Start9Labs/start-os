@@ -1,6 +1,6 @@
 <ion-content color="light">
   <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
-    <ion-row class="ion-align-items-center" style="height: 100%;">
+    <ion-row style="height: 100%;">
       <ion-col class="ion-text-center">
 
         <div style="padding-bottom: 32px;">
@@ -11,16 +11,20 @@
           <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
             <ion-card-title>Enter Product Key</ion-card-title>
           </ion-card-header>
-          <ion-card-content>
-            <form (submit)="submit()">
-              <p class="input-label">Product Key</p>
-              <ion-item color="light" class="ion-padding-bottom">
-                <ion-label>
-                  <ion-icon slot="start" name="key-outline" style="margin-right: 16px;"></ion-icon>
-                  <ion-input placeholder="Enter Product Key"></ion-input>
-                </ion-label>
-              </ion-item>
-              <ion-button type="submit" color="light">
+
+          <ion-card-content style="padding-bottom: 0px;" class="ion-margin">
+            <form (submit)="submit()" style="margin-bottom: 12px;">
+              <ion-item-group>
+                <ion-item>
+                  <ion-icon color="medium" slot="start" name="key-outline" style="margin-right: 16px;"></ion-icon>
+                  <ion-input (click)="error = ''" color="medium" maxlength="12" name="productKey" [(ngModel)]="productKey"></ion-input>
+                </ion-item>
+                <div class="ion-text-left">
+
+                  <p *ngIf="error" style="padding-top: 4px"><ion-text color="danger">*{{ error }}</ion-text></p>
+                </div>
+              </ion-item-group>
+              <ion-button style="margin-top: 25px;" type="submit" color="light">
                 Submit
               </ion-button>
             </form>

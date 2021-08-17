@@ -12,9 +12,13 @@ export class PasswordPage {
   @Input() recoveryDrive: RecoveryDrive
   @Input() embassyDrive: EmbassyDrive
 
-  error = ''
+  pwError = ''
   password = ''
+  unmasked1 = false
+
+  verError = ''
   passwordVer = ''
+  unmasked2 = false
 
   constructor(
     private modalController: ModalController,
@@ -27,7 +31,7 @@ export class PasswordPage {
 
   async verifyPw () {
     
-    if(!this.recoveryDrive) this.error = 'No recovery drive' // unreachable
+    if(!this.recoveryDrive) this.pwError = 'No recovery drive' // unreachable
     const loader = await this.loadingCtrl.create({
       message: 'Verifying Password'
     })
@@ -38,10 +42,10 @@ export class PasswordPage {
       if(isCorrectPassword) {
         this.modalController.dismiss({ password: this.password })
       } else {
-        this.error = "Incorrect password provided"
+        this.pwError = "Incorrect password provided"
       }
     } catch (e) {
-      this.error = 'Error connecting to Embassy'
+      this.pwError = 'Error connecting to Embassy'
     } finally {
       loader.dismiss()
     }
@@ -49,37 +53,31 @@ export class PasswordPage {
 
   async submitPw () {
     this.validate()
-    if (!this.error && this.password !== this.passwordVer) {
-      this.error="*passwords dont match"
+    console.log('here')
+    if (this.password !== this.passwordVer) {
+      this.verError="*passwords do not match"
     }
 
-    if(this.error) return
-    const loader = await this.loadingCtrl.create({
-      message: 'Setting up your Embassy!'
-    })
-    
-    await loader.present()
-
-
-    this.stateService.embassyDrive = this.embassyDrive
-    this.stateService.embassyPassword = this.password
-
-    try {
-      await this.stateService.setupEmbassy()
-      this.modalController.dismiss({ success: true })
-    } catch (e) {
-      this.error = e.message
-    } finally {
-      loader.dismiss()
-    }
+    if(this.pwError || this.verError) return
+    this.modalController.dismiss({ password: this.password })
   }
 
   validate () {
-    if (this.password.length < 12) {
-      this.error="*password must be 12 characters or greater"
-    } else {
-      this.error = ''
+    if(!!this.recoveryDrive) return this.pwError = ''
+
+    if (this.passwordVer) {
+      this.checkVer()
     }
+
+    if (this.password.length < 12) {
+      this.pwError="*password must be 12 characters or greater"
+    } else {
+      this.pwError = ''
+    }
+  }
+
+  checkVer () {
+    this.verError = this.password !== this.passwordVer ? "*passwords do not match" : ''
   }
 
 
