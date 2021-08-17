@@ -37,7 +37,7 @@ impl Interfaces {
                 let key = TorSecretKeyV3::generate();
                 let key_vec = key.as_bytes().to_vec();
                 sqlx::query!(
-                    "INSERT INTO tor (package, interface, key) VALUES (?, ?, ?)",
+                    "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?)",
                     **package_id,
                     **id,
                     key_vec,
