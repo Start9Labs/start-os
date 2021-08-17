@@ -20,8 +20,6 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::{Error, ResultExt as _};
 
-pub mod command_macros_tokio;
-
 #[derive(Clone, Copy, Debug)]
 pub enum Never {}
 impl Never {}
