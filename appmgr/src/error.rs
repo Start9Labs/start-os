@@ -50,6 +50,7 @@ pub enum ErrorKind {
     ParseSshKey = 42,
     SoundError = 43,
     ParseTimestamp = 44,
+    ParseSysInfo = 45,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -99,6 +100,7 @@ impl ErrorKind {
             ParseSshKey => "SSH Key Parsing Error",
             SoundError => "Sound Interface Error",
             ParseTimestamp => "Timestamp Parsing Error",
+            ParseSysInfo => "System Info Parsing Error",
         }
     }
 }
