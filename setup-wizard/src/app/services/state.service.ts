@@ -8,6 +8,8 @@ import { ApiService, EmbassyDrive, RecoveryDrive } from './api/api.service'
 export class StateService {
   polling = false
 
+  productKey: string
+
   embassyDrive: EmbassyDrive;
   embassyPassword: string
   recoveryDrive: RecoveryDrive;
@@ -15,20 +17,12 @@ export class StateService {
   dataTransferProgress: { bytesTransfered: number; totalBytes: number } | null;
   dataProgress = 0;
   dataProgSubject = new BehaviorSubject(this.dataProgress)
+
+  torAddress: string
+
   constructor(
     private readonly apiService: ApiService
   ) {}
-
-  reset() {
-    this.polling = false
-
-    this.embassyDrive = null
-    this.embassyPassword = null
-    this.recoveryDrive = null
-    this.recoveryPassword = null
-    this.dataTransferProgress = null
-    this.dataProgress = 0
-  }
 
   async pollDataTransferProgress(callback?: () => void) {
     this.polling = true
@@ -51,13 +45,15 @@ export class StateService {
     this.pollDataTransferProgress(callback)
   }
 
-  async setupEmbassy () {
-    await this.apiService.setupEmbassy({
+  async setupEmbassy () : Promise<{ torAddress: string }> {
+    const ret = await this.apiService.setupEmbassy({
       embassyLogicalname: this.embassyDrive.logicalname,
       embassyPassword: this.embassyPassword,
       recoveryLogicalname: this.recoveryDrive?.logicalname,
       recoveryPassword: this.recoveryPassword
     })
+
+    return { torAddress: ret['tor-address'] }
   }
 }
 
