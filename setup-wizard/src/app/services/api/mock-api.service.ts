@@ -11,24 +11,11 @@ export class MockApiService extends ApiService {
     super()
   }
 
-  async getState() {
+  async verifyProductKey(key) {
     await pauseFor(2000)
-    return {
-      'embassy-drive': 
-      null,
-      // {
-      //   logicalname: 'name1',
-      //   labels: ['label 1', 'label 2'],
-      //   capacity: 1600,
-      //   used: 200,
-      // },
-      'recovery-drive': 
-      null,
-      // {
-      //   logicalname: 'name1',
-      //   version: '0.3.3',
-      //   name: 'My Embassy'
-      // }
+    return { 
+      "is-recovering": false,
+      "tor-address": null 
     }
   }
 
@@ -41,7 +28,6 @@ export class MockApiService extends ApiService {
   }
 
   async getEmbassyDrives() {
-    await pauseFor(2000)
     return [
       {
         logicalname: 'Name1',
@@ -79,9 +65,9 @@ export class MockApiService extends ApiService {
     return password.length > 8
   }
 
-  async setupEmbassy (setupInfo){
+  async setupEmbassy (setupInfo) {
     await pauseFor(2000)
-    return
+    return { "tor-address": 'asdfasdfasdf.onion' }
   }
 }
 

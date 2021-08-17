@@ -3,6 +3,7 @@ import { Subject } from 'rxjs'
 export abstract class ApiService {
   protected error$: Subject<string> = new Subject();
   watchError$ = this.error$.asObservable();
+  abstract verifyProductKey (key: string): Promise<{ "is-recovering": boolean, "tor-address": string }>;
   abstract getEmbassyDrives (): Promise<EmbassyDrive[]>;
   abstract getRecoveryDrives (): Promise<RecoveryDrive[]>;
   abstract getDataTransferProgress (): Promise<TransferProgress>;
@@ -12,7 +13,7 @@ export abstract class ApiService {
     embassyPassword: string
     recoveryLogicalname?: string,
     recoveryPassword?: string
-  }): Promise<void>
+  }): Promise<{ "tor-address": string }>
 }
 
 export interface TransferProgress {

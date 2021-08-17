@@ -18,7 +18,7 @@ ion-item {
 .input-label {
   text-align: left;
   padding-bottom: 2px;
-  font-size: small;
+  font-size: medium;
   color: var(--ion-color-light);
   font-weight: bold;
 }
@@ -40,4 +40,10 @@ ion-item {
   ion-item {
     --border-color: var(--ion-color-medium);
   }
+}
+
+.divider {
+  margin: 0;
+  background: linear-gradient(90deg,var(--ion-color-dark) 0,var(--ion-color-medium) 50%,var(--ion-color-dark) 100%);
+  height: 1px;
 }
