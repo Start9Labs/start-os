@@ -25,6 +25,7 @@ use sha2::{Digest, Sha256};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 
+use self::cleanup::cleanup;
 use self::progress::{InstallProgress, InstallProgressTracker};
 use crate::context::{EitherContext, ExtendedContext, RpcContext};
 use crate::db::model::{
@@ -37,6 +38,7 @@ use crate::status::{DependencyErrors, MainStatus, Status};
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::{Error, ResultExt};
 
+pub mod cleanup;
 pub mod progress;
 
 pub const PKG_CACHE: &'static str = "/mnt/embassy-os/cache/packages";
@@ -232,13 +234,15 @@ pub async fn download_install_s9pk(
     .await;
 
     if let Err(e) = res {
-        let mut handle = ctx.db.handle();
-        let mut broken = crate::db::DatabaseModel::new()
-            .broken_packages()
-            .get_mut(&mut handle)
-            .await?;
-        broken.push(pkg_id.clone());
-        broken.save(&mut handle).await?;
+        if let Err(e) = cleanup(Err(temp_manifest)).await {
+            let mut handle = ctx.db.handle();
+            let mut broken = crate::db::DatabaseModel::new()
+                .broken_packages()
+                .get_mut(&mut handle)
+                .await?;
+            broken.push(pkg_id.clone());
+            broken.save(&mut handle).await?;
+        }
         Err(e)
     } else {
         Ok(())
@@ -536,7 +540,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         {
             configured &= res.configured;
         }
-        // cleanup(pkg_id, Some(prev)).await?;
+        cleanup(Ok(prev)).await?;
         if let Some(res) = manifest
             .migrations
             .from(&prev_manifest.version, pkg_id, version, &manifest.volumes)
