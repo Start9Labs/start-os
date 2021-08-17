@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use clap::ArgMatches;
+use isocountry::CountryCode;
 use rpc_toolkit::command;
 use tokio::process::Command;
 
@@ -8,45 +10,47 @@ use crate::context::EitherContext;
 use crate::util::display_none;
 use crate::{Error, ErrorKind};
 
-#[command(subcommands(add, connect, delete, get))]
+#[command(subcommands(add, connect, delete, get, set_country))]
 pub async fn wifi(#[context] ctx: EitherContext) -> Result<EitherContext, Error> {
     Ok(ctx)
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct AddWifiReq {
-    ssid: String,
-    password: String,
-    country: String,
-    priority: isize,
-    connect: bool,
-}
 #[command(rpc_only)]
-pub async fn add(#[context] _ctx: EitherContext, #[arg] req: AddWifiReq) -> Result<(), Error> {
+pub async fn add(
+    #[context] _ctx: EitherContext,
+    #[arg] ssid: String,
+    #[arg] password: String,
+    #[arg] priority: isize,
+    #[arg] connect: bool,
+) -> Result<(), Error> {
     let wpa_supplicant = WpaCli { interface: "wlan0" };
-    if !req.ssid.is_ascii() {
+    if !ssid.is_ascii() {
         return Err(Error::new(
             anyhow::anyhow!("SSID not in the ASCII charset"),
             ErrorKind::WifiError,
         ));
     }
-    if !req.password.is_ascii() {
+    if !password.is_ascii() {
         return Err(Error::new(
             anyhow::anyhow!("Wifi Password not in the ASCII charset"),
             ErrorKind::WifiError,
         ));
     }
-    async fn add_procedure<'a>(wpa_supplicant: WpaCli<'a>, req: &AddWifiReq) -> Result<(), Error> {
-        log::info!("Adding new WiFi network: '{}'", req.ssid);
-        wpa_supplicant
-            .add_network(&req.ssid, &req.password, req.priority)
-            .await?;
-        if req.connect {
+    async fn add_procedure<'a>(
+        wpa_supplicant: WpaCli<'a>,
+        ssid: &str,
+        password: &str,
+        priority: isize,
+        connect: bool,
+    ) -> Result<(), Error> {
+        log::info!("Adding new WiFi network: '{}'", ssid);
+        wpa_supplicant.add_network(ssid, password, priority).await?;
+        if connect {
             let current = wpa_supplicant.get_current_network().await?;
-            let connected = wpa_supplicant.select_network(&req.ssid).await?;
+            let connected = wpa_supplicant.select_network(ssid).await?;
             if !connected {
-                log::error!("Faild to add new WiFi network: '{}'", req.ssid);
-                wpa_supplicant.remove_network(&req.ssid).await?;
+                log::error!("Faild to add new WiFi network: '{}'", ssid);
+                wpa_supplicant.remove_network(ssid).await?;
                 match current {
                     None => {}
                     Some(current) => {
@@ -58,9 +62,9 @@ pub async fn add(#[context] _ctx: EitherContext, #[arg] req: AddWifiReq) -> Resu
         Ok(())
     }
     tokio::spawn(async move {
-        match add_procedure(wpa_supplicant, &req).await {
+        match add_procedure(wpa_supplicant, &ssid, &password, priority, connect).await {
             Err(e) => {
-                log::error!("Failed to add new Wifi network '{}': {}", req.ssid, e);
+                log::error!("Failed to add new Wifi network '{}': {}", ssid, e);
             }
             Ok(_) => {}
         }
@@ -133,13 +137,15 @@ pub async fn delete(#[context] _ctx: EitherContext, #[arg] ssid: String) -> Resu
     Ok(())
 }
 #[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct WiFiInfo {
     ssids: Vec<String>,
     connected: Option<String>,
-    country: String,
+    country: CountryCode,
     ethernet: bool,
     signal_strength: Option<usize>,
 }
+
 #[command(display(display_none))]
 pub async fn get(#[context] _ctx: EitherContext) -> Result<WiFiInfo, Error> {
     let wpa_supplicant = WpaCli { interface: "wlan0" };
@@ -177,6 +183,15 @@ pub async fn get(#[context] _ctx: EitherContext) -> Result<WiFiInfo, Error> {
         ethernet: ethernet_res?,
         signal_strength,
     })
+}
+
+#[command(display(display_none))]
+pub async fn set_country(
+    #[context] _ctx: EitherContext,
+    #[arg(parse(country_code_parse))] country: CountryCode,
+) -> Result<(), Error> {
+    let wpa_supplicant = WpaCli { interface: "wlan0" };
+    wpa_supplicant.set_country_low(country.alpha2()).await
 }
 
 pub struct WpaCli<'a> {
@@ -244,7 +259,7 @@ impl<'a> WpaCli<'a> {
         check_exit_status(r.status)?;
         Ok(())
     }
-    pub async fn get_country_low(&self) -> Result<String, Error> {
+    pub async fn get_country_low(&self) -> Result<CountryCode, Error> {
         let r = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
@@ -253,7 +268,7 @@ impl<'a> WpaCli<'a> {
             .output()
             .await?;
         check_exit_status(r.status)?;
-        Ok(String::from_utf8(r.stdout)?)
+        Ok(CountryCode::for_alpha2(&String::from_utf8(r.stdout)?).unwrap())
     }
     pub async fn enable_network_low(&self, id: &NetworkId) -> Result<(), Error> {
         let r = Command::new("wpa_cli")
@@ -479,6 +494,13 @@ pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
         .filter(|s| s.contains("inet"))
         .next();
     Ok(!v.is_none())
+}
+
+pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<CountryCode, Error> {
+    CountryCode::for_alpha2(code).or(Err(Error::new(
+        anyhow::anyhow!("Invalid Country Code: {}", code),
+        ErrorKind::WifiError,
+    )))
 }
 
 #[tokio::test]
