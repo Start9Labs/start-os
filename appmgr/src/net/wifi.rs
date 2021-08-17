@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::str::from_utf8;
 use std::time::Duration;
 
+use futures::Future;
 use rpc_toolkit::command;
 
 use crate::context::EitherContext;
 use crate::util::display_none;
 use crate::{cmd, Error, ErrorKind};
 
-#[command(subcommands(add, connect, delete))]
+#[command(subcommands(add, connect, delete, get))]
 pub async fn wifi(#[context] ctx: EitherContext) -> Result<EitherContext, Error> {
     Ok(ctx)
 }
@@ -132,6 +133,40 @@ pub async fn delete(#[context] ctx: EitherContext, #[arg] ssid: String) -> Resul
     }
     Ok(())
 }
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct WiFiInfo {
+    ssids: Vec<String>,
+    selected: Option<String>,
+    connected: Option<String>,
+    country: String,
+    ethernet: bool,
+}
+#[command(display(display_none))]
+pub async fn get(#[context] ctx: EitherContext) -> Result<WiFiInfo, Error> {
+    let wpa_supplicant = WpaCli { interface: "wlan0" };
+    let ssids_task = async {
+        Result::<Vec<String>, Error>::Ok(
+            wpa_supplicant
+                .list_networks_low()
+                .await?
+                .into_keys()
+                .collect::<Vec<String>>(),
+        )
+    };
+    let current_task = wpa_supplicant.get_current_network();
+    let country_task = wpa_supplicant.get_country_low();
+    let ethernet_task = interface_connected("eth0");
+    let (ssids_res, current_res, country_res, ethernet_res) =
+        tokio::join!(ssids_task, current_task, country_task, ethernet_task);
+    let current = current_res?;
+    Ok(WiFiInfo {
+        ssids: ssids_res?,
+        selected: current.clone(),
+        connected: current,
+        country: country_res?,
+        ethernet: ethernet_res?,
+    })
+}
 
 pub struct WpaCli<'a> {
     interface: &'a str,
@@ -183,13 +218,22 @@ impl<'a> WpaCli<'a> {
         Ok(())
     }
     pub async fn set_country_low(&self, country_code: &str) -> Result<(), Error> {
-        let r = cmd!(wpa_cli -i ((self.interface)) set_country ((country_code)))
+        let r = cmd!(wpa_cli -i ((self.interface)) set country ((country_code)))
             .output()
             .await?;
         r.status
             .exit_ok()
             .map_err(|e| e.with_kind(ErrorKind::WifiError))?;
         Ok(())
+    }
+    pub async fn get_country_low(&self) -> Result<String, Error> {
+        let r = cmd!(wpa_cli -i ((self.interface)) get country)
+            .output()
+            .await?;
+        r.status
+            .exit_ok()
+            .map_err(|e| e.with_kind(ErrorKind::WifiError))?;
+        Ok(r.stdout)
     }
     pub async fn enable_network_low(&self, id: &NetworkId) -> Result<(), Error> {
         let r = cmd!(wpa_cli -i ((self.interface)) enable_network ((id)))
