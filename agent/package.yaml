@@ -1,5 +1,5 @@
 name: ambassador-agent
-version: 0.2.14
+version: 0.2.15
 
 default-extensions:
   - NoImplicitPrelude

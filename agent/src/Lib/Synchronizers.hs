@@ -102,12 +102,12 @@ parseKernelVersion = do
     pure $ KernelVersion (Version (major', minor', patch', 0)) arch
 
 synchronizer :: Synchronizer
-synchronizer = sync_0_2_14
+synchronizer = sync_0_2_15
 {-# INLINE synchronizer #-}
 
-sync_0_2_14 :: Synchronizer
-sync_0_2_14 = Synchronizer
-    "0.2.14"
+sync_0_2_15 :: Synchronizer
+sync_0_2_15 = Synchronizer
+    "0.2.15"
     [ syncCreateAgentTmp
     , syncCreateSshDir
     , syncRemoveAvahiSystemdDependency
@@ -592,8 +592,6 @@ syncUpgradeTor :: SyncOp
 syncUpgradeTor = SyncOp "Install Latest Tor" check migrate False
     where
         check = run $ do
-            shell "apt-get clean"
-            shell "apt-get update"
             mTorVersion <- (shell "dpkg -s tor" $| shell "grep '^Version'" $| shell "cut -d ' ' -f2" $| conduit await)
             let torVersion = case mTorVersion of
                     Nothing -> panic "invalid output from dpkg, can't read tor version"

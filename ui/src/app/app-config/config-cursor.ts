@@ -298,6 +298,7 @@ export class ConfigCursor<T extends ValueType> {
     const mappedCfg = this.mappedConfig()
     if (cfg && mappedCfg && typeof cfg === 'object' && typeof mappedCfg === 'object') {
       const spec = this.spec()
+      if (spec === undefined) return true
       let allKeys: Set<string>
       if (spec.type === 'union') {
         let unionSpec = spec as  ValueSpecOf<'union'>
