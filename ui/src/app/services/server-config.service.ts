@@ -44,7 +44,7 @@ export class ServerConfigService {
           try {
             await this.saveFns[key](data)
           } catch (e) {
-            this.errToast.present(e.message)
+            this.errToast.present(e)
           } finally {
             loader.dismiss()
           }
@@ -84,7 +84,7 @@ export class ServerConfigService {
     await alert.present()
   }
 
-  async presentInputModal (key: string, current?: string) {
+  async presentModalInput (key: string, current?: string) {
     const { name, description, masked } = serverConfig[key] as ValueSpecString
 
     const modal = await this.modalCtrl.create({
@@ -102,14 +102,20 @@ export class ServerConfigService {
     await modal.present()
   }
 
-  // async presentModalForm (key: string, current?: string) {
+  // async presentModalForm (key: string) {
   //   const modal = await this.modalCtrl.create({
-  //     component: AppConfigValuePage,
+  //     component: AppActionInputPage,
   //     componentProps: {
-  //       cursor,
-  //       saveFn: this.saveFns[key],
+  //       title: serverConfig[key].name,
+  //       spec: (serverConfig[key] as ValueSpecObject).spec,
   //     },
   //   })
+
+  //   modal.onWillDismiss().then(res => {
+  //     if (!res.data) return
+  //     this.saveFns[key](res.data)
+  //   })
+
   //   await modal.present()
   // }
 
