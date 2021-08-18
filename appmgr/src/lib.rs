@@ -26,6 +26,7 @@ pub mod db;
 pub mod dependencies;
 pub mod developer;
 pub mod error;
+pub mod hostname;
 pub mod id;
 pub mod inspect;
 pub mod install;
