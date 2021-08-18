@@ -7,7 +7,7 @@ use rpc_toolkit::command;
 use tokio::process::Command;
 
 use crate::context::EitherContext;
-use crate::util::display_none;
+use crate::util::{display_none, display_serializable};
 use crate::{Error, ErrorKind};
 
 #[command(subcommands(add, connect, delete, get, set_country))]
@@ -145,8 +145,42 @@ pub struct WiFiInfo {
     ethernet: bool,
     signal_strength: Option<usize>,
 }
+fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
+    use prettytable::*;
 
-#[command(display(display_none))]
+    if matches.is_present("format") {
+        return display_serializable(info, matches);
+    }
+
+    let mut table_global = Table::new();
+    table_global.add_row(row![bc =>
+        "CONNECTED",
+        "SIGNAL_STRENGTH",
+        "COUNTRY",
+        "ETHERNET",
+    ]);
+    table_global.add_row(row![
+        &info
+            .connected
+            .map_or("[N/A]".to_owned(), |c| format!("{}", c)),
+        &info
+            .signal_strength
+            .map_or("[N/A]".to_owned(), |ss| format!("{}", ss)),
+        &format!("{}", info.country.alpha2()),
+        &format!("{}", info.ethernet)
+    ]);
+    table_global.print_tty(false);
+
+    let mut table_ssids = Table::new();
+    table_ssids.add_row(row![bc => "SSID",]);
+    for ssid in info.ssids {
+        let row = row![&ssid];
+        table_ssids.add_row(row);
+    }
+    table_ssids.print_tty(false);
+}
+
+#[command(display(display_wifi_info))]
 pub async fn get(#[context] _ctx: EitherContext) -> Result<WiFiInfo, Error> {
     let wpa_supplicant = WpaCli { interface: "wlan0" };
     let ssids_task = async {

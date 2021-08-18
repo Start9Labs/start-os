@@ -842,7 +842,6 @@ dependencies = [
  "torut",
  "typed-builder",
  "url",
- "wifi-rs",
 ]
 
 [[package]]
@@ -3673,15 +3672,6 @@ checksum = "4abacf325c958dfeaf1046931d37f2a901b6dfe0968ee965a29e94c6766b2af6"
 dependencies = [
  "wasm-bindgen",
  "web-sys",
-]
-
-[[package]]
-name = "wifi-rs"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6bbd7e1c1301b5d28014be85fd5ef11473327ee55fef54d2d61499868de0a57"
-dependencies = [
- "tempfile",
 ]
 
 [[package]]
