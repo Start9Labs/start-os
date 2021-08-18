@@ -103,8 +103,8 @@ impl MdnsControllerInner {
                     hostname_raw,
                     http_tcp_cstr.as_ptr(),
                     std::ptr::null(),
-                    hostname_raw,
-                    5959,
+                    std::ptr::null(),
+                    443,
                 );
                 avahi_free(hostname_raw as *mut c_void);
             }
