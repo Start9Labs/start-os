@@ -89,7 +89,7 @@ pub async fn connect(#[context] _ctx: EitherContext, #[arg] ssid: String) -> Res
             log::error!("Failed to connect to WiFi: '{}'", ssid);
             match current {
                 None => {
-                    log::error!("No WiFi to revert to!");
+                    log::warn!("No WiFi to revert to!");
                 }
                 Some(current) => {
                     wpa_supplicant.select_network(&current).await?;
