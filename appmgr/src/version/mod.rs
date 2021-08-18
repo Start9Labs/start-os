@@ -31,8 +31,9 @@ mod v0_2_11;
 mod v0_2_12;
 mod v0_2_13;
 mod v0_2_14;
+mod v0_2_15;
 
-pub use v0_2_14::Version as Current;
+pub use v0_2_15::Version as Current;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -59,6 +60,7 @@ enum Version {
     V0_2_12(Wrapper<v0_2_12::Version>),
     V0_2_13(Wrapper<v0_2_13::Version>),
     V0_2_14(Wrapper<v0_2_14::Version>),
+    V0_2_15(Wrapper<v0_2_15::Version>),
     Other(emver::Version),
 }
 
@@ -175,6 +177,7 @@ pub async fn init() -> Result<(), failure::Error> {
             Version::V0_2_12(v) => v.0.migrate_to(&Current::new()).await?,
             Version::V0_2_13(v) => v.0.migrate_to(&Current::new()).await?,
             Version::V0_2_14(v) => v.0.migrate_to(&Current::new()).await?,
+            Version::V0_2_15(v) => v.0.migrate_to(&Current::new()).await?,
             Version::Other(_) => (),
             // TODO find some way to automate this?
         }
@@ -270,6 +273,7 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         Version::V0_2_12(v) => Current::new().migrate_to(&v.0).await?,
         Version::V0_2_13(v) => Current::new().migrate_to(&v.0).await?,
         Version::V0_2_14(v) => Current::new().migrate_to(&v.0).await?,
+        Version::V0_2_15(v) => Current::new().migrate_to(&v.0).await?,
         Version::Other(_) => (),
         // TODO find some way to automate this?
     };
