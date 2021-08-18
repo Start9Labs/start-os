@@ -402,11 +402,7 @@ impl<'a> WpaCli<'a> {
 
     // High Level
     pub async fn check_network(&self, ssid: &str) -> Result<Option<NetworkId>, Error> {
-        Ok(self
-            .list_networks_low()
-            .await?
-            .get(ssid)
-            .map(|a| (*a).clone()))
+        Ok(self.list_networks_low().await?.remove(ssid))
     }
     pub async fn select_network(&self, ssid: &str) -> Result<bool, Error> {
         let m_id = self.check_network(ssid).await?;
