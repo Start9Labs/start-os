@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
-import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
+import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecOf, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecListOf, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
 import { getDefaultString, Range } from '../pkg-config/config-utilities'
+const Mustache = require('mustache')
 
 @Injectable({
   providedIn: 'root',
@@ -186,7 +187,20 @@ export function listUnique (spec: ValueSpecList): ValidatorFn {
     for (let idx = 0; idx < control.value.length; idx++) {
       for (let idx2 = idx + 1; idx2 < control.value.length; idx2++) {
         if (listItemEquals(spec, control.value[idx], control.value[idx2])) {
-          return { listNotUnique: { value: control.value } }
+          let display1: string
+          let display2: string
+          let uniqueMessage = isObjectOrUnion(spec.spec) ? uniqueByMessageWrapper(spec.spec['unique-by'], spec.spec, control.value[idx]) : ''
+
+
+          if (isObjectOrUnion(spec.spec) && spec.spec['display-as']) {
+            display1 = `"${(Mustache as any).render(spec.spec['display-as'], control.value[idx])}"`
+            display2 = `"${(Mustache as any).render(spec.spec['display-as'], control.value[idx2])}"`
+          } else {
+            display1 = `Entry ${idx + 1}`
+            display2 = `Entry ${idx2 + 1}`
+          }
+
+          return { listNotUnique: { value: `${display1} and ${display2} are not unique.${uniqueMessage}` } }
         }
       }
     }
@@ -239,8 +253,7 @@ function listObjEquals (uniqueBy: UniqueBy, spec: ListValueSpecObject, val1: any
   if (uniqueBy === null) {
     return false
   } else if (typeof uniqueBy === 'string') {
-    const item = itemEquals(spec.spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
-    return item
+    return itemEquals(spec.spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
   } else if ('any' in uniqueBy) {
     for (let subSpec of uniqueBy.any) {
       if (listObjEquals(subSpec, spec, val1, val2)) {
@@ -306,4 +319,66 @@ function unionEquals (uniqueBy: UniqueBy, spec: ValueSpecUnion | ListValueSpecUn
     }
     return true
   }
+}
+
+function uniqueByMessageWrapper (uniqueBy: UniqueBy, spec: ListValueSpecObject | ListValueSpecUnion, obj: object) {
+  let configSpec: ConfigSpec
+  if (isUnion(spec)) {
+    const variantKey = obj[spec.tag.id]
+    configSpec = spec.variants[variantKey]
+  } else {
+    configSpec = spec.spec
+  }
+
+  const message = uniqueByMessage(uniqueBy, configSpec)
+  if (message) {
+    return ' Must be unique by: ' + message + '.'
+  }
+}
+
+function uniqueByMessage (uniqueBy: UniqueBy, configSpec: ConfigSpec, outermost = true): string {
+  let joinFunc
+  const subSpecs = []
+  if (uniqueBy === null) {
+    return null
+  } else if (typeof uniqueBy === 'string') {
+    return configSpec[uniqueBy] ? configSpec[uniqueBy].name : uniqueBy
+  } else if ('any' in uniqueBy) {
+    joinFunc = ' OR '
+    for (let subSpec of uniqueBy.any) {
+      subSpecs.push(uniqueByMessage(subSpec, configSpec, false))
+    }
+  } else if ('all' in uniqueBy) {
+    joinFunc = ' AND '
+    for (let subSpec of uniqueBy.all) {
+      subSpecs.push(uniqueByMessage(subSpec, configSpec, false))
+    }
+  }
+  const ret = subSpecs.filter(ss => ss).join(joinFunc)
+  return outermost || subSpecs.filter(ss => ss).length === 1 ? ret : '(' + ret + ')'
+}
+
+function isObjectOrUnion (spec: any): spec is ListValueSpecObject | ListValueSpecUnion {
+  // only lists of objects and unions have unique-by
+  return spec['unique-by'] !== undefined
+}
+
+function isUnion (spec: any): spec is ListValueSpecUnion {
+  // only unions have tag
+  return !!spec.tag
+}
+
+const sampleUniqueBy: UniqueBy = {
+  all: [
+    'last name',
+    { any: [
+      'favorite color',
+      null,
+    ] },
+    { any: [
+      'favorite color',
+      'first name',
+      null,
+    ] },
+  ],
 }
