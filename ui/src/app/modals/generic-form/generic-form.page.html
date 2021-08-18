@@ -1,0 +1,29 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ title }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <form [formGroup]="formGroup" (ngSubmit)="save()" novalidate>
+    <form-object
+      [objectSpec]="spec"
+      [formGroup]="formGroup"
+    ></form-object>
+  </form>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="start" class="ion-padding-start">
+      <ion-button fill="clear" (click)="dismiss()">
+        Cancel
+      </ion-button>
+    </ion-buttons>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button *ngFor="let button of buttons" fill="clear" (click)="handleClick(button)">
+        {{ button.text }}
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>

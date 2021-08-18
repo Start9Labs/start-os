@@ -1,44 +1,124 @@
 import { Component } from '@angular/core'
-import { ActionSheetController, LoadingController } from '@ionic/angular'
+import { ActionSheetController, AlertController, LoadingController, ModalController, ToastController } from '@ionic/angular'
+import { AlertInput } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
-import { WifiService } from './wifi.service'
-import { WiFiInfo } from 'src/app/services/patch-db/data-model'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ValueSpecObject } from 'src/app/pkg-config/config-types'
+import { RR } from 'src/app/services/api/api.types'
+import { pauseFor } from 'src/app/util/misc.util'
+import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 
 @Component({
   selector: 'wifi',
   templateUrl: 'wifi.page.html',
   styleUrls: ['wifi.page.scss'],
 })
-export class WifiListPage {
-  subs: Subscription[] = []
+export class WifiPage {
+  loading = true
+  wifi: RR.GetWifiRes = { } as any
+  countries = require('../../../util/countries.json') as { [key: string]: string }
 
   constructor (
-    private readonly embassyApi: ApiService,
+    private readonly api: ApiService,
+    private readonly toastCtrl: ToastController,
+    private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
+    private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
-    private readonly wifiService: WifiService,
-    public readonly patch: PatchDbService,
   ) { }
 
-  async presentAction (ssid: string, wifi: WiFiInfo) {
+  async ngOnInit () {
+    try {
+      await this.getWifi()
+    } catch (e) {
+      this.errToast.present(e.message)
+    } finally {
+      this.loading = false
+    }
+  }
+
+  async getWifi (timeout?: number): Promise<void> {
+    this.wifi = await this.api.getWifi({ }, timeout)
+    if (!this.wifi.country) {
+      await this.presentAlertCountry()
+    }
+  }
+
+  async presentAlertCountry (): Promise<void> {
+    const inputs: AlertInput[] = Object.entries(this.countries).map(([country, fullName]) => {
+      return {
+        name: fullName,
+        type: 'radio',
+        label: `${country} - ${fullName}`,
+        value: country,
+        checked: country === this.wifi.country,
+      }
+    })
+
+    const alert = await this.alertCtrl.create({
+      header: 'Select Country',
+      inputs,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Save',
+          handler: async (country: string) => {
+            this.setCountry(country)
+          },
+        },
+      ],
+      cssClass: 'wide-alert',
+    })
+    await alert.present()
+  }
+
+  async presentModalAdd () {
+    const modal = await this.modalCtrl.create({
+      component: GenericFormPage,
+      componentProps: {
+        title: wifiSpec.name,
+        spec: wifiSpec.spec,
+        buttons: [
+          {
+            text: 'Save',
+            handler: async (value: { ssid: string, password: string }) => {
+              await this.save(value.ssid, value.password)
+            },
+          },
+          {
+            text: 'Save and Connect',
+            handler: async (value: { ssid: string, password: string }) => {
+              await this.saveAndConnect(value.ssid, value.password)
+            },
+          },
+        ],
+      },
+    })
+
+    await modal.present()
+  }
+
+  async presentAction (ssid: string) {
     const buttons: ActionSheetButton[] = [
       {
         text: 'Forget',
+        icon: 'trash',
         handler: () => {
           this.delete(ssid)
         },
       },
     ]
 
-    if (ssid !== wifi.connected) {
+    if (ssid !== this.wifi.connected) {
       buttons.unshift(
         {
           text: 'Connect',
+          icon: 'wifi',
           handler: () => {
             this.connect(ssid)
           },
@@ -47,14 +127,113 @@ export class WifiListPage {
     }
 
     const action = await this.actionCtrl.create({
+      header: ssid,
+      subHeader: 'Manage network',
+      mode: 'ios',
       buttons,
     })
 
     await action.present()
   }
 
-  // Let's add country code here
-  async connect (ssid: string): Promise<void> {
+  getWifiIcon (): string {
+    const strength = this.wifi['signal-strength']
+    if (!strength) return
+
+    let path = 'assets/img/icons/wifi-'
+
+    switch (true) {
+      case strength > 66:
+        path = path + '3'
+        break
+      case strength > 33 || strength <= 66:
+        path = path + '2'
+        break
+      case strength < 33:
+        path = path + '1'
+        break
+    }
+
+    return path + '.png'
+  }
+
+  private async setCountry (country: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.api.setWifiCountry({ country })
+      this.wifi.country = country
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async confirmWifi (ssid: string): Promise<void> {
+    const timeout = 4000
+    const maxAttempts = 5
+    let attempts = 0
+
+    while (attempts < maxAttempts) {
+      try {
+        const start = new Date().valueOf()
+        await this.getWifi(timeout)
+        const end = new Date().valueOf()
+        if (this.wifi.connected === ssid) {
+          this.presentAlertSuccess(ssid)
+          break
+        } else {
+          attempts++
+          const diff = end - start
+          await pauseFor(Math.max(1000, timeout - diff))
+          if (attempts === maxAttempts) {
+            this.presentToastFail()
+          }
+        }
+      } catch (e) {
+        attempts++
+        console.error(e)
+      }
+    }
+  }
+
+  private async presentAlertSuccess (ssid: string): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: `Connected to "${ssid}"`,
+      message: 'Note. It may take several minutes to an hour for your Embassy to reconnect over Tor.',
+      buttons: ['OK'],
+    })
+
+    await alert.present()
+  }
+
+  private async presentToastFail (): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      header: 'Failed to connect:',
+      message: `Check credentials and try again`,
+      position: 'bottom',
+      duration: 4000,
+      buttons: [
+        {
+          side: 'start',
+          icon: 'close',
+          handler: () => {
+            return true
+          },
+        },
+      ],
+      cssClass: 'warning-toast',
+    })
+
+    await toast.present()
+  }
+
+  private async connect (ssid: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Connecting. This could take while...',
@@ -63,8 +242,8 @@ export class WifiListPage {
     await loader.present()
 
     try {
-      await this.embassyApi.connectWifi({ ssid })
-      this.wifiService.confirmWifi(ssid)
+      await this.api.connectWifi({ ssid })
+      await this.confirmWifi(ssid)
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -72,7 +251,7 @@ export class WifiListPage {
     }
   }
 
-  async delete (ssid: string): Promise<void> {
+  private async delete (ssid: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -81,11 +260,82 @@ export class WifiListPage {
     await loader.present()
 
     try {
-      await this.embassyApi.deleteWifi({ ssid })
+      await this.api.deleteWifi({ ssid })
     } catch (e) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
   }
+
+  private async save (ssid: string, password: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Saving...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.api.addWifi({
+        ssid,
+        password,
+        priority: 0,
+        connect: false,
+      })
+      await this.getWifi()
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async saveAndConnect (ssid: string, password: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Connecting. This could take while...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.api.addWifi({
+        ssid,
+        password,
+        priority: 0,
+        connect: true,
+      })
+
+      await this.confirmWifi(ssid)
+
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+}
+
+const wifiSpec: ValueSpecObject = {
+  type: 'object',
+  name: 'WiFi Credentials',
+  description: 'Enter the network SSID and password. You can connect now or save the network for later.',
+  'unique-by': null,
+  spec: {
+    ssid: {
+      type: 'string',
+      name: 'Network SSID',
+      nullable: false,
+      masked: false,
+      copyable: false,
+    },
+    password: {
+      type: 'string',
+      name: 'Password',
+      nullable: false,
+      masked: true,
+      copyable: false,
+    },
+  },
 }

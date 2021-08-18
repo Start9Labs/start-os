@@ -854,6 +854,14 @@ export module Mock {
     },
   }
 
+  export const Wifi: RR.GetWifiRes = {
+    ethernet: true,
+    ssids: ['Goosers', 'Goosers5G'],
+    connected: 'Goosers',
+    country: 'US',
+    'signal-strength': 50,
+  }
+
   export const Disks: RR.GetDisksRes = {
     '/dev/sda': {
       size: '32GB',
@@ -1516,7 +1524,6 @@ export module Mock {
   //       'tor-address': 'myveryownspecialtoraddress.onion',
   //       wifi: {
   //         ssids: ['Goosers', 'Goosers5G'],
-  //         selected: 'Goosers5G',
   //         connected: 'Goosers5G',
   //       },
   //       'eos-marketplace': 'https://registry.start9.com',

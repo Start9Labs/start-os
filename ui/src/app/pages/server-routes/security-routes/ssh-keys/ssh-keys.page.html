@@ -8,9 +8,9 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-
-  <!-- always -->
   <ion-item-group>
+
+    <!-- always -->
     <ion-item>
       <ion-label>
         <h2>
@@ -22,7 +22,7 @@
 
     <ion-item-divider>Saved Keys</ion-item-divider>
 
-    <ion-item button detail="false" (click)="serverConfig.presentInputModal('ssh')">
+    <ion-item button detail="false" (click)="serverConfig.presentModalInput('ssh')">
       <ion-icon slot="start" name="add" size="large"></ion-icon>
       <ion-label>Add new key</ion-label>
     </ion-item>

@@ -151,11 +151,12 @@
                     <ion-icon slot="icon-only" name="close"></ion-icon>
                   </ion-button>
                 </ion-item>
-                <ng-container *ngFor="let validation of formService.validationMessages[entry.key + '/' + i]">
-                  <p style="font-size: small;" *ngIf="abstractControl.hasError(validation.type) && (abstractControl.dirty || abstractControl.touched)">
-                    <ion-text color="danger">{{ validation.message }}</ion-text>
-                  </p>
-                </ng-container>
+                <form-error
+                  *ngIf="abstractControl.errors"
+                  [control]="abstractControl"
+                  [spec]="spec.spec"
+                >
+                </form-error>
               </ion-item-group>
             </div>
           </div>
@@ -183,11 +184,12 @@
           </ion-item>
         </ng-container>
       </ng-container>
-      <div *ngFor="let validation of formService.validationMessages[entry.key]">
-        <p class="validation-error" *ngIf="formGroup.get(entry.key).hasError(validation.type)">
-          <ion-text *ngIf="(formGroup.get(entry.key).dirty || formGroup.get(entry.key).touched)" color="danger">{{ spec.name }}: {{ validation.message }}</ion-text>
-        </p>
-      </div>
+      <form-error
+        *ngIf="formGroup.get(entry.key).errors"
+        [control]="formGroup.get(entry.key)"
+        [spec]="spec"
+        >
+      </form-error>
     </ng-container>
   </div>
 </ion-item-group>

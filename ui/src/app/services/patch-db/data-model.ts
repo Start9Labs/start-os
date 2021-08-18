@@ -19,7 +19,6 @@ export interface ServerInfo {
   status: ServerStatus
   'eos-marketplace': URL
   'package-marketplace': URL | null // uses EOS marketplace if null
-  wifi: WiFiInfo
   'unread-notification-count': number
   specs: {
     cpu: string
@@ -36,12 +35,6 @@ export enum ServerStatus {
   Running = 'running',
   Updating = 'updating',
   BackingUp = 'backing-up',
-}
-
-export interface WiFiInfo {
-  ssids: string[]
-  selected: string | null
-  connected: string | null
 }
 
 export interface PackageDataEntry {

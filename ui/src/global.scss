@@ -39,6 +39,10 @@ $subheader-height: 48px;
   color: var(--ion-color-warning)
 }
 
+.wide-alert {
+  --min-width: 400px;
+}
+
 .break-all {
   word-break: break-all;
 }
@@ -71,6 +75,10 @@ $subheader-height: 48px;
   display: block;
   margin: auto;
   height: 100%;
+}
+
+ion-action-sheet {
+  --button-color: var(--ion-color-dark) !important;
 }
 
 ion-toast {

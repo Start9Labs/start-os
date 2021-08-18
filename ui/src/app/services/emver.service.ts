@@ -9,9 +9,7 @@ export class Emver {
   constructor () { }
 
   compare (lhs: string, rhs: string): number {
-    console.log('EMVER', emver)
     const compare = emver.compare(lhs, rhs)
-    console.log('COMPARE', compare)
     return compare
   }
 
