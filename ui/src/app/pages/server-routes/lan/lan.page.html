@@ -14,9 +14,13 @@
     <ion-item class="ion-padding-bottom">
       <ion-label>
         <h2>
-          Connecting to your Embassy over the Local Area Network (LAN) is great for achieving a faster experience, as well as a fallback in case Tor is experiencing issues.
-          <a [href]="docsUrl" target="_blank">View instructions</a>
+          Connecting to your Embassy over LAN is fast and a great fallback in case the Tor network is experiencing issues.
+          <a href="https://docs.start9.com/user-manual/general/lan-setup" target="_blank">View instructions</a>
         </h2>
+        <ng-container *ngIf="lanDisabled">
+          <br />
+          <ion-text color="warning" [innerHtml]="lanDisabled"></ion-text>
+        </ng-container>
       </ion-label>
     </ion-item>
 
@@ -24,19 +28,9 @@
       <ion-icon slot="start" name="download-outline" size="large"></ion-icon>
       <ion-label>
         <h1>Download Root CA</h1>
-        <p>Download and trust your Embassy's Root Certificate Authority to achieve a secure connection on the LAN.</p>
+        <p>Download and trust your Embassy's Root Certificate Authority to establish a secure connection on the LAN.</p>
       </ion-label>
     </ion-item>
-
-    <ng-container *ngIf="lanDisabled">
-      <ion-item-divider></ion-item-divider>
-      <ion-item>
-        <ion-label>
-          <p class="ion-padding-bottom">Setup</p>
-          <ion-text color="warning" [innerHtml]="lanDisabledExplanation[lanDisabled]"></ion-text>
-        </ion-label>
-      </ion-item>
-    </ng-container>
 
     <!-- Refresh Network -->
     <ion-item button (click)="refreshLAN()" detail="false">
