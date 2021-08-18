@@ -7,7 +7,7 @@ use rpc_toolkit::command;
 use tokio::process::Command;
 
 use crate::context::EitherContext;
-use crate::util::{display_none, display_serializable};
+use crate::util::{display_none, display_serializable, Invoke};
 use crate::{Error, ErrorKind};
 
 #[command(subcommands(add, connect, delete, get, set_country))]
@@ -263,34 +263,31 @@ impl<'a> WpaCli<'a> {
             .arg("-i")
             .arg(self.interface)
             .arg("add_network")
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
-        let s = std::str::from_utf8(&r.stdout)?;
+        let s = std::str::from_utf8(&r)?;
         Ok(NetworkId(s.trim().to_owned()))
     }
     pub async fn set_network_low(&self, id: &NetworkId, attr: &NetworkAttr) -> Result<(), Error> {
-        let r = Command::new("wpa_cli")
+        let _ = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
             .arg("set_network")
             .arg(&id.0)
             .arg(format!("{}", attr))
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
         Ok(())
     }
     pub async fn set_country_low(&self, country_code: &str) -> Result<(), Error> {
-        let r = Command::new("wpa_cli")
+        let _ = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
             .arg("set")
             .arg("country")
             .arg(country_code)
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
         Ok(())
     }
     pub async fn get_country_low(&self) -> Result<CountryCode, Error> {
@@ -299,51 +296,46 @@ impl<'a> WpaCli<'a> {
             .arg(self.interface)
             .arg("get")
             .arg("country")
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
-        Ok(CountryCode::for_alpha2(&String::from_utf8(r.stdout)?).unwrap())
+        Ok(CountryCode::for_alpha2(&String::from_utf8(r)?).unwrap())
     }
     pub async fn enable_network_low(&self, id: &NetworkId) -> Result<(), Error> {
-        let r = Command::new("wpa_cli")
+        let _ = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
             .arg("enable_network")
             .arg(&id.0)
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
         Ok(())
     }
     pub async fn save_config_low(&self) -> Result<(), Error> {
-        let r = Command::new("wpa_cli")
+        let _ = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
             .arg("save_config")
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
         Ok(())
     }
     pub async fn remove_network_low(&self, id: NetworkId) -> Result<(), Error> {
-        let r = Command::new("wpa_cli")
+        let _ = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
             .arg("remove_network")
             .arg(&id.0)
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
         Ok(())
     }
     pub async fn reconfigure_low(&self) -> Result<(), Error> {
-        let r = Command::new("wpa_cli")
+        let _ = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
             .arg("reconfigure")
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
         Ok(())
     }
     pub async fn list_networks_low(&self) -> Result<HashMap<String, NetworkId>, Error> {
@@ -351,10 +343,9 @@ impl<'a> WpaCli<'a> {
             .arg("-i")
             .arg(self.interface)
             .arg("list_networks")
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
-        Ok(String::from_utf8(r.stdout)?
+        Ok(String::from_utf8(r)?
             .lines()
             .skip(1)
             .filter_map(|l| {
@@ -366,26 +357,24 @@ impl<'a> WpaCli<'a> {
             .collect::<HashMap<String, NetworkId>>())
     }
     pub async fn select_network_low(&self, id: &NetworkId) -> Result<(), Error> {
-        let r = Command::new("wpa_cli")
+        let _ = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
             .arg("select_network")
             .arg(&id.0)
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
         Ok(())
     }
     pub async fn new_password_low(&self, id: &NetworkId, pass: &str) -> Result<(), Error> {
-        let r = Command::new("wpa_cli")
+        let _ = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
             .arg("new_password")
             .arg(&id.0)
             .arg(pass)
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
         Ok(())
     }
     pub async fn signal_poll_low(&self) -> Result<Option<isize>, Error> {
@@ -393,16 +382,15 @@ impl<'a> WpaCli<'a> {
             .arg("-i")
             .arg(self.interface)
             .arg("signal_poll")
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
         let e = || {
             Error::new(
                 anyhow::anyhow!("Invalid output from wpa_cli signal_poll"),
                 ErrorKind::WifiError,
             )
         };
-        let output = String::from_utf8(r.stdout)?;
+        let output = String::from_utf8(r)?;
         Ok(if output == "FAIL" {
             None
         } else {
@@ -459,10 +447,9 @@ impl<'a> WpaCli<'a> {
         let r = Command::new("iwgetid")
             .arg(self.interface)
             .arg("--raw")
-            .output()
+            .invoke(ErrorKind::WifiError)
             .await?;
-        check_exit_status(r.status)?;
-        let output = String::from_utf8(r.stdout)?;
+        let output = String::from_utf8(r)?;
         if output == "" {
             Ok(None)
         } else {
@@ -502,28 +489,12 @@ impl<'a> WpaCli<'a> {
     }
 }
 
-fn check_exit_status(status: std::process::ExitStatus) -> Result<(), Error> {
-    status.code().map_or(
-        Err(Error::new(
-            anyhow::anyhow!("wpa_cli was signal terminated"),
-            ErrorKind::WifiError,
-        )),
-        |ec| {
-            if ec == 0 {
-                Ok(())
-            } else {
-                Err(Error::new(
-                    anyhow::anyhow!("wpa_cli exited with nonzero exit code {}", ec),
-                    ErrorKind::WifiError,
-                ))
-            }
-        },
-    )
-}
-
 pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
-    let out = Command::new("ifconfig").arg(interface).output().await?;
-    let v = std::str::from_utf8(&out.stdout)?
+    let out = Command::new("ifconfig")
+        .arg(interface)
+        .invoke(ErrorKind::WifiError)
+        .await?;
+    let v = std::str::from_utf8(&out)?
         .lines()
         .filter(|s| s.contains("inet"))
         .next();
