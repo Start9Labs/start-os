@@ -7,7 +7,7 @@ import { Action, Manifest, PackageDataEntry, PackageMainStatus } from 'src/app/s
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
-import { AppActionInputPage } from 'src/app/modals/app-action-input/app-action-input.page'
+import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppRestoreComponent } from 'src/app/modals/app-restore/app-restore.component'
 
@@ -50,14 +50,19 @@ export class AppActionsPage {
     if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(pkg.installed.status.main.status)) {
       if (action.value['input-spec']) {
         const modal = await this.modalCtrl.create({
-          component: AppActionInputPage,
+          component: GenericFormPage,
           componentProps: {
-            action: action.value,
+            title: action.value.name,
+            spec: action.value['input-spec'],
+            buttons: [
+              {
+                text: 'Execute',
+                handler: (value: any) => {
+                  return this.executeAction(pkg.manifest.id, action.key, value)
+                },
+              },
+            ],
           },
-        })
-        modal.onWillDismiss().then(({ data }) => {
-          if (!data) return
-          this.executeAction(pkg.manifest.id, action.key, data)
         })
         await modal.present()
       } else {
@@ -135,7 +140,7 @@ export class AppActionsPage {
     return this.navCtrl.navigateRoot('/services')
   }
 
-  private async executeAction (pkgId: string, actionId: string, input?: object): Promise<void> {
+  private async executeAction (pkgId: string, actionId: string, input?: object): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Executing action...',
@@ -155,9 +160,12 @@ export class AppActionsPage {
         message: res.message.split('\n').join('</br ></br />'),
         buttons: ['OK'],
       })
-      await successAlert.present()
+
+      setTimeout(() => successAlert.present(), 400)
+
     } catch (e) {
       this.errToast.present(e)
+      return false
     } finally {
       loader.dismiss()
     }

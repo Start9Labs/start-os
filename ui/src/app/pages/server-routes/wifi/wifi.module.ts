@@ -2,17 +2,13 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
-import { WifiListPage } from './wifi.page'
+import { WifiPage } from './wifi.page'
 import { SharingModule } from 'src/app/modules/sharing.module'
 
 const routes: Routes = [
   {
     path: '',
-    component: WifiListPage,
-  },
-  {
-    path: 'add',
-    loadChildren: () => import('./wifi-add/wifi-add.module').then(m => m.WifiAddPageModule),
+    component: WifiPage,
   },
 ]
 
@@ -23,6 +19,6 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     SharingModule,
   ],
-  declarations: [WifiListPage],
+  declarations: [WifiPage],
 })
-export class WifiListPageModule { }
+export class WifiPageModule { }

@@ -4,30 +4,70 @@
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
     <ion-title>WiFi Settings</ion-title>
-    <ion-buttons slot="end">
-      <ion-button [routerLink]="['add']">
-        <ion-icon slot="icon-only" name="add-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding-top">
   <ion-item-group>
+
+    <!-- always -->
     <ion-item>
       <ion-label>
-        <p style="padding-bottom: 6px;">About</p>
-        <h2>Embassy will automatically connect to saved WiFi networks when they are available, allowing you to remove the Ethernet cable.</h2>
+        <h2>
+          Embassy will automatically connect to saved WiFi networks when they are available, allowing you to remove the Ethernet cable.
+        </h2>
       </ion-label>
     </ion-item>
 
-    <ion-item-divider>Saved Networks</ion-item-divider>
-    <ng-container *ngIf="patch.data['server-info']?.wifi as wifi">
-      <ion-item button detail="false" *ngFor="let ssid of wifi.ssids" (click)="presentAction(ssid, wifi)">
+    <ion-item-divider>Country</ion-item-divider>
+
+    <!-- loading  -->
+    <ng-container *ngIf="loading">
+      <ion-item class="skeleton-parts">
+        <ion-button slot="start" fill="clear">
+          <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
+        </ion-button>
+        <ion-label>
+          <ion-skeleton-text animated style="width: 150px;"></ion-skeleton-text>
+        </ion-label>
+      </ion-item>
+    </ng-container>
+
+    <!-- not loading -->
+    <ng-container *ngIf="!loading">
+      <ion-item button detail="false" (click)="presentAlertCountry()">
+        <ion-icon slot="start" name="earth-outline" size="large"></ion-icon>
+        <ion-label *ngIf="wifi.country">{{ wifi.country }} - {{ this.countries[wifi.country] }}</ion-label>
+        <ion-label *ngIf="!wifi.country">Select Country</ion-label>
+      </ion-item>
+    </ng-container>
+
+    <!-- loading  -->
+    <ng-container *ngIf="loading">
+      <ion-item-divider>Saved Networks</ion-item-divider>
+      <ion-item *ngFor="let entry of ['', '']" class="skeleton-parts">
+        <ion-button slot="start" fill="clear">
+          <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
+        </ion-button>
+        <ion-label>
+          <ion-skeleton-text animated style="width: 18%;"></ion-skeleton-text>
+        </ion-label>
+      </ion-item>
+    </ng-container>
+
+    <!-- not loading -->
+    <ng-container *ngIf="!loading && wifi.country">
+      <ion-item-divider>Saved Networks</ion-item-divider>
+      <ion-item button detail="false" (click)="presentModalAdd()">
+        <ion-icon slot="start" name="add" size="large"></ion-icon>
+        <ion-label>Add new network</ion-label>
+      </ion-item>
+      <ion-item button detail="false" *ngFor="let ssid of wifi.ssids" (click)="presentAction(ssid)">
+        <div *ngIf="ssid !== wifi.connected" slot="start" style="padding-right: 32px;"></div>
+        <ion-icon *ngIf="ssid === wifi.connected" slot="start" size="large" name="checkmark" color="success"></ion-icon>
         <ion-label>{{ ssid }}</ion-label>
-        <ion-note slot="end" *ngIf="ssid === wifi.connected"><ion-text color="success">Connected</ion-text></ion-note>
+        <img *ngIf="ssid === wifi.connected" slot="end" [src]="getWifiIcon()" style="max-width: 32px;" />
       </ion-item>
     </ng-container>
   </ion-item-group>
-
 </ion-content>

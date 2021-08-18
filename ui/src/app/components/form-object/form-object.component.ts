@@ -1,5 +1,5 @@
 import { Component, Input, SimpleChange } from '@angular/core'
-import { FormArray, FormGroup } from '@angular/forms'
+import { AbstractFormGroupDirective, FormArray, FormGroup } from '@angular/forms'
 import { AlertController, ModalController } from '@ionic/angular'
 import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecList, ValueSpecListOf, ValueSpecUnion } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
@@ -85,7 +85,7 @@ export class FormObjectComponent {
     // const validators = this.formService.getListItemValidators(this.objectSpec[key] as ValueSpecList, key, arr.length)
     // arr.push(new FormControl(value, validators))
     const listSpec = this.objectSpec[key] as ValueSpecList
-    const newItem = this.formService.getListItem(key, arr.length, listSpec, val)
+    const newItem = this.formService.getListItem(listSpec, val)
     newItem.markAllAsTouched()
     arr.insert(0, newItem)
     if (['object', 'union'].includes(listSpec.subtype)) {
@@ -221,4 +221,15 @@ export class FormLabelComponent {
     })
     await alert.present()
   }
+}
+
+
+@Component({
+  selector: 'form-error',
+  templateUrl: './form-error.component.html',
+  styleUrls: ['./form-object.component.scss'],
+})
+export class FormErrorComponent {
+  @Input() control: AbstractFormGroupDirective
+  @Input() spec: ValueSpec
 }

@@ -1,14 +1,12 @@
 import { Injectable } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
-import { By } from '@angular/platform-browser'
-import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecOf, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
+import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
 import { getDefaultString, Range } from '../pkg-config/config-utilities'
 
 @Injectable({
   providedIn: 'root',
 })
 export class FormService {
-  validationMessages: { [key: string]: { type: string, message: string }[] } = { }
 
   constructor (
     private readonly formBuilder: FormBuilder,
@@ -18,13 +16,11 @@ export class FormService {
     return this.getFormGroup(config, [], current)
   }
 
-  getListItemValidators (spec: ValueSpecList, key: string,  index: number) {
-    const listKey = `${key}/${index}`
-    this.validationMessages[listKey] = []
+  getListItemValidators (spec: ValueSpecList) {
     if (isValueSpecListOf(spec, 'string')) {
-      return this.stringValidators(listKey, spec.spec)
+      return this.stringValidators(spec.spec)
     } else if (isValueSpecListOf(spec, 'number')) {
-      return this.numberValidators(listKey, spec.spec)
+      return this.numberValidators(spec.spec)
     }
   }
 
@@ -53,8 +49,8 @@ export class FormService {
     return this.formBuilder.group(group, { validators } )
   }
 
-  getListItem (key: string, index: number, spec: ValueSpecList, entry: any) {
-    const listItemValidators = this.getListItemValidators(spec, key, index)
+  getListItem (spec: ValueSpecList, entry: any) {
+    const listItemValidators = this.getListItemValidators(spec)
     if (isValueSpecListOf(spec, 'string')) {
       return this.formBuilder.control(entry, listItemValidators)
     } else if (isValueSpecListOf(spec, 'number')) {
@@ -69,12 +65,11 @@ export class FormService {
   }
 
   private getFormEntry (key: string, spec: ValueSpec, currentValue: any): FormGroup | FormArray | FormControl {
-    this.validationMessages[key] = []
     let validators: ValidatorFn[]
     let value: any
     switch (spec.type) {
       case 'string':
-        validators = this.stringValidators(key, spec)
+        validators = this.stringValidators(spec)
         if (currentValue !== undefined) {
           value = currentValue
         } else {
@@ -82,7 +77,7 @@ export class FormService {
         }
         return this.formBuilder.control(value, validators)
       case 'number':
-        validators = this.numberValidators(key, spec)
+        validators = this.numberValidators(spec)
         if (currentValue !== undefined) {
           value = currentValue
         } else {
@@ -92,9 +87,9 @@ export class FormService {
       case 'object':
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
-        validators = this.listValidators(key, spec)
+        validators = this.listValidators(spec)
         const mapped = (Array.isArray(currentValue) ? currentValue : spec.default as any[]).map((entry: any, index) => {
-          return this.getListItem(key, index, spec, entry)
+          return this.getListItem(spec, entry)
         })
         return this.formBuilder.array(mapped, validators)
       case 'union':
@@ -106,71 +101,43 @@ export class FormService {
     }
   }
 
-  private stringValidators (key: string, spec: ValueSpecString | ListValueSpecString): ValidatorFn[] {
+  private stringValidators (spec: ValueSpecString | ListValueSpecString): ValidatorFn[] {
     const validators: ValidatorFn[] = []
 
     if (!(spec as ValueSpecString).nullable) {
       validators.push(Validators.required)
-      this.validationMessages[key].push({
-        type: 'required',
-        message: 'Cannot be blank.',
-      })
     }
 
     if (spec.pattern) {
       validators.push(Validators.pattern(spec.pattern))
-      this.validationMessages[key].push({
-        type: 'pattern',
-        message: spec['pattern-description'],
-      })
     }
 
     return validators
   }
 
-  private numberValidators (key: string, spec: ValueSpecNumber | ListValueSpecNumber): ValidatorFn[] {
+  private numberValidators (spec: ValueSpecNumber | ListValueSpecNumber): ValidatorFn[] {
     const validators: ValidatorFn[] = []
 
     if (!(spec as ValueSpecNumber).nullable) {
       validators.push(Validators.required)
-      this.validationMessages[key].push({
-        type: 'required',
-        message: 'Cannot be blank.',
-      })
     }
 
     if (spec.integral) {
       validators.push(isInteger())
-      this.validationMessages[key].push({
-        type: 'numberNotInteger',
-        message: 'Number must be an integer.',
-      })
     }
 
     validators.push(numberInRange(spec.range))
-    this.validationMessages[key].push({
-      type: 'numberNotInRange',
-      message: 'Number not in range.',
-    })
 
     return validators
   }
 
-  private listValidators (key: string, spec: ValueSpecList): ValidatorFn[] {
+  private listValidators (spec: ValueSpecList): ValidatorFn[] {
     const validators: ValidatorFn[] = []
 
     validators.push(listInRange(spec.range))
-    this.validationMessages[key].push({
-      type: 'listNotInRange',
-      message: 'List not in range.',
-    })
 
     if (!isValueSpecListOf(spec, 'enum')) {
       validators.push(listUnique(spec))
-      this.validationMessages[key].push({
-        type: 'listNotUnique',
-        message: 'List contains duplicate entries.',
-      })
     }
 
     return validators

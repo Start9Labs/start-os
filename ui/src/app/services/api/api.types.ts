@@ -19,7 +19,7 @@ export module RR {
   export type LoginReq = { password: string, metadata: SessionMetadata } // auth.login - unauthed
   export type loginRes = null
 
-  export type LogoutReq = {} // auth.logout
+  export type LogoutReq = { } // auth.logout
   export type LogoutRes = null
 
   // server
@@ -30,26 +30,26 @@ export module RR {
   export type GetServerLogsReq = { before?: string } // server.logs
   export type GetServerLogsRes = Log[]
 
-  export type GetServerMetricsReq = {} // server.metrics
+  export type GetServerMetricsReq = { } // server.metrics
   export type GetServerMetricsRes = Metrics
 
-  export type UpdateServerReq = WithExpire<{}> // server.update
+  export type UpdateServerReq = WithExpire<{ }> // server.update
   export type UpdateServerRes = WithRevision<null>
 
-  export type RestartServerReq = {} // server.restart
+  export type RestartServerReq = { } // server.restart
   export type RestartServerRes = null
 
-  export type ShutdownServerReq = {} // server.shutdown
+  export type ShutdownServerReq = { } // server.shutdown
   export type ShutdownServerRes = null
 
   // network
 
-  export type RefreshLanReq = {} // network.lan.refresh
+  export type RefreshLanReq = { } // network.lan.refresh
   export type RefreshLanRes = null
 
   // sessions
 
-  export type GetSessionsReq = {} // sessions.list
+  export type GetSessionsReq = { } // sessions.list
   export type GetSessionsRes = {
     current: string,
     sessions: { [hash: string]: Session }
@@ -67,6 +67,7 @@ export module RR {
   export type SetPackageMarketplaceRes = WithRevision<null>
 
   // password
+
   export type UpdatePasswordReq = { password: string } // password.set
   export type UpdatePasswordRes = null
 
@@ -78,29 +79,40 @@ export module RR {
   export type DeleteNotificationReq = { id: string } // notification.delete
   export type DeleteNotificationRes = null
 
-  export type DeleteAllNotificationsReq = {} // notification.delete.all
+  export type DeleteAllNotificationsReq = { } // notification.delete.all
   export type DeleteAllNotificationsRes = null
 
   // wifi
 
+  export type SetWifiCountryReq = { country: string }
+  export type SetWifiCountryRes = null
+
+  export type GetWifiReq = { }
+  export type GetWifiRes = { // wifi.get
+    ethernet: boolean
+    ssids: string[]
+    connected: string | null
+    country: string | null
+    'signal-strength': number
+  }
+
   export type AddWifiReq = { // wifi.add
     ssid: string
     password: string
-    country: string
     priority: number
     connect: boolean
   }
   export type AddWifiRes = null
 
-  export type ConnectWifiReq = WithExpire<{ ssid: string }> // wifi.connect
-  export type ConnectWifiRes = WithRevision<null>
+  export type ConnectWifiReq = { ssid: string } // wifi.connect
+  export type ConnectWifiRes = null
 
-  export type DeleteWifiReq = WithExpire<{ ssid: string }> // wifi.delete
-  export type DeleteWifiRes = WithRevision<null>
+  export type DeleteWifiReq = { ssid: string } // wifi.delete
+  export type DeleteWifiRes = null
 
   // ssh
 
-  export type GetSSHKeysReq = {} // ssh.get
+  export type GetSSHKeysReq = { } // ssh.get
   export type GetSSHKeysRes = SSHKeys
 
   export type AddSSHKeyReq = { pubkey: string } // ssh.add
@@ -119,7 +131,7 @@ export module RR {
 
   // disk
 
-  export type GetDisksReq = {} // disk.list
+  export type GetDisksReq = { } // disk.list
   export type GetDisksRes = DiskInfo
 
   export type EjectDisksReq = { logicalname: string } // disk.eject
@@ -178,10 +190,10 @@ export module RR {
 
   // marketplace
 
-  export type GetMarketplaceDataReq = {}
+  export type GetMarketplaceDataReq = { }
   export type GetMarketplaceDataRes = MarketplaceData
 
-  export type GetMarketplaceEOSReq = {}
+  export type GetMarketplaceEOSReq = { }
   export type GetMarketplaceEOSRes = MarketplaceEOS
 
   export type GetMarketplacePackagesReq = {

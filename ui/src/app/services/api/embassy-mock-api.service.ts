@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService } from './embassy-api.service'
-import { Operation, PatchOp } from 'patch-db-client'
+import { PatchOp } from 'patch-db-client'
 import { InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
 import { RR, WithRevision } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
@@ -223,47 +223,29 @@ export class MockApiService extends ApiService {
 
   // wifi
 
+  async getWifi (params: RR.GetWifiReq): Promise < RR.GetWifiRes > {
+    await pauseFor(2000)
+    return Mock.Wifi
+  }
+
+  async setWifiCountry (params: RR.SetWifiCountryReq): Promise <RR.SetWifiCountryRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   async addWifi (params: RR.AddWifiReq): Promise<RR.AddWifiRes> {
     await pauseFor(2000)
     return null
   }
 
-  async connectWifiRaw (params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes> {
+  async connectWifi (params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes> {
     await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/server-info/wifi/selected',
-        value: params.ssid,
-      },
-      {
-        op: PatchOp.REPLACE,
-        path: '/server-info/wifi/connected',
-        value: params.ssid,
-      },
-    ]
-    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    return null
   }
 
-  async deleteWifiRaw (params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
+  async deleteWifi (params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
     await pauseFor(2000)
-    const patch: Operation[] = [
-      {
-        op: PatchOp.REMOVE,
-        path: `/server-info/wifi/ssids/${params.ssid}`,
-      },
-      // {
-      //   op: PatchOp.REPLACE,
-      //   path: '/server-info/wifi/selected',
-      //   value: null,
-      // },
-      // {
-      //   op: PatchOp.REPLACE,
-      //   path: '/server-info/wifi/connected',
-      //   value: null,
-      // },
-    ]
-    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    return null
   }
 
   // ssh
