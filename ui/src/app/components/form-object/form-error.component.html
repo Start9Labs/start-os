@@ -25,7 +25,7 @@
       List not in range
     </p>
     <p *ngIf="control.hasError('listNotUnique')">
-      {{ spec['pattern-description'] }}
+      {{ control.errors.listNotUnique.value }}
     </p>
   </ng-container>
 </div>
