@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::io::SeekFrom;
 use std::path::Path;
@@ -32,6 +33,8 @@ use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, StaticDependencyInfo,
     StaticFiles,
 };
+use crate::dependencies::update_current_dependents;
+use crate::install::cleanup::update_dependents;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{DependencyErrors, MainStatus, Status};
@@ -234,8 +237,14 @@ pub async fn download_install_s9pk(
     .await;
 
     if let Err(e) = res {
-        if let Err(e) = cleanup(Err(temp_manifest)).await {
-            let mut handle = ctx.db.handle();
+        let mut handle = ctx.db.handle();
+        if let Err(e) = cleanup(&mut handle, Err(temp_manifest)).await {
+            log::error!(
+                "Failed to clean up {}@{}: {}: Adding to broken packages",
+                pkg_id,
+                version,
+                e
+            );
             let mut broken = crate::db::DatabaseModel::new()
                 .broken_packages()
                 .get_mut(&mut handle)
@@ -474,6 +483,31 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             }
         })
         .collect();
+    update_current_dependents(&mut tx, pkg_id, &current_dependencies).await?;
+    let current_dependents = {
+        // search required dependencies
+        let mut deps = IndexMap::new();
+        for package in crate::db::DatabaseModel::new()
+            .package_data()
+            .keys(&mut tx, true)
+            .await?
+        {
+            if let Some(dep) = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package)
+                .expect(&mut tx)
+                .await?
+                .installed()
+                .and_then(|i| i.current_dependencies().idx_model(pkg_id))
+                .get(&mut tx, true)
+                .await?
+                .to_owned()
+            {
+                deps.insert(package, dep);
+            }
+        }
+        deps
+    };
     let installed = InstalledPackageDataEntry {
         status: Status {
             configured: manifest.config.is_none(),
@@ -484,30 +518,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         manifest: manifest.clone(),
         system_pointers: Vec::new(),
         dependency_info,
-        current_dependents: {
-            // search required dependencies
-            let mut deps = IndexMap::new();
-            for package in crate::db::DatabaseModel::new()
-                .package_data()
-                .keys(&mut tx, true)
-                .await?
-            {
-                if let Some(dep) = crate::db::DatabaseModel::new()
-                    .package_data()
-                    .idx_model(&package)
-                    .expect(&mut tx)
-                    .await?
-                    .installed()
-                    .and_then(|i| i.current_dependencies().idx_model(pkg_id))
-                    .get(&mut tx, true)
-                    .await?
-                    .to_owned()
-                {
-                    deps.insert(package, dep);
-                }
-            }
-            deps
-        },
+        current_dependents: current_dependents.clone(),
         current_dependencies,
         interface_addresses,
     };
@@ -521,12 +532,22 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         },
     );
     pde.save(&mut tx).await?;
+
     if let PackageDataEntry::Updating {
         installed: prev,
         manifest: prev_manifest,
         ..
     } = prev
     {
+        update_dependents(
+            &mut tx,
+            pkg_id,
+            current_dependents
+                .keys()
+                .chain(prev.current_dependents.keys())
+                .collect::<HashSet<_>>(),
+        )
+        .await?;
         let mut configured = prev.status.configured;
         if let Some(res) = prev_manifest
             .migrations
@@ -540,7 +561,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         {
             configured &= res.configured;
         }
-        cleanup(Ok(prev)).await?;
+        cleanup(&mut tx, Ok(prev)).await?;
         if let Some(res) = manifest
             .migrations
             .from(&prev_manifest.version, pkg_id, version, &manifest.volumes)
@@ -562,6 +583,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             .await?;
             todo!("set as running if viable");
         }
+    } else {
+        update_dependents(&mut tx, pkg_id, current_dependents.keys()).await?;
     }
 
     sql_tx.commit().await?;

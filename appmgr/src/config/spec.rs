@@ -245,7 +245,7 @@ pub struct WithDescription<T> {
     pub description: Option<String>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub change_warning: Option<String>,
+    pub warning: Option<String>,
 }
 #[async_trait]
 impl<T> ValueSpec for WithDescription<T>
@@ -318,7 +318,7 @@ pub enum ValueSpecAny {
     Enum(WithDescription<WithDefault<ValueSpecEnum>>),
     List(ValueSpecList),
     Number(WithDescription<WithDefault<WithNullable<ValueSpecNumber>>>),
-    Object(WithDescription<WithNullable<ValueSpecObject>>),
+    Object(WithDescription<ValueSpecObject>),
     String(WithDescription<WithDefault<WithNullable<ValueSpecString>>>),
     Union(WithDescription<WithDefault<ValueSpecUnion>>),
     Pointer(WithDescription<ValueSpecPointer>),
@@ -947,8 +947,6 @@ impl DefaultableWith for ValueSpecNumber {
 #[serde(rename_all = "kebab-case")]
 pub struct ValueSpecObject {
     pub spec: ConfigSpec,
-    #[serde(default)]
-    pub null_by_default: bool,
     pub display_as: Option<String>,
     #[serde(default)]
     pub unique_by: UniqueBy,
@@ -1016,11 +1014,7 @@ impl DefaultableWith for ValueSpecObject {
         _rng: &mut R,
         _timeout: &Option<Duration>,
     ) -> Result<Value, Self::Error> {
-        if self.null_by_default {
-            Ok(Value::Null)
-        } else {
-            Ok(Value::Object(spec.clone()))
-        }
+        Ok(Value::Object(spec.clone()))
     }
 }
 impl Defaultable for ValueSpecObject {
@@ -1031,11 +1025,7 @@ impl Defaultable for ValueSpecObject {
         rng: &mut R,
         timeout: &Option<Duration>,
     ) -> Result<Value, Self::Error> {
-        if self.null_by_default {
-            Ok(Value::Null)
-        } else {
-            self.spec.gen(rng, timeout).map(Value::Object)
-        }
+        self.spec.gen(rng, timeout).map(Value::Object)
     }
 }
 
