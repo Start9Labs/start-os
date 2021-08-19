@@ -15,7 +15,7 @@
       {{ spec.name }} must be an integer
     </p>
     <p *ngIf="control.hasError('numberNotInRange')">
-      Number not in range
+      {{ control.errors['numberNotInRange'].value }}
     </p>
     <p *ngIf="control.hasError('notNumber')">
       {{ spec.name }} must be a number
@@ -25,7 +25,7 @@
   <!-- list -->
   <ng-container *ngIf="spec.type === 'list'">
     <p *ngIf="control.hasError('listNotInRange')">
-      List not in range
+     {{ control.errors['listNotInRange'].value }}
     </p>
     <p *ngIf="control.hasError('listNotUnique')">
       {{ control.errors.listNotUnique.value }}
