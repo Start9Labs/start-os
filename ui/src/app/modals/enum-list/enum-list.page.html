@@ -14,7 +14,7 @@
 <ion-content>
   <ion-item-group>
     <ion-item *ngFor="let option of options | keyvalue : asIsOrder">
-      <ion-label>{{ option.key }}</ion-label>
+      <ion-label>{{ spec.spec['value-names'][option.key] }}</ion-label>
       <ion-checkbox slot="end" [(ngModel)]="option.value" (click)="toggleSelected(option.key)"></ion-checkbox>
     </ion-item>
   </ion-item-group>
