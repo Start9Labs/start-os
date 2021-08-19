@@ -798,6 +798,7 @@ dependencies = [
  "fd-lock-rs",
  "futures",
  "git-version",
+ "hex",
  "http",
  "hyper-ws-listener",
  "indexmap",
