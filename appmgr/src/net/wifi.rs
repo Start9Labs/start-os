@@ -7,7 +7,7 @@ use rpc_toolkit::command;
 use tokio::process::Command;
 
 use crate::context::EitherContext;
-use crate::util::{display_none, display_serializable, Invoke};
+use crate::util::{display_none, display_serializable, Invoke, IoFormat};
 use crate::{Error, ErrorKind};
 
 #[command(subcommands(add, connect, delete, get, set_country))]
@@ -162,9 +162,11 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
     table_global.add_row(row![
         &info
             .connected
+            .as_ref()
             .map_or("[N/A]".to_owned(), |c| format!("{}", c)),
         &info
             .signal_strength
+            .as_ref()
             .map_or("[N/A]".to_owned(), |ss| format!("{}", ss)),
         &format!("{}", info.country.alpha2()),
         &format!("{}", info.ethernet)
@@ -173,16 +175,18 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
 
     let mut table_ssids = Table::new();
     table_ssids.add_row(row![bc => "SSID",]);
-    for ssid in info.ssids {
-        let mut row = row![&ssid];
-        if Some(ssid) == info.connected {
+    for ssid in &info.ssids {
+        let mut row = row![ssid];
+        if Some(ssid) == info.connected.as_ref() {
             row.iter_mut()
-                .map(|c| c.style(Attr::ForegroundColor(match info.signal_strength {
-                    Some(100) => color::GREEN,
-                    Some(0) => color::RED,
-                    _ => color::YELLOW,
-                })))
-                .collect::<()>();
+                .map(|c| {
+                    c.style(Attr::ForegroundColor(match &info.signal_strength {
+                        Some(100) => color::GREEN,
+                        Some(0) => color::RED,
+                        _ => color::YELLOW,
+                    }))
+                })
+                .collect::<()>()
         }
         table_ssids.add_row(row);
     }
@@ -191,8 +195,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
 
 #[command(display(display_wifi_info))]
 pub async fn get(
-    #[context]
-    _ctx: EitherContext,
+    #[context] _ctx: EitherContext,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
