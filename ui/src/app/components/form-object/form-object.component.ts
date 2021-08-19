@@ -80,6 +80,10 @@ export class FormObjectComponent {
     })
   }
 
+  addListItemWrapper (key: string, spec: ValueSpec) {
+    this.presentAlertChangeWarning(key, spec, () => this.addListItem(key))
+  }
+
   addListItem (key: string, markDirty = true, val?: string): void {
     const arr = this.formGroup.get(key) as FormArray
     if (markDirty) arr.markAsDirty()
@@ -149,28 +153,34 @@ export class FormObjectComponent {
     await modal.present()
   }
 
-  async presentAlertChangeWarning (key: string, spec: ValueSpec, okFn: Function = () => { }, cancelFn: Function = () => { }) {
-    if (!spec['change-warning'] || this.warningAck[key]) return
+  async presentAlertChangeWarning (key: string, spec: ValueSpec, okFn?: Function, cancelFn?: Function) {
+    console.log('Here here here', spec['change-warning'])
+    if (!spec['change-warning'] || this.warningAck[key]) return okFn ? okFn() : null
     this.warningAck[key] = true
+
+    const buttons = [
+      {
+        text: 'Proceed',
+        handler: () => {
+          if (okFn) okFn()
+        },
+      },
+    ]
+
+    if (okFn || cancelFn) {
+      buttons.unshift({
+        text: 'Cancel',
+        handler: () => {
+          if (cancelFn) cancelFn()
+        },
+      })
+    }
 
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       subHeader: `Editing ${spec.name} has consequences:`,
       message: spec['change-warning'],
-      buttons: [
-        {
-          text: 'Cancel',
-          handler: () => {
-            cancelFn()
-          },
-        },
-        {
-          text: 'Proceed',
-          handler: () => {
-            okFn()
-          },
-        },
-      ],
+      buttons,
     })
     await alert.present()
   }
