@@ -154,7 +154,6 @@ export class FormObjectComponent {
   }
 
   async presentAlertChangeWarning (key: string, spec: ValueSpec, okFn?: Function, cancelFn?: Function) {
-    console.log('Here here here', spec['change-warning'])
     if (!spec['change-warning'] || this.warningAck[key]) return okFn ? okFn() : null
     this.warningAck[key] = true
 

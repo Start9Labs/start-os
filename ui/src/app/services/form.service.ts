@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
-import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecOf, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecListOf, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
+import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecListOf, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
 import { getDefaultString, Range } from '../pkg-config/config-utilities'
 const Mustache = require('mustache')
 
@@ -158,7 +158,7 @@ export function numberInRange (stringRange: string): ValidatorFn {
       Range.from(stringRange).checkIncludes(control.value)
       return null
     } catch (e) {
-      return { numberNotInRange: { value: control.value } }
+      return { numberNotInRange: { value: getRangeMessage(stringRange) } }
     }
   }
 }
@@ -186,11 +186,23 @@ export function listInRange (stringRange: string): ValidatorFn {
     const max = range.integralMax()
     const length = control.value.length
     if ((min && length < min) || (max && length > max)) {
-      return { listNotInRange: { value: control.value } }
+      return { listNotInRange: { value: getRangeMessage(stringRange, true) } }
     } else {
       return null
     }
   }
+}
+
+function getRangeMessage (stringRange: string, isList = false): string {
+  const range = Range.from(stringRange)
+  const min = range.integralMin()
+  const max = range.integralMax()
+  const messageStart =  isList ? 'List length must be ' : 'Must be '
+  const minMessage = !!min ? `greater than ${min}` : ''
+  const and = !!min && !!max ? ' and ' : ''
+  const maxMessage = !!max ? `less than ${max}` : ''
+
+  return `${messageStart} ${minMessage}${and}${maxMessage}`
 }
 
 export function listUnique (spec: ValueSpecList): ValidatorFn {
