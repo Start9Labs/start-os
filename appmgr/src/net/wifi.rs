@@ -15,7 +15,7 @@ pub async fn wifi(#[context] ctx: EitherContext) -> Result<EitherContext, Error>
     Ok(ctx)
 }
 
-#[command(rpc_only)]
+#[command(display(display_none))]
 pub async fn add(
     #[context] _ctx: EitherContext,
     #[arg] ssid: String,
@@ -23,16 +23,16 @@ pub async fn add(
     #[arg] priority: isize,
     #[arg] connect: bool,
 ) -> Result<(), Error> {
-    let wpa_supplicant = WpaCli { interface: "wlan0" };
+    let wpa_supplicant = WpaCli { interface: "wlan0" }; // TODO: pull from config
     if !ssid.is_ascii() {
         return Err(Error::new(
-            anyhow::anyhow!("SSID not in the ASCII charset"),
+            anyhow::anyhow!("SSID may not have special characters"),
             ErrorKind::WifiError,
         ));
     }
     if !password.is_ascii() {
         return Err(Error::new(
-            anyhow::anyhow!("Wifi Password not in the ASCII charset"),
+            anyhow::anyhow!("WiFi Password may not have special characters"),
             ErrorKind::WifiError,
         ));
     }
@@ -64,7 +64,7 @@ pub async fn add(
     tokio::spawn(async move {
         match add_procedure(wpa_supplicant, &ssid, &password, priority, connect).await {
             Err(e) => {
-                log::error!("Failed to add new Wifi network '{}': {}", ssid, e);
+                log::error!("Failed to add new WiFi network '{}': {}", ssid, e);
             }
             Ok(_) => {}
         }
@@ -76,7 +76,7 @@ pub async fn add(
 pub async fn connect(#[context] _ctx: EitherContext, #[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
-            anyhow::anyhow!("SSID not in the ASCII charset"),
+            anyhow::anyhow!("SSID may not have special characters"),
             ErrorKind::WifiError,
         ));
     }
@@ -114,7 +114,7 @@ pub async fn connect(#[context] _ctx: EitherContext, #[arg] ssid: String) -> Res
 pub async fn delete(#[context] _ctx: EitherContext, #[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
-            anyhow::anyhow!("SSID not in ASCII charset"),
+            anyhow::anyhow!("SSID may not have special characters"),
             ErrorKind::WifiError,
         ));
     }
@@ -174,14 +174,29 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
     let mut table_ssids = Table::new();
     table_ssids.add_row(row![bc => "SSID",]);
     for ssid in info.ssids {
-        let row = row![&ssid];
+        let mut row = row![&ssid];
+        if Some(ssid) == info.connected {
+            row.iter_mut()
+                .map(|c| c.style(Attr::ForegroundColor(match info.signal_strength {
+                    Some(100) => color::GREEN,
+                    Some(0) => color::RED,
+                    _ => color::YELLOW,
+                })))
+                .collect::<()>();
+        }
         table_ssids.add_row(row);
     }
     table_ssids.print_tty(false);
 }
 
 #[command(display(display_wifi_info))]
-pub async fn get(#[context] _ctx: EitherContext) -> Result<WiFiInfo, Error> {
+pub async fn get(
+    #[context]
+    _ctx: EitherContext,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
+) -> Result<WiFiInfo, Error> {
     let wpa_supplicant = WpaCli { interface: "wlan0" };
     let ssids_task = async {
         Result::<Vec<String>, Error>::Ok(
@@ -194,7 +209,7 @@ pub async fn get(#[context] _ctx: EitherContext) -> Result<WiFiInfo, Error> {
     };
     let current_task = wpa_supplicant.get_current_network();
     let country_task = wpa_supplicant.get_country_low();
-    let ethernet_task = interface_connected("eth0");
+    let ethernet_task = interface_connected("eth0"); // TODO: pull from config
     let rssi_task = wpa_supplicant.signal_poll_low();
     let (ssids_res, current_res, country_res, ethernet_res, rssi_res) = tokio::join!(
         ssids_task,
@@ -391,7 +406,7 @@ impl<'a> WpaCli<'a> {
             )
         };
         let output = String::from_utf8(r)?;
-        Ok(if output == "FAIL" {
+        Ok(if output.trim() == "FAIL" {
             None
         } else {
             let l = output.lines().next().ok_or_else(e)?;
@@ -445,7 +460,7 @@ impl<'a> WpaCli<'a> {
             .invoke(ErrorKind::WifiError)
             .await?;
         let output = String::from_utf8(r)?;
-        if output == "\n" {
+        if output.trim().is_empty() {
             Ok(None)
         } else {
             Ok(Some(output))
