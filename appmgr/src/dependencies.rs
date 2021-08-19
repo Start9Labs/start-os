@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::action::ActionImplementation;
 use crate::config::{Config, ConfigSpec};
+use crate::db::model::CurrentDependencyInfo;
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult, HealthCheckResultVariant};
@@ -253,4 +254,27 @@ impl DependencyConfig {
             .await?
             .map_err(|e| Error::new(anyhow!("{}", e.1), crate::ErrorKind::AutoConfigure))
     }
+}
+
+pub async fn update_current_dependents<Db: DbHandle>(
+    db: &mut Db,
+    dependent_id: &PackageId,
+    current_dependencies: &IndexMap<PackageId, CurrentDependencyInfo>,
+) -> Result<(), Error> {
+    for (dependency, dep_info) in current_dependencies {
+        if let Some(dependency_model) = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(&dependency)
+            .and_then(|pkg| pkg.installed())
+            .check(db)
+            .await?
+        {
+            dependency_model
+                .current_dependents()
+                .idx_model(dependent_id)
+                .put(db, &dep_info)
+                .await?;
+        }
+    }
+    Ok(())
 }

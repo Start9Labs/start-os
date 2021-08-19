@@ -17,7 +17,9 @@ use crate::config::spec::PackagePointerSpecVariant;
 use crate::context::{EitherContext, ExtendedContext};
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
 use crate::db::util::WithRevision;
-use crate::dependencies::{BreakageRes, DependencyError, TaggedDependencyError};
+use crate::dependencies::{
+    update_current_dependents, BreakageRes, DependencyError, TaggedDependencyError,
+};
 use crate::s9pk::manifest::PackageId;
 use crate::util::{
     display_none, display_serializable, parse_duration, parse_stdin_deserializable, IoFormat,
@@ -396,21 +398,7 @@ pub fn configure<'a, Db: DbHandle>(
         };
 
         // update dependencies
-        for (dependency, dep_info) in current_dependencies {
-            if let Some(dependency_model) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&dependency)
-                .and_then(|pkg| pkg.installed())
-                .check(db)
-                .await?
-            {
-                dependency_model
-                    .current_dependents()
-                    .idx_model(id)
-                    .put(db, &dep_info)
-                    .await?;
-            }
-        }
+        update_current_dependents(db, id, &current_dependencies).await?;
 
         // cache current config for dependents
         overrides.insert(id.clone(), config.clone());
