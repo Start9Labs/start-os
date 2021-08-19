@@ -119,6 +119,8 @@ export class FormService {
   private numberValidators (spec: ValueSpecNumber | ListValueSpecNumber): ValidatorFn[] {
     const validators: ValidatorFn[] = []
 
+    validators.push(isNumber())
+
     if (!(spec as ValueSpecNumber).nullable) {
       validators.push(Validators.required)
     }
@@ -157,6 +159,14 @@ export function numberInRange (stringRange: string): ValidatorFn {
     } catch (e) {
       return { numberNotInRange: { value: control.value } }
     }
+  }
+}
+
+export function isNumber (): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    return control.value == Number(control.value) ?
+      null :
+      { invalidNumber: { value: control.value } }
   }
 }
 
