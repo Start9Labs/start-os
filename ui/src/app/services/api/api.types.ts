@@ -42,11 +42,6 @@ export module RR {
   export type ShutdownServerReq = { } // server.shutdown
   export type ShutdownServerRes = null
 
-  // network
-
-  export type RefreshLanReq = { } // network.lan.refresh
-  export type RefreshLanRes = null
-
   // sessions
 
   export type GetSessionsReq = { } // sessions.list

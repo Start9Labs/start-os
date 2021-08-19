@@ -77,12 +77,6 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'server.shutdown', params })
   }
 
-  // network
-
-  async refreshLan (params: RR.RefreshLanReq): Promise<RR.RefreshLanRes> {
-    return this.http.rpcRequest({ method: 'network.lan.refresh', params })
-  }
-
   // marketplace URLs
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
