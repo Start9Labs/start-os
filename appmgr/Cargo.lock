@@ -802,6 +802,7 @@ dependencies = [
  "http",
  "hyper-ws-listener",
  "indexmap",
+ "isocountry",
  "itertools 0.10.1",
  "jsonpath_lib",
  "lazy_static",
@@ -1391,6 +1392,16 @@ name = "ipnet"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f2d64f2edebec4ce84ad108148e67e1064789bee435edc5b60ad398714a3a9"
+
+[[package]]
+name = "isocountry"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ea1dc4bf0fb4904ba83ffdb98af3d9c325274e92e6e295e4151e86c96363e04"
+dependencies = [
+ "serde",
+ "thiserror",
+]
 
 [[package]]
 name = "itertools"
