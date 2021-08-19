@@ -82,7 +82,7 @@
               isNew: current && current[entry.key] === undefined,
               isEdited: entry.value.dirty
             }"></form-label>
-            <ion-button fill="clear" color="primary" slot="end" (click)="addListItem(entry.key)">
+            <ion-button fill="clear" color="primary" slot="end" (click)="addListItemWrapper(entry.key, spec)">
               <ion-icon slot="start" name="add"></ion-icon>
               Add
             </ion-button>
