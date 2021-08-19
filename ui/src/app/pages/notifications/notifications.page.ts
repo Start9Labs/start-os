@@ -32,7 +32,7 @@ export class NotificationsPage {
     this.loading = false
   }
 
-  async doRefresh (e: any) {
+  async refresh (e: any) {
     this.page = 1
     this.notifications = await this.getNotifications(),
     e.target.complete()

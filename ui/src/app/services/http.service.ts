@@ -27,11 +27,12 @@ export class HttpService {
   async rpcRequest<T> (rpcOpts: RPCOptions): Promise<T> {
     const { url, version } = this.config.api
     rpcOpts.params = rpcOpts.params || { }
-    const httpOpts = {
+    const httpOpts: HttpOptions = {
       method: Method.POST,
       body: rpcOpts,
       url: `/${url}/${version}`,
     }
+    if (rpcOpts.timeout) httpOpts.timeout = rpcOpts.timeout
 
     const res = await this.httpRequest<RPCResponse<T>>(httpOpts)
 
@@ -78,6 +79,7 @@ export class HttpService {
       case Method.PATCH:  req = this.http.patch(url, httpOpts.body, options) as any; break
       case Method.DELETE: req = this.http.delete(url, options) as any; break
     }
+    console.log('REQUEST', options)
 
     return (httpOpts.timeout ? withTimeout(req, httpOpts.timeout) : req)
       .toPromise()
@@ -139,6 +141,7 @@ export interface RPCOptions {
   params?: {
     [param: string]: string | number | boolean | object | string[] | number[];
   }
+  timeout?: number
 }
 
 interface RPCBase {

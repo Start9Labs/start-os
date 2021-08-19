@@ -1,14 +1,13 @@
 import { Injectable } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
-import { By } from '@angular/platform-browser'
-import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecOf, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
+import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecOf, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecListOf, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
 import { getDefaultString, Range } from '../pkg-config/config-utilities'
+const Mustache = require('mustache')
 
 @Injectable({
   providedIn: 'root',
 })
 export class FormService {
-  validationMessages: { [key: string]: { type: string, message: string }[] } = { }
 
   constructor (
     private readonly formBuilder: FormBuilder,
@@ -18,13 +17,11 @@ export class FormService {
     return this.getFormGroup(config, [], current)
   }
 
-  getListItemValidators (spec: ValueSpecList, key: string,  index: number) {
-    const listKey = `${key}/${index}`
-    this.validationMessages[listKey] = []
+  getListItemValidators (spec: ValueSpecList) {
     if (isValueSpecListOf(spec, 'string')) {
-      return this.stringValidators(listKey, spec.spec)
+      return this.stringValidators(spec.spec)
     } else if (isValueSpecListOf(spec, 'number')) {
-      return this.numberValidators(listKey, spec.spec)
+      return this.numberValidators(spec.spec)
     }
   }
 
@@ -53,8 +50,8 @@ export class FormService {
     return this.formBuilder.group(group, { validators } )
   }
 
-  getListItem (key: string, index: number, spec: ValueSpecList, entry: any) {
-    const listItemValidators = this.getListItemValidators(spec, key, index)
+  getListItem (spec: ValueSpecList, entry: any) {
+    const listItemValidators = this.getListItemValidators(spec)
     if (isValueSpecListOf(spec, 'string')) {
       return this.formBuilder.control(entry, listItemValidators)
     } else if (isValueSpecListOf(spec, 'number')) {
@@ -69,12 +66,11 @@ export class FormService {
   }
 
   private getFormEntry (key: string, spec: ValueSpec, currentValue: any): FormGroup | FormArray | FormControl {
-    this.validationMessages[key] = []
     let validators: ValidatorFn[]
     let value: any
     switch (spec.type) {
       case 'string':
-        validators = this.stringValidators(key, spec)
+        validators = this.stringValidators(spec)
         if (currentValue !== undefined) {
           value = currentValue
         } else {
@@ -82,7 +78,7 @@ export class FormService {
         }
         return this.formBuilder.control(value, validators)
       case 'number':
-        validators = this.numberValidators(key, spec)
+        validators = this.numberValidators(spec)
         if (currentValue !== undefined) {
           value = currentValue
         } else {
@@ -92,9 +88,9 @@ export class FormService {
       case 'object':
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
-        validators = this.listValidators(key, spec)
+        validators = this.listValidators(spec)
         const mapped = (Array.isArray(currentValue) ? currentValue : spec.default as any[]).map((entry: any, index) => {
-          return this.getListItem(key, index, spec, entry)
+          return this.getListItem(spec, entry)
         })
         return this.formBuilder.array(mapped, validators)
       case 'union':
@@ -106,71 +102,43 @@ export class FormService {
     }
   }
 
-  private stringValidators (key: string, spec: ValueSpecString | ListValueSpecString): ValidatorFn[] {
+  private stringValidators (spec: ValueSpecString | ListValueSpecString): ValidatorFn[] {
     const validators: ValidatorFn[] = []
 
     if (!(spec as ValueSpecString).nullable) {
       validators.push(Validators.required)
-      this.validationMessages[key].push({
-        type: 'required',
-        message: 'Cannot be blank.',
-      })
     }
 
     if (spec.pattern) {
       validators.push(Validators.pattern(spec.pattern))
-      this.validationMessages[key].push({
-        type: 'pattern',
-        message: spec['pattern-description'],
-      })
     }
 
     return validators
   }
 
-  private numberValidators (key: string, spec: ValueSpecNumber | ListValueSpecNumber): ValidatorFn[] {
+  private numberValidators (spec: ValueSpecNumber | ListValueSpecNumber): ValidatorFn[] {
     const validators: ValidatorFn[] = []
 
     if (!(spec as ValueSpecNumber).nullable) {
       validators.push(Validators.required)
-      this.validationMessages[key].push({
-        type: 'required',
-        message: 'Cannot be blank.',
-      })
     }
 
     if (spec.integral) {
       validators.push(isInteger())
-      this.validationMessages[key].push({
-        type: 'numberNotInteger',
-        message: 'Number must be an integer.',
-      })
     }
 
     validators.push(numberInRange(spec.range))
-    this.validationMessages[key].push({
-      type: 'numberNotInRange',
-      message: 'Number not in range.',
-    })
 
     return validators
   }
 
-  private listValidators (key: string, spec: ValueSpecList): ValidatorFn[] {
+  private listValidators (spec: ValueSpecList): ValidatorFn[] {
     const validators: ValidatorFn[] = []
 
     validators.push(listInRange(spec.range))
-    this.validationMessages[key].push({
-      type: 'listNotInRange',
-      message: 'List not in range.',
-    })
 
     if (!isValueSpecListOf(spec, 'enum')) {
       validators.push(listUnique(spec))
-      this.validationMessages[key].push({
-        type: 'listNotUnique',
-        message: 'List contains duplicate entries.',
-      })
     }
 
     return validators
@@ -219,7 +187,20 @@ export function listUnique (spec: ValueSpecList): ValidatorFn {
     for (let idx = 0; idx < control.value.length; idx++) {
       for (let idx2 = idx + 1; idx2 < control.value.length; idx2++) {
         if (listItemEquals(spec, control.value[idx], control.value[idx2])) {
-          return { listNotUnique: { value: control.value } }
+          let display1: string
+          let display2: string
+          let uniqueMessage = isObjectOrUnion(spec.spec) ? uniqueByMessageWrapper(spec.spec['unique-by'], spec.spec, control.value[idx]) : ''
+
+
+          if (isObjectOrUnion(spec.spec) && spec.spec['display-as']) {
+            display1 = `"${(Mustache as any).render(spec.spec['display-as'], control.value[idx])}"`
+            display2 = `"${(Mustache as any).render(spec.spec['display-as'], control.value[idx2])}"`
+          } else {
+            display1 = `Entry ${idx + 1}`
+            display2 = `Entry ${idx2 + 1}`
+          }
+
+          return { listNotUnique: { value: `${display1} and ${display2} are not unique.${uniqueMessage}` } }
         }
       }
     }
@@ -234,8 +215,9 @@ function listItemEquals (spec: ValueSpecList, val1: any, val2: any): boolean {
     case 'enum':
       return val1 == val2
     case 'object':
-    case 'union':
       return listObjEquals(spec.spec['unique-by'], (spec.spec as ListValueSpecObject), val1, val2)
+    case 'union':
+      return unionEquals(spec.spec['unique-by'], spec.spec as ListValueSpecUnion, val1, val2)
     default:
       return false
   }
@@ -249,8 +231,9 @@ function itemEquals (spec: ValueSpec, val1: any, val2: any): boolean {
     case 'enum':
       return val1 == val2
     case 'object':
+      return objEquals(spec['unique-by'], (spec as ValueSpecObject), val1, val2)
     case 'union':
-      return objEquals(spec['unique-by'], (spec as ValueSpec), val1, val2)
+      return unionEquals(spec['unique-by'], (spec as ValueSpecUnion), val1, val2)
     case 'list':
       if (val1.length !== val2.length) {
         return false
@@ -288,11 +271,11 @@ function listObjEquals (uniqueBy: UniqueBy, spec: ListValueSpecObject, val1: any
   }
 }
 
-function objEquals (uniqueBy: UniqueBy, spec: ValueSpec, val1: any, val2: any): boolean {
+function objEquals (uniqueBy: UniqueBy, spec: ValueSpecObject, val1: any, val2: any): boolean {
   if (uniqueBy === null) {
     return false
   } else if (typeof uniqueBy === 'string') {
-    return itemEquals(spec, val1, val2)
+    return itemEquals(spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
   } else if ('any' in uniqueBy) {
     for (let subSpec of uniqueBy.any) {
       if (objEquals(subSpec, spec, val1, val2)) {
@@ -308,4 +291,94 @@ function objEquals (uniqueBy: UniqueBy, spec: ValueSpec, val1: any, val2: any): 
     }
     return true
   }
+}
+
+function unionEquals (uniqueBy: UniqueBy, spec: ValueSpecUnion | ListValueSpecUnion, val1: any, val2: any): boolean {
+  const tagId = spec.tag.id
+  const variant = spec.variants[val1[tagId]]
+  if (uniqueBy === null) {
+    return false
+  } else if (typeof uniqueBy === 'string') {
+    if (uniqueBy === tagId) {
+      return val1[tagId] === val2[tagId]
+    } else {
+      return itemEquals(variant[uniqueBy], val1[uniqueBy], val2[uniqueBy])
+    }
+  } else if ('any' in uniqueBy) {
+    for (let subSpec of uniqueBy.any) {
+      if (unionEquals(subSpec, spec, val1, val2)) {
+        return true
+      }
+    }
+    return false
+  } else if ('all' in uniqueBy) {
+    for (let subSpec of uniqueBy.all) {
+      if (!unionEquals(subSpec, spec, val1, val2)) {
+        return false
+      }
+    }
+    return true
+  }
+}
+
+function uniqueByMessageWrapper (uniqueBy: UniqueBy, spec: ListValueSpecObject | ListValueSpecUnion, obj: object) {
+  let configSpec: ConfigSpec
+  if (isUnion(spec)) {
+    const variantKey = obj[spec.tag.id]
+    configSpec = spec.variants[variantKey]
+  } else {
+    configSpec = spec.spec
+  }
+
+  const message = uniqueByMessage(uniqueBy, configSpec)
+  if (message) {
+    return ' Must be unique by: ' + message + '.'
+  }
+}
+
+function uniqueByMessage (uniqueBy: UniqueBy, configSpec: ConfigSpec, outermost = true): string {
+  let joinFunc
+  const subSpecs = []
+  if (uniqueBy === null) {
+    return null
+  } else if (typeof uniqueBy === 'string') {
+    return configSpec[uniqueBy] ? configSpec[uniqueBy].name : uniqueBy
+  } else if ('any' in uniqueBy) {
+    joinFunc = ' OR '
+    for (let subSpec of uniqueBy.any) {
+      subSpecs.push(uniqueByMessage(subSpec, configSpec, false))
+    }
+  } else if ('all' in uniqueBy) {
+    joinFunc = ' AND '
+    for (let subSpec of uniqueBy.all) {
+      subSpecs.push(uniqueByMessage(subSpec, configSpec, false))
+    }
+  }
+  const ret = subSpecs.filter(ss => ss).join(joinFunc)
+  return outermost || subSpecs.filter(ss => ss).length === 1 ? ret : '(' + ret + ')'
+}
+
+function isObjectOrUnion (spec: any): spec is ListValueSpecObject | ListValueSpecUnion {
+  // only lists of objects and unions have unique-by
+  return spec['unique-by'] !== undefined
+}
+
+function isUnion (spec: any): spec is ListValueSpecUnion {
+  // only unions have tag
+  return !!spec.tag
+}
+
+const sampleUniqueBy: UniqueBy = {
+  all: [
+    'last name',
+    { any: [
+      'favorite color',
+      null,
+    ] },
+    { any: [
+      'favorite color',
+      'first name',
+      null,
+    ] },
+  ],
 }

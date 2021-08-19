@@ -24,7 +24,7 @@ const routes: Routes = [
   },
   {
     path: 'wifi',
-    loadChildren: () => import('./wifi/wifi.module').then(m => m.WifiListPageModule),
+    loadChildren: () => import('./wifi/wifi.module').then(m => m.WifiPageModule),
   },
   {
     path: 'lan',

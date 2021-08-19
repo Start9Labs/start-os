@@ -1,10 +1,7 @@
 import { Component } from '@angular/core'
-import { isPlatform, LoadingController, ToastController } from '@ionic/angular'
-import { copyToClipboard } from 'src/app/util/web.util'
+import { LoadingController, ToastController } from '@ionic/angular'
 import { ConfigService } from 'src/app/services/config.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
@@ -14,13 +11,7 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 })
 export class LANPage {
   lanAddress: string
-  lanDisabled: LanSetupIssue
-  readonly lanDisabledExplanation: { [k in LanSetupIssue]: string } = {
-    NotDesktop: `You are using a mobile device. To setup LAN on a mobile device, please use the Start9 Setup App.`,
-    NotTor: `For security reasons, you must setup LAN over a Tor connection. Please navigate to your Embassy Tor Address and try again.`,
-  }
-  readonly docsUrl = 'https://docs.start9.com/user-manual/general/lan-setup'
-  subs: Subscription[] = []
+  lanDisabled: string
 
   constructor (
     private readonly toastCtrl: ToastController,
@@ -28,25 +19,16 @@ export class LANPage {
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
-    private readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {
-    if (isPlatform('ios') || isPlatform('android')) {
-      this.lanDisabled = LanSetupIssue.NOT_DESKTOP
-    } else if (!this.config.isTor()) {
-      this.lanDisabled = LanSetupIssue.NOT_TOR
+    if (!this.config.isTor()) {
+      this.lanDisabled = 'For security reasons, you must setup LAN over a Tor connection. Please navigate to your Embassy Tor Address and try again.'
     }
-    this.subs = [
-      this.patch.watch$('server-info', 'lan-address')
-      .subscribe(addr => {
-        this.lanAddress = `https://${addr}`
-      }),
-    ]
   }
 
-  ngOnDestroy () {
-    this.subs.forEach(sub => sub.unsubscribe())
+  installCert (): void {
+    document.getElementById('install-cert').click()
   }
 
   async refreshLAN (): Promise<void> {
@@ -65,21 +47,6 @@ export class LANPage {
     } finally {
       loader.dismiss()
     }
-  }
-
-  async copyLAN (): Promise <void> {
-    const message = await copyToClipboard(this.lanAddress).then(success => success ? 'copied to clipboard!' :  'failed to copy')
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
-  }
-
-  installCert (): void {
-    document.getElementById('install-cert').click()
   }
 
   private async presentToastSuccess (): Promise<void> {
@@ -102,9 +69,4 @@ export class LANPage {
 
     await toast.present()
   }
-}
-
-enum LanSetupIssue {
-  NOT_TOR = 'NotTor',
-  NOT_DESKTOP = 'NotDesktop',
 }

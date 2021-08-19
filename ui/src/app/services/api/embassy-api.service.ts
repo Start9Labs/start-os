@@ -96,17 +96,15 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // wifi
 
+  abstract getWifi (params: RR.GetWifiReq, timeout: number): Promise<RR.GetWifiRes>
+
+  abstract setWifiCountry (params: RR.SetWifiCountryReq): Promise<RR.SetWifiCountryRes>
+
   abstract addWifi (params: RR.AddWifiReq): Promise<RR.AddWifiRes>
 
-  protected abstract connectWifiRaw (params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes>
-  connectWifi = (params: RR.ConnectWifiReq) => this.syncResponse(
-    () => this.connectWifiRaw(params),
-  )()
+  abstract connectWifi (params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes>
 
-  protected abstract deleteWifiRaw (params: RR.DeleteWifiReq): Promise<RR.ConnectWifiRes>
-  deleteWifi = (params: RR.DeleteWifiReq) => this.syncResponse(
-    () => this.deleteWifiRaw(params),
-  )()
+  abstract deleteWifi (params: RR.DeleteWifiReq): Promise<RR.ConnectWifiRes>
 
   // ssh
 

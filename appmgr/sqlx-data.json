@@ -20,16 +20,6 @@
       "nullable": []
     }
   },
-  "121a1c1c0c11c5588c17bbd9b2baeca4d27d1a6d82d6487fad142ffb58d1da0c": {
-    "query": "INSERT INTO tor (package, interface, key) VALUES (?, ?, ?)",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Right": 3
-      },
-      "nullable": []
-    }
-  },
   "3efd0daa61f4f8bead1adbe78a8225bc31fb940406d0415b578d3adc03a5e414": {
     "query": "SELECT hash FROM password",
     "describe": {
@@ -186,6 +176,16 @@
       "nullable": [
         false
       ]
+    }
+  },
+  "d79d608ceb862c15b741a6040044c6dd54a837a3a0c5594d15a6041c7bc68ea8": {
+    "query": "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
     }
   },
   "de2a5e90798d606047ab8180c044baac05469c0cdf151316bd58ee8c7196fdef": {

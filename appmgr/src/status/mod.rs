@@ -337,7 +337,14 @@ impl DependencyErrors {
                         crate::ErrorKind::Dependency,
                     )
                 })?
-                .satisfied(db, dep_id, None, &manifest.id, &manifest.version)
+                .satisfied(
+                    db,
+                    dep_id,
+                    None,
+                    &manifest.id,
+                    &manifest.version,
+                    &manifest.volumes,
+                )
                 .await?
             {
                 res.insert(dep_id.clone(), e);

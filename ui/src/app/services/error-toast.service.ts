@@ -17,24 +17,9 @@ export class ErrorToastService {
 
     if (this.toast) return
 
-    let message: string | IonicSafeString
-
-    if (e.code) message = String(e.code)
-    if (e.message) message = `${message ? message + ' ' : ''}${e.message}`
-    if (e.details) message = `${message ? message + ': ' : ''}${e.details}`
-
-    if (!message) {
-      message = 'Unknown Error.'
-      link = 'https://docs.start9.com'
-    }
-
-    if (link) {
-      message = new IonicSafeString(`${message}<br /><br /><a href=${link} target="_blank" style="color: white;">Get Help</a>`)
-    }
-
     this.toast = await this.toastCtrl.create({
       header: 'Error',
-      message,
+      message: getErrorMessage(e, link),
       duration: 0,
       position: 'top',
       cssClass: 'error-toast',
@@ -57,4 +42,23 @@ export class ErrorToastService {
       this.toast = undefined
     }
   }
+}
+
+export function getErrorMessage (e: RequestError, link?: string): string | IonicSafeString {
+  let message: string | IonicSafeString
+
+  if (e.code) message = String(e.code)
+  if (e.message) message = `${message ? message + ' ' : ''}${e.message}`
+  if (e.details) message = `${message ? message + ': ' : ''}${e.details}`
+
+  if (!message) {
+    message = 'Unknown Error.'
+    link = 'https://docs.start9.com'
+  }
+
+  if (link) {
+    message = new IonicSafeString(`${message}<br /><br /><a href=${link} target="_blank" style="color: white;">Get Help</a>`)
+  }
+
+  return message
 }

@@ -8,14 +8,37 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <text-spinner *ngIf="loading" text="Loading Sessions"></text-spinner>
 
+  <!-- loading -->
+  <ion-item-group *ngIf="loading">
+    <div *ngFor="let entry of ['first', 'second']">
+      <ion-item-divider>
+        <ion-skeleton-text animated style="width: 120px; height: 20px;"></ion-skeleton-text>
+      </ion-item-divider>
+  
+      <ion-item style="padding-bottom: 6px;">
+        <ion-avatar slot="start" style="margin-right: 30px;">
+          <ion-skeleton-text animated style="width: 40px; height: 40px; border-radius: 0;"></ion-skeleton-text>
+        </ion-avatar>
+        <ion-label>
+          <ion-skeleton-text animated style="width: 150px; height: 20px; margin-bottom: 10px;"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 250px; height: 14px; margin-bottom: 12px;"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 350px;"></ion-skeleton-text>
+        </ion-label>
+        <ion-button *ngIf="entry === 'second'" slot="end" fill="clear">
+          <ion-skeleton-text animated style="width: 60px; border-radius: 0"></ion-skeleton-text>
+        </ion-button>
+      </ion-item>
+    </div>
+  </ion-item-group>
+
+  <!-- not loading -->
   <ion-item-group *ngIf="!loading">
 
-    <ion-item-divider>Current Session</ion-item-divider>
+    <ion-item-divider>This Session</ion-item-divider>
     <ion-item *ngIf="sessionInfo.sessions[sessionInfo.current] as current">
-      <ion-icon slot="start" [name]="getPlatformIcon(current.metadata.platforms)"></ion-icon>
-      <ion-label class="ion-text-wrap">
+      <ion-icon slot="start" size="large" [name]="getPlatformIcon(current.metadata.platforms)"></ion-icon>
+      <ion-label>
         <h1>{{ getPlatformName(current.metadata.platforms) }}</h1>
         <h2>Last Active: {{ current['last-active'] | date : 'medium' }}</h2>
         <p>{{ current['user-agent'] }}</p>
@@ -28,8 +51,8 @@
         [id]="session.key"
         *ngIf="session.key !== sessionInfo.current"
       >
-        <ion-icon slot="start" [name]="getPlatformIcon(session.value.metadata.platforms)"></ion-icon>
-        <ion-label class="ion-text-wrap">
+        <ion-icon slot="start" size="large" [name]="getPlatformIcon(session.value.metadata.platforms)"></ion-icon>
+        <ion-label>
           <h1>{{ getPlatformName(session.value.metadata.platforms) }}</h1>
           <h2>Last Active: {{ session.value['last-active'] | date : 'medium' }}</h2>
           <p>{{ session.value['user-agent'] }}</p>

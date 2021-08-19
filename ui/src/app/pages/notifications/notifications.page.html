@@ -11,14 +11,30 @@
 </ion-header>
 
 <ion-content>
-  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
-    <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
-  </ion-refresher>
 
-  <text-spinner *ngIf="loading" text="Loading Notifications"></text-spinner>
+  <!-- loading -->
+  <ion-item-group *ngIf="loading">
+    <ion-item-divider>
+      <ion-button slot="end" fill="clear">
+        <ion-skeleton-text style="width: 90px; height: 14px; border-radius: 0;" animated></ion-skeleton-text>
+      </ion-button>
+    </ion-item-divider>
+    <ion-item *ngFor="let entry of ['', '', '', '']">
+      <ion-label>
+        <ion-skeleton-text animated style="width: 15%; height: 20px; margin-bottom: 12px;"></ion-skeleton-text>
+        <ion-skeleton-text animated style="width: 50%; margin-bottom: 18px;"></ion-skeleton-text>
+        <ion-skeleton-text animated style="width: 20%;"></ion-skeleton-text>
+      </ion-label>
+      <ion-button slot="end" fill="clear">
+        <ion-skeleton-text animated style="width: 20px; height: 20px; border-radius: 0"></ion-skeleton-text>
+      </ion-button>
+    </ion-item>
+  </ion-item-group>
 
-  <!-- no notifications -->
+  <!-- not loading -->
   <ng-container *ngIf="!loading">
+
+    <!-- no notifications -->
     <ion-item-group *ngIf="!notifications.length">
       <div 
         style="
@@ -28,8 +44,8 @@
           left: 50%;
           transform: translate(-50%, -50%);"
       >
-        <ion-icon style="font-size: 84px; color: #2c3038" name="mail-outline"></ion-icon>
-        <h4 style="color: #2c3038; margin-top: 0px">Inbox Empty</h4>
+      <ion-icon style="font-size: 84px; color: #595959" name="mail-outline"></ion-icon>
+      <h4 style="color: #595959; margin-top: 0px">Inbox Empty</h4>
       </div>
     </ion-item-group>
   
@@ -42,7 +58,7 @@
           </ion-button>
         </ion-item-divider>
         <ion-item *ngFor="let not of notifications; let i = index">
-          <ion-label class="ion-text-wrap">
+          <ion-label>
             <h2>
               <ion-text [color]="not | notificationColor"><b>{{ not.title }}</b></ion-text>
             </h2>
