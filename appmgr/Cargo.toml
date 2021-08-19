@@ -65,6 +65,7 @@ hex = "0.4.3"
 http = "0.2.3"
 hyper-ws-listener = { git = "https://github.com/Start9Labs/hyper-ws-listener.git", branch = "main" }
 indexmap = { version = "1.6.2", features = ["serde"] }
+isocountry = "0.3.2"
 itertools = "0.10.0"
 jsonpath_lib = "0.3.0"
 lazy_static = "1.4"
@@ -94,10 +95,10 @@ serde_yaml = "0.8.14"
 sha2 = "0.9.3"
 simple-logging = "2.0"
 sqlx = { version = "0.5", features = [
+  "chrono",
+  "offline",
   "runtime-tokio-rustls",
   "sqlite",
-  "offline",
-  "chrono",
 ] }
 tar = "0.4.35"
 thiserror = "1.0.24"
