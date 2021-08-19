@@ -59,10 +59,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract shutdownServer (params: RR.ShutdownServerReq): Promise<RR.ShutdownServerRes>
 
-  // network
-
-  abstract refreshLan (params: RR.RefreshLanReq): Promise<RR.RefreshLanRes>
-
   // marketplace URLs
 
   abstract getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes>
