@@ -445,7 +445,7 @@ impl<'a> WpaCli<'a> {
             .invoke(ErrorKind::WifiError)
             .await?;
         let output = String::from_utf8(r)?;
-        if output == "" {
+        if output == "\n" {
             Ok(None)
         } else {
             Ok(Some(output))
