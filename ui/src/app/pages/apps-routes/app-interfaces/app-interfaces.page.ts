@@ -29,11 +29,11 @@ export class AppInterfacesPage {
     const pkgId = this.route.snapshot.paramMap.get('pkgId')
     const pkg = this.patch.data['package-data'][pkgId]
     const interfaces = pkg.manifest.interfaces
-    const addressesMap = pkg.installed['interface-addresses'] || { }
+    const addressesMap = pkg.installed['interface-addresses']
     const ui = interfaces['ui']
 
     if (ui) {
-      const uiAddresses = addressesMap['ui'] || { }
+      const uiAddresses = addressesMap['ui']
       this.ui = {
         def: ui,
         addresses: {
@@ -50,8 +50,8 @@ export class AppInterfacesPage {
         return {
           def: interfaces[key],
           addresses: {
-            'lan-address': addresses && addresses['lan-address'] ? 'https://' + addresses['lan-address'] : null,
-            'tor-address': addresses && addresses['tor-address'] ? 'http://' + addresses['tor-address'] : null,
+            'lan-address': addresses['lan-address'] ? 'https://' + addresses['lan-address'] : null,
+            'tor-address': addresses['tor-address'] ? 'http://' + addresses['tor-address'] : null,
           },
         }
       })
