@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use avahi_sys::{
-    self, avahi_entry_group_commit, avahi_entry_group_free, avahi_entry_group_reset, avahi_free,
-    AvahiEntryGroup,
+    self, avahi_entry_group_add_service, avahi_entry_group_commit, avahi_entry_group_free,
+    avahi_entry_group_reset, avahi_free, AvahiEntryGroup,
 };
 use libc::c_void;
 use patch_db::{DbHandle, OptionModel};
@@ -93,6 +93,19 @@ impl MdnsControllerInner {
                 let hostname_raw = avahi_sys::avahi_client_get_host_name_fqdn(avahi_client);
                 hostname_buf
                     .extend_from_slice(std::ffi::CStr::from_ptr(hostname_raw).to_bytes_with_nul());
+                let http_tcp_cstr = std::ffi::CString::new("_http._tcp")
+                    .expect("Could not cast _http._tcp to c string");
+                avahi_entry_group_add_service(
+                    group,
+                    avahi_sys::AVAHI_IF_UNSPEC,
+                    avahi_sys::AVAHI_PROTO_UNSPEC,
+                    avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_USE_MULTICAST,
+                    hostname_raw,
+                    http_tcp_cstr.as_ptr(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    443,
+                );
                 avahi_free(hostname_raw as *mut c_void);
             }
             let buflen = hostname_buf.len();
