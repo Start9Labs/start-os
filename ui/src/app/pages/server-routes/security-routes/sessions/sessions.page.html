@@ -11,11 +11,8 @@
 
   <!-- loading -->
   <ion-item-group *ngIf="loading">
-    <div *ngFor="let entry of ['first', 'second']">
-      <ion-item-divider>
-        <ion-skeleton-text animated style="width: 120px; height: 20px;"></ion-skeleton-text>
-      </ion-item-divider>
-  
+    <div *ngFor="let entry of ['This Session', 'Other Sessions']">  
+      <ion-item-divider>{{ entry }}</ion-item-divider>
       <ion-item style="padding-bottom: 6px;">
         <ion-avatar slot="start" style="margin-right: 30px;">
           <ion-skeleton-text animated style="width: 40px; height: 40px; border-radius: 0;"></ion-skeleton-text>
