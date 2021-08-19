@@ -5,7 +5,7 @@ async fn inner_main() -> Result<(), Error> {
     embassy::volume::disk::mount("/dev/sda", "/mnt/embassy-os-crypt").await?;
 
     // hostname-set
-    embassy::hostname::ensure_correct_hostname().await?;
+    embassy::hostname::sync_hostname().await?;
 
     Ok(())
 }
