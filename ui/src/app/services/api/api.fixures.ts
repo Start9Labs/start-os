@@ -1102,7 +1102,7 @@ export module Mock {
         },
         'default': 'null',
         'description': 'This is not even real.',
-        'change-warning': 'Be careful chnaging this!',
+        'change-warning': 'Be careful changing this!',
         'values': [
           'null',
           'option1',
