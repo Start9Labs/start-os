@@ -263,9 +263,118 @@ image.tar: Dockerfile docker_entrypoint.sh
 
 For more details on creating a `Makefile` for your project, please check [here](https://docs.start9.com/contributing/services/makefile.html).
 
-### Service Config Specification
+### Service Config Specification and Rules
 
-Most self-hosted packages require a configuration.  With EmbassyOS, these config options are provided to the user in a friendly GUI, and invalid configs are not permitted.  This allows the user to manage their software without a lot of technical skill.
+Most self-hosted packages require a configuration.  With EmbassyOS, these config options are provided to the user in a friendly GUI, and invalid configs are not permitted.  This allows the user to manage their software without a lot of technical skill.  Two files are created in this process:
+
+`config_spec.yaml` for specifying all the config options your package depends on to run
+
+`config_rules.yaml` for defining the ruleset that defines dependencies between config variables
+
+These files contain a detailed mapping of configuration options with acceptable values, defaults, and relational rule-sets.  Let's take a look at our `config_spec` for Embassy Pages:
+
+```
+homepage:
+  name: Homepage
+  description: The page that will be displayed when your Embassy Pages .onion address is visited. Since this page is technically publicly accessible, you can choose to which type of page to display.
+  type: union
+  default: welcome
+  tag:
+    id: type
+    name: Type
+    variant-names:
+      welcome: Welcome
+      index: Subdomain Index
+      filebrowser: Web Page
+      redirect: Redirect
+      fuck-off: Fuck Off
+  variants:
+    welcome: {}
+    index: {}
+    filebrowser:
+      directory:
+        type: string
+        name: Directory Path
+        description: The path to the directory in File Browser that contains the static files of your website. For example, a value of "websites/resume_site" would tell Embassy Pages to look for that directory in File Browser.
+        pattern: "^(\\.|[a-zA-Z0-9_ -][a-zA-Z0-9_ .-]*|([a-zA-Z0-9_ .-][a-zA-Z0-9_ -]+\\.*)+)(/[a-zA-Z0-9_ -][a-zA-Z0-9_ .-]*|/([a-zA-Z0-9_ .-][a-zA-Z0-9_ -]+\\.*)+)*/?$"
+        pattern-description: Must be a valid relative file path
+        nullable: false
+    redirect:
+      target:
+        type: string
+        name: Target Subdomain
+        description: The name of the subdomain to redirect users to. This must be a valid subdomain site within your Embassy Pages. 
+        pattern: '^[a-z-]+$'
+        pattern-description: May contain only lowercase characters and hyphens.
+        nullable: false
+    fuck-off: {}
+subdomains:
+  type: list
+  name: Subdomains
+  description: The websites you want to serve.
+  default: []
+  range: '[0, *)'
+  subtype: object
+  spec:
+    unique-by: name
+    display-as: "{{name}}"
+    spec:
+      name:
+        type: string
+        nullable: false
+        name: Subdomain name
+        description: The subdomain of your Embassy Pages .onion address to host the website on. For example, a value of "me" would produce a website hosted at http://me.myaddress.onion.
+        pattern: "^[a-z-]+$"
+        pattern-description: "May contain only lowercase characters and hyphens"
+      settings:
+        type: union
+        name: Settings
+        description: The desired behavior you want to occur when the subdomain is visited. You can either redirect to another subdomain, or load a web page from File Browser.
+        default: filebrowser
+        tag:
+          id: type
+          name: Type
+          variant-names:
+            filebrowser: Web Page
+            redirect: Redirect
+        variants:
+          filebrowser:
+            directory:
+              type: string
+              name: Directory Path
+              description: The path to the directory in File Browser that contains the static files of your website. For example, a value of "websites/resume_site" would tell Embassy Pages to look for that directory in File Browser.
+              pattern: "^(\\.|[a-zA-Z0-9_ -][a-zA-Z0-9_ .-]*|([a-zA-Z0-9_ .-][a-zA-Z0-9_ -]+\\.*)+)(/[a-zA-Z0-9_ -][a-zA-Z0-9_ .-]*|/([a-zA-Z0-9_ .-][a-zA-Z0-9_ -]+\\.*)+)*/?$"
+              pattern-description: Must be a valid relative file path
+              nullable: false
+          redirect:
+            target:
+              type: string
+              name: Target Subdomain
+              description: The subdomain of your Embassy Pages .onion address to redirect to. This should be the name of another subdomain on Embassy Pages. Leave empty to redirect to the homepage.
+              pattern: '^[a-z-]+$'
+              pattern-description: May contain only lowercase characters and hyphens.
+              nullable: false
+```
+We essentially have 2 config options (homepage and subdomains), with all of their specifications nested below them.  Looking at the homepage, it contains a `union` type, which is a necessary dependency, which can be of 5 variants (welcome, index, filebrowser, redirect, or fuck-off).  The below images show how this is displayed in the UI.
+
+***IMAGE PLACEHODLER***
+
+***IMAGE PLACEHODLER***
+
+For all the possible types, please check our detailed documentation [here](https://docs.start9.com/contributing/services/config.html#types).
+
+In our example, there is *no need* for a `config_rules` file.  This is because there is not a rule-set required to define dependencies between config variables.  An example of when this would be required would be the following code, from the LND wrapper:
+
+```
+---
+- rule: '!(max-chan-size?) OR !(min-chan-size?) OR (#max-chan-size > #min-chan-size)'
+  description: "Maximum Channel Size must exceed Minimum Channel Size"
+```
+
+Here we see that a Maximum Channel Size MUST be one of 3 possible options in order to be a valid config.
+
+### Properties
+
 
 
 
