@@ -427,10 +427,9 @@ impl<'a> WpaCli<'a> {
                     }
                     current
                 };
-                let timeout = tokio::time::sleep(Duration::from_secs(20));
-                let res = tokio::select! {
-                    net = connect => { net? }
-                    _ = timeout => { None }
+                let res = match tokio::time::timeout(Duration::from_secs(20), connect).await {
+                    Err(_) => None,
+                    Ok(net) => net?,
                 };
                 Ok(match res {
                     None => false,
