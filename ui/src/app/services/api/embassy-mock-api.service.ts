@@ -136,13 +136,6 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  // network
-
-  async refreshLan (params: RR.RefreshLanReq): Promise<RR.RefreshLanRes> {
-    await pauseFor(2000)
-    return null
-  }
-
   // marketplace URLs
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
