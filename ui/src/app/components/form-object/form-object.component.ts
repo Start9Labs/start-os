@@ -88,6 +88,7 @@ export class FormObjectComponent {
     const newItem = this.formService.getListItem(listSpec, val)
     newItem.markAllAsTouched()
     arr.insert(0, newItem)
+    console.log('new Item', newItem)
     if (['object', 'union'].includes(listSpec.subtype)) {
       const displayAs = (listSpec.spec as ListValueSpecOf<'object'>)['display-as']
       this.objectListInfo[key].push({
@@ -163,11 +164,11 @@ export class FormObjectComponent {
   }
 
   private deleteListItem (key: string, index: number, markDirty = true): void {
-    this.objectListInfo[key][index].height = '0px'
+    if (this.objectListInfo[key]) this.objectListInfo[key][index].height = '0px'
     const arr = this.formGroup.get(key) as FormArray
     if (markDirty) arr.markAsDirty()
     pauseFor(500).then(() => {
-      this.objectListInfo[key].splice(index, 1)
+      if (this.objectListInfo[key]) this.objectListInfo[key].splice(index, 1)
       arr.removeAt(index)
     })
   }
