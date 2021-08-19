@@ -24,25 +24,25 @@
         </h4>
         <!-- string -->
         <ion-item color="dark" *ngIf="spec.type === 'string'">
-          <ion-input [type]="spec.masked && !unmasked[entry.key] ? 'password' : 'text'" [placeholder]="'Enter ' + spec.name" [formControlName]="entry.key" (ionChange)="presentAlertChangeWarning(entry.key, spec)"></ion-input>
+          <ion-input [type]="spec.masked && !unmasked[entry.key] ? 'password' : 'text'" [placeholder]="'Enter ' + spec.name" [formControlName]="entry.key" (ionFocus)="presentAlertChangeWarning(key, spec)" (ionChange)="handleInputChange(spec)"></ion-input>
           <ion-button *ngIf="spec.masked" fill="clear" color="light" (click)="unmasked[entry.key] = !unmasked[entry.key]">
             <ion-icon slot="icon-only" [name]="unmasked[entry.key] ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
           </ion-button>
         </ion-item>
         <!-- number -->
         <ion-item color="dark" *ngIf="spec.type === 'number'">
-          <ion-input type="tel" [placeholder]="'Enter ' + spec.name" [formControlName]="entry.key" (ionChange)="presentAlertChangeWarning(entry.key, spec)"></ion-input>
+          <ion-input type="tel" [placeholder]="'Enter ' + spec.name" [formControlName]="entry.key" (ionFocus)="presentAlertChangeWarning(key, spec)" (ionChange)="handleInputChange(spec)"></ion-input>
           <ion-note *ngIf="spec.units" slot="end" color="light" style="font-size: medium;">{{ spec.units }}</ion-note>
         </ion-item>
         <!-- boolean -->
         <ion-item color="dark" *ngIf="spec.type === 'boolean'">
           <ion-label>{{ spec.name }}</ion-label>
-          <ion-toggle style="--background: var(--ion-color-step-600);" slot="end" color="light" [formControlName]="entry.key" (ionChange)="presentAlertChangeWarning(entry.key, spec)"></ion-toggle>
+          <ion-toggle style="--background: var(--ion-color-step-600);" slot="end" color="light" [formControlName]="entry.key" (ionChange)="handleBooleanChange(entry.key, spec)"></ion-toggle>
         </ion-item>
         <!-- enum -->
         <ion-item color="dark" *ngIf="spec.type === 'enum'">
           <ion-label>{{ spec.name }}</ion-label>
-          <ion-select slot="end" placeholder="Select" [formControlName]="entry.key" [selectedText]="spec['value-names'][formGroup.get(entry.key).value]" (ionChange)="presentAlertChangeWarning(entry.key, spec)">
+          <ion-select [interfaceOptions]="{ message: getWarningText(spec['change-warning']) }" slot="end" placeholder="Select" [formControlName]="entry.key" [selectedText]="spec['value-names'][formGroup.get(entry.key).value]" (ionChange)="handleInputChange(entry.key, spec)">
             <ion-select-option *ngFor="let option of spec.values" [value]="option">
               {{ spec['value-names'][option] }}
             </ion-select-option>
@@ -134,6 +134,7 @@
                     [formGroup]="abstractControl"
                     [current]="current && current[entry.key] ? current[entry.key][i] : undefined"
                     [unionSpec]="spec.subtype === 'union' ? spec.spec : undefined"
+                    (onInputChange)="updateLabel(entry.key, i, spec.spec['display-as'])"
                   ></form-object>
                   <div style="text-align: right; padding-top: 12px;">
                     <ion-button fill="clear" (click)="presentAlertDelete(entry.key, i)" color="danger">

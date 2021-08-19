@@ -1,7 +1,7 @@
-import { Component, Input, SimpleChange } from '@angular/core'
+import { Component, Input, Output, SimpleChange, EventEmitter } from '@angular/core'
 import { AbstractFormGroupDirective, FormArray, FormGroup } from '@angular/forms'
-import { AlertController, ModalController } from '@ionic/angular'
-import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecList, ValueSpecListOf, ValueSpecUnion } from 'src/app/pkg-config/config-types'
+import { AlertController, IonicSafeString, ModalController } from '@ionic/angular'
+import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecBoolean, ValueSpecList, ValueSpecListOf, ValueSpecNumber, ValueSpecString, ValueSpecUnion } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
 import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
@@ -19,6 +19,7 @@ export class FormObjectComponent {
   @Input() unionSpec: ValueSpecUnion
   @Input() current: { [key: string]: any }
   @Input() showEdited: boolean = false
+  @Output() onInputChange = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = { }
   unmasked: { [key: string]: boolean } = { }
   // @TODO for when we want to expand/collapse normal objects/union in addition to list ones
@@ -88,18 +89,16 @@ export class FormObjectComponent {
     const newItem = this.formService.getListItem(listSpec, val)
     newItem.markAllAsTouched()
     arr.insert(0, newItem)
-    console.log('new Item', newItem)
     if (['object', 'union'].includes(listSpec.subtype)) {
       const displayAs = (listSpec.spec as ListValueSpecOf<'object'>)['display-as']
-      this.objectListInfo[key].push({
+      this.objectListInfo[key].unshift({
         height: '0px',
         expanded: true,
         displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',
       })
 
       pauseFor(200).then(() => {
-        const index = this.objectListInfo[key].length - 1
-        this.objectListInfo[key][index].height = this.getDocSize(key)
+        this.objectListInfo[key][0].height = this.getDocSize(key)
       })
     }
   }
@@ -107,7 +106,28 @@ export class FormObjectComponent {
   toggleExpand (key: string, i: number) {
     this.objectListInfo[key][i].expanded = !this.objectListInfo[key][i].expanded
     this.objectListInfo[key][i].height = this.objectListInfo[key][i].expanded ? this.getDocSize(key) : '0px'
+  }
 
+  updateLabel (key: string, i: number, displayAs: string) {
+    this.objectListInfo[key][i].displayAs = displayAs ? Mustache.render(displayAs, this.formGroup.get(key).value[i]) : ''
+  }
+
+  getWarningText (text: string): IonicSafeString {
+    return new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
+  }
+
+  handleInputChange (spec: ValueSpec) {
+    if (['string', 'number'].includes(spec.type)) {
+      this.onInputChange.emit()
+    }
+  }
+
+  handleBooleanChange (key: string, spec: ValueSpecBoolean) {
+    if (spec['change-warning']) {
+      const current = this.formGroup.get(key).value
+      const cancelFn = () => this.formGroup.get(key).setValue(!current)
+      this.presentAlertChangeWarning(key, spec, undefined, cancelFn)
+    }
   }
 
   async presentModalEnumList (key: string, spec: ValueSpecListOf<'enum'>, current: string[]) {
@@ -129,7 +149,7 @@ export class FormObjectComponent {
     await modal.present()
   }
 
-  async presentAlertChangeWarning (key: string, spec: ValueSpec) {
+  async presentAlertChangeWarning (key: string, spec: ValueSpec, okFn: Function = () => { }, cancelFn: Function = () => { }) {
     if (!spec['change-warning'] || this.warningAck[key]) return
     this.warningAck[key] = true
 
@@ -137,7 +157,20 @@ export class FormObjectComponent {
       header: 'Warning',
       subHeader: `Editing ${spec.name} has consequences:`,
       message: spec['change-warning'],
-      buttons: ['Ok'],
+      buttons: [
+        {
+          text: 'Cancel',
+          handler: () => {
+            cancelFn()
+          },
+        },
+        {
+          text: 'Proceed',
+          handler: () => {
+            okFn()
+          },
+        },
+      ],
     })
     await alert.present()
   }

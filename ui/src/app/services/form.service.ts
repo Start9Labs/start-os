@@ -153,6 +153,7 @@ function isFullUnion (spec: ValueSpecUnion | ListValueSpecUnion): spec is ValueS
 
 export function numberInRange (stringRange: string): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
+    if (!control.value) return null
     try {
       Range.from(stringRange).checkIncludes(control.value)
       return null
@@ -164,15 +165,15 @@ export function numberInRange (stringRange: string): ValidatorFn {
 
 export function isNumber (): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    return control.value == Number(control.value) ?
+    return !control.value || control.value == Number(control.value) ?
       null :
-      { invalidNumber: { value: control.value } }
+      { notNumber: { value: control.value } }
   }
 }
 
 export function isInteger (): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    return control.value == Math.trunc(control.value) ?
+    return !control.value || control.value == Math.trunc(control.value) ?
       null :
       { numberNotInteger: { value: control.value } }
   }
