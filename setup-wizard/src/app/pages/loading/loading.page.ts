@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { AlertController } from '@ionic/angular'
+import { iosTransitionAnimation, NavController } from '@ionic/angular'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -10,35 +10,18 @@ import { StateService } from 'src/app/services/state.service'
 export class LoadingPage {
   constructor(
     private stateService: StateService,
-    private alertCtrl: AlertController
+    private navCtrl: NavController
   ) {}
 
   ngOnInit () {
     this.stateService.pollDataTransferProgress()
     const progSub = this.stateService.dataProgSubject.subscribe(async progress => {
       if(progress === 1) {
-        await this.successAlert()
         progSub.unsubscribe()
+        await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward', animation: iosTransitionAnimation })
       }
     })
   }
 
-  async successAlert () {
-    const alert = await this.alertCtrl.create({
-      cssClass: 'success-alert',
-      header: 'Success!',
-      subHeader: `Your Embassy is set up and ready to go.`,
-      backdropDismiss: false,
-      buttons: [
-        {
-          text: 'Go To Embassy',
-          handler: () => {
-            window.location.reload()
-          }
-        }
-      ]
-    })
-    await alert.present()
-  }
 }
 
