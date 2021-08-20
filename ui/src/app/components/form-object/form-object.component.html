@@ -35,14 +35,14 @@
           <ion-note *ngIf="spec.units" slot="end" color="light" style="font-size: medium;">{{ spec.units }}</ion-note>
         </ion-item>
         <!-- boolean -->
-        <ion-item color="dark" *ngIf="spec.type === 'boolean'">
+        <ion-item *ngIf="spec.type === 'boolean'">
           <ion-label>{{ spec.name }}</ion-label>
-          <ion-toggle style="--background: var(--ion-color-step-600);" slot="end" color="light" [formControlName]="entry.key" (ionChange)="handleBooleanChange(entry.key, spec)"></ion-toggle>
+          <ion-toggle slot="end" [formControlName]="entry.key" (ionChange)="handleBooleanChange(entry.key, spec)"></ion-toggle>
         </ion-item>
         <!-- enum -->
-        <ion-item color="dark" *ngIf="spec.type === 'enum'">
+        <ion-item *ngIf="spec.type === 'enum'">
           <ion-label>{{ spec.name }}</ion-label>
-          <ion-select [interfaceOptions]="{ message: getWarningText(spec['change-warning']) }" slot="end" placeholder="Select" [formControlName]="entry.key" [selectedText]="spec['value-names'][formGroup.get(entry.key).value]" (ionChange)="handleInputChange(entry.key, spec)">
+          <ion-select [interfaceOptions]="{ message: getWarningText(spec.warning) }" slot="end" placeholder="Select" [formControlName]="entry.key" [selectedText]="spec['value-names'][formGroup.get(entry.key).value]" (ionChange)="handleInputChange(entry.key, spec)">
             <ion-select-option *ngFor="let option of spec.values" [value]="option">
               {{ spec['value-names'][option] }}
             </ion-select-option>
@@ -96,7 +96,7 @@
               <!-- nested -->
               <ng-container *ngIf="spec.subtype === 'object' || spec.subtype === 'union'">
                 <!-- nested label -->
-                <ion-item-divider (click)="toggleExpand(entry.key, i)" style="cursor: pointer;">
+                <ion-item button (click)="toggleExpand(entry.key, i)">
                   <form-label [data]="{
                     spec: {
                       name: objectListInfo[entry.key][i].displayAs || 'Entry ' + (i + 1)
@@ -112,7 +112,7 @@
                       'transition': 'transform 0.4s ease-out'
                     }"
                   ></ion-icon>
-                </ion-item-divider>
+                </ion-item>
                 <!-- nested body -->
                 <div
                   [id]="entry.key"
