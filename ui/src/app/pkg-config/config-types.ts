@@ -57,7 +57,7 @@ export interface ValueSpecObject extends ListValueSpecObject, WithStandalone {
 export interface WithStandalone {
   name: string
   description?: string
-  'change-warning'?: string
+  warning?: string
 }
 
 // no lists of booleans, lists, pointers

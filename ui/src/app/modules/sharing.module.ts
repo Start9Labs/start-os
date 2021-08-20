@@ -3,7 +3,6 @@ import { EmverComparesPipe, EmverSatisfiesPipe, EmverDisplayPipe } from '../pipe
 import { IncludesPipe } from '../pipes/includes.pipe'
 import { TypeofPipe } from '../pipes/typeof.pipe'
 import { MarkdownPipe } from '../pipes/markdown.pipe'
-import { AnnotationStatusPipe } from '../pipes/annotation-status.pipe'
 import { TruncateCenterPipe, TruncateEndPipe } from '../pipes/truncate.pipe'
 import { MaskPipe } from '../pipes/mask.pipe'
 import { HasUiPipe, LaunchablePipe } from '../pipes/ui.pipe'
@@ -21,7 +20,6 @@ import { PwaBackComponentModule } from '../components/pwa-back-button/pwa-back.c
     IncludesPipe,
     InstallState,
     MarkdownPipe,
-    AnnotationStatusPipe,
     TruncateCenterPipe,
     TruncateEndPipe,
     MaskPipe,
@@ -41,7 +39,6 @@ import { PwaBackComponentModule } from '../components/pwa-back-button/pwa-back.c
     TypeofPipe,
     IncludesPipe,
     MarkdownPipe,
-    AnnotationStatusPipe,
     TruncateEndPipe,
     TruncateCenterPipe,
     MaskPipe,

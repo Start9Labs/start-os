@@ -1,19 +1,4 @@
-import {
-  ValueSpec, ValueSpecList, DefaultString, ValueSpecUnion, ConfigSpec,
-  ValueSpecObject, ValueSpecString, ValueSpecEnum, ValueSpecNumber,
-  ValueSpecBoolean, ValueSpecPointer, ValueSpecOf, ListValueSpecType
-} from './config-types'
-
-export interface Annotation {
-  invalid: string | null
-  edited: boolean
-  added: boolean
-}
-
-export type Annotations<T extends string> =
-  T extends 'object' | 'union' ? { self: Annotation, members: { [key: string]: Annotation } } :
-  T extends 'list' ?             { self: Annotation, members: Annotation[] } :
-  Annotation
+import { ValueSpec, DefaultString } from './config-types'
 
 export class Range {
   min?: number
@@ -106,187 +91,6 @@ export class Range {
   }
 }
 
-// converts a ValueSpecList, i.e. a spec for a list, to its inner ListValueSpec, i.e., a spec for the values within the list.
-// We then augment it with the defalt values (e.g. nullable: false) to make a
-export function listInnerSpec (listSpec: ValueSpecList): ValueSpecOf<ListValueSpecType> {
-  return {
-    type: listSpec.subtype,
-    nullable: false,
-    name: listSpec.name,
-    description: listSpec.description,
-    changeWarning: listSpec['change-warning'],
-    ...listSpec.spec as any, //listSpec.spec is a ListValueSpecOf listSpec.subtype
-  }
-}
-
-export function mapSpecToConfigValue (spec: ValueSpec, value: any): any {
-  if (value === undefined) return undefined
-  switch (spec.type) {
-    case 'string': return mapStringSpec(value)
-    case 'number': return mapNumberSpec(value)
-    case 'boolean': return mapBooleanSpec(spec, value)
-    case 'enum': return mapEnumSpec(spec, value)
-    case 'list': return mapListSpec(spec, value)
-    case 'object': return mapObjectSpec(spec, value)
-    case 'union': return mapUnionSpec(spec, value)
-    case 'pointer': return value
-  }
-}
-
-export function mapConfigSpec (configSpec: ConfigSpec, value: any): object {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    Object.entries(configSpec).map(([key, val]) => {
-      value[key] = mapSpecToConfigValue(val, value[key])
-      if (value[key] === undefined) {
-        value[key] = getDefaultConfigValue(val)
-      }
-    })
-    return value
-  } else {
-    return getDefaultObject(configSpec)
-  }
-}
-
-export function mapObjectSpec (spec: ValueSpecObject, value: any): object {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return mapConfigSpec(spec.spec, value)
-  } else {
-    return null
-  }
-}
-
-export function mapUnionSpec (spec: ValueSpecUnion, value: any): object {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const variant = mapEnumSpec({
-      ...spec.tag,
-      type: 'enum',
-      default: spec.default,
-      values: Object.keys(spec.variants),
-      'value-names': spec.tag['variant-names'],
-    }, value[spec.tag.id])
-    value = mapConfigSpec(spec.variants[variant], value)
-    value[spec.tag.id] = variant
-    return value
-  } else {
-    return getDefaultUnion(spec)
-  }
-}
-
-export function mapStringSpec (value: any): string {
-  if (typeof value === 'string') {
-    return value
-  } else {
-    return null
-  }
-}
-
-export function mapNumberSpec (value: any): number {
-  if (typeof value === 'number') {
-    return value
-  } else {
-    return null
-  }
-}
-
-export function mapEnumSpec (spec: ValueSpecEnum, value: any): string {
-  if (typeof value === 'string' && spec.values.includes(value)) {
-    return value
-  } else {
-    return spec.default
-  }
-}
-
-export function mapListSpec (spec: ValueSpecList, value: any): string[] | number[] | object[] {
-  if (Array.isArray(value)) {
-    const innerSpec = listInnerSpec(spec)
-    return value.map(item => mapSpecToConfigValue(innerSpec, item))
-  } else {
-    return getDefaultList(spec)
-  }
-}
-
-export function mapBooleanSpec (spec: ValueSpecBoolean, value: any): boolean {
-  if (typeof value === 'boolean') {
-    return value
-  } else {
-    return spec.default
-  }
-}
-
-export function getDefaultConfigValue (spec: ValueSpec): string | number | object | string[] | number[] | object[] | boolean | null {
-  switch (spec.type) {
-    case 'object':
-      return getDefaultObject(spec.spec)
-    case 'union':
-      return getDefaultUnion(spec)
-    case 'string':
-      return spec.default ? getDefaultString(spec.default) : null
-    case 'number':
-      return spec.default || null
-    case 'list':
-      return getDefaultList(spec)
-    case 'enum':
-    case 'boolean':
-      return spec.default
-    case 'pointer':
-      return null
-  }
-}
-
-export function getDefaultObject (spec: ConfigSpec): object {
-  const obj = { }
-  Object.entries(spec).map(([key, val]) => {
-    obj[key] = getDefaultConfigValue(val)
-  })
-
-  return obj
-}
-
-export function getDefaultList (spec: ValueSpecList): string[] | number[] | object[] {
-  if (spec.subtype === 'object') {
-    const l = (spec.default as any[])
-    const range = Range.from(spec.range)
-    while (l.length < range.integralMin()) {
-      l.push(getDefaultConfigValue(listInnerSpec(spec)))
-    }
-    return l as string[] | number[] | object[]
-  } else {
-    const l = (spec.default as any[]).map(d => getDefaultConfigValue({ ...listInnerSpec(spec), default: d }))
-    return l as string[] | number[] | object[]
-  }
-}
-
-export function getDefaultUnion (spec: ValueSpecUnion): object {
-  return { [spec.tag.id]: spec.default, ...getDefaultObject(spec.variants[spec.default]) }
-}
-
-export function getDefaultMapTagKey (defaultSpec: DefaultString = '', value: object): string {
-  const keySrc = getDefaultString(defaultSpec)
-
-  const keys = Object.keys(value)
-
-  let key = keySrc
-  let idx = 1
-  while (keys.includes(key)) {
-    key = `${keySrc}-${idx++}`
-  }
-
-  return key
-}
-
-export function getDefaultString (defaultSpec: DefaultString): string {
-  if (typeof defaultSpec === 'string') {
-    return defaultSpec
-  } else {
-    let s = ''
-    for (let i = 0; i < defaultSpec.len; i++) {
-      s = s + getRandomCharInSet(defaultSpec.charset)
-    }
-
-    return s
-  }
-}
-
 export function getDefaultDescription (spec: ValueSpec): string {
   let toReturn: string | undefined
   switch (spec.type) {
@@ -311,6 +115,19 @@ export function getDefaultDescription (spec: ValueSpec): string {
   }
 
   return toReturn || ''
+}
+
+export function getDefaultString (defaultSpec: DefaultString): string {
+  if (typeof defaultSpec === 'string') {
+    return defaultSpec
+  } else {
+    let s = ''
+    for (let i = 0; i < defaultSpec.len; i++) {
+      s = s + getRandomCharInSet(defaultSpec.charset)
+    }
+
+    return s
+  }
 }
 
 // a,g,h,A-Z,,,,-
