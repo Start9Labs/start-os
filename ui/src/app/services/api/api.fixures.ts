@@ -962,7 +962,7 @@ export module Mock {
         'name': 'Testnet',
         'type': 'boolean',
         'description': 'determines whether your node is running on testnet or mainnet',
-        'change-warning': 'Chain will have to resync!',
+        'warning': 'Chain will have to resync!',
         'default': true,
       },
       'objectList': {
@@ -1020,7 +1020,7 @@ export module Mock {
               'nullable': true,
               'default': null,
               'integral': false,
-              'change-warning': 'User must be at least 18.',
+              'warning': 'User must be at least 18.',
               'range': '[18,*)',
             },
           },
@@ -1031,7 +1031,7 @@ export module Mock {
         'type': 'list',
         'subtype': 'union',
         'description': 'This is a sample list of unions',
-        'change-warning': 'If you change this, things may work.',
+        'warning': 'If you change this, things may work.',
         // a list of union selections. e.g. 'summer', 'winter',...
         'default': [
           'summer',
@@ -1102,7 +1102,7 @@ export module Mock {
         },
         'default': 'null',
         'description': 'This is not even real.',
-        'change-warning': 'Be careful changing this!',
+        'warning': 'Be careful changing this!',
         'values': [
           'null',
           'option1',
@@ -1115,7 +1115,7 @@ export module Mock {
         'type': 'number',
         'integral': false,
         'description': 'Your favorite number of all time',
-        'change-warning': 'Once you set this number, it can never be changed without severe consequences.',
+        'warning': 'Once you set this number, it can never be changed without severe consequences.',
         'nullable': false,
         'default': 7,
         'range': '(-100,100]',
@@ -1141,7 +1141,7 @@ export module Mock {
         'type': 'object',
         'unique-by': null,
         'description': 'rpc username and password',
-        'change-warning': 'Adding RPC users gives them special permissions on your node.',
+        'warning': 'Adding RPC users gives them special permissions on your node.',
         'spec': {
           'laws': {
             'name': 'Laws',
@@ -1268,7 +1268,7 @@ export module Mock {
         'unique-by': null,
         'description': 'The node settings',
         'default': 'internal',
-        'change-warning': 'Careful changing this',
+        'warning': 'Careful changing this',
         'tag': {
           'id': 'type',
           'name': 'Type',
@@ -1325,7 +1325,7 @@ export module Mock {
         'type': 'list',
         'subtype': 'string',
         'description': 'external ip addresses that are authorized to access your Bitcoin node',
-        'change-warning': 'Any IP you allow here will have RPC access to your Bitcoin node.',
+        'warning': 'Any IP you allow here will have RPC access to your Bitcoin node.',
         'range': '[1,10]',
         'default': [
           '192.168.1.1',

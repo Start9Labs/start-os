@@ -163,7 +163,7 @@ export const serverConfig: ConfigSpec = {
   //   type: 'boolean',
   //   name: 'Tor Only Marketplace',
   //   description: `Use Start9's Tor (instead of clearnet) Marketplace.`,
-  //   'change-warning': 'This will result in higher latency and slower download times.',
+  //   warning: 'This will result in higher latency and slower download times.',
   //   default: false,
   // },
   // 'package-marketplace': {
@@ -191,7 +191,7 @@ export const serverConfig: ConfigSpec = {
   //   // @TODO regex for 12 chars
   //   // pattern: '',
   //   'pattern-description': 'Must contain at least 12 characters.',
-  //   'change-warning': 'If you forget your master password, there is absolutely no way to recover your data. This can result in loss of money! Keep in mind, old backups will still be encrypted by the password used to encrypt them.',
+  //   warning: 'If you forget your master password, there is absolutely no way to recover your data. This can result in loss of money! Keep in mind, old backups will still be encrypted by the password used to encrypt them.',
   //   masked: false,
   //   copyable: false,
   // },

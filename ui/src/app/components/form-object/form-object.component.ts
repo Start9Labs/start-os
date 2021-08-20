@@ -117,7 +117,7 @@ export class FormObjectComponent {
   }
 
   getWarningText (text: string): IonicSafeString {
-    return new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
+    if (text) return new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
   }
 
   handleInputChange (spec: ValueSpec) {
@@ -127,7 +127,7 @@ export class FormObjectComponent {
   }
 
   handleBooleanChange (key: string, spec: ValueSpecBoolean) {
-    if (spec['change-warning']) {
+    if (spec.warning) {
       const current = this.formGroup.get(key).value
       const cancelFn = () => this.formGroup.get(key).setValue(!current)
       this.presentAlertChangeWarning(key, spec, undefined, cancelFn)
@@ -154,12 +154,12 @@ export class FormObjectComponent {
   }
 
   async presentAlertChangeWarning (key: string, spec: ValueSpec, okFn?: Function, cancelFn?: Function) {
-    if (!spec['change-warning'] || this.warningAck[key]) return okFn ? okFn() : null
+    if (!spec.warning || this.warningAck[key]) return okFn ? okFn() : null
     this.warningAck[key] = true
 
     const buttons = [
       {
-        text: 'Proceed',
+        text: 'Ok',
         handler: () => {
           if (okFn) okFn()
         },
@@ -178,7 +178,7 @@ export class FormObjectComponent {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       subHeader: `Editing ${spec.name} has consequences:`,
-      message: spec['change-warning'],
+      message: spec.warning,
       buttons,
     })
     await alert.present()

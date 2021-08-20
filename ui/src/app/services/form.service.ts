@@ -27,13 +27,13 @@ export class FormService {
 
   getUnionObject (spec: ValueSpecUnion | ListValueSpecUnion, selection: string, current?: { [key: string]: any }): FormGroup {
     const { variants, tag } = spec
-    const { name, description, 'change-warning' : changeWarning } = isFullUnion(spec) ? spec : { ...spec.tag, 'change-warning': undefined }
+    const { name, description, warning } = isFullUnion(spec) ? spec : { ...spec.tag, warning: undefined }
 
     const enumSpec: ValueSpecEnum = {
       type: 'enum',
       name,
       description,
-      'change-warning': changeWarning,
+      warning,
       default: selection,
       values: Object.keys(variants),
       'value-names': tag['variant-names'],
