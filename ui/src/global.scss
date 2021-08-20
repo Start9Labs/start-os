@@ -35,8 +35,8 @@ $subheader-height: 48px;
   --min-height: #{$subheader-height};
 }
 
-.select-change-warning .alert-sub-title {
-  color: var(--ion-color-warning)
+.select-warning .alert-sub-title {
+  color: var(--ion-color-warning);
 }
 
 .wide-alert {
@@ -183,8 +183,8 @@ ion-button {
     position: absolute;
     height: 80% !important;
     top: 10%;
-    width: 60% !important;
-    left: 20%;
+    width: 50% !important;
+    left: 25%;
     display: block;
   }
 }
