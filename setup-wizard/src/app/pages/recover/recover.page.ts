@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ModalController, NavController } from '@ionic/angular'
+import { iosTransitionAnimation, ModalController, NavController } from '@ionic/angular'
 import { ApiService, RecoveryDrive } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
@@ -61,6 +61,6 @@ export class RecoverPage {
     if(pw) {
       this.stateService.recoveryPassword = pw
     } 
-    await this.navCtrl.navigateForward(`/embassy`, { animationDirection: 'forward' })
+    await this.navCtrl.navigateForward(`/embassy`, { animationDirection: 'forward', animation: iosTransitionAnimation })
   }
 }

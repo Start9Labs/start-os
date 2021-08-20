@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { NavController } from '@ionic/angular'
+import { iosTransitionAnimation, NavController } from '@ionic/angular'
 
 @Component({
   selector: 'app-home',
@@ -12,11 +12,11 @@ export class HomePage {
   ) {}
 
   async recoverNav () {
-    await this.navCtrl.navigateForward(`/recover`, { animationDirection: 'forward' })
+    await this.navCtrl.navigateForward(`/recover`, { animationDirection: 'forward', animation: iosTransitionAnimation })
   }
 
   async embassyNav () {
-    await this.navCtrl.navigateForward(`/embassy`, { animationDirection: 'forward' })
+    await this.navCtrl.navigateForward(`/embassy`, { animationDirection: 'forward', animation: iosTransitionAnimation })
   }
 }
 
