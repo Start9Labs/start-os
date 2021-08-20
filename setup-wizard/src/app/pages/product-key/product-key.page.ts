@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { LoadingController, NavController } from '@ionic/angular'
+import { iosTransitionAnimation, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 
@@ -31,26 +31,18 @@ export class ProductKeyPage {
       const state = await this.apiService.verifyProductKey(this.productKey)
       this.stateService.productKey = this.productKey
       if(state['is-recovering']) {
-        await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward' })
+        await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward', animation: iosTransitionAnimation })
       } else if (!!state['tor-address']) {
         this.stateService.torAddress = state['tor-address']
-        await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward' })
+        await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward', animation: iosTransitionAnimation })
       } else {
-        await this.navCtrl.navigateForward(`/home`, { animationDirection: 'forward' })
+        await this.navCtrl.navigateForward(`/home`, { animationDirection: 'forward', animation: iosTransitionAnimation })
       }
     } catch (e) {
       this.error = e.message
     } finally {
       loader.dismiss()
     }
-  }
-
-  async recoverNav () {
-    await this.navCtrl.navigateForward(`/recover`, { animationDirection: 'forward' })
-  }
-
-  async embassyNav () {
-    await this.navCtrl.navigateForward(`/embassy`, { animationDirection: 'forward' })
   }
 }
 
