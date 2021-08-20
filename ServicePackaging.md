@@ -203,7 +203,7 @@ EXPOSE 80
 ENTRYPOINT ["/usr/local/bin/docker_entrypoint.sh"]
 ```
 
-5. That's it!  Let's take a look at our final Embassy Pages `Dockerfile`:
+5. Great, let's take a look at our final Embassy Pages `Dockerfile`:
 
 ```
 FROM alpine:3.13
@@ -229,7 +229,142 @@ EXPOSE 80
 ENTRYPOINT ["/usr/local/bin/docker_entrypoint.sh"]
 ```
 
-Additional details on the `Dockerfile` can be found [here](https://docs.start9.com/contributing/services/docker.html).
+6. Okay, let's move on to our `docker_entrypoint.sh` file.  This is a bash script that defines what to do when the service starts.  It will need to complete any environment setup (such as folder substructure), sets any environment variables, and executes the run command.  Let's take a look at our Pages example:
+
+```
+#!/bin/bash
+
+export HOST_IP=$(ip -4 route list match 0/0 | awk '{print $3}')
+
+echo start9/public > .backupignore
+echo start9/shared >> .backupignore
+
+home_type=$(yq e '.homepage.type' start9/config.yaml)
+subdomains=($(yq e '.subdomains.[].name' start9/config.yaml))
+```
+
+7. First we've defined the file as a bash, exported the IP address, chosen folders to ignore during backup, and set the homepage and subdomains types from our config.
+
+***I'VE ABANDONED THIS SECTION AFTER DISCUSSION LEADING TO THE IDEA THAT THIS MAY NOT BE A GOOD EXAMPLE FILE***
+
+```
+read -r -d "" build_site_desc <<EOT
+{
+    "description": "Subdomain link for the site " + .,
+    "masked": false,
+    "copyable": true,
+    "qr": false,
+    "type": "string",
+    "value": . + ".$TOR_ADDRESS"
+}
+EOT
+yq e ".subdomains.[].name | {.: $build_site_desc}" start9/config.yaml > start9/stats.yaml
+yq e -i '{"value": . }' start9/stats.yaml
+yq e -i '.type="object"' start9/stats.yaml
+yq e -i '.description="The available subdomains."' start9/stats.yaml
+yq e -i '{"Subdomains": . }' start9/stats.yaml
+yq e -i '{"data": .}' start9/stats.yaml
+yq e -i '.version = 2' start9/stats.yaml
+if [ ! -s start9/stats.yaml ] ; then
+    rm start9/stats.yaml
+fi
+
+bucket_size=64
+for subdomain in "${subdomains[@]}"; do
+    suffix=".${TOR_ADDRESS}"
+    len=$(( ${#suffix} + ${#subdomain} ))
+    if [[ $len -ge $bucket_size ]]; then
+        bucket_size=$(( $bucket_size * 2 ))
+    fi
+done
+
+if [[ $home_type = "index" ]]; then
+    if [ ${#subdomains} -ne 0 ]; then
+        cp /var/www/index/index-prefix.html /var/www/index/index.html
+        for subdomain in "${subdomains[@]}"; do
+            echo "      <li><a target=\"_blank\" href=\"http://${subdomain}.${TOR_ADDRESS}\">${subdomain}</a></li>" >> /var/www/index/index.html
+        done
+        cat /var/www/index/index-suffix.html >> /var/www/index/index.html
+    else
+        cp /var/www/index/empty.html /var/www/index/index.html
+    fi
+fi
+
+echo "server_names_hash_bucket_size ${bucket_size};" > /etc/nginx/conf.d/default.conf
+
+if [[ $home_type = "redirect" ]]; then
+    target=$(yq e '.homepage.target' start9/config.yaml)
+    cat >> /etc/nginx/conf.d/default.conf <<EOT
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${TOR_ADDRESS};
+  return 301 http://${target}.${TOR_ADDRESS}$request_uri;
+}
+EOT
+elif [[ $home_type = "filebrowser" ]]; then
+    directory=$(yq e '.homepage.directory' start9/config.yaml)
+    cat >> /etc/nginx/conf.d/default.conf <<EOT
+server {
+  autoindex on;
+  listen 80;
+  listen [::]:80;
+  server_name ${TOR_ADDRESS};
+  root "/root/start9/public/filebrowser/${directory}";
+}
+EOT
+else
+    cat >> /etc/nginx/conf.d/default.conf <<EOT
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${TOR_ADDRESS};
+  root "/var/www/${home_type}";
+}
+EOT
+fi
+
+for subdomain in "${subdomains[@]}"; do
+    subdomain_type=$(yq e ".subdomains.[] | select(.name == \"$subdomain\") | .settings |.type" start9/config.yaml)
+    if [[ $subdomain_type == "filebrowser" ]]; then
+        directory="$(yq e ".subdomains.[] | select(.name == \"$subdomain\") | .settings | .directory" start9/config.yaml)"
+        cat >> /etc/nginx/conf.d/default.conf <<EOT
+server {
+  autoindex on;
+  listen 80;
+  listen [::]:80;
+  server_name ${subdomain}.${TOR_ADDRESS};
+  root "/root/start9/public/filebrowser/${directory}";
+}
+EOT
+    elif [ $subdomain_type = "redirect" ]; then
+        if [ "$(yq e ".subdomains.[] | select(.name == \"$subdomain\") | .settings | .target == ~" start9/config.yaml)" = "true"]; then
+            cat >> /etc/nginx/conf.d/default.conf <<EOT
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${subdomain}.${TOR_ADDRESS};
+  return 301 http://${TOR_ADDRESS}$request_uri;
+}
+EOT
+        else
+            target="$(yq e ".subdomains.[] | select(.name == \"$subdomain\") | .settings | .target" start9/config.yaml)"
+            cat >> /etc/nginx/conf.d/default.conf <<EOT
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${subdomain}.${TOR_ADDRESS};
+  return 301 http://${target}.${TOR_ADDRESS}$request_uri;
+}
+EOT
+        fi
+    fi
+done
+
+exec tini -- nginx -g "daemon off;"
+```
+
+Additional details on the `Dockerfile` and `entrypoint` can be found [here](https://docs.start9.com/contributing/services/docker.html).
 
 ### Makefile (Optional)
 
@@ -375,8 +510,21 @@ Here we see that a Maximum Channel Size MUST be one of 3 possible options in ord
 
 ### Properties
 
+Next we need to create the Properties section for our package, to display any relevant info.  Te result of this step is a `stats.yaml` file, which is only populated at runtime.
 
+***THE STATS.YAML IS APPARENTLY BEING DEPRECATED, THIS SECTION NEEDS COMMENT***
 
+### Instructions
+
+Instructions are the basic directions or any particular details that you would like to convey to the user to help get them on their way.  Each wrapper repo should contain a `docs` directory which can include anything you'd like, but specifically if you include an `instructions.md` file, formatted in Markdown language, it will be displayed simply for the user as shown below.
+
+***PLACEHOLDER FOR IMAGE***
+
+You can find the `instructions.md` file for Embassy Pages [here](https://github.com/Start9Labs/embassy-pages-wrapper/tree/master/docs) if you are interested.
+
+### Backups
+
+Everything in the root folder of the mounted system directory will be stored in an EOS backup.  If you want to ignore any particular files for backup, you can create a `.backupignore` file and add the relative paths of any directories you would like ignored.  
 
 ## Submission Process
 
