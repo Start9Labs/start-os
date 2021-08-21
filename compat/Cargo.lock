@@ -341,10 +341,17 @@ dependencies = [
 name = "compat"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "clap",
  "embassy-os",
+ "emver",
+ "futures",
+ "rand 0.8.4",
+ "rust-argon2",
  "serde",
  "serde_yaml",
+ "tokio 1.9.0",
+ "tokio-stream",
 ]
 
 [[package]]
