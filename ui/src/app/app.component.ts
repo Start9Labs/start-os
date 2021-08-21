@@ -126,6 +126,16 @@ export class AppComponent {
     })
   }
 
+  async goToWebsite (): Promise<void> {
+    let url: string
+    if (this.config.isTor) {
+      url = 'http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion'
+    } else {
+      url = 'https://start9.com'
+    }
+    window.open(url, '_blank')
+  }
+
   private watchConnection (auth: AuthState): void {
     this.connectionService.watchFailure$()
     .pipe(

@@ -2,7 +2,7 @@
   <div *ngFor="let entry of formGroup.controls | keyvalue : asIsOrder">
     <ng-container *ngIf="unionSpec && entry.key === unionSpec.tag.id">
         <p class="input-label">{{ unionSpec.tag.name }}</p>
-        <ion-item color="dark">
+        <ion-item>
           <ion-label>{{ unionSpec.tag.name }}</ion-label>
           <ion-select slot="end" placeholder="Select" [formControlName]="unionSpec.tag.id" [selectedText]="unionSpec.tag['variant-names'][entry.value.value]" (ionChange)="presentAlertChangeWarning(entry.key, unionSpec); updateUnion($event)">
             <ion-select-option *ngFor="let option of Object.keys(unionSpec.variants)" [value]="option">

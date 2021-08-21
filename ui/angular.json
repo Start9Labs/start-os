@@ -15,7 +15,6 @@
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
             "preserveSymlinks": true,
-            "allowedCommonJsDependencies": ["json-pointer", "qrcode", "ajv", "patch-db-client"],
             "outputPath": "www",
             "index": "src/index.html",
             "main": "src/main.ts",
