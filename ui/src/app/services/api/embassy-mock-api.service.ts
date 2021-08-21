@@ -310,7 +310,10 @@ export class MockApiService extends ApiService {
 
   async getPackageLogs (params: RR.GetPackageLogsReq): Promise<RR.GetPackageLogsRes> {
     await pauseFor(2000)
-    return Mock.PackageLogs
+    if (params.page === 4) {
+      return (Mock.PackageLogs as []).slice(0, 2)
+    }
+    return Mock.PackageLogs.slice(0, params.pageLength)
   }
 
   async installPackageRaw (params: RR.InstallPackageReq): Promise<RR.InstallPackageRes> {
