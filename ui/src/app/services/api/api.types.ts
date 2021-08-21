@@ -137,7 +137,7 @@ export module RR {
   export type GetPackagePropertiesReq = { id: string } // package.properties
   export type GetPackagePropertiesRes<T extends number> = PackagePropertiesVersioned<T>
 
-  export type GetPackageLogsReq = { id: string, before?: string } // package.logs
+  export type GetPackageLogsReq = { page: number, pageLength: number, id: string, before?: string } // package.logs
   export type GetPackageLogsRes = Log[]
 
   export type GetPackageMetricsReq = { id: string } // package.metrics
