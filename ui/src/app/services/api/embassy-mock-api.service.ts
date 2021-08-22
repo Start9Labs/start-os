@@ -75,7 +75,10 @@ export class MockApiService extends ApiService {
 
   async getServerLogs (params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
     await pauseFor(2000)
-    return Mock.ServerLogs
+    if (params.page === 4) {
+      return (Mock.ServerLogs as []).slice(0, params.limit - 3)
+    }
+    return Mock.ServerLogs.slice(0, params.limit)
   }
 
   async getServerMetrics (params: RR.GetServerMetricsReq): Promise<RR.GetServerMetricsRes> {
@@ -311,9 +314,9 @@ export class MockApiService extends ApiService {
   async getPackageLogs (params: RR.GetPackageLogsReq): Promise<RR.GetPackageLogsRes> {
     await pauseFor(2000)
     if (params.page === 4) {
-      return (Mock.PackageLogs as []).slice(0, 2)
+      return (Mock.PackageLogs as []).slice(0, params.limit - 5)
     }
-    return Mock.PackageLogs.slice(0, params.pageLength)
+    return Mock.PackageLogs.slice(0, params.limit)
   }
 
   async installPackageRaw (params: RR.InstallPackageReq): Promise<RR.InstallPackageRes> {

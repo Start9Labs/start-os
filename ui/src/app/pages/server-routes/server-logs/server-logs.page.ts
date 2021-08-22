@@ -12,6 +12,10 @@ export class ServerLogsPage {
   @ViewChild(IonContent, { static: false }) private content: IonContent
   loading = true
   logs: string
+  needInfinite = false
+  firstTimeLoaded = false
+  page = 1
+  pageLength = 20
 
   constructor (
     private readonly errToast: ErrorToastService,
@@ -23,16 +27,36 @@ export class ServerLogsPage {
   }
 
   async getLogs () {
-    this.logs = ''
-    this.loading = true
     try {
-      const logs = await this.embassyApi.getServerLogs({ })
-      this.logs = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n')
-      setTimeout(async () => await this.content.scrollToBottom(100), 200)
+      // get logs
+      const logs = await this.embassyApi.getServerLogs({
+        limit: this.pageLength,
+        page: this.page,
+      })
+
+      this.firstTimeLoaded = true
+
+      const container = document.getElementById('container')
+      const beforeContainerHeight = container.scrollHeight
+      const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
+      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n') + '\n\n'
+      container.prepend(newLogs)
+      const afterContainerHeight = container.scrollHeight
+
+      // scroll down
+      scrollBy(0, afterContainerHeight - beforeContainerHeight)
+      this.content.scrollToPoint(0, afterContainerHeight - beforeContainerHeight)
+
+      const wrapper = document.getElementById('ion-content')
+      this.needInfinite = logs.length === this.pageLength
     } catch (e) {
       this.errToast.present(e)
-    } finally {
-      this.loading = false
     }
+  }
+
+  async loadData (e: any): Promise<void> {
+    await this.getLogs()
+    this.page++
+    e.target.complete()
   }
 }

@@ -27,7 +27,7 @@ export module RR {
   export type SetShareStatsReq = WithExpire<{ value: any }> // server.config.share-stats
   export type SetShareStatsRes = WithRevision<null>
 
-  export type GetServerLogsReq = { before?: string } // server.logs
+  export type GetServerLogsReq = { before?: string, limit: number, page: number } // server.logs
   export type GetServerLogsRes = Log[]
 
   export type GetServerMetricsReq = { } // server.metrics
@@ -137,7 +137,7 @@ export module RR {
   export type GetPackagePropertiesReq = { id: string } // package.properties
   export type GetPackagePropertiesRes<T extends number> = PackagePropertiesVersioned<T>
 
-  export type GetPackageLogsReq = { page: number, pageLength: number, id: string, before?: string } // package.logs
+  export type GetPackageLogsReq = { page: number, limit: number, id: string, before?: string } // package.logs
   export type GetPackageLogsRes = Log[]
 
   export type GetPackageMetricsReq = { id: string } // package.metrics
