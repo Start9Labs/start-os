@@ -14,8 +14,8 @@ export class AppLogsPage {
   page = 1
   pkgId: string
   firstTimeLoaded = false
-  needInfinite = false
-  pageLength = 20
+  needInfinite = true
+  before: string
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -33,10 +33,16 @@ export class AppLogsPage {
       // get logs
       const logs = await this.embassyApi.getPackageLogs({
         id: this.pkgId,
-        limit: this.pageLength,
-        page: this.page,
+        before: this.before,
       })
       this.firstTimeLoaded = true
+
+      if (!logs.length) {
+        this.needInfinite = false
+        return
+      }
+
+      this.before = logs[0].timestamp
 
       const container = document.getElementById('container')
       const beforeContainerHeight = container.scrollHeight
@@ -48,9 +54,6 @@ export class AppLogsPage {
       // scroll down
       scrollBy(0, afterContainerHeight - beforeContainerHeight)
       this.content.scrollToPoint(0, afterContainerHeight - beforeContainerHeight)
-
-      const wrapper = document.getElementById('ion-content')
-      this.needInfinite = logs.length === this.pageLength
     } catch (e) {
       this.errToast.present(e)
     }
@@ -58,7 +61,6 @@ export class AppLogsPage {
 
   async loadData (e: any): Promise<void> {
     await this.getLogs()
-    this.page++
     e.target.complete()
   }
 }

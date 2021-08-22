@@ -12,10 +12,9 @@ export class ServerLogsPage {
   @ViewChild(IonContent, { static: false }) private content: IonContent
   loading = true
   logs: string
-  needInfinite = false
+  needInfinite = true
   firstTimeLoaded = false
-  page = 1
-  pageLength = 20
+  before: string
 
   constructor (
     private readonly errToast: ErrorToastService,
@@ -29,10 +28,14 @@ export class ServerLogsPage {
   async getLogs () {
     try {
       // get logs
-      const logs = await this.embassyApi.getServerLogs({
-        limit: this.pageLength,
-        page: this.page,
-      })
+      const logs = await this.embassyApi.getServerLogs({ before: this.before })
+
+      if (!logs.length) {
+        this.needInfinite = false
+        return
+      }
+
+      this.before = logs[0].timestamp
 
       this.firstTimeLoaded = true
 
@@ -46,9 +49,6 @@ export class ServerLogsPage {
       // scroll down
       scrollBy(0, afterContainerHeight - beforeContainerHeight)
       this.content.scrollToPoint(0, afterContainerHeight - beforeContainerHeight)
-
-      const wrapper = document.getElementById('ion-content')
-      this.needInfinite = logs.length === this.pageLength
     } catch (e) {
       this.errToast.present(e)
     }
@@ -56,7 +56,6 @@ export class ServerLogsPage {
 
   async loadData (e: any): Promise<void> {
     await this.getLogs()
-    this.page++
     e.target.complete()
   }
 }
