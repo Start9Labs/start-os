@@ -30,9 +30,12 @@ export class AppLogsPage {
 
   async getLogs () {
     try {
-
       // get logs
-      const logs = await this.embassyApi.getPackageLogs({ id: this.pkgId, pageLength: this.pageLength, page: this.page })
+      const logs = await this.embassyApi.getPackageLogs({
+        id: this.pkgId,
+        limit: this.pageLength,
+        page: this.page,
+      })
       this.firstTimeLoaded = true
 
       const container = document.getElementById('container')
