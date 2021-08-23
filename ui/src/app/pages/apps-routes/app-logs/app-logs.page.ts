@@ -28,15 +28,17 @@ export class AppLogsPage {
   }
 
   async getLogs () {
+    const limit = 200
     try {
       // get logs
       const logs = await this.embassyApi.getPackageLogs({
         id: this.pkgId,
         before: this.before,
+        limit,
       })
       this.firstTimeLoaded = true
 
-      if (!logs.length) {
+      if (logs.length < limit) {
         this.needInfinite = false
         return
       }
