@@ -12,7 +12,7 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 export class AppLogsPage {
   @ViewChild(IonContent, { static: false }) private content: IonContent
   pkgId: string
-  firstTimeLoaded = false
+  loading = true
   needInfinite = true
   before: string
 
@@ -22,8 +22,18 @@ export class AppLogsPage {
     private readonly embassyApi: ApiService,
   ) { }
 
-  ngOnInit () {
+  async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.getLogs()
+  }
+
+  async refresh () {
+    this.before = undefined
+    this.loading = true
+    const container = document.getElementById('container')
+    const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
+    while (container.firstChild) { container.removeChild(container.firstChild) }
+    container.append(newLogs)
     this.getLogs()
   }
 
@@ -36,8 +46,6 @@ export class AppLogsPage {
         before: this.before,
         limit,
       })
-
-      this.firstTimeLoaded = true
 
       this.before = logs[0].timestamp
 
@@ -57,6 +65,8 @@ export class AppLogsPage {
       }
     } catch (e) {
       this.errToast.present(e)
+    } finally {
+      this.loading = false
     }
   }
 
