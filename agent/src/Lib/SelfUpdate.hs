@@ -194,19 +194,21 @@ runSyncOps syncOps = do
     pure res
 
 synchronizeSystemState :: AgentCtx -> Version -> IO ()
-synchronizeSystemState ctx _version = handle @_ @SomeException (cleanup Nothing) $ flip runReaderT ctx $ do
+synchronizeSystemState ctx _version = handle @_ @SomeException cleanup $ flip runReaderT ctx $ do
     (restartsAndRuns, mTid) <- case synchronizer of
         Synchronizer { synchronizerOperations } -> flip runStateT Nothing $ for synchronizerOperations $ \syncOp -> do
             shouldRun <- lift $ syncOpShouldRun syncOp
             putStrLn @Text [i|Sync Op "#{syncOpName syncOp}" should run: #{shouldRun}|]
             when shouldRun $ do
-                whenM (isNothing <$> get) $ do
-                    tid <- liftIO . forkIO . forever $ playSong 300 updateInProgress *> threadDelay 20_000_000
-                    put (Just tid)
+                tid <- get >>= \case
+                    Nothing -> do
+                        tid <- liftIO . forkIO . forever $ playSong 300 updateInProgress *> threadDelay 20_000_000
+                        put (Just tid)
+                        pure tid
+                    Just tid -> pure tid
                 putStrLn @Text [i|Running Sync Op: #{syncOpName syncOp}|]
                 setUpdate True
-                mTid <- get
-                lift $ handle @_ @SomeException (lift . cleanup mTid) $ syncOpRun syncOp
+                lift $ handle @_ @SomeException (\e -> lift $ killThread tid *> cleanup e) $ syncOpRun syncOp
             pure $ (syncOpRequiresReboot syncOp, shouldRun)
     case mTid of
         Nothing  -> pure ()
@@ -221,11 +223,8 @@ synchronizeSystemState ctx _version = handle @_ @SomeException (cleanup Nothing)
         setUpdate b = if b
             then liftIO $ writeIORef (appIsUpdating ctx) (Just agentVersion)
             else liftIO $ writeIORef (appIsUpdating ctx) Nothing
-        cleanup :: Maybe ThreadId -> SomeException -> IO ()
-        cleanup mTid e = do
-            case mTid of
-                Nothing  -> pure ()
-                Just tid -> killThread tid
+        cleanup :: SomeException -> IO ()
+        cleanup e = do
             void $ try @SomeException Sound.stop
             void $ try @SomeException Sound.unexport
             let e' = InternalE $ show e
