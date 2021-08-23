@@ -24,18 +24,18 @@
     <ion-item>
       <ion-label class="break-all">
         <h2>Tor Address</h2>
-        <p>http://{{ server['tor-address'] }}</p>
+        <p>{{ server['tor-address'] }}</p>
       </ion-label>
-      <ion-button slot="end" fill="clear" (click)="copy('http://' + server['tor-address'])">
+      <ion-button slot="end" fill="clear" (click)="copy(server['tor-address'])">
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
     <ion-item>
       <ion-label class="break-all">
         <h2>LAN Address</h2>
-        <p>https://{{ server['lan-address'] }}</p>
+        <p>{{ server['lan-address'] }}</p>
       </ion-label>
-      <ion-button slot="end" fill="clear" (click)="copy('https://' + server['lan-address'])">
+      <ion-button slot="end" fill="clear" (click)="copy(server['lan-address'])">
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>

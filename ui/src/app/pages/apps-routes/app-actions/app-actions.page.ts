@@ -10,6 +10,7 @@ import { Subscription } from 'rxjs'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppRestoreComponent } from 'src/app/modals/app-restore/app-restore.component'
+import { isEmptyObject } from 'src/app/util/misc.util'
 
 @Component({
   selector: 'app-actions',
@@ -48,7 +49,7 @@ export class AppActionsPage {
 
   async handleAction (pkg: PackageDataEntry, action: { key: string, value: Action }) {
     if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(pkg.installed.status.main.status)) {
-      if (action.value['input-spec']) {
+      if (!isEmptyObject(action.value['input-spec'])) {
         const modal = await this.modalCtrl.create({
           component: GenericFormPage,
           componentProps: {
