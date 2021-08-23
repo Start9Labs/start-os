@@ -26,11 +26,12 @@ export class ServerLogsPage {
   }
 
   async getLogs () {
+    const limit = 200
     try {
       // get logs
-      const logs = await this.embassyApi.getServerLogs({ before: this.before })
+      const logs = await this.embassyApi.getServerLogs({ before: this.before, limit })
 
-      if (!logs.length) {
+      if (logs.length < limit) {
         this.needInfinite = false
         return
       }
