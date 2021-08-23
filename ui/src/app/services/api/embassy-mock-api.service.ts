@@ -80,7 +80,7 @@ export class MockApiService extends ApiService {
       return Mock.ServerLogs
     }
     const arrLength = params.limit ? Math.ceil(params.limit / Mock.ServerLogs.length) : 10
-    return new Array(arrLength).map(_ => Mock.ServerLogs).reduce((acc, val) => acc.concat(val), [])
+    return new Array(arrLength).fill(Mock.ServerLogs).reduce((acc, val) => acc.concat(val), [])
   }
 
   async getServerMetrics (params: RR.GetServerMetricsReq): Promise<RR.GetServerMetricsRes> {
@@ -320,7 +320,7 @@ export class MockApiService extends ApiService {
       return Mock.PackageLogs
     }
     const arrLength = params.limit ? Math.ceil(params.limit / Mock.PackageLogs.length) : 10
-    return new Array(arrLength).map(_ => Mock.PackageLogs).reduce((acc, val) => acc.concat(val), [])
+    return new Array(arrLength).fill(Mock.PackageLogs).reduce((acc, val) => acc.concat(val), [])
   }
 
   async installPackageRaw (params: RR.InstallPackageReq): Promise<RR.InstallPackageRes> {
