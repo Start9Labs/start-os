@@ -1517,7 +1517,7 @@ export module Mock {
   //   expireId: null,
   //   value: {
   //     'server-info': {
-  //       id: 'start9-abcdefgmm',
+  //       id: 'start9-abcdefgm',
   //       version: '1.0.0',
   //       status: ServerStatus.Running,
   //       'lan-address': 'start9-abcdefgh.local',
