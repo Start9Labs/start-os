@@ -2,9 +2,9 @@ import { Injectable } from '@angular/core'
 import { BehaviorSubject, combineLatest, fromEvent, merge, Subscription } from 'rxjs'
 import { PatchConnection, PatchDbService } from './patch-db/patch-db.service'
 import { HttpService, Method } from './http.service'
-import { distinctUntilChanged, takeWhile } from 'rxjs/operators'
+import { distinctUntilChanged } from 'rxjs/operators'
 import { ConfigService } from './config.service'
-import { AuthState } from './auth.service'
+import { pauseFor } from '../util/misc.util'
 
 @Injectable({
   providedIn: 'root',
@@ -23,16 +23,13 @@ export class ConnectionService {
     return this.connectionFailure$.asObservable()
   }
 
-  start (auth: AuthState) {
-    merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
-    .pipe(
-      takeWhile(() => auth === AuthState.VERIFIED),
-    )
+  start (): Subscription[] {
+    const sub1 = merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
     .subscribe(event => {
       this.networkState$.next(event.type === 'online')
-    }),
+    })
 
-    combineLatest([
+    const sub2 = combineLatest([
       // 1
       this.networkState$
       .pipe(
@@ -46,7 +43,6 @@ export class ConnectionService {
       // 3
       this.patch.watch$('server-info', 'connection-addresses')
       .pipe(
-        takeWhile(() => auth === AuthState.VERIFIED),
         distinctUntilChanged(),
       ),
     ])
@@ -76,6 +72,7 @@ export class ConnectionService {
         }
       }
     })
+    return [sub1, sub2]
   }
 
   private async testAddrs (addrs: string[]): Promise<boolean> {

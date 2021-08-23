@@ -13,6 +13,7 @@ import { PatchDbService } from './patch-db/patch-db.service'
 import { filter, take } from 'rxjs/operators'
 import { isEmptyObject } from '../util/misc.util'
 import { ApiService } from './api/embassy-api.service'
+import { Subscription } from 'rxjs'
 
 @Injectable({
   providedIn: 'root',
@@ -60,8 +61,8 @@ export class StartupAlertsService {
   // Then, the reduce fires, quickly iterating through yielding a promise (previousDisplay) to the next element
   // Each promise fires more or less concurrently, so each c.check(server) is run concurrently
   // Then, since we await previousDisplay before c.display(res), each promise executing gets hung awaiting the display of the previous run
-  async runChecks (): Promise<void> {
-    this.patch.watch$()
+  runChecks (): Subscription {
+    return this.patch.watch$()
     .pipe(
       filter(data => !isEmptyObject(data)),
       take(1),

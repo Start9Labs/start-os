@@ -2,6 +2,7 @@ import { Inject, Injectable, InjectionToken } from '@angular/core'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
 import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
 import { catchError, debounceTime, finalize, map, tap } from 'rxjs/operators'
+import { pauseFor } from 'src/app/util/misc.util'
 import { ApiService } from '../api/embassy-api.service'
 import { DataModel } from './data-model'
 
@@ -40,7 +41,11 @@ export class PatchDbService {
 
   start (): void {
     // make sure everything is stopped before initializing
-    this.stop()
+    if (this.patchSub) {
+      this.patchSub.unsubscribe()
+      this.patchSub = undefined
+    }
+    console.log('Retrying')
     try {
       this.patchSub = this.patchDb.sync$()
       .pipe(debounceTime(500))
@@ -49,10 +54,12 @@ export class PatchDbService {
           this.patchConnection$.next(PatchConnection.Connected)
           this.bootstrapper.update(cache)
         },
-        error: e => {
+        error: async e => {
           console.error('patch-db-sync sub ERROR', e)
           this.patchConnection$.next(PatchConnection.Disconnected)
-          // this.start()
+          console.log('Erroring out')
+          await pauseFor(4000)
+          this.start()
         },
         complete: () => {
           console.warn('patch-db-sync sub COMPLETE')
@@ -64,7 +71,9 @@ export class PatchDbService {
   }
 
   stop (): void {
+    console.log('STOPPING PATCH DB')
     this.patchConnection$.next(PatchConnection.Initializing)
+    this.patchDb.store.reset()
     if (this.patchSub) {
       this.patchSub.unsubscribe()
       this.patchSub = undefined
