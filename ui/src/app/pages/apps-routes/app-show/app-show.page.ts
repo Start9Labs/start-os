@@ -10,7 +10,7 @@ import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, MainStatus, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
-import { ConnectionService } from 'src/app/services/connection.service'
+import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 
@@ -24,7 +24,6 @@ export class AppShowPage {
   pkg: PackageDataEntry
   hideLAN: boolean
   buttons: Button[] = []
-  connected: boolean
   FeStatus = FEStatus
   PackageState = PackageState
   DependencyErrorType = DependencyErrorType
@@ -32,6 +31,7 @@ export class AppShowPage {
   Math = Math
   mainStatus: MainStatus
   PackageMainStatus = PackageMainStatus
+  connectionFailure: boolean
 
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []
@@ -53,18 +53,17 @@ export class AppShowPage {
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.subs = [
-      combineLatest([
-        this.patch.connected$(),
-        this.patch.watch$('package-data', this.pkgId),
-      ])
-      .subscribe(([connected, pkg]) => {
+      // 1
+      this.patch.watch$('package-data', this.pkgId)
+      .subscribe(pkg => {
         this.pkg = pkg
-        this.connected = connected
         this.rendering = renderPkgStatus(pkg.state, pkg.installed.status)
+        this.mainStatus = pkg.installed.status.main
       }),
-      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main')
-      .subscribe(main => {
-        this.mainStatus = main
+      // 2
+      this.connectionService.watchFailure$()
+      .subscribe(connectionFailure => {
+        this.connectionFailure = connectionFailure !== ConnectionFailure.None
       }),
     ]
     this.setButtons()

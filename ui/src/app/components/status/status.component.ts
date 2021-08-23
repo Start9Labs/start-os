@@ -11,5 +11,6 @@ export class StatusComponent {
   @Input() size?: 'small' | 'medium' | 'large' | 'x-large' = 'large'
   @Input() style?: string = 'regular'
   @Input() weight?: string = 'normal'
+  @Input() disconnected?: boolean = false
 }
 

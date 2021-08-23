@@ -3,7 +3,7 @@ import { Storage } from '@ionic/storage-angular'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/embassy-api.service'
 import { Router, RoutesRecognized } from '@angular/router'
-import { debounceTime, distinctUntilChanged, filter, take, takeWhile } from 'rxjs/operators'
+import { debounceTime, distinctUntilChanged, filter, take } from 'rxjs/operators'
 import { AlertController, IonicSafeString, LoadingController, ToastController } from '@ionic/angular'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
@@ -16,6 +16,7 @@ import { StartupAlertsService } from './services/startup-alerts.service'
 import { ConfigService } from './services/config.service'
 import { isEmptyObject } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
+import { Subscription } from 'rxjs'
 
 @Component({
   selector: 'app-root',
@@ -29,6 +30,7 @@ export class AppComponent {
   offlineToast: HTMLIonToastElement
   serverName: string
   unreadCount: number
+  subscriptions: Subscription[] = []
   appPages = [
     {
       title: 'Services',
@@ -97,23 +99,28 @@ export class AppComponent {
           if (this.router.url.startsWith('/login')) {
             this.router.navigate([''], { replaceUrl: true })
           }
-          // start the connection monitor
-          this.connectionService.start(auth)
-          // watch connection to display connectivity issues
-          this.watchConnection(auth)
-          // // watch router to highlight selected menu item
-          this.watchRouter(auth)
-          // // watch status to display/hide maintenance page
-          this.watchStatus(auth)
-          // // watch version to refresh browser window
-          this.watchVersion(auth)
-          // // watch unread notification count to display toast
-          this.watchNotifications(auth)
-          // // run startup alerts
-          this.startupAlertsService.runChecks()
+
+          this.subscriptions = [
+            // start the connection monitor
+            ...this.connectionService.start(),
+            // watch connection to display connectivity issues
+            this.watchConnection(),
+            // // watch router to highlight selected menu item
+            this.watchRouter(),
+            // // watch status to display/hide maintenance page
+            this.watchStatus(),
+            // // watch version to refresh browser window
+            this.watchVersion(),
+            // // watch unread notification count to display toast
+            this.watchNotifications(),
+            // // run startup alerts
+            this.startupAlertsService.runChecks(),
+          ]
         })
       // UNVERIFIED
       } else if (auth === AuthState.UNVERIFIED) {
+        this.subscriptions.forEach(sub => sub.unsubscribe())
+        this.subscriptions = []
         this.showMenu = false
         this.patch.stop()
         this.storage.clear()
@@ -136,12 +143,11 @@ export class AppComponent {
     window.open(url, '_blank')
   }
 
-  private watchConnection (auth: AuthState): void {
-    this.connectionService.watchFailure$()
+  private watchConnection (): Subscription {
+    return this.connectionService.watchFailure$()
     .pipe(
       distinctUntilChanged(),
       debounceTime(500),
-      takeWhile(() => auth === AuthState.VERIFIED),
     )
     .subscribe(async connectionFailure => {
       if (connectionFailure === ConnectionFailure.None) {
@@ -157,7 +163,7 @@ export class AppComponent {
             message = 'Phone or computer has no network connection.'
             break
           case ConnectionFailure.Diagnosing:
-            message = new IonicSafeString('Running network diagnostics <ion-spinner name="dots"></ion-spinner>')
+            message = new IonicSafeString('Running network diagnostics <ion-spinner style="padding: 0; margin: 0" name="dots"></ion-spinner>')
             break
           case ConnectionFailure.Embassy:
             message = 'Embassy appears to be offline.'
@@ -180,11 +186,10 @@ export class AppComponent {
     })
   }
 
-  private watchRouter (auth: AuthState): void {
-    this.router.events
+  private watchRouter (): Subscription {
+    return this.router.events
     .pipe(
       filter((e: RoutesRecognized) => !!e.urlAfterRedirects),
-      takeWhile(() => auth === AuthState.VERIFIED),
     )
     .subscribe(e => {
       const appPageIndex = this.appPages.findIndex(
@@ -194,11 +199,8 @@ export class AppComponent {
     })
   }
 
-  private watchStatus (auth: AuthState): void {
-    this.patch.watch$('server-info', 'status')
-    .pipe(
-      takeWhile(() => auth === AuthState.VERIFIED),
-    )
+  private watchStatus (): Subscription {
+    return this.patch.watch$('server-info', 'status')
     .subscribe(status => {
       const maintenance = '/maintenance'
       const route = this.router.url
@@ -213,11 +215,8 @@ export class AppComponent {
     })
   }
 
-  private watchVersion (auth: AuthState): void {
-    this.patch.watch$('server-info', 'version')
-    .pipe(
-      takeWhile(() => auth === AuthState.VERIFIED),
-    )
+  private watchVersion (): Subscription {
+    return this.patch.watch$('server-info', 'version')
     .subscribe(version => {
       if (this.emver.compare(this.config.version, version) !== 0) {
         this.presentAlertRefreshNeeded()
@@ -225,12 +224,9 @@ export class AppComponent {
     })
   }
 
-  private watchNotifications (auth: AuthState): void {
+  private watchNotifications (): Subscription {
     let previous: number
-    this.patch.watch$('server-info', 'unread-notification-count')
-    .pipe(
-      takeWhile(() => auth === AuthState.VERIFIED),
-    )
+    return this.patch.watch$('server-info', 'unread-notification-count')
     .subscribe(count => {
       this.unreadCount = count
       if (previous !== undefined && count > previous) this.presentToastNotifications()
