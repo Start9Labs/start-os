@@ -102,12 +102,12 @@ parseKernelVersion = do
     pure $ KernelVersion (Version (major', minor', patch', 0)) arch
 
 synchronizer :: Synchronizer
-synchronizer = sync_0_2_15
+synchronizer = sync_0_2_16
 {-# INLINE synchronizer #-}
 
-sync_0_2_15 :: Synchronizer
-sync_0_2_15 = Synchronizer
-    "0.2.15"
+sync_0_2_16 :: Synchronizer
+sync_0_2_16 = Synchronizer
+    "0.2.16"
     [ syncCreateAgentTmp
     , syncCreateSshDir
     , syncRemoveAvahiSystemdDependency
@@ -180,7 +180,7 @@ syncFullUpgrade = SyncOp "Full Upgrade" check migrate True
                 Just (Done _ (KernelVersion (Version av) _)) -> if av < (4, 19, 118, 0) then pure True else pure False
                 _ -> pure False
         migrate = liftIO . run $ do
-            shell "apt-get update"
+            shell "apt-get update --allow-releaseinfo-change"
             shell "apt-get full-upgrade -y"
 
 sync32BitKernel :: SyncOp
@@ -205,7 +205,7 @@ syncInstallNginx = SyncOp "Install Nginx" check migrate False
     where
         check   = liftIO . run $ fmap isNothing (shell [i|which nginx || true|] $| conduit await)
         migrate = liftIO . run $ do
-            shell "apt-get update"
+            shell "apt-get update --allow-releaseinfo-change"
             shell "apt-get install nginx -y"
 
 syncInstallEject :: SyncOp
@@ -213,7 +213,7 @@ syncInstallEject = SyncOp "Install Eject" check migrate False
     where
         check   = liftIO . run $ fmap isNothing (shell [i|which eject || true|] $| conduit await)
         migrate = liftIO . run $ do
-            shell "apt-get update"
+            shell "apt-get update --allow-releaseinfo-change"
             shell "apt-get install eject -y"
 
 syncInstallDuplicity :: SyncOp
@@ -221,7 +221,7 @@ syncInstallDuplicity = SyncOp "Install duplicity" check migrate False
     where
         check   = liftIO . run $ fmap isNothing (shell [i|which duplicity || true|] $| conduit await)
         migrate = liftIO . run $ do
-            shell "apt-get update"
+            shell "apt-get update --allow-releaseinfo-change"
             shell "apt-get install -y duplicity"
 
 syncInstallExfatFuse :: SyncOp
@@ -234,7 +234,7 @@ syncInstallExfatFuse = SyncOp "Install exfat-fuse" check migrate False
                             ProcessException _ (ExitFailure 1) -> pure True
                             _ -> throwIO e
         migrate = liftIO . run $ do
-            shell "apt-get update"
+            shell "apt-get update --allow-releaseinfo-change"
             shell "apt-get install -y exfat-fuse"
 
 syncInstallExfatUtils :: SyncOp
@@ -247,7 +247,7 @@ syncInstallExfatUtils = SyncOp "Install exfat-utils" check migrate False
                             ProcessException _ (ExitFailure 1) -> pure True
                             _ -> throwIO e
         migrate = liftIO . run $ do
-            shell "apt-get update"
+            shell "apt-get update --allow-releaseinfo-change"
             shell "apt-get install -y exfat-utils"
 
 syncInstallLibAvahi :: SyncOp
@@ -260,7 +260,7 @@ syncInstallLibAvahi = SyncOp "Install libavahi-client" check migrate False
                             ProcessException _ (ExitFailure 1) -> pure True
                             _ -> throwIO e
         migrate = liftIO . run $ do
-            shell "apt-get update"
+            shell "apt-get update --allow-releaseinfo-change"
             shell "apt-get install -y libavahi-client3"
 
 syncWriteConf :: Text -> ByteString -> SystemPath -> SyncOp
@@ -598,7 +598,7 @@ syncUpgradeTor = SyncOp "Install Latest Tor" check migrate False
                     Just x  -> x
             pure $ compareTorVersions torVersion "0.3.5.15-1" == LT
         migrate = liftIO . run $ do
-            shell "apt-get update"
+            shell "apt-get update --allow-releaseinfo-change"
             availVersions <-
                 (shell "apt-cache madison tor" $| shell "cut -d '|' -f2" $| shell "xargs" $| conduit consume)
             latest <- case lastMay $ sortBy compareTorVersions availVersions of

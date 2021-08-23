@@ -5,7 +5,9 @@
 {-# LANGUAGE TupleSections       #-}
 module Lib.SelfUpdate where
 
-import           Startlude               hiding ( runReader )
+import           Startlude               hiding ( handle
+                                                , runReader
+                                                )
 
 import           Control.Carrier.Error.Either
 import           Control.Lens
@@ -29,6 +31,7 @@ import           Lib.SystemPaths
 import           Lib.Types.Emver
 import           Lib.WebServer
 import           Settings
+import           UnliftIO.Exception             ( handle )
 
 youngAgentPort :: Word16
 youngAgentPort = 5960
@@ -191,18 +194,21 @@ runSyncOps syncOps = do
     pure res
 
 synchronizeSystemState :: AgentCtx -> Version -> IO ()
-synchronizeSystemState ctx _version = handle @SomeException cleanup $ flip runReaderT ctx $ do
+synchronizeSystemState ctx _version = handle @_ @SomeException cleanup $ flip runReaderT ctx $ do
     (restartsAndRuns, mTid) <- case synchronizer of
         Synchronizer { synchronizerOperations } -> flip runStateT Nothing $ for synchronizerOperations $ \syncOp -> do
             shouldRun <- lift $ syncOpShouldRun syncOp
             putStrLn @Text [i|Sync Op "#{syncOpName syncOp}" should run: #{shouldRun}|]
             when shouldRun $ do
-                whenM (isNothing <$> get) $ do
-                    tid <- liftIO . forkIO . forever $ playSong 300 updateInProgress *> threadDelay 20_000_000
-                    put (Just tid)
+                tid <- get >>= \case
+                    Nothing -> do
+                        tid <- liftIO . forkIO . forever $ playSong 300 updateInProgress *> threadDelay 20_000_000
+                        put (Just tid)
+                        pure tid
+                    Just tid -> pure tid
                 putStrLn @Text [i|Running Sync Op: #{syncOpName syncOp}|]
                 setUpdate True
-                lift $ syncOpRun syncOp
+                lift $ handle @_ @SomeException (\e -> lift $ killThread tid *> cleanup e) $ syncOpRun syncOp
             pure $ (syncOpRequiresReboot syncOp, shouldRun)
     case mTid of
         Nothing  -> pure ()
@@ -222,5 +228,6 @@ synchronizeSystemState ctx _version = handle @SomeException cleanup $ flip runRe
             void $ try @SomeException Sound.stop
             void $ try @SomeException Sound.unexport
             let e' = InternalE $ show e
+            setUpdate False
             flip runReaderT ctx $ cantFail $ failUpdate e'
 
