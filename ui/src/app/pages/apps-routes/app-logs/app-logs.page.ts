@@ -11,7 +11,6 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 })
 export class AppLogsPage {
   @ViewChild(IonContent, { static: false }) private content: IonContent
-  page = 1
   pkgId: string
   firstTimeLoaded = false
   needInfinite = true
