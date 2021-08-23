@@ -11,3 +11,13 @@ clap = "2.33.3"
 serde = { version="1.0.118", features=["derive", "rc"] }
 serde_yaml = "0.8.17"
 embassy-os = { path="../appmgr", default-features=false }
+emver = { version = "0.1.2", features = ["serde"] }
+futures = "0.3.8"
+rust-argon2 = "0.8.3"
+rand = "0.8.4"
+tokio = { version = "1.8.1", features = ["full"] }
+tokio-compat-02 = "0.2.0"
+tokio-stream = { version = "0.1.7", features = ["io-util", "sync"] }
+tokio-util = { version = "0.6.6", features = ["io"] }
+async-trait = "0.1.42"
+anyhow = "1.0.40"
