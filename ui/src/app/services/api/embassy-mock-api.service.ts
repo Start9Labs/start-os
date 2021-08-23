@@ -79,7 +79,7 @@ export class MockApiService extends ApiService {
       console.log('last page')
       return []
     }
-    return Mock.ServerLogs
+    return new Array(10).map(_ => Mock.ServerLogs).reduce((acc, val) => acc.concat(val), [])
   }
 
   async getServerMetrics (params: RR.GetServerMetricsReq): Promise<RR.GetServerMetricsRes> {
@@ -318,7 +318,8 @@ export class MockApiService extends ApiService {
       console.log('last page')
       return []
     }
-    return Mock.PackageLogs
+
+    return new Array(10).map(_ => Mock.PackageLogs).reduce((acc, val) => acc.concat(val), [])
   }
 
   async installPackageRaw (params: RR.InstallPackageReq): Promise<RR.InstallPackageRes> {
