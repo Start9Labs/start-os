@@ -36,25 +36,25 @@ export class AppLogsPage {
         before: this.before,
         limit,
       })
-      this.firstTimeLoaded = true
 
-      if (logs.length < limit) {
-        this.needInfinite = false
-        return
-      }
+      this.firstTimeLoaded = true
 
       this.before = logs[0].timestamp
 
       const container = document.getElementById('container')
       const beforeContainerHeight = container.scrollHeight
       const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n') + '\n\n'
+      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n') + (logs.length ? '\n\n' : '')
       container.prepend(newLogs)
       const afterContainerHeight = container.scrollHeight
 
       // scroll down
       scrollBy(0, afterContainerHeight - beforeContainerHeight)
       this.content.scrollToPoint(0, afterContainerHeight - beforeContainerHeight)
+
+      if (logs.length < limit) {
+        this.needInfinite = false
+      }
     } catch (e) {
       this.errToast.present(e)
     }
