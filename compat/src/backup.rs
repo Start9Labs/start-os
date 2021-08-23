@@ -91,155 +91,87 @@ pub async fn create_backup<P: AsRef<Path>>(
     Ok(())
 }
 
-// pub async fn restore_backup<P: AsRef<Path>>(
-//     path: P,
-//     app_id: &str,
-//     password: &str,
-// ) -> Result<(), Error> {
-//     let path = tokio::fs::canonicalize(path).await?;
-//     crate::ensure_code!(
-//         path.is_dir(),
-//         crate::error::FILESYSTEM_ERROR,
-//         "Backup Path Must Be Directory"
-//     );
-//     let metadata_path = path.join("metadata.yaml");
-//     let pw_path = path.join("password");
-//     let data_path = path.join("data");
-//     let tor_path = path.join("tor");
-//     let volume_path = Path::new(crate::VOLUMES).join(app_id);
-//     let hidden_service_path =
-//         Path::new(crate::tor::HIDDEN_SERVICE_DIR_ROOT).join(format!("app-{}", app_id));
+pub async fn restore_backup<P: AsRef<Path>>(
+    path: P,
+    app_id: &str,
+    password: &str,
+) -> Result<(), Error> {
+    let path = tokio::fs::canonicalize(path).await?;
+    ensure_code!(
+        path.is_dir(),
+        embassy::ErrorKind::Filesystem,
+        "Backup Path Must Be Directory"
+    );
+    let metadata_path = path.join("metadata.yaml");
+    let data_path = path.join("data");
+    let volume_path = Path::new(embassy::VOLUMES).join(app_id);
 
-//     if pw_path.exists() {
-//         use tokio::io::AsyncReadExt;
+    let mut data_cmd = tokio::process::Command::new("duplicity");
+    data_cmd
+        .arg("--force")
+        .arg(format!("file://{}", data_path.display()))
+        .arg(&volume_path);
 
-//         let mut f = tokio::fs::File::open(&pw_path).await?;
-//         let mut hash = String::new();
-//         f.read_to_string(&mut hash).await?;
-//         crate::ensure_code!(
-//             argon2::verify_encoded(&hash, password.as_bytes())
-//                 .with_code(crate::error::INVALID_BACKUP_PASSWORD)?,
-//             crate::error::INVALID_BACKUP_PASSWORD,
-//             "Invalid Backup Decryption Password"
-//         );
-//     }
+    let data_output = data_cmd.status().await?;
+    embassy::ensure_code!(
+        data_output.success(),
+        embassy::ErrorKind::Backup,
+        "Duplicity Error"
+    );
 
-//     let status = crate::apps::status(app_id, false).await?;
-//     let running = status.status == crate::apps::DockerStatus::Running;
-//     if running {
-//         crate::control::stop_app(app_id, true, false).await?;
-//     }
+    tokio::fs::copy(
+        metadata_path,
+        Path::new(embassy::VOLUMES)
+            .join(app_id)
+            .join("start9")
+            .join("restore.yaml"),
+    )
+    .await?;
 
-//     let mut data_cmd = tokio::process::Command::new("duplicity");
-//     data_cmd
-//         .env("PASSPHRASE", password)
-//         .arg("--force")
-//         .arg(format!("file://{}", data_path.display()))
-//         .arg(&volume_path);
+    // TODO: Needed? - Attempt to configure the service with the config coming from restoration
+    // let cfg_path = Path::new(embassy::VOLUMES)
+    //     .join(app_id)
+    //     .join("start9")
+    //     .join("config.yaml");
+    // if cfg_path.exists() {
+    //     let cfg = from_yaml_async_reader(tokio::fs::File::open(cfg_path).await?).await?;
+    //     if let Err(e) = embassy::config::configure(app_id, cfg, None, false).await {
+    //         log::warn!("Could not restore backup configuration: {}", e);
+    //     }
+    // }
 
-//     let mut tor_cmd = tokio::process::Command::new("duplicity");
-//     tor_cmd
-//         .env("PASSPHRASE", password)
-//         .arg("--force")
-//         .arg(format!("file://{}", tor_path.display()))
-//         .arg(&hidden_service_path);
+    Ok(())
+}
 
-//     let (data_output, tor_output) = try_join!(data_cmd.status(), tor_cmd.status())?;
-//     crate::ensure_code!(
-//         data_output.success(),
-//         crate::error::GENERAL_ERROR,
-//         "Duplicity Error"
-//     );
-//     crate::ensure_code!(
-//         tor_output.success(),
-//         crate::error::GENERAL_ERROR,
-//         "Duplicity Error"
-//     );
+pub async fn backup_to_partition(
+    logicalname: &str,
+    app_id: &str,
+    password: &str,
+) -> Result<(), Error> {
+    let backup_mount_path = Path::new(embassy::BACKUP_MOUNT_POINT);
+    let guard = embassy::volume::disk::MountGuard::new(logicalname, &backup_mount_path).await?;
+    let backup_dir_path = backup_mount_path.join(embassy::BACKUP_DIR).join(app_id);
+    tokio::fs::create_dir_all(&backup_dir_path).await?;
 
-//     // Fix the tor address in apps.yaml
-//     let mut yhdl = crate::apps::list_info_mut().await?;
-//     if let Some(app_info) = yhdl.get_mut(app_id) {
-//         app_info.tor_address = Some(crate::tor::read_tor_address(app_id, None).await?);
-//     }
-//     yhdl.commit().await?;
+    let res = create_backup(backup_dir_path, app_id, password).await;
 
-//     tokio::fs::copy(
-//         metadata_path,
-//         Path::new(crate::VOLUMES)
-//             .join(app_id)
-//             .join("start9")
-//             .join("restore.yaml"),
-//     )
-//     .await?;
+    guard.unmount().await?;
 
-//     // Attempt to configure the service with the config coming from restoration
-//     let cfg_path = Path::new(crate::VOLUMES)
-//         .join(app_id)
-//         .join("start9")
-//         .join("config.yaml");
-//     if cfg_path.exists() {
-//         let cfg = from_yaml_async_reader(tokio::fs::File::open(cfg_path).await?).await?;
-//         if let Err(e) = crate::config::configure(app_id, cfg, None, false).await {
-//             log::warn!("Could not restore backup configuration: {}", e);
-//         }
-//     }
+    res
+}
 
-//     crate::tor::restart().await?;
-//     // Delete the fullchain certificate, so it can be regenerated with the restored tor pubkey address
-//     PersistencePath::from_ref("apps")
-//         .join(&app_id)
-//         .join("cert-local.fullchain.crt.pem")
-//         .delete()
-//         .await?;
-//     crate::tor::write_lan_services(
-//         &crate::tor::services_map(&PersistencePath::from_ref(crate::SERVICES_YAML)).await?,
-//     )
-//     .await?;
-//     let svc_exit = std::process::Command::new("service")
-//         .args(&["nginx", "reload"])
-//         .status()?;
-//     crate::ensure_code!(
-//         svc_exit.success(),
-//         crate::error::GENERAL_ERROR,
-//         "Failed to Reload Nginx: {}",
-//         svc_exit
-//             .code()
-//             .or_else(|| { svc_exit.signal().map(|a| 128 + a) })
-//             .unwrap_or(0)
-//     );
+pub async fn restore_from_partition(
+    logicalname: &str,
+    app_id: &str,
+    password: &str,
+) -> Result<(), Error> {
+    let backup_mount_path = Path::new(embassy::BACKUP_MOUNT_POINT);
+    let guard = embassy::volume::disk::MountGuard::new(logicalname, &backup_mount_path).await?;
+    let backup_dir_path = backup_mount_path.join(embassy::BACKUP_DIR).join(app_id);
 
-//     Ok(())
-// }
+    let res = restore_backup(backup_dir_path, app_id, password).await;
 
-// pub async fn backup_to_partition(
-//     logicalname: &str,
-//     app_id: &str,
-//     password: &str,
-// ) -> Result<(), Error> {
-//     let backup_mount_path = Path::new(crate::BACKUP_MOUNT_POINT);
-//     let guard = crate::disks::MountGuard::new(logicalname, &backup_mount_path).await?;
-//     let backup_dir_path = backup_mount_path.join(crate::BACKUP_DIR).join(app_id);
-//     tokio::fs::create_dir_all(&backup_dir_path).await?;
+    guard.unmount().await?;
 
-//     let res = create_backup(backup_dir_path, app_id, password).await;
-
-//     guard.unmount().await?;
-
-//     res
-// }
-
-// pub async fn restore_from_partition(
-//     logicalname: &str,
-//     app_id: &str,
-//     password: &str,
-// ) -> Result<(), Error> {
-//     let backup_mount_path = Path::new(crate::BACKUP_MOUNT_POINT);
-//     let guard = crate::disks::MountGuard::new(logicalname, &backup_mount_path).await?;
-//     let backup_dir_path = backup_mount_path.join(crate::BACKUP_DIR).join(app_id);
-
-//     let res = restore_backup(backup_dir_path, app_id, password).await;
-
-//     guard.unmount().await?;
-
-//     res
-// }
+    res
+}
