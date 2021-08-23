@@ -56,8 +56,7 @@ pub async fn create_backup<P: AsRef<Path>>(
         let ignore_path = volume_path.join(".backupignore");
         if ignore_path.is_file() {
             use tokio::io::AsyncBufReadExt;
-            tokio::io::BufReader::new(tokio::fs::File::open(ignore_path).await?)
-                .lines()
+            tokio_stream::wrappers::LinesStream::new(tokio::io::BufReader::new(tokio::fs::File::open(ignore_path).await?).lines())
                 .try_filter(|l| futures::future::ready(!l.is_empty()))
                 .try_collect()
                 .await?
@@ -65,8 +64,11 @@ pub async fn create_backup<P: AsRef<Path>>(
             Vec::new()
         }
     } else {
-        return Err(format_err!("Volume For {} Does Not Exist", app_id))
-            .with_code(embassy::ErrorKind::NotFound);
+        return Err(Error {
+            source: anyhow::anyhow!("Volume For {} Does Not Exist", app_id),
+            kind: embassy::ErrorKind::NotFound,
+            revision: None,
+        })
     };
     let mut data_cmd = tokio::process::Command::new("duplicity");
     for exclude in exclude {
