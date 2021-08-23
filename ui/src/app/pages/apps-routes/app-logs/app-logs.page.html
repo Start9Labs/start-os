@@ -14,13 +14,13 @@
 </ion-header>
 
 <ion-content id="ion-content" class="ion-padding">
-  <ion-infinite-scroll id="scroller" *ngIf="firstTimeLoaded && needInfinite" position="top" threshold="0" (ionInfinite)="loadData($event)">
+  <ion-infinite-scroll id="scroller" *ngIf="!loading && needInfinite" position="top" threshold="0" (ionInfinite)="loadData($event)">
     <ion-infinite-scroll-content
       loadingSpinner="bubbles">
     </ion-infinite-scroll-content>
   </ion-infinite-scroll>
 
-  <text-spinner *ngIf="!firstTimeLoaded" text="Loading Logs"></text-spinner>
+  <text-spinner *ngIf="loading" text="Loading Logs"></text-spinner>
 
   <div id="container"><div id="template" style="white-space: pre-line;"></div></div>
 
