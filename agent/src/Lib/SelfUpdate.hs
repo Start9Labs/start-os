@@ -5,7 +5,9 @@
 {-# LANGUAGE TupleSections       #-}
 module Lib.SelfUpdate where
 
-import           Startlude               hiding ( runReader )
+import           Startlude               hiding ( handle
+                                                , runReader
+                                                )
 
 import           Control.Carrier.Error.Either
 import           Control.Lens
@@ -29,6 +31,7 @@ import           Lib.SystemPaths
 import           Lib.Types.Emver
 import           Lib.WebServer
 import           Settings
+import           UnliftIO.Exception             ( handle )
 
 youngAgentPort :: Word16
 youngAgentPort = 5960
@@ -191,7 +194,7 @@ runSyncOps syncOps = do
     pure res
 
 synchronizeSystemState :: AgentCtx -> Version -> IO ()
-synchronizeSystemState ctx _version = handle @SomeException cleanup $ flip runReaderT ctx $ do
+synchronizeSystemState ctx _version = handle @_ @SomeException (cleanup Nothing) $ flip runReaderT ctx $ do
     (restartsAndRuns, mTid) <- case synchronizer of
         Synchronizer { synchronizerOperations } -> flip runStateT Nothing $ for synchronizerOperations $ \syncOp -> do
             shouldRun <- lift $ syncOpShouldRun syncOp
@@ -202,7 +205,8 @@ synchronizeSystemState ctx _version = handle @SomeException cleanup $ flip runRe
                     put (Just tid)
                 putStrLn @Text [i|Running Sync Op: #{syncOpName syncOp}|]
                 setUpdate True
-                lift $ syncOpRun syncOp
+                mTid <- get
+                lift $ handle @_ @SomeException (lift . cleanup mTid) $ syncOpRun syncOp
             pure $ (syncOpRequiresReboot syncOp, shouldRun)
     case mTid of
         Nothing  -> pure ()
@@ -217,10 +221,14 @@ synchronizeSystemState ctx _version = handle @SomeException cleanup $ flip runRe
         setUpdate b = if b
             then liftIO $ writeIORef (appIsUpdating ctx) (Just agentVersion)
             else liftIO $ writeIORef (appIsUpdating ctx) Nothing
-        cleanup :: SomeException -> IO ()
-        cleanup e = do
+        cleanup :: Maybe ThreadId -> SomeException -> IO ()
+        cleanup mTid e = do
+            case mTid of
+                Nothing  -> pure ()
+                Just tid -> killThread tid
             void $ try @SomeException Sound.stop
             void $ try @SomeException Sound.unexport
             let e' = InternalE $ show e
+            setUpdate False
             flip runReaderT ctx $ cantFail $ failUpdate e'
 
