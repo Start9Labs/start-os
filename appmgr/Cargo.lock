@@ -371,6 +371,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ciborium"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de6836a1b6197d8acdaac74a01af077a26aa6953d2e9251eef061c646b0d432c"
+dependencies = [
+ "half",
+ "serde",
+]
+
+[[package]]
 name = "clang-sys"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -789,6 +799,7 @@ dependencies = [
  "basic-cookies",
  "bollard",
  "chrono",
+ "ciborium",
  "clap",
  "cookie_store 0.15.0",
  "digest 0.9.0",
@@ -825,7 +836,6 @@ dependencies = [
  "rust-argon2",
  "scopeguard",
  "serde",
- "serde_cbor 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json",
  "serde_yaml",
  "sha2 0.9.5",
@@ -2392,7 +2402,7 @@ dependencies = [
  "reqwest",
  "rpc-toolkit-macro",
  "serde",
- "serde_cbor 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_cbor 0.11.2",
  "serde_json",
  "thiserror",
  "tokio 1.9.0",
@@ -2574,9 +2584,9 @@ dependencies = [
 
 [[package]]
 name = "serde_cbor"
-version = "0.11.1"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e18acfa2f90e8b735b2836ab8d538de304cbb6729a7360729ea5a895d15a622"
+checksum = "2bef2ebfde456fb76bbcf9f59315333decc4fda0b2b44b420243c11e0f5ec1f5"
 dependencies = [
  "half",
  "serde",

@@ -55,7 +55,7 @@ impl<
 
         let mut writer = HashWriter::new(Sha512::new(), &mut self.writer);
         // manifest
-        serde_cbor::to_writer(&mut writer, self.manifest).with_ctx(|_| {
+        serde_cbor::ser::into_writer(self.manifest, &mut writer).with_ctx(|_| {
             (
                 crate::ErrorKind::Serialization,
                 "Serializing Manifest (CBOR)",
