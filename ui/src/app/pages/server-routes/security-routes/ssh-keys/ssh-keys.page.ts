@@ -1,10 +1,9 @@
 import { Component } from '@angular/core'
-import { ServerConfigService } from 'src/app/services/server-config.service'
-import { AlertController, LoadingController } from '@ionic/angular'
-import { SSHService } from './ssh.service'
-import { Subscription } from 'rxjs'
+import { AlertController, LoadingController, ModalController } from '@ionic/angular'
 import { SSHKeys } from 'src/app/services/api/api.types'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
 
 @Component({
   selector: 'ssh-keys',
@@ -14,37 +13,66 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 export class SSHKeysPage {
   loading = true
   sshKeys: SSHKeys
-  subs: Subscription[] = []
   readonly docsUrl = 'https://docs.start9.com/user-manual/general/developer-options/ssh-setup.html'
 
   constructor (
     private readonly loadingCtrl: LoadingController,
+    private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
-    private readonly sshService: SSHService,
-    public readonly serverConfig: ServerConfigService,
+    private readonly embassyApi: ApiService,
   ) { }
 
   async ngOnInit () {
-    this.subs = [
-      this.sshService.watch$()
-      .subscribe(keys => {
-        this.sshKeys = keys
-      }),
-    ]
-
-    await this.sshService.getKeys()
-
-    this.loading = false
+    await this.getKeys()
   }
 
-  ngOnDestroy () {
-    this.subs.forEach(sub => sub.unsubscribe())
+  async getKeys (): Promise<void> {
+    try {
+      this.sshKeys = await this.embassyApi.getSshKeys({ })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      this.loading = false
+    }
+  }
+
+  async presentModalAdd () {
+    const { name, description } = sshSpec
+
+    const modal = await this.modalCtrl.create({
+      component: BackupConfirmationComponent,
+      componentProps: {
+        title: name,
+        message: description,
+        label: name,
+        submitFn: this.add,
+      },
+      cssClass: 'alertlike-modal',
+    })
+    await modal.present()
+  }
+
+  async add (pubkey: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Saving...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      const key = await this.embassyApi.addSshKey({ pubkey })
+      this.sshKeys = { ...this.sshKeys, ...key }
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   async presentAlertDelete (hash: string) {
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
       header: 'Caution',
       message: `Are you sure you want to delete this key?`,
       buttons: [
@@ -57,6 +85,7 @@ export class SSHKeysPage {
           handler: () => {
             this.delete(hash)
           },
+          cssClass: 'enter-click',
         },
       ],
     })
@@ -72,7 +101,8 @@ export class SSHKeysPage {
     await loader.present()
 
     try {
-      await this.sshService.delete(hash)
+      await this.embassyApi.deleteSshKey({ hash })
+      delete this.sshKeys[hash]
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -83,4 +113,16 @@ export class SSHKeysPage {
   asIsOrder (a: any, b: any) {
     return 0
   }
+}
+
+const sshSpec = {
+  type: 'string',
+  name: 'SSH Key',
+  description: 'Enter the SSH public key of you would like to authorize for root access to your Embassy.',
+  nullable: false,
+  // @TODO regex for SSH Key
+  // pattern: '',
+  'pattern-description': 'Must be a valid SSH key',
+  masked: false,
+  copyable: false,
 }
