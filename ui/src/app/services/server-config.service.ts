@@ -1,12 +1,9 @@
 import { Injectable } from '@angular/core'
 import { AlertInput, AlertButton } from '@ionic/core'
 import { ApiService } from './api/embassy-api.service'
-import { ConfigSpec, ValueSpecString } from '../pkg-config/config-types'
-import { SSHService } from '../pages/server-routes/security-routes/ssh-keys/ssh.service'
+import { ConfigSpec } from '../pkg-config/config-types'
 import { AlertController, LoadingController } from '@ionic/angular'
 import { ErrorToastService } from './error-toast.service'
-import { ModalController } from '@ionic/angular'
-import { BackupConfirmationComponent } from '../modals/backup-confirmation/backup-confirmation.component'
 
 @Injectable({
   providedIn: 'root',
@@ -14,12 +11,10 @@ import { BackupConfirmationComponent } from '../modals/backup-confirmation/backu
 export class ServerConfigService {
 
   constructor (
-    private readonly modalCtrl: ModalController,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly embassyApi: ApiService,
-    private readonly sshService: SSHService,
   ) { }
 
   async presentAlert (key: string, current?: any): Promise<void> {
@@ -49,6 +44,7 @@ export class ServerConfigService {
             loader.dismiss()
           }
         },
+        cssClass: 'enter-click',
       },
     ]
 
@@ -84,24 +80,6 @@ export class ServerConfigService {
     await alert.present()
   }
 
-  async presentModalInput (key: string, current?: string) {
-    const { name, description, masked } = serverConfig[key] as ValueSpecString
-
-    const modal = await this.modalCtrl.create({
-      component: BackupConfirmationComponent,
-      componentProps: {
-        title: name,
-        message: description,
-        label: name,
-        useMask: masked,
-        value: current,
-        submitFn: this.saveFns[key],
-      },
-      cssClass: 'alertlike-modal',
-    })
-    await modal.present()
-  }
-
   // async presentModalForm (key: string) {
   //   const modal = await this.modalCtrl.create({
   //     component: AppActionInputPage,
@@ -122,9 +100,6 @@ export class ServerConfigService {
   saveFns: { [key: string]: (val: any) => Promise<any> } = {
     'auto-check-updates': async (enabled: boolean) => {
       return this.embassyApi.setDbValue({ pointer: '/auto-check-updates', value: enabled })
-    },
-    ssh: async (pubkey: string) => {
-      return this.sshService.add(pubkey)
     },
     // 'eos-marketplace': async () => {
     //   return this.embassyApi.setEosMarketplace()
@@ -147,17 +122,6 @@ export const serverConfig: ConfigSpec = {
     name: 'Auto Check for Updates',
     description: 'On launch, EmbassyOS will automatically check for updates of itself and your installed services. Updating still requires user approval and action. No updates will ever be performed automatically.',
     default: true,
-  },
-  ssh: {
-    type: 'string',
-    name: 'SSH Key',
-    description: 'Enter the SSH public key of you would like to authorize for root access to your Embassy.',
-    nullable: false,
-    // @TODO regex for SSH Key
-    // pattern: '',
-    'pattern-description': 'Must be a valid SSH key',
-    masked: false,
-    copyable: false,
   },
   // 'eos-marketplace': {
   //   type: 'boolean',

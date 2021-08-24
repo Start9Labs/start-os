@@ -33,7 +33,7 @@ export class WifiPage {
     try {
       await this.getWifi()
     } catch (e) {
-      this.errToast.present(e.message)
+      this.errToast.present(e)
     } finally {
       this.loading = false
     }
@@ -72,7 +72,7 @@ export class WifiPage {
           },
         },
       ],
-      cssClass: 'wide-alert',
+      cssClass: 'wide-alert enter-click',
     })
     await alert.present()
   }
@@ -206,7 +206,13 @@ export class WifiPage {
     const alert = await this.alertCtrl.create({
       header: `Connected to "${ssid}"`,
       message: 'Note. It may take several minutes to an hour for your Embassy to reconnect over Tor.',
-      buttons: ['OK'],
+      buttons: [
+        {
+          text: 'Ok',
+          role: 'cancel',
+          cssClass: 'enter-click',
+        },
+      ],
     })
 
     await alert.present()

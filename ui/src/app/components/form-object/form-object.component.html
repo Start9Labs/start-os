@@ -1,15 +1,16 @@
 <ion-item-group [formGroup]="formGroup">
   <div *ngFor="let entry of formGroup.controls | keyvalue : asIsOrder">
+    <!-- union enum -->
     <ng-container *ngIf="unionSpec && entry.key === unionSpec.tag.id">
-        <p class="input-label">{{ unionSpec.tag.name }}</p>
-        <ion-item>
-          <ion-label>{{ unionSpec.tag.name }}</ion-label>
-          <ion-select slot="end" placeholder="Select" [formControlName]="unionSpec.tag.id" [selectedText]="unionSpec.tag['variant-names'][entry.value.value]" (ionChange)="presentAlertChangeWarning(entry.key, unionSpec); updateUnion($event)">
-            <ion-select-option *ngFor="let option of Object.keys(unionSpec.variants)" [value]="option">
-              {{ unionSpec.tag['variant-names'][option] }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
+      <p class="input-label">{{ unionSpec.tag.name }}</p>
+      <ion-item>
+        <ion-label>{{ unionSpec.tag.name }}</ion-label>
+        <ion-select [interfaceOptions]="{ message: getWarningText(unionSpec.warning) }" slot="end" placeholder="Select" [formControlName]="unionSpec.tag.id" [selectedText]="unionSpec.tag['variant-names'][entry.value.value]" (ionChange)="updateUnion($event)">
+          <ion-select-option *ngFor="let option of Object.keys(unionSpec.variants)" [value]="option">
+            {{ unionSpec.tag['variant-names'][option] }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
     </ng-container>
     <ng-container *ngIf="objectSpec[entry.key] as spec">
       <!-- primitive -->

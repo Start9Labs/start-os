@@ -32,7 +32,6 @@ export class SessionsPage {
 
   async presentAlertKill (id: string) {
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
       header: 'Caution',
       message: `Are you sure you want to kill this session?`,
       buttons: [
@@ -45,6 +44,7 @@ export class SessionsPage {
           handler: () => {
             this.kill(id)
           },
+          cssClass: 'enter-click',
         },
       ],
     })

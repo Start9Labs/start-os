@@ -155,7 +155,6 @@ export class StartupAlertsService {
   private async displayAppsCheck (): Promise<boolean> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
-        backdropDismiss: true,
         header: 'Updates Available!',
         message: new IonicSafeString(
           `<div style="display: flex; flex-direction: column; justify-content: space-around; min-height: 100px">
@@ -173,8 +172,9 @@ export class StartupAlertsService {
           {
             text: 'View in Marketplace',
             handler: () => {
-              return this.navCtrl.navigateForward('/marketplace').then(() => resolve(false))
+              this.navCtrl.navigateForward('/marketplace').then(() => resolve(false))
             },
+            cssClass: 'enter-click',
           },
         ],
       })
@@ -186,7 +186,6 @@ export class StartupAlertsService {
   private async presentAlertNewOS (versionLatest: string): Promise<{ cancel?: true, update?: true }> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
-        backdropDismiss: true,
         header: 'New EmbassyOS Version!',
         message: new IonicSafeString(
           `<div style="display: flex; flex-direction: column; justify-content: space-around; min-height: 100px">
@@ -204,6 +203,7 @@ export class StartupAlertsService {
           {
             text: 'Update',
             handler: () => resolve({ update: true }),
+            cssClass: 'enter-click',
           },
         ],
       })
