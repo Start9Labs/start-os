@@ -342,7 +342,6 @@ name = "compat"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "clap",
  "embassy-os",
  "emver",
@@ -352,9 +351,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "tokio 1.10.0",
- "tokio-compat-02",
  "tokio-stream",
- "tokio-util",
 ]
 
 [[package]]
