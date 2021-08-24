@@ -130,7 +130,6 @@ export class AppShowPage {
       const alert = await this.alertCtrl.create({
         header: 'Not Accepting Donations',
         message: `The developers of ${this.pkg.manifest.title} have not provided a donation URL. Please contact them directly if you insist on giving them money.`,
-        buttons: ['OK'],
       })
       await alert.present()
     }
@@ -215,6 +214,7 @@ export class AppShowPage {
           handler: () => {
             this.start()
           },
+          cssClass: 'enter-click',
         },
       ],
     })

@@ -172,6 +172,7 @@ export class AppConfigPage {
           handler: () => {
             this.modalCtrl.dismiss()
           },
+          cssClass: 'enter-click',
         },
       ],
     })

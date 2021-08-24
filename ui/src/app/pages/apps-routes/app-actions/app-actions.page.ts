@@ -80,6 +80,7 @@ export class AppActionsPage {
               handler: () => {
                 this.executeAction(pkg.manifest.id, action.key)
               },
+              cssClass: 'enter-click',
             },
           ],
         })
@@ -104,7 +105,7 @@ export class AppActionsPage {
         header: 'Forbidden',
         message: error || `Action "${action.value.name}" can only be executed when service is ${statusesStr}`,
         buttons: ['OK'],
-        cssClass: 'alert-error-message',
+        cssClass: 'alert-error-message enter-click',
       })
       await alert.present()
     }
@@ -159,7 +160,13 @@ export class AppActionsPage {
       const successAlert = await this.alertCtrl.create({
         header: 'Execution Complete',
         message: res.message.split('\n').join('</br ></br />'),
-        buttons: ['OK'],
+        buttons: [
+          {
+            text: 'Ok',
+            role: 'cancel',
+            cssClass: 'enter-click',
+          },
+        ],
       })
 
       setTimeout(() => successAlert.present(), 400)

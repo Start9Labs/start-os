@@ -81,7 +81,6 @@ export class MarketplaceShowPage {
   async presentAlertVersions () {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
-      backdropDismiss: false,
       inputs: this.marketplaceService.pkgs[this.pkgId].versions.sort((a, b) => -1 * this.emver.compare(a, b)).map(v => {
         return {
           name: v, // for CSS
@@ -100,6 +99,7 @@ export class MarketplaceShowPage {
           handler: (version: string) => {
             this.getPkg(version)
           },
+          cssClass: 'enter-click',
         },
       ],
     })

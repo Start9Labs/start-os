@@ -27,7 +27,6 @@ export class ServerShowPage {
 
   async presentAlertRestart () {
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
       header: 'Confirm',
       message: `Are you sure you want to restart your Embassy?`,
       buttons: [
@@ -40,15 +39,15 @@ export class ServerShowPage {
           handler: () => {
             this.restart()
           },
+          cssClass: 'enter-click',
         },
-      ]},
-    )
+      ],
+    })
     await alert.present()
   }
 
   async presentAlertShutdown () {
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
       header: 'Confirm',
       message: `Are you sure you want to shut down your Embassy? To turn it back on, you will need to physically unplug the device and plug it back in.`,
       buttons: [
@@ -61,6 +60,7 @@ export class ServerShowPage {
           handler: () => {
             this.shutdown()
           },
+          cssClass: 'enter-click',
         },
       ],
     })

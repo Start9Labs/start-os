@@ -1,9 +1,14 @@
-<ion-header style="min-height: unset;">
-  <ion-toolbar *ngIf="patch.data['package-data'][pkgId] as pkg">
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
     <ion-title>Config</ion-title>
     <ion-buttons slot="end" class="ion-padding-end">
       <ion-button fill="clear" [disabled]="loadingText" (click)="resetDefaults()">
-        <ion-icon slot="start" name="refresh-outline"></ion-icon>
+        <ion-icon slot="start" name="refresh"></ion-icon>
         Reset Defaults
       </ion-button>
     </ion-buttons>
@@ -19,17 +24,11 @@
   <ng-template #loaded>
 
     <ng-container *ngIf="patch.data['package-data'][pkgId] as pkg">
-      <ng-container *ngIf="pkg.manifest.config && !pkg.installed.status.configured && !edited">
-        <ion-item class="notifier-item">
-          <ion-label>
-            <h2 style="display: flex; align-items: center; margin-bottom: 3px;">
-              <ion-icon size="small" style="margin-right: 5px" slot="start" color="dark" slot="start" name="alert-circle-outline"></ion-icon>
-              <ion-text style="font-size: smaller;">Initial Config</ion-text>
-            </h2>
-            <p style="font-size: small">To use the default config for {{ pkg.manifest.title }}, click "Save" above.</p>
-          </ion-label>
-        </ion-item>
-      </ng-container>
+      <ion-item>
+        <ion-label>
+          <ion-text color="success">To use the default config for {{ pkg.manifest.title }}, click "Save" below.</ion-text>
+        </ion-label>
+      </ion-item>
 
       <ng-container *ngIf="rec && showRec">
         <ion-item class="rec-item">
@@ -81,13 +80,8 @@
 
 <ion-footer>
   <ion-toolbar *ngIf="patch.data['package-data'][pkgId] as pkg">
-    <ion-buttons slot="start" class="ion-padding-start">
-      <ion-button fill="outline" (click)="dismiss()">
-        Cancel
-      </ion-button>
-    </ion-buttons>
     <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button fill="outline" color="primary" [disabled]="loadingText" (click)="save(pkg)">
+      <ion-button fill="outline" [disabled]="loadingText" (click)="save(pkg)" class="enter-click">
         Save
       </ion-button>
     </ion-buttons>

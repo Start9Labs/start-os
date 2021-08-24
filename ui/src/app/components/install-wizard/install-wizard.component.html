@@ -49,12 +49,12 @@
       <!-- next/finish buttons -->
       <ng-container *ngIf="!(currentSlide.loading$ | async)">
         <!-- next -->
-        <ion-button slot="end" *ngIf="currentBottomBar.next as next" (click)="transitions.next()" fill="outline" class="toolbar-button" color="primary">
+        <ion-button slot="end" *ngIf="currentBottomBar.next as next" (click)="transitions.next()" fill="outline" class="toolbar-button enter-click">
           <ion-text [class.smaller-text]="next.length > 16">{{ next }}</ion-text>
         </ion-button>
 
         <!-- finish -->
-        <ion-button slot="end" *ngIf="currentBottomBar.finish as finish" (click)="transitions.final()" fill="outline" class="toolbar-button" color="primary">
+        <ion-button slot="end" *ngIf="currentBottomBar.finish as finish" (click)="transitions.final()" fill="outline" class="toolbar-button enter-click">
           <ion-text [class.smaller-text]="finish.length > 16">{{ finish }}</ion-text>
         </ion-button>
       </ng-container>
