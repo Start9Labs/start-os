@@ -1,21 +1,11 @@
-use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
-use argon2::Config;
 use emver::Version;
-use futures::try_join;
 use futures::TryStreamExt;
 
-use rand::Rng;
 use serde::Serialize;
-use embassy::util::from_yaml_async_reader;
-use embassy::util::to_yaml_async_writer;
-use embassy::util::Invoke;
-// use embassy::util::PersistencePath;
-use embassy::version::VersionT;
+use embassy::util::{Invoke, to_yaml_async_writer};
 use anyhow::anyhow;
 use embassy::Error;
-// use embassy::{self,Error};
-use embassy::ResultExt;
 
 #[macro_use]
 use embassy::ensure_code;
@@ -28,29 +18,17 @@ pub struct Metadata {
 }
 
 pub async fn create_backup<P: AsRef<Path>>(
-    path: P,
+    mountpoint: P,
+    data_path: P,
     app_id: &str,
-    password: &str,
 ) -> Result<(), embassy::Error> {
-    let path = tokio::fs::canonicalize(path).await?;
+    let path = tokio::fs::canonicalize(mountpoint).await?;
     ensure_code!(
         path.is_dir(),
         embassy::ErrorKind::Filesystem,
         "Backup Path Must Be Directory"
     );
-    let metadata_path = path.join("metadata.yaml");
-    let data_path = path.join("data");
     let volume_path = Path::new(embassy::VOLUMES).join(app_id);
-
-    // let info = crate::apps::info(app_id).await?;
-    // to_yaml_async_writer(
-    //     tokio::fs::File::create(metadata_path).await?,
-    //     &Metadata {
-    //         app_version: info.version,
-    //         os_version: crate::version::Current::new().semver(),
-    //     },
-    // )
-    // .await?;
 
     let exclude = if volume_path.is_dir() {
         let ignore_path = volume_path.join(".backupignore");
@@ -70,6 +48,7 @@ pub async fn create_backup<P: AsRef<Path>>(
             revision: None,
         })
     };
+
     let mut data_cmd = tokio::process::Command::new("duplicity");
     for exclude in exclude {
         if exclude.starts_with('!') {
@@ -83,7 +62,7 @@ pub async fn create_backup<P: AsRef<Path>>(
     }
     let data_res = data_cmd
         .arg(volume_path)
-        .arg(format!("file://{}", data_path.display()))
+        .arg(format!("file://{}", data_path.as_ref().display().to_string()))
         .invoke(embassy::ErrorKind::Duplicity)
         .await;
     data_res?;
@@ -93,9 +72,9 @@ pub async fn create_backup<P: AsRef<Path>>(
 
 pub async fn restore_backup<P: AsRef<Path>>(
     path: P,
+    data_path: P,
     app_id: &str,
-    password: &str,
-) -> Result<(), Error> {
+) -> Result<(), embassy::Error> {
     let path = tokio::fs::canonicalize(path).await?;
     ensure_code!(
         path.is_dir(),
@@ -103,13 +82,12 @@ pub async fn restore_backup<P: AsRef<Path>>(
         "Backup Path Must Be Directory"
     );
     let metadata_path = path.join("metadata.yaml");
-    let data_path = path.join("data");
     let volume_path = Path::new(embassy::VOLUMES).join(app_id);
 
     let mut data_cmd = tokio::process::Command::new("duplicity");
     data_cmd
         .arg("--force")
-        .arg(format!("file://{}", data_path.display()))
+        .arg(format!("file://{:#?}", data_path.as_ref().display().to_string()))
         .arg(&volume_path);
 
     let data_output = data_cmd.status().await?;
@@ -141,37 +119,4 @@ pub async fn restore_backup<P: AsRef<Path>>(
     // }
 
     Ok(())
-}
-
-pub async fn backup_to_partition(
-    logicalname: &str,
-    app_id: &str,
-    password: &str,
-) -> Result<(), Error> {
-    let backup_mount_path = Path::new(embassy::BACKUP_MOUNT_POINT);
-    let guard = embassy::volume::disk::MountGuard::new(logicalname, &backup_mount_path).await?;
-    let backup_dir_path = backup_mount_path.join(embassy::BACKUP_DIR).join(app_id);
-    tokio::fs::create_dir_all(&backup_dir_path).await?;
-
-    let res = create_backup(backup_dir_path, app_id, password).await;
-
-    guard.unmount().await?;
-
-    res
-}
-
-pub async fn restore_from_partition(
-    logicalname: &str,
-    app_id: &str,
-    password: &str,
-) -> Result<(), Error> {
-    let backup_mount_path = Path::new(embassy::BACKUP_MOUNT_POINT);
-    let guard = embassy::volume::disk::MountGuard::new(logicalname, &backup_mount_path).await?;
-    let backup_dir_path = backup_mount_path.join(embassy::BACKUP_DIR).join(app_id);
-
-    let res = restore_backup(backup_dir_path, app_id, password).await;
-
-    guard.unmount().await?;
-
-    res
 }
