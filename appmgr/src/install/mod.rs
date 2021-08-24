@@ -34,7 +34,7 @@ use crate::db::model::{
     StaticFiles,
 };
 use crate::dependencies::update_current_dependents;
-use crate::install::cleanup::update_dependents;
+use crate::install::cleanup::{uninstall, update_dependents};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{DependencyErrors, MainStatus, Status};
@@ -240,7 +240,9 @@ pub async fn download_install_s9pk(
 
     if let Err(e) = res {
         let mut handle = ctx.db.handle();
-        if let Err(e) = cleanup(&ctx, &mut handle, Err(temp_manifest)).await {
+        let mut tx = handle.begin().await?;
+
+        if let Err(e) = cleanup(&ctx, &mut tx, pkg_id, version).await {
             log::error!(
                 "Failed to clean up {}@{}: {}: Adding to broken packages",
                 pkg_id,
@@ -563,7 +565,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         {
             configured &= res.configured;
         }
-        cleanup(&ctx, &mut tx, Ok(prev)).await?;
+        if &prev.manifest.version != version {
+            uninstall(ctx, &mut tx, prev).await?;
+        }
         if let Some(res) = manifest
             .migrations
             .from(&prev_manifest.version, pkg_id, version, &manifest.volumes)

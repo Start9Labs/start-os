@@ -1,11 +1,13 @@
 use std::borrow::Cow;
+use std::path::Path;
 
 use anyhow::anyhow;
 use bollard::Docker;
 use patch_db::DbHandle;
 
+use super::PKG_PUBLIC_DIR;
 use crate::context::RpcContext;
-use crate::db::model::InstalledPackageDataEntry;
+use crate::db::model::{InstalledPackageDataEntry, PackageDataEntry};
 use crate::dependencies::DependencyError;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::Version;
@@ -63,19 +65,75 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
 pub async fn cleanup<Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
-    info: Result<InstalledPackageDataEntry, &Manifest>,
+    id: &PackageId,
+    version: &Version,
 ) -> Result<(), Error> {
-    let man = match info {
-        Ok(pde) => {
-            // TODO
-
-            Cow::Owned(pde.manifest)
+    let pde = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(id)
+        .expect(db)
+        .await?
+        .get(db, true)
+        .await?
+        .to_owned();
+    if let Some(manifest) = match &pde {
+        PackageDataEntry::Installing { manifest, .. } => Some(manifest),
+        PackageDataEntry::Updating { manifest, .. } => {
+            if &manifest.version != version {
+                Some(manifest)
+            } else {
+                None
+            }
         }
-        Err(man) => Cow::Borrowed(man),
-    };
-    ctx.managers
-        .remove(&(man.id.clone(), man.version.clone()))
-        .await;
-    // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
+        _ => {
+            log::warn!("{}: Nothing to clean up!", id);
+            None
+        }
+    } {
+        ctx.managers
+            .remove(&(manifest.id.clone(), manifest.version.clone()))
+            .await;
+        // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
+        let public_dir_path = Path::new(PKG_PUBLIC_DIR).join(id).join(version.as_str());
+    }
+
+    match pde {
+        PackageDataEntry::Installing { .. } => {
+            crate::db::DatabaseModel::new()
+                .package_data()
+                .remove(db, id)
+                .await?;
+        }
+        PackageDataEntry::Updating {
+            installed,
+            manifest,
+            static_files,
+            ..
+        } => {
+            crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(id)
+                .put(
+                    db,
+                    &PackageDataEntry::Installed {
+                        installed,
+                        manifest,
+                        static_files,
+                    },
+                )
+                .await?;
+        }
+        _ => (),
+    }
+
     Ok(()) // TODO
+}
+
+pub async fn uninstall<Db: DbHandle>(
+    ctx: &RpcContext,
+    db: &mut Db,
+    entry: InstalledPackageDataEntry,
+) -> Result<(), Error> {
+    //TODO
+    Ok(())
 }

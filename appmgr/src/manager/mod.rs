@@ -68,9 +68,9 @@ impl ManagerMap {
     ) -> Result<(), Error> {
         let mut lock = self.0.write().await;
         let id = (manifest.id.clone(), manifest.version.clone());
-        if let Some(man) = lock.get(&id) {
+        if let Some(man) = lock.remove(&id) {
             if !man.thread.is_empty().await {
-                return Ok(());
+                man.exit().await?;
             }
         }
         lock.insert(

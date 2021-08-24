@@ -178,7 +178,7 @@ where
 {
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
-    serde_cbor::from_slice(&buffer)
+    serde_cbor::de::from_reader(buffer.as_slice())
         .map_err(anyhow::Error::from)
         .with_kind(crate::ErrorKind::Deserialization)
 }
@@ -678,9 +678,8 @@ impl IoFormat {
             IoFormat::Yaml => {
                 serde_yaml::to_writer(writer, value).with_kind(crate::ErrorKind::Serialization)
             }
-            IoFormat::Cbor => {
-                serde_cbor::to_writer(writer, value).with_kind(crate::ErrorKind::Serialization)
-            }
+            IoFormat::Cbor => serde_cbor::ser::into_writer(value, writer)
+                .with_kind(crate::ErrorKind::Serialization),
             IoFormat::Toml => writer
                 .write_all(
                     &serde_toml::to_vec(
@@ -709,7 +708,12 @@ impl IoFormat {
                 serde_json::to_vec_pretty(value).with_kind(crate::ErrorKind::Serialization)
             }
             IoFormat::Yaml => serde_yaml::to_vec(value).with_kind(crate::ErrorKind::Serialization),
-            IoFormat::Cbor => serde_cbor::to_vec(value).with_kind(crate::ErrorKind::Serialization),
+            IoFormat::Cbor => {
+                let mut res = Vec::new();
+                serde_cbor::ser::into_writer(value, &mut res)
+                    .with_kind(crate::ErrorKind::Serialization)?;
+                Ok(res)
+            }
             IoFormat::Toml => serde_toml::to_vec(
                 &serde_toml::Value::try_from(value).with_kind(crate::ErrorKind::Serialization)?,
             )
@@ -734,7 +738,7 @@ impl IoFormat {
                 serde_yaml::from_reader(reader).with_kind(crate::ErrorKind::Deserialization)
             }
             IoFormat::Cbor => {
-                serde_cbor::from_reader(reader).with_kind(crate::ErrorKind::Deserialization)
+                serde_cbor::de::from_reader(reader).with_kind(crate::ErrorKind::Deserialization)
             }
             IoFormat::Toml | IoFormat::TomlPretty => {
                 let mut s = String::new();
@@ -754,7 +758,7 @@ impl IoFormat {
                 serde_yaml::from_slice(slice).with_kind(crate::ErrorKind::Deserialization)
             }
             IoFormat::Cbor => {
-                serde_cbor::from_slice(slice).with_kind(crate::ErrorKind::Deserialization)
+                serde_cbor::de::from_reader(slice).with_kind(crate::ErrorKind::Deserialization)
             }
             IoFormat::Toml | IoFormat::TomlPretty => {
                 serde_toml::from_slice(slice).with_kind(crate::ErrorKind::Deserialization)
