@@ -185,6 +185,8 @@ pub async fn download_install_s9pk(
         .await;
 
         let mut s9pk_reader = if let Some(cached) = cached {
+            progress.download_complete();
+            progress_model.put(&mut ctx.db.handle(), &progress).await?;
             cached
         } else {
             File::delete(&pkg_cache).await?;
@@ -238,7 +240,7 @@ pub async fn download_install_s9pk(
 
     if let Err(e) = res {
         let mut handle = ctx.db.handle();
-        if let Err(e) = cleanup(&mut handle, Err(temp_manifest)).await {
+        if let Err(e) = cleanup(&ctx, &mut handle, Err(temp_manifest)).await {
             log::error!(
                 "Failed to clean up {}@{}: {}: Adding to broken packages",
                 pkg_id,
@@ -561,7 +563,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         {
             configured &= res.configured;
         }
-        cleanup(&mut tx, Ok(prev)).await?;
+        cleanup(&ctx, &mut tx, Ok(prev)).await?;
         if let Some(res) = manifest
             .migrations
             .from(&prev_manifest.version, pkg_id, version, &manifest.volumes)

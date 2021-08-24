@@ -1,8 +1,10 @@
 use std::borrow::Cow;
 
 use anyhow::anyhow;
+use bollard::Docker;
 use patch_db::DbHandle;
 
+use crate::context::RpcContext;
 use crate::db::model::InstalledPackageDataEntry;
 use crate::dependencies::DependencyError;
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -59,15 +61,21 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
 }
 
 pub async fn cleanup<Db: DbHandle>(
+    ctx: &RpcContext,
     db: &mut Db,
     info: Result<InstalledPackageDataEntry, &Manifest>,
 ) -> Result<(), Error> {
     let man = match info {
         Ok(pde) => {
-            todo!();
+            // TODO
+
             Cow::Owned(pde.manifest)
         }
         Err(man) => Cow::Borrowed(man),
     };
+    ctx.managers
+        .remove(&(man.id.clone(), man.version.clone()))
+        .await;
+    // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
     Ok(()) // TODO
 }
