@@ -1,7 +1,7 @@
 import { Component, Input, Output, SimpleChange, EventEmitter } from '@angular/core'
 import { AbstractFormGroupDirective, FormArray, FormGroup } from '@angular/forms'
-import { AlertController, IonicSafeString, ModalController } from '@ionic/angular'
-import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecBoolean, ValueSpecList, ValueSpecListOf, ValueSpecNumber, ValueSpecString, ValueSpecUnion } from 'src/app/pkg-config/config-types'
+import { AlertButton, AlertController, IonicSafeString, ModalController } from '@ionic/angular'
+import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecBoolean, ValueSpecList, ValueSpecListOf, ValueSpecUnion } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
 import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
@@ -34,17 +34,6 @@ export class FormObjectComponent {
   ) { }
 
   ngOnChanges (changes: { [propName: string]: SimpleChange }) {
-    // @TODO figure out why changes are being triggered so often. If too heavy, switch to ngOnInit and figure out another way to manually reset defaults is executed. Needed because otherwise ObjectListInfo won't be accurate.
-
-    // if ( changes['current'] && changes['current'].previousValue != changes['current'].currentValue ) {
-    //   console.log('CURRENT')
-    // }
-    // if ( changes['formGroup'] && changes['formGroup'].previousValue != changes['formGroup'].currentValue ) {
-    //   console.log('FORM GROUP')
-    // }
-    // if ( changes['objectSpec'] && changes['objectSpec'].previousValue != changes['objectSpec'].currentValue ) {
-    //   console.log('OBJECT SPEC')
-    // }
     // Lists are automatically expanded, but their members are not
     Object.keys(this.objectSpec).forEach(key => {
       const spec = this.objectSpec[key]
@@ -157,12 +146,13 @@ export class FormObjectComponent {
     if (!spec.warning || this.warningAck[key]) return okFn ? okFn() : null
     this.warningAck[key] = true
 
-    const buttons = [
+    const buttons: AlertButton[] = [
       {
         text: 'Ok',
         handler: () => {
           if (okFn) okFn()
         },
+        cssClass: 'enter-click',
       },
     ]
 
@@ -186,7 +176,6 @@ export class FormObjectComponent {
 
   async presentAlertDelete (key: string, index: number) {
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
       header: 'Confirm',
       message: 'Are you sure you want to delete this entry?',
       buttons: [
@@ -199,6 +188,7 @@ export class FormObjectComponent {
           handler: () => {
             this.deleteListItem(key, index)
           },
+          cssClass: 'enter-click',
         },
       ],
     })
@@ -260,7 +250,6 @@ export class FormLabelComponent {
     const alert = await this.alertCtrl.create({
       header: name,
       message: description,
-      buttons: ['Ok'],
     })
     await alert.present()
   }

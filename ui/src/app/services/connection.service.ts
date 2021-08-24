@@ -4,7 +4,6 @@ import { PatchConnection, PatchDbService } from './patch-db/patch-db.service'
 import { HttpService, Method } from './http.service'
 import { distinctUntilChanged } from 'rxjs/operators'
 import { ConfigService } from './config.service'
-import { pauseFor } from '../util/misc.util'
 
 @Injectable({
   providedIn: 'root',

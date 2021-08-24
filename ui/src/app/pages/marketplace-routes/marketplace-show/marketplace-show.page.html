@@ -140,18 +140,6 @@
           <ion-row>
             <ion-col sizeSm="12" sizeMd="6">
               <ion-item-group>
-                <ion-item detail="false">
-                  <ion-label>
-                    <h2>Service ID</h2>
-                    <p>{{ pkg.manifest.id }}</p>
-                  </ion-label>
-                </ion-item>
-                <ion-item detail="false">
-                  <ion-label>
-                    <h2>Categories</h2>
-                    <p>{{ pkg.categories.join(', ') }}</p>
-                  </ion-label>
-                </ion-item>
                 <ion-item button detail="false" (click)="presentAlertVersions()">
                   <ion-label>
                     <h2>Other Versions</h2>
@@ -195,20 +183,6 @@
                   <ion-label>
                     <h2>Support Site</h2>
                     <p>{{ pkg.manifest['support-site'] }}</p>
-                  </ion-label>
-                  <ion-icon slot="end" name="open-outline"></ion-icon>
-                </ion-item>
-                <ion-item [href]="pkg.manifest['marketing-site']" target="_blank" detail="false">
-                  <ion-label>
-                    <h2>Marketing Site</h2>
-                    <p>{{ pkg.manifest['marketing-site'] }}</p>
-                  </ion-label>
-                  <ion-icon slot="end" name="open-outline"></ion-icon>
-                </ion-item>
-                <ion-item *ngIf="pkg.manifest['donation-url'] as donationUrl" [href]="donationUrl" target="_blank" detail="false">
-                  <ion-label>
-                    <h2>Donation Site</h2>
-                    <p>{{ donationUrl }}</p>
                   </ion-label>
                   <ion-icon slot="end" name="open-outline"></ion-icon>
                 </ion-item>

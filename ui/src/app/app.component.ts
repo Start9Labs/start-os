@@ -1,4 +1,4 @@
-import { Component } from '@angular/core'
+import { Component, HostListener } from '@angular/core'
 import { Storage } from '@ionic/storage-angular'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/embassy-api.service'
@@ -24,6 +24,15 @@ import { Subscription } from 'rxjs'
   styleUrls: ['app.component.scss'],
 })
 export class AppComponent {
+  @HostListener('document:keypress', ['$event'])
+  handleKeyboardEvent (event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      const elems = document.getElementsByClassName('enter-click')
+      const elem = elems[elems.length - 1] as HTMLButtonElement
+      if (elem) elem.click()
+    }
+  }
+
   ServerStatus = ServerStatus
   showMenu = false
   selectedIndex = 0
@@ -143,6 +152,47 @@ export class AppComponent {
     window.open(url, '_blank')
   }
 
+  async presentAlertLogout () {
+    // @TODO warn user no way to recover Embassy if logout and forget password. Maybe require password to logout?
+    const alert = await this.alertCtrl.create({
+      header: 'Caution',
+      message: 'Are you sure you want to logout?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Logout',
+          cssClass: 'enter-click',
+          handler: () => {
+            this.logout()
+          },
+        },
+      ],
+    })
+
+    await alert.present()
+  }
+
+  private async logout () {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Logging out...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.logout({ })
+      this.authService.setUnverified()
+    } catch (e) {
+      await this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
   private watchConnection (): Subscription {
     return this.connectionService.watchFailure$()
     .pipe(
@@ -234,7 +284,7 @@ export class AppComponent {
     })
   }
 
-  async presentAlertRefreshNeeded () {
+  private async presentAlertRefreshNeeded () {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Refresh Needed',
@@ -242,6 +292,7 @@ export class AppComponent {
       buttons: [
         {
           text: 'Refresh Page',
+          cssClass: 'enter-click',
           handler: () => {
             location.reload()
           },
@@ -249,46 +300,6 @@ export class AppComponent {
       ],
     })
     await alert.present()
-  }
-
-  async presentAlertLogout () {
-    // @TODO warn user no way to recover Embassy if logout and forget password. Maybe require password to logout?
-    const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
-      header: 'Caution',
-      message: 'Are you sure you want to logout?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Logout',
-          handler: () => {
-            this.logout()
-          },
-        },
-      ],
-    })
-    await alert.present()
-  }
-
-  private async logout () {
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      message: 'Logging out...',
-      cssClass: 'loader',
-    })
-    await loader.present()
-
-    try {
-      await this.embassyApi.logout({ })
-      this.authService.setUnverified()
-    } catch (e) {
-      await this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
   }
 
   private async presentToastNotifications () {

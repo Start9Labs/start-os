@@ -17,27 +17,5 @@ export class SSHService {
     return this.keys$.asObservable()
   }
 
-  async getKeys (): Promise<void> {
-    const keys = await this.embassyApi.getSshKeys({ })
-    this.keys$.next(keys)
-  }
 
-  async add (pubkey: string): Promise<void> {
-    const key = await this.embassyApi.addSshKey({ pubkey })
-    const keys = this.keys$.getValue()
-    this.keys$.next({ ...keys, ...key })
-  }
-
-  async delete (hash: string): Promise<void> {
-    await this.embassyApi.deleteSshKey({ hash })
-    const keys = this.keys$.getValue()
-
-    const filtered = Object.keys(keys)
-    .filter(h => h !== hash)
-    .reduce((res, h) => {
-      res[h] = keys[h]
-      return res
-    }, { })
-    this.keys$.next(filtered)
-  }
 }

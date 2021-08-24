@@ -1,5 +1,10 @@
 <ion-header>
   <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
     <ion-title>{{ title }}</ion-title>
   </ion-toolbar>
 </ion-header>
@@ -15,13 +20,8 @@
 
 <ion-footer>
   <ion-toolbar>
-    <ion-buttons slot="start" class="ion-padding-start">
-      <ion-button fill="clear" (click)="dismiss()">
-        Cancel
-      </ion-button>
-    </ion-buttons>
     <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button *ngFor="let button of buttons" fill="clear" (click)="handleClick(button)">
+      <ion-button *ngFor="let button of buttons" fill="outline" (click)="handleClick(button)">
         {{ button.text }}
       </ion-button>
     </ion-buttons>
