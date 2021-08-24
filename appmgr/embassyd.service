@@ -1,0 +1,14 @@
+[Unit]
+Description=Embassy Daemon
+After=network.target systemd-time-wait-sync.service
+Requires=network.target
+Wants=avahi-daemon.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/embassyd -vvv
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
