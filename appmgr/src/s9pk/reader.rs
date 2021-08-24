@@ -121,8 +121,13 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
         })
     }
 
+    pub async fn manifest_raw<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
+        self.read_handle(self.toc.manifest).await
+    }
+
     pub async fn manifest(&mut self) -> Result<Manifest, Error> {
-        serde_cbor::from_slice(&self.read_handle(self.toc.manifest).await?.to_vec().await?)
+        let slice = self.manifest_raw().await?.to_vec().await?;
+        serde_cbor::de::from_reader(slice.as_slice())
             .with_ctx(|_| (crate::ErrorKind::ParseS9pk, "Deserializing Manifest (CBOR)"))
     }
 
