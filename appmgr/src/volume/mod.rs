@@ -17,10 +17,8 @@ pub mod disk;
 pub const PKG_VOLUME_DIR: &'static str = "/mnt/embassy-os/volumes/package-data";
 pub const BACKUP_DIR: &'static str = "/mnt/embassy-os-backups/EmbassyBackups";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-#[serde(untagged)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum VolumeId<S: AsRef<str> = String> {
-    #[serde(rename = "BACKUP")]
     Backup,
     Custom(Id<S>),
 }
@@ -64,6 +62,14 @@ where
             "BACKUP" => VolumeId::Backup,
             _ => VolumeId::Custom(Id::try_from(unchecked.0).map_err(serde::de::Error::custom)?),
         })
+    }
+}
+impl<S: AsRef<str>> Serialize for VolumeId<S> {
+    fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
+    where
+        Ser: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_ref())
     }
 }
 
