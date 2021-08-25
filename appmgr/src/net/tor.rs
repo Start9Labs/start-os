@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::time::Duration;
 
 use anyhow::anyhow;
 use futures::future::BoxFuture;
@@ -58,8 +59,9 @@ struct HiddenServiceConfig {
 }
 
 pub struct TorControllerInner {
-    connection: AuthenticatedConnection,
-    services: HashMap<(PackageId, InterfaceId), TorSecretKeyV3>,
+    sock_addr: SocketAddr,
+    connection: Option<AuthenticatedConnection>,
+    services: HashMap<(PackageId, InterfaceId), (TorSecretKeyV3, Ipv4Addr)>,
 }
 impl TorControllerInner {
     async fn add<'a, I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)>>(
@@ -71,32 +73,36 @@ impl TorControllerInner {
         for (interface_id, interface, key) in interfaces {
             let id = (pkg_id.clone(), interface_id);
             match self.services.get(&id) {
-                Some(k) if k != &key => {
+                Some(k) if k.0 != key => {
                     self.remove(pkg_id, std::iter::once(id.1.clone())).await?;
                 }
-                Some(_) => return Ok(()),
+                Some(_) => return Ok(()), // TODO: is this right??? if a single interface key matches we terminate the whole loop??
                 None => (),
             }
             if let Some(tor_cfg) = &interface.tor_config {
-                self.connection
-                    .add_onion_v3(
-                        &key,
-                        false,
-                        false,
-                        false,
-                        None,
-                        &mut tor_cfg
-                            .port_mapping
-                            .iter()
-                            .map(|(external, internal)| {
-                                (external.0, SocketAddr::from((ip, internal.0)))
-                            })
-                            .collect::<Vec<_>>()
-                            .iter(),
-                    )
-                    .await?;
+                match self.connection.as_mut() {
+                    None => unreachable!(),
+                    Some(c) => {
+                        c.add_onion_v3(
+                            &key,
+                            false,
+                            false,
+                            false,
+                            None,
+                            &mut tor_cfg
+                                .port_mapping
+                                .iter()
+                                .map(|(external, internal)| {
+                                    (external.0, SocketAddr::from((ip, internal.0)))
+                                })
+                                .collect::<Vec<_>>()
+                                .iter(),
+                        )
+                        .await?;
+                    }
+                }
             }
-            self.services.insert(id, key);
+            self.services.insert(id, (key, ip));
         }
         Ok(())
     }
@@ -107,14 +113,18 @@ impl TorControllerInner {
         interfaces: I,
     ) -> Result<(), Error> {
         for interface_id in interfaces {
-            if let Some(key) = self.services.remove(&(pkg_id.clone(), interface_id)) {
-                self.connection
-                    .del_onion(
-                        &key.public()
-                            .get_onion_address()
-                            .get_address_without_dot_onion(),
-                    )
-                    .await?;
+            if let Some((key, ip)) = self.services.remove(&(pkg_id.clone(), interface_id)) {
+                match self.connection.as_mut() {
+                    None => unreachable!(),
+                    Some(c) => {
+                        c.del_onion(
+                            &key.public()
+                                .get_onion_address()
+                                .get_address_without_dot_onion(),
+                        )
+                        .await?;
+                    }
+                }
             }
         }
         Ok(())
@@ -134,9 +144,70 @@ impl TorControllerInner {
         let mut connection: AuthenticatedConnection = conn.into_authenticated().await;
         connection.set_async_event_handler(Some(event_handler));
         Ok(TorControllerInner {
-            connection,
+            sock_addr: tor_control,
+            connection: Some(connection),
             services: HashMap::new(),
         })
+    }
+
+    async fn replace(&mut self) -> Result<(), Error> {
+        let connection = self.connection.take();
+        match connection {
+            // this should be unreachable because the only time when this should be none is for the duration of tor's
+            // restart lower down in this method, which is held behind a Mutex
+            None => unreachable!(),
+            Some(mut c) => {
+                // when connection closes below, tor daemon is restarted
+                c.take_ownership().await?;
+                // this should close the connection
+                drop(c);
+
+                // wait for environment to restart tor
+                // TODO: consider taking over tor administration to get better visibility into whether it is running or
+                // not
+                tokio::time::sleep(Duration::from_secs(1)).await;
+
+                // attempt to reconnect to the control socket, not clear how long this should take
+                let stream;
+                loop {
+                    match TcpStream::connect(self.sock_addr).await {
+                        Ok(s) => {
+                            stream = s;
+                            break;
+                        }
+                        Err(e) => {
+                            log::info!("Failed to reconnect to tor control socket: {}", e);
+                            tokio::time::sleep(Duration::from_secs(1)).await;
+                        }
+                    }
+                }
+                let mut new_conn = torut::control::UnauthenticatedConn::new(stream);
+                let auth = new_conn
+                    .load_protocol_info()
+                    .await?
+                    .make_auth_data()?
+                    .ok_or_else(|| anyhow!("Cookie Auth Not Available"))
+                    .with_kind(crate::ErrorKind::Tor)?;
+                new_conn.authenticate(&auth).await?;
+                let mut new_connection: AuthenticatedConnection =
+                    new_conn.into_authenticated().await;
+                new_connection.set_async_event_handler(Some(event_handler));
+
+                // replace the connection object here on the new copy of the tor daemon
+                self.connection.replace(new_connection);
+
+                // move old service map to temporary structure
+                let old_services = self.services;
+
+                // replace internal service map with new map so we can take advantage of internal add method
+                self.services = HashMap::new();
+
+                for service in old_services {
+                    todo!()
+                }
+            }
+        }
+        Ok(())
     }
 }
 
