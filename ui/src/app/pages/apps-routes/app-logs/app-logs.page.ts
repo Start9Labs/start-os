@@ -1,8 +1,5 @@
-import { Component, ViewChild } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
+import { Component } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { IonContent } from '@ionic/angular'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-logs',
@@ -10,68 +7,24 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
   styleUrls: ['./app-logs.page.scss'],
 })
 export class AppLogsPage {
-  @ViewChild(IonContent, { static: false }) private content: IonContent
   pkgId: string
   loading = true
   needInfinite = true
   before: string
 
   constructor (
-    private readonly route: ActivatedRoute,
-    private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
   ) { }
 
-  async ngOnInit () {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.getLogs()
-  }
-
-  async refresh () {
-    this.before = undefined
-    this.loading = true
-    const container = document.getElementById('container')
-    const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-    while (container.firstChild) { container.removeChild(container.firstChild) }
-    container.append(newLogs)
-    this.getLogs()
-  }
-
-  async getLogs () {
-    const limit = 200
-    try {
-      // get logs
-      const logs = await this.embassyApi.getPackageLogs({
-        id: this.pkgId,
-        before: this.before,
-        limit,
+  fetchFetchLogs (): Function {
+    return async (params: { after?: string, before?: string, limit: number }) => {
+      const pkgId = this.pkgId
+      return this.embassyApi.getPackageLogs({
+        id: pkgId,
+        after: params.after,
+        before: params.before,
+        limit: params.limit,
       })
-
-      this.before = logs[0].timestamp
-
-      const container = document.getElementById('container')
-      const beforeContainerHeight = container.scrollHeight
-      const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n') + (logs.length ? '\n\n' : '')
-      container.prepend(newLogs)
-      const afterContainerHeight = container.scrollHeight
-
-      // scroll down
-      scrollBy(0, afterContainerHeight - beforeContainerHeight)
-      this.content.scrollToPoint(0, afterContainerHeight - beforeContainerHeight)
-
-      if (logs.length < limit) {
-        this.needInfinite = false
-      }
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      this.loading = false
     }
-  }
-
-  async loadData (e: any): Promise<void> {
-    await this.getLogs()
-    e.target.complete()
   }
 }
