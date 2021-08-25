@@ -4,6 +4,7 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppLogsPage } from './app-logs.page'
 import { SharingModule } from 'src/app/modules/sharing.module'
+import { LogsPageModule } from 'src/app/components/logs/logs.module'
 
 const routes: Routes = [
   {
@@ -18,6 +19,7 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     SharingModule,
+    LogsPageModule,
   ],
   declarations: [AppLogsPage],
 })
