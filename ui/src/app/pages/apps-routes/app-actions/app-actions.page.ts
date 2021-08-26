@@ -143,6 +143,7 @@ export class AppActionsPage {
   }
 
   private async executeAction (pkgId: string, actionId: string, input?: object): Promise<boolean> {
+    console.log('executing action')
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Executing action...',
