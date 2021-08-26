@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core'
-import { pauseFor } from '../state.service'
-import { ApiService } from './api.service'
+import { ApiService, EmbassyDrive, RecoveryDrive, SetupEmbassyRes, TransferProgressRes, VerifyProductKeyRes } from './api.service'
 import { HttpService } from './http.service'
 
 @Injectable({
@@ -12,64 +11,45 @@ export class LiveApiService extends ApiService {
     private readonly http: HttpService
   ) { super() }
 
-  async verifyProductKey(key) {
-    await pauseFor(2000)
-    return { 
-      "is-recovering": false,
-      "tor-address": null 
-    }
+  async verifyProductKey() {
+    return this.http.rpcRequest<VerifyProductKeyRes>({
+      method: 'verifyProductKey',
+      params: {}
+    })
   }
 
   async getDataTransferProgress() {
-    tries = Math.min(tries + 1, 4)
-    return {
-      'bytes-transfered': tries,
-      'total-bytes': 4
-    }
+    return this.http.rpcRequest<TransferProgressRes>({
+      method: 'getDataTransferProgress',
+      params: {}
+    })
   }
 
   async getEmbassyDrives() {
-    return [
-      {
-        logicalname: 'Name1',
-        labels: ['label 1', 'label 2'],
-        capacity: 1600.66666,
-        used: 200.1255312,
-      },
-      {
-        logicalname: 'Name2',
-        labels: [],
-        capacity: 1600.01234,
-        used: 0.00,
-      }
-    ]
+    return this.http.rpcRequest<EmbassyDrive[]>({
+      method: 'getEmbassyDrives',
+      params: {}
+    })
   }
 
   async getRecoveryDrives() {
-    await pauseFor(2000)
-    return [
-      {
-        logicalname: 'Name1',
-        version: '0.3.3',
-        name: 'My Embassy'
-      },
-      {
-        logicalname: 'Name2',
-        version: '0.2.7',
-        name: 'My Embassy'
-      }
-    ]
+    return this.http.rpcRequest<RecoveryDrive[]>({
+      method: 'getRecoveryDrives',
+      params: {}
+    })
   }
 
   async verifyRecoveryPassword(logicalname, password) {
-    await pauseFor(2000)
-    return password.length > 8
+    return this.http.rpcRequest<boolean>({
+      method: 'verifyRecoveryPassword',
+      params: {logicalname, password}
+    })
   }
 
   async setupEmbassy (setupInfo) {
-    await pauseFor(2000)
-    return { "tor-address": 'asdfasdfasdf.onion' }
+    return this.http.rpcRequest<SetupEmbassyRes>({
+      method: 'setupEmbassy',
+      params: setupInfo
+    })
   }
 }
-
-let tries = 0

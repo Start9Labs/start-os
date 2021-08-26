@@ -9,6 +9,7 @@ import { map, take } from 'rxjs/operators'
 export class HttpService {
   private unauthorizedApiResponse$ = new Subject()
   fullUrl: string
+  productKey: string
 
   constructor (
     private readonly http: HttpClient,
@@ -21,11 +22,11 @@ export class HttpService {
     return this.unauthorizedApiResponse$.asObservable()
   }
 
-  async rpcRequest<T> (rpcOpts: RPCOptions): Promise<T> {
-    rpcOpts.params = rpcOpts.params || { }
+  async rpcRequest<T> (body: RPCOptions): Promise<T> {
+
     const httpOpts = {
       method: Method.POST,
-      body: rpcOpts,
+      body,
       url: `this.fullUrl`,
     }
 
@@ -39,45 +40,35 @@ export class HttpService {
     if (isRpcSuccess(res)) return res.result
   }
 
-  async httpRequest<T> (httpOpts: HttpOptions): Promise<T> {
-    if (httpOpts.withCredentials !== false) {
-      httpOpts.withCredentials = true
-    }
+  async httpRequest<T> (httpOpts: {
+        body: RPCOptions;
+        url: string;
+    }): Promise<T> {
 
     const urlIsRelative = httpOpts.url.startsWith('/')
     const url = urlIsRelative ?
       this.fullUrl + httpOpts.url :
       httpOpts.url
 
-    Object.keys(httpOpts.params || { }).forEach(key => {
-      if (httpOpts.params[key] === undefined) {
-        delete httpOpts.params[key]
-      }
-    })
-
     const options = {
-      responseType: httpOpts.responseType || 'json',
-      body: httpOpts.body,
+      responseType: 'arraybuffer',
+      body: await AES_CTR.encryptPbkdf2( 'asdf', encodeUtf8( JSON.stringify(httpOpts.body))),
       observe: 'events',
       reportProgress: false,
-      withCredentials: httpOpts.withCredentials,
-      headers: httpOpts.headers,
-      params: httpOpts.params,
-      timeout: httpOpts.timeout,
+      headers: {
+        'Content-Encoding': 'aesctr256',
+        'Content-Type': 'application/json'
+      },
+      // one minute
+      timeout: 60000,
     } as any
 
-    let req: Observable<{ body: T }>
-    switch (httpOpts.method) {
-      case Method.GET:    req = this.http.get(url, options) as any; break
-      case Method.POST:   req = this.http.post(url, httpOpts.body, options) as any; break
-      case Method.PUT:    req = this.http.put(url, httpOpts.body, options) as any; break
-      case Method.PATCH:  req = this.http.patch(url, httpOpts.body, options) as any; break
-      case Method.DELETE: req = this.http.delete(url, options) as any; break
-    }
+    const req = this.http.post(url, httpOpts.body, options)
 
-    return (httpOpts.timeout ? withTimeout(req, httpOpts.timeout) : req)
+    return (withTimeout(req, 60000))
       .toPromise()
-      .then(res => res.body)
+      .then(res => AES_CTR.decryptPbkdf2('asdf', new Uint8Array(res)))
+      .then(res => JSON.parse(decodeUtf8(res)))
       .catch(e => { throw new HttpError(e) })
   }
 }
@@ -178,8 +169,8 @@ function withTimeout<U> (req: Observable<U>, timeout: number): Observable<U> {
 }
 
 type AES_CTR = {
-  encryptPbkdf2: (secretKey: string, messageBuffer: Uint8Array) => Promise<{ cipher: Uint8Array, counter: Uint8Array, salt: Uint8Array }>
-  decryptPbkdf2: (secretKey, a: { cipher: Uint8Array, counter: Uint8Array, salt: Uint8Array }) => Promise<Uint8Array>
+  encryptPbkdf2: (secretKey: string, messageBuffer: Uint8Array) => Promise<Uint8Array>
+  decryptPbkdf2: (secretKey, arr: Uint8Array) => Promise<Uint8Array>
 }
 
 export const AES_CTR: AES_CTR = {
@@ -191,10 +182,12 @@ export const AES_CTR: AES_CTR = {
 
     return window.crypto.subtle.encrypt(algorithm, key, messageBuffer)
       .then(encrypted => new Uint8Array(encrypted))
-      .then(cipher => ({ cipher, counter, salt }))
+      .then(cipher => new Uint8Array([...counter,...salt,...cipher]))
   },
-  decryptPbkdf2: async (secretKey: string, a: { cipher: Uint8Array, counter: Uint8Array, salt: Uint8Array }) =>  {
-    const { cipher, counter, salt } = a
+  decryptPbkdf2: async (secretKey: string, arr: Uint8Array) =>  {
+    const counter = arr.slice(0, 16)
+    const salt = arr.slice(16, 32)
+    const cipher = arr.slice(32)
     const { key } = await pbkdf2(secretKey, { name: 'AES-CTR', length: 256 }, salt)
     const algorithm = { name: 'AES-CTR', counter, length: 64 };
     
