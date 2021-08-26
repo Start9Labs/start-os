@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import { iosTransitionAnimation, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
+import { AES_CTR, decodeUtf8, encodeUtf8 } from 'src/app/services/api/http.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -20,6 +21,12 @@ export class ProductKeyPage {
   ) {}
 
   async submit () {
+
+    const ret = await AES_CTR.encryptPbkdf2(this.productKey, encodeUtf8('hello world'))
+    const arr = await AES_CTR.decryptPbkdf2(this.productKey, ret)
+
+    console.log(decodeUtf8(arr))
+
     if(!this.productKey) return this.error = "Must enter product key"
 
     const loader = await this.loadingCtrl.create({
