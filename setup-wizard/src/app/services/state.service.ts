@@ -8,8 +8,6 @@ import { ApiService, EmbassyDrive, RecoveryDrive } from './api/api.service'
 export class StateService {
   polling = false
 
-  productKey: string
-
   embassyDrive: EmbassyDrive;
   embassyPassword: string
   recoveryDrive: RecoveryDrive;

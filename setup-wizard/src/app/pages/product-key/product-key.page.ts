@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { iosTransitionAnimation, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { AES_CTR, decodeUtf8, encodeUtf8 } from 'src/app/services/api/http.service'
+import { HttpService } from 'src/app/services/api/http.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -18,15 +18,10 @@ export class ProductKeyPage {
     private stateService: StateService,
     private apiService: ApiService,
     private loadingCtrl: LoadingController,
+    private httpService: HttpService
   ) {}
 
   async submit () {
-
-    const ret = await AES_CTR.encryptPbkdf2(this.productKey, encodeUtf8('hello world'))
-    const arr = await AES_CTR.decryptPbkdf2(this.productKey, ret)
-
-    console.log(decodeUtf8(arr))
-
     if(!this.productKey) return this.error = "Must enter product key"
 
     const loader = await this.loadingCtrl.create({
@@ -36,7 +31,7 @@ export class ProductKeyPage {
 
     try {
       const state = await this.apiService.verifyProductKey(this.productKey)
-      this.stateService.productKey = this.productKey
+      this.httpService.productKey = this.productKey
       if(state['is-recovering']) {
         await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward', animation: iosTransitionAnimation })
       } else if (!!state['tor-address']) {
@@ -47,6 +42,7 @@ export class ProductKeyPage {
       }
     } catch (e) {
       this.error = e.message
+      this.httpService.productKey = undefined
     } finally {
       loader.dismiss()
     }
