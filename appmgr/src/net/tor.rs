@@ -31,7 +31,6 @@ impl TorController {
     }
 
     pub async fn add<
-        'a,
         I: IntoIterator<Item = (InterfaceId, TorConfig, TorSecretKeyV3)> + Clone,
     >(
         &self,
@@ -90,7 +89,7 @@ impl TorControllerInner {
                 Some(k) if k.0 != key => {
                     self.remove(pkg_id, std::iter::once(id.1.clone())).await?;
                 }
-                Some(_) => return Ok(()), // TODO: is this right??? if a single interface key matches we terminate the whole loop??
+                Some(_) => continue,
                 None => (),
             }
             match self.connection.as_mut() {
@@ -114,7 +113,7 @@ impl TorControllerInner {
                     .await?;
                 }
             }
-            self.services.insert(id, (key, tor_cfg.clone(), ip));
+            self.services.insert(id, (key, tor_cfg, ip));
         }
         Ok(())
     }
