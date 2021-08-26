@@ -9,7 +9,7 @@ lazy_static::lazy_static! {
     static ref CLIENT: reqwest::Client = reqwest::Client::builder().proxy(PROXY.clone()).build().expect("CLIENT");
 }
 
-async fn tor_health_check_daemon(tor_controller: &TorController) {
+pub async fn tor_health_check_daemon(tor_controller: &TorController) {
     loop {
         // call out to tor address
         let onion = tor_controller.embassyd_onion().await;

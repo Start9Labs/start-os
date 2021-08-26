@@ -17,9 +17,9 @@ pub mod tor;
 pub mod wifi;
 
 pub struct NetController {
-    tor: TorController,
+    pub tor: TorController,
     #[cfg(feature = "avahi")]
-    mdns: MdnsController,
+    pub mdns: MdnsController,
     // nginx: NginxController, // TODO
 }
 impl NetController {
