@@ -24,7 +24,7 @@ pub struct NetController {
 impl NetController {
     pub async fn init(tor_control: SocketAddr) -> Result<Self, Error> {
         Ok(Self {
-            tor: TorController::init(tor_control).await?,
+            tor: TorController::init(todo!(), todo!(), tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
         })

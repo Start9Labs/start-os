@@ -8,9 +8,9 @@ use futures::FutureExt;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
-use torut::onion::TorSecretKeyV3;
+use torut::onion::{OnionAddressV3, TorSecretKey, TorSecretKeyV3};
 
-use super::interface::{Interface, InterfaceId, TorConfig};
+use super::interface::{InterfaceId, TorConfig};
 use crate::s9pk::manifest::PackageId;
 use crate::{Error, ResultExt as _};
 
@@ -20,15 +20,19 @@ fn event_handler(event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), Co
 
 pub struct TorController(Mutex<TorControllerInner>);
 impl TorController {
-    pub async fn init(tor_control: SocketAddr) -> Result<Self, Error> {
+    pub async fn init(
+        embassyd_addr: SocketAddr,
+        embassyd_tor_key: TorSecretKeyV3,
+        tor_control: SocketAddr,
+    ) -> Result<Self, Error> {
         Ok(TorController(Mutex::new(
-            TorControllerInner::init(tor_control).await?,
+            TorControllerInner::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
         )))
     }
 
     pub async fn add<
         'a,
-        I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
+        I: IntoIterator<Item = (InterfaceId, TorConfig, TorSecretKeyV3)> + Clone,
     >(
         &self,
         pkg_id: &PackageId,
@@ -45,6 +49,14 @@ impl TorController {
     ) -> Result<(), Error> {
         self.0.lock().await.remove(pkg_id, interfaces).await
     }
+
+    pub async fn replace(&self) -> Result<(), Error> {
+        self.0.lock().await.replace().await
+    }
+
+    pub async fn embassyd_onion(&self) -> OnionAddressV3 {
+        self.0.lock().await.embassyd_onion()
+    }
 }
 
 type AuthenticatedConnection = AuthenticatedConn<
@@ -59,18 +71,20 @@ struct HiddenServiceConfig {
 }
 
 pub struct TorControllerInner {
-    sock_addr: SocketAddr,
+    embassyd_addr: SocketAddr,
+    embassyd_tor_key: TorSecretKeyV3,
+    control_addr: SocketAddr,
     connection: Option<AuthenticatedConnection>,
-    services: HashMap<(PackageId, InterfaceId), (TorSecretKeyV3, Ipv4Addr)>,
+    services: HashMap<(PackageId, InterfaceId), (TorSecretKeyV3, TorConfig, Ipv4Addr)>,
 }
 impl TorControllerInner {
-    async fn add<'a, I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)>>(
+    async fn add<'a, I: IntoIterator<Item = (InterfaceId, TorConfig, TorSecretKeyV3)>>(
         &mut self,
         pkg_id: &PackageId,
         ip: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
-        for (interface_id, interface, key) in interfaces {
+        for (interface_id, tor_cfg, key) in interfaces {
             let id = (pkg_id.clone(), interface_id);
             match self.services.get(&id) {
                 Some(k) if k.0 != key => {
@@ -79,30 +93,28 @@ impl TorControllerInner {
                 Some(_) => return Ok(()), // TODO: is this right??? if a single interface key matches we terminate the whole loop??
                 None => (),
             }
-            if let Some(tor_cfg) = &interface.tor_config {
-                match self.connection.as_mut() {
-                    None => unreachable!(),
-                    Some(c) => {
-                        c.add_onion_v3(
-                            &key,
-                            false,
-                            false,
-                            false,
-                            None,
-                            &mut tor_cfg
-                                .port_mapping
-                                .iter()
-                                .map(|(external, internal)| {
-                                    (external.0, SocketAddr::from((ip, internal.0)))
-                                })
-                                .collect::<Vec<_>>()
-                                .iter(),
-                        )
-                        .await?;
-                    }
+            match self.connection.as_mut() {
+                None => unreachable!(),
+                Some(c) => {
+                    c.add_onion_v3(
+                        &key,
+                        false,
+                        false,
+                        false,
+                        None,
+                        &mut tor_cfg
+                            .port_mapping
+                            .iter()
+                            .map(|(external, internal)| {
+                                (external.0, SocketAddr::from((ip, internal.0)))
+                            })
+                            .collect::<Vec<_>>()
+                            .iter(),
+                    )
+                    .await?;
                 }
             }
-            self.services.insert(id, (key, ip));
+            self.services.insert(id, (key, tor_cfg.clone(), ip));
         }
         Ok(())
     }
@@ -113,7 +125,7 @@ impl TorControllerInner {
         interfaces: I,
     ) -> Result<(), Error> {
         for interface_id in interfaces {
-            if let Some((key, ip)) = self.services.remove(&(pkg_id.clone(), interface_id)) {
+            if let Some((key, cfg, ip)) = self.services.remove(&(pkg_id.clone(), interface_id)) {
                 match self.connection.as_mut() {
                     None => unreachable!(),
                     Some(c) => {
@@ -130,7 +142,11 @@ impl TorControllerInner {
         Ok(())
     }
 
-    async fn init(tor_control: SocketAddr) -> Result<Self, Error> {
+    async fn init(
+        embassyd_addr: SocketAddr,
+        embassyd_tor_key: TorSecretKeyV3,
+        tor_control: SocketAddr,
+    ) -> Result<Self, Error> {
         let mut conn = torut::control::UnauthenticatedConn::new(
             TcpStream::connect(tor_control).await?, // TODO
         );
@@ -144,7 +160,9 @@ impl TorControllerInner {
         let mut connection: AuthenticatedConnection = conn.into_authenticated().await;
         connection.set_async_event_handler(Some(event_handler));
         Ok(TorControllerInner {
-            sock_addr: tor_control,
+            embassyd_addr,
+            embassyd_tor_key,
+            control_addr: tor_control,
             connection: Some(connection),
             services: HashMap::new(),
         })
@@ -170,7 +188,7 @@ impl TorControllerInner {
                 // attempt to reconnect to the control socket, not clear how long this should take
                 let stream;
                 loop {
-                    match TcpStream::connect(self.sock_addr).await {
+                    match TcpStream::connect(self.control_addr).await {
                         Ok(s) => {
                             stream = s;
                             break;
@@ -196,18 +214,25 @@ impl TorControllerInner {
                 // replace the connection object here on the new copy of the tor daemon
                 self.connection.replace(new_connection);
 
-                // move old service map to temporary structure
-                let old_services = self.services;
+                // swap empty map for owned old service map
+                let old_services = std::mem::replace(&mut self.services, HashMap::new());
 
-                // replace internal service map with new map so we can take advantage of internal add method
-                self.services = HashMap::new();
-
-                for service in old_services {
-                    todo!()
+                // re add all of the services on the new control socket
+                for ((package_id, interface_id), (tor_key, tor_cfg, ipv4)) in old_services {
+                    self.add(
+                        &package_id,
+                        ipv4,
+                        std::iter::once((interface_id, tor_cfg, tor_key)),
+                    )
+                    .await?;
                 }
             }
         }
         Ok(())
+    }
+
+    fn embassyd_onion(&self) -> OnionAddressV3 {
+        self.embassyd_tor_key.public().get_onion_address()
     }
 }
 
