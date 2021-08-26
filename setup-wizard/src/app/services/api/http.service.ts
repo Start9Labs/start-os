@@ -176,3 +176,69 @@ function withTimeout<U> (req: Observable<U>, timeout: number): Observable<U> {
     interval(timeout).pipe(take(1), map(() => { throw new Error('timeout') })),
   )
 }
+
+type AES_CTR = {
+  encryptPbkdf2: (secretKey: string, messageBuffer: Uint8Array) => Promise<{ cipher: Uint8Array, counter: Uint8Array, salt: Uint8Array }>
+  decryptPbkdf2: (secretKey, a: { cipher: Uint8Array, counter: Uint8Array, salt: Uint8Array }) => Promise<Uint8Array>
+}
+
+export const AES_CTR: AES_CTR = {
+  encryptPbkdf2: async (secretKey: string, messageBuffer: Uint8Array) =>  {
+
+    const { key, salt } = await pbkdf2(secretKey, { name: 'AES-CTR', length: 256 })
+    const counter = window.crypto.getRandomValues(new Uint8Array(16))
+    const algorithm = { name: 'AES-CTR', counter, length: 64 }
+
+    return window.crypto.subtle.encrypt(algorithm, key, messageBuffer)
+      .then(encrypted => new Uint8Array(encrypted))
+      .then(cipher => ({ cipher, counter, salt }))
+  },
+  decryptPbkdf2: async (secretKey: string, a: { cipher: Uint8Array, counter: Uint8Array, salt: Uint8Array }) =>  {
+    const { cipher, counter, salt } = a
+    const { key } = await pbkdf2(secretKey, { name: 'AES-CTR', length: 256 }, salt)
+    const algorithm = { name: 'AES-CTR', counter, length: 64 };
+    
+    (window as any).stuff = { algorithm, key, cipher }
+    return window.crypto.subtle.decrypt(algorithm, key, cipher)
+      .then(decrypted => new Uint8Array(decrypted))
+  },
+}
+
+async function pbkdf2 (secretKey: string, algorithm: AesKeyAlgorithm | HmacKeyGenParams, salt = window.crypto.getRandomValues(new Uint8Array(16))): Promise<{ salt: Uint8Array, key: CryptoKey, rawKey: Uint8Array }> {
+  const usages: KeyUsage[] = algorithm.name === 'AES-CTR' ? [ 'encrypt', 'decrypt' ] : [ 'sign' ]
+  const keyMaterial = await window.crypto.subtle.importKey(
+    'raw',
+    encodeUtf8(secretKey),
+    'PBKDF2',
+    false,
+    ['deriveBits', 'deriveKey'],
+  )
+
+  const key = await window.crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt,
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    algorithm,
+    true,
+    usages,
+  )
+
+  const rawKey = await window.crypto.subtle.exportKey('raw', key).then(r => new Uint8Array(r))
+  return { salt, key, rawKey }
+}
+
+export const encode16 = (buffer: Uint8Array) => buffer.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
+export const decode16 = hexString => new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
+
+export function encodeUtf8 (str: string): Uint8Array {
+  const encoder = new TextEncoder()
+  return encoder.encode(str)
+}
+
+export function decodeUtf8 (arr: Uint8Array): string {
+  return new TextDecoder().decode(arr);
+}
