@@ -31,8 +31,16 @@ pub async fn tor_health_check_daemon(tor_controller: &TorController) {
             Ok(response) => {}
             // if failure, disconnect tor control port, and restart tor controller
             Err(e) => {
-                log::error!("Unable to reach self over tor");
-                tor_controller.replace().await;
+                log::error!("Unable to reach self over tor: {}", e);
+                match tor_controller.replace().await {
+                    Ok(false) => {
+                        log::error!("Tor has been recently restarted, refusing to restart");
+                    }
+                    Ok(true) => {}
+                    Err(e) => {
+                        log::error!("Unable to restart tor: {}", e);
+                    }
+                }
             }
         }
         tokio::time::sleep(Duration::from_secs(300)).await;

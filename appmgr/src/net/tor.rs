@@ -30,9 +30,7 @@ impl TorController {
         )))
     }
 
-    pub async fn add<
-        I: IntoIterator<Item = (InterfaceId, TorConfig, TorSecretKeyV3)> + Clone,
-    >(
+    pub async fn add<I: IntoIterator<Item = (InterfaceId, TorConfig, TorSecretKeyV3)> + Clone>(
         &self,
         pkg_id: &PackageId,
         ip: Ipv4Addr,
@@ -49,7 +47,7 @@ impl TorController {
         self.0.lock().await.remove(pkg_id, interfaces).await
     }
 
-    pub async fn replace(&self) -> Result<(), Error> {
+    pub async fn replace(&self) -> Result<bool, Error> {
         self.0.lock().await.replace().await
     }
 
@@ -124,7 +122,7 @@ impl TorControllerInner {
         interfaces: I,
     ) -> Result<(), Error> {
         for interface_id in interfaces {
-            if let Some((key, cfg, ip)) = self.services.remove(&(pkg_id.clone(), interface_id)) {
+            if let Some((key, _cfg, _ip)) = self.services.remove(&(pkg_id.clone(), interface_id)) {
                 match self.connection.as_mut() {
                     None => unreachable!(),
                     Some(c) => {
@@ -167,49 +165,67 @@ impl TorControllerInner {
         })
     }
 
-    async fn replace(&mut self) -> Result<(), Error> {
+    async fn add_embassyd_onion(&mut self) -> Result<(), Error> {
+        self.connection
+            .as_mut()
+            .expect("Tor Connection is None")
+            .add_onion_v3(
+                &self.embassyd_tor_key,
+                false,
+                false,
+                false,
+                None,
+                &mut std::iter::once(&(self.embassyd_addr.port(), self.embassyd_addr)),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn replace(&mut self) -> Result<bool, Error> {
         let connection = self.connection.take();
         match connection {
             // this should be unreachable because the only time when this should be none is for the duration of tor's
             // restart lower down in this method, which is held behind a Mutex
             None => unreachable!(),
             Some(mut c) => {
+                let uptime = c.get_info("uptime").await?.parse::<u64>()?;
+                // we never want to restart the tor daemon if it hasn't been up for at least a half hour
+                if uptime < 1800 {
+                    return Ok(false);
+                }
                 // when connection closes below, tor daemon is restarted
                 c.take_ownership().await?;
                 // this should close the connection
                 drop(c);
 
-                // wait for environment to restart tor
-                // TODO: consider taking over tor administration to get better visibility into whether it is running or
-                // not
-                tokio::time::sleep(Duration::from_secs(1)).await;
-
                 // attempt to reconnect to the control socket, not clear how long this should take
-                let stream;
+                let mut new_connection: AuthenticatedConnection;
                 loop {
                     match TcpStream::connect(self.control_addr).await {
-                        Ok(s) => {
-                            stream = s;
-                            break;
+                        Ok(stream) => {
+                            let mut new_conn = torut::control::UnauthenticatedConn::new(stream);
+                            let auth = new_conn
+                                .load_protocol_info()
+                                .await?
+                                .make_auth_data()?
+                                .ok_or_else(|| anyhow!("Cookie Auth Not Available"))
+                                .with_kind(crate::ErrorKind::Tor)?;
+                            new_conn.authenticate(&auth).await?;
+                            new_connection = new_conn.into_authenticated().await;
+                            let uptime_new =
+                                new_connection.get_info("uptime").await?.parse::<u64>()?;
+                            // if the new uptime exceeds the one we got at the beginning, it's the same tor daemon, do not proceed
+                            if uptime_new < uptime {
+                                new_connection.set_async_event_handler(Some(event_handler));
+                                break;
+                            }
                         }
                         Err(e) => {
                             log::info!("Failed to reconnect to tor control socket: {}", e);
-                            tokio::time::sleep(Duration::from_secs(1)).await;
                         }
                     }
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                 }
-                let mut new_conn = torut::control::UnauthenticatedConn::new(stream);
-                let auth = new_conn
-                    .load_protocol_info()
-                    .await?
-                    .make_auth_data()?
-                    .ok_or_else(|| anyhow!("Cookie Auth Not Available"))
-                    .with_kind(crate::ErrorKind::Tor)?;
-                new_conn.authenticate(&auth).await?;
-                let mut new_connection: AuthenticatedConnection =
-                    new_conn.into_authenticated().await;
-                new_connection.set_async_event_handler(Some(event_handler));
-
                 // replace the connection object here on the new copy of the tor daemon
                 self.connection.replace(new_connection);
 
@@ -227,7 +243,7 @@ impl TorControllerInner {
                 }
             }
         }
-        Ok(())
+        Ok(true)
     }
 
     fn embassyd_onion(&self) -> OnionAddressV3 {
