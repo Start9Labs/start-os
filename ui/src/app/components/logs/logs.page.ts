@@ -30,16 +30,20 @@ export class LogsPage {
   }
 
   async fetch (isBefore: boolean = true) {
-    const logs = await this.fetchLogs({
-      before: isBefore ? this.before : undefined,
-      after: !isBefore ? this.after : undefined,
-      limit: this.limit,
-    })
-    this.before = logs[0]?.timestamp
-    this.after = logs[logs.length - 1]?.timestamp
-    this.loading = false
+    try {
+      const logs = await this.fetchLogs({
+        before: isBefore ? this.before : undefined,
+        after: !isBefore ? this.after : undefined,
+        limit: this.limit,
+      })
+      this.before = logs[0]?.timestamp
+      this.after = logs[logs.length - 1]?.timestamp
+      this.loading = false
 
-    return logs
+      return logs
+    } catch (e) {
+      this.errToast.present(e)
+    }
   }
 
   async getLogs () {
@@ -63,20 +67,20 @@ export class LogsPage {
         this.needInfinite = false
       }
 
-    } catch (e) {
-      this.errToast.present(e)
-    }
+    } catch (e) { }
   }
 
   async loadMore () {
-    this.loadingMore = true
-    const logs = await this.fetch(false)
-    const container = document.getElementById('container')
-    const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-    newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n') + (logs.length ? '\n\n' : '')
-    container.append(newLogs)
-    this.loadingMore = false
-    this.scrollEvent()
+    try {
+      this.loadingMore = true
+      const logs = await this.fetch(false)
+      const container = document.getElementById('container')
+      const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
+      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n') + (logs.length ? '\n\n' : '')
+      container.append(newLogs)
+      this.loadingMore = false
+      this.scrollEvent()
+    } catch (e) { }
   }
 
   scrollEvent () {
