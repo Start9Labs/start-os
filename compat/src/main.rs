@@ -88,16 +88,28 @@ async fn main() {
                         sub_m.value_of("package-id").unwrap(),
                     ).await;
                 match res {
-                    Ok(r) => serde_yaml::to_writer(stdout(), &r).unwrap(),
-                    Err(e) => Err(e),
+                    Ok(r) => {
+                        serde_yaml::to_writer(stdout(), &r).unwrap()
+                    }
+                    Err(e) => {
+                        log::error!("could not create backup: {}", e.source);
+                    }
                 };
             },
             ("restore", Some(sub_m)) => {
-                restore_backup(
+                let res = restore_backup(
                         sub_m.value_of("package-id").unwrap(),
                         sub_m.value_of("datapath").unwrap(),
                         sub_m.value_of("mountpoint").unwrap(),
                     ).await;
+                match res {
+                    Ok(r) => {
+                        serde_yaml::to_writer(stdout(), &r).unwrap()
+                    }
+                    Err(e) => {
+                        log::error!("could not restore backup: {}", e.source);
+                    }
+                };
             }
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
