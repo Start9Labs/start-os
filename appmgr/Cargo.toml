@@ -108,6 +108,6 @@ tokio-stream = { version = "0.1.5", features = ["io-util", "sync"] }
 tokio-tar = "0.3.0"
 tokio-tungstenite = "0.14.0"
 tokio-util = { version = "0.6.6", features = ["io"] }
-torut = "0.1.9"
+torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies" }
 typed-builder = "0.9.0"
 url = { version = "2.2.1", features = ["serde"] }
