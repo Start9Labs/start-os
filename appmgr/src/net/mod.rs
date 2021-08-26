@@ -41,6 +41,7 @@ impl NetController {
         interfaces: I,
     ) -> Result<(), Error> {
         let interfaces_tor = interfaces
+            .clone()
             .into_iter()
             .filter_map(|i| match i.1.tor_config.clone() {
                 None => None,
