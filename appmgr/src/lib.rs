@@ -22,6 +22,7 @@ pub mod backup;
 pub mod config;
 pub mod context;
 pub mod control;
+pub mod daemon;
 pub mod db;
 pub mod dependencies;
 pub mod developer;
