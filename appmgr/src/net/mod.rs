@@ -6,6 +6,7 @@ use self::interface::{Interface, InterfaceId};
 #[cfg(feature = "avahi")]
 use self::mdns::MdnsController;
 use self::tor::TorController;
+use crate::net::interface::TorConfig;
 use crate::s9pk::manifest::PackageId;
 use crate::{Error, ResultExt};
 
@@ -16,15 +17,19 @@ pub mod tor;
 pub mod wifi;
 
 pub struct NetController {
-    tor: TorController,
+    pub tor: TorController,
     #[cfg(feature = "avahi")]
-    mdns: MdnsController,
+    pub mdns: MdnsController,
     // nginx: NginxController, // TODO
 }
 impl NetController {
-    pub async fn init(tor_control: SocketAddr) -> Result<Self, Error> {
+    pub async fn init(
+        embassyd_addr: SocketAddr,
+        embassyd_tor_key: TorSecretKeyV3,
+        tor_control: SocketAddr,
+    ) -> Result<Self, Error> {
         Ok(Self {
-            tor: TorController::init(tor_control).await?,
+            tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
         })
@@ -39,7 +44,15 @@ impl NetController {
         ip: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
-        let (tor_res, _) = tokio::join!(self.tor.add(pkg_id, ip, interfaces.clone()), {
+        let interfaces_tor = interfaces
+            .clone()
+            .into_iter()
+            .filter_map(|i| match i.1.tor_config.clone() {
+                None => None,
+                Some(cfg) => Some((i.0, cfg, i.2)),
+            })
+            .collect::<Vec<(InterfaceId, TorConfig, TorSecretKeyV3)>>();
+        let (tor_res, _) = tokio::join!(self.tor.add(pkg_id, ip, interfaces_tor), {
             #[cfg(feature = "avahi")]
             let mdns_fut = self.mdns.add(
                 pkg_id,
