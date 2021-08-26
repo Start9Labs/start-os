@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::time::Duration;
 
 use anyhow::anyhow;
 use futures::future::BoxFuture;
@@ -7,11 +8,11 @@ use futures::FutureExt;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
-use torut::onion::TorSecretKeyV3;
+use torut::onion::{OnionAddressV3, TorSecretKey, TorSecretKeyV3};
 
-use super::interface::{Interface, InterfaceId, TorConfig};
+use super::interface::{InterfaceId, TorConfig};
 use crate::s9pk::manifest::PackageId;
-use crate::{Error, ResultExt as _};
+use crate::{Error, ErrorKind, ResultExt as _};
 
 fn event_handler(event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>> {
     async move { Ok(()) }.boxed()
@@ -19,16 +20,17 @@ fn event_handler(event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), Co
 
 pub struct TorController(Mutex<TorControllerInner>);
 impl TorController {
-    pub async fn init(tor_control: SocketAddr) -> Result<Self, Error> {
+    pub async fn init(
+        embassyd_addr: SocketAddr,
+        embassyd_tor_key: TorSecretKeyV3,
+        tor_control: SocketAddr,
+    ) -> Result<Self, Error> {
         Ok(TorController(Mutex::new(
-            TorControllerInner::init(tor_control).await?,
+            TorControllerInner::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
         )))
     }
 
-    pub async fn add<
-        'a,
-        I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
-    >(
+    pub async fn add<I: IntoIterator<Item = (InterfaceId, TorConfig, TorSecretKeyV3)> + Clone>(
         &self,
         pkg_id: &PackageId,
         ip: Ipv4Addr,
@@ -44,6 +46,14 @@ impl TorController {
     ) -> Result<(), Error> {
         self.0.lock().await.remove(pkg_id, interfaces).await
     }
+
+    pub async fn replace(&self) -> Result<bool, Error> {
+        self.0.lock().await.replace().await
+    }
+
+    pub async fn embassyd_onion(&self) -> OnionAddressV3 {
+        self.0.lock().await.embassyd_onion()
+    }
 }
 
 type AuthenticatedConnection = AuthenticatedConn<
@@ -58,45 +68,53 @@ struct HiddenServiceConfig {
 }
 
 pub struct TorControllerInner {
-    connection: AuthenticatedConnection,
-    services: HashMap<(PackageId, InterfaceId), TorSecretKeyV3>,
+    embassyd_addr: SocketAddr,
+    embassyd_tor_key: TorSecretKeyV3,
+    control_addr: SocketAddr,
+    connection: Option<AuthenticatedConnection>,
+    services: HashMap<(PackageId, InterfaceId), (TorSecretKeyV3, TorConfig, Ipv4Addr)>,
 }
 impl TorControllerInner {
-    async fn add<'a, I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)>>(
+    async fn add<'a, I: IntoIterator<Item = (InterfaceId, TorConfig, TorSecretKeyV3)>>(
         &mut self,
         pkg_id: &PackageId,
         ip: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
-        for (interface_id, interface, key) in interfaces {
+        for (interface_id, tor_cfg, key) in interfaces {
             let id = (pkg_id.clone(), interface_id);
             match self.services.get(&id) {
-                Some(k) if k != &key => {
+                Some(k) if k.0 != key => {
                     self.remove(pkg_id, std::iter::once(id.1.clone())).await?;
                 }
-                Some(_) => return Ok(()),
+                Some(_) => continue,
                 None => (),
             }
-            if let Some(tor_cfg) = &interface.tor_config {
-                self.connection
-                    .add_onion_v3(
-                        &key,
-                        false,
-                        false,
-                        false,
-                        None,
-                        &mut tor_cfg
-                            .port_mapping
-                            .iter()
-                            .map(|(external, internal)| {
-                                (external.0, SocketAddr::from((ip, internal.0)))
-                            })
-                            .collect::<Vec<_>>()
-                            .iter(),
+            self.connection
+                .as_mut()
+                .ok_or_else(|| {
+                    Error::new(
+                        anyhow!("Missing Tor Control Connection"),
+                        ErrorKind::Unknown,
                     )
-                    .await?;
-            }
-            self.services.insert(id, key);
+                })?
+                .add_onion_v3(
+                    &key,
+                    false,
+                    false,
+                    false,
+                    None,
+                    &mut tor_cfg
+                        .port_mapping
+                        .iter()
+                        .map(|(external, internal)| {
+                            (external.0, SocketAddr::from((ip, internal.0)))
+                        })
+                        .collect::<Vec<_>>()
+                        .iter(),
+                )
+                .await?;
+            self.services.insert(id, (key, tor_cfg, ip));
         }
         Ok(())
     }
@@ -107,8 +125,15 @@ impl TorControllerInner {
         interfaces: I,
     ) -> Result<(), Error> {
         for interface_id in interfaces {
-            if let Some(key) = self.services.remove(&(pkg_id.clone(), interface_id)) {
+            if let Some((key, _cfg, _ip)) = self.services.remove(&(pkg_id.clone(), interface_id)) {
                 self.connection
+                    .as_mut()
+                    .ok_or_else(|| {
+                        Error::new(
+                            anyhow!("Missing Tor Control Connection"),
+                            ErrorKind::Unknown,
+                        )
+                    })?
                     .del_onion(
                         &key.public()
                             .get_onion_address()
@@ -120,7 +145,11 @@ impl TorControllerInner {
         Ok(())
     }
 
-    async fn init(tor_control: SocketAddr) -> Result<Self, Error> {
+    async fn init(
+        embassyd_addr: SocketAddr,
+        embassyd_tor_key: TorSecretKeyV3,
+        tor_control: SocketAddr,
+    ) -> Result<Self, Error> {
         let mut conn = torut::control::UnauthenticatedConn::new(
             TcpStream::connect(tor_control).await?, // TODO
         );
@@ -133,10 +162,107 @@ impl TorControllerInner {
         conn.authenticate(&auth).await?;
         let mut connection: AuthenticatedConnection = conn.into_authenticated().await;
         connection.set_async_event_handler(Some(event_handler));
-        Ok(TorControllerInner {
-            connection,
+
+        let mut controller = TorControllerInner {
+            embassyd_addr,
+            embassyd_tor_key,
+            control_addr: tor_control,
+            connection: Some(connection),
             services: HashMap::new(),
-        })
+        };
+        controller.add_embassyd_onion().await?;
+        Ok(controller)
+    }
+
+    async fn add_embassyd_onion(&mut self) -> Result<(), Error> {
+        self.connection
+            .as_mut()
+            .expect("Tor Connection is None")
+            .add_onion_v3(
+                &self.embassyd_tor_key,
+                false,
+                false,
+                false,
+                None,
+                &mut std::iter::once(&(self.embassyd_addr.port(), self.embassyd_addr)),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn replace(&mut self) -> Result<bool, Error> {
+        let connection = self.connection.take();
+        let uptime = if let Some(mut c) = connection {
+            // this should be unreachable because the only time when this should be none is for the duration of tor's
+            // restart lower down in this method, which is held behind a Mutex
+            let uptime = c.get_info("uptime").await?.parse::<u64>()?;
+            // we never want to restart the tor daemon if it hasn't been up for at least a half hour
+            if uptime < 1800 {
+                return Ok(false);
+            }
+            // when connection closes below, tor daemon is restarted
+            c.take_ownership().await?;
+            // this should close the connection
+            drop(c);
+            Some(uptime)
+        } else {
+            None
+        };
+
+        // attempt to reconnect to the control socket, not clear how long this should take
+        let mut new_connection: AuthenticatedConnection;
+        loop {
+            match TcpStream::connect(self.control_addr).await {
+                Ok(stream) => {
+                    let mut new_conn = torut::control::UnauthenticatedConn::new(stream);
+                    let auth = new_conn
+                        .load_protocol_info()
+                        .await?
+                        .make_auth_data()?
+                        .ok_or_else(|| anyhow!("Cookie Auth Not Available"))
+                        .with_kind(crate::ErrorKind::Tor)?;
+                    new_conn.authenticate(&auth).await?;
+                    new_connection = new_conn.into_authenticated().await;
+                    let uptime_new = new_connection.get_info("uptime").await?.parse::<u64>()?;
+                    // if the new uptime exceeds the one we got at the beginning, it's the same tor daemon, do not proceed
+                    match uptime {
+                        Some(uptime) if uptime_new < uptime => {
+                            new_connection.set_async_event_handler(Some(event_handler));
+                            break;
+                        }
+                        _ => (),
+                    }
+                }
+                Err(e) => {
+                    log::info!("Failed to reconnect to tor control socket: {}", e);
+                }
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+        // replace the connection object here on the new copy of the tor daemon
+        self.connection.replace(new_connection);
+
+        // swap empty map for owned old service map
+        let old_services = std::mem::replace(&mut self.services, HashMap::new());
+
+        // re add all of the services on the new control socket
+        for ((package_id, interface_id), (tor_key, tor_cfg, ipv4)) in old_services {
+            self.add(
+                &package_id,
+                ipv4,
+                std::iter::once((interface_id, tor_cfg, tor_key)),
+            )
+            .await?;
+        }
+
+        // add embassyd hidden service again
+        self.add_embassyd_onion().await?;
+
+        Ok(true)
+    }
+
+    fn embassyd_onion(&self) -> OnionAddressV3 {
+        self.embassyd_tor_key.public().get_onion_address()
     }
 }
 

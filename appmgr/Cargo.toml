@@ -81,7 +81,7 @@ proptest = "1.0.0"
 proptest-derive = "0.3.0"
 rand = "0.7.3"
 regex = "1.4.2"
-reqwest = { version = "0.11.2", features = ["stream", "json"] }
+reqwest = { version = "0.11.2", features = ["stream", "json", "socks"] }
 reqwest_cookie_store = "0.2.0"
 rpassword = "5.0.0"
 rpc-toolkit = { version = "*", path = "../../rpc-toolkit/rpc-toolkit" }
