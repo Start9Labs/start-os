@@ -66,10 +66,8 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
         }
     });
 
-    let tor_health_check_task = tokio::spawn(
-        embassy::daemon::tor_health_check::tor_health_check_daemon(&rpc_ctx.net_controller.tor),
-    );
-
+    let tor_health_check_task =
+        embassy::daemon::tor_health_check::tor_health_check_daemon(&rpc_ctx.net_controller.tor);
     let ws_ctx = rpc_ctx.clone();
     let ws_server = {
         let builder = Server::bind(&ws_ctx.bind_ws);
@@ -140,10 +138,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             e.context("Health Check daemon panicked!"),
             ErrorKind::Unknown
         )),
-        tor_health_check_task.map_err(|e| Error::new(
-            anyhow!("{}", e).context("Tor Health Check daemon panicked!"),
-            ErrorKind::Unknown
-        ))
+        futures::FutureExt::map(tor_health_check_task, Ok)
     )?;
     Ok(())
 }
