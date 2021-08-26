@@ -82,6 +82,8 @@ impl RpcContext {
         let docker = Docker::connect_with_unix_defaults()?;
         let net_controller = Arc::new(
             NetController::init(
+                ([127, 0, 0, 1], 80).into(),
+                todo!("Grab Key from Database, Generate if it doesn't exist"),
                 base.tor_control
                     .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
             )
