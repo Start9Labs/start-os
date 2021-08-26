@@ -32,13 +32,17 @@ pub async fn tor_health_check_daemon(tor_controller: &TorController) {
             // if failure, disconnect tor control port, and restart tor controller
             Err(e) => {
                 log::error!("Unable to reach self over tor: {}", e);
-                match tor_controller.replace().await {
-                    Ok(false) => {
-                        log::error!("Tor has been recently restarted, refusing to restart");
-                    }
-                    Ok(true) => {}
-                    Err(e) => {
-                        log::error!("Unable to restart tor: {}", e);
+                loop {
+                    match tor_controller.replace().await {
+                        Ok(restarted) => {
+                            if restarted {
+                                log::error!("Tor has been recently restarted, refusing to restart");
+                            }
+                            break;
+                        }
+                        Err(e) => {
+                            log::error!("Unable to restart tor: {}", e);
+                        }
                     }
                 }
             }

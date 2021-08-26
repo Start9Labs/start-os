@@ -12,7 +12,7 @@ use torut::onion::{OnionAddressV3, TorSecretKey, TorSecretKeyV3};
 
 use super::interface::{InterfaceId, TorConfig};
 use crate::s9pk::manifest::PackageId;
-use crate::{Error, ResultExt as _};
+use crate::{Error, ErrorKind, ResultExt as _};
 
 fn event_handler(event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>> {
     async move { Ok(()) }.boxed()
@@ -90,27 +90,30 @@ impl TorControllerInner {
                 Some(_) => continue,
                 None => (),
             }
-            match self.connection.as_mut() {
-                None => unreachable!(),
-                Some(c) => {
-                    c.add_onion_v3(
-                        &key,
-                        false,
-                        false,
-                        false,
-                        None,
-                        &mut tor_cfg
-                            .port_mapping
-                            .iter()
-                            .map(|(external, internal)| {
-                                (external.0, SocketAddr::from((ip, internal.0)))
-                            })
-                            .collect::<Vec<_>>()
-                            .iter(),
+            self.connection
+                .as_mut()
+                .ok_or_else(|| {
+                    Error::new(
+                        anyhow!("Missing Tor Control Connection"),
+                        ErrorKind::Unknown,
                     )
-                    .await?;
-                }
-            }
+                })?
+                .add_onion_v3(
+                    &key,
+                    false,
+                    false,
+                    false,
+                    None,
+                    &mut tor_cfg
+                        .port_mapping
+                        .iter()
+                        .map(|(external, internal)| {
+                            (external.0, SocketAddr::from((ip, internal.0)))
+                        })
+                        .collect::<Vec<_>>()
+                        .iter(),
+                )
+                .await?;
             self.services.insert(id, (key, tor_cfg, ip));
         }
         Ok(())
@@ -123,17 +126,20 @@ impl TorControllerInner {
     ) -> Result<(), Error> {
         for interface_id in interfaces {
             if let Some((key, _cfg, _ip)) = self.services.remove(&(pkg_id.clone(), interface_id)) {
-                match self.connection.as_mut() {
-                    None => unreachable!(),
-                    Some(c) => {
-                        c.del_onion(
-                            &key.public()
-                                .get_onion_address()
-                                .get_address_without_dot_onion(),
+                self.connection
+                    .as_mut()
+                    .ok_or_else(|| {
+                        Error::new(
+                            anyhow!("Missing Tor Control Connection"),
+                            ErrorKind::Unknown,
                         )
-                        .await?;
-                    }
-                }
+                    })?
+                    .del_onion(
+                        &key.public()
+                            .get_onion_address()
+                            .get_address_without_dot_onion(),
+                    )
+                    .await?;
             }
         }
         Ok(())
@@ -156,13 +162,16 @@ impl TorControllerInner {
         conn.authenticate(&auth).await?;
         let mut connection: AuthenticatedConnection = conn.into_authenticated().await;
         connection.set_async_event_handler(Some(event_handler));
-        Ok(TorControllerInner {
+
+        let mut controller = TorControllerInner {
             embassyd_addr,
             embassyd_tor_key,
             control_addr: tor_control,
             connection: Some(connection),
             services: HashMap::new(),
-        })
+        };
+        controller.add_embassyd_onion().await?;
+        Ok(controller)
     }
 
     async fn add_embassyd_onion(&mut self) -> Result<(), Error> {
@@ -183,66 +192,72 @@ impl TorControllerInner {
 
     async fn replace(&mut self) -> Result<bool, Error> {
         let connection = self.connection.take();
-        match connection {
+        let uptime = if let Some(mut c) = connection {
             // this should be unreachable because the only time when this should be none is for the duration of tor's
             // restart lower down in this method, which is held behind a Mutex
-            None => unreachable!(),
-            Some(mut c) => {
-                let uptime = c.get_info("uptime").await?.parse::<u64>()?;
-                // we never want to restart the tor daemon if it hasn't been up for at least a half hour
-                if uptime < 1800 {
-                    return Ok(false);
-                }
-                // when connection closes below, tor daemon is restarted
-                c.take_ownership().await?;
-                // this should close the connection
-                drop(c);
+            let uptime = c.get_info("uptime").await?.parse::<u64>()?;
+            // we never want to restart the tor daemon if it hasn't been up for at least a half hour
+            if uptime < 1800 {
+                return Ok(false);
+            }
+            // when connection closes below, tor daemon is restarted
+            c.take_ownership().await?;
+            // this should close the connection
+            drop(c);
+            Some(uptime)
+        } else {
+            None
+        };
 
-                // attempt to reconnect to the control socket, not clear how long this should take
-                let mut new_connection: AuthenticatedConnection;
-                loop {
-                    match TcpStream::connect(self.control_addr).await {
-                        Ok(stream) => {
-                            let mut new_conn = torut::control::UnauthenticatedConn::new(stream);
-                            let auth = new_conn
-                                .load_protocol_info()
-                                .await?
-                                .make_auth_data()?
-                                .ok_or_else(|| anyhow!("Cookie Auth Not Available"))
-                                .with_kind(crate::ErrorKind::Tor)?;
-                            new_conn.authenticate(&auth).await?;
-                            new_connection = new_conn.into_authenticated().await;
-                            let uptime_new =
-                                new_connection.get_info("uptime").await?.parse::<u64>()?;
-                            // if the new uptime exceeds the one we got at the beginning, it's the same tor daemon, do not proceed
-                            if uptime_new < uptime {
-                                new_connection.set_async_event_handler(Some(event_handler));
-                                break;
-                            }
+        // attempt to reconnect to the control socket, not clear how long this should take
+        let mut new_connection: AuthenticatedConnection;
+        loop {
+            match TcpStream::connect(self.control_addr).await {
+                Ok(stream) => {
+                    let mut new_conn = torut::control::UnauthenticatedConn::new(stream);
+                    let auth = new_conn
+                        .load_protocol_info()
+                        .await?
+                        .make_auth_data()?
+                        .ok_or_else(|| anyhow!("Cookie Auth Not Available"))
+                        .with_kind(crate::ErrorKind::Tor)?;
+                    new_conn.authenticate(&auth).await?;
+                    new_connection = new_conn.into_authenticated().await;
+                    let uptime_new = new_connection.get_info("uptime").await?.parse::<u64>()?;
+                    // if the new uptime exceeds the one we got at the beginning, it's the same tor daemon, do not proceed
+                    match uptime {
+                        Some(uptime) if uptime_new < uptime => {
+                            new_connection.set_async_event_handler(Some(event_handler));
+                            break;
                         }
-                        Err(e) => {
-                            log::info!("Failed to reconnect to tor control socket: {}", e);
-                        }
+                        _ => (),
                     }
-                    tokio::time::sleep(Duration::from_secs(1)).await;
                 }
-                // replace the connection object here on the new copy of the tor daemon
-                self.connection.replace(new_connection);
-
-                // swap empty map for owned old service map
-                let old_services = std::mem::replace(&mut self.services, HashMap::new());
-
-                // re add all of the services on the new control socket
-                for ((package_id, interface_id), (tor_key, tor_cfg, ipv4)) in old_services {
-                    self.add(
-                        &package_id,
-                        ipv4,
-                        std::iter::once((interface_id, tor_cfg, tor_key)),
-                    )
-                    .await?;
+                Err(e) => {
+                    log::info!("Failed to reconnect to tor control socket: {}", e);
                 }
             }
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
+        // replace the connection object here on the new copy of the tor daemon
+        self.connection.replace(new_connection);
+
+        // swap empty map for owned old service map
+        let old_services = std::mem::replace(&mut self.services, HashMap::new());
+
+        // re add all of the services on the new control socket
+        for ((package_id, interface_id), (tor_key, tor_cfg, ipv4)) in old_services {
+            self.add(
+                &package_id,
+                ipv4,
+                std::iter::once((interface_id, tor_cfg, tor_key)),
+            )
+            .await?;
+        }
+
+        // add embassyd hidden service again
+        self.add_embassyd_onion().await?;
+
         Ok(true)
     }
 
