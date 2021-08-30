@@ -26,7 +26,7 @@ The following are recommended:
     4. [cargo](https://doc.rust-lang.org/cargo/)
     5. [yq](https://mikefarah.gitbook.io/yq/) (version 4)
     6. [make](https://www.gnu.org/software/make/)
-    7. [rust-musl-cross](***PLACEHOLDER FOR NEW MUSL-CROSS REPO***) (If using an Alpine image, which is highly recommended)
+    7. [rust-musl-cross](***PLACEHOLDER FOR NEW MUSL-CROSS REPO***) (For cross compiling Rust to Alpine, not needed otherwise)
 
 ## Overview
 
@@ -34,11 +34,11 @@ The following are recommended:
 
 Simply, the package is made up of the following parts:
     1. Image - Each service is running in a Docker image.  Best results will come from an arm based linux; [Alpine](https://www.alpinelinux.org/) is highly recommended.
-    2. Volume - Each service gets a volume, allocated by EOS.  The volume directory (for seeding data into the volume) is typically: /root/volumes/<service-id>
+    2. Volume - Each service gets a volume, allocated by EOS.  The volume directory (for seeding data into the volume) is required: /root/volumes/<service-id>
     3. Dependencies - Rules and requirements of your service, which appear as simple UI elements, such as inputs, toggles, and drop-downs.  These are enforced by validations and clear user instructions.  EmbassyOS has a unique and powerful system for managing dependencies which allows anyone to have the power of systems administrators without the advanced skillset.
     4. Manifest - Describes the service and its requirements.  This is for the marketplace listing, install considerations, license, donation address, and dependency requirements, and additional info.
     5. Config - EOS makes a service's configuration available to the user in the GUI and must be valid regardless of user skill.
-    6. .s9pk Bundle - The config and manifest files get bundled into a .s9pk package.  This is the file a user downloads from the Marketplace, at which point EOS un-packages and installs the service.
+    6. .s9pk Bundle - The image, config, manifest, and icon files get bundled into a .s9pk package.  This is the file a user downloads from the Marketplace, at which point EOS un-packages and installs the service.
 
 Check [here](https://docs.start9.com/contributing/services/overview.html) for a detailed overview of package components.
 
@@ -65,7 +65,7 @@ mv hello-world-wrapper embassy-pages-wrapper && cd embassy-pages-wrapper
 
 2. Edit the `README.md` to explain what the service is, what dependencies are required, and build/install instructions.
 
-3. Edit the `manifest` file.  This must be in `.json`, `.toml`, or `.yaml` format and in `kebab-case` style.  You can see our Embassy Pages example `manifest.toml` below:
+3. Edit the `manifest` file.  This must be in `.json`, `.toml`, or `.yaml` format and in `kebab-case` style.  You can see descriptions of each key in our 'Hello World' example [here]<https://github.com/Start9Labs/hello-world-wrapper/blob/master/manifest.yaml>.  You can see our Embassy Pages example `manifest.toml` below:
 
 ```
 id = "embassy-pages"
@@ -406,7 +406,7 @@ Most self-hosted packages require a configuration.  With EmbassyOS, these config
 
 `config_rules.yaml` for defining the ruleset that defines dependencies between config variables
 
-These files contain a detailed mapping of configuration options with acceptable values, defaults, and relational rule-sets.  Let's take a look at our `config_spec` for Embassy Pages:
+These are stored in `assets/compat/` for 0.2.x compatibility.  These files contain a detailed mapping of configuration options with acceptable values, defaults, and relational rule-sets.  Let's take a look at our `config_spec` for Embassy Pages:
 
 ```
 homepage:
