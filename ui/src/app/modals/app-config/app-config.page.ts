@@ -43,11 +43,9 @@ export class AppConfigPage {
 
   async ngOnInit () {
     const rec = history.state?.configRecommendation as Recommendation
-
     try {
       this.loadingText = 'Loading Config'
       const { spec, config } = await this.embassyApi.getPackageConfig({ id: this.pkgId })
-
       let depConfig: object
       if (rec) {
         this.loadingText = `Setting properties to accommodate ${rec.dependentTitle}...`
