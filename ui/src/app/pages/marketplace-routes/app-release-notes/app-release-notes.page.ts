@@ -1,6 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent } from '@ionic/angular'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 
 @Component({
@@ -12,17 +13,26 @@ export class AppReleaseNotes {
   @ViewChild(IonContent) content: IonContent
   selected: string
   pkgId: string
+  loading = true
 
   constructor (
     private readonly route: ActivatedRoute,
     public marketplaceService: MarketplaceService,
+    public errToast: ErrorToastService,
   ) { }
 
-  ngOnInit () {
+  async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    if (!this.marketplaceService.releaseNotes[this.pkgId]) {
-      this.marketplaceService.getReleaseNotes(this.pkgId)
+    try {
+      if (!this.marketplaceService.releaseNotes[this.pkgId]) {
+        await this.marketplaceService.getReleaseNotes(this.pkgId)
+      }
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      this.loading = false
     }
+
   }
 
   ngAfterViewInit () {
