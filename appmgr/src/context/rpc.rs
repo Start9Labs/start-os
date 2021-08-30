@@ -108,6 +108,7 @@ impl RpcContext {
             revision_cache: RwLock::new(VecDeque::new()),
             metrics_cache: RwLock::new(None),
         });
+        // TODO: handle apps in bad / transient state
         Ok(Self(seed))
     }
     pub async fn package_registry_url(&self) -> Result<Url, Error> {

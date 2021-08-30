@@ -26,15 +26,16 @@ use sha2::{Digest, Sha256};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 
-use self::cleanup::cleanup;
-use self::progress::{InstallProgress, InstallProgressTracker};
+use self::cleanup::cleanup_failed;
 use crate::context::{EitherContext, ExtendedContext, RpcContext};
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, StaticDependencyInfo,
     StaticFiles,
 };
+use crate::db::util::WithRevision;
 use crate::dependencies::update_current_dependents;
-use crate::install::cleanup::{uninstall, update_dependents};
+use crate::install::cleanup::{cleanup, update_dependents};
+use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{DependencyErrors, MainStatus, Status};
@@ -48,7 +49,10 @@ pub const PKG_CACHE: &'static str = "/mnt/embassy-os/cache/packages";
 pub const PKG_PUBLIC_DIR: &'static str = "/mnt/embassy-os/public/package-data";
 
 #[command(display(display_none))]
-pub async fn install(#[context] ctx: EitherContext, #[arg] id: String) -> Result<(), Error> {
+pub async fn install(
+    #[context] ctx: EitherContext,
+    #[arg] id: String,
+) -> Result<WithRevision<()>, Error> {
     let rpc_ctx = ctx.to_rpc().unwrap();
     let (pkg_id, version_str) = if let Some(split) = id.split_once("@") {
         split
@@ -68,14 +72,105 @@ pub async fn install(#[context] ctx: EitherContext, #[arg] id: String) -> Result
         ))
     )
     .with_kind(crate::ErrorKind::Registry)?;
-    let man = man_res.json().await.with_kind(crate::ErrorKind::Registry)?;
+    let man: Manifest = man_res.json().await.with_kind(crate::ErrorKind::Registry)?;
+
+    let progress = InstallProgress::new(s9pk.content_length());
+    let static_files = StaticFiles::remote(&man.id, &man.version, man.assets.icon_type());
+    let mut db_handle = rpc_ctx.db.handle();
+    let mut tx = db_handle.begin().await?;
+    let mut pde = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&man.id)
+        .get_mut(&mut tx)
+        .await?;
+    match pde.take() {
+        Some(PackageDataEntry::Installed {
+            installed,
+            manifest,
+            static_files,
+        }) => {
+            *pde = Some(PackageDataEntry::Updating {
+                install_progress: progress.clone(),
+                static_files,
+                installed,
+                manifest,
+            })
+        }
+        None => {
+            *pde = Some(PackageDataEntry::Installing {
+                install_progress: progress.clone(),
+                static_files,
+                manifest: man.clone(),
+            })
+        }
+        _ => {
+            return Err(Error::new(
+                anyhow!("Cannot install over an app in a transient state"),
+                crate::ErrorKind::InvalidRequest,
+            ))
+        }
+    }
+    pde.save(&mut tx).await?;
+    let res = tx.commit(None).await?;
+    drop(db_handle);
+
     tokio::spawn(async move {
         if let Err(e) = download_install_s9pk(&rpc_ctx, &man, s9pk).await {
             log::error!("Install of {}@{} Failed: {}", man.id, man.version, e);
         }
     });
 
-    Ok(())
+    Ok(WithRevision {
+        revision: res,
+        response: (),
+    })
+}
+
+#[command(display(display_none))]
+pub async fn uninstall(
+    #[context] ctx: EitherContext,
+    #[arg] id: PackageId,
+) -> Result<WithRevision<()>, Error> {
+    let mut handle = ctx.as_rpc().unwrap().db.handle();
+    let mut tx = handle.begin().await?;
+
+    let mut pde = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .get_mut(&mut tx)
+        .await?;
+    let (manifest, static_files, installed) = match pde.take() {
+        Some(PackageDataEntry::Installed {
+            manifest,
+            static_files,
+            installed,
+        }) => (manifest, static_files, installed),
+        _ => {
+            return Err(Error::new(
+                anyhow!("Package is not installed."),
+                crate::ErrorKind::NotFound,
+            ));
+        }
+    };
+    *pde = Some(PackageDataEntry::Removing {
+        manifest,
+        static_files,
+    });
+    pde.save(&mut tx).await?;
+    let res = tx.commit(None).await?;
+    drop(handle);
+
+    tokio::spawn(async move {
+        let rpc_ctx = ctx.as_rpc().unwrap();
+        if let Err(e) = cleanup::uninstall(rpc_ctx, &mut rpc_ctx.db.handle(), &installed).await {
+            log::error!("Uninstall of {} Failed: {}", id, e);
+        }
+    });
+
+    Ok(WithRevision {
+        revision: res,
+        response: (),
+    })
 }
 
 pub async fn download_install_s9pk(
@@ -96,38 +191,6 @@ pub async fn download_install_s9pk(
 
     let res = (|| async {
         let progress = InstallProgress::new(s9pk.content_length());
-        let static_files = StaticFiles::remote(pkg_id, version, temp_manifest.assets.icon_type());
-        let mut db_handle = ctx.db.handle();
-        let mut pde = pkg_data_entry.get_mut(&mut db_handle).await?;
-        match pde.take() {
-            Some(PackageDataEntry::Installed {
-                installed,
-                manifest,
-                static_files,
-            }) => {
-                *pde = Some(PackageDataEntry::Updating {
-                    install_progress: progress.clone(),
-                    static_files,
-                    installed,
-                    manifest,
-                })
-            }
-            None => {
-                *pde = Some(PackageDataEntry::Installing {
-                    install_progress: progress.clone(),
-                    static_files,
-                    manifest: temp_manifest.clone(),
-                })
-            }
-            _ => {
-                return Err(Error::new(
-                    anyhow!("Cannot install over an app in a transient state"),
-                    crate::ErrorKind::InvalidRequest,
-                ))
-            }
-        }
-        pde.save(&mut db_handle).await?;
-        drop(db_handle);
         let progress_model = pkg_data_entry.and_then(|pde| pde.install_progress());
 
         async fn check_cache(
@@ -242,7 +305,7 @@ pub async fn download_install_s9pk(
         let mut handle = ctx.db.handle();
         let mut tx = handle.begin().await?;
 
-        if let Err(e) = cleanup(&ctx, &mut tx, pkg_id, version).await {
+        if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id, version).await {
             log::error!(
                 "Failed to clean up {}@{}: {}: Adding to broken packages",
                 pkg_id,
@@ -566,7 +629,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             configured &= res.configured;
         }
         if &prev.manifest.version != version {
-            uninstall(ctx, &mut tx, prev).await?;
+            cleanup(ctx, &prev.manifest.id, &prev.manifest.version).await?;
         }
         if let Some(res) = manifest
             .migrations

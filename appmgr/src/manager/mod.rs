@@ -291,10 +291,10 @@ impl Manager {
                             .unwrap(); // recv is still in scope, cannot fail
                     }
                     Ok(Err(e)) => {
-                        todo!("application crashed")
+                        log::error!("application crashed: {}: {}", e.0, e.1)
                     }
                     Err(e) => {
-                        todo!("failed to start application: {}", e)
+                        log::error!("failed to start application: {}", e)
                     }
                 }
             }
