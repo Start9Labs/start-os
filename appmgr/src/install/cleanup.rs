@@ -1,16 +1,19 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::anyhow;
+use bollard::image::ListImagesOptions;
 use bollard::Docker;
-use patch_db::DbHandle;
+use patch_db::{DbHandle, PatchDbHandle};
+use tokio::process::Command;
 
 use super::PKG_PUBLIC_DIR;
 use crate::context::RpcContext;
 use crate::db::model::{InstalledPackageDataEntry, PackageDataEntry};
 use crate::dependencies::DependencyError;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::util::Version;
+use crate::util::{Invoke, Version};
 use crate::Error;
 
 pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a PackageId>>(
@@ -62,7 +65,35 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
     Ok(())
 }
 
-pub async fn cleanup<Db: DbHandle>(
+pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Result<(), Error> {
+    ctx.managers.remove(&(id.clone(), version.clone())).await;
+    // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
+    let images = ctx
+        .docker
+        .list_images(Some(ListImagesOptions {
+            all: false,
+            filters: {
+                let mut f = HashMap::new();
+                f.insert(
+                    "reference".to_owned(),
+                    vec![format!("start9/{}/*:{}", id, version)],
+                );
+                f
+            },
+            digests: false,
+        }))
+        .await?;
+    futures::future::try_join_all(images.into_iter().map(|image| async {
+        let image = image; // move into future
+        ctx.docker.remove_image(&image.id, None, None).await
+    }))
+    .await?;
+    // TODO: delete public dir if not a dependency
+
+    Ok(())
+}
+
+pub async fn cleanup_failed<Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
     id: &PackageId,
@@ -76,25 +107,21 @@ pub async fn cleanup<Db: DbHandle>(
         .get(db, true)
         .await?
         .to_owned();
-    if let Some(manifest) = match &pde {
-        PackageDataEntry::Installing { manifest, .. } => Some(manifest),
+    if match &pde {
+        PackageDataEntry::Installing { .. } => true,
         PackageDataEntry::Updating { manifest, .. } => {
             if &manifest.version != version {
-                Some(manifest)
+                true
             } else {
-                None
+                false
             }
         }
         _ => {
             log::warn!("{}: Nothing to clean up!", id);
-            None
+            false
         }
     } {
-        ctx.managers
-            .remove(&(manifest.id.clone(), manifest.version.clone()))
-            .await;
-        // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
-        let public_dir_path = Path::new(PKG_PUBLIC_DIR).join(id).join(version.as_str());
+        cleanup(ctx, id, version).await?;
     }
 
     match pde {
@@ -126,14 +153,39 @@ pub async fn cleanup<Db: DbHandle>(
         _ => (),
     }
 
-    Ok(()) // TODO
+    Ok(())
 }
 
-pub async fn uninstall<Db: DbHandle>(
+pub async fn uninstall(
     ctx: &RpcContext,
-    db: &mut Db,
-    entry: InstalledPackageDataEntry,
+    db: &mut PatchDbHandle,
+    entry: &InstalledPackageDataEntry,
 ) -> Result<(), Error> {
-    //TODO
+    cleanup(ctx, &entry.manifest.id, &entry.manifest.version).await?;
+    let mut tx = db.begin().await?;
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .remove(&mut tx, &entry.manifest.id)
+        .await?;
+    update_dependents(&mut tx, &entry.manifest.id, entry.current_dependents.keys()).await?;
+    tx.commit(None).await?;
     Ok(())
+}
+
+#[tokio::test]
+async fn test() {
+    dbg!(
+        Docker::connect_with_socket_defaults()
+            .unwrap()
+            .list_images(Some(ListImagesOptions {
+                all: false,
+                filters: {
+                    let mut f = HashMap::new();
+                    f.insert("reference", vec!["start9/*:latest"]);
+                    f
+                },
+                digests: false
+            }))
+            .await
+    );
 }
