@@ -10,7 +10,7 @@ import { Subscription } from 'rxjs'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppRestoreComponent } from 'src/app/modals/app-restore/app-restore.component'
-import { isEmptyObject } from 'src/app/util/misc.util'
+import { isEmptyObject, pauseFor } from 'src/app/util/misc.util'
 
 @Component({
   selector: 'app-actions',
@@ -59,7 +59,10 @@ export class AppActionsPage {
               {
                 text: 'Execute',
                 handler: (value: any) => {
-                  return this.executeAction(pkg.manifest.id, action.key, value)
+                  console.log('executing')
+                  pauseFor(2000)
+                  console.log('done')
+                  // return this.executeAction(pkg.manifest.id, action.key, value)
                 },
               },
             ],
@@ -78,7 +81,10 @@ export class AppActionsPage {
             {
               text: 'Execute',
               handler: () => {
-                this.executeAction(pkg.manifest.id, action.key)
+                console.log('executing')
+                pauseFor(2000)
+                console.log('done')
+                // this.executeAction(pkg.manifest.id, action.key)
               },
               cssClass: 'enter-click',
             },
