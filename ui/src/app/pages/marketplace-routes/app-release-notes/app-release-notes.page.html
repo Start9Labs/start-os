@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content>
-  <text-spinner *ngIf="!marketplaceService.releaseNotes[pkgId]; else loaded" text="Loading Release Notes"></text-spinner>
+  <text-spinner *ngIf="loading; else loaded" text="Loading Release Notes"></text-spinner>
 
   <ng-template #loaded>
     <div style="margin: 0px;" *ngFor="let note of marketplaceService.releaseNotes[pkgId] | keyvalue : asIsOrder">

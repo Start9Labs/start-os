@@ -13,7 +13,7 @@ import { WizardAction } from '../wizard-types'
 export class CompleteComponent implements OnInit, Loadable {
   @Input() params: {
     action: WizardAction
-    verb: string //loader verb: '*stopping* ...'
+    verb: string // loader verb: '*stopping* ...'
     title: string
     executeAction: () => Promise<any>
     skipCompletionDialogue?: boolean
@@ -25,7 +25,6 @@ export class CompleteComponent implements OnInit, Loadable {
     final: () => void
     error: (e: Error) => void
   }
-
 
   loading$ = new BehaviorSubject(false)
   color$ = new BehaviorSubject('medium')

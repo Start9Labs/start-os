@@ -50,6 +50,14 @@ export class ConfigService {
   }
 
   isLaunchable (state: PackageState, status: PackageMainStatus, interfaces: { [id: string]: InterfaceDef }): boolean {
+    console.log('is launchable', this.isLaunchable)
+    console.log('state', state)
+    console.log('status', status)
+    console.log('ret val', status === PackageMainStatus.Running &&
+    (
+      (hasTorUi(interfaces) && this.isTor()) ||
+      (hasLanUi(interfaces) && !this.isTor())
+    ))
     if (this.isConsulate || state !== PackageState.Installed) {
       return false
     }
