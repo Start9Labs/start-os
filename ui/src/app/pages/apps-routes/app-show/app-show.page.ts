@@ -32,6 +32,7 @@ export class AppShowPage {
   mainStatus: MainStatus
   PackageMainStatus = PackageMainStatus
   connectionFailure: boolean
+  loading = true
 
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []

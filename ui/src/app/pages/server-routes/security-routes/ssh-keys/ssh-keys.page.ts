@@ -46,7 +46,7 @@ export class SSHKeysPage {
         title: name,
         message: description,
         label: name,
-        submitFn: this.add,
+        submitFn: async (pk: string) => await this.add(pk),
       },
       cssClass: 'alertlike-modal',
     })

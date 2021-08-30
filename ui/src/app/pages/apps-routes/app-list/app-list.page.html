@@ -25,7 +25,7 @@
         <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="4" sizeSm="3" sizeLg="3" sizeXl="2">
           <ion-card class="installed-card" [routerLink]="['/services', pkg.value.entry.manifest.id]">
             <div class="launch-container" *ngIf="pkg.value.entry.manifest.interfaces | hasUi">
-              <div class="launch-button-triangle"  (click)="launchUi(pkg.value.entry, $event)" [class.launch-disabled]="!(pkg.value.entry.state | isLaunchable : pkg.value.entry.installed.status.main.status : pkg.value.entry.manifest.interfaces)">
+              <div class="launch-button-triangle"  (click)="launchUi(pkg.value.entry, $event)" [class.launch-disabled]="!(pkg.value.entry.state | isLaunchable : pkg.value.entry.installed?.status.main.status : pkg.value.entry.manifest.interfaces)">
                 <ion-icon name="open-outline"></ion-icon>
               </div>
             </div>
