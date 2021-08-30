@@ -72,7 +72,13 @@ pub fn main_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError
     Ok(ctx)
 }
 
-#[command(subcommands(install::install, config::config, control::start, control::stop))]
+#[command(subcommands(
+    install::install,
+    install::uninstall,
+    config::config,
+    control::start,
+    control::stop
+))]
 pub fn package(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
     Ok(ctx)
 }

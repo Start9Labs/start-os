@@ -1,8 +1,18 @@
 use embassy::Error;
 
 async fn inner_main() -> Result<(), Error> {
-    // os sync
-    embassy::volume::disk::mount("/dev/sda", "/mnt/embassy-os-crypt").await?;
+    // host setup flow if needed
+
+    // mount disk
+    embassy::volume::disk::mount("/dev/sda", "/mnt/embassy-os-crypt").await?; // TODO: by uuid
+
+    // unlock disk
+
+    // mount /var/log/journal
+
+    // sync ssh
+
+    // sync wifi
 
     // hostname-set
     embassy::hostname::sync_hostname().await?;

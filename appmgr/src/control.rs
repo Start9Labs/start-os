@@ -1,23 +1,29 @@
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
+use patch_db::DbHandle;
 use rpc_toolkit::command;
 
 use crate::context::EitherContext;
+use crate::db::util::WithRevision;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::util::display_none;
 use crate::{Error, ResultExt};
 
 #[command(display(display_none))]
-pub async fn start(#[context] ctx: EitherContext, #[arg] id: PackageId) -> Result<(), Error> {
+pub async fn start(
+    #[context] ctx: EitherContext,
+    #[arg] id: PackageId,
+) -> Result<WithRevision<()>, Error> {
     let rpc_ctx = ctx.as_rpc().unwrap();
     let mut db = rpc_ctx.db.handle();
+    let mut tx = db.begin().await?;
     let installed = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
         .and_then(|pkg| pkg.installed())
-        .expect(&mut db)
+        .expect(&mut tx)
         .await
         .with_ctx(|_| {
             (
@@ -29,10 +35,10 @@ pub async fn start(#[context] ctx: EitherContext, #[arg] id: PackageId) -> Resul
         .clone()
         .manifest()
         .version()
-        .get(&mut db, true)
+        .get(&mut tx, true)
         .await?
         .to_owned();
-    let mut status = installed.status().main().get_mut(&mut db).await?;
+    let mut status = installed.status().main().get_mut(&mut tx).await?;
 
     *status = MainStatus::Running {
         started: Utc::now(),
@@ -45,20 +51,28 @@ pub async fn start(#[context] ctx: EitherContext, #[arg] id: PackageId) -> Resul
             })?,
         )
         .await?;
-    status.save(&mut db).await?;
+    status.save(&mut tx).await?;
 
-    Ok(())
+    Ok(WithRevision {
+        revision: tx.commit(None).await?,
+        response: (),
+    })
 }
 
 #[command(display(display_none))]
-pub async fn stop(#[context] ctx: EitherContext, #[arg] id: PackageId) -> Result<(), Error> {
+pub async fn stop(
+    #[context] ctx: EitherContext,
+    #[arg] id: PackageId,
+) -> Result<WithRevision<()>, Error> {
     let rpc_ctx = ctx.as_rpc().unwrap();
     let mut db = rpc_ctx.db.handle();
+    let mut tx = db.begin().await?;
+
     let mut status = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
         .and_then(|pkg| pkg.installed())
-        .expect(&mut db)
+        .expect(&mut tx)
         .await
         .with_ctx(|_| {
             (
@@ -68,11 +82,14 @@ pub async fn stop(#[context] ctx: EitherContext, #[arg] id: PackageId) -> Result
         })?
         .status()
         .main()
-        .get_mut(&mut db)
+        .get_mut(&mut tx)
         .await?;
 
     *status = MainStatus::Stopping;
-    status.save(&mut db).await?;
+    status.save(&mut tx).await?;
 
-    Ok(())
+    Ok(WithRevision {
+        revision: tx.commit(None).await?,
+        response: (),
+    })
 }
