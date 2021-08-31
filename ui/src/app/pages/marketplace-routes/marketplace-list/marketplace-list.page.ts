@@ -9,6 +9,7 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { debounce } from 'src/app/util/misc.util'
 
 @Component({
   selector: 'marketplace-list',
@@ -107,6 +108,7 @@ export class MarketplaceListPage {
     )
   }
 
+  @debounce(1000)
   private async getPkgs (doInfinite = false): Promise<void> {
     try {
       if (this.category === 'updates') {
