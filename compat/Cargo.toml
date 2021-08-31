@@ -19,3 +19,5 @@ tokio = { version = "1.8.1", features = ["full"] }
 tokio-stream = { version = "0.1.7", features = ["io-util", "sync"] }
 anyhow = "1.0.40"
 log = "0.4.11"
+itertools = "0.10.0"
+regex = "1.4.2"
