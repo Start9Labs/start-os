@@ -27,8 +27,11 @@ export class AppComponent {
   @HostListener('document:keypress', ['$event'])
   handleKeyboardEvent (event: KeyboardEvent) {
     if (event.key === 'Enter') {
+
       const elems = document.getElementsByClassName('enter-click')
       const elem = elems[elems.length - 1] as HTMLButtonElement
+      if (elem.classList.contains('no-click')) return
+      console.log('list', elem.classList)
       if (elem) elem.click()
     }
   }
