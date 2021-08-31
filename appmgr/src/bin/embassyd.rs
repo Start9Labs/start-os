@@ -5,8 +5,10 @@ use anyhow::anyhow;
 use embassy::context::{EitherContext, RpcContext};
 use embassy::db::model::Database;
 use embassy::db::subscribe;
+use embassy::hostname::{get_hostname, get_id};
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
+use embassy::net::tor::os_key;
 use embassy::status::{check_all, synchronize_all};
 use embassy::util::daemon;
 use embassy::{Error, ErrorKind, ResultExt};
@@ -32,7 +34,15 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
     if !rpc_ctx.db.exists(&<JsonPointer>::default()).await? {
         rpc_ctx
             .db
-            .put(&<JsonPointer>::default(), &Database::init(), None)
+            .put(
+                &<JsonPointer>::default(),
+                &Database::init(
+                    get_id().await?,
+                    &get_hostname().await?,
+                    &os_key(&mut rpc_ctx.secret_store.acquire().await?).await?,
+                ),
+                None,
+            )
             .await?;
     }
     let auth = auth(rpc_ctx.clone());

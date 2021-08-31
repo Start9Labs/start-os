@@ -26,12 +26,16 @@ pub async fn get_product_key() -> Result<String, Error> {
     Ok(out.trim().to_owned())
 }
 
-// cat /boot/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "start9-"$1}' | xargs hostnamectl set-hostname
-pub async fn sync_hostname() -> Result<(), Error> {
+pub async fn get_id() -> Result<String, Error> {
     let key = get_product_key().await?;
     let mut hasher = sha2::Sha256::new();
     hasher.update(key.as_bytes());
     let res = hasher.finalize();
-    set_hostname(&format!("start9-{}", hex::encode(&res[0..4]))).await?;
+    Ok(hex::encode(&res[0..4]))
+}
+
+// cat /boot/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "start9-"$1}' | xargs hostnamectl set-hostname
+pub async fn sync_hostname() -> Result<(), Error> {
+    set_hostname(&format!("start9-{}", get_id().await?)).await?;
     Ok(())
 }
