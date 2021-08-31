@@ -3,12 +3,12 @@ import { AlertController, NavController, ModalController, IonContent, LoadingCon
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
-import { combineLatest, Subscription } from 'rxjs'
+import { Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorNotInstalled, DependencyErrorType, MainStatus, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyErrorConfigUnsatisfied, DependencyErrorType, MainStatus, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -53,13 +53,15 @@ export class AppShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    console.log('patch data', this.patch.data)
+    console.log('pkgId', this.pkgId)
     this.subs = [
       // 1
       this.patch.watch$('package-data', this.pkgId)
       .subscribe(pkg => {
         this.pkg = pkg
-        this.rendering = renderPkgStatus(pkg.state, pkg.installed.status)
-        this.mainStatus = pkg.installed.status.main
+        this.rendering = renderPkgStatus(pkg.state, pkg.installed?.status)
+        this.mainStatus = pkg.installed?.status.main
       }),
       // 2
       this.connectionService.watchFailure$()
