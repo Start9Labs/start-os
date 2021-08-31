@@ -9,7 +9,14 @@
 <ion-content class="ion-padding">
   <h1 style="font-family: 'Montserrat'; font-weight: 100px; margin: 32px 0;" class="ion-text-center">Embassy Marketplace</h1>
 
-  <ion-searchbar color="dark" (ionChange)="search($event)" debounce="400" style="padding-bottom: 32px;"></ion-searchbar>
+  <ion-toolbar style="padding-bottom: 32px; max-width: 600px;" color="transparent">
+    <ion-searchbar color="dark" (keyup.enter)="search()" debounce="300" [(ngModel)]="query"></ion-searchbar>
+    <ion-buttons slot="end">
+      <ion-button color="primary" fill="solid" (click)="search()">
+        <ion-icon slot="icon-only" name="search-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
 
   <!-- page loading -->
   <ng-container *ngIf="pageLoading; else pageLoaded">

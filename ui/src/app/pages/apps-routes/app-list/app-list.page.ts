@@ -5,7 +5,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
-import { filter } from 'rxjs/operators'
+import { delay, filter } from 'rxjs/operators'
 
 @Component({
   selector: 'app-list',
@@ -25,6 +25,7 @@ export class AppListPage {
     sub: Subscription | null
   }} = { }
   PackageState = PackageState
+  loading = true
 
   constructor (
     private readonly config: ConfigService,
@@ -41,6 +42,8 @@ export class AppListPage {
         }),
       )
       .subscribe(pkgs => {
+        this.loading = false
+
         const ids = Object.keys(pkgs)
 
         Object.keys(this.pkgs).forEach(id => {

@@ -271,9 +271,8 @@ export class WizardBaker {
     id: string
     title: string
     version: string
-    breakages: Breakages
   }): InstallWizardComponent['params'] {
-    const { breakages, title, version } = values
+    const { title, version, id } = values
 
     const action = 'stop'
     const toolbar: TopbarParams  = { action, title, version }
@@ -286,10 +285,22 @@ export class WizardBaker {
             action,
             verb: 'stopping',
             title,
-            fetchBreakages: () => Promise.resolve(breakages),
+            fetchBreakages: () => this.embassyApi.dryStopPackage({ id }).then(breakages => breakages),
           },
         },
-        bottomBar: { cancel: { afterLoading: { text: 'Cancel' } }, next: 'Stop Anyways' },
+        bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Stop Service' },
+      },
+      {
+        slide: {
+          selector: 'complete',
+          params: {
+            action,
+            verb: 'stopping',
+            title,
+            executeAction: () => this.embassyApi.stopPackage({ id }),
+          },
+        },
+        bottomBar: { finish: 'Dismiss', cancel: { whileLoading: { } } },
       },
     ]
     return { toolbar, slideDefinitions }
@@ -321,4 +332,4 @@ export class WizardBaker {
   }
 }
 
-const defaultUninstallWarning = serviceName => `Uninstalling ${ serviceName } will result in the deletion of its data.`
+const defaultUninstallWarning = (serviceName: string) => `Uninstalling ${ serviceName } will result in the deletion of its data.`

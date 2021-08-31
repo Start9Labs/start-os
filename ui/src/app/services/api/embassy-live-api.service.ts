@@ -96,6 +96,7 @@ export class LiveApiService extends ApiService {
   }
 
   async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise <RR.GetMarketplacePackagesRes> {
+    if (params.query) params.category = undefined
     return this.http.httpRequest({
       method: Method.GET,
       url: '/marketplace/package/index',
