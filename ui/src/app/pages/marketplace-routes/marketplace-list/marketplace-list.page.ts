@@ -88,10 +88,11 @@ export class MarketplaceListPage {
     e.target.complete()
   }
 
-  async search (e?: any): Promise<void> {
-    this.query = e.target.value || undefined
-    this.page = 1
+  async search (): Promise<void> {
+    if (!this.query) return
     this.pkgsLoading = true
+    this.category = undefined
+    this.page = 1
     await this.getPkgs()
   }
 
@@ -134,9 +135,9 @@ export class MarketplaceListPage {
   }
 
   async switchCategory (category: string): Promise<void> {
-    this.pkgs = []
-    this.category = category
     this.pkgsLoading = true
+    this.category = category
+    this.query = undefined
     this.page = 1
     await this.getPkgs()
   }

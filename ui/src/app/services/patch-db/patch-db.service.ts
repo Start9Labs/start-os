@@ -1,7 +1,7 @@
 import { Inject, Injectable, InjectionToken } from '@angular/core'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
-import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
-import { catchError, debounceTime, finalize, map, tap } from 'rxjs/operators'
+import { BehaviorSubject, combineLatest, Observable, of, Subscription } from 'rxjs'
+import { catchError, debounceTime, delay, filter, finalize, map, take, tap, timeout } from 'rxjs/operators'
 import { pauseFor } from 'src/app/util/misc.util'
 import { ApiService } from '../api/embassy-api.service'
 import { DataModel } from './data-model'
@@ -42,18 +42,30 @@ export class PatchDbService {
   start (): void {
     // make sure everything is stopped before initializing
     if (this.patchSub) {
+      console.log('Retrying')
       this.patchSub.unsubscribe()
       this.patchSub = undefined
     }
-    console.log('Retrying')
     try {
-      this.patchSub = this.patchDb.sync$()
-      .pipe(debounceTime(500))
-      .subscribe({
-        next: cache => {
+      const connectedSub$ = this.patchDb.connectionMade$()
+      .pipe(
+        tap(() => {
           this.patchConnection$.next(PatchConnection.Connected)
+        }),
+        timeout(30000),
+        take(1),
+      )
+
+      const updateSub$ = this.patchDb.sync$()
+      .pipe(
+        debounceTime(500),
+        tap(cache => {
           this.bootstrapper.update(cache)
-        },
+        }),
+      )
+
+      this.patchSub = combineLatest([connectedSub$, updateSub$])
+      .subscribe({
         error: async e => {
           console.error('patch-db-sync sub ERROR', e)
           this.patchConnection$.next(PatchConnection.Disconnected)

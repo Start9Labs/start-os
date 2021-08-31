@@ -581,56 +581,58 @@ export module Mock {
 
   export const MarketplacePkgsList: RR.GetMarketplacePackagesRes = Object.values(Mock.MarketplacePkgs).map(service => service['latest'])
 
-  export const bitcoinproxy: PackageDataEntry = {
-    state: PackageState.Installed,
-    'static-files': {
-      license: 'licenseUrl', // /public/package-data/bitcoinproxy/0.21.1/LICENSE.md,
-      icon: 'assets/img/service-icons/bitcoin-proxy.png',
-      instructions: 'instructionsUrl', // /public/package-data/bitcoinproxy/0.2.2/INSTRUCTIONS.md
-    },
-    manifest: MockManifestBitcoinProxy,
-    installed: {
-      status: {
-        configured: true,
-        main: {
-          status: PackageMainStatus.Running,
-          started: new Date().toISOString(),
-          health: { },
-        },
-        'dependency-errors': { },
+  export const Pkgs: { [key: string]: PackageDataEntry } = {
+    'bitcoin-proxy': {
+      state: PackageState.Installed,
+      'static-files': {
+        license: 'licenseUrl', // /public/package-data/bitcoinproxy/0.21.1/LICENSE.md,
+        icon: 'assets/img/service-icons/bitcoin-proxy.png',
+        instructions: 'instructionsUrl', // /public/package-data/bitcoinproxy/0.2.2/INSTRUCTIONS.md
       },
       manifest: MockManifestBitcoinProxy,
-      'interface-addresses': {
-        rpc: {
-          'tor-address': 'bitcoinproxy-rpc-address.onion',
-          'lan-address': 'bitcoinproxy-rpc-address.local',
+      installed: {
+        status: {
+          configured: true,
+          main: {
+            status: PackageMainStatus.Running,
+            started: new Date().toISOString(),
+            health: { },
+          },
+          'dependency-errors': { },
+        },
+        manifest: MockManifestBitcoinProxy,
+        'interface-addresses': {
+          rpc: {
+            'tor-address': 'bitcoinproxy-rpc-address.onion',
+            'lan-address': 'bitcoinproxy-rpc-address.local',
+          },
+        },
+        'system-pointers': [],
+        'current-dependents': {
+          'lnd': {
+            pointers: [],
+            'health-checks': [],
+          },
+        },
+        'current-dependencies': {
+          'bitcoind': {
+            pointers: [],
+            'health-checks': [],
+          },
+        },
+        'dependency-info': {
+          'lnd': {
+            manifest: Mock.MockManifestLnd,
+            icon: 'assets/img/service-icons/lnd.png',
+          },
+          'bitcoind': {
+            manifest: Mock.MockManifestBitcoind,
+            icon: 'assets/img/service-icons/bitcoind.png',
+          },
         },
       },
-      'system-pointers': [],
-      'current-dependents': {
-        'lnd': {
-          pointers: [],
-          'health-checks': [],
-        },
-      },
-      'current-dependencies': {
-        'bitcoind': {
-          pointers: [],
-          'health-checks': [],
-        },
-      },
-      'dependency-info': {
-        'lnd': {
-          manifest: Mock.MockManifestLnd,
-          icon: 'assets/img/service-icons/lnd.png',
-        },
-        'bitcoind': {
-          manifest: Mock.MockManifestBitcoind,
-          icon: 'assets/img/service-icons/bitcoind.png',
-        },
-      },
+      'install-progress': undefined,
     },
-    'install-progress': undefined,
   }
 
   export const Notifications: ServerNotifications = [
@@ -1455,62 +1457,62 @@ export module Mock {
   //   'install-progress': undefined,
   // }
 
-  export const lnd: PackageDataEntry = {
-    state: PackageState.Installed,
-    'static-files': {
-      license: 'licenseUrl', // /public/package-data/lnd/0.21.1/LICENSE.md,
-      icon: 'assets/img/service-icons/lnd.png',
-      instructions: 'instructionsUrl', // /public/package-data/lnd/0.21.1/INSTRUCTIONS.md
-    },
-    manifest: MockManifestLnd,
-    installed: {
-      status: {
-        configured: true,
-        main: {
-          status: PackageMainStatus.Stopped,
-        },
-        'dependency-errors': {
-          'bitcoin-proxy': {
-            type: DependencyErrorType.NotInstalled,
-          },
-        },
-      },
-      manifest: MockManifestLnd,
-      'interface-addresses': {
-        rpc: {
-          'tor-address': 'lnd-rpc-address.onion',
-          'lan-address': 'lnd-rpc-address.local',
-        },
-        grpc: {
-          'tor-address': 'lnd-grpc-address.onion',
-          'lan-address': 'lnd-grpc-address.local',
-        },
-      },
-      'system-pointers': [],
-      'current-dependents': { },
-      'current-dependencies': {
-        'bitcoind': {
-          pointers: [],
-          'health-checks': [],
-        },
-        'bitcoin-proxy': {
-          pointers: [],
-          'health-checks': [],
-        },
-      },
-      'dependency-info': {
-        'bitcoind': {
-          manifest: Mock.MockManifestBitcoind,
-          icon: 'assets/img/service-icons/bitcoind.png',
-        },
-        'bitcoin-proxy': {
-          manifest: Mock.MockManifestBitcoinProxy,
-          icon: 'assets/img/service-icons/bitcoin-proxy.png',
-        },
-      },
-    },
-    'install-progress': undefined,
-  }
+  // export const lnd: PackageDataEntry = {
+  //   state: PackageState.Installed,
+  //   'static-files': {
+  //     license: 'licenseUrl', // /public/package-data/lnd/0.21.1/LICENSE.md,
+  //     icon: 'assets/img/service-icons/lnd.png',
+  //     instructions: 'instructionsUrl', // /public/package-data/lnd/0.21.1/INSTRUCTIONS.md
+  //   },
+  //   manifest: MockManifestLnd,
+  //   installed: {
+  //     status: {
+  //       configured: true,
+  //       main: {
+  //         status: PackageMainStatus.Stopped,
+  //       },
+  //       'dependency-errors': {
+  //         'bitcoin-proxy': {
+  //           type: DependencyErrorType.NotInstalled,
+  //         },
+  //       },
+  //     },
+  //     manifest: MockManifestLnd,
+  //     'interface-addresses': {
+  //       rpc: {
+  //         'tor-address': 'lnd-rpc-address.onion',
+  //         'lan-address': 'lnd-rpc-address.local',
+  //       },
+  //       grpc: {
+  //         'tor-address': 'lnd-grpc-address.onion',
+  //         'lan-address': 'lnd-grpc-address.local',
+  //       },
+  //     },
+  //     'system-pointers': [],
+  //     'current-dependents': { },
+  //     'current-dependencies': {
+  //       'bitcoind': {
+  //         pointers: [],
+  //         'health-checks': [],
+  //       },
+  //       'bitcoin-proxy': {
+  //         pointers: [],
+  //         'health-checks': [],
+  //       },
+  //     },
+  //     'dependency-info': {
+  //       'bitcoind': {
+  //         manifest: Mock.MockManifestBitcoind,
+  //         icon: 'assets/img/service-icons/bitcoind.png',
+  //       },
+  //       'bitcoin-proxy': {
+  //         manifest: Mock.MockManifestBitcoinProxy,
+  //         icon: 'assets/img/service-icons/bitcoin-proxy.png',
+  //       },
+  //     },
+  //   },
+  //   'install-progress': undefined,
+  // }
 
   // export const DbDump: RR.GetDumpRes = {
   //   id: 1,
