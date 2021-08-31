@@ -5,16 +5,41 @@ use std::time::Duration;
 use anyhow::anyhow;
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use sqlx::{Executor, Sqlite};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
-use torut::onion::{OnionAddressV3, TorSecretKey, TorSecretKeyV3};
+use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 
 use super::interface::{InterfaceId, TorConfig};
 use crate::s9pk::manifest::PackageId;
 use crate::{Error, ErrorKind, ResultExt as _};
 
-fn event_handler(event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>> {
+#[test]
+fn random_key() {
+    println!("'0x{}'", hex::encode(TorSecretKeyV3::generate().as_bytes()));
+}
+
+pub async fn os_key<Ex>(secrets: &mut Ex) -> Result<TorSecretKeyV3, Error>
+where
+    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+{
+    let key = sqlx::query!("SELECT tor_key FROM account")
+        .fetch_one(secrets)
+        .await?
+        .tor_key;
+
+    let mut buf = [0; 64];
+    buf.clone_from_slice(key.get(0..64).ok_or_else(|| {
+        Error::new(
+            anyhow!("Invalid Tor Key Length"),
+            crate::ErrorKind::Database,
+        )
+    })?);
+    Ok(buf.into())
+}
+
+fn event_handler(_event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>> {
     async move { Ok(()) }.boxed()
 }
 

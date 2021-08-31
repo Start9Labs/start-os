@@ -3270,7 +3270,7 @@ dependencies = [
  "either",
  "futures-util",
  "thiserror",
- "tokio 1.9.0",
+ "tokio 1.10.1",
 ]
 
 [[package]]

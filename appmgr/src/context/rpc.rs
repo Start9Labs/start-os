@@ -83,7 +83,7 @@ impl RpcContext {
         let net_controller = Arc::new(
             NetController::init(
                 ([127, 0, 0, 1], 80).into(),
-                todo!("Grab Key from Database, Generate if it doesn't exist"),
+                crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
                 base.tor_control
                     .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
             )

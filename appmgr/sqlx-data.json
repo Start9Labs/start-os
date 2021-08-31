@@ -20,14 +20,14 @@
       "nullable": []
     }
   },
-  "3efd0daa61f4f8bead1adbe78a8225bc31fb940406d0415b578d3adc03a5e414": {
-    "query": "SELECT hash FROM password",
+  "3502e58f2ab48fb4566d21c920c096f81acfa3ff0d02f970626a4dcd67bac71d": {
+    "query": "SELECT tor_key FROM account",
     "describe": {
       "columns": [
         {
-          "name": "hash",
+          "name": "tor_key",
           "ordinal": 0,
-          "type_info": "Text"
+          "type_info": "Blob"
         }
       ],
       "parameters": {
@@ -82,6 +82,24 @@
         true,
         false,
         true,
+        false
+      ]
+    }
+  },
+  "629be61c3c341c131ddbbff0293a83dbc6afd07cae69d246987f62cf0cc35c2a": {
+    "query": "SELECT password FROM account",
+    "describe": {
+      "columns": [
+        {
+          "name": "password",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
         false
       ]
     }
