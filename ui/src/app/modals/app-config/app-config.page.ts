@@ -23,6 +23,7 @@ export class AppConfigPage {
   configForm: FormGroup
   current: object
   hasConfig = false
+  saving = false
 
   rec: Recommendation | null = null
   showRec = true
@@ -128,6 +129,7 @@ export class AppConfigPage {
     const config = this.configForm.value
 
     try {
+      this.saving = true
       const breakages = await this.embassyApi.drySetPackageConfig({
         id: pkg.manifest.id,
         config,
@@ -152,6 +154,7 @@ export class AppConfigPage {
     } catch (e) {
       this.errToast.present(e)
     } finally {
+      this.saving = false
       loader.dismiss()
     }
   }
