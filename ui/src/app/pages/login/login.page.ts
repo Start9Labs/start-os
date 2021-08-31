@@ -2,7 +2,6 @@ import { Component } from '@angular/core'
 import { LoadingController } from '@ionic/angular'
 import { Subscription } from 'rxjs'
 import { AuthService } from 'src/app/services/auth.service'
-import { PatchConnection, PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'login',
@@ -19,12 +18,7 @@ export class LoginPage {
   constructor (
     private readonly authService: AuthService,
     private readonly loadingCtrl: LoadingController,
-    private readonly patch: PatchDbService,
   ) { }
-
-  ngOnInit () {
-
-  }
 
   ngOnDestroy () {
     if (this.loader) {
@@ -52,16 +46,10 @@ export class LoginPage {
 
     try {
       await this.authService.login(this.password)
-      this.loader.message = 'Loading Embassy Data'
       this.password = ''
-      this.patchConnectionSub = this.patch.watchPatchConnection$().subscribe(status => {
-        if (status === PatchConnection.Disconnected) {
-          this.error = 'Connection failed'
-          this.loader.dismiss()
-        }
-      })
     } catch (e) {
       this.error = e.message
+    } finally {
       this.loader.dismiss()
     }
   }
