@@ -81,7 +81,7 @@
 <ion-footer>
   <ion-toolbar *ngIf="patch.data['package-data'][pkgId] as pkg">
     <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button fill="outline" [disabled]="loadingText" (click)="save(pkg)" class="enter-click">
+      <ion-button fill="outline" [disabled]="saving" (click)="save(pkg)" class="enter-click" [class.no-click]="saving">
         Save
       </ion-button>
     </ion-buttons>
