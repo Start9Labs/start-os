@@ -15,9 +15,11 @@ CREATE TABLE IF NOT EXISTS session
     user_agent TEXT,
     metadata   TEXT NOT NULL DEFAULT 'null'
 );
-CREATE TABLE IF NOT EXISTS password
+CREATE TABLE IF NOT EXISTS account
 (
-    hash TEXT NOT NULL PRIMARY KEY
+    id INTEGER PRIMARY KEY CHECK (id = 0),
+    password TEXT NOT NULL,
+    tor_key BLOB NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ssh_keys
 (

@@ -26,6 +26,7 @@ pub async fn get_product_key() -> Result<String, Error> {
     Ok(out.trim().to_owned())
 }
 
+// cat /boot/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "start9-"$1}' | xargs hostnamectl set-hostname
 pub async fn sync_hostname() -> Result<(), Error> {
     let key = get_product_key().await?;
     let mut hasher = sha2::Sha256::new();
