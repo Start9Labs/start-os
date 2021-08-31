@@ -27,8 +27,10 @@ export class AppComponent {
   @HostListener('document:keypress', ['$event'])
   handleKeyboardEvent (event: KeyboardEvent) {
     if (event.key === 'Enter') {
+
       const elems = document.getElementsByClassName('enter-click')
       const elem = elems[elems.length - 1] as HTMLButtonElement
+      if (elem.classList.contains('no-click')) return
       if (elem) elem.click()
     }
   }
@@ -99,7 +101,7 @@ export class AppComponent {
 
         this.patch.watch$()
         .pipe(
-          filter(data => !isEmptyObject(data)),
+          filter(data => !isEmptyObject(data as object)),
           take(1),
         )
         .subscribe(_ => {
