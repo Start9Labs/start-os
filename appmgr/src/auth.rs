@@ -55,10 +55,10 @@ pub async fn login(
 ) -> Result<(), Error> {
     let rpc_ctx = ctx.as_rpc().unwrap();
     let mut handle = rpc_ctx.secret_store.acquire().await?;
-    let pw_hash = sqlx::query!("SELECT hash FROM password")
+    let pw_hash = sqlx::query!("SELECT password FROM account")
         .fetch_one(&mut handle)
         .await?
-        .hash;
+        .password;
     ensure_code!(
         argon2::verify_encoded(&pw_hash, password.as_bytes()).map_err(|_| {
             Error::new(
