@@ -7,6 +7,7 @@ use patch_db::{DbHandle, HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use torut::onion::TorSecretKeyV3;
 
 use crate::config::spec::{PackagePointerSpecVariant, SystemPointerSpec};
 use crate::install::progress::InstallProgress;
@@ -28,17 +29,16 @@ pub struct Database {
     pub ui: Value,
 }
 impl Database {
-    pub fn init() -> Self {
+    pub fn init(id: String, hostname: &str, tor_key: &TorSecretKeyV3) -> Self {
         // TODO
         Database {
             server_info: ServerInfo {
-                id: "c3ad21d8".to_owned(),
+                id,
                 version: emver::Version::new(0, 3, 0, 0).into(),
-                lan_address: "https://start9-c3ad21d8.local".parse().unwrap(),
-                tor_address:
-                    "http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion"
-                        .parse()
-                        .unwrap(),
+                lan_address: format!("https://{}.local", hostname).parse().unwrap(),
+                tor_address: format!("http://{}", tor_key.public().get_onion_address())
+                    .parse()
+                    .unwrap(),
                 status: ServerStatus::Running,
                 eos_marketplace: "https://beta-registry-0-3.start9labs.com".parse().unwrap(),
                 package_marketplace: None,
