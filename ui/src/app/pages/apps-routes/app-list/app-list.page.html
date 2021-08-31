@@ -8,41 +8,48 @@
 </ion-header>
 
 <ion-content style="position: relative">
-  <div *ngIf="pkgs | empty; else list" class="ion-text-center ion-padding">
-    <div style="display: flex; flex-direction: column; justify-content: center; height: 40vh">
-      <h2>Welcome to <ion-text color="danger" style="font-family: 'Montserrat';">Embassy</ion-text></h2>
-      <p class="ion-text-wrap">Get started by installing your first service.</p>
+
+  <!-- loading -->
+  <text-spinner *ngIf="loading" text="Connecting to Embassy"></text-spinner>
+
+  <!-- not loading -->
+  <div *ngIf="!loading">
+    <div *ngIf="pkgs | empty; else list" class="ion-text-center ion-padding">
+      <div style="display: flex; flex-direction: column; justify-content: center; height: 40vh">
+        <h2>Welcome to <ion-text color="danger" style="font-family: 'Montserrat';">Embassy</ion-text></h2>
+        <p class="ion-text-wrap">Get started by installing your first service.</p>
+      </div>
+      <ion-button color="dark" [routerLink]="['/marketplace']" style="width: 50%;">
+        <ion-icon slot="start" name="storefront-outline"></ion-icon>
+        Marketplace
+      </ion-button>
     </div>
-    <ion-button color="dark" [routerLink]="['/marketplace']" style="width: 50%;">
-      <ion-icon slot="start" name="storefront-outline"></ion-icon>
-      Marketplace
-    </ion-button>
-  </div>
-
-  <ng-template #list>
-    <ion-grid>
-      <ion-row>
-        <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="4" sizeSm="3" sizeLg="3" sizeXl="2">
-          <ion-card class="installed-card" [routerLink]="['/services', pkg.value.entry.manifest.id]">
-            <div class="launch-container" *ngIf="pkg.value.entry.manifest.interfaces | hasUi">
-              <div class="launch-button-triangle"  (click)="launchUi(pkg.value.entry, $event)" [class.launch-disabled]="!(pkg.value.entry.state | isLaunchable : pkg.value.entry.installed?.status.main.status : pkg.value.entry.manifest.interfaces)">
-                <ion-icon name="open-outline"></ion-icon>
-              </div>
-            </div>
   
-            <img style="position: absolute" class="main-img" [src]="pkg.value.entry['static-files'].icon" alt="icon" />
-            <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
-            <img *ngIf="connectionFailure" class="bulb-off" src="assets/img/off-bulb.png" />
-            <img *ngIf="!connectionFailure" [class]="pkg.value.bulb.class" [src]="pkg.value.bulb.img" />
-
-            <ion-card-header>
-              <status *ngIf="[PackageState.Installed, PackageState.Removing] | includes : pkg.value.entry.state" [disconnected]="connectionFailure" [rendering]="pkg.value.statusRendering" size="calc(8px + .4vw)" weight="bold"></status>
-              <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.value.entry.state" class="main-status"><ion-text color="primary">{{ pkg.value.entry.state | titlecase }}...{{ (pkg.value.entry['install-progress'] | installState).totalProgress }}%</ion-text></p>
-              <ion-card-title>{{ pkg.value.entry.manifest.title }}</ion-card-title>
-            </ion-card-header>
-          </ion-card>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
-  </ng-template>
+    <ng-template #list>
+      <ion-grid>
+        <ion-row>
+          <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="4" sizeSm="3" sizeLg="3" sizeXl="2">
+            <ion-card class="installed-card" [routerLink]="['/services', pkg.value.entry.manifest.id]">
+              <div class="launch-container" *ngIf="pkg.value.entry.manifest.interfaces | hasUi">
+                <div class="launch-button-triangle"  (click)="launchUi(pkg.value.entry, $event)" [class.launch-disabled]="!(pkg.value.entry.state | isLaunchable : pkg.value.entry.installed?.status.main.status : pkg.value.entry.manifest.interfaces)">
+                  <ion-icon name="open-outline"></ion-icon>
+                </div>
+              </div>
+    
+              <img style="position: absolute" class="main-img" [src]="pkg.value.entry['static-files'].icon" alt="icon" />
+              <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+              <img *ngIf="connectionFailure" class="bulb-off" src="assets/img/off-bulb.png" />
+              <img *ngIf="!connectionFailure" [class]="pkg.value.bulb.class" [src]="pkg.value.bulb.img" />
+  
+              <ion-card-header>
+                <status *ngIf="[PackageState.Installed, PackageState.Removing] | includes : pkg.value.entry.state" [disconnected]="connectionFailure" [rendering]="pkg.value.statusRendering" size="calc(8px + .4vw)" weight="bold"></status>
+                <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.value.entry.state" class="main-status"><ion-text color="primary">{{ pkg.value.entry.state | titlecase }}...{{ (pkg.value.entry['install-progress'] | installState).totalProgress }}%</ion-text></p>
+                <ion-card-title>{{ pkg.value.entry.manifest.title }}</ion-card-title>
+              </ion-card-header>
+            </ion-card>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </ng-template>
+  </div>
 </ion-content>

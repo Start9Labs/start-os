@@ -84,33 +84,31 @@ export class AppShowPage {
 
   async stop (): Promise<void> {
     const { id, title, version } = this.pkg.manifest
-    const loader = await this.loadingCtrl.create({
-      message: `Stopping...`,
-      spinner: 'lines',
-      cssClass: 'loader',
-    })
-    await loader.present()
 
-    try {
-      const breakages = await this.embassyApi.dryStopPackage({ id })
+    if (isEmptyObject(this.pkg.installed['current-dependents'])) {
+      const loader = await this.loadingCtrl.create({
+        message: `Stopping...`,
+        spinner: 'lines',
+        cssClass: 'loader',
+      })
+      await loader.present()
 
-      if (!isEmptyObject(breakages)) {
-        const { cancelled } = await wizardModal(
-          this.modalCtrl,
-          this.wizardBaker.stop({
-            id,
-            title,
-            version,
-            breakages,
-          }),
-        )
-        if (cancelled) return
+      try {
+        await this.embassyApi.stopPackage({ id })
+      } catch (e) {
+        this.errToast.present(e)
+      } finally {
+        loader.dismiss()
       }
-      await this.embassyApi.stopPackage({ id })
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
+    } else {
+      wizardModal(
+        this.modalCtrl,
+        this.wizardBaker.stop({
+          id,
+          title,
+          version,
+        }),
+      )
     }
   }
 

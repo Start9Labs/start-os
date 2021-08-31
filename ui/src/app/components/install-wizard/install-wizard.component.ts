@@ -14,6 +14,8 @@ import { WizardAction } from './wizard-types'
   styleUrls: ['./install-wizard.component.scss'],
 })
 export class InstallWizardComponent {
+  transitioning = false
+
   @Input() params: {
     // defines each slide along with bottom bar
     slideDefinitions: SlideDefinition[]
@@ -85,6 +87,12 @@ export class InstallWizardComponent {
       await this.slideContainer.slideNext(500)
       await this.slideContainer.lockSwipes(true)
     })
+  }
+
+  async callTransition (transition: Function) {
+    this.transitioning = true
+    await transition()
+    this.transitioning = false
   }
 }
 

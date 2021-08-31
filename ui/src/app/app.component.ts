@@ -14,7 +14,7 @@ import { ServerStatus } from './services/patch-db/data-model'
 import { ConnectionFailure, ConnectionService } from './services/connection.service'
 import { StartupAlertsService } from './services/startup-alerts.service'
 import { ConfigService } from './services/config.service'
-import { isEmptyObject } from './util/misc.util'
+import { debounce, isEmptyObject } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
 
@@ -24,15 +24,13 @@ import { Subscription } from 'rxjs'
   styleUrls: ['app.component.scss'],
 })
 export class AppComponent {
-  @HostListener('document:keypress', ['$event'])
-  handleKeyboardEvent (event: KeyboardEvent) {
-    if (event.key === 'Enter') {
-
-      const elems = document.getElementsByClassName('enter-click')
-      const elem = elems[elems.length - 1] as HTMLButtonElement
-      if (!elem || elem.classList.contains('no-click')) return
-      if (elem) elem.click()
-    }
+  @HostListener('document:keydown.enter', ['$event'])
+  @debounce()
+  handleKeyboardEvent () {
+    const elems = document.getElementsByClassName('enter-click')
+    const elem = elems[elems.length - 1] as HTMLButtonElement
+    if (!elem || elem.classList.contains('no-click')) return
+    if (elem) elem.click()
   }
 
   ServerStatus = ServerStatus
