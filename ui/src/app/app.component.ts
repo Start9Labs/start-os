@@ -30,7 +30,7 @@ export class AppComponent {
 
       const elems = document.getElementsByClassName('enter-click')
       const elem = elems[elems.length - 1] as HTMLButtonElement
-      if (elem.classList.contains('no-click')) return
+      if (!elem || elem.classList.contains('no-click')) return
       if (elem) elem.click()
     }
   }
