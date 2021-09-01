@@ -75,12 +75,19 @@ export class MockApiService extends ApiService {
 
   async getServerLogs (params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
     await pauseFor(2000)
+    let logArr
     if (Math.random() < .2) {
       console.log('last page')
-      return Mock.ServerLogs
+      logArr = Mock.ServerLogs
+    } else {
+      const arrLength = params.limit ? Math.ceil(params.limit / Mock.ServerLogs.length) : 10
+      logArr = new Array(arrLength).fill(Mock.ServerLogs).reduce((acc, val) => acc.concat(val), [])
     }
-    const arrLength = params.limit ? Math.ceil(params.limit / Mock.ServerLogs.length) : 10
-    return new Array(arrLength).fill(Mock.ServerLogs).reduce((acc, val) => acc.concat(val), [])
+    return {
+      logs: logArr,
+      startCursor: 'startCursor',
+      endCursor: 'endCursor',
+    }
   }
 
   async getServerMetrics (params: RR.GetServerMetricsReq): Promise<RR.GetServerMetricsRes> {
@@ -315,12 +322,19 @@ export class MockApiService extends ApiService {
 
   async getPackageLogs (params: RR.GetPackageLogsReq): Promise<RR.GetPackageLogsRes> {
     await pauseFor(2000)
+    let logArr
     if (Math.random() < .2) {
       console.log('last page')
-      return Mock.PackageLogs
+      logArr =  Mock.PackageLogs
+    } else {
+      const arrLength = params.limit ? Math.ceil(params.limit / Mock.PackageLogs.length) : 10
+      logArr = new Array(arrLength).fill(Mock.PackageLogs).reduce((acc, val) => acc.concat(val), [])
     }
-    const arrLength = params.limit ? Math.ceil(params.limit / Mock.PackageLogs.length) : 10
-    return new Array(arrLength).fill(Mock.PackageLogs).reduce((acc, val) => acc.concat(val), [])
+    return {
+      logs: logArr,
+      startCursor: 'startCursor',
+      endCursor: 'endCursor',
+    }
   }
 
   async installPackageRaw (params: RR.InstallPackageReq): Promise<RR.InstallPackageRes> {
