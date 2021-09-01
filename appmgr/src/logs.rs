@@ -1,3 +1,4 @@
+use std::ascii::AsciiExt;
 use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -13,6 +14,7 @@ use tokio_stream::wrappers::LinesStream;
 
 use crate::context::{EitherContext};
 use crate::error::ResultExt;
+use crate::system::SYSTEMD_UNIT;
 use crate::util::Reversible;
 use crate::Error;
 
@@ -85,13 +87,15 @@ async fn logs_inner(
     let limit_formatted = format!("-n{}", limit);
     let mut get_prev_logs_and_reverse = false;
 
-    let mut args_out = vec![
-        "-u",
-        &id,
-        "--output=json",
-        "--output-fields=MESSAGE",
-        &limit_formatted,
-    ];
+    let mut args_out = vec!["--output=json","--output-fields=MESSAGE",&limit_formatted,];
+    let id_formatted = match id.as_str() {
+        SYSTEMD_UNIT=> {
+            args_out.push("-u");
+            SYSTEMD_UNIT.to_owned()
+        },
+        _ => format!("CONTAINER_NAME={}", id)
+    };
+    args_out.push(&id_formatted);
 
     let cursor_formatted = format!("--after-cursor={}", cursor.clone().unwrap_or("".to_owned()));
     if cursor.is_some() {
@@ -162,6 +166,7 @@ pub async fn test_logs() {
         logs_inner(
             // find a journalctl unit on your machine
             "tor.service".to_owned(),
+            // SYSTEMD_UNIT.to_owned(),
             // Some(5),
             None,
             None,
