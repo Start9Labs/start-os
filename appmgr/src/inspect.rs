@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use rpc_toolkit::command;
 
-use crate::context::CliContext;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
 use crate::util::{display_none, display_serializable, IoFormat};

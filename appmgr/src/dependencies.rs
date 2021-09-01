@@ -1,21 +1,18 @@
-use std::collections::HashMap;
-
 use anyhow::anyhow;
 use emver::VersionRange;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use patch_db::{DbHandle, DiffPatch, HasModel, Map, MapModel};
 use serde::{Deserialize, Serialize};
 
 use crate::action::ActionImplementation;
-use crate::config::{Config, ConfigSpec};
+use crate::config::Config;
 use crate::db::model::CurrentDependencyInfo;
-use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult, HealthCheckResultVariant};
-use crate::status::{DependencyErrors, MainStatus, Status};
+use crate::status::MainStatus;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::{Error, ResultExt as _};
+use crate::Error;
 
 #[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

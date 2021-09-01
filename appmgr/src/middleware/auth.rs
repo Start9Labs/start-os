@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use basic_cookies::Cookie;
-use chrono::Utc;
 use digest::Digest;
 use futures::future::BoxFuture;
 use futures::FutureExt;
@@ -9,9 +8,7 @@ use rpc_toolkit::command_helpers::prelude::RequestParts;
 use rpc_toolkit::hyper::header::COOKIE;
 use rpc_toolkit::hyper::http::Error as HttpError;
 use rpc_toolkit::hyper::{Body, Request, Response};
-use rpc_toolkit::rpc_server_helpers::{
-    noop3, noop4, to_response, DynMiddleware, DynMiddlewareStage2, DynMiddlewareStage3,
-};
+use rpc_toolkit::rpc_server_helpers::{noop3, to_response, DynMiddleware, DynMiddlewareStage2};
 use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Metadata;
 use sha2::Sha256;

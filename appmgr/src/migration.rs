@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use emver::VersionRange;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 

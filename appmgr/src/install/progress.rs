@@ -6,11 +6,10 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use patch_db::{DbHandle, HasModel, OptionModel, PatchDb, PatchDbHandle};
+use patch_db::{DbHandle, HasModel, OptionModel, PatchDb};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
-use crate::db::model::PackageDataEntry;
 use crate::Error;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
