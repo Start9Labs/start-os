@@ -1,7 +1,7 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { Log } from 'src/app/services/api/api.types'
+import { RR } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'logs',
@@ -10,13 +10,13 @@ import { Log } from 'src/app/services/api/api.types'
 })
 export class LogsPage {
   @ViewChild(IonContent) private content: IonContent
-  @Input() fetchLogs: (params: { before?: string, after?: string, limit: number }) => Promise<Log[]>
+  @Input() fetchLogs: (params: { before_flag?: boolean, limit?: number, cursor?: string }) => Promise<RR.LogsRes>
   loading = true
   loadingMore = false
   logs: string
   needInfinite = true
-  before: string
-  after: string
+  startCursor: string
+  endCursor: string
   limit = 200
   scrollToBottomButton = false
   isOnBottom = true
@@ -31,16 +31,22 @@ export class LogsPage {
 
   async fetch (isBefore: boolean = true) {
     try {
-      const logs = await this.fetchLogs({
-        before: isBefore ? this.before : undefined,
-        after: !isBefore ? this.after : undefined,
+      const cursor = isBefore ? this.startCursor : this.endCursor
+      const logsRes = await this.fetchLogs({
+        cursor,
+        before_flag: !!cursor ? isBefore : undefined,
         limit: this.limit,
       })
-      this.before = logs[0]?.timestamp
-      this.after = logs[logs.length - 1]?.timestamp
+
+      if (isBefore && logsRes.startCursor) {
+        this.startCursor = logsRes.startCursor
+      }
+      if (!isBefore && logsRes.endCursor) {
+        this.endCursor = logsRes.endCursor
+      }
       this.loading = false
 
-      return logs
+      return logsRes.logs
     } catch (e) {
       this.errToast.present(e)
     }
@@ -50,8 +56,6 @@ export class LogsPage {
     try {
       // get logs
       const logs = await this.fetch()
-      this.before = logs[0].timestamp
-
       const container = document.getElementById('container')
       const beforeContainerHeight = container.scrollHeight
       const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement

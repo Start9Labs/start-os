@@ -17,10 +17,10 @@ export class ServerLogsPage {
   ) { }
 
   fetchFetchLogs (): Function {
-    return async (params: { before?: string, after?: string, limit: number }) => {
+    return async (params: { before_flag?: boolean, limit?: number, cursor?: string }) => {
       return this.embassyApi.getServerLogs({
-        after: params.after,
-        before: params.before,
+        before_flag: params.before_flag,
+        cursor: params.cursor,
         limit: params.limit,
       })
     }
