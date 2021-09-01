@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS tor
 (
     package     TEXT NOT NULL,
     interface   TEXT NOT NULL,
-    key         BLOB NOT NULL,
+    key         BLOB NOT NULL CHECK (length(key) = 64),
     PRIMARY KEY (package, interface)
 );
 CREATE TABLE IF NOT EXISTS session
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS account
 (
     id INTEGER PRIMARY KEY CHECK (id = 0),
     password TEXT NOT NULL,
-    tor_key BLOB NOT NULL
+    tor_key BLOB NOT NULL CHECK (length(tor_key) = 64)
 );
 CREATE TABLE IF NOT EXISTS ssh_keys
 (

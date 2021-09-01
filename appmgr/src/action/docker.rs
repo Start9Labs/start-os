@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::{IoFormat, Version};
-use crate::volume::{Volume, VolumeId, Volumes};
+use crate::volume::{VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &'static str = "embassy";
@@ -195,7 +195,7 @@ impl DockerAction {
         let mut res = Vec::with_capacity(
             (2 * self.mounts.len()) // --mount <MOUNT_ARG>
                 + (2 * self.shm_size_mb.is_some() as usize) // --shm-size <SHM_SIZE>
-                + 3 // --entrypoint <ENTRYPOINT> <IMAGE>
+                + 4 // --log-driver=journald --entrypoint <ENTRYPOINT> <IMAGE>
                 + self.args.len(), // [ARG...]
         );
         for (volume_id, dst) in &self.mounts {
@@ -227,6 +227,7 @@ impl DockerAction {
             res.push(OsString::from(Self::container_name(pkg_id, None)).into());
             res.push(OsStr::new(&self.entrypoint).into());
         } else {
+            res.push(OsStr::new("--log-driver=journald").into());
             res.push(OsStr::new("--entrypoint").into());
             res.push(OsStr::new(&self.entrypoint).into());
             if self.system {
