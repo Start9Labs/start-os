@@ -180,22 +180,10 @@ export class AppComponent {
     await alert.present()
   }
 
+  // should wipe cache independant of actual BE logout
   private async logout () {
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      message: 'Logging out...',
-      cssClass: 'loader',
-    })
-    await loader.present()
-
-    try {
-      await this.embassyApi.logout({ })
-      this.authService.setUnverified()
-    } catch (e) {
-      await this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+    this.embassyApi.logout({ })
+    this.authService.setUnverified()
   }
 
   private watchConnection (): Subscription {
