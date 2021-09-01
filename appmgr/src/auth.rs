@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use anyhow::anyhow;
 use basic_cookies::Cookie;
 use chrono::{DateTime, Utc};
@@ -40,12 +42,31 @@ fn gen_pwd() {
     )
 }
 
-// fn cli_login(ctx: CliContext, password: Option<String>, metadata: Value) -> Result<(), Error> {
-//     todo!()
-// }
+async fn cli_login(
+    ctx: CliContext,
+    password: Option<String>,
+    metadata: Value,
+) -> Result<(), RpcError> {
+    let password = if let Some(password) = password {
+        password
+    } else {
+        rpassword::prompt_password_stdout("Password: ")?
+    };
+
+    rpc_toolkit::command_helpers::call_remote(
+        ctx,
+        "auth.login",
+        serde_json::json!({ "password": password, "metadata": metadata }),
+        PhantomData::<()>,
+    )
+    .await?
+    .result?;
+
+    Ok(())
+}
 
 #[command(
-    // custom_cli(cli_login),
+    custom_cli(cli_login(async, context(CliContext))),
     display(display_none),
     metadata(authenticated = false)
 )]

@@ -46,7 +46,6 @@ pub mod version;
 pub mod volume;
 
 pub use config::Config;
-use context::CliContext;
 pub use error::{Error, ErrorKind, ResultExt};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;

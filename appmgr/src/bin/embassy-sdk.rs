@@ -1,13 +1,13 @@
-use embassy::context::{CliContext, EitherContext};
+use embassy::context::CliContext;
 use embassy::Error;
 use rpc_toolkit::run_cli;
 use rpc_toolkit::yajrc::RpcError;
 use serde_json::Value;
 
 fn inner_main() -> Result<(), Error> {
-    run_cli!(
-        embassy::portable_api,
-        app => app
+    run_cli!({
+        command: embassy::portable_api,
+        app: app => app
             .name("Embassy SDK")
             .arg(
                 clap::Arg::with_name("config")
@@ -21,7 +21,7 @@ fn inner_main() -> Result<(), Error> {
                     .multiple(true)
                     .takes_value(false),
             ),
-        matches => {
+        context: matches => {
             simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
                 0 => log::LevelFilter::Off,
                 1 => log::LevelFilter::Error,
@@ -30,9 +30,9 @@ fn inner_main() -> Result<(), Error> {
                 4 => log::LevelFilter::Debug,
                 _ => log::LevelFilter::Trace,
             });
-            EitherContext::Cli(CliContext::init(matches)?)
+            CliContext::init(matches)?
         },
-        |e: RpcError| {
+        exit: |e: RpcError| {
             match e.data {
                 Some(Value::String(s)) => eprintln!("{}: {}", e.message, s),
                 Some(Value::Object(o)) => if let Some(Value::String(s)) = o.get("details") {
@@ -43,7 +43,7 @@ fn inner_main() -> Result<(), Error> {
             }
             std::process::exit(e.code);
         }
-    );
+    });
     Ok(())
 }
 
