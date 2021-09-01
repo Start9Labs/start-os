@@ -348,8 +348,10 @@ export class MockApiService extends ApiService {
       unpacked: 0,
       'unpack-complete': false,
     }
+    const installedMock = Mock.Pkgs[params.id]
+    delete installedMock.installed
     const pkg: PackageDataEntry = {
-      ...Mock.Pkgs[params.id],
+      ...installedMock,
       state: PackageState.Installing,
       'install-progress': initialProgress,
     }
