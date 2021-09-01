@@ -20,7 +20,7 @@ use crate::net::interface::InterfaceId;
 use crate::net::NetController;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Container, Version};
-use crate::{Error, ResultExt};
+use crate::Error;
 
 pub struct ManagerMap(RwLock<HashMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {

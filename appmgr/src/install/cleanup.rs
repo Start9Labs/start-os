@@ -1,19 +1,13 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
-use std::path::Path;
 
 use anyhow::anyhow;
 use bollard::image::ListImagesOptions;
-use bollard::Docker;
 use patch_db::{DbHandle, PatchDbHandle};
-use tokio::process::Command;
 
-use super::PKG_PUBLIC_DIR;
 use crate::context::RpcContext;
 use crate::db::model::{InstalledPackageDataEntry, PackageDataEntry};
-use crate::dependencies::DependencyError;
-use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::util::{Invoke, Version};
+use crate::s9pk::manifest::PackageId;
+use crate::util::Version;
 use crate::Error;
 
 pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a PackageId>>(
@@ -170,22 +164,4 @@ pub async fn uninstall(
     update_dependents(&mut tx, &entry.manifest.id, entry.current_dependents.keys()).await?;
     tx.commit(None).await?;
     Ok(())
-}
-
-#[tokio::test]
-async fn test() {
-    dbg!(
-        Docker::connect_with_socket_defaults()
-            .unwrap()
-            .list_images(Some(ListImagesOptions {
-                all: false,
-                filters: {
-                    let mut f = HashMap::new();
-                    f.insert("reference", vec!["start9/*:latest"]);
-                    f
-                },
-                digests: false
-            }))
-            .await
-    );
 }

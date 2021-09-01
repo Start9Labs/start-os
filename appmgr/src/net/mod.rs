@@ -9,7 +9,7 @@ use self::mdns::MdnsController;
 use self::tor::TorController;
 use crate::net::interface::TorConfig;
 use crate::s9pk::manifest::PackageId;
-use crate::{Error, ResultExt};
+use crate::Error;
 
 pub mod interface;
 #[cfg(feature = "avahi")]

@@ -1,11 +1,11 @@
 use std::cmp::Ordering;
 
 use async_trait::async_trait;
-use futures::stream::TryStreamExt;
 use lazy_static::lazy_static;
 use patch_db::DbHandle;
 use rpc_toolkit::command;
-use tokio_compat_02::FutureExt;
+
+use crate::Error;
 
 // mod v0_1_0;
 // mod v0_1_1;
@@ -30,10 +30,6 @@ use tokio_compat_02::FutureExt;
 
 // pub use v0_2_12::Version as Current;
 pub type Current = ();
-
-use crate::context::{CliContext, RpcContext};
-use crate::util::{to_yaml_async_writer, AsyncCompat};
-use crate::{Error, ResultExt as _};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]

@@ -2,27 +2,19 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use bollard::container::{ListContainersOptions, StartContainerOptions, StopContainerOptions};
-use bollard::models::{ContainerStateStatusEnum, ContainerSummaryInner};
-use bollard::Docker;
 use chrono::{DateTime, Utc};
-use futures::{StreamExt, TryFutureExt};
+use futures::StreamExt;
 use indexmap::IndexMap;
-use patch_db::{DbHandle, HasModel, Map, MapModel, Model, ModelData, ModelDataMut};
+use patch_db::{DbHandle, HasModel, Map, MapModel, ModelData};
 use serde::{Deserialize, Serialize};
 
 use self::health_check::{HealthCheckId, HealthCheckResult};
-use crate::action::docker::DockerAction;
 use crate::context::RpcContext;
-use crate::db::model::{
-    CurrentDependencyInfo, InstalledPackageDataEntryModel, PackageDataEntryModel,
-};
-use crate::dependencies::{Dependencies, DependencyError};
+use crate::db::model::CurrentDependencyInfo;
+use crate::dependencies::DependencyError;
 use crate::manager::{Manager, Status as ManagerStatus};
-use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::HealthCheckResultVariant;
-use crate::util::Invoke;
 use crate::Error;
 
 pub mod health_check;
@@ -326,7 +318,7 @@ impl DependencyErrors {
         current_dependencies: &IndexMap<PackageId, CurrentDependencyInfo>,
     ) -> Result<DependencyErrors, Error> {
         let mut res = IndexMap::new();
-        for (dep_id, info) in current_dependencies {
+        for dep_id in current_dependencies.keys() {
             if let Err(e) = manifest
                 .dependencies
                 .0

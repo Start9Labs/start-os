@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use indexmap::IndexMap;
 use patch_db::DbHandle;
 use rpc_toolkit::command;
