@@ -171,6 +171,6 @@ pub async fn ui(
     let ptr = "/ui".parse::<JsonPointer>()? + &pointer;
     Ok(WithRevision {
         response: (),
-        revision: ctx.db.put(&ptr, &value, None).await?,
+        revision: Some(ctx.db.put(&ptr, &value, None).await?),
     })
 }

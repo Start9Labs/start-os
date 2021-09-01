@@ -147,9 +147,9 @@ impl StaticFiles {
     }
     pub fn remote(id: &PackageId, version: &Version, icon_type: &str) -> Self {
         StaticFiles {
-            license: format!("/registry/packages/{}/{}/LICENSE.md", id, version),
-            instructions: format!("/registry/packages/{}/{}/INSTRUCTIONS.md", id, version),
-            icon: format!("/registry/packages/{}/{}/icon.{}", id, version, icon_type),
+            license: format!("/marketplace/package/{}/{}/LICENSE.md", id, version),
+            instructions: format!("/marketplace/package/{}/{}/INSTRUCTIONS.md", id, version),
+            icon: format!("/marketplace/package/{}/{}/icon.{}", id, version, icon_type),
         }
     }
 }
