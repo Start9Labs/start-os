@@ -5,7 +5,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
-import { delay, filter } from 'rxjs/operators'
+import { filter } from 'rxjs/operators'
 
 @Component({
   selector: 'app-list',
