@@ -46,14 +46,14 @@ pub mod version;
 pub mod volume;
 
 pub use config::Config;
-use context::{CliContext, EitherContext};
+use context::CliContext;
 pub use error::{Error, ErrorKind, ResultExt};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 pub use version::{init, self_update};
 
 #[command(metadata(authenticated = false))]
-pub fn echo(#[context] _ctx: EitherContext, #[arg] message: String) -> Result<String, RpcError> {
+pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     Ok(message)
 }
 
@@ -68,8 +68,8 @@ pub fn echo(#[context] _ctx: EitherContext, #[arg] message: String) -> Result<St
     auth::auth,
     db::db,
 ))]
-pub fn main_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
-    Ok(ctx)
+pub fn main_api() -> Result<(), RpcError> {
+    Ok(())
 }
 
 #[command(subcommands(
@@ -79,8 +79,8 @@ pub fn main_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError
     control::start,
     control::stop
 ))]
-pub fn package(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
-    Ok(ctx)
+pub fn package() -> Result<(), RpcError> {
+    Ok(())
 }
 
 #[command(subcommands(
@@ -90,6 +90,6 @@ pub fn package(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError>
     developer::init,
     inspect::inspect
 ))]
-pub fn portable_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
-    Ok(ctx)
+pub fn portable_api() -> Result<(), RpcError> {
+    Ok(())
 }

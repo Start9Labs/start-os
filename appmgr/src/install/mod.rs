@@ -27,7 +27,7 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 
 use self::cleanup::cleanup_failed;
-use crate::context::{EitherContext, ExtendedContext, RpcContext};
+use crate::context::RpcContext;
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, StaticDependencyInfo,
     StaticFiles,
@@ -50,17 +50,16 @@ pub const PKG_PUBLIC_DIR: &'static str = "/mnt/embassy-os/public/package-data";
 
 #[command(display(display_none))]
 pub async fn install(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[arg] id: String,
 ) -> Result<WithRevision<()>, Error> {
-    let rpc_ctx = ctx.to_rpc().unwrap();
     let (pkg_id, version_str) = if let Some(split) = id.split_once("@") {
         split
     } else {
         (id.as_str(), "*")
     };
     let version: VersionRange = version_str.parse()?;
-    let reg_url = rpc_ctx.package_registry_url().await?;
+    let reg_url = ctx.package_registry_url().await?;
     let (man_res, s9pk) = tokio::try_join!(
         reqwest::get(format!(
             "{}/package/manifest/{}?version={}",
@@ -76,7 +75,7 @@ pub async fn install(
 
     let progress = InstallProgress::new(s9pk.content_length());
     let static_files = StaticFiles::remote(&man.id, &man.version, man.assets.icon_type());
-    let mut db_handle = rpc_ctx.db.handle();
+    let mut db_handle = ctx.db.handle();
     let mut tx = db_handle.begin().await?;
     let mut pde = crate::db::DatabaseModel::new()
         .package_data()
@@ -115,7 +114,7 @@ pub async fn install(
     drop(db_handle);
 
     tokio::spawn(async move {
-        if let Err(e) = download_install_s9pk(&rpc_ctx, &man, s9pk).await {
+        if let Err(e) = download_install_s9pk(&ctx, &man, s9pk).await {
             log::error!("Install of {}@{} Failed: {}", man.id, man.version, e);
         }
     });
@@ -128,10 +127,10 @@ pub async fn install(
 
 #[command(display(display_none))]
 pub async fn uninstall(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[arg] id: PackageId,
 ) -> Result<WithRevision<()>, Error> {
-    let mut handle = ctx.as_rpc().unwrap().db.handle();
+    let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
 
     let mut pde = crate::db::DatabaseModel::new()
@@ -161,8 +160,7 @@ pub async fn uninstall(
     drop(handle);
 
     tokio::spawn(async move {
-        let rpc_ctx = ctx.as_rpc().unwrap();
-        if let Err(e) = cleanup::uninstall(rpc_ctx, &mut rpc_ctx.db.handle(), &installed).await {
+        if let Err(e) = cleanup::uninstall(&ctx, &mut ctx.db.handle(), &installed).await {
             log::error!("Uninstall of {} Failed: {}", id, e);
         }
     });

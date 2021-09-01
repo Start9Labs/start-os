@@ -14,7 +14,7 @@ use serde_json::Value;
 
 use crate::action::docker::DockerAction;
 use crate::config::spec::PackagePointerSpecVariant;
-use crate::context::{EitherContext, ExtendedContext};
+use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
 use crate::db::util::WithRevision;
 use crate::dependencies::{
@@ -137,24 +137,22 @@ pub enum MatchError {
 }
 
 #[command(subcommands(get, set))]
-pub fn config(
-    #[context] ctx: EitherContext,
-    #[arg] id: PackageId,
-) -> Result<ExtendedContext<EitherContext, PackageId>, Error> {
-    Ok(ExtendedContext::from(ctx).map(|_| id))
+pub fn config(#[arg] id: PackageId) -> Result<PackageId, Error> {
+    Ok(id)
 }
 
 #[command(display(display_serializable))]
 pub async fn get(
-    #[context] ctx: ExtendedContext<EitherContext, PackageId>,
+    #[context] ctx: RpcContext,
+    #[parent_data] id: PackageId,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<ConfigRes, Error> {
-    let mut db = ctx.base().as_rpc().unwrap().db.handle();
+    let mut db = ctx.db.handle();
     let pkg_model = crate::db::DatabaseModel::new()
         .package_data()
-        .idx_model(ctx.extension())
+        .idx_model(&id)
         .and_then(|m| m.installed())
         .expect(&mut db)
         .await
@@ -166,12 +164,7 @@ pub async fn get(
         .get(&mut db, true)
         .await?
         .to_owned()
-        .ok_or_else(|| {
-            Error::new(
-                anyhow!("{} has no config", ctx.extension()),
-                crate::ErrorKind::NotFound,
-            )
-        })?;
+        .ok_or_else(|| Error::new(anyhow!("{} has no config", id), crate::ErrorKind::NotFound))?;
     let version = pkg_model
         .clone()
         .manifest()
@@ -179,40 +172,39 @@ pub async fn get(
         .get(&mut db, true)
         .await?;
     let volumes = pkg_model.manifest().volumes().get(&mut db, true).await?;
-    action.get(ctx.extension(), &*version, &*volumes).await
+    action.get(&id, &*version, &*volumes).await
 }
 
 #[command(subcommands(self(set_impl(async)), set_dry), display(display_none))]
 pub fn set(
-    #[context] ctx: ExtendedContext<EitherContext, PackageId>,
+    #[context] ctx: RpcContext,
+    #[parent_data] id: PackageId,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
     #[arg(long = "timeout", parse(parse_duration))] timeout: Option<Duration>,
     #[arg(stdin, parse(parse_stdin_deserializable))] config: Option<Config>,
     #[arg(rename = "expire-id", long = "expire-id")] expire_id: Option<String>,
-) -> Result<
-    ExtendedContext<EitherContext, (PackageId, Option<Config>, Option<Duration>, Option<String>)>,
-    Error,
-> {
-    Ok(ctx.map(|id| (id, config, timeout, expire_id)))
+) -> Result<(PackageId, Option<Config>, Option<Duration>, Option<String>), Error> {
+    Ok((id, config, timeout, expire_id))
 }
 
 #[command(display(display_serializable))]
 pub async fn set_dry(
-    #[context] ctx: ExtendedContext<
-        EitherContext,
-        (PackageId, Option<Config>, Option<Duration>, Option<String>),
-    >,
+    #[context] ctx: RpcContext,
+    #[parent_data] (id, config, timeout, _): (
+        PackageId,
+        Option<Config>,
+        Option<Duration>,
+        Option<String>,
+    ),
 ) -> Result<BreakageRes, Error> {
-    let (ctx, (id, config, timeout, _)) = ctx.split();
-    let rpc_ctx = ctx.as_rpc().unwrap();
-    let mut db = rpc_ctx.db.handle();
+    let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = IndexMap::new();
     configure(
         &mut tx,
-        &rpc_ctx.docker,
+        &ctx.docker,
         &id,
         config,
         &timeout,
@@ -240,19 +232,15 @@ pub async fn set_dry(
 }
 
 pub async fn set_impl(
-    ctx: ExtendedContext<
-        EitherContext,
-        (PackageId, Option<Config>, Option<Duration>, Option<String>),
-    >,
+    ctx: RpcContext,
+    (id, config, timeout, expire_id): (PackageId, Option<Config>, Option<Duration>, Option<String>),
 ) -> Result<WithRevision<()>, Error> {
-    let (ctx, (id, config, timeout, expire_id)) = ctx.split();
-    let rpc_ctx = ctx.as_rpc().unwrap();
-    let mut db = rpc_ctx.db.handle();
+    let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = IndexMap::new();
     configure(
         &mut tx,
-        &rpc_ctx.docker,
+        &ctx.docker,
         &id,
         config,
         &timeout,
