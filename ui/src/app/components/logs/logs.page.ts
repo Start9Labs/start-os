@@ -56,6 +56,8 @@ export class LogsPage {
     try {
       // get logs
       const logs = await this.fetch()
+      if (!logs.length) return
+
       const container = document.getElementById('container')
       const beforeContainerHeight = container.scrollHeight
       const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
@@ -78,6 +80,8 @@ export class LogsPage {
     try {
       this.loadingMore = true
       const logs = await this.fetch(false)
+      if (!logs.length) return this.loadingMore = false
+
       const container = document.getElementById('container')
       const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
       newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n') + (logs.length ? '\n\n' : '')
