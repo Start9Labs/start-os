@@ -304,6 +304,7 @@ pub async fn download_install_s9pk(
         let mut tx = handle.begin().await?;
 
         if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id, version).await {
+            let mut tx = handle.begin().await?;
             log::error!(
                 "Failed to clean up {}@{}: {}: Adding to broken packages",
                 pkg_id,
@@ -312,10 +313,13 @@ pub async fn download_install_s9pk(
             );
             let mut broken = crate::db::DatabaseModel::new()
                 .broken_packages()
-                .get_mut(&mut handle)
+                .get_mut(&mut tx)
                 .await?;
             broken.push(pkg_id.clone());
-            broken.save(&mut handle).await?;
+            broken.save(&mut tx).await?;
+            tx.commit(None).await?;
+        } else {
+            tx.commit(None).await?;
         }
         Err(e)
     } else {
