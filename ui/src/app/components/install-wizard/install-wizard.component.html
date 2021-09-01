@@ -38,11 +38,11 @@
 
       <!-- cancel button if loading/not loading -->
       <ion-button slot="start" *ngIf="(currentSlide.loading$ | async) && currentBottomBar.cancel.whileLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline">
-        <ion-text *ngIf="cancel.text" [class.smaller-text]="cancel.text > 16">{{ cancel.text }}</ion-text>
+        <ion-text *ngIf="cancel.text" [class.smaller-text]="cancel.text.length > 16">{{ cancel.text }}</ion-text>
         <ion-icon *ngIf="!cancel.text" name="close"></ion-icon>
       </ion-button>
       <ion-button slot="start" *ngIf="!(currentSlide.loading$ | async) && currentBottomBar.cancel.afterLoading as cancel" (click)="transitions.cancel()" class="toolbar-button" fill="outline">
-        <ion-text *ngIf="cancel.text" [class.smaller-text]="cancel.text > 16">{{ cancel.text }}</ion-text>
+        <ion-text *ngIf="cancel.text" [class.smaller-text]="cancel.text.length > 16">{{ cancel.text }}</ion-text>
         <ion-icon *ngIf="!cancel.text" name="close"></ion-icon>
       </ion-button>
 

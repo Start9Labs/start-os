@@ -7,6 +7,7 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 export interface ActionButton {
   text: string
   handler: (value: any) => Promise<boolean>
+  isSubmit?: boolean
 }
 
 @Component({
@@ -18,6 +19,7 @@ export class GenericFormPage {
   @Input() title: string
   @Input() spec: ConfigSpec
   @Input() buttons: ActionButton[]
+  submitBtn: ActionButton
   formGroup: FormGroup
 
   constructor (
@@ -27,20 +29,25 @@ export class GenericFormPage {
 
   ngOnInit () {
     this.formGroup = this.formService.createForm(this.spec)
+    this.submitBtn = this.buttons.find(btn => btn.isSubmit) || {
+      text: '',
+      handler: () => Promise.resolve(true),
+    }
+    console.log(this.submitBtn)
   }
 
   async dismiss (): Promise<void> {
     this.modalCtrl.dismiss()
   }
 
-  async handleClick (button: ActionButton): Promise<void> {
+  async handleClick (handler: ActionButton['handler']): Promise<void> {
     if (this.formGroup.invalid) {
       this.formGroup.markAllAsTouched()
       document.getElementsByClassName('validation-error')[0].parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
       return
     }
 
-    const success = await button.handler(this.formGroup.value)
+    const success = await handler(this.formGroup.value)
     if (success !== false) this.modalCtrl.dismiss()
   }
 }

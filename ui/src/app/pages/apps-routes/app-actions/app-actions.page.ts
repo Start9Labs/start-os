@@ -61,6 +61,7 @@ export class AppActionsPage {
                 handler: (value: any) => {
                   return this.executeAction(pkg.manifest.id, action.key, value)
                 },
+                isSubmit: true,
               },
             ],
           },

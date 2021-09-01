@@ -64,17 +64,17 @@
           <p>No config options for {{ pkg.manifest.title }} {{ pkg.manifest.version }}.</p>
         </ion-label>
       </ion-item>
-    </ng-container>
 
-    <!-- has config -->
-    <form [formGroup]="configForm" (ngSubmit)="save()" novalidate>
-      <form-object
-        [objectSpec]="configSpec"
-        [formGroup]="configForm"
-        [current]="current"
-        showEdited
-      ></form-object>
-    </form>
+      <!-- has config -->
+      <form [formGroup]="configForm" (ngSubmit)="save(pkg)" novalidate>
+        <form-object
+          [objectSpec]="configSpec"
+          [formGroup]="configForm"
+          [current]="current"
+          [showEdited]="true"
+        ></form-object>
+      </form>
+    </ng-container>
   </ng-template>
 </ion-content>
 
