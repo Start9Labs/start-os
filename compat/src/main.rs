@@ -1,6 +1,12 @@
 use std::{fs::File, io::stdout, path::Path};
 
+#[macro_use] extern crate failure;
+extern crate pest;
+#[macro_use]
+extern crate pest_derive;
+
 mod backup;
+mod config;
 use anyhow::anyhow;
 use backup::{create_backup, restore_backup};
 use clap::{App, Arg, SubCommand};
@@ -8,6 +14,7 @@ use embassy::config::action::{ConfigRes, SetResult};
 use embassy::Error;
 use futures::future::FutureExt;
 
+#[async_std::main]
 async fn main() {
     let app = App::new("compat")
         .subcommand(
@@ -36,7 +43,7 @@ async fn main() {
                     .arg(
                         Arg::with_name("mountpoint")
                             .help(
-                                "The backups mount point in the format: file:///<mount-point-path>",
+                                "The backups mount point in the format: file:///<mount-point-path>", // TODO confirm / fix
                             )
                             .required(true),
                     )
@@ -61,7 +68,7 @@ async fn main() {
                 let spec_path = Path::new(sub_m.value_of("spec").unwrap());
                 let spec = serde_yaml::from_reader(File::open(spec_path).unwrap()).unwrap();
                 serde_yaml::to_writer(stdout(), &ConfigRes { config: cfg, spec }).unwrap();
-            }
+            },
             ("set", Some(sub_m)) => {
                 // valiate against rules
                 // save file
@@ -75,7 +82,7 @@ async fn main() {
                 let spec_path = Path::new(sub_m.value_of("spec").unwrap());
                 let spec = serde_yaml::from_reader(File::open(spec_path).unwrap()).unwrap();
                 serde_yaml::to_writer(stdout(), &ConfigRes { config: cfg, spec }).unwrap();
-            }
+            },
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
             }
@@ -110,10 +117,10 @@ async fn main() {
                         log::error!("could not restore backup: {}", e.source);
                     }
                 };
-            }
+            },
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
-            }
+            },
         },
         (subcmd, _) => {
             panic!("unknown subcommand: {}", subcmd);

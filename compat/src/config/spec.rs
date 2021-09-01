@@ -16,8 +16,8 @@ use super::value::{Config, Value};
 use super::{MatchError, NoMatchWithPath, TimeoutError};
 
 use crate::config::ConfigurationError;
-use crate::manifest::ManifestLatest;
-use crate::util::PersistencePath;
+use embassy::s9pk::manifest::Manifest;
+// use crate::util::PersistencePath;
 
 // Config Value Specifications
 #[async_trait]
@@ -27,7 +27,7 @@ pub trait ValueSpec {
     fn matches(&self, value: &Value) -> Result<(), NoMatchWithPath>;
     // This function checks whether the value spec is consistent with itself,
     // since not all invariants can be checked by the type
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath>;
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath>;
     // update is to fill in values for environment pointers recursively
     async fn update(&self, value: &mut Value) -> Result<(), ConfigurationError>;
     // requires returns whether the app id is the target of a pointer within it
@@ -133,7 +133,7 @@ where
     fn matches(&self, value: &Value) -> Result<(), NoMatchWithPath> {
         self.inner.matches(value)
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.inner.validate(manifest)
     }
     async fn update(&self, value: &mut Value) -> Result<(), ConfigurationError> {
@@ -165,7 +165,7 @@ where
             _ => self.inner.matches(value),
         }
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.inner.validate(manifest)
     }
     async fn update(&self, value: &mut Value) -> Result<(), ConfigurationError> {
@@ -230,7 +230,7 @@ where
     fn matches(&self, value: &Value) -> Result<(), NoMatchWithPath> {
         self.inner.matches(value)
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.inner.validate(manifest)
     }
     async fn update(&self, value: &mut Value) -> Result<(), ConfigurationError> {
@@ -323,7 +323,7 @@ impl ValueSpec for ValueSpecAny {
             ValueSpecAny::Pointer(a) => a.matches(value),
         }
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         match self {
             ValueSpecAny::Boolean(a) => a.validate(manifest),
             ValueSpecAny::Enum(a) => a.validate(manifest),
@@ -381,10 +381,10 @@ impl Defaultable for ValueSpecAny {
         timeout: &Option<Duration>,
     ) -> Result<Value, Self::Error> {
         match self {
-            ValueSpecAny::Boolean(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
-            ValueSpecAny::Enum(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
+            ValueSpecAny::Boolean(a) => a.gen(rng, timeout).map_err(embassy::util::Never::absurd),
+            ValueSpecAny::Enum(a) => a.gen(rng, timeout).map_err(embassy::util::Never::absurd),
             ValueSpecAny::List(a) => a.gen(rng, timeout),
-            ValueSpecAny::Number(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
+            ValueSpecAny::Number(a) => a.gen(rng, timeout).map_err(embassy::util::Never::absurd),
             ValueSpecAny::Object(a) => a.gen(rng, timeout),
             ValueSpecAny::String(a) => a.gen(rng, timeout).map_err(ConfigurationError::from),
             ValueSpecAny::Union(a) => a.gen(rng, timeout),
@@ -407,7 +407,7 @@ impl ValueSpec for ValueSpecBoolean {
             ))),
         }
     }
-    fn validate(&self, _manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
     async fn update(&self, _value: &mut Value) -> Result<(), ConfigurationError> {
@@ -425,7 +425,7 @@ impl ValueSpec for ValueSpecBoolean {
 }
 impl DefaultableWith for ValueSpecBoolean {
     type DefaultSpec = bool;
-    type Error = crate::util::Never;
+    type Error = embassy::util::Never;
 
     fn gen_with<R: Rng + CryptoRng + Sync + Send + Send>(
         &self,
@@ -486,7 +486,7 @@ impl ValueSpec for ValueSpecEnum {
             ))),
         }
     }
-    fn validate(&self, _manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
     async fn update(&self, _value: &mut Value) -> Result<(), ConfigurationError> {
@@ -504,7 +504,7 @@ impl ValueSpec for ValueSpecEnum {
 }
 impl DefaultableWith for ValueSpecEnum {
     type DefaultSpec = String;
-    type Error = crate::util::Never;
+    type Error = embassy::util::Never;
 
     fn gen_with<R: Rng + CryptoRng + Sync + Send + Send>(
         &self,
@@ -562,7 +562,7 @@ where
             ))),
         }
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.spec.validate(manifest)
     }
     async fn update(&self, value: &mut Value) -> Result<(), ConfigurationError> {
@@ -649,7 +649,7 @@ impl ValueSpec for ValueSpecList {
             ValueSpecList::Union(a) => a.matches(value),
         }
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         match self {
             ValueSpecList::Enum(a) => a.validate(manifest),
             ValueSpecList::Number(a) => a.validate(manifest),
@@ -696,8 +696,8 @@ impl Defaultable for ValueSpecList {
         timeout: &Option<Duration>,
     ) -> Result<Value, Self::Error> {
         match self {
-            ValueSpecList::Enum(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
-            ValueSpecList::Number(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
+            ValueSpecList::Enum(a) => a.gen(rng, timeout).map_err(embassy::util::Never::absurd),
+            ValueSpecList::Number(a) => a.gen(rng, timeout).map_err(embassy::util::Never::absurd),
             ValueSpecList::Object(a) => {
                 let mut ret = match a.gen(rng, timeout).unwrap() {
                     Value::List(l) => l,
@@ -762,7 +762,7 @@ impl ValueSpec for ValueSpecNumber {
             ))),
         }
     }
-    fn validate(&self, _manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
     async fn update(&self, _value: &mut Value) -> Result<(), ConfigurationError> {
@@ -829,7 +829,7 @@ impl<'de> serde::de::Deserialize<'de> for Number {
 }
 impl DefaultableWith for ValueSpecNumber {
     type DefaultSpec = Option<Number>;
-    type Error = crate::util::Never;
+    type Error = embassy::util::Never;
 
     fn gen_with<R: Rng + CryptoRng + Sync + Send>(
         &self,
@@ -863,7 +863,7 @@ impl ValueSpec for ValueSpecObject {
             ))),
         }
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.spec.validate(manifest)
     }
     async fn update(&self, value: &mut Value) -> Result<(), ConfigurationError> {
@@ -891,7 +891,7 @@ impl ValueSpec for ValueSpecObject {
 }
 impl DefaultableWith for ValueSpecObject {
     type DefaultSpec = Config;
-    type Error = crate::util::Never;
+    type Error = embassy::util::Never;
 
     fn gen_with<R: Rng + CryptoRng + Sync + Send>(
         &self,
@@ -949,7 +949,7 @@ impl ConfigSpec {
         Ok(Config(res))
     }
 
-    pub fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    pub fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         for (name, val) in &self.0 {
             if let Err(_) = super::rules::validate_key(&name) {
                 return Err(NoMatchWithPath::new(MatchError::InvalidKey(
@@ -1025,7 +1025,7 @@ impl ValueSpec for ValueSpecString {
             ))),
         }
     }
-    fn validate(&self, _manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
     async fn update(&self, _value: &mut Value) -> Result<(), ConfigurationError> {
@@ -1217,7 +1217,7 @@ impl ValueSpec for ValueSpecUnion {
             ))),
         }
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         for (name, variant) in &self.variants {
             if variant.0.get(&self.tag.id).is_some() {
                 return Err(NoMatchWithPath::new(MatchError::PropertyMatchesUnionTag(
@@ -1328,7 +1328,7 @@ impl ValueSpec for ValueSpecPointer {
             ValueSpecPointer::System(a) => a.matches(value),
         }
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         match self {
             ValueSpecPointer::App(a) => a.validate(manifest),
             ValueSpecPointer::System(a) => a.validate(manifest),
@@ -1377,8 +1377,8 @@ impl AppPointerSpec {
                     .unwrap_or(Value::Null))
             }
             AppPointerSpecVariants::TorKey => {
-                let services_path = PersistencePath::from_ref(crate::SERVICES_YAML);
-                let service_map = crate::tor::services_map(&services_path)
+                let services_path = PersistencePath::from_ref(embassy::SERVICES_YAML);
+                let service_map = embassy::net::tor::services_map(&services_path)
                     .await
                     .map_err(ConfigurationError::SystemError)?;
                 let service =
@@ -1447,7 +1447,7 @@ impl ValueSpec for AppPointerSpec {
     fn matches(&self, _value: &Value) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
-    fn validate(&self, manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         if manifest.id != self.app_id && !manifest.dependencies.0.contains_key(&self.app_id) {
             return Err(NoMatchWithPath::new(MatchError::InvalidPointer(
                 ValueSpecPointer::App(self.clone()),
@@ -1550,7 +1550,7 @@ impl SystemPointerSpec {
     async fn deref(&self) -> Result<Value, ConfigurationError> {
         Ok(match self {
             SystemPointerSpec::HostIp => {
-                Value::String(format!("{}", std::net::Ipv4Addr::from(crate::HOST_IP)))
+                Value::String(format!("{}", std::net::Ipv4Addr::from(embassy::HOST_IP)))
             }
         })
     }
@@ -1570,7 +1570,7 @@ impl ValueSpec for SystemPointerSpec {
     fn matches(&self, _value: &Value) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
-    fn validate(&self, _manifest: &ManifestLatest) -> Result<(), NoMatchWithPath> {
+    fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
     async fn update(&self, value: &mut Value) -> Result<(), ConfigurationError> {

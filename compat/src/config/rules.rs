@@ -111,9 +111,9 @@ impl ConfigRuleEntry {
         &self,
         cfg: &Config,
         cfgs: &LinearMap<&str, Cow<Config>>,
-    ) -> Result<(), failure::Error> {
+    ) -> Result<(), anyhow::Error> {
         if !(self.rule.compiled)(cfg, cfgs) {
-            failure::bail!("{}", self.description);
+            anyhow::anyhow!("{}", self.description);
         }
         Ok(())
     }
@@ -308,7 +308,7 @@ impl ConfigRuleEntryWithSuggestions {
         id: &'a str,
         cfg: &mut Config,
         cfgs: &mut LinearMap<&'a str, Cow<Config>>,
-    ) -> Result<(), failure::Error> {
+    ) -> Result<(), anyhow::Error> {
         if self.entry.check(cfg, cfgs).is_err() {
             for suggestion in &self.suggestions {
                 suggestion.apply(id, cfg, cfgs);
