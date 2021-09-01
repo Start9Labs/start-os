@@ -136,6 +136,8 @@ export class AppComponent {
         this.showMenu = false
         this.patch.stop()
         this.storage.clear()
+        if (this.errToast) this.errToast.dismiss()
+        if (this.offlineToast) this.offlineToast.dismiss()
         this.router.navigate(['/login'], { replaceUrl: true })
       }
     })
