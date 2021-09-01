@@ -17,12 +17,12 @@ export class AppLogsPage {
   ) { }
 
   fetchFetchLogs (): Function {
-    return async (params: { after?: string, before?: string, limit: number }) => {
+    return async (params: { before_flag?: boolean, limit?: number, cursor?: string }) => {
       const pkgId = this.pkgId
       return this.embassyApi.getPackageLogs({
         id: pkgId,
-        after: params.after,
-        before: params.before,
+        before_flag: params.before_flag,
+        cursor: params.cursor,
         limit: params.limit,
       })
     }

@@ -1,5 +1,5 @@
 import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
-import { MarketplacePkg, Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
+import { Log, MarketplacePkg, Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
 
 export module Mock {
 
@@ -782,7 +782,7 @@ export module Mock {
     return metr
   }
 
-  export const ServerLogs: RR.GetServerLogsRes = [
+  export const ServerLogs: Log[] = [
     {
       timestamp: '2019-12-26T14:20:30.872Z',
       log: '****** START *****',
@@ -797,7 +797,7 @@ export module Mock {
     },
   ]
 
-  export const PackageLogs: RR.GetPackageLogsRes = [
+  export const PackageLogs: Log[] = [
     {
       timestamp: '2019-12-26T14:20:30.872Z',
       log: '****** START *****',
