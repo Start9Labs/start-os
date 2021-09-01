@@ -5,7 +5,7 @@ use clap::ArgMatches;
 use rpc_toolkit::command;
 use sqlx::{Pool, Sqlite};
 
-use crate::context::EitherContext;
+use crate::context::RpcContext;
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::Error;
 
@@ -48,13 +48,13 @@ impl std::str::FromStr for PubKey {
 }
 
 #[command(subcommands(add, remove, list,))]
-pub fn ssh(#[context] ctx: EitherContext) -> Result<EitherContext, Error> {
-    Ok(ctx)
+pub fn ssh() -> Result<(), Error> {
+    Ok(())
 }
 
 #[command(display(display_none))]
-pub async fn add(#[context] ctx: EitherContext, #[arg] key: PubKey) -> Result<String, Error> {
-    let pool = &ctx.as_rpc().unwrap().secret_store;
+pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<String, Error> {
+    let pool = &ctx.secret_store;
     // check fingerprint for duplicates
     let fp = key.0.fingerprint_md5();
     if sqlx::query!("SELECT * FROM ssh_keys WHERE fingerprint = ?", fp)
@@ -75,11 +75,8 @@ pub async fn add(#[context] ctx: EitherContext, #[arg] key: PubKey) -> Result<St
     Ok(fp)
 }
 #[command(display(display_none))]
-pub async fn remove(
-    #[context] ctx: EitherContext,
-    #[arg] fingerprint: String,
-) -> Result<(), Error> {
-    let pool = &ctx.as_rpc().unwrap().secret_store;
+pub async fn remove(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> Result<(), Error> {
+    let pool = &ctx.secret_store;
     // check if fingerprint is in DB
     // if in DB, remove it from DB
     let n = sqlx::query!("DELETE FROM ssh_keys WHERE fingerprint = ?", fingerprint)
@@ -128,12 +125,12 @@ fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches<'_>) {
 
 #[command(display(display_all_ssh_keys))]
 pub async fn list(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<Vec<SshKeyResponse>, Error> {
-    let pool = &ctx.as_rpc().unwrap().secret_store;
+    let pool = &ctx.secret_store;
     // list keys in DB and return them
     let entries = sqlx::query!("SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys")
         .fetch_all(pool)

@@ -1,5 +1,5 @@
 use clap::Arg;
-use embassy::context::{CliContext, EitherContext};
+use embassy::context::CliContext;
 use embassy::Error;
 use rpc_toolkit::run_cli;
 use rpc_toolkit::yajrc::RpcError;
@@ -35,6 +35,7 @@ fn inner_main() -> Result<(), Error> {
             });
             EitherContext::Cli(CliContext::init(matches)?)
         },
+        (),
         |e: RpcError| {
             match e.data {
                 Some(Value::String(s)) => eprintln!("{}: {}", e.message, s),

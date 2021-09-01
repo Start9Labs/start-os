@@ -31,7 +31,7 @@ use tokio_compat_02::FutureExt;
 // pub use v0_2_12::Version as Current;
 pub type Current = ();
 
-use crate::context::{CliContext, EitherContext, RpcContext};
+use crate::context::{CliContext, RpcContext};
 use crate::util::{to_yaml_async_writer, AsyncCompat};
 use crate::{Error, ResultExt as _};
 
@@ -180,7 +180,7 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
 }
 
 #[command(rename = "git-info", local)]
-pub fn git_info(#[context] _ctx: EitherContext) -> Result<String, Error> {
+pub fn git_info() -> Result<String, Error> {
     Ok(
         git_version::git_version!(args = ["--always", "--abbrev=40", "--dirty=-modified"])
             .to_owned(),

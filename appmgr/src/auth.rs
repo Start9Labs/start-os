@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use basic_cookies::Cookie;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use http::header::COOKIE;
 use http::HeaderValue;
@@ -11,14 +11,14 @@ use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::context::EitherContext;
+use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{get_id, hash_token};
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::{ensure_code, Error, ResultExt};
 
 #[command(subcommands(login, logout, session))]
-pub fn auth(#[context] ctx: EitherContext) -> Result<EitherContext, Error> {
-    Ok(ctx)
+pub fn auth() -> Result<(), Error> {
+    Ok(())
 }
 
 pub fn parse_metadata(_: &str, _: &ArgMatches<'_>) -> Result<Value, Error> {
@@ -40,12 +40,20 @@ fn gen_pwd() {
     )
 }
 
-#[command(display(display_none), metadata(authenticated = false))]
+// fn cli_login(ctx: CliContext, password: Option<String>, metadata: Value) -> Result<(), Error> {
+//     todo!()
+// }
+
+#[command(
+    // custom_cli(cli_login),
+    display(display_none),
+    metadata(authenticated = false)
+)]
 pub async fn login(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
     #[response] res: &mut ResponseParts,
-    #[arg] password: String,
+    #[arg] password: Option<String>,
     #[arg(
         parse(parse_metadata),
         default = "",
@@ -53,8 +61,8 @@ pub async fn login(
     )]
     metadata: Value,
 ) -> Result<(), Error> {
-    let rpc_ctx = ctx.as_rpc().unwrap();
-    let mut handle = rpc_ctx.secret_store.acquire().await?;
+    let password = password.unwrap_or_default();
+    let mut handle = ctx.secret_store.acquire().await?;
     let pw_hash = sqlx::query!("SELECT password FROM account")
         .fetch_one(&mut handle)
         .await?
@@ -99,7 +107,7 @@ pub async fn login(
 
 #[command(display(display_none), metadata(authenticated = false))]
 pub async fn logout(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
 ) -> Result<(), Error> {
     if let Some(cookie_header) = req.headers.get(COOKIE) {
@@ -135,8 +143,8 @@ pub struct SessionList {
 }
 
 #[command(subcommands(list, kill))]
-pub async fn session(#[context] ctx: EitherContext) -> Result<EitherContext, Error> {
-    Ok(ctx)
+pub async fn session() -> Result<(), Error> {
+    Ok(())
 }
 
 fn display_sessions(arg: SessionList, matches: &ArgMatches<'_>) {
@@ -174,7 +182,7 @@ fn display_sessions(arg: SessionList, matches: &ArgMatches<'_>) {
 
 #[command(display(display_sessions))]
 pub async fn list(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
     #[allow(unused_variables)]
     #[arg(long = "format")]
@@ -185,7 +193,7 @@ pub async fn list(
         sessions: sqlx::query!(
             "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
         )
-        .fetch_all(&mut ctx.as_rpc().unwrap().secret_store.acquire().await?)
+        .fetch_all(&mut ctx.secret_store.acquire().await?)
         .await?
         .into_iter()
         .map(|row| {
@@ -210,15 +218,14 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<String>, R
 
 #[command(display(display_none))]
 pub async fn kill(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[arg(parse(parse_comma_separated))] ids: Vec<String>,
 ) -> Result<(), Error> {
-    let rpc_ctx = ctx.as_rpc().unwrap();
     sqlx::query(&format!(
         "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id IN ('{}')",
         ids.join("','")
     ))
-    .execute(&mut rpc_ctx.secret_store.acquire().await?)
+    .execute(&mut ctx.secret_store.acquire().await?)
     .await?;
     Ok(())
 }
