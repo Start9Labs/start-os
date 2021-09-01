@@ -175,9 +175,11 @@ pub async fn get(
     action.get(&id, &*version, &*volumes).await
 }
 
-#[command(subcommands(self(set_impl(async)), set_dry), display(display_none))]
+#[command(
+    subcommands(self(set_impl(async, context(RpcContext))), set_dry),
+    display(display_none)
+)]
 pub fn set(
-    #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
     #[allow(unused_variables)]
     #[arg(long = "format")]

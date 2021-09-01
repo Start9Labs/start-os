@@ -14,17 +14,3 @@ impl From<RpcContext> for () {
         ()
     }
 }
-
-// TODO: these shouldn't be necessary
-
-impl From<CliContext> for RpcContext {
-    fn from(_: CliContext) -> Self {
-        panic!("RPC Context used in CLI Handler")
-    }
-}
-
-impl From<RpcContext> for CliContext {
-    fn from(_: RpcContext) -> Self {
-        panic!("CLI Context used in RPC Handler")
-    }
-}
