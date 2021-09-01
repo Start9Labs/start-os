@@ -3,8 +3,10 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
 use anyhow::anyhow;
+use clap::ArgMatches;
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use rpc_toolkit::command;
 use sqlx::{Executor, Sqlite};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -12,12 +14,44 @@ use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 
 use super::interface::{InterfaceId, TorConfig};
+use crate::context::RpcContext;
 use crate::s9pk::manifest::PackageId;
+use crate::util::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind, ResultExt as _};
 
 #[test]
 fn random_key() {
     println!("'0x{}'", hex::encode(TorSecretKeyV3::generate().as_bytes()));
+}
+
+#[command(subcommands(list_services))]
+pub fn tor() -> Result<(), Error> {
+    Ok(())
+}
+
+fn display_services(services: Vec<OnionAddressV3>, matches: &ArgMatches<'_>) {
+    use prettytable::*;
+
+    if matches.is_present("format") {
+        return display_serializable(services, matches);
+    }
+
+    let mut table = Table::new();
+    for service in services {
+        let row = row![&service.to_string()];
+        table.add_row(row);
+    }
+    table.print_tty(false);
+}
+
+#[command(rename = "list-services", display(display_services))]
+pub async fn list_services(
+    #[context] ctx: RpcContext,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
+) -> Result<Vec<OnionAddressV3>, Error> {
+    ctx.net_controller.tor.list_services().await
 }
 
 pub async fn os_key<Ex>(secrets: &mut Ex) -> Result<TorSecretKeyV3, Error>
@@ -78,6 +112,10 @@ impl TorController {
 
     pub async fn embassyd_onion(&self) -> OnionAddressV3 {
         self.0.lock().await.embassyd_onion()
+    }
+
+    pub async fn list_services(&self) -> Result<Vec<OnionAddressV3>, Error> {
+        self.0.lock().await.list_services().await
     }
 }
 
@@ -154,10 +192,7 @@ impl TorControllerInner {
                 self.connection
                     .as_mut()
                     .ok_or_else(|| {
-                        Error::new(
-                            anyhow!("Missing Tor Control Connection"),
-                            ErrorKind::Unknown,
-                        )
+                        Error::new(anyhow!("Missing Tor Control Connection"), ErrorKind::Tor)
                     })?
                     .del_onion(
                         &key.public()
@@ -200,9 +235,13 @@ impl TorControllerInner {
     }
 
     async fn add_embassyd_onion(&mut self) -> Result<(), Error> {
+        log::info!(
+            "Registering Main Tor Service: {}",
+            self.embassyd_tor_key.public().get_onion_address()
+        );
         self.connection
             .as_mut()
-            .expect("Tor Connection is None")
+            .ok_or_else(|| Error::new(anyhow!("Missing Tor Control Connection"), ErrorKind::Tor))?
             .add_onion_v3(
                 &self.embassyd_tor_key,
                 false,
@@ -212,6 +251,10 @@ impl TorControllerInner {
                 &mut std::iter::once(&(self.embassyd_addr.port(), self.embassyd_addr)),
             )
             .await?;
+        log::info!(
+            "Registered Main Tor Service: {}",
+            self.embassyd_tor_key.public().get_onion_address()
+        );
         Ok(())
     }
 
@@ -223,6 +266,7 @@ impl TorControllerInner {
             let uptime = c.get_info("uptime").await?.parse::<u64>()?;
             // we never want to restart the tor daemon if it hasn't been up for at least a half hour
             if uptime < 1800 {
+                self.connection = Some(c); // put it back
                 return Ok(false);
             }
             // when connection closes below, tor daemon is restarted
@@ -251,11 +295,11 @@ impl TorControllerInner {
                     let uptime_new = new_connection.get_info("uptime").await?.parse::<u64>()?;
                     // if the new uptime exceeds the one we got at the beginning, it's the same tor daemon, do not proceed
                     match uptime {
-                        Some(uptime) if uptime_new < uptime => {
+                        Some(uptime) if uptime_new > uptime => (),
+                        _ => {
                             new_connection.set_async_event_handler(Some(event_handler));
                             break;
                         }
-                        _ => (),
                     }
                 }
                 Err(e) => {
@@ -288,6 +332,17 @@ impl TorControllerInner {
 
     fn embassyd_onion(&self) -> OnionAddressV3 {
         self.embassyd_tor_key.public().get_onion_address()
+    }
+
+    async fn list_services(&mut self) -> Result<Vec<OnionAddressV3>, Error> {
+        self.connection
+            .as_mut()
+            .ok_or_else(|| Error::new(anyhow!("Missing Tor Control Connection"), ErrorKind::Tor))?
+            .get_info("onions/current")
+            .await?
+            .lines()
+            .map(|l| l.trim().parse().with_kind(ErrorKind::Tor))
+            .collect()
     }
 }
 

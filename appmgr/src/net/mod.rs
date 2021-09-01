@@ -1,5 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
+use rpc_toolkit::command;
 use torut::onion::TorSecretKeyV3;
 
 use self::interface::{Interface, InterfaceId};
@@ -15,6 +16,11 @@ pub mod interface;
 pub mod mdns;
 pub mod tor;
 pub mod wifi;
+
+#[command(subcommands(tor::tor))]
+pub fn net() -> Result<(), Error> {
+    Ok(())
+}
 
 pub struct NetController {
     pub tor: TorController,
