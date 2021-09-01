@@ -6,9 +6,9 @@ use rpc_toolkit::yajrc::RpcError;
 use serde_json::Value;
 
 fn inner_main() -> Result<(), Error> {
-    run_cli!(
-        embassy::main_api,
-        app => app
+    run_cli!({
+        command: embassy::main_api,
+        app: app => app
             .name("Embassy CLI")
             .arg(
                 clap::Arg::with_name("config")
@@ -24,7 +24,7 @@ fn inner_main() -> Result<(), Error> {
             )
             .arg(Arg::with_name("host").long("host").short("h").takes_value(true))
             .arg(Arg::with_name("port").long("port").short("p").takes_value(true)),
-        matches => {
+        context: matches => {
             simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
                 0 => log::LevelFilter::Off,
                 1 => log::LevelFilter::Error,
@@ -33,10 +33,9 @@ fn inner_main() -> Result<(), Error> {
                 4 => log::LevelFilter::Debug,
                 _ => log::LevelFilter::Trace,
             });
-            EitherContext::Cli(CliContext::init(matches)?)
+            CliContext::init(matches)?
         },
-        (),
-        |e: RpcError| {
+        exit: |e: RpcError| {
             match e.data {
                 Some(Value::String(s)) => eprintln!("{}: {}", e.message, s),
                 Some(Value::Object(o)) => if let Some(Value::String(s)) = o.get("details") {
@@ -48,7 +47,7 @@ fn inner_main() -> Result<(), Error> {
 
             std::process::exit(e.code);
         }
-    );
+    });
     Ok(())
 }
 
