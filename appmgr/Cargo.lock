@@ -3338,8 +3338,9 @@ dependencies = [
 
 [[package]]
 name = "torut"
-version = "0.1.10"
-source = "git+https://github.com/Start9Labs/torut.git?branch=update/dependencies#001cb18a1a2651d8b12dbf02afaaa80297eb8ec7"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecb506186a6ad032c4b50bd92c35307a32f95146e7d07ee28b93cc1410dfc384"
 dependencies = [
  "base32",
  "base64",
@@ -3347,11 +3348,9 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "hmac",
- "openssl",
  "rand 0.7.3",
  "serde",
  "serde_derive",
- "sha1",
  "sha2",
  "sha3",
  "tokio 1.10.1",
