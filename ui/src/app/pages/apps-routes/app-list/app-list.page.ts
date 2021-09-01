@@ -74,7 +74,7 @@ export class AppListPage {
           this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
             let bulbClass = 'bulb-on'
             let img = ''
-            const statusRendering = renderPkgStatus(pkgs[id].state, pkgs[id].installed?.status)
+            const statusRendering = renderPkgStatus(pkg.state, pkg.installed?.status)
             switch (statusRendering.color) {
               case 'danger':
                 img = 'assets/img/danger-bulb.png'
