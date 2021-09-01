@@ -348,12 +348,11 @@ export class MockApiService extends ApiService {
       unpacked: 0,
       'unpack-complete': false,
     }
-    const installedMock = Mock.Pkgs[params.id]
-    delete installedMock.installed
     const pkg: PackageDataEntry = {
-      ...installedMock,
+      ...Mock.Pkgs[params.id],
       state: PackageState.Installing,
       'install-progress': initialProgress,
+      installed: undefined,
     }
     const patch = [
       {
@@ -560,8 +559,8 @@ export class MockApiService extends ApiService {
       const patch = [
         {
           op: PatchOp.REPLACE,
-          path: `/package-data/${id}/state`,
-          value: PackageState.Installed,
+          path: `/package-data/${id}`,
+          value: Mock.Pkgs[id],
         },
       ]
       this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
