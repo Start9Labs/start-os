@@ -15,6 +15,7 @@ export class AppRestoreComponent {
   @Input() pkgId: string
   disks: DiskInfo
   loading = true
+  submitting = false
   allPartitionsMounted: boolean
   modal: HTMLIonModalElement
 
@@ -73,10 +74,17 @@ export class AppRestoreComponent {
   }
 
   private async restore (logicalname: string, password: string): Promise<void> {
-    await this.embassyApi.restorePackage({
-      id: this.pkgId,
-      logicalname,
-      password,
-    })
+    this.submitting = true
+    try {
+      await this.embassyApi.restorePackage({
+        id: this.pkgId,
+        logicalname,
+        password,
+      })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      this.submitting = false
+    }
   }
 }

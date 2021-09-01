@@ -55,18 +55,23 @@ export class ConnectionService {
       } else {
         // diagnosing
         this.connectionFailure$.next(ConnectionFailure.Diagnosing)
-        const torSuccess = await this.testAddrs(addrs.tor)
-        if (torSuccess) {
-          // TOR SUCCESS, EMBASSY IS PROBLEM
-          this.connectionFailure$.next(ConnectionFailure.Embassy)
+
+        if (!addrs) {
+          this.connectionFailure$.next(ConnectionFailure.Unknown)
         } else {
-          const clearnetSuccess = await this.testAddrs(addrs.clearnet)
-          if (clearnetSuccess) {
-            // CLEARNET SUCCESS, TOR IS PROBLEM
-            this.connectionFailure$.next(ConnectionFailure.Tor)
+          const torSuccess = await this.testAddrs(addrs.tor)
+          if (torSuccess) {
+            // TOR SUCCESS, EMBASSY IS PROBLEM
+            this.connectionFailure$.next(ConnectionFailure.Embassy)
           } else {
-            // INTERNET IS PROBLEM
-            this.connectionFailure$.next(ConnectionFailure.Internet)
+            const clearnetSuccess = await this.testAddrs(addrs.clearnet)
+            if (clearnetSuccess) {
+              // CLEARNET SUCCESS, TOR IS PROBLEM
+              this.connectionFailure$.next(ConnectionFailure.Tor)
+            } else {
+              // INTERNET IS PROBLEM
+              this.connectionFailure$.next(ConnectionFailure.Internet)
+            }
           }
         }
       }
@@ -101,4 +106,5 @@ export enum ConnectionFailure {
   Tor = 'tor',
   Lan = 'lan',
   Internet = 'internet',
+  Unknown = 'unknown',
 }

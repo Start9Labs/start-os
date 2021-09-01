@@ -97,26 +97,29 @@ export class AppComponent {
       if (auth === AuthState.VERIFIED) {
         this.patch.start()
 
+        this.showMenu = true
+        // if on the login screen, route to dashboard
+        if (this.router.url.startsWith('/login')) {
+          this.router.navigate([''], { replaceUrl: true })
+        }
+
+        this.subscriptions = this.subscriptions.concat([
+          // start the connection monitor
+          ...this.connectionService.start(),
+          // watch connection to display connectivity issues
+          this.watchConnection(),
+          // // watch router to highlight selected menu item
+          this.watchRouter(),
+          // // watch status to display/hide maintenance page
+        ])
+
         this.patch.watch$()
         .pipe(
           filter(data => !isEmptyObject(data as object)),
           take(1),
         )
         .subscribe(_ => {
-          this.showMenu = true
-          // if on the login screen, route to dashboard
-          if (this.router.url.startsWith('/login')) {
-            this.router.navigate([''], { replaceUrl: true })
-          }
-
-          this.subscriptions = [
-            // start the connection monitor
-            ...this.connectionService.start(),
-            // watch connection to display connectivity issues
-            this.watchConnection(),
-            // // watch router to highlight selected menu item
-            this.watchRouter(),
-            // // watch status to display/hide maintenance page
+          this.subscriptions = this.subscriptions.concat([
             this.watchStatus(),
             // // watch version to refresh browser window
             this.watchVersion(),
@@ -124,7 +127,7 @@ export class AppComponent {
             this.watchNotifications(),
             // // run startup alerts
             this.startupAlertsService.runChecks(),
-          ]
+          ])
         })
       // UNVERIFIED
       } else if (auth === AuthState.UNVERIFIED) {
@@ -229,6 +232,10 @@ export class AppComponent {
           case ConnectionFailure.Lan:
             message = 'Embassy not found on Local Area Network.'
             link = 'https://docs.start9.com/support/FAQ/setup-faq.html#lan-failure'
+            break
+          case ConnectionFailure.Unknown:
+            message = 'Unknown connection error. Please refresh the page.'
+            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#unknown-failure'
             break
         }
         await this.presentToastOffline(message, link)

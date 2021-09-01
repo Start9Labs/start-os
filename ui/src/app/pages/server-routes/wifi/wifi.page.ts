@@ -85,7 +85,7 @@ export class WifiPage {
         spec: wifiSpec.spec,
         buttons: [
           {
-            text: 'Save',
+            text: 'Save for Later',
             handler: async (value: { ssid: string, password: string }) => {
               await this.save(value.ssid, value.password)
             },
