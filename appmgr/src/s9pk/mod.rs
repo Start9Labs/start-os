@@ -5,7 +5,7 @@ use anyhow::anyhow;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 
-use crate::context::{CliContext, EitherContext};
+use crate::context::CliContext;
 use crate::s9pk::builder::S9pkPacker;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
@@ -21,11 +21,9 @@ pub mod reader;
 pub const SIG_CONTEXT: &'static [u8] = b"s9pk";
 
 #[command(cli_only, display(display_none), blocking)]
-pub fn pack(#[context] ctx: EitherContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
+pub fn pack(#[context] ctx: CliContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
     use std::fs::File;
     use std::io::Read;
-
-    let ctx = ctx.as_cli().unwrap();
 
     let path = if let Some(path) = path {
         path
@@ -110,7 +108,7 @@ pub fn pack(#[context] ctx: EitherContext, #[arg] path: Option<PathBuf>) -> Resu
 }
 
 #[command(cli_only, display(display_none))]
-pub async fn verify(#[context] _ctx: EitherContext, #[arg] path: PathBuf) -> Result<(), Error> {
+pub async fn verify(#[arg] path: PathBuf) -> Result<(), Error> {
     let mut s9pk = S9pkReader::open(path).await?;
     s9pk.validate().await?;
 

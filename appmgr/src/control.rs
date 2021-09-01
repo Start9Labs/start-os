@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use patch_db::DbHandle;
 use rpc_toolkit::command;
 
-use crate::context::EitherContext;
+use crate::context::RpcContext;
 use crate::db::util::WithRevision;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
@@ -13,11 +13,10 @@ use crate::{Error, ResultExt};
 
 #[command(display(display_none))]
 pub async fn start(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[arg] id: PackageId,
 ) -> Result<WithRevision<()>, Error> {
-    let rpc_ctx = ctx.as_rpc().unwrap();
-    let mut db = rpc_ctx.db.handle();
+    let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let installed = crate::db::DatabaseModel::new()
         .package_data()
@@ -46,7 +45,7 @@ pub async fn start(
     };
     status
         .synchronize(
-            &*rpc_ctx.managers.get(&(id, version)).await.ok_or_else(|| {
+            &*ctx.managers.get(&(id, version)).await.ok_or_else(|| {
                 Error::new(anyhow!("Manager not found"), crate::ErrorKind::Docker)
             })?,
         )
@@ -61,11 +60,10 @@ pub async fn start(
 
 #[command(display(display_none))]
 pub async fn stop(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[arg] id: PackageId,
 ) -> Result<WithRevision<()>, Error> {
-    let rpc_ctx = ctx.as_rpc().unwrap();
-    let mut db = rpc_ctx.db.handle();
+    let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
 
     let mut status = crate::db::DatabaseModel::new()

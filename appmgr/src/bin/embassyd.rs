@@ -2,7 +2,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::anyhow;
-use embassy::context::{EitherContext, RpcContext};
+use embassy::context::RpcContext;
 use embassy::db::model::Database;
 use embassy::db::subscribe;
 use embassy::hostname::{get_hostname, get_id};
@@ -46,7 +46,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             .await?;
     }
     let auth = auth(rpc_ctx.clone());
-    let ctx = EitherContext::Rpc(rpc_ctx.clone());
+    let ctx = rpc_ctx.clone();
     let server = rpc_server!({
         command: embassy::main_api,
         context: ctx,

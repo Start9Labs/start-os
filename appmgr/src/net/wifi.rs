@@ -6,18 +6,16 @@ use isocountry::CountryCode;
 use rpc_toolkit::command;
 use tokio::process::Command;
 
-use crate::context::EitherContext;
 use crate::util::{display_none, display_serializable, Invoke, IoFormat};
 use crate::{Error, ErrorKind};
 
 #[command(subcommands(add, connect, delete, get, set_country))]
-pub async fn wifi(#[context] ctx: EitherContext) -> Result<EitherContext, Error> {
-    Ok(ctx)
+pub async fn wifi() -> Result<(), Error> {
+    Ok(())
 }
 
 #[command(display(display_none))]
 pub async fn add(
-    #[context] _ctx: EitherContext,
     #[arg] ssid: String,
     #[arg] password: String,
     #[arg] priority: isize,
@@ -73,7 +71,7 @@ pub async fn add(
 }
 
 #[command(display(display_none))]
-pub async fn connect(#[context] _ctx: EitherContext, #[arg] ssid: String) -> Result<(), Error> {
+pub async fn connect(#[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
             anyhow::anyhow!("SSID may not have special characters"),
@@ -111,7 +109,7 @@ pub async fn connect(#[context] _ctx: EitherContext, #[arg] ssid: String) -> Res
 }
 
 #[command(display(display_none))]
-pub async fn delete(#[context] _ctx: EitherContext, #[arg] ssid: String) -> Result<(), Error> {
+pub async fn delete(#[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
             anyhow::anyhow!("SSID may not have special characters"),
@@ -195,7 +193,6 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
 
 #[command(display(display_wifi_info))]
 pub async fn get(
-    #[context] _ctx: EitherContext,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
@@ -239,7 +236,6 @@ pub async fn get(
 
 #[command(display(display_none))]
 pub async fn set_country(
-    #[context] _ctx: EitherContext,
     #[arg(parse(country_code_parse))] country: CountryCode,
 ) -> Result<(), Error> {
     let wpa_supplicant = WpaCli { interface: "wlan0" };

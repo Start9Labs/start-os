@@ -2,14 +2,14 @@ use std::path::PathBuf;
 
 use rpc_toolkit::command;
 
-use crate::context::{CliContext, EitherContext};
+use crate::context::CliContext;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::Error;
 
 #[command(subcommands(hash, manifest, license, icon, instructions, docker_images))]
-pub fn inspect(#[context] _ctx: EitherContext) -> Result<(), Error> {
+pub fn inspect() -> Result<(), Error> {
     Ok(())
 }
 

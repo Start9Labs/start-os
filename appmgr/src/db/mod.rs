@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{DiffPatch, Dump, Revision};
+use patch_db::{Dump, Revision};
 use rpc_toolkit::command;
 use rpc_toolkit::hyper::upgrade::Upgraded;
 use rpc_toolkit::hyper::{Body, Error as HyperError, Request, Response};
@@ -19,8 +19,7 @@ use tokio_tungstenite::WebSocketStream;
 
 pub use self::model::DatabaseModel;
 use self::util::WithRevision;
-use crate::context::{EitherContext, RpcContext};
-use crate::middleware::auth::is_authed;
+use crate::context::RpcContext;
 use crate::util::{display_serializable, IoFormat};
 use crate::{Error, ResultExt};
 
@@ -73,8 +72,8 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
 }
 
 #[command(subcommands(revisions, dump, put))]
-pub fn db(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
-    Ok(ctx)
+pub fn db() -> Result<(), RpcError> {
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize)]
@@ -86,14 +85,13 @@ pub enum RevisionsRes {
 
 #[command(display(display_serializable))]
 pub async fn revisions(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[arg] since: u64,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<RevisionsRes, RpcError> {
-    let rpc_ctx = ctx.as_rpc().unwrap();
-    let cache = rpc_ctx.revision_cache.read().await;
+    let cache = ctx.revision_cache.read().await;
     if cache
         .front()
         .map(|rev| rev.id <= since + 1)
@@ -108,28 +106,28 @@ pub async fn revisions(
         ))
     } else {
         drop(cache);
-        Ok(RevisionsRes::Dump(rpc_ctx.db.dump().await))
+        Ok(RevisionsRes::Dump(ctx.db.dump().await))
     }
 }
 
 #[command(display(display_serializable))]
 pub async fn dump(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<Dump, RpcError> {
-    Ok(ctx.as_rpc().unwrap().db.dump().await)
+    Ok(ctx.db.dump().await)
 }
 
 #[command(subcommands(ui))]
-pub fn put(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
-    Ok(ctx)
+pub fn put() -> Result<(), RpcError> {
+    Ok(())
 }
 
 #[command(display(display_serializable))]
 pub async fn ui(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[arg] pointer: JsonPointer,
     #[arg] value: Value,
     #[allow(unused_variables)]
@@ -139,6 +137,6 @@ pub async fn ui(
     let ptr = "/ui".parse::<JsonPointer>()? + &pointer;
     Ok(WithRevision {
         response: (),
-        revision: ctx.as_rpc().unwrap().db.put(&ptr, &value, None).await?,
+        revision: ctx.db.put(&ptr, &value, None).await?,
     })
 }
