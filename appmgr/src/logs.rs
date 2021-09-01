@@ -2,7 +2,7 @@ use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
 use anyhow::anyhow;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use futures::TryStreamExt;
 use rpc_toolkit::command;
@@ -11,14 +11,13 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio_stream::wrappers::LinesStream;
 
-use crate::context::{EitherContext, RpcContext};
+use crate::context::{EitherContext};
 use crate::error::ResultExt;
-use crate::util::{display_serializable, Reversible};
+use crate::util::Reversible;
 use crate::Error;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
-
 pub struct LogResponse {
     entries: Reversible<LogEntry>,
     start_cursor: Option<String>,
@@ -48,9 +47,9 @@ pub async fn logs(
     #[arg] id: String,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
-    #[arg] reverse: Option<bool>,
+    #[arg] before_flag: Option<bool>,
 ) -> Result<LogResponse, Error> {
-    Ok(logs_inner(id, limit, cursor, reverse.unwrap_or(false)).await?)
+    Ok(logs_inner(id, limit, cursor, before_flag.unwrap_or(false)).await?)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -80,10 +79,11 @@ async fn logs_inner(
     id: String,
     limit: Option<usize>,
     cursor: Option<String>,
-    reverse: bool,
+    before_flag: bool,
 ) -> Result<LogResponse, Error> {
     let limit = limit.unwrap_or(50);
     let limit_formatted = format!("-n{}", limit);
+    let mut get_prev_logs_and_reverse = false;
 
     let mut args_out = vec![
         "-u",
@@ -96,9 +96,12 @@ async fn logs_inner(
     let cursor_formatted = format!("--after-cursor={}", cursor.clone().unwrap_or("".to_owned()));
     if cursor.is_some() {
         args_out.push(&cursor_formatted);
-        if reverse {
-            args_out.push("--reverse");
+        if before_flag {
+            get_prev_logs_and_reverse = true;
         }
+    }
+    if get_prev_logs_and_reverse {
+        args_out.push("--reverse");
     }
 
     let mut child = Command::new("journalctl")
@@ -130,7 +133,7 @@ async fn logs_inner(
         entries.push(entry);
     }
 
-    let (end_cursor, entries) = deserialized_entries
+    let (mut end_cursor, entries) = deserialized_entries
         .try_fold(
             (start_cursor.clone(), entries),
             |(_, mut acc), entry| async move {
@@ -141,8 +144,10 @@ async fn logs_inner(
         )
         .await?;
     let mut entries = Reversible::new(entries);
-    if reverse {
+    // reverse again so output is always in increasing chronological order
+    if get_prev_logs_and_reverse {
         entries.reverse();
+        std::mem::swap(&mut start_cursor, &mut end_cursor);
     }
     Ok(LogResponse {
         entries,
@@ -153,18 +158,16 @@ async fn logs_inner(
 
 #[tokio::test]
 pub async fn test_logs() {
-    println!(
-        "{:#?}",
+    let response =
         logs_inner(
             // find a journalctl unit on your machine
             "tor.service".to_owned(),
-            Some(5),
+            // Some(5),
             None,
-            // Some("s=1b8c418e28534400856c27b211dd94fd;i=e067d;b=97571c13a1284f87bc0639b5cff5acbe;m=3b6a68a823;t=5ca4e2be1576e;x=9a6f65a5917f8e9f".to_owned()),
-            // Some(true),
+            None,
+            // Some("s=1b8c418e28534400856c27b211dd94fd;i=5a7;b=97571c13a1284f87bc0639b5cff5acbe;m=740e916;t=5ca073eea3445;x=f45bc233ca328348".to_owned()),
             false,
-        )
-        .await
-        .unwrap()
-    )
+        ).await.unwrap();
+    let serialized = serde_json::to_string_pretty(&response).unwrap();
+    println!("{}", serialized);
 }
