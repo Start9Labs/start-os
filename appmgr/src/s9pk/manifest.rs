@@ -1,10 +1,7 @@
 use std::borrow::Borrow;
-use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use chrono::{DateTime, Utc};
-use indexmap::IndexMap;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize, Serializer};
 use url::Url;
@@ -16,10 +13,9 @@ use crate::dependencies::Dependencies;
 use crate::id::{Id, InvalidId, SYSTEM_ID};
 use crate::migration::Migrations;
 use crate::net::interface::Interfaces;
-use crate::status::health_check::{HealthCheckResult, HealthChecks};
+use crate::status::health_check::HealthChecks;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::Error;
 
 pub const SYSTEM_PACKAGE_ID: PackageId<&'static str> = PackageId(SYSTEM_ID);
 

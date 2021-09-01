@@ -1,6 +1,5 @@
 use std::borrow::{Borrow, Cow};
 use std::fmt::Debug;
-use std::path::Path;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

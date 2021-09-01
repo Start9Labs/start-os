@@ -1,9 +1,8 @@
-use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{DbHandle, HasModel, Map, MapModel, OptionModel};
+use patch_db::{HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,7 +15,6 @@ use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
 use crate::util::Version;
-use crate::Error;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -145,11 +143,11 @@ impl StaticFiles {
             icon: format!("/public/package-data/{}/{}/icon.{}", id, version, icon_type),
         }
     }
-    pub fn remote(id: &PackageId, version: &Version, icon_type: &str) -> Self {
+    pub fn remote(id: &PackageId, version: &Version) -> Self {
         StaticFiles {
-            license: format!("/marketplace/package/{}/{}/LICENSE.md", id, version),
-            instructions: format!("/marketplace/package/{}/{}/INSTRUCTIONS.md", id, version),
-            icon: format!("/marketplace/package/{}/{}/icon.{}", id, version, icon_type),
+            license: format!("/marketplace/package/license/{}?spec=={}", id, version),
+            instructions: format!("/marketplace/package/instructions/{}?spec=={}", id, version),
+            icon: format!("/marketplace/package/icon/{}?spec=={}", id, version),
         }
     }
 }

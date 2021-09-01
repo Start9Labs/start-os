@@ -1,9 +1,7 @@
-use std::io::Read;
 use std::path::PathBuf;
 
 use anyhow::anyhow;
 use rpc_toolkit::command;
-use rpc_toolkit::yajrc::RpcError;
 
 use crate::context::CliContext;
 use crate::s9pk::builder::S9pkPacker;

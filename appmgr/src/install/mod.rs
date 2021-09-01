@@ -2,29 +2,20 @@ use std::collections::HashSet;
 use std::fmt::Display;
 use std::io::SeekFrom;
 use std::path::Path;
-use std::pin::Pin;
 use std::process::Stdio;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::task::{Context, Poll};
-use std::time::Duration;
 
 use anyhow::anyhow;
 use emver::VersionRange;
 use futures::TryStreamExt;
 use http::{HeaderMap, StatusCode};
-use indexmap::{IndexMap, IndexSet};
-use patch_db::json_ptr::JsonPointer;
-use patch_db::{
-    DbHandle, HasModel, MapModel, Model, ModelData, OptionModel, PatchDbHandle, Revision,
-};
+use indexmap::IndexMap;
+use patch_db::{DbHandle, OptionModel};
 use reqwest::Response;
 use rpc_toolkit::command;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use sha2::{Digest, Sha256};
 use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
 
 use self::cleanup::cleanup_failed;
 use crate::context::RpcContext;
@@ -74,7 +65,7 @@ pub async fn install(
     let man: Manifest = man_res.json().await.with_kind(crate::ErrorKind::Registry)?;
 
     let progress = InstallProgress::new(s9pk.content_length());
-    let static_files = StaticFiles::remote(&man.id, &man.version, man.assets.icon_type());
+    let static_files = StaticFiles::remote(&man.id, &man.version);
     let mut db_handle = ctx.db.handle();
     let mut tx = db_handle.begin().await?;
     let mut pde = crate::db::DatabaseModel::new()

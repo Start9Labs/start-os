@@ -5,14 +5,11 @@ use avahi_sys::{
     avahi_entry_group_reset, avahi_free, AvahiEntryGroup,
 };
 use libc::c_void;
-use patch_db::{DbHandle, OptionModel};
 use tokio::sync::Mutex;
 use torut::onion::TorSecretKeyV3;
 
 use super::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
-use crate::util::Apply;
-use crate::Error;
 
 pub struct MdnsController(Mutex<MdnsControllerInner>);
 impl MdnsController {

@@ -1,8 +1,12 @@
-use crate::{Error, ErrorKind, ResultExt};
+use std::cmp::Ordering;
+use std::path::Path;
+use std::time::Duration;
+
 use divrem::DivRem;
 use proptest_derive::Arbitrary;
-use std::{cmp::Ordering, path::Path, time::Duration};
 use tokio::sync::{Mutex, MutexGuard};
+
+use crate::{Error, ErrorKind, ResultExt};
 
 lazy_static::lazy_static! {
     static ref SEMITONE_K: f64 = 2f64.powf(1f64 / 12f64);
@@ -176,7 +180,7 @@ pub enum Semitone {
 
 impl Semitone {
     pub fn rotate(&self, n: isize) -> Semitone {
-        let mut temp = (*self as isize) + n;
+        let temp = (*self as isize) + n;
 
         match temp.rem_euclid(12) {
             0 => Semitone::C,
@@ -294,6 +298,7 @@ impl<'a> Iterator for CircleOf<'a> {
 macro_rules! song {
     ($tempo:expr, [$($note:expr;)*]) => {
         {
+            #[allow(dead_code)]
             const fn note(semi: Semitone, octave: i8, duration: TimeSlice) -> (Option<Note>, TimeSlice) {
                 (
                     Some(Note {
@@ -303,6 +308,7 @@ macro_rules! song {
                     duration,
                 )
             }
+            #[allow(dead_code)]
             const fn rest(duration: TimeSlice) -> (Option<Note>, TimeSlice) {
                 (None, duration)
             }

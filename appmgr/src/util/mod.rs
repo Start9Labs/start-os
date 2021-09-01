@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::path::Path;
 use std::process::{exit, Stdio};
 use std::str::FromStr;
@@ -9,14 +9,13 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use async_trait::async_trait;
-use clap::{Arg, ArgMatches};
+use clap::ArgMatches;
 use digest::Digest;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
-use sqlx::{Executor, Sqlite};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use crate::{Error, ResultExt as _};
 
@@ -770,7 +769,7 @@ impl IoFormat {
 pub fn display_serializable<T: Serialize>(t: T, matches: &ArgMatches<'_>) {
     let format = match matches.value_of("format").map(|f| f.parse()) {
         Some(Ok(f)) => f,
-        Some(Err(e)) => {
+        Some(Err(_)) => {
             eprintln!("unrecognized formatter");
             exit(1)
         }
@@ -791,7 +790,7 @@ pub fn parse_stdin_deserializable<T: for<'de> Deserialize<'de>>(
 ) -> Result<T, Error> {
     let format = match matches.value_of("format").map(|f| f.parse()) {
         Some(Ok(f)) => f,
-        Some(Err(e)) => {
+        Some(Err(_)) => {
             eprintln!("unrecognized formatter");
             exit(1)
         }
@@ -800,7 +799,7 @@ pub fn parse_stdin_deserializable<T: for<'de> Deserialize<'de>>(
     format.from_reader(stdin)
 }
 
-pub fn parse_duration(arg: &str, matches: &ArgMatches<'_>) -> Result<Duration, Error> {
+pub fn parse_duration(arg: &str, _: &ArgMatches<'_>) -> Result<Duration, Error> {
     let units_idx = arg.find(|c: char| c.is_alphabetic()).ok_or_else(|| {
         Error::new(
             anyhow!("Must specify units for duration"),
