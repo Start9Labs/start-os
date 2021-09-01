@@ -19,7 +19,7 @@ pub async fn tor_health_check_daemon(tor_controller: &TorController) {
                 json!({
                     "jsonrpc": "2.0",
                     "method": "echo",
-                    "params": [{ "message": "Follow the orange rabbit" }],
+                    "params": { "message": "Follow the orange rabbit" },
                 })
                 .to_string()
                 .into_bytes(),
@@ -28,7 +28,7 @@ pub async fn tor_health_check_daemon(tor_controller: &TorController) {
             .await;
         match result {
             // if success, do nothing
-            Ok(response) => {}
+            Ok(_) => {}
             // if failure, disconnect tor control port, and restart tor controller
             Err(e) => {
                 log::error!("Unable to reach self over tor: {}", e);
