@@ -2,6 +2,7 @@ import { Component, Input, OnInit } from '@angular/core'
 import { BehaviorSubject, from, Subject } from 'rxjs'
 import { takeUntil, tap } from 'rxjs/operators'
 import { Breakages } from 'src/app/services/api/api.types'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { capitalizeFirstLetter, isEmptyObject } from 'src/app/util/misc.util'
 import { Loadable, markAsLoadingDuring$ } from '../loadable'
 import { WizardAction } from '../wizard-types'
@@ -20,10 +21,10 @@ export class DependentsComponent implements OnInit, Loadable {
     skipConfirmationDialogue?: boolean
   }
   @Input() transitions: {
-    cancel: () => void
-    next: () => void
-    final: () => void
-    error: (e: Error) => void
+    cancel: () => any
+    next: () => any
+    final: () => any
+    error: (e: Error) => any
   }
 
   dependentBreakages: Breakages
@@ -33,7 +34,9 @@ export class DependentsComponent implements OnInit, Loadable {
   loading$ = new BehaviorSubject(false)
   cancel$ = new Subject<void>()
 
-  constructor () { }
+  constructor (
+    public readonly patch: PatchDbService,
+  ) { }
   ngOnInit () { }
 
   load () {

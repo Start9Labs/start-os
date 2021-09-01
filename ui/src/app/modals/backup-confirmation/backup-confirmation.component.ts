@@ -1,7 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { IonicSafeString, LoadingController, ModalController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService, getErrorMessage } from 'src/app/services/error-toast.service'
+import { getErrorMessage } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'backup-confirmation',

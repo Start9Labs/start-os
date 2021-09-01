@@ -1,7 +1,7 @@
 import { Inject, Injectable, InjectionToken } from '@angular/core'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
-import { BehaviorSubject, combineLatest, Observable, of, Subscription } from 'rxjs'
-import { catchError, debounceTime, delay, filter, finalize, map, take, tap, timeout } from 'rxjs/operators'
+import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
+import { catchError, debounceTime, finalize, map, tap } from 'rxjs/operators'
 import { pauseFor } from 'src/app/util/misc.util'
 import { ApiService } from '../api/embassy-api.service'
 import { DataModel } from './data-model'
@@ -20,7 +20,7 @@ export enum PatchConnection {
   providedIn: 'root',
 })
 export class PatchDbService {
-  patchConnection$ = new BehaviorSubject(PatchConnection.Initializing)
+  private patchConnection$ = new BehaviorSubject(PatchConnection.Initializing)
   private patchDb: PatchDB<DataModel>
   private patchSub: Subscription
   data: DataModel
@@ -40,50 +40,37 @@ export class PatchDbService {
   }
 
   start (): void {
+    console.log(this.patchSub ? 'restarting patch-db' : 'starting patch-db')
+
     // make sure everything is stopped before initializing
     if (this.patchSub) {
-      console.log('Retrying')
       this.patchSub.unsubscribe()
       this.patchSub = undefined
     }
-    try {
-      const connectedSub$ = this.patchDb.connectionMade$()
-      .pipe(
-        tap(() => {
-          this.patchConnection$.next(PatchConnection.Connected)
-        }),
-        timeout(30000),
-        take(1),
-      )
 
-      const updateSub$ = this.patchDb.sync$()
-      .pipe(
-        debounceTime(500),
-        tap(cache => {
-          this.bootstrapper.update(cache)
-        }),
-      )
-
-      this.patchSub = combineLatest([connectedSub$, updateSub$])
-      .subscribe({
-        error: async e => {
-          console.error('patch-db-sync sub ERROR', e)
-          this.patchConnection$.next(PatchConnection.Disconnected)
-          console.log('Erroring out')
-          await pauseFor(4000)
-          this.start()
-        },
-        complete: () => {
-          console.warn('patch-db-sync sub COMPLETE')
-        },
-      })
-    } catch (e) {
-      console.error('Failed to initialize PatchDB', e)
-    }
+    this.patchSub = this.patchDb.sync$()
+    .pipe(
+      debounceTime(400),
+      tap(cache => {
+        this.patchConnection$.next(PatchConnection.Connected)
+        this.bootstrapper.update(cache)
+      }),
+    )
+    .subscribe({
+      error: async e => {
+        console.error('patch-db SYNC ERROR', e)
+        this.patchConnection$.next(PatchConnection.Disconnected)
+        await pauseFor(4000)
+        this.start()
+      },
+      complete: () => {
+        console.warn('patch-db SYNC COMPLETE')
+      },
+    })
   }
 
   stop (): void {
-    console.log('STOPPING PATCH DB')
+    console.log('stopping patch-db')
     this.patchConnection$.next(PatchConnection.Initializing)
     this.patchDb.store.reset()
     if (this.patchSub) {
@@ -109,7 +96,7 @@ export class PatchDbService {
     .pipe(
       tap(data => console.log('NEW VALUE', data, ...args)),
       catchError(e => {
-        console.error('Error watching Patch DB', e)
+        console.error('Error watching patch-db', e)
         return of(e.message)
       }),
       finalize(() => console.log('UNSUBSCRIBING', ...args)),

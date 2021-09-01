@@ -6,6 +6,7 @@ import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-m
 import { Subscription } from 'rxjs'
 import { PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { filter } from 'rxjs/operators'
+import { isEmptyObject } from 'src/app/util/misc.util'
 
 @Component({
   selector: 'app-list',
@@ -38,7 +39,11 @@ export class AppListPage {
       this.patch.watch$('package-data')
       .pipe(
         filter(obj => {
-          return Object.keys(obj).length !== Object.keys(this.pkgs).length
+          return obj &&
+          (
+            isEmptyObject(obj) ||
+            Object.keys(obj).length !== Object.keys(this.pkgs).length
+          )
         }),
       )
       .subscribe(pkgs => {

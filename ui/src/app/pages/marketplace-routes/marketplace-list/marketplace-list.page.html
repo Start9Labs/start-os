@@ -7,16 +7,20 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <h1 style="font-family: 'Montserrat'; font-weight: 100px; margin: 32px 0;" class="ion-text-center">Embassy Marketplace</h1>
+  <h1 style="font-family: 'Montserrat'; font-size: 42px; margin: 32px 0;" class="ion-text-center">Embassy Marketplace</h1>
 
-  <ion-toolbar style="padding-bottom: 32px; max-width: 600px;" color="transparent">
-    <ion-searchbar color="dark" (keyup.enter)="search()" debounce="300" [(ngModel)]="query"></ion-searchbar>
-    <ion-buttons slot="end">
-      <ion-button color="primary" fill="solid" (click)="search()">
-        <ion-icon slot="icon-only" name="search-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
+  <ion-grid style="padding-bottom: 32px;">
+    <ion-row>
+      <ion-col sizeMd="6" offset-md="3">
+        <ion-toolbar color="transparent">
+          <ion-searchbar enterkeyhint="search" color="dark" (keyup.enter)="search()" debounce="300" [(ngModel)]="query"></ion-searchbar>
+          <ion-button style="height: 42px;" slot="end" color="primary" fill="solid" (click)="search()">
+            <ion-icon slot="icon-only" name="search-outline"></ion-icon>
+          </ion-button>
+        </ion-toolbar>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
 
   <!-- page loading -->
   <ng-container *ngIf="pageLoading; else pageLoaded">

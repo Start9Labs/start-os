@@ -20,10 +20,10 @@ export class CompleteComponent implements OnInit, Loadable {
   }
 
   @Input() transitions: {
-    cancel: () => void
-    next: () => void
-    final: () => void
-    error: (e: Error) => void
+    cancel: () => any
+    next: () => any
+    final: () => any
+    error: (e: Error) => any
   }
 
   loading$ = new BehaviorSubject(false)

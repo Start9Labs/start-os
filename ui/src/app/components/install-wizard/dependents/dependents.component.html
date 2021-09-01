@@ -30,10 +30,10 @@
         *ngFor="let dep of dependentBreakages | keyvalue"
       >
         <ion-thumbnail style="position: relative; height: 4vh; width: 4vh" slot="start">
-          <img [src]="dep.value.iconURL" />
+          <img [src]="patch.data['package-data'][dep.key]['static-files'].icon" />
         </ion-thumbnail>
         <ion-label>
-            <h5>{{ dep.value.title }}</h5>
+          <h5>{{ patch.data['package-data'][dep.key].manifest.title }}</h5>
         </ion-label>
       </ion-item>
     </div>
