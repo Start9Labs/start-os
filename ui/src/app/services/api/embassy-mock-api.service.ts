@@ -538,7 +538,7 @@ export class MockApiService extends ApiService {
     for (let phase of phases) {
       let i = initialProgress[phase.progress]
       while (i < initialProgress.size) {
-        await pauseFor(1000)
+        await pauseFor(250)
         i = Math.min(i + 5, initialProgress.size)
         initialProgress[phase.progress] = i
         if (i === initialProgress.size) {
