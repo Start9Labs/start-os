@@ -28,3 +28,5 @@ pest = "2.1"
 pest_derive = "2.1"
 lazy_static = "1.4"
 indexmap = { version = "1.6.2", features = ["serde"] }
+beau_collector = "0.2.1"
+nix = "0.22.0"
