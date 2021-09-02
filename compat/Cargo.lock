@@ -287,6 +287,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "beau_collector"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33a143066d3cbd3d32c15b51c39449e50e32a68293d31589fb941d6a9df0df4f"
+dependencies = [
+ "anyhow",
+ "itertools 0.9.0",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -530,6 +540,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-std",
+ "beau_collector",
  "clap",
  "embassy-os",
  "emver",
@@ -540,6 +551,7 @@ dependencies = [
  "lazy_static",
  "linear-map",
  "log",
+ "nix 0.22.1",
  "pest",
  "pest_derive",
  "rand 0.7.3",
@@ -1683,6 +1695,15 @@ name = "itertools"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f56a2d0bc861f9165be4eb3442afd3c236d8a98afd426f65d92324ae1091a484"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
 dependencies = [
  "either",
 ]

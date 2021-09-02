@@ -10,6 +10,7 @@ mod config;
 use anyhow::anyhow;
 use backup::{create_backup, restore_backup};
 use clap::{App, Arg, SubCommand};
+use config::set_configuration;
 use embassy::config::action::{ConfigRes, SetResult};
 use embassy::Error;
 use futures::future::FutureExt;
@@ -22,7 +23,7 @@ async fn main() {
                 SubCommand::with_name("get")
                     .arg(
                         Arg::with_name("mountpoint")
-                            .help("The `mount` field from manifest.yaml")
+                            .help("Path to the config file")
                             .required(true),
                     )
                     .arg(
@@ -30,6 +31,34 @@ async fn main() {
                             .help("The path to the config spec in the container")
                             .required(true),
                     ),
+            )
+            .subcommand(
+                SubCommand::with_name("set")
+                    .arg(
+                        Arg::with_name("mountpoint")
+                            .help("Path to the config file")
+                            .required(true),
+                    )
+                    .arg(
+                        Arg::with_name("app_id")
+                            .help("service identifier")
+                            .required(true),
+                    )
+                    .arg(
+                        Arg::with_name("assets")
+                            .help("Path to the rules file")
+                            .required(true),
+                    )
+            )
+        )
+        .subcommand(
+            SubCommand::with_name("dependency").subcommand(
+                SubCommand::with_name("check")
+                    .arg(
+                        Arg::with_name("mountpoint")
+                            .help("Path to the config rules file")
+                            .required(true),
+                    )
             ),
         )
         .subcommand(
@@ -43,7 +72,7 @@ async fn main() {
                     .arg(
                         Arg::with_name("mountpoint")
                             .help(
-                                "The backups mount point in the format: file:///<mount-point-path>", // TODO confirm / fix
+                                "The backups mount point"
                             )
                             .required(true),
                     )
@@ -72,6 +101,20 @@ async fn main() {
             ("set", Some(sub_m)) => {
                 // valiate against rules
                 // save file
+                let cfg_path =
+                    Path::new(sub_m.value_of("mountpoint").unwrap());
+                let config = serde_yaml::from_reader(File::open(cfg_path).unwrap()).unwrap();
+                let rules_path =
+                    Path::new(sub_m.value_of("assets").unwrap());
+                let name = sub_m.value_of("app_id").unwrap();
+                set_configuration(&name, config, rules_path, cfg_path);
+            },
+            (subcmd, _) => {
+                panic!("unknown subcommand: {}", subcmd);
+            }
+        },
+        ("dependency", Some(sub_m)) => match sub_m.subcommand() {
+            ("check", Some(sub_m)) => {
                 let cfg_path =
                     Path::new(sub_m.value_of("mountpoint").unwrap()).join("start9/config.yaml");
                 let cfg = if cfg_path.exists() {
