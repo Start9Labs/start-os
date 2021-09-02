@@ -13,10 +13,20 @@ use clap::{App, Arg, SubCommand};
 use config::set_configuration;
 use embassy::config::action::{ConfigRes, SetResult};
 use embassy::Error;
-use futures::future::FutureExt;
 
-#[async_std::main]
-async fn main() {
+fn main() {
+    match inner_main() {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("{}", e.source);
+            log::debug!("{:?}", e.source);
+            drop(e.source);
+            std::process::exit(e.kind as i32)
+        }
+    }
+}
+
+fn inner_main() {
     let app = App::new("compat")
         .subcommand(
             SubCommand::with_name("config").subcommand(

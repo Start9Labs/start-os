@@ -21,7 +21,6 @@ anyhow = "1.0.40"
 log = "0.4.11"
 itertools = "0.10.0"
 regex = "1.4.2"
-async-std = { version = "1.6.0", features = ["attributes"] }
 failure = "0.1.8"
 linear-map = { version = "1.2", features = ["serde_impl"] }
 pest = "2.1"
