@@ -3,7 +3,7 @@ use std::fmt;
 use rpc_toolkit::command;
 use tokio::sync::RwLock;
 
-use crate::context::{EitherContext, RpcContext};
+use crate::context::RpcContext;
 use crate::logs::{LogResponse, LogSource, fetch_logs};
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -11,7 +11,7 @@ pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
 #[command(rpc_only)]
 pub async fn logs(
-    #[context] ctx: EitherContext,
+    #[context] ctx: RpcContext,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
     #[arg] before_flag: Option<bool>,

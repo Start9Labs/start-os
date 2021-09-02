@@ -12,9 +12,8 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio_stream::wrappers::LinesStream;
 
-use crate::context::{EitherContext};
+use crate::context::RpcContext;
 use crate::error::ResultExt;
-use crate::system::SYSTEMD_UNIT;
 use crate::util::Reversible;
 use crate::Error;
 
@@ -73,7 +72,7 @@ fn display_logs(all: LogResponse, _: &ArgMatches<'_>) {
 
 #[command(display(display_logs))]
 pub async fn logs(
-    #[context] _: EitherContext,
+    #[context] _: RpcContext,
     #[arg] id: String,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
