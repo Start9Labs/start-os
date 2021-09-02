@@ -1,29 +1,22 @@
 use std::fmt;
 
-use chrono::{DateTime, Utc};
-use clap::ArgMatches;
 use rpc_toolkit::command;
-use tokio::process::Command;
 use tokio::sync::RwLock;
 
 use crate::context::{EitherContext, RpcContext};
-use crate::logs::{LogEntry, LogResponse};
+use crate::logs::{LogResponse, LogSource, fetch_logs};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
-
-fn parse_datetime(text: &str, _matches: &ArgMatches) -> Result<DateTime<Utc>, Error> {
-    text.parse().with_kind(ErrorKind::ParseTimestamp)
-}
 
 #[command(rpc_only)]
 pub async fn logs(
     #[context] ctx: EitherContext,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
-    #[arg] reverse: Option<bool>,
+    #[arg] before_flag: Option<bool>,
 ) -> Result<LogResponse, Error> {
-    Ok(crate::logs::logs(ctx, SYSTEMD_UNIT.to_owned(), limit, cursor, reverse).await?)
+    Ok(fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before_flag.unwrap_or(false)).await?)
 }
 
 #[derive(serde::Serialize, Clone, Debug)]
@@ -448,15 +441,6 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
         kind: ErrorKind::ParseSysInfo,
         revision: None,
     })?
-}
-
-#[test]
-pub fn test_datetime_output() {
-    println!(
-        "{} {} UTC",
-        Utc::now().date().naive_utc(),
-        Utc::now().time().format("%H:%M:%S")
-    )
 }
 
 #[tokio::test]

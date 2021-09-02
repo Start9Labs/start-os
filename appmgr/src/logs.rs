@@ -37,23 +37,6 @@ impl std::fmt::Display for LogEntry {
     }
 }
 
-fn display_logs(all: LogResponse, _: &ArgMatches<'_>) {
-    for entry in all.entries.iter() {
-        println!("{}", entry);
-    }
-}
-
-#[command(display(display_logs))]
-pub async fn logs(
-    #[context] _: EitherContext,
-    #[arg] id: String,
-    #[arg] limit: Option<usize>,
-    #[arg] cursor: Option<String>,
-    #[arg] before_flag: Option<bool>,
-) -> Result<LogResponse, Error> {
-    Ok(logs_inner(id, limit, cursor, before_flag.unwrap_or(false)).await?)
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 struct JournalctlEntry {
     #[serde(rename = "__REALTIME_TIMESTAMP")]
@@ -77,39 +60,61 @@ impl JournalctlEntry {
     }
 }
 
-async fn logs_inner(
-    id: String,
+pub enum LogSource {
+    Service(&'static str),
+    Container(String),
+}
+
+fn display_logs(all: LogResponse, _: &ArgMatches<'_>) {
+    for entry in all.entries.iter() {
+        println!("{}", entry);
+    }
+}
+
+#[command(display(display_logs))]
+pub async fn logs(
+    #[context] _: EitherContext,
+    #[arg] id: String,
+    #[arg] limit: Option<usize>,
+    #[arg] cursor: Option<String>,
+    #[arg] before_flag: Option<bool>,
+) -> Result<LogResponse, Error> {
+    Ok(fetch_logs(LogSource::Container(id), limit, cursor, before_flag.unwrap_or(false)).await?)
+}
+
+pub async fn fetch_logs(
+    id: LogSource,
     limit: Option<usize>,
     cursor: Option<String>,
     before_flag: bool,
 ) -> Result<LogResponse, Error> {
     let limit = limit.unwrap_or(50);
     let limit_formatted = format!("-n{}", limit);
-    let mut get_prev_logs_and_reverse = false;
 
-    let mut args_out = vec!["--output=json","--output-fields=MESSAGE",&limit_formatted,];
-    let id_formatted = match id.as_str() {
-        SYSTEMD_UNIT=> {
-            args_out.push("-u");
-            SYSTEMD_UNIT.to_owned()
+    let mut args = vec!["--output=json","--output-fields=MESSAGE",&limit_formatted,];
+    let id_formatted = match id {
+        LogSource::Service(id)=> {
+            args.push("-u");
+            id.to_owned()
         },
-        _ => format!("CONTAINER_NAME={}", id)
+        LogSource::Container(id) => format!("CONTAINER_NAME={}", id)
     };
-    args_out.push(&id_formatted);
+    args.push(&id_formatted);
 
     let cursor_formatted = format!("--after-cursor={}", cursor.clone().unwrap_or("".to_owned()));
+    let mut get_prev_logs_and_reverse = false;
     if cursor.is_some() {
-        args_out.push(&cursor_formatted);
+        args.push(&cursor_formatted);
         if before_flag {
             get_prev_logs_and_reverse = true;
         }
     }
     if get_prev_logs_and_reverse {
-        args_out.push("--reverse");
+        args.push("--reverse");
     }
 
     let mut child = Command::new("journalctl")
-        .args(args_out)
+        .args(args)
         .stdout(Stdio::piped())
         .spawn()?;
     let out =
@@ -163,10 +168,10 @@ async fn logs_inner(
 #[tokio::test]
 pub async fn test_logs() {
     let response =
-        logs_inner(
+        fetch_logs(
             // find a journalctl unit on your machine
-            "tor.service".to_owned(),
-            // SYSTEMD_UNIT.to_owned(),
+            // LogSource::Service("tor.service"),
+            LogSource::Container("tor.service".to_owned()),
             // Some(5),
             None,
             None,
