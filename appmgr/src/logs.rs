@@ -12,8 +12,11 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio_stream::wrappers::LinesStream;
 
+use crate::action::docker::DockerAction;
 use crate::context::RpcContext;
 use crate::error::ResultExt;
+use crate::id::Id;
+use crate::s9pk::manifest::PackageId;
 use crate::util::Reversible;
 use crate::Error;
 
@@ -61,7 +64,7 @@ impl JournalctlEntry {
 
 pub enum LogSource {
     Service(&'static str),
-    Container(String),
+    Container(PackageId),
 }
 
 fn display_logs(all: LogResponse, _: &ArgMatches<'_>) {
@@ -73,7 +76,7 @@ fn display_logs(all: LogResponse, _: &ArgMatches<'_>) {
 #[command(display(display_logs))]
 pub async fn logs(
     #[context] _: RpcContext,
-    #[arg] id: String,
+    #[arg] id: PackageId,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
     #[arg] before_flag: Option<bool>,
@@ -96,7 +99,7 @@ pub async fn fetch_logs(
             args.push("-u");
             id.to_owned()
         },
-        LogSource::Container(id) => format!("CONTAINER_NAME={}", id)
+        LogSource::Container(id) => format!("CONTAINER_NAME={}", DockerAction::container_name(&id, None))
     };
     args.push(&id_formatted);
 
@@ -168,9 +171,10 @@ pub async fn fetch_logs(
 pub async fn test_logs() {
     let response =
         fetch_logs(
-            // find a journalctl unit on your machine
+            // change `tor.service` to an actual journald unit on your machine
             // LogSource::Service("tor.service"),
-            LogSource::Container("tor.service".to_owned()),
+            // first run `docker run --name=hello-world.embassy --log-driver=journald hello-world`
+            LogSource::Container("hello-world".parse().unwrap()),
             // Some(5),
             None,
             None,
