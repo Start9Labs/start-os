@@ -898,3 +898,104 @@ impl Serialize for Port {
         serialize_display(&self.0, serializer)
     }
 }
+
+pub trait IntoDoubleEndedIterator<T>: IntoIterator<Item = T> {
+    type IntoIter: Iterator<Item = T> + DoubleEndedIterator;
+    fn into_iter(self) -> <Self as IntoDoubleEndedIterator<T>>::IntoIter;
+}
+impl<T, U> IntoDoubleEndedIterator<U> for T
+where
+    T: IntoIterator<Item = U>,
+    <T as IntoIterator>::IntoIter: DoubleEndedIterator,
+{
+    type IntoIter = <T as IntoIterator>::IntoIter;
+    fn into_iter(self) -> <Self as IntoDoubleEndedIterator<U>>::IntoIter {
+        IntoIterator::into_iter(self)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Reversible<T, Container = Vec<T>>
+where
+    for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
+{
+    reversed: bool,
+    data: Container,
+    phantom: PhantomData<T>,
+}
+impl<T, Container> Reversible<T, Container>
+where
+    for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
+{
+    pub fn new(data: Container) -> Self {
+        Reversible {
+            reversed: false,
+            data,
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn reverse(&mut self) {
+        self.reversed = !self.reversed
+    }
+
+    pub fn iter(
+        &self,
+    ) -> itertools::Either<
+        <&Container as IntoDoubleEndedIterator<&T>>::IntoIter,
+        std::iter::Rev<<&Container as IntoDoubleEndedIterator<&T>>::IntoIter>,
+    > {
+        let iter = IntoDoubleEndedIterator::into_iter(&self.data);
+        if self.reversed {
+            itertools::Either::Right(iter.rev())
+        } else {
+            itertools::Either::Left(iter)
+        }
+    }
+}
+impl<T, Container> Serialize for Reversible<T, Container>
+where
+    for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
+    T: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeSeq;
+
+        let iter = IntoDoubleEndedIterator::into_iter(&self.data);
+        let mut seq_ser = serializer.serialize_seq(match iter.size_hint() {
+            (lower, Some(upper)) if lower == upper => Some(upper),
+            _ => None,
+        })?;
+        if self.reversed {
+            for elem in iter.rev() {
+                seq_ser.serialize_element(elem)?;
+            }
+        } else {
+            for elem in iter {
+                seq_ser.serialize_element(elem)?;
+            }
+        }
+        seq_ser.end()
+    }
+}
+impl<'de, T, Container> Deserialize<'de> for Reversible<T, Container>
+where
+    for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
+    Container: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Reversible::new(Deserialize::deserialize(deserializer)?))
+    }
+    fn deserialize_in_place<D>(deserializer: D, place: &mut Self) -> Result<(), D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Deserialize::deserialize_in_place(deserializer, &mut place.data)
+    }
+}
