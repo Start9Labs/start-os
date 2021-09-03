@@ -17,7 +17,6 @@ use super::{MatchError, NoMatchWithPath, TimeoutError};
 
 use crate::config::ConfigurationError;
 use embassy::s9pk::manifest::Manifest;
-// use crate::util::PersistencePath;
 
 // Config Value Specifications
 #[async_trait]
