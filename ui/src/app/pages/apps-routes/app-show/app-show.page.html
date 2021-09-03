@@ -26,7 +26,7 @@
         <ion-label style="overflow: visible;">
           <status [disconnected]="connectionFailure" size="x-large" weight="500" [rendering]="rendering"></status>
         </ion-label>
-        <ion-button slot="end" class="action-button" *ngIf="pkg.state === PackageState.Installed && (pkg.manifest.interfaces | hasUi)" [disabled]="!(pkg.state | isLaunchable : pkg.installed.status.main.status : pkg.manifest.interfaces)" (click)="launchUiTab()">
+        <ion-button slot="end" class="action-button" *ngIf="pkg.state === PackageState.Installed && (pkg.manifest.interfaces | hasUi)" [disabled]="!(pkg.state | isLaunchable : pkg.installed.status.main.status : pkg.manifest.interfaces)" (click)="launchUi()">
           <ion-icon slot="start" name="open-outline"></ion-icon>
           Open UI
         </ion-button>
@@ -34,7 +34,7 @@
           <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.NeedsConfig" (click)="presentModalConfig()">
             Configure
           </ion-button>
-          <ion-button slot="end" class="action-button" *ngIf="[FeStatus.Running, FeStatus.StartingUp, FeStatus.NeedsAttention] | includes : rendering.feStatus" color="danger" (click)="stop()">
+          <ion-button slot="end" class="action-button" *ngIf="[FeStatus.Running, FeStatus.NeedsAttention] | includes : rendering.feStatus" color="danger" (click)="stop()">
             Stop
           </ion-button>
           <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.DependencyIssue" (click)="scrollToRequirements()">
@@ -100,7 +100,7 @@
                 <p><ion-text [color]="pkg.installed.status['dependency-errors'][dep.key] ? 'warning' : 'success'">{{ pkg.installed.status['dependency-errors'][dep.key] ? pkg.installed.status['dependency-errors'][dep.key].type : 'satisfied' }}</ion-text></p>
               </ion-label>
 
-              <ion-button *ngIf="!pkg.installed.status['dependency-errors'][dep.key] || (pkg.installed.status['dependency-errors'][dep.key] && [DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthChecksFailed] | includes : pkg.installed.status['dependency-errors'][dep.key].type)" slot="end" size="small" [routerLink]="['/services', dep.key]">
+              <ion-button *ngIf="!pkg.installed.status['dependency-errors'][dep.key] || (pkg.installed.status['dependency-errors'][dep.key] && [DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthCheckFailed] | includes : pkg.installed.status['dependency-errors'][dep.key].type)" slot="end" size="small" [routerLink]="['/services', dep.key]">
                 View
               </ion-button>
 

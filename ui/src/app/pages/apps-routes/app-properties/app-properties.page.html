@@ -56,7 +56,7 @@
             <ion-button *ngIf="prop.value.masked" fill="clear" (click)="toggleMask(prop.key)">
               <ion-icon slot="icon-only" [name]="unmasked[prop.key] ? 'eye-off-outline' : 'eye-outline'" [color]="unmasked[prop.key] ? 'danger' : 'dark'" size="small"></ion-icon>
             </ion-button>
-            <ion-button *ngIf="prop.value.qr" fill="clear" (click)="showQR(prop.value.value)">
+            <ion-button *ngIf="prop.value.qr" fill="clear" (click)="showQR(prop.value.value, $event)">
               <ion-icon slot="icon-only" name="qr-code-outline" size="small"></ion-icon>
             </ion-button>
             <ion-button *ngIf="prop.value.copyable" fill="clear" (click)="copy(prop.value.value)">
