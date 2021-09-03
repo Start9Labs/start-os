@@ -16,7 +16,7 @@ export class AppLogsPage {
     private readonly embassyApi: ApiService,
   ) { }
 
-  fetchFetchLogs (): Function {
+  fetchFetchLogs () {
     return async (params: { before_flag?: boolean, limit?: number, cursor?: string }) => {
       const pkgId = this.pkgId
       return this.embassyApi.getPackageLogs({
