@@ -22,7 +22,7 @@ pub async fn set_hostname(hostname: &str) -> Result<(), Error> {
 }
 
 pub async fn get_product_key() -> Result<String, Error> {
-    let out = tokio::fs::read_to_string("/boot/product_key.txt").await?;
+    let out = tokio::fs::read_to_string("/boot/embassy-os/product_key.txt").await?;
     Ok(out.trim().to_owned())
 }
 
@@ -34,7 +34,7 @@ pub async fn get_id() -> Result<String, Error> {
     Ok(hex::encode(&res[0..4]))
 }
 
-// cat /boot/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "start9-"$1}' | xargs hostnamectl set-hostname
+// cat /boot/embassy-os/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "start9-"$1}' | xargs hostnamectl set-hostname
 pub async fn sync_hostname() -> Result<(), Error> {
     set_hostname(&format!("start9-{}", get_id().await?)).await?;
     Ok(())

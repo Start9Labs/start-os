@@ -153,7 +153,8 @@ pub async fn list(
         .collect())
 }
 
-pub async fn sync_keys_from_db(pool: &Pool<Sqlite>, dest: &Path) -> Result<(), Error> {
+pub async fn sync_keys_from_db<P: AsRef<Path>>(pool: &Pool<Sqlite>, dest: P) -> Result<(), Error> {
+    let dest = dest.as_ref();
     let keys = sqlx::query!("SELECT openssh_pubkey FROM ssh_keys")
         .fetch_all(pool)
         .await?;

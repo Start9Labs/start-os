@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Config, ConfigSpec};
 use crate::action::ActionImplementation;
+use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::HealthCheckId;
@@ -28,12 +29,14 @@ pub struct ConfigActions {
 impl ConfigActions {
     pub async fn get(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
     ) -> Result<ConfigRes, Error> {
         self.get
             .execute(
+                ctx,
                 pkg_id,
                 pkg_version,
                 Some("GetConfig"),
@@ -49,6 +52,7 @@ impl ConfigActions {
 
     pub async fn set(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         dependencies: &Dependencies,
@@ -58,6 +62,7 @@ impl ConfigActions {
         let res: SetResult = self
             .set
             .execute(
+                ctx,
                 pkg_id,
                 pkg_version,
                 Some("SetConfig"),

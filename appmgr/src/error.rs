@@ -51,8 +51,9 @@ pub enum ErrorKind {
     SoundError = 43,
     ParseTimestamp = 44,
     ParseSysInfo = 45,
-    WifiError = 46,
+    Wifi = 46,
     Journald = 47,
+    Zfs = 48,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -103,8 +104,9 @@ impl ErrorKind {
             SoundError => "Sound Interface Error",
             ParseTimestamp => "Timestamp Parsing Error",
             ParseSysInfo => "System Info Parsing Error",
-            WifiError => "Wifi Internal Error",
+            Wifi => "WiFi Internal Error",
             Journald => "Journald Error",
+            Zfs => "ZFS Error",
         }
     }
 }

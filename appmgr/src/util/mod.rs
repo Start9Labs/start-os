@@ -16,7 +16,9 @@ use serde_json::Value;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::sync::RwLock;
+use tokio::task::{JoinError, JoinHandle};
 
+use crate::shutdown::Shutdown;
 use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug)]
@@ -339,17 +341,22 @@ pub fn serialize_display_opt<T: std::fmt::Display, S: Serializer>(
     Option::<String>::serialize(&t.as_ref().map(|t| t.to_string()), serializer)
 }
 
-pub async fn daemon<F: Fn() -> Fut, Fut: Future<Output = ()> + Send + 'static>(
-    f: F,
+pub async fn daemon<F: FnMut() -> Fut, Fut: Future<Output = ()> + Send + 'static>(
+    mut f: F,
     cooldown: std::time::Duration,
-) -> Result<Never, anyhow::Error> {
-    loop {
+    mut shutdown: tokio::sync::broadcast::Receiver<Option<Shutdown>>,
+) -> Result<(), anyhow::Error> {
+    while matches!(
+        shutdown.try_recv(),
+        Err(tokio::sync::broadcast::error::TryRecvError::Empty)
+    ) {
         match tokio::spawn(f()).await {
             Err(e) if e.is_panic() => return Err(anyhow!("daemon panicked!")),
             _ => (),
         }
         tokio::time::sleep(cooldown).await
     }
+    Ok(())
 }
 
 pub trait SOption<T> {}
@@ -997,5 +1004,30 @@ where
         D: Deserializer<'de>,
     {
         Deserialize::deserialize_in_place(deserializer, &mut place.data)
+    }
+}
+
+#[pin_project::pin_project(PinnedDrop)]
+pub struct NonDetachingJoinHandle<T>(#[pin] JoinHandle<T>);
+impl<T> From<JoinHandle<T>> for NonDetachingJoinHandle<T> {
+    fn from(t: JoinHandle<T>) -> Self {
+        NonDetachingJoinHandle(t)
+    }
+}
+#[pin_project::pinned_drop]
+impl<T> PinnedDrop for NonDetachingJoinHandle<T> {
+    fn drop(self: std::pin::Pin<&mut Self>) {
+        let this = self.project();
+        this.0.into_ref().get_ref().abort()
+    }
+}
+impl<T> Future for NonDetachingJoinHandle<T> {
+    type Output = Result<T, JoinError>;
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let this = self.project();
+        this.0.poll(cx)
     }
 }

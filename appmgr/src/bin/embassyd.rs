@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -8,14 +7,16 @@ use embassy::db::subscribe;
 use embassy::hostname::{get_hostname, get_id};
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
-use embassy::net::tor::os_key;
+use embassy::net::tor::{os_key, tor_health_check};
 use embassy::status::{check_all, synchronize_all};
 use embassy::util::daemon;
 use embassy::{Error, ErrorKind, ResultExt};
-use futures::TryFutureExt;
+use futures::{FutureExt, TryFutureExt};
 use patch_db::json_ptr::JsonPointer;
+use reqwest::{Client, Proxy};
 use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
-use rpc_toolkit::rpc_server;
+use rpc_toolkit::{rpc_server, Context};
+use tokio::signal::unix::signal;
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
@@ -30,7 +31,37 @@ fn err_to_500(e: Error) -> Response<Body> {
 }
 
 async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
-    let rpc_ctx = RpcContext::init(cfg_path).await?;
+    let (shutdown, _) = tokio::sync::broadcast::channel(1);
+
+    let rpc_ctx = RpcContext::init(cfg_path, shutdown).await?;
+
+    let sig_handler_ctx = rpc_ctx.clone();
+    let sig_handler = tokio::spawn(async move {
+        use tokio::signal::unix::SignalKind;
+        futures::future::select_all(
+            [
+                SignalKind::interrupt(),
+                SignalKind::quit(),
+                SignalKind::terminate(),
+            ]
+            .iter()
+            .map(|s| {
+                async move {
+                    signal(*s)
+                        .expect(&format!("register {:?} handler", s))
+                        .recv()
+                        .await
+                }
+                .boxed()
+            }),
+        )
+        .await;
+        sig_handler_ctx
+            .shutdown
+            .send(None)
+            .expect("send shutdown signal");
+    });
+
     if !rpc_ctx.db.exists(&<JsonPointer>::default()).await? {
         rpc_ctx
             .db
@@ -55,12 +86,22 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             cors,
             auth,
         ]
+    })
+    .with_graceful_shutdown({
+        let mut shutdown = rpc_ctx.shutdown.subscribe();
+        async move {
+            shutdown.recv().await.expect("context dropped");
+        }
     });
 
     let rev_cache_ctx = rpc_ctx.clone();
     let revision_cache_task = tokio::spawn(async move {
         let mut sub = rev_cache_ctx.db.subscribe();
-        loop {
+        let mut shutdown = rev_cache_ctx.shutdown.subscribe();
+        while matches!(
+            shutdown.try_recv(),
+            Err(tokio::sync::broadcast::error::TryRecvError::Empty)
+        ) {
             let rev = match sub.recv().await {
                 Ok(a) => a,
                 Err(_) => {
@@ -76,8 +117,8 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
         }
     });
 
-    let tor_health_check_task =
-        embassy::daemon::tor_health_check::tor_health_check_daemon(&rpc_ctx.net_controller.tor);
+    // let tor_health_check_task =
+    //     embassy::daemon::tor_health_check::tor_health_check_daemon(&rpc_ctx.net_controller.tor);
     let ws_ctx = rpc_ctx.clone();
     let ws_server = {
         let builder = Server::bind(&ws_ctx.bind_ws);
@@ -101,7 +142,13 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             }
         });
         builder.serve(make_svc)
-    };
+    }
+    .with_graceful_shutdown({
+        let mut shutdown = rpc_ctx.shutdown.subscribe();
+        async move {
+            shutdown.recv().await.expect("context dropped");
+        }
+    });
 
     let status_ctx = rpc_ctx.clone();
     let status_daemon = daemon(
@@ -117,6 +164,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             }
         },
         Duration::from_millis(500),
+        rpc_ctx.shutdown.subscribe(),
     );
     let health_ctx = rpc_ctx.clone();
     let health_daemon = daemon(
@@ -132,7 +180,26 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             }
         },
         Duration::from_millis(500),
+        rpc_ctx.shutdown.subscribe(),
     );
+    let tor_health_ctx = rpc_ctx.clone();
+    let tor_client = Client::builder()
+        .proxy(
+            Proxy::all(format!("socks5h://{}:{}", rpc_ctx.host(), rpc_ctx.port()))
+                .with_kind(crate::ErrorKind::Network)?,
+        )
+        .build()
+        .with_kind(crate::ErrorKind::Network)?;
+    let tor_health_daemon = daemon(
+        move || {
+            let ctx = tor_health_ctx.clone();
+            let client = tor_client.clone();
+            async move { tor_health_check(&client, &ctx.net_controller.tor).await }
+        },
+        Duration::from_secs(300),
+        rpc_ctx.shutdown.subscribe(),
+    );
+
     futures::try_join!(
         server.map_err(|e| Error::new(e, ErrorKind::Network)),
         revision_cache_task.map_err(|e| Error::new(
@@ -148,8 +215,14 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             e.context("Health Check daemon panicked!"),
             ErrorKind::Unknown
         )),
-        futures::FutureExt::map(tor_health_check_task, Ok)
+        tor_health_daemon
+            .map_err(|e| Error::new(e.context("Tor Health daemon panicked!"), ErrorKind::Unknown)),
     )?;
+
+    rpc_ctx.managers.empty().await?;
+
+    sig_handler.abort();
+
     Ok(())
 }
 

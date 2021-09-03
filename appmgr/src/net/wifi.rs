@@ -25,13 +25,13 @@ pub async fn add(
     if !ssid.is_ascii() {
         return Err(Error::new(
             anyhow::anyhow!("SSID may not have special characters"),
-            ErrorKind::WifiError,
+            ErrorKind::Wifi,
         ));
     }
     if !password.is_ascii() {
         return Err(Error::new(
             anyhow::anyhow!("WiFi Password may not have special characters"),
-            ErrorKind::WifiError,
+            ErrorKind::Wifi,
         ));
     }
     async fn add_procedure<'a>(
@@ -75,7 +75,7 @@ pub async fn connect(#[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
             anyhow::anyhow!("SSID may not have special characters"),
-            ErrorKind::WifiError,
+            ErrorKind::Wifi,
         ));
     }
     async fn connect_procedure<'a>(wpa_supplicant: WpaCli<'a>, ssid: &String) -> Result<(), Error> {
@@ -113,7 +113,7 @@ pub async fn delete(#[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
             anyhow::anyhow!("SSID may not have special characters"),
-            ErrorKind::WifiError,
+            ErrorKind::Wifi,
         ));
     }
     let wpa_supplicant = WpaCli { interface: "wlan0" };
@@ -127,7 +127,7 @@ pub async fn delete(#[arg] ssid: String) -> Result<(), Error> {
                 if interface_connected("eth0").await? {
                     wpa_supplicant.remove_network(&ssid).await?;
                 } else {
-                    return Err(Error::new(anyhow::anyhow!("Forbidden: Deleting this Network would make your Embassy Unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::WifiError));
+                    return Err(Error::new(anyhow::anyhow!("Forbidden: Deleting this Network would make your Embassy Unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
                 }
             }
         }
@@ -277,7 +277,7 @@ impl<'a> WpaCli<'a> {
             .arg("-i")
             .arg(self.interface)
             .arg("add_network")
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         let s = std::str::from_utf8(&r)?;
         Ok(NetworkId(s.trim().to_owned()))
@@ -289,7 +289,7 @@ impl<'a> WpaCli<'a> {
             .arg("set_network")
             .arg(&id.0)
             .arg(format!("{}", attr))
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
     }
@@ -300,7 +300,7 @@ impl<'a> WpaCli<'a> {
             .arg("set")
             .arg("country")
             .arg(country_code)
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
     }
@@ -310,7 +310,7 @@ impl<'a> WpaCli<'a> {
             .arg(self.interface)
             .arg("get")
             .arg("country")
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(CountryCode::for_alpha2(&String::from_utf8(r)?).unwrap())
     }
@@ -320,7 +320,7 @@ impl<'a> WpaCli<'a> {
             .arg(self.interface)
             .arg("enable_network")
             .arg(&id.0)
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
     }
@@ -329,7 +329,7 @@ impl<'a> WpaCli<'a> {
             .arg("-i")
             .arg(self.interface)
             .arg("save_config")
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
     }
@@ -339,7 +339,7 @@ impl<'a> WpaCli<'a> {
             .arg(self.interface)
             .arg("remove_network")
             .arg(&id.0)
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
     }
@@ -348,7 +348,7 @@ impl<'a> WpaCli<'a> {
             .arg("-i")
             .arg(self.interface)
             .arg("reconfigure")
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
     }
@@ -357,7 +357,7 @@ impl<'a> WpaCli<'a> {
             .arg("-i")
             .arg(self.interface)
             .arg("list_networks")
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(String::from_utf8(r)?
             .lines()
@@ -376,7 +376,7 @@ impl<'a> WpaCli<'a> {
             .arg(self.interface)
             .arg("select_network")
             .arg(&id.0)
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
     }
@@ -387,7 +387,7 @@ impl<'a> WpaCli<'a> {
             .arg("new_password")
             .arg(&id.0)
             .arg(pass)
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
     }
@@ -396,12 +396,12 @@ impl<'a> WpaCli<'a> {
             .arg("-i")
             .arg(self.interface)
             .arg("signal_poll")
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         let e = || {
             Error::new(
                 anyhow::anyhow!("Invalid output from wpa_cli signal_poll"),
-                ErrorKind::WifiError,
+                ErrorKind::Wifi,
             )
         };
         let output = String::from_utf8(r)?;
@@ -423,7 +423,7 @@ impl<'a> WpaCli<'a> {
         match m_id {
             None => Err(Error::new(
                 anyhow::anyhow!("SSID Not Found"),
-                ErrorKind::WifiError,
+                ErrorKind::Wifi,
             )),
             Some(x) => {
                 self.select_network_low(&x).await?;
@@ -456,7 +456,7 @@ impl<'a> WpaCli<'a> {
         let r = Command::new("iwgetid")
             .arg(self.interface)
             .arg("--raw")
-            .invoke(ErrorKind::WifiError)
+            .invoke(ErrorKind::Wifi)
             .await?;
         let output = String::from_utf8(r)?;
         if output.trim().is_empty() {
@@ -501,7 +501,7 @@ impl<'a> WpaCli<'a> {
 pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
     let out = Command::new("ifconfig")
         .arg(interface)
-        .invoke(ErrorKind::WifiError)
+        .invoke(ErrorKind::Wifi)
         .await?;
     let v = std::str::from_utf8(&out)?
         .lines()
@@ -513,7 +513,7 @@ pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
 pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<CountryCode, Error> {
     CountryCode::for_alpha2(code).or(Err(Error::new(
         anyhow::anyhow!("Invalid Country Code: {}", code),
-        ErrorKind::WifiError,
+        ErrorKind::Wifi,
     )))
 }
 

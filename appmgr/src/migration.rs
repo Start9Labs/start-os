@@ -5,6 +5,7 @@ use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 
 use crate::action::ActionImplementation;
+use crate::context::RpcContext;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -19,6 +20,7 @@ pub struct Migrations {
 impl Migrations {
     pub async fn from(
         &self,
+        ctx: &RpcContext,
         version: &Version,
         pkg_id: &PackageId,
         pkg_version: &Version,
@@ -33,6 +35,7 @@ impl Migrations {
                 Some(
                     migration
                         .execute(
+                            ctx,
                             pkg_id,
                             pkg_version,
                             Some("Migration"), // Migrations cannot be executed concurrently
@@ -52,6 +55,7 @@ impl Migrations {
     }
     pub async fn to(
         &self,
+        ctx: &RpcContext,
         version: &Version,
         pkg_id: &PackageId,
         pkg_version: &Version,
@@ -64,6 +68,7 @@ impl Migrations {
                 Some(
                     migration
                         .execute(
+                            ctx,
                             pkg_id,
                             pkg_version,
                             Some("Migration"),
