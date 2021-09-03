@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use self::docker::DockerAction;
 use crate::config::{Config, ConfigSpec};
+use crate::context::RpcContext;
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
 use crate::util::{ValuePrimative, Version};
@@ -90,6 +91,7 @@ pub struct Action {
 impl Action {
     pub async fn execute(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -100,6 +102,7 @@ impl Action {
             .with_kind(crate::ErrorKind::ConfigSpecViolation)?;
         self.implementation
             .execute(
+                ctx,
                 pkg_id,
                 pkg_version,
                 Some(&format!("{}Action", self.name)),
@@ -121,6 +124,7 @@ pub enum ActionImplementation {
 impl ActionImplementation {
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         name: Option<&str>,
@@ -131,13 +135,14 @@ impl ActionImplementation {
         match self {
             ActionImplementation::Docker(action) => {
                 action
-                    .execute(pkg_id, pkg_version, name, volumes, input, allow_inject)
+                    .execute(ctx, pkg_id, pkg_version, name, volumes, input, allow_inject)
                     .await
             }
         }
     }
     pub async fn sandboxed<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -145,7 +150,9 @@ impl ActionImplementation {
     ) -> Result<Result<O, (i32, String)>, Error> {
         match self {
             ActionImplementation::Docker(action) => {
-                action.sandboxed(pkg_id, pkg_version, volumes, input).await
+                action
+                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input)
+                    .await
             }
         }
     }

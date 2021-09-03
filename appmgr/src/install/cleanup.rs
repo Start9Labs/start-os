@@ -11,6 +11,7 @@ use crate::util::Version;
 use crate::Error;
 
 pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a PackageId>>(
+    ctx: &RpcContext,
     db: &mut Db,
     id: &PackageId,
     deps: I,
@@ -37,7 +38,7 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
                     crate::ErrorKind::Database,
                 )
             })?
-            .satisfied(db, id, None, dep, &man.version, &man.volumes)
+            .satisfied(ctx, db, id, None, dep, &man.version, &man.volumes)
             .await?
         {
             let mut errs = crate::db::DatabaseModel::new()
@@ -161,7 +162,13 @@ pub async fn uninstall(
         .package_data()
         .remove(&mut tx, &entry.manifest.id)
         .await?;
-    update_dependents(&mut tx, &entry.manifest.id, entry.current_dependents.keys()).await?;
+    update_dependents(
+        ctx,
+        &mut tx,
+        &entry.manifest.id,
+        entry.current_dependents.keys(),
+    )
+    .await?;
     tx.commit(None).await?;
     Ok(())
 }

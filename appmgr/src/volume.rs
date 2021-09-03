@@ -6,15 +6,14 @@ use indexmap::IndexMap;
 use patch_db::{HasModel, Map, MapModel};
 use serde::{Deserialize, Deserializer, Serialize};
 
+use crate::context::RpcContext;
 use crate::id::{Id, IdUnchecked};
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::Error;
 
-pub mod disk;
-
-pub const PKG_VOLUME_DIR: &'static str = "/mnt/embassy-os/volumes/package-data";
+pub const PKG_VOLUME_DIR: &'static str = "main/volumes/package-data";
 pub const BACKUP_DIR: &'static str = "/mnt/embassy-os-backups/EmbassyBackups";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -76,21 +75,27 @@ impl<S: AsRef<str>> Serialize for VolumeId<S> {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Volumes(IndexMap<VolumeId, Volume>);
 impl Volumes {
-    pub async fn install(&self, pkg_id: &PackageId, version: &Version) -> Result<(), Error> {
+    pub async fn install(
+        &self,
+        ctx: &RpcContext,
+        pkg_id: &PackageId,
+        version: &Version,
+    ) -> Result<(), Error> {
         for (volume_id, volume) in &self.0 {
-            volume.install(pkg_id, version, volume_id).await?; // TODO: concurrent?
+            volume.install(ctx, pkg_id, version, volume_id).await?; // TODO: concurrent?
         }
         Ok(())
     }
     pub fn get_path_for(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         version: &Version,
         volume_id: &VolumeId,
     ) -> Option<PathBuf> {
         self.0
             .get(volume_id)
-            .map(|volume| volume.path_for(pkg_id, version, volume_id))
+            .map(|volume| volume.path_for(ctx, pkg_id, version, volume_id))
     }
     pub fn to_readonly(&self) -> Self {
         Volumes(
@@ -154,25 +159,36 @@ pub enum Volume {
 impl Volume {
     pub async fn install(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         version: &Version,
         volume_id: &VolumeId,
     ) -> Result<(), Error> {
         match self {
             Volume::Data { .. } => {
-                tokio::fs::create_dir_all(self.path_for(pkg_id, version, volume_id)).await?;
+                tokio::fs::create_dir_all(self.path_for(ctx, pkg_id, version, volume_id)).await?;
             }
             _ => (),
         }
         Ok(())
     }
-    pub fn path_for(&self, pkg_id: &PackageId, version: &Version, volume_id: &VolumeId) -> PathBuf {
+    pub fn path_for(
+        &self,
+        ctx: &RpcContext,
+        pkg_id: &PackageId,
+        version: &Version,
+        volume_id: &VolumeId,
+    ) -> PathBuf {
         match self {
-            Volume::Data { .. } => Path::new(PKG_VOLUME_DIR)
+            Volume::Data { .. } => ctx
+                .datadir
+                .join(PKG_VOLUME_DIR)
                 .join(pkg_id)
                 .join("volumes")
                 .join(volume_id),
-            Volume::Assets {} => Path::new(PKG_VOLUME_DIR)
+            Volume::Assets {} => ctx
+                .datadir
+                .join(PKG_VOLUME_DIR)
                 .join(pkg_id)
                 .join("assets")
                 .join(version.as_str())
@@ -182,7 +198,9 @@ impl Volume {
                 volume_id,
                 path,
                 ..
-            } => dbg!(Path::new(PKG_VOLUME_DIR)
+            } => dbg!(ctx
+                .datadir
+                .join(PKG_VOLUME_DIR)
                 .join(package_id)
                 .join("volumes")
                 .join(volume_id)
@@ -191,7 +209,9 @@ impl Volume {
                 } else {
                     path.as_ref()
                 })),
-            Volume::Certificate { interface_id } => Path::new(PKG_VOLUME_DIR)
+            Volume::Certificate { interface_id } => ctx
+                .datadir
+                .join(PKG_VOLUME_DIR)
                 .join(pkg_id)
                 .join("certificates")
                 .join(interface_id),

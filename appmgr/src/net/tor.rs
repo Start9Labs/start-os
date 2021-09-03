@@ -6,7 +6,9 @@ use anyhow::anyhow;
 use clap::ArgMatches;
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use reqwest::Client;
 use rpc_toolkit::command;
+use serde_json::json;
 use sqlx::{Executor, Sqlite};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -343,6 +345,44 @@ impl TorControllerInner {
             .lines()
             .map(|l| l.trim().parse().with_kind(ErrorKind::Tor))
             .collect()
+    }
+}
+
+pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
+    let onion = tor_controller.embassyd_onion().await;
+    let result = client
+        .post(format!("http://{}/rpc/v1", onion))
+        .body(
+            json!({
+                "jsonrpc": "2.0",
+                "method": "echo",
+                "params": { "message": "Follow the orange rabbit" },
+            })
+            .to_string()
+            .into_bytes(),
+        )
+        .send()
+        .await;
+    match result {
+        // if success, do nothing
+        Ok(_) => {}
+        // if failure, disconnect tor control port, and restart tor controller
+        Err(e) => {
+            log::error!("Unable to reach self over tor: {}", e);
+            loop {
+                match tor_controller.replace().await {
+                    Ok(restarted) => {
+                        if restarted {
+                            log::error!("Tor has been recently restarted, refusing to restart");
+                        }
+                        break;
+                    }
+                    Err(e) => {
+                        log::error!("Unable to restart tor: {}", e);
+                    }
+                }
+            }
+        }
     }
 }
 

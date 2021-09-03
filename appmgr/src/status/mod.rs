@@ -109,13 +109,14 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     }
     drop(db);
     async fn main_status<Db: DbHandle>(
+        ctx: RpcContext,
         status_model: StatusModel,
         manifest: Arc<ModelData<Manifest>>,
         mut db: Db,
     ) -> Result<MainStatus, Error> {
         let mut status = status_model.get_mut(&mut db).await?;
 
-        status.main.check(&*manifest).await?;
+        status.main.check(&ctx, &*manifest).await?;
 
         let res = status.main.clone();
 
@@ -125,25 +126,30 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     }
     let (status_sender, mut statuses_recv) = tokio::sync::mpsc::channel(status_manifest.len() + 1);
     let mut statuses = HashMap::with_capacity(status_manifest.len());
-    futures::stream::iter(status_manifest.into_iter().zip(pkg_ids.clone()))
-        .for_each_concurrent(None, move |((status, manifest), id)| {
-            let status_sender = status_sender.clone();
-            async move {
-                match tokio::spawn(main_status(status, manifest, ctx.db.handle()))
-                    .await
-                    .unwrap()
-                {
-                    Err(e) => {
-                        log::error!("Error running main health check for {}: {}", id, e);
-                        log::debug!("{:?}", e);
-                    }
-                    Ok(status) => {
-                        status_sender.send((id, status)).await.expect("unreachable");
-                    }
+    futures::stream::iter(
+        status_manifest
+            .into_iter()
+            .zip(pkg_ids.clone())
+            .zip(std::iter::repeat(ctx)),
+    )
+    .for_each_concurrent(None, move |(((status, manifest), id), ctx)| {
+        let status_sender = status_sender.clone();
+        async move {
+            match tokio::spawn(main_status(ctx.clone(), status, manifest, ctx.db.handle()))
+                .await
+                .unwrap()
+            {
+                Err(e) => {
+                    log::error!("Error running main health check for {}: {}", id, e);
+                    log::debug!("{:?}", e);
+                }
+                Ok(status) => {
+                    status_sender.send((id, status)).await.expect("unreachable");
                 }
             }
-        })
-        .await;
+        }
+    })
+    .await;
     while let Some((id, status)) = statuses_recv.recv().await {
         statuses.insert(id, status);
     }
@@ -246,12 +252,18 @@ impl MainStatus {
         }
         Ok(())
     }
-    pub async fn check(&mut self, manifest: &Manifest) -> Result<(), Error> {
+    pub async fn check(&mut self, ctx: &RpcContext, manifest: &Manifest) -> Result<(), Error> {
         match self {
             MainStatus::Running { started, health } => {
                 *health = manifest
                     .health_checks
-                    .check_all(started, &manifest.id, &manifest.version, &manifest.volumes)
+                    .check_all(
+                        ctx,
+                        started,
+                        &manifest.id,
+                        &manifest.version,
+                        &manifest.volumes,
+                    )
                     .await?;
                 for (check, res) in health {
                     if matches!(
@@ -313,6 +325,7 @@ impl HasModel for DependencyErrors {
 }
 impl DependencyErrors {
     pub async fn init<Db: DbHandle>(
+        ctx: &RpcContext,
         db: &mut Db,
         manifest: &Manifest,
         current_dependencies: &IndexMap<PackageId, CurrentDependencyInfo>,
@@ -330,6 +343,7 @@ impl DependencyErrors {
                     )
                 })?
                 .satisfied(
+                    ctx,
                     db,
                     dep_id,
                     None,

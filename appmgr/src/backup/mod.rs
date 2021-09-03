@@ -3,6 +3,7 @@ use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 
 use crate::action::ActionImplementation;
+use crate::context::RpcContext;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::{Volume, VolumeId, Volumes};
@@ -16,6 +17,7 @@ pub struct BackupActions {
 impl BackupActions {
     pub async fn create(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -24,6 +26,7 @@ impl BackupActions {
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
         self.create
             .execute(
+                ctx,
                 pkg_id,
                 pkg_version,
                 Some("CreateBackup"),
@@ -39,6 +42,7 @@ impl BackupActions {
 
     pub async fn restore(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -47,6 +51,7 @@ impl BackupActions {
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
         self.restore
             .execute(
+                ctx,
                 pkg_id,
                 pkg_version,
                 Some("RestoreBackup"),

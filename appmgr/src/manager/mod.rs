@@ -6,30 +6,29 @@ use std::task::Poll;
 
 use anyhow::anyhow;
 use bollard::container::StopContainerOptions;
-use bollard::Docker;
 use patch_db::DbHandle;
 use sqlx::{Executor, Sqlite};
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::RwLock;
-use tokio::task::JoinHandle;
 use torut::onion::TorSecretKeyV3;
 
 use crate::action::docker::DockerAction;
+use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
-use crate::net::NetController;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::util::{Container, Version};
+use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
 
+#[derive(Default)]
 pub struct ManagerMap(RwLock<HashMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
     pub async fn init<Db: DbHandle, Ex>(
+        &self,
+        ctx: &RpcContext,
         db: &mut Db,
         secrets: &mut Ex,
-        docker: Docker,
-        net_ctl: Arc<NetController>,
-    ) -> Result<Self, Error>
+    ) -> Result<(), Error>
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
     {
@@ -53,16 +52,16 @@ impl ManagerMap {
             let tor_keys = man.interfaces.tor_keys(secrets, &package).await?;
             res.insert(
                 (package, man.version.clone()),
-                Arc::new(Manager::create(docker.clone(), net_ctl.clone(), man, tor_keys).await?),
+                Arc::new(Manager::create(ctx.clone(), man, tor_keys).await?),
             );
         }
-        Ok(ManagerMap(RwLock::new(res)))
+        *self.0.write().await = res;
+        Ok(())
     }
 
     pub async fn add(
         &self,
-        docker: Docker,
-        net_ctl: Arc<NetController>,
+        ctx: RpcContext,
         manifest: Manifest,
         tor_keys: HashMap<InterfaceId, TorSecretKeyV3>,
     ) -> Result<(), Error> {
@@ -75,7 +74,7 @@ impl ManagerMap {
         }
         lock.insert(
             id,
-            Arc::new(Manager::create(docker, net_ctl, manifest, tor_keys).await?),
+            Arc::new(Manager::create(ctx, manifest, tor_keys).await?),
         );
         Ok(())
     }
@@ -88,6 +87,20 @@ impl ManagerMap {
         }
     }
 
+    pub async fn empty(&self) -> Result<(), Error> {
+        let res = futures::future::join_all(
+            std::mem::take(&mut *self.0.write().await)
+                .into_iter()
+                .map(|(_, man)| async move { man.exit().await }),
+        )
+        .await;
+        res.into_iter().fold(Ok(()), |res, x| match (res, x) {
+            (Ok(()), x) => x,
+            (Err(e), Ok(())) => Err(e),
+            (Err(e1), Err(e2)) => Err(Error::new(anyhow!("{}, {}", e1.source, e2.source), e1.kind)),
+        })
+    }
+
     pub async fn get(&self, id: &(PackageId, Version)) -> Option<Arc<Manager>> {
         self.0.read().await.get(id).cloned()
     }
@@ -95,7 +108,7 @@ impl ManagerMap {
 
 pub struct Manager {
     shared: Arc<ManagerSharedState>,
-    thread: Container<JoinHandle<()>>,
+    thread: Container<NonDetachingJoinHandle<()>>,
 }
 
 pub enum Status {
@@ -105,10 +118,9 @@ pub enum Status {
 }
 
 struct ManagerSharedState {
+    ctx: RpcContext,
     status: AtomicUsize,
     on_stop: Sender<OnStop>,
-    docker: Docker,
-    net_ctl: Arc<NetController>,
     manifest: Manifest,
     container_name: String,
     tor_keys: HashMap<InterfaceId, TorSecretKeyV3>,
@@ -128,6 +140,7 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
             .manifest
             .main
             .execute::<(), ()>(
+                &rt_state.ctx,
                 &rt_state.manifest.id,
                 &rt_state.manifest.version,
                 None,
@@ -140,6 +153,7 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
     let ip;
     loop {
         match state
+            .ctx
             .docker
             .inspect_container(&state.container_name, None)
             .await
@@ -177,7 +191,8 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
     }
 
     state
-        .net_ctl
+        .ctx
+        .net_controller
         .add(
             &state.manifest.id,
             ip,
@@ -215,7 +230,8 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
         })
         .and_then(|a| a);
     state
-        .net_ctl
+        .ctx
+        .net_controller
         .remove(
             &state.manifest.id,
             state.manifest.interfaces.0.keys().cloned(),
@@ -226,17 +242,15 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
 
 impl Manager {
     async fn create(
-        docker: Docker,
-        net_ctl: Arc<NetController>,
+        ctx: RpcContext,
         manifest: Manifest,
         tor_keys: HashMap<InterfaceId, TorSecretKeyV3>,
     ) -> Result<Self, Error> {
         let (on_stop, mut recv) = channel(OnStop::Sleep);
         let shared = Arc::new(ManagerSharedState {
+            ctx,
             status: AtomicUsize::new(Status::Stopped as usize),
             on_stop,
-            docker,
-            net_ctl,
             container_name: DockerAction::container_name(&manifest.id, None),
             manifest,
             tor_keys,
@@ -301,7 +315,7 @@ impl Manager {
         });
         Ok(Manager {
             shared,
-            thread: Container::new(Some(thread)),
+            thread: Container::new(Some(thread.into())),
         })
     }
 
@@ -326,6 +340,7 @@ impl Manager {
         }
         match self
             .shared
+            .ctx
             .docker
             .stop_container(
                 &self.shared.container_name,
@@ -360,6 +375,7 @@ impl Manager {
 
     pub async fn pause(&self) -> Result<(), Error> {
         self.shared
+            .ctx
             .docker
             .pause_container(&self.shared.container_name)
             .await?;
@@ -371,6 +387,7 @@ impl Manager {
 
     pub async fn resume(&self) -> Result<(), Error> {
         self.shared
+            .ctx
             .docker
             .unpause_container(&self.shared.container_name)
             .await?;
@@ -385,6 +402,7 @@ impl Manager {
         let _ = self.shared.on_stop.send(OnStop::Exit);
         match self
             .shared
+            .ctx
             .docker
             .stop_container(
                 &self.shared.container_name,

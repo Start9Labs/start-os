@@ -1,5 +1,5 @@
-mod cli;
-mod rpc;
+pub mod cli;
+pub mod rpc;
 
 pub use cli::CliContext;
 pub use rpc::RpcContext;

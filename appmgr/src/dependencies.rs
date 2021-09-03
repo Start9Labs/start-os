@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::action::ActionImplementation;
 use crate::config::Config;
+use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult, HealthCheckResultVariant};
@@ -130,6 +131,7 @@ pub struct DepInfo {
 impl DepInfo {
     pub async fn satisfied<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         dependency_id: &PackageId,
         dependency_config: Option<Config>, // fetch if none
@@ -161,7 +163,7 @@ impl DepInfo {
             cfg
         } else if let Some(cfg_info) = &manifest.config {
             cfg_info
-                .get(dependency_id, &manifest.version, &manifest.volumes)
+                .get(ctx, dependency_id, &manifest.version, &manifest.volumes)
                 .await?
                 .config
                 .unwrap_or_default()
@@ -171,6 +173,7 @@ impl DepInfo {
         if let Some(cfg_req) = &self.config {
             if let Err(e) = cfg_req
                 .check(
+                    ctx,
                     dependent_id,
                     dependent_version,
                     dependent_volumes,
@@ -218,6 +221,7 @@ pub struct DependencyConfig {
 impl DependencyConfig {
     pub async fn check(
         &self,
+        ctx: &RpcContext,
         dependent_id: &PackageId,
         dependent_version: &Version,
         dependent_volumes: &Volumes,
@@ -226,6 +230,7 @@ impl DependencyConfig {
         Ok(self
             .check
             .sandboxed(
+                ctx,
                 dependent_id,
                 dependent_version,
                 dependent_volumes,
@@ -236,6 +241,7 @@ impl DependencyConfig {
     }
     pub async fn auto_configure(
         &self,
+        ctx: &RpcContext,
         dependent_id: &PackageId,
         dependent_version: &Version,
         dependent_volumes: &Volumes,
@@ -243,6 +249,7 @@ impl DependencyConfig {
     ) -> Result<Config, Error> {
         self.auto_configure
             .sandboxed(
+                ctx,
                 dependent_id,
                 dependent_version,
                 dependent_volumes,
