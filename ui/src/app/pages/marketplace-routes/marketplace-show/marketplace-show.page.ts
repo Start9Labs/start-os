@@ -38,7 +38,7 @@ export class MarketplaceShowPage {
     private readonly navCtrl: NavController,
     private readonly emver: Emver,
     private readonly patch: PatchDbService,
-    readonly marketplaceService: MarketplaceService,
+    public readonly marketplaceService: MarketplaceService,
   ) { }
 
   async ngOnInit () {
