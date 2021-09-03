@@ -11,22 +11,26 @@ use anyhow::anyhow;
 use backup::{create_backup, restore_backup};
 use clap::{App, Arg, SubCommand};
 use config::set_configuration;
-use embassy::config::action::{ConfigRes, SetResult};
-use embassy::Error;
+use embassy::config::action::ConfigRes;
+// enum == sum type, structs = product type, trait = type class
+pub enum CompatRes {
+    SetResult,
+    ConfigRes
+}
 
 fn main() {
     match inner_main() {
         Ok(a) => a,
         Err(e) => {
-            eprintln!("{}", e.source);
-            log::debug!("{:?}", e.source);
-            drop(e.source);
-            std::process::exit(e.kind as i32)
+            eprintln!("{}", e);
+            log::debug!("{:?}", e.backtrace());
+            drop(e);
+            std::process::exit(1)
         }
     }
 }
 
-fn inner_main() {
+fn inner_main() -> Result<(), anyhow::Error> {
     let app = App::new("compat")
         .subcommand(
             SubCommand::with_name("config").subcommand(
@@ -106,7 +110,8 @@ fn inner_main() {
                 };
                 let spec_path = Path::new(sub_m.value_of("spec").unwrap());
                 let spec = serde_yaml::from_reader(File::open(spec_path).unwrap()).unwrap();
-                serde_yaml::to_writer(stdout(), &ConfigRes { config: cfg, spec }).unwrap();
+                serde_yaml::to_writer(stdout(), &ConfigRes { config: cfg, spec })?;
+                Ok(())
             },
             ("set", Some(sub_m)) => {
                 // valiate against rules
@@ -117,7 +122,13 @@ fn inner_main() {
                 let rules_path =
                     Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("app_id").unwrap();
-                set_configuration(&name, config, rules_path, cfg_path);
+                match set_configuration(&name, config, rules_path, cfg_path) {
+                    Ok(a) => {
+                        serde_yaml::to_writer(stdout(), &a)?;
+                        Ok(())
+                    }
+                    Err(e) => Err(e)
+                }
             },
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
@@ -126,15 +137,20 @@ fn inner_main() {
         ("dependency", Some(sub_m)) => match sub_m.subcommand() {
             ("check", Some(sub_m)) => {
                 let cfg_path =
-                    Path::new(sub_m.value_of("mountpoint").unwrap()).join("start9/config.yaml");
-                let cfg = if cfg_path.exists() {
-                    Some(serde_yaml::from_reader(File::open(cfg_path).unwrap()).unwrap())
-                } else {
-                    None
-                };
-                let spec_path = Path::new(sub_m.value_of("spec").unwrap());
-                let spec = serde_yaml::from_reader(File::open(spec_path).unwrap()).unwrap();
-                serde_yaml::to_writer(stdout(), &ConfigRes { config: cfg, spec }).unwrap();
+                    Path::new(sub_m.value_of("mountpoint").unwrap());
+                let config = serde_yaml::from_reader(File::open(cfg_path).unwrap()).unwrap();
+                let rules_path =
+                    Path::new(sub_m.value_of("assets").unwrap());
+                let name = sub_m.value_of("app_id").unwrap();
+                match set_configuration(&name, config, rules_path, cfg_path) {
+                    Ok(a) => {
+                        serde_yaml::to_writer(stdout(), &a)?;
+                    }
+                    Err(e) => {
+                        anyhow!("could not dependency check: {}", e);
+                    }
+                }
+                Ok(())
             },
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
@@ -146,30 +162,32 @@ fn inner_main() {
                         sub_m.value_of("mountpoint").unwrap(),
                         sub_m.value_of("datapath").unwrap(),
                         sub_m.value_of("package-id").unwrap(),
-                    ).await;
+                    );
                 match res {
                     Ok(r) => {
-                        serde_yaml::to_writer(stdout(), &r).unwrap()
+                        serde_yaml::to_writer(stdout(), &r)?;
                     }
                     Err(e) => {
-                        log::error!("could not create backup: {}", e.source);
+                        anyhow!("could not create backup: {}", e);
                     }
-                };
+                }
+                Ok(())
             },
             ("restore", Some(sub_m)) => {
                 let res = restore_backup(
                         sub_m.value_of("package-id").unwrap(),
                         sub_m.value_of("datapath").unwrap(),
                         sub_m.value_of("mountpoint").unwrap(),
-                    ).await;
+                    );
                 match res {
                     Ok(r) => {
-                        serde_yaml::to_writer(stdout(), &r).unwrap()
+                        serde_yaml::to_writer(stdout(), &r)?;
                     }
                     Err(e) => {
-                        log::error!("could not restore backup: {}", e.source);
+                        anyhow!("could not restore backup: {}", e);
                     }
-                };
+                }
+                Ok(())
             },
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
