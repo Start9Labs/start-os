@@ -1,10 +1,14 @@
 <div class="slide-content">
   <div style="margin-top: 25px;">
     <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
-      <ion-label [color]="$color$ | async" style="font-size: xx-large; font-weight: bold;">
-        {{params.title}}
+      <ion-label [color]="params.titleColor">
+        <h1>{{ params.title }}</h1>
+        <h2>{{ params.headline }}</h2>
       </ion-label>
     </div>
-    <div class="long-message" [innerHTML]="params.notes | markdown"></div>
+    <div *ngFor="let note of params.notes | keyvalue : asIsOrder">
+      <h2>{{ note.key }}</h2>
+      <div class="long-message" [innerHTML]="note.value | markdown"></div>
+    </div>
   </div>
 </div>

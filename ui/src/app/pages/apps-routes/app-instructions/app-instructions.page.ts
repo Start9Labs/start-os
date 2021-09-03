@@ -1,10 +1,9 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { BehaviorSubject } from 'rxjs'
-import { AppInstalledFull } from 'src/app/models/app-types'
-import { ModelPreload } from 'src/app/models/model-preload'
-import { markAsLoadingDuring$ } from 'src/app/services/loader.service'
-import { peekProperties } from 'src/app/util/property-subject.util'
+import { IonContent } from '@ionic/angular'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-instructions',
@@ -12,25 +11,29 @@ import { peekProperties } from 'src/app/util/property-subject.util'
   styleUrls: ['./app-instructions.page.scss'],
 })
 export class AppInstructionsPage {
-  $loading$ = new BehaviorSubject(true)
-  error = ''
-  app: AppInstalledFull = { } as any
-  appId: string
+  instructions: string
+  loading = true
+
+  @ViewChild(IonContent) content: IonContent
 
   constructor (
     private readonly route: ActivatedRoute,
-    private readonly preload: ModelPreload,
+    private readonly errToast: ErrorToastService,
+    private readonly embassyApi: ApiService,
+    private readonly patch: PatchDbService,
   ) { }
 
   async ngOnInit () {
-    this.appId = this.route.snapshot.paramMap.get('appId') as string
+    const pkgId = this.route.snapshot.paramMap.get('pkgId')
 
-    markAsLoadingDuring$(this.$loading$, this.preload.appFull(this.appId)).subscribe({
-      next: app => this.app = peekProperties(app),
-      error: e => {
-        console.error(e)
-        this.error = e.message
-      },
-    })
+    const url = this.patch.getData()['package-data'][pkgId]['static-files'].instructions
+
+    try {
+      this.instructions = await this.embassyApi.getStatic(url)
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      this.loading = false
+    }
   }
 }

@@ -1,43 +1,40 @@
 import { Component } from '@angular/core'
-import { ServerModel, S9Notification } from 'src/app/models/server-model'
-import { ApiService } from 'src/app/services/api/api.service'
-import { pauseFor } from 'src/app/util/misc.util'
-import { LoaderService } from 'src/app/services/loader.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ServerNotification, ServerNotifications } from 'src/app/services/api/api.types'
+import { AlertController, LoadingController } from '@ionic/angular'
+import { ActivatedRoute } from '@angular/router'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
+
 @Component({
   selector: 'notifications',
   templateUrl: 'notifications.page.html',
   styleUrls: ['notifications.page.scss'],
 })
 export class NotificationsPage {
-  error = ''
   loading = true
-  notifications: S9Notification[] = []
+  notifications: ServerNotifications = []
   page = 1
   needInfinite = false
+  fromToast = false
   readonly perPage = 20
 
   constructor (
-    private readonly serverModel: ServerModel,
-    private readonly apiService: ApiService,
-    private readonly loader: LoaderService,
+    private readonly embassyApi: ApiService,
+    private readonly loadingCtrl: LoadingController,
+    private readonly errToast: ErrorToastService,
+    private readonly alertCtrl: AlertController,
+    private readonly route: ActivatedRoute,
   ) { }
 
   async ngOnInit () {
-    const [notifications] = await Promise.all([
-      this.getNotifications(),
-      pauseFor(600),
-    ])
-    this.notifications = notifications
-    this.serverModel.update({ badge: 0 })
+    this.fromToast = !!this.route.snapshot.queryParamMap.get('toast')
+    this.notifications = await this.getNotifications()
     this.loading = false
   }
 
-  async doRefresh (e: any) {
+  async refresh (e: any) {
     this.page = 1
-    await Promise.all([
-      this.getNotifications(),
-      pauseFor(600),
-    ])
+    this.notifications = await this.getNotifications(),
     e.target.complete()
   }
 
@@ -47,51 +44,90 @@ export class NotificationsPage {
     e.target.complete()
   }
 
-  async getNotifications (): Promise<S9Notification[]> {
-    let notifications: S9Notification[] = []
+  async getNotifications (): Promise<ServerNotifications> {
+    let notifications: ServerNotifications = []
     try {
-      notifications = await this.apiService.getNotifications(this.page, this.perPage)
+      notifications = await this.embassyApi.getNotifications({ page: this.page, 'per-page': this.perPage })
       this.needInfinite = notifications.length >= this.perPage
       this.page++
-      this.error = ''
     } catch (e) {
-      console.error(e)
-      this.error = e.message
+      this.errToast.present(e)
     } finally {
       return notifications
     }
   }
 
-  getColor (notification: S9Notification): string {
-    const char = notification.code.charAt(0)
-    switch (char) {
-      case '0':
-        return 'primary'
-      case '1':
-        return 'success'
-      case '2':
-        return 'warning'
-      case '3':
-        return 'danger'
-      default:
-        return ''
+  async delete (id: string, index: number): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Deleting...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.deleteNotification({ id })
+      this.notifications.splice(index, 1)
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
     }
   }
 
-  async remove (notificationId: string, index: number): Promise<void> {
-    this.loader.of({
-      message: 'Deleting...',
+  async deleteAll (): Promise<void> {
+    const loader = await this.loadingCtrl.create({
       spinner: 'lines',
+      message: 'Deleting...',
       cssClass: 'loader',
-    }).displayDuringP(
-      this.apiService.deleteNotification(notificationId).then(() => {
-        this.notifications.splice(index, 1)
-        this.error = ''
-      }),
-    ).catch(e => {
-      console.error(e)
-      this.error = e.message
     })
+    await loader.present()
+
+    try {
+      await this.embassyApi.deleteAllNotifications({ })
+      this.notifications = []
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  async viewBackupReport (notification: ServerNotification<1>) {
+    const data = notification.data
+
+    const embassyFailed = !!data.server.error
+    const packagesFailed = Object.entries(data.packages).some(([_, val]) => val.error)
+
+    let message: string
+
+    if (embassyFailed || packagesFailed) {
+      message = 'There was an issue backing up one or more items. Click "Retry" to retry ONLY the items that failed.'
+    } else {
+      message = 'All items were successfully backed up'
+    }
+
+    const buttons: any[] = [ // why can't I import AlertButton?
+      {
+        text: 'Dismiss',
+        role: 'cancel',
+      },
+    ]
+
+    if (embassyFailed || packagesFailed) {
+      buttons.push({
+        text: 'Retry',
+      })
+    }
+
+
+    const alert = await this.alertCtrl.create({
+      header: 'Backup Report',
+      message,
+      buttons,
+    })
+
+    await alert.present()
   }
 }
 

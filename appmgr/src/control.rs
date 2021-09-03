@@ -1,237 +1,93 @@
-use std::path::Path;
+use anyhow::anyhow;
+use chrono::Utc;
+use indexmap::IndexMap;
+use patch_db::DbHandle;
+use rpc_toolkit::command;
 
-use futures::future::{BoxFuture, FutureExt};
-use linear_map::{set::LinearSet, LinearMap};
+use crate::context::RpcContext;
+use crate::db::util::WithRevision;
+use crate::s9pk::manifest::PackageId;
+use crate::status::MainStatus;
+use crate::util::display_none;
+use crate::{Error, ResultExt};
 
-use crate::dependencies::{DependencyError, TaggedDependencyError};
-use crate::util::{from_yaml_async_reader, PersistencePath, YamlUpdateHandle};
-use crate::Error;
-
-pub async fn start_app(name: &str, update_metadata: bool) -> Result<(), Error> {
-    let lock = crate::util::lock_file(
-        format!(
-            "{}",
-            Path::new(crate::PERSISTENCE_DIR)
-                .join("apps")
-                .join(name)
-                .join("control.lock")
-                .display()
-        ),
-        true,
-    )
-    .await?;
-    let status = crate::apps::status(name, false).await?.status;
-    if status == crate::apps::DockerStatus::Stopped {
-        if update_metadata {
-            crate::config::configure(name, None, None, false).await?;
-            crate::dependencies::update_binds(name).await?;
-        }
-        crate::apps::set_needs_restart(name, false).await?;
-        let mut running = YamlUpdateHandle::<LinearSet<String>>::new_or_default(
-            PersistencePath::from_ref("running.yaml"),
-        )
-        .await?;
-        let output = tokio::process::Command::new("docker")
-            .args(&["start", name])
-            .stdout(std::process::Stdio::null())
-            .output()
-            .await?;
-        crate::ensure_code!(
-            output.status.success(),
-            crate::error::DOCKER_ERROR,
-            "Failed to Start Application: {}",
-            std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
-        );
-        running.insert(name.to_owned());
-        running.commit().await?;
-    } else if status == crate::apps::DockerStatus::Paused {
-        resume_app(name).await?;
-    }
-    crate::util::unlock(lock).await?;
-    Ok(())
-}
-
-pub async fn stop_app(
-    name: &str,
-    cascade: bool,
-    dry_run: bool,
-) -> Result<LinearMap<String, TaggedDependencyError>, Error> {
-    let mut res = LinearMap::new();
-    if cascade {
-        stop_dependents(name, dry_run, DependencyError::NotRunning, &mut res).await?;
-    }
-    if !dry_run {
-        let lock = crate::util::lock_file(
-            format!(
-                "{}",
-                Path::new(crate::PERSISTENCE_DIR)
-                    .join("apps")
-                    .join(name)
-                    .join("control.lock")
-                    .display()
-            ),
-            true,
-        )
-        .await?;
-        let mut running = YamlUpdateHandle::<LinearSet<String>>::new_or_default(
-            PersistencePath::from_ref("running.yaml"),
-        )
-        .await?;
-        log::info!("Stopping {}", name);
-        let output = tokio::process::Command::new("docker")
-            .args(&["stop", "-t", "25", name])
-            .stdout(std::process::Stdio::null())
-            .output()
-            .await?;
-        crate::ensure_code!(
-            output.status.success(),
-            crate::error::DOCKER_ERROR,
-            "Failed to Stop Application: {}",
-            std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
-        );
-        running.remove(name);
-        running.commit().await?;
-        crate::util::unlock(lock).await?;
-    }
-    Ok(res)
-}
-
-pub async fn stop_dependents(
-    name: &str,
-    dry_run: bool,
-    err: DependencyError,
-    res: &mut LinearMap<String, TaggedDependencyError>,
-) -> Result<(), Error> {
-    fn stop_dependents_rec<'a>(
-        name: &'a str,
-        dry_run: bool,
-        err: DependencyError,
-        res: &'a mut LinearMap<String, TaggedDependencyError>,
-    ) -> BoxFuture<'a, Result<(), Error>> {
-        async move {
-            for dependent in crate::apps::dependents(name, false).await? {
-                if crate::apps::status(&dependent, false).await?.status
-                    != crate::apps::DockerStatus::Stopped
-                {
-                    stop_dependents_rec(&dependent, dry_run, DependencyError::NotRunning, res)
-                        .await?;
-                    stop_app(&dependent, false, dry_run).await?;
-                    res.insert(
-                        dependent,
-                        TaggedDependencyError {
-                            dependency: name.to_owned(),
-                            error: err.clone(),
-                        },
-                    );
-                }
-            }
-            Ok(())
-        }
-        .boxed()
-    }
-    stop_dependents_rec(name, dry_run, err, res).await
-}
-
-pub async fn restart_app(name: &str) -> Result<(), Error> {
-    stop_app(name, false, false).await?;
-    if let Err(e) = start_app(name, true).await {
-        log::warn!("Stopping dependents");
-        stop_dependents(
-            name,
-            false,
-            crate::dependencies::DependencyError::NotRunning,
-            &mut linear_map::LinearMap::new(),
-        )
-        .await?;
-        return Err(e);
-    }
-    Ok(())
-}
-
-pub async fn pause_app(name: &str) -> Result<(), Error> {
-    let lock = crate::util::lock_file(
-        format!(
-            "{}",
-            Path::new(crate::PERSISTENCE_DIR)
-                .join("apps")
-                .join(name)
-                .join("control.lock")
-                .display()
-        ),
-        true,
-    )
-    .await?;
-    let output = tokio::process::Command::new("docker")
-        .args(&["pause", name])
-        .stdout(std::process::Stdio::null())
-        .output()
-        .await?;
-    crate::ensure_code!(
-        output.status.success(),
-        crate::error::DOCKER_ERROR,
-        "Failed to Pause Application: {}",
-        std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
-    );
-
-    crate::util::unlock(lock).await?;
-    Ok(())
-}
-
-pub async fn resume_app(name: &str) -> Result<(), Error> {
-    let lock = crate::util::lock_file(
-        format!(
-            "{}",
-            Path::new(crate::PERSISTENCE_DIR)
-                .join("apps")
-                .join(name)
-                .join("control.lock")
-                .display()
-        ),
-        true,
-    )
-    .await?;
-    let output = tokio::process::Command::new("docker")
-        .args(&["unpause", name])
-        .stdout(std::process::Stdio::null())
-        .output()
-        .await?;
-    crate::ensure_code!(
-        output.status.success(),
-        crate::error::DOCKER_ERROR,
-        "Failed to Resume Application: {}",
-        std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
-    );
-    crate::util::unlock(lock).await?;
-    Ok(())
-}
-
-pub async fn repair_app_status() -> Result<(), Error> {
-    let mut running_file = PersistencePath::from_ref("running.yaml")
-        .maybe_read(false)
+#[command(display(display_none))]
+pub async fn start(
+    #[context] ctx: RpcContext,
+    #[arg] id: PackageId,
+) -> Result<WithRevision<()>, Error> {
+    let mut db = ctx.db.handle();
+    let mut tx = db.begin().await?;
+    let installed = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .and_then(|pkg| pkg.installed())
+        .expect(&mut tx)
         .await
-        .transpose()?;
-    let running: Vec<String> = if let Some(f) = running_file.as_mut() {
-        from_yaml_async_reader::<_, &mut tokio::fs::File>(f).await?
-    } else {
-        Vec::new()
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::NotFound,
+                format!("{} is not installed", id),
+            )
+        })?;
+    let version = installed
+        .clone()
+        .manifest()
+        .version()
+        .get(&mut tx, true)
+        .await?
+        .to_owned();
+    let mut status = installed.status().main().get_mut(&mut tx).await?;
+
+    *status = MainStatus::Running {
+        started: Utc::now(),
+        health: IndexMap::new(),
     };
-    for name in running {
-        let lock = crate::util::lock_file(
-            format!(
-                "{}",
-                Path::new(crate::PERSISTENCE_DIR)
-                    .join("apps")
-                    .join(&name)
-                    .join("control.lock")
-                    .display()
-            ),
-            true,
+    status
+        .synchronize(
+            &*ctx.managers.get(&(id, version)).await.ok_or_else(|| {
+                Error::new(anyhow!("Manager not found"), crate::ErrorKind::Docker)
+            })?,
         )
         .await?;
-        if crate::apps::status(&name, false).await?.status == crate::apps::DockerStatus::Stopped {
-            start_app(&name, true).await?;
-        }
-        crate::util::unlock(lock).await?;
-    }
-    Ok(())
+    status.save(&mut tx).await?;
+
+    Ok(WithRevision {
+        revision: tx.commit(None).await?,
+        response: (),
+    })
+}
+
+#[command(display(display_none))]
+pub async fn stop(
+    #[context] ctx: RpcContext,
+    #[arg] id: PackageId,
+) -> Result<WithRevision<()>, Error> {
+    let mut db = ctx.db.handle();
+    let mut tx = db.begin().await?;
+
+    let mut status = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .and_then(|pkg| pkg.installed())
+        .expect(&mut tx)
+        .await
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::NotFound,
+                format!("{} is not installed", id),
+            )
+        })?
+        .status()
+        .main()
+        .get_mut(&mut tx)
+        .await?;
+
+    *status = MainStatus::Stopping;
+    status.save(&mut tx).await?;
+
+    Ok(WithRevision {
+        revision: tx.commit(None).await?,
+        response: (),
+    })
 }

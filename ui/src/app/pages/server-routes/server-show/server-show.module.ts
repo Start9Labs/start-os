@@ -6,7 +6,6 @@ import { ServerShowPage } from './server-show.page'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
 import { FormsModule } from '@angular/forms'
 import { SharingModule } from 'src/app/modules/sharing.module'
-import { PwaBackComponentModule } from 'src/app/components/pwa-back-button/pwa-back.component.module'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 
 const routes: Routes = [
@@ -24,7 +23,6 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     SharingModule,
-    PwaBackComponentModule,
     BadgeMenuComponentModule,
   ],
   declarations: [ServerShowPage],

@@ -1,14 +1,8 @@
 import { Component } from '@angular/core'
-import { LoadingOptions } from '@ionic/core'
-import { ServerModel, ServerStatus } from 'src/app/models/server-model'
-import { AlertController } from '@ionic/angular'
-import { S9Server } from 'src/app/models/server-model'
-import { ApiService } from 'src/app/services/api/api.service'
-import { SyncDaemon } from 'src/app/services/sync.service'
-import { Subscription, Observable } from 'rxjs'
-import { PropertySubject, toObservable } from 'src/app/util/property-subject.util'
-import { doForAtLeast } from 'src/app/util/misc.util'
-import { LoaderService } from 'src/app/services/loader.service'
+import { AlertController, LoadingController, NavController } from '@ionic/angular'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ActivatedRoute } from '@angular/router'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'server-show',
@@ -16,69 +10,23 @@ import { LoaderService } from 'src/app/services/loader.service'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  error = ''
-  s9Host$: Observable<string>
-
-  server: PropertySubject<S9Server>
-  currentServer: S9Server
-
-  subsToTearDown: Subscription[] = []
-
-  updatingFreeze = false
-  updating = false
+  settings: ServerSettings = { }
 
   constructor (
-    private readonly serverModel: ServerModel,
     private readonly alertCtrl: AlertController,
-    private readonly loader: LoaderService,
-    private readonly apiService: ApiService,
-    private readonly syncDaemon: SyncDaemon,
+    private readonly loadingCtrl: LoadingController,
+    private readonly errToast: ErrorToastService,
+    private readonly embassyApi: ApiService,
+    private readonly navCtrl: NavController,
+    private readonly route: ActivatedRoute,
   ) { }
 
-  async ngOnInit () {
-    this.server = this.serverModel.watch()
-    this.subsToTearDown.push(
-      // serverUpdateSubscription
-      this.server.status.subscribe(status => {
-        if (status === ServerStatus.UPDATING) {
-          this.updating = true
-        } else {
-          if (!this.updatingFreeze) { this.updating = false }
-        }
-      }),
-      // currentServerSubscription
-      toObservable(this.server).subscribe(currentServerProperties => {
-        this.currentServer = currentServerProperties
-      }),
-    )
-  }
-
-  ionViewDidEnter () {
-    this.error = ''
-  }
-
-  ngOnDestroy () {
-    this.subsToTearDown.forEach(s => s.unsubscribe())
-  }
-
-  async doRefresh (event: any) {
-    await doForAtLeast([this.getServerAndApps()], 600)
-    event.target.complete()
-  }
-
-  async getServerAndApps (): Promise<void> {
-    try {
-      this.syncDaemon.sync()
-      this.error = ''
-    } catch (e) {
-      console.error(e)
-      this.error = e.message
-    }
+  ngOnInit () {
+    this.setButtons()
   }
 
   async presentAlertRestart () {
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
       header: 'Confirm',
       message: `Are you sure you want to restart your Embassy?`,
       buttons: [
@@ -88,19 +36,18 @@ export class ServerShowPage {
         },
         {
           text: 'Restart',
-          cssClass: 'alert-danger',
           handler: () => {
             this.restart()
           },
+          cssClass: 'enter-click',
         },
-      ]},
-    )
+      ],
+    })
     await alert.present()
   }
 
   async presentAlertShutdown () {
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
       header: 'Confirm',
       message: `Are you sure you want to shut down your Embassy? To turn it back on, you will need to physically unplug the device and plug it back in.`,
       buttons: [
@@ -110,10 +57,10 @@ export class ServerShowPage {
         },
         {
           text: 'Shutdown',
-          cssClass: 'alert-danger',
           handler: () => {
             this.shutdown()
           },
+          cssClass: 'enter-click',
         },
       ],
     })
@@ -121,38 +68,116 @@ export class ServerShowPage {
   }
 
   private async restart () {
-    this.loader
-      .of(LoadingSpinner(`Restarting ${this.currentServer.name}...`))
-      .displayDuringAsync( async () => {
-          this.serverModel.markUnreachable()
-          await this.apiService.restartServer()
-      })
-      .catch(e => this.setError(e))
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Restarting...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.restartServer({ })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   private async shutdown () {
-    this.loader
-      .of(LoadingSpinner(`Shutting down ${this.currentServer.name}...`))
-      .displayDuringAsync( async () => {
-        this.serverModel.markUnreachable()
-        await this.apiService.shutdownServer()
-      })
-      .catch(e => this.setError(e))
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Shutting down...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.shutdownServer({ })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
-  setError (e: Error) {
-    console.error(e)
-    this.error = e.message
+  private setButtons (): void {
+    this.settings = {
+      'Settings': [
+        {
+          title: 'Privacy and Security',
+          icon: 'shield-checkmark-outline',
+          action: () => this.navCtrl.navigateForward(['security'], { relativeTo: this.route }),
+          detail: true,
+        },
+        {
+          title: 'LAN',
+          icon: 'home-outline',
+          action: () => this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
+          detail: true,
+        },
+        {
+          title: 'WiFi',
+          icon: 'wifi',
+          action: () => this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
+          detail: true,
+        },
+      ],
+      'Insights': [
+        {
+          title: 'About',
+          icon: 'information-circle-outline',
+          action: () => this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
+          detail: true,
+        },
+        {
+          title: 'Monitor',
+          icon: 'pulse',
+          action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
+          detail: true,
+        },
+        {
+          title: 'Logs',
+          icon: 'newspaper-outline',
+          action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
+          detail: true,
+        },
+      ],
+      'Backups': [
+        {
+          title: 'Create Backup',
+          icon: 'save-outline',
+          action: () => this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
+          detail: true,
+        },
+      ],
+      'Power': [
+        {
+          title: 'Restart',
+          icon: 'reload-outline',
+          action: () => this.presentAlertRestart(),
+          detail: false,
+        },
+        {
+          title: 'Shutdown',
+          icon: 'power',
+          action: () => this.presentAlertShutdown(),
+          detail: false,
+        },
+      ],
+    }
+  }
+
+  asIsOrder () {
+    return 0
   }
 }
 
-const LoadingSpinner: (m?: string) => LoadingOptions = (m) => {
-  const toMergeIn = m ? { message: m } : { }
-  return {
-    spinner: 'lines',
-    cssClass: 'loader',
-    ...toMergeIn,
-  } as LoadingOptions
+interface ServerSettings {
+  [key: string]: {
+    title: string
+    icon: string
+    action: Function
+    detail: boolean
+  }[]
 }
-
-

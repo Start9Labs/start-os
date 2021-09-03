@@ -1,0 +1,89 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "~@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "~@ionic/angular/css/normalize.css";
+@import "~@ionic/angular/css/structure.css";
+@import "~@ionic/angular/css/typography.css";
+@import '~@ionic/angular/css/display.css';
+
+/* Optional CSS utils that can be commented out */
+@import "~@ionic/angular/css/padding.css";
+@import "~@ionic/angular/css/float-elements.css";
+@import "~@ionic/angular/css/text-alignment.css";
+@import "~@ionic/angular/css/text-transformation.css";
+@import "~@ionic/angular/css/flex-utils.css";
+
+.input-label {
+  text-align: left;
+  padding-bottom: 2px;
+  font-size: small;
+  color: var(--ion-color-light);
+  font-weight: bold;
+}
+
+.alert-error .alert-title {
+  color: var(--ion-color-danger) !important;
+}
+
+.loader {
+  --spinner-color: var(--ion-color-light) !important;
+}
+
+ion-avatar {
+  width: 27px;
+  height: 27px;
+}
+
+ion-action-sheet {
+  --backdrop-opacity: 0.75 !important;
+}
+
+ion-alert {
+  --backdrop-opacity: 0.75 !important;
+}
+
+ion-loading {
+  --backdrop-opacity: 0.75 !important;
+}
+
+ion-item {
+  --highlight-color-valid: transparent;
+  --highlight-color-invalid: transparent;
+  --highlight-color-focused: var(--ion-color-light);
+}
+
+.divider {
+  margin: 50px 0;
+  height: 2px;
+  background: linear-gradient(90deg,rgba(255,255,255,0) 0,rgba(255, 255, 255, 0.31) 50%,rgba(255,255,255,0) 100%);
+}
+
+.footer {
+  margin-bottom: 24px;
+  ion-icon {
+    font-size: 28px;
+    margin-right: 10px;
+  }
+}
+
+.success-alert .alert-wrapper {
+  box-shadow: 4px 4px 30px var(--ion-color-light);
+  border: 1px solid rgba(255,255,255,.3);
+  background: var(--ion-color-light);
+}
+
+.success-alert .alert-title {
+  color: var(--ion-color-success);
+}

@@ -2,6 +2,8 @@ import { NgModule } from '@angular/core'
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router'
 import { AuthGuard } from './guards/auth.guard'
 import { UnauthGuard } from './guards/unauth.guard'
+import { MaintenanceGuard } from './guards/maintenance.guard'
+import { UnmaintenanceGuard } from './guards/unmaintenance.guard'
 
 const routes: Routes = [
   {
@@ -10,39 +12,44 @@ const routes: Routes = [
     path: '',
   },
   {
-    path: 'authenticate',
+    path: 'login',
     canActivate: [UnauthGuard],
-    pathMatch: 'full',
-    loadChildren: () => import('./pages/authenticate/authenticate.module').then( m => m.AuthenticatePageModule),
+    loadChildren: () => import('./pages/login/login.module').then(m => m.LoginPageModule),
   },
   {
     path: 'embassy',
-    canActivate: [AuthGuard],
-    canActivateChild: [AuthGuard],
+    canActivate: [AuthGuard, MaintenanceGuard],
+    canActivateChild: [AuthGuard, MaintenanceGuard],
     loadChildren: () => import('./pages/server-routes/server-routing.module').then(m => m.ServerRoutingModule),
   },
   {
+    path: 'maintenance',
+    canActivate: [AuthGuard, UnmaintenanceGuard],
+    loadChildren: () => import('./pages/maintenance/maintenance.module').then(m => m.MaintenancePageModule),
+  },
+  {
+    path: 'marketplace',
+    canActivate: [AuthGuard, MaintenanceGuard],
+    canActivateChild: [AuthGuard, MaintenanceGuard],
+    loadChildren: () => import('./pages/marketplace-routes/marketplace-routing.module').then(m => m.MarketplaceRoutingModule),
+  },
+  {
     path: 'notifications',
-    canActivate: [AuthGuard],
-    canActivateChild: [AuthGuard],
+    canActivate: [AuthGuard, MaintenanceGuard],
     loadChildren: () => import('./pages/notifications/notifications.module').then(m => m.NotificationsPageModule),
   },
   {
     path: 'services',
-    canActivate: [AuthGuard],
-    canActivateChild: [AuthGuard],
+    canActivate: [AuthGuard, MaintenanceGuard],
+    canActivateChild: [AuthGuard, MaintenanceGuard],
     loadChildren: () => import('./pages/apps-routes/apps-routing.module').then(m => m.AppsRoutingModule),
   },
-  // {
-  //   path: 'drives',
-  //   canActivate: [AuthGuard],
-  //   loadChildren: () => import('./pages/server-routes/external-drives/external-drives.module').then( m => m.ExternalDrivesPageModule),
-  // },
 ]
 
 @NgModule({
   imports: [
     RouterModule.forRoot(routes, {
+      scrollPositionRestoration: 'enabled',
       preloadingStrategy: PreloadAllModules,
       initialNavigation: 'disabled',
       useHash: true,

@@ -1,10 +1,5 @@
-import { Component, ViewChild } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/api.service'
-import { IonContent } from '@ionic/angular'
-import { pauseFor } from 'src/app/util/misc.util'
-import { markAsLoadingDuringP } from 'src/app/services/loader.service'
-import { BehaviorSubject } from 'rxjs'
+import { Component } from '@angular/core'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: 'app-logs',
@@ -12,39 +7,24 @@ import { BehaviorSubject } from 'rxjs'
   styleUrls: ['./app-logs.page.scss'],
 })
 export class AppLogsPage {
-  @ViewChild(IonContent, { static: false }) private content: IonContent
-  $loading$ = new BehaviorSubject(true)
-  error = ''
-  appId: string
-  logs: string
+  pkgId: string
+  loading = true
+  needInfinite = true
+  before: string
 
   constructor (
-    private readonly route: ActivatedRoute,
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
   ) { }
 
-  async ngOnInit () {
-    this.appId = this.route.snapshot.paramMap.get('appId') as string
-
-    markAsLoadingDuringP(this.$loading$, Promise.all([
-      this.getLogs(),
-      pauseFor(600),
-    ]))
-  }
-
-  async getLogs () {
-    this.logs = ''
-    this.$loading$.next(true)
-    try {
-      const logs = await this.apiService.getAppLogs(this.appId)
-      this.logs = logs.join('\n\n')
-      this.error = ''
-      setTimeout(async () => await this.content.scrollToBottom(100), 200)
-    } catch (e) {
-      console.error(e)
-      this.error = e.message
-    } finally {
-      this.$loading$.next(false)
+  fetchFetchLogs (): Function {
+    return async (params: { before_flag?: boolean, limit?: number, cursor?: string }) => {
+      const pkgId = this.pkgId
+      return this.embassyApi.getPackageLogs({
+        id: pkgId,
+        before_flag: params.before_flag,
+        cursor: params.cursor,
+        limit: params.limit,
+      })
     }
   }
 }

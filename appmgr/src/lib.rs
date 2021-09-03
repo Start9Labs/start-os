@@ -1,8 +1,4 @@
-#[macro_use]
-extern crate failure;
-#[macro_use]
-extern crate pest_derive;
-
+pub const CONFIG_PATH: &'static str = "/etc/embassy/config.toml";
 pub const TOR_RC: &'static str = "/root/appmgr/tor/torrc";
 pub const SERVICES_YAML: &'static str = "tor/services.yaml";
 pub const VOLUMES: &'static str = "/root/volumes";
@@ -20,35 +16,80 @@ lazy_static::lazy_static! {
     pub static ref QUIET: tokio::sync::RwLock<bool> = tokio::sync::RwLock::new(!std::env::var("APPMGR_QUIET").map(|a| a == "0").unwrap_or(true));
 }
 
-pub mod actions;
-pub mod apps;
+pub mod action;
+pub mod auth;
 pub mod backup;
 pub mod config;
+pub mod context;
 pub mod control;
+pub mod daemon;
+pub mod db;
 pub mod dependencies;
-pub mod disks;
+pub mod developer;
 pub mod error;
-pub mod index;
+pub mod hostname;
+pub mod id;
 pub mod inspect;
 pub mod install;
-#[cfg(feature = "avahi")]
-pub mod lan;
-pub mod logs;
-pub mod manifest;
-pub mod pack;
+pub mod manager;
+pub mod middleware;
+pub mod migration;
+pub mod net;
 pub mod registry;
-pub mod remove;
-pub mod tor;
-pub mod update;
+pub mod s9pk;
+pub mod sound;
+pub mod ssh;
+pub mod status;
+pub mod system;
 pub mod util;
 pub mod version;
+pub mod volume;
 
-pub use config::{configure, Config};
-pub use control::{restart_app, start_app, stop_app, stop_dependents};
-pub use error::{Error, ResultExt};
-pub use install::{install_name, install_path, install_url};
-pub use logs::{logs, notifications, stats, LogOptions};
-pub use pack::{pack, verify};
-pub use remove::remove;
-pub use update::update;
+pub use config::Config;
+pub use error::{Error, ErrorKind, ResultExt};
+use rpc_toolkit::command;
+use rpc_toolkit::yajrc::RpcError;
 pub use version::{init, self_update};
+
+#[command(metadata(authenticated = false))]
+pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
+    Ok(message)
+}
+
+#[command(subcommands(
+    version::git_info,
+    echo,
+    developer::init,
+    s9pk::pack,
+    s9pk::verify,
+    inspect::inspect,
+    package,
+    net::net,
+    auth::auth,
+    db::db,
+))]
+pub fn main_api() -> Result<(), RpcError> {
+    Ok(())
+}
+
+#[command(subcommands(
+    install::install,
+    install::uninstall,
+    config::config,
+    control::start,
+    control::stop
+))]
+pub fn package() -> Result<(), RpcError> {
+    Ok(())
+}
+
+#[command(subcommands(
+    version::git_info,
+    s9pk::pack,
+    s9pk::verify,
+    developer::init,
+    inspect::inspect
+))]
+pub fn portable_api() -> Result<(), RpcError> {
+    Ok(())
+}

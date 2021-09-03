@@ -1,21 +1,24 @@
 import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core'
 import { BrowserModule } from '@angular/platform-browser'
 import { RouteReuseStrategy } from '@angular/router'
-import { IonicModule, IonicRouteStrategy } from '@ionic/angular'
-import { IonicStorageModule } from '@ionic/storage'
+import { IonicModule, IonicRouteStrategy, IonNav } from '@ionic/angular'
+import { Drivers } from '@ionic/storage'
+import { IonicStorageModule } from '@ionic/storage-angular'
 import { HttpClientModule } from '@angular/common/http'
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
-import { ApiService } from './services/api/api.service'
+import { ApiService } from './services/api/embassy-api.service'
 import { ApiServiceFactory } from './services/api/api.service.factory'
-import { AppModel } from './models/app-model'
+import { PatchDbServiceFactory } from './services/patch-db/patch-db.factory'
 import { HttpService } from './services/http.service'
-import { ServerModel } from './models/server-model'
 import { ConfigService } from './services/config.service'
-import { QRCodeModule } from 'angularx-qrcode'
-import { APP_CONFIG_COMPONENT_MAPPING } from './modals/app-config-injectable/modal-injectable-token'
-import { appConfigComponents } from './modals/app-config-injectable/modal-injectable-value';
+import { QrCodeModule } from 'ng-qrcode'
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
+import { MarkdownPageModule } from './modals/markdown/markdown.module'
+import { PatchDbService } from './services/patch-db/patch-db.service'
+import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstrap'
+import { SharingModule } from './modules/sharing.module'
+import { FormBuilder } from '@angular/forms'
 
 @NgModule({
   declarations: [AppComponent],
@@ -25,14 +28,24 @@ import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
     BrowserModule,
     IonicModule.forRoot(),
     AppRoutingModule,
-    IonicStorageModule.forRoot(),
-    QRCodeModule,
+    IonicStorageModule.forRoot({
+      storeName: '_embassykv',
+      dbKey: '_embassykey',
+      name: '_embassystorage',
+      driverOrder: [Drivers.LocalStorage, Drivers.IndexedDB],
+    }),
+    QrCodeModule,
     OSWelcomePageModule,
+    MarkdownPageModule,
+    SharingModule,
   ],
   providers: [
+    FormBuilder,
+    IonNav,
+    Storage,
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
-    { provide: ApiService, useFactory: ApiServiceFactory, deps: [ConfigService, HttpService, AppModel, ServerModel] },
-    { provide: APP_CONFIG_COMPONENT_MAPPING, useValue: appConfigComponents },
+    { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },    { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },
+    { provide: PatchDbService, useFactory: PatchDbServiceFactory, deps: [ConfigService, LocalStorageBootstrap, ApiService] },
   ],
   bootstrap: [AppComponent],
   schemas: [ CUSTOM_ELEMENTS_SCHEMA ],

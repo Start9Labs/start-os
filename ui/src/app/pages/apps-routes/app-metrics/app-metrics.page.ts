@@ -1,18 +1,13 @@
-import { Component } from '@angular/core'
+import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/api.service'
+import { IonContent } from '@ionic/angular'
+import { Subscription } from 'rxjs'
+import { Metric } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { MainStatus } from 'src/app/services/patch-db/data-model'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { pauseFor } from 'src/app/util/misc.util'
-import { BehaviorSubject } from 'rxjs'
-import { copyToClipboard } from 'src/app/util/web.util'
-import { AlertController, NavController, PopoverController, ToastController } from '@ionic/angular'
-import { AppMetrics } from 'src/app/util/metrics.util'
-import { QRComponent } from 'src/app/components/qr/qr.component'
-import { AppMetricStore } from './metric-store'
-import * as JSONpointer from 'json-pointer'
-import { ModelPreload } from 'src/app/models/model-preload'
-import { markAsLoadingDuringP } from 'src/app/services/loader.service'
-import { AppInstalledFull } from 'src/app/models/app-types'
-import { peekProperties } from 'src/app/util/property-subject.util'
 
 @Component({
   selector: 'app-metrics',
@@ -20,116 +15,64 @@ import { peekProperties } from 'src/app/util/property-subject.util'
   styleUrls: ['./app-metrics.page.scss'],
 })
 export class AppMetricsPage {
-  error = ''
-  $loading$ = new BehaviorSubject(true)
-  appId: string
-  pointer: string
-  qrCode: string
-  app: AppInstalledFull
-  $metrics$ = new BehaviorSubject<AppMetrics>({ })
-  $hasMetrics$ = new BehaviorSubject<boolean>(null)
-  unmasked: { [key: string]: boolean } = { }
+  loading = true
+  pkgId: string
+  mainStatus: MainStatus
+  going = false
+  metrics: Metric
+  subs: Subscription[] = []
+
+  @ViewChild(IonContent) content: IonContent
 
   constructor (
     private readonly route: ActivatedRoute,
-    private readonly apiService: ApiService,
-    private readonly alertCtrl: AlertController,
-    private readonly toastCtrl: ToastController,
-    private readonly popoverCtrl: PopoverController,
-    private readonly metricStore: AppMetricStore,
-    private readonly navCtrl: NavController,
-    private readonly preload: ModelPreload,
+    private readonly errToast: ErrorToastService,
+    private readonly patch: PatchDbService,
+    private readonly embassyApi: ApiService,
   ) { }
 
   ngOnInit () {
-    this.appId = this.route.snapshot.paramMap.get('appId')
-    this.pointer = this.route.queryParams['pointer']
+    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.subs = [
+      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main')
+      .subscribe(main => {
+        this.mainStatus = main
+      }),
+    ]
 
-    markAsLoadingDuringP(this.$loading$, Promise.all([
-      this.preload.appFull(this.appId).toPromise(),
-      this.getMetrics(),
-      pauseFor(600),
-    ])).then(([app]) => {
-      this.app = peekProperties(app)
-      this.metricStore.watch().subscribe(m => {
-        const metrics = JSONpointer.get(m, this.pointer || '')
-        this.$metrics$.next(metrics)
-      })
-      this.$metrics$.subscribe(m => {
-        this.$hasMetrics$.next(!!Object.keys(m || { }).length)
-      })
-      this.route.queryParams.subscribe(queryParams => {
-        if (queryParams['pointer'] === this.pointer) return
-        this.pointer = queryParams['pointer']
-        const metrics = JSONpointer.get(this.metricStore.$metrics$.getValue(), this.pointer || '')
-        this.$metrics$.next(metrics)
-      })
-    })
+    this.startDaemon()
   }
 
-  async doRefresh (event: any) {
-    await Promise.all([
-      this.getMetrics(),
-      pauseFor(600),
-    ])
-    event.target.complete()
+  ngAfterViewInit () {
+    this.content.scrollToPoint(undefined, 1)
+  }
+
+  ngOnDestroy () {
+    this.stopDaemon()
+    this.subs.forEach(sub => sub.unsubscribe())
+  }
+
+  async startDaemon (): Promise<void> {
+    this.going = true
+    while (this.going) {
+      await this.getMetrics()
+      await pauseFor(250)
+    }
+  }
+
+  stopDaemon () {
+    this.going = false
   }
 
   async getMetrics (): Promise<void> {
     try {
-      const metrics = await this.apiService.getAppMetrics(this.appId)
-      this.metricStore.update(metrics)
+      this.metrics = await this.embassyApi.getPkgMetrics({ id: this.pkgId})
     } catch (e) {
-      console.error(e)
-      this.error = e.message
+      this.errToast.present(e)
+      this.stopDaemon()
+    } finally {
+      this.loading = false
     }
-  }
-
-  async presentDescription (metric: { key: string, value: AppMetrics[''] }, e: Event) {
-    e.stopPropagation()
-
-    const alert = await this.alertCtrl.create({
-      header: metric.key,
-      message: metric.value.description,
-    })
-    await alert.present()
-  }
-
-  async goToNested (key: string): Promise<any> {
-    this.navCtrl.navigateForward(`/services/installed/${this.appId}/metrics`, {
-      queryParams: {
-        pointer: `${this.pointer || ''}/${key}/value`,
-      },
-    })
-  }
-
-  async copy (text: string): Promise<void> {
-    let message = ''
-    await copyToClipboard(text).then(success => { message = success ? 'copied to clipboard!' :  'failed to copy'})
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-      cssClass: 'notification-toast',
-    })
-    await toast.present()
-  }
-
-  async showQR (text: string, ev: any): Promise<void> {
-    const popover = await this.popoverCtrl.create({
-      component: QRComponent,
-      cssClass: 'qr-popover',
-      event: ev,
-      componentProps: {
-        text,
-      },
-    })
-    return await popover.present()
-  }
-
-  toggleMask (key: string) {
-    this.unmasked[key] = !this.unmasked[key]
   }
 
   asIsOrder (a: any, b: any) {

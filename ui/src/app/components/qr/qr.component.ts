@@ -1,5 +1,4 @@
 import { Component, Input } from '@angular/core'
-import { isPlatform } from '@ionic/angular'
 
 @Component({
   selector: 'qr',
@@ -8,9 +7,4 @@ import { isPlatform } from '@ionic/angular'
 })
 export class QRComponent {
   @Input() text: string
-  width: number
-
-  ngOnInit () {
-    this.width = isPlatform('ios') || isPlatform('android') ? 320 : 420
-  }
 }

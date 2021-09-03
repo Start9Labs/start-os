@@ -1,19 +1,22 @@
-import { Component } from '@angular/core'
-import { ServerModel, ServerStatus } from './models/server-model'
-import { Storage } from '@ionic/storage'
-import { SyncDaemon } from './services/sync.service'
+import { Component, HostListener } from '@angular/core'
+import { Storage } from '@ionic/storage-angular'
 import { AuthService, AuthState } from './services/auth.service'
-import { ApiService } from './services/api/api.service'
-import { Router } from '@angular/router'
-import { BehaviorSubject, Observable } from 'rxjs'
-import { AppModel } from './models/app-model'
-import { filter, take } from 'rxjs/operators'
-import { AlertController } from '@ionic/angular'
-import { LoaderService } from './services/loader.service'
+import { ApiService } from './services/api/embassy-api.service'
+import { Router, RoutesRecognized } from '@angular/router'
+import { debounceTime, distinctUntilChanged, filter, take } from 'rxjs/operators'
+import { AlertController, IonicSafeString, LoadingController, ToastController } from '@ionic/angular'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
-import { LoadingOptions } from '@ionic/core'
-import { pauseFor } from './util/misc.util'
+import { ToastButton } from '@ionic/core'
+import { PatchDbService } from './services/patch-db/patch-db.service'
+import { HttpService } from './services/http.service'
+import { ServerStatus } from './services/patch-db/data-model'
+import { ConnectionFailure, ConnectionService } from './services/connection.service'
+import { StartupAlertsService } from './services/startup-alerts.service'
+import { ConfigService } from './services/config.service'
+import { debounce, isEmptyObject } from './util/misc.util'
+import { ErrorToastService } from './services/error-toast.service'
+import { Subscription } from 'rxjs'
 
 @Component({
   selector: 'app-root',
@@ -21,17 +24,26 @@ import { pauseFor } from './util/misc.util'
   styleUrls: ['app.component.scss'],
 })
 export class AppComponent {
-  isUpdating = false
-  fullPageMenu = true
-  $showMenuContent$ = new BehaviorSubject(false)
-  serverName$ : Observable<string>
-  serverBadge$: Observable<number>
+  @HostListener('document:keydown.enter', ['$event'])
+  @debounce()
+  handleKeyboardEvent () {
+    const elems = document.getElementsByClassName('enter-click')
+    const elem = elems[elems.length - 1] as HTMLButtonElement
+    if (!elem || elem.classList.contains('no-click')) return
+    if (elem) elem.click()
+  }
+
+  ServerStatus = ServerStatus
+  showMenu = false
   selectedIndex = 0
-  untilLoaded = true
+  offlineToast: HTMLIonToastElement
+  serverName: string
+  unreadCount: number
+  subscriptions: Subscription[] = []
   appPages = [
     {
       title: 'Services',
-      url: '/services/installed',
+      url: '/services',
       icon: 'grid-outline',
     },
     {
@@ -41,7 +53,7 @@ export class AppComponent {
     },
     {
       title: 'Marketplace',
-      url: '/services/marketplace',
+      url: '/marketplace',
       icon: 'storefront-outline',
     },
     {
@@ -49,98 +61,105 @@ export class AppComponent {
       url: '/notifications',
       icon: 'notifications-outline',
     },
-    // {
-    //   title: 'Backup drives',
-    //   url: '/drives',
-    //   icon: 'albums-outline',
-    // },
   ]
 
   constructor (
-    private readonly serverModel: ServerModel,
-    private readonly syncDaemon: SyncDaemon,
     private readonly storage: Storage,
-    private readonly appModel: AppModel,
     private readonly authService: AuthService,
     private readonly router: Router,
-    private readonly api: ApiService,
+    private readonly embassyApi: ApiService,
+    private readonly http: HttpService,
     private readonly alertCtrl: AlertController,
-    private readonly loader: LoaderService,
     private readonly emver: Emver,
+    private readonly connectionService: ConnectionService,
+    private readonly startupAlertsService: StartupAlertsService,
+    private readonly toastCtrl: ToastController,
+    private readonly loadingCtrl: LoadingController,
+    private readonly errToast: ErrorToastService,
+    private readonly patch: PatchDbService,
+    private readonly config: ConfigService,
     readonly splitPane: SplitPaneTracker,
   ) {
-    // set dark theme
-    document.body.classList.toggle('dark', true)
-    this.serverName$ = this.serverModel.watch().name
-    this.serverBadge$ = this.serverModel.watch().badge
-    this.init()
-  }
-
-  ionViewDidEnter () {
-    // weird bug where a browser grabbed the value 'getdots' from the app.component.html preload input field.
-    // this removes that field after prleloading occurs.
-    pauseFor(500).then(() => this.untilLoaded = false)
+      this.init()
   }
 
   async init () {
-    let fromFresh = true
-    await this.storage.ready()
-    await this.authService.restoreCache()
-    await this.emver.init()
+    await this.storage.create()
+    await this.authService.init()
+    await this.patch.init()
 
-    this.authService.listen({
-      [AuthState.VERIFIED]: async () => {
-        console.log('verified')
-        this.api.authenticatedRequestsEnabled = true
-        await this.serverModel.restoreCache()
-        await this.appModel.restoreCache()
-        this.syncDaemon.start()
-        this.$showMenuContent$.next(true)
-        if (fromFresh) {
-          this.router.initialNavigation()
-          fromFresh = false
+    this.router.initialNavigation()
+
+    // watch auth
+    this.authService.watch$()
+    .subscribe(auth => {
+      // VERIFIED
+      if (auth === AuthState.VERIFIED) {
+        this.patch.start()
+
+        this.showMenu = true
+        // if on the login screen, route to dashboard
+        if (this.router.url.startsWith('/login')) {
+          this.router.navigate([''], { replaceUrl: true })
         }
-      },
-      [AuthState.UNVERIFIED]: () => {
-        console.log('unverified')
-        this.api.authenticatedRequestsEnabled = false
-        this.serverModel.clear()
-        this.appModel.clear()
-        this.syncDaemon.stop()
+
+        this.subscriptions = this.subscriptions.concat([
+          // start the connection monitor
+          ...this.connectionService.start(),
+          // watch connection to display connectivity issues
+          this.watchConnection(),
+          // // watch router to highlight selected menu item
+          this.watchRouter(),
+          // // watch status to display/hide maintenance page
+        ])
+
+        this.patch.watch$()
+        .pipe(
+          filter(data => !isEmptyObject(data as object)),
+          take(1),
+        )
+        .subscribe(_ => {
+          this.subscriptions = this.subscriptions.concat([
+            this.watchStatus(),
+            // // watch version to refresh browser window
+            this.watchVersion(),
+            // // watch unread notification count to display toast
+            this.watchNotifications(),
+            // // run startup alerts
+            this.startupAlertsService.runChecks(),
+          ])
+        })
+      // UNVERIFIED
+      } else if (auth === AuthState.UNVERIFIED) {
+        this.subscriptions.forEach(sub => sub.unsubscribe())
+        this.subscriptions = []
+        this.showMenu = false
+        this.patch.stop()
         this.storage.clear()
-        this.router.navigate(['/authenticate'], { replaceUrl: true })
-        this.$showMenuContent$.next(false)
-        if (fromFresh) {
-          this.router.initialNavigation()
-          fromFresh = false
-        }
-      },
-    })
-
-    this.serverModel.watch().status.subscribe(s => {
-      this.isUpdating = (s === ServerStatus.UPDATING)
-    })
-
-    this.router.events.pipe(filter(e => !!(e as any).urlAfterRedirects)).subscribe((e: any) => {
-      const appPageIndex = this.appPages.findIndex(
-        appPage => (e.urlAfterRedirects || e.url || '').startsWith(appPage.url),
-      )
-      if (appPageIndex > -1) this.selectedIndex = appPageIndex
-
-      // TODO: while this works, it is dangerous and impractical.
-      if (e.urlAfterRedirects !== '/embassy' && e.urlAfterRedirects !== '/authenticate' && this.isUpdating) {
-        this.router.navigateByUrl('/embassy')
+        if (this.errToast) this.errToast.dismiss()
+        if (this.offlineToast) this.offlineToast.dismiss()
+        this.router.navigate(['/login'], { replaceUrl: true })
       }
     })
-    this.api.watch401$().subscribe(() => {
-      this.authService.setAuthStateUnverified()
-      return this.api.postLogout()
+
+    this.http.watchUnauth$().subscribe(() => {
+      this.authService.setUnverified()
     })
   }
 
+  async goToWebsite (): Promise<void> {
+    let url: string
+    if (this.config.isTor) {
+      url = 'http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion'
+    } else {
+      url = 'https://start9.com'
+    }
+    window.open(url, '_blank')
+  }
+
   async presentAlertLogout () {
+    // @TODO warn user no way to recover Embassy if logout and forget password. Maybe require password to logout?
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
       header: 'Caution',
       message: 'Are you sure you want to logout?',
       buttons: [
@@ -150,9 +169,129 @@ export class AppComponent {
         },
         {
           text: 'Logout',
-          cssClass: 'alert-danger',
+          cssClass: 'enter-click',
           handler: () => {
             this.logout()
+          },
+        },
+      ],
+    })
+
+    await alert.present()
+  }
+
+  // should wipe cache independant of actual BE logout
+  private async logout () {
+    this.embassyApi.logout({ })
+    this.authService.setUnverified()
+  }
+
+  private watchConnection (): Subscription {
+    return this.connectionService.watchFailure$()
+    .pipe(
+      distinctUntilChanged(),
+      debounceTime(500),
+    )
+    .subscribe(async connectionFailure => {
+      if (connectionFailure === ConnectionFailure.None) {
+        if (this.offlineToast) {
+          this.offlineToast.dismiss()
+          this.offlineToast = undefined
+        }
+      } else {
+        let message: string | IonicSafeString
+        let link: string
+        switch (connectionFailure) {
+          case ConnectionFailure.Network:
+            message = 'Phone or computer has no network connection.'
+            break
+          case ConnectionFailure.Diagnosing:
+            message = new IonicSafeString('Running network diagnostics <ion-spinner style="padding: 0; margin: 0" name="dots"></ion-spinner>')
+            break
+          case ConnectionFailure.Embassy:
+            message = 'Embassy appears to be offline.'
+            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#embassy-offline'
+            break
+          case ConnectionFailure.Tor:
+            message = 'Browser unable to connect over Tor.'
+            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#tor-failure'
+            break
+          case ConnectionFailure.Internet:
+            message = 'Phone or computer has no Internet.'
+            break
+          case ConnectionFailure.Lan:
+            message = 'Embassy not found on Local Area Network.'
+            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#lan-failure'
+            break
+          case ConnectionFailure.Unknown:
+            message = 'Unknown connection error. Please refresh the page.'
+            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#unknown-failure'
+            break
+        }
+        await this.presentToastOffline(message, link)
+      }
+    })
+  }
+
+  private watchRouter (): Subscription {
+    return this.router.events
+    .pipe(
+      filter((e: RoutesRecognized) => !!e.urlAfterRedirects),
+    )
+    .subscribe(e => {
+      const appPageIndex = this.appPages.findIndex(
+        appPage => e.urlAfterRedirects.startsWith(appPage.url),
+      )
+      if (appPageIndex > -1) this.selectedIndex = appPageIndex
+    })
+  }
+
+  private watchStatus (): Subscription {
+    return this.patch.watch$('server-info', 'status')
+    .subscribe(status => {
+      const maintenance = '/maintenance'
+      const route = this.router.url
+      if (status === ServerStatus.Running && route.startsWith(maintenance)) {
+        this.showMenu = true
+        this.router.navigate([''], { replaceUrl: true })
+      }
+      if ([ServerStatus.Updating, ServerStatus.BackingUp].includes(status) && !route.startsWith(maintenance)) {
+        this.showMenu = false
+        this.router.navigate([maintenance], { replaceUrl: true })
+      }
+    })
+  }
+
+  private watchVersion (): Subscription {
+    return this.patch.watch$('server-info', 'version')
+    .subscribe(version => {
+      if (this.emver.compare(this.config.version, version) !== 0) {
+        this.presentAlertRefreshNeeded()
+      }
+    })
+  }
+
+  private watchNotifications (): Subscription {
+    let previous: number
+    return this.patch.watch$('server-info', 'unread-notification-count')
+    .subscribe(count => {
+      this.unreadCount = count
+      if (previous !== undefined && count > previous) this.presentToastNotifications()
+      previous = count
+    })
+  }
+
+  private async presentAlertRefreshNeeded () {
+    const alert = await this.alertCtrl.create({
+      backdropDismiss: false,
+      header: 'Refresh Needed',
+      message: 'Your EmbassyOS UI is out of date. Hard refresh the page to get the latest UI.',
+      buttons: [
+        {
+          text: 'Refresh Page',
+          cssClass: 'enter-click',
+          handler: () => {
+            location.reload()
           },
         },
       ],
@@ -160,44 +299,73 @@ export class AppComponent {
     await alert.present()
   }
 
-  private async logout () {
-    this.serverName$.pipe(take(1)).subscribe(name => {
-      this.loader.of(LoadingSpinner(`Logging out ${name || ''}...`))
-      .displayDuringP(this.api.postLogout())
-      .then(() => this.authService.setAuthStateUnverified())
-      .catch(e => this.setError(e))
-    })
-  }
-
-  async setError (e: Error) {
-    console.error(e)
-    await this.presentError(e.message)
-  }
-
-  async presentError (e: string) {
-    const alert = await this.alertCtrl.create({
-      backdropDismiss: true,
-      message: `Exception on logout: ${e}`,
+  private async presentToastNotifications () {
+    const toast = await this.toastCtrl.create({
+      header: 'Embassy',
+      message: `New notifications`,
+      position: 'bottom',
+      duration: 4000,
       buttons: [
         {
-          text: 'Dismiss',
-          role: 'cancel',
+          side: 'start',
+          icon: 'close',
+          handler: () => {
+            return true
+          },
+        },
+        {
+          side: 'end',
+          text: 'View',
+          handler: () => {
+            this.router.navigate(['/notifications'], { queryParams: { toast: true } })
+          },
         },
       ],
     })
-    await alert.present()
+    await toast.present()
+  }
+
+  private async presentToastOffline (message: string | IonicSafeString, link?: string) {
+    if (this.offlineToast) {
+      this.offlineToast.message = message
+      return
+    }
+
+    let buttons: ToastButton[] = [
+      {
+        side: 'start',
+        icon: 'close',
+        handler: () => {
+          return true
+        },
+      },
+    ]
+
+    if (link) {
+      buttons.push(
+        {
+          side: 'end',
+          text: 'View solutions',
+          handler: () => {
+            window.open(link, '_blank')
+            return false
+          },
+        },
+      )
+    }
+
+    this.offlineToast = await this.toastCtrl.create({
+      header: 'Unable to Connect',
+      cssClass: 'warning-toast',
+      message,
+      position: 'bottom',
+      duration: 0,
+      buttons,
+    })
+    await this.offlineToast.present()
   }
 
   splitPaneVisible (e: any) {
-    this.splitPane.$menuFixedOpenOnLeft$.next(e.detail.visible)
+    this.splitPane.sidebarOpen$.next(e.detail.visible)
   }
-}
-
-const LoadingSpinner: (m?: string) => LoadingOptions = (m) => {
-  const toMergeIn = m ? { message: m } : { }
-  return {
-    spinner: 'lines',
-    cssClass: 'loader',
-    ...toMergeIn,
-  } as LoadingOptions
 }

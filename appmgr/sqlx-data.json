@@ -1,0 +1,239 @@
+{
+  "db": "SQLite",
+  "06f2423bb5f9b9520cc3cf010132a5cb6157cccdcdb6b8a5695261fa7434f176": {
+    "query": "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES (?, ?, datetime('now'))",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 2
+      },
+      "nullable": []
+    }
+  },
+  "118d59de5cf930d5a3b5667b2220e9a3d593bd84276beb2b76c93b2694b0fd72": {
+    "query": "INSERT INTO session (id, user_agent, metadata) VALUES (?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
+  "3502e58f2ab48fb4566d21c920c096f81acfa3ff0d02f970626a4dcd67bac71d": {
+    "query": "SELECT tor_key FROM account",
+    "describe": {
+      "columns": [
+        {
+          "name": "tor_key",
+          "ordinal": 0,
+          "type_info": "Blob"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "4691e3a2ce80b59009ac17124f54f925f61dc5ea371903e62cdffa5d7b67ca96": {
+    "query": "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP",
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "logged_in",
+          "ordinal": 1,
+          "type_info": "Datetime"
+        },
+        {
+          "name": "logged_out",
+          "ordinal": 2,
+          "type_info": "Datetime"
+        },
+        {
+          "name": "last_active",
+          "ordinal": 3,
+          "type_info": "Datetime"
+        },
+        {
+          "name": "user_agent",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "metadata",
+          "ordinal": 5,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false,
+        false,
+        true,
+        false,
+        true,
+        false
+      ]
+    }
+  },
+  "629be61c3c341c131ddbbff0293a83dbc6afd07cae69d246987f62cf0cc35c2a": {
+    "query": "SELECT password FROM account",
+    "describe": {
+      "columns": [
+        {
+          "name": "password",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "63785dc5f193ea31e6f641a910c75857ccd288a3f6e9c4f704331531e4f0689f": {
+    "query": "UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = ? AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
+  "6440354d73a67c041ea29508b43b5f309d45837a44f1a562051ad540d894c7d6": {
+    "query": "DELETE FROM ssh_keys WHERE fingerprint = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
+  "8595651866e7db772260bd79e19d55b7271fd795b82a99821c935a9237c1aa16": {
+    "query": "SELECT interface, key FROM tor WHERE package = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "interface",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "key",
+          "ordinal": 1,
+          "type_info": "Blob"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
+  },
+  "a6b0c8909a3a5d6d9156aebfb359424e6b5a1d1402e028219e21726f1ebd282e": {
+    "query": "SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys",
+    "describe": {
+      "columns": [
+        {
+          "name": "fingerprint",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "openssh_pubkey",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "d5117054072476377f3c4f040ea429d4c9b2cf534e76f35c80a2bf60e8599cca": {
+    "query": "SELECT openssh_pubkey FROM ssh_keys",
+    "describe": {
+      "columns": [
+        {
+          "name": "openssh_pubkey",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "d79d608ceb862c15b741a6040044c6dd54a837a3a0c5594d15a6041c7bc68ea8": {
+    "query": "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
+  "de2a5e90798d606047ab8180c044baac05469c0cdf151316bd58ee8c7196fdef": {
+    "query": "SELECT * FROM ssh_keys WHERE fingerprint = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "fingerprint",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "openssh_pubkey",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  }
+}

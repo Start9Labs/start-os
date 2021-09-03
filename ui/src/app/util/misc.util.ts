@@ -1,6 +1,14 @@
 export type Omit<ObjectType, KeysType extends keyof ObjectType> = Pick<ObjectType, Exclude<keyof ObjectType, KeysType>>
 export type PromiseRes<T> = { result: 'resolve', value: T } | { result: 'reject', value: Error }
 
+export type Recommendation = {
+  dependentId: string
+  dependentTitle: string
+  dependentIcon: string,
+  description: string
+  version?: string
+}
+
 import { OperatorFunction } from 'rxjs'
 import { map } from 'rxjs/operators'
 
@@ -141,9 +149,6 @@ export function partitionArray<T> (ts: T[], condition: (t: T) => boolean): [T[],
   return [yes, no]
 }
 
-export const chill = () => { }
-export const chillAsync = async () => { }
-
 export function uniqueBy<T> (ts: T[], uniqueBy: (t: T) => string, prioritize: (t1: T, t2: T) => T) {
   return Object.values(ts.reduce((acc, next) => {
     const previousValue = acc[uniqueBy(next)]
@@ -160,4 +165,25 @@ export function capitalizeFirstLetter (string: string): string {
   return string.charAt(0).toUpperCase() + string.slice(1)
 }
 
-export const exists = t => !!t
+export const exists = (t: any) => {
+  return t !== undefined
+}
+
+export type DeepPartial<T> = {
+  [k in keyof T]?: DeepPartial<T[k]>
+}
+
+export function debounce (delay: number = 300): MethodDecorator {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const timeoutKey = Symbol()
+
+    const original = descriptor.value
+
+    descriptor.value = function (...args) {
+      clearTimeout(this[timeoutKey])
+      this[timeoutKey] = setTimeout(() => original.apply(this, args), delay)
+    }
+
+    return descriptor
+  }
+}

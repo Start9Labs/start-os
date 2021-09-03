@@ -1,0 +1,44 @@
+<ion-content color="light">
+  <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
+    <ion-row style="height: 100%;">
+      <ion-col class="ion-text-center">
+
+        <div style="padding-bottom: 32px;">
+          <img src="assets/png/logo.png" style="max-width: 240px;" />
+        </div>
+
+        <ion-card color="dark">
+          <ion-card-content class="ion-margin">
+            <!-- fresh -->
+            <ion-card
+              (click)="embassyNav()"
+              button="true"
+              color="light"
+              style="text-align: center; background-color: #00919b !important; height: 160px; margin-bottom: 20px;   box-shadow: 4px 4px 16px var(--ion-color-light);
+              "
+            >
+            <ion-card-header>
+              <ion-card-title style="font-size: 40px;">Start Fresh</ion-card-title>
+              <ion-card-subtitle>Get started with a brand new Embassy</ion-card-subtitle>
+            </ion-card-header>
+
+            <!-- recover -->
+            </ion-card>
+              <ion-card
+                (click)="recoverNav()"
+                button="true"
+                color="light"
+                style="text-align: center; background-color: #bf5900 !important; height: 160px; box-shadow: 4px 4px 16px var(--ion-color-light);
+                "
+              >
+              <ion-card-header>
+                <ion-card-title style="font-size: 40px;">Recover</ion-card-title>
+                <ion-card-subtitle>Recover data from an old embassy</ion-card-subtitle>
+              </ion-card-header>
+            </ion-card>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>

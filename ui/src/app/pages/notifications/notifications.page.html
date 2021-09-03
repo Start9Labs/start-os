@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="start">
+    <ion-buttons slot="start" *ngIf="fromToast">
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
     <ion-title>Notifications</ion-title>
@@ -12,49 +12,79 @@
 
 <ion-content>
 
-  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
-    <ion-refresher-content pullingIcon="lines" refreshingSpinner="lines"></ion-refresher-content>
-  </ion-refresher>
-
-  <ion-item *ngIf="error" style="margin-bottom: 16px;">
-    <ion-text class="ion-text-wrap" color="danger">{{ error }}</ion-text>
-  </ion-item>
-
-  <ion-spinner *ngIf="loading" class="center" name="lines" color="warning"></ion-spinner>
-
-  <ion-item-group *ngIf="!notifications.length && !loading">
-    <ion-item>
-      <ion-label class="ion-text-wrap">
-        <h2>
-          <ion-text color="medium">Notifications about Embassy and services will appear here.</ion-text>
-        </h2>
+  <!-- loading -->
+  <ion-item-group *ngIf="loading">
+    <ion-item-divider>
+      <ion-button slot="end" fill="clear">
+        <ion-skeleton-text style="width: 90px; height: 14px; border-radius: 0;" animated></ion-skeleton-text>
+      </ion-button>
+    </ion-item-divider>
+    <ion-item *ngFor="let entry of ['', '', '', '']">
+      <ion-label>
+        <ion-skeleton-text animated style="width: 15%; height: 20px; margin-bottom: 12px;"></ion-skeleton-text>
+        <ion-skeleton-text animated style="width: 50%; margin-bottom: 18px;"></ion-skeleton-text>
+        <ion-skeleton-text animated style="width: 20%;"></ion-skeleton-text>
       </ion-label>
-    </ion-item>
-  </ion-item-group>
-
-  <ion-item-group style="margin-bottom: 16px;">
-    <ion-item *ngFor="let not of notifications; let i = index">
-      <ion-label class="ion-text-wrap">
-        <h2>
-          <ion-text [color]="getColor(not)"><b>{{ not.title }}</b></ion-text>
-        </h2>
-        <h2 class="notification-message">{{ not.message }}</h2>
-        <p>{{ not.createdAt | date: 'short' }}</p>
-        <p>
-          <a style="text-decoration: none;"
-            [routerLink]="['/services', 'installed', not.appId]">{{ not.appId }}</a>
-          <span> - </span>
-          Code: {{ not.code }}
-        </p>
-      </ion-label>
-      <ion-button slot="end" fill="clear" (click)="remove(not.id, i)">
-        <ion-icon slot="icon-only" name="close-outline" color="medium"></ion-icon>
+      <ion-button slot="end" fill="clear">
+        <ion-skeleton-text animated style="width: 20px; height: 20px; border-radius: 0"></ion-skeleton-text>
       </ion-button>
     </ion-item>
   </ion-item-group>
 
-  <ion-infinite-scroll [disabled]="!needInfinite" (ionInfinite)="doInfinite($event)">
-    <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
-  </ion-infinite-scroll>
+  <!-- not loading -->
+  <ng-container *ngIf="!loading">
+
+    <!-- no notifications -->
+    <ion-item-group *ngIf="!notifications.length">
+      <div 
+        style="
+          text-align: center;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);"
+      >
+      <ion-icon style="font-size: 84px; color: #595959" name="mail-outline"></ion-icon>
+      <h4 style="color: #595959; margin-top: 0px">Inbox Empty</h4>
+      </div>
+    </ion-item-group>
+  
+    <!-- has notifications  -->
+    <ng-container *ngIf="notifications.length">
+      <ion-item-group style="margin-bottom: 16px;">
+        <ion-item-divider>
+          <ion-button slot="end" fill="clear" (click)="deleteAll()">
+            Delete All
+          </ion-button>
+        </ion-item-divider>
+        <ion-item *ngFor="let not of notifications; let i = index">
+          <ion-label>
+            <h2>
+              <ion-text [color]="not | notificationColor"><b>{{ not.title }}</b></ion-text>
+            </h2>
+            <h2 class="notification-message">
+              {{ not.message }}
+              <a *ngIf="not.code === 1" style="text-decoration: none;" (click)="viewBackupReport(not)">
+                View Report
+              </a>
+            </h2>
+            <p>
+              {{ not['created-at'] | date: 'short' }}
+              <a *ngIf="not['package-id'] as pkgId" style="text-decoration: none;" [routerLink]="['/services', not['package-id']]">
+                - {{ not['package-id'] }} 
+              </a>
+            </p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" (click)="delete(not.id, i)">
+            <ion-icon slot="icon-only" name="close"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </ion-item-group>
+    
+      <ion-infinite-scroll [disabled]="!needInfinite" (ionInfinite)="doInfinite($event)">
+        <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
+      </ion-infinite-scroll>
+    </ng-container>
+  </ng-container>
 
 </ion-content>

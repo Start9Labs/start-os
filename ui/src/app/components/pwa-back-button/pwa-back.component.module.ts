@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common'
 import { PwaBackComponent } from './pwa-back.component'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule } from '@angular/router'
-import { SharingModule } from 'src/app/modules/sharing.module'
 
 @NgModule({
   declarations: [
@@ -13,7 +12,6 @@ import { SharingModule } from 'src/app/modules/sharing.module'
     CommonModule,
     IonicModule,
     RouterModule.forChild([]),
-    SharingModule,
   ],
   exports: [PwaBackComponent],
 })

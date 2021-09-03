@@ -1,9 +1,5 @@
-import { Component, ViewChild } from '@angular/core'
-import { ApiService } from 'src/app/services/api/api.service'
-import { IonContent } from '@ionic/angular'
-import { pauseFor } from 'src/app/util/misc.util'
-import { markAsLoadingDuringP } from 'src/app/services/loader.service'
-import { BehaviorSubject } from 'rxjs'
+import { Component } from '@angular/core'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: 'server-logs',
@@ -11,34 +7,22 @@ import { BehaviorSubject } from 'rxjs'
   styleUrls: ['./server-logs.page.scss'],
 })
 export class ServerLogsPage {
-  @ViewChild(IonContent, { static: false }) private content: IonContent
-  $loading$ = new BehaviorSubject(true)
-  error = ''
-  logs: string
+  pkgId: string
+  loading = true
+  needInfinite = true
+  before: string
 
   constructor (
-    private readonly apiService: ApiService,
+    private readonly embassyApi: ApiService,
   ) { }
 
-  async ngOnInit () {
-    markAsLoadingDuringP(this.$loading$, Promise.all([
-      this.getLogs(),
-      pauseFor(600),
-    ]))
-  }
-
-  async getLogs () {
-    this.logs = ''
-    this.$loading$.next(true)
-    try {
-      this.logs = (await this.apiService.getServerLogs()).join('\n')
-      this.error = ''
-      setTimeout(async () => await this.content.scrollToBottom(100), 200)
-    } catch (e) {
-      console.error(e)
-      this.error = e.message
-    } finally {
-      this.$loading$.next(false)
+  fetchFetchLogs (): Function {
+    return async (params: { before_flag?: boolean, limit?: number, cursor?: string }) => {
+      return this.embassyApi.getServerLogs({
+        before_flag: params.before_flag,
+        cursor: params.cursor,
+        limit: params.limit,
+      })
     }
   }
 }

@@ -1,0 +1,85 @@
+.installed-card {
+  margin: 2px;
+  background: linear-gradient(37deg, #333333, #131313);
+  border-radius: 10px;
+  text-align: center;
+
+  ion-card-header {
+    padding: 0 10px;
+
+    status {
+      white-space: nowrap;
+    }
+
+    ion-card-title {
+      font-size: calc(10px + .4vw);
+      color: var(--ion-color-dark);
+      margin: 10px 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+.main-img {
+  width: 50%;
+  margin: 12px;
+}
+
+.bulb-on {
+  position: absolute !important;
+  left: -7px !important;
+  top: -7px !important;
+  height: 25px !important;
+  width: 25px !important;
+  margin: 9px;
+}
+
+.bulb-off {
+  position: absolute !important;
+  left: -1px !important;
+  top: -1px !important;
+  height: 13px !important;
+  width: 13px !important;
+  margin: 9px;
+}
+
+.launch-button-triangle {
+  right: 0px;
+
+  border-style: solid;
+  border-width: 22px;
+  border-color: rgb(70 193 255 / 75%) rgb(70 193 255 / 75%) transparent transparent;
+  &:hover {
+    border-color: rgb(70 193 255) rgb(70 193 255) transparent transparent;
+  }
+  ion-icon {
+    position: absolute;
+    right: 7px;
+    top: 7px;
+    color: white;
+  }
+}
+
+.launch-disabled {
+  pointer-events: none;
+  border-color: transparent;
+  &:hover {
+    border-color: transparent;
+  }
+  ion-icon {
+    color: var(--ion-color-dark-shade);
+  }
+}
+
+.launch-container {
+  position: absolute;
+  right: 0px;
+}
+
+.main-status {
+  font-size: calc(8px + .4vw);
+  font-weight: bold;
+  margin: 0;
+}

@@ -1,0 +1,63 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Create Backup</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <ion-item-group>
+    <!-- always -->
+    <ion-item class="ion-margin-bottom">
+      <ion-label>
+        <h2>
+          Select the drive where you want to create a backup of your Embassy, including all your installed services.
+        </h2>
+      </ion-label>
+    </ion-item>
+
+    <!-- loading -->
+    <ng-container *ngIf="loading">
+      <ion-item-divider>
+        <ion-skeleton-text animated style="width: 120px; height: 16px;"></ion-skeleton-text>
+      </ion-item-divider>
+      <ion-item>
+        <ion-avatar slot="start" style="margin-right: 24px;">
+          <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
+        </ion-avatar>
+        <ion-label>
+          <ion-skeleton-text animated style="width: 100px; height: 20px; margin-bottom: 12px;"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 50px; height: 16px; margin-bottom: 16px;"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 100px;"></ion-skeleton-text>
+        </ion-label>
+      </ion-item>
+    </ng-container>
+
+    <!-- loaded -->
+    <ng-container *ngIf="!loading">
+
+      <ion-item *ngIf="allPartitionsMounted">
+        <ion-text class="ion-text-wrap" color="warning">No partitions available. To begin a backup, insert a storage device into your Embassy.</ion-text>
+      </ion-item>
+
+      <ion-item-group>
+        <div *ngFor="let disk of disks | keyvalue">
+          <ion-item-divider>{{ disk.key }} - {{ disk.value.size }}</ion-item-divider>
+          <ion-item button *ngFor="let partition of disk.value.partitions | keyvalue" [disabled]="partition.value['is-mounted']" (click)="presentModal(partition.key)">
+            <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
+            <ion-label>
+              <h1>{{ partition.value.label || partition.key }}</h1>
+              <h2>{{ partition.value.size || 'unknown size' }}</h2>
+              <p *ngIf="!partition.value['is-mounted']; else unavailable"><ion-text color="success">Available</ion-text></p>
+              <ng-template #unavailable>
+                <p><ion-text color="danger">Unavailable</ion-text></p>
+              </ng-template>
+            </ion-label>
+          </ion-item>
+        </div>
+      </ion-item-group>
+    </ng-container>
+  </ion-item-group>
+</ion-content>

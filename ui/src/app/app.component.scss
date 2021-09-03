@@ -1,13 +1,11 @@
-.selected {
-  --background: linear-gradient(120deg, #1e1e1e -1%, var(--ion-color-start9) 96%);
+.bold {
+  font-weight: bold;
 }
 
-.menu-style {
-  border-style: solid;
-  border-width: 0px 1px 0px 0px;
-  border-color: #ff4960;
+.dim {
+  color: var(--ion-color-dark-shade);
 }
 
-.selected-badge {
-  background-color: #1e1e1e;
+ion-split-pane {
+  --side-max-width: 280px;
 }

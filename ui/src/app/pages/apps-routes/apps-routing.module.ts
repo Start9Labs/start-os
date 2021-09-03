@@ -4,48 +4,40 @@ import { Routes, RouterModule } from '@angular/router'
 const routes: Routes = [
   {
     path: '',
-    redirectTo: 'installed',
+    redirectTo: 'list',
     pathMatch: 'full',
   },
   {
-    path: 'marketplace',
-    loadChildren: () => import('./app-available-list/app-available-list.module').then(m => m.AppAvailableListPageModule),
+    path: 'list',
+    loadChildren: () => import('./app-list/app-list.module').then(m => m.AppListPageModule),
   },
   {
-    path: 'installed',
-    loadChildren: () => import('./app-installed-list/app-installed-list.module').then(m => m.AppInstalledListPageModule),
+    path: ':pkgId',
+    loadChildren: () => import('./app-show/app-show.module').then(m => m.AppShowPageModule),
   },
   {
-    path: 'marketplace/:appId',
-    loadChildren: () => import('./app-available-show/app-available-show.module').then(m => m.AppAvailableShowPageModule),
+    path: ':pkgId/actions',
+    loadChildren: () => import('./app-actions/app-actions.module').then(m => m.AppActionsPageModule),
   },
   {
-    path: 'installed/:appId',
-    loadChildren: () => import('./app-installed-show/app-installed-show.module').then(m => m.AppInstalledShowPageModule),
-  },
-  {
-    path: 'installed/:appId/instructions',
+    path: ':pkgId/instructions',
     loadChildren: () => import('./app-instructions/app-instructions.module').then(m => m.AppInstructionsPageModule),
   },
   {
-    path: 'installed/:appId/config',
-    loadChildren: () => import('./app-config/app-config.module').then(m => m.AppConfigPageModule),
+    path: ':pkgId/interfaces',
+    loadChildren: () => import('./app-interfaces/app-interfaces.module').then(m => m.AppInterfacesPageModule),
   },
   {
-    path: 'installed/:appId/config/:edit',
-    loadChildren: () => import('./app-config/app-config.module').then(m => m.AppConfigPageModule),
-  },
-  {
-    path: 'installed/:appId/logs',
+    path: ':pkgId/logs',
     loadChildren: () => import('./app-logs/app-logs.module').then(m => m.AppLogsPageModule),
   },
   {
-    path: 'installed/:appId/metrics',
+    path: ':pkgId/metrics',
     loadChildren: () => import('./app-metrics/app-metrics.module').then(m => m.AppMetricsPageModule),
   },
   {
-    path: 'installed/:appId/actions',
-    loadChildren: () => import('./app-actions/app-actions.module').then(m => m.AppActionsPageModule),
+    path: ':pkgId/properties',
+    loadChildren: () => import('./app-properties/app-properties.module').then(m => m.AppPropertiesPageModule),
   },
 ]
 

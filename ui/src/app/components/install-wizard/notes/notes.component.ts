@@ -1,27 +1,29 @@
 import { Component, Input, OnInit } from '@angular/core'
 import { BehaviorSubject, Subject } from 'rxjs'
-import { Colorable, Loadable } from '../loadable'
-import { WizardAction } from '../wizard-types'
+import { Loadable } from '../loadable'
 
 @Component({
   selector: 'notes',
   templateUrl: './notes.component.html',
   styleUrls: ['../install-wizard.component.scss'],
 })
-export class NotesComponent implements OnInit, Loadable, Colorable {
+export class NotesComponent implements OnInit, Loadable {
   @Input() params: {
-    action: WizardAction
-    notes: string
+    notes: { [version: string]: string }
     title: string
     titleColor: string
+    headline: string
   }
 
-  $loading$ = new BehaviorSubject(false)
-  $color$ = new BehaviorSubject('light')
-  $cancel$ = new Subject<void>()
+  loading$ = new BehaviorSubject(false)
+  cancel$ = new Subject<void>()
 
   load () { }
 
   constructor () { }
-  ngOnInit () { this.$color$.next(this.params.titleColor) }
+  ngOnInit () { }
+
+  asIsOrder () {
+    return 0
+  }
 }
