@@ -9,7 +9,7 @@
 
 <ion-content class="ion-padding">
 
-  <skeleton-list *ngIf="loading" rows="3"></skeleton-list>
+  <skeleton-list *ngIf="loading" [rows]="3"></skeleton-list>
   <ion-item-group *ngIf="!loading">
     <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
       <ion-label>{{ metric.key }}</ion-label>
