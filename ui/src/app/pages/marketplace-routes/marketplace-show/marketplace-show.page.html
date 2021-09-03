@@ -165,21 +165,21 @@
             </ion-col>
             <ion-col sizeSm="12" sizeMd="6">
               <ion-item-group>
-                <ion-item [href]="pkg.manifest['upstream-repo']" target="_blank" detail="false">
+                <ion-item [href]="pkg.manifest['upstream-repo']" target="_blank" rel="noreferrer" detail="false">
                   <ion-label>
                     <h2>Source Repository</h2>
                     <p>{{ pkg.manifest['upstream-repo'] }}</p>
                   </ion-label>
                   <ion-icon slot="end" name="open-outline"></ion-icon>
                 </ion-item>
-                <ion-item [href]="pkg.manifest['wrapper-repo']" target="_blank" detail="false">
+                <ion-item [href]="pkg.manifest['wrapper-repo']" target="_blank" rel="noreferrer" detail="false">
                   <ion-label>
                     <h2>Wrapper Repository</h2>
                     <p>{{ pkg.manifest['wrapper-repo'] }}</p>
                   </ion-label>
                   <ion-icon slot="end" name="open-outline"></ion-icon>
                 </ion-item>
-                <ion-item [href]="pkg.manifest['support-site']" target="_blank" detail="false">
+                <ion-item [href]="pkg.manifest['support-site']" target="_blank" rel="noreferrer" detail="false">
                   <ion-label>
                     <h2>Support Site</h2>
                     <p>{{ pkg.manifest['support-site'] }}</p>

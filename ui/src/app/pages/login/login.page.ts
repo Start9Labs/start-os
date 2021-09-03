@@ -48,7 +48,7 @@ export class LoginPage {
       await this.authService.login(this.password)
       this.password = ''
     } catch (e) {
-      this.error = e.message
+      this.error = e.code === 34 ? 'Invalid Password' : e.message
     } finally {
       this.loader.dismiss()
     }
