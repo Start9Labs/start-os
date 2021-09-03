@@ -115,7 +115,7 @@ export class AppListPage {
   launchUi (pkg: PackageDataEntry, event: Event): void {
     event.preventDefault()
     event.stopPropagation()
-    window.open(this.config.launchableURL(pkg), '_blank')
+    window.open(this.config.launchableURL(pkg), '_blank', 'noreferrer')
   }
 
   asIsOrder () {

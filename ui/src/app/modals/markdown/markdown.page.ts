@@ -23,6 +23,14 @@ export class MarkdownPage {
   async ngOnInit () {
     try {
       this.content = await this.embassyApi.getStatic(this.contentUrl)
+      const links = document.links
+      for (let i = 0, linksLength = links.length; i < linksLength; i++) {
+        if (links[i].hostname != window.location.hostname) {
+          links[i].target = '_blank'
+          links[i].setAttribute('rel', 'noreferrer')
+          links[i].className += ' externalLink'
+        }
+      }
     } catch (e) {
       this.errToast.present(e)
     } finally {
