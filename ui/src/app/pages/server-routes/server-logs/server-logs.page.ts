@@ -16,7 +16,7 @@ export class ServerLogsPage {
     private readonly embassyApi: ApiService,
   ) { }
 
-  fetchFetchLogs (): Function {
+  fetchFetchLogs () {
     return async (params: { before_flag?: boolean, limit?: number, cursor?: string }) => {
       return this.embassyApi.getServerLogs({
         before_flag: params.before_flag,
