@@ -51,10 +51,10 @@
         <!-- ** !restoring/backing-up ** -->
         <ng-container *ngIf="!([PackageMainStatus.BackingUp, PackageMainStatus.Restoring] | includes : mainStatus.status); else maintenance">
           <!-- ** health checks ** -->
-          <ng-container *ngIf="!(mainStatus.health | empty)">
+          <ng-container *ngIf="!($any(mainStatus).health | empty)">
             <ion-item-divider>Health Checks</ion-item-divider>
             <ng-container *ngIf="connectionFailure">
-              <ion-item *ngFor="let health of mainStatus.health | keyvalue">
+              <ion-item *ngFor="let health of $any(mainStatus).health | keyvalue">
                 <ion-avatar slot="start">
                   <ion-skeleton-text style="width: 20px; height: 20px; border-radius: 0;"></ion-skeleton-text>
                 </ion-avatar>
@@ -65,15 +65,15 @@
               </ion-item>
             </ng-container>
             <ng-container *ngIf="!connectionFailure">
-              <ion-item *ngFor="let health of mainStatus.health | keyvalue : asIsOrder">
-                <ion-spinner class="icon-spinner" color="warning" slot="start" *ngIf="['starting', 'loading'] | includes : health.value.result"></ion-spinner>
-                <ion-icon slot="start" *ngIf="health.value.result === 'success'" name="checkmark-outline" color="success"></ion-icon>
-                <ion-icon slot="start" *ngIf="health.value.result === 'failure'" name="close" color="danger"></ion-icon>
-                <ion-icon slot="start" *ngIf="health.value.result === 'disabled'" name="remove-outline" color="dark"></ion-icon>
+              <ion-item *ngFor="let health of $any(mainStatus).health | keyvalue : asIsOrder">
+                <ion-spinner class="icon-spinner" color="warning" slot="start" *ngIf="['starting', 'loading'] | includes : $any(health.value).result"></ion-spinner>
+                <ion-icon slot="start" *ngIf="$any(health.value).result === 'success'" name="checkmark-outline" color="success"></ion-icon>
+                <ion-icon slot="start" *ngIf="$any(health.value).result === 'failure'" name="close" color="danger"></ion-icon>
+                <ion-icon slot="start" *ngIf="$any(health.value).result === 'disabled'" name="remove-outline" color="dark"></ion-icon>
                 <ion-label>
                   <p>{{ health.key }}</p>
-                  <h2>{{ health.value.result }}</h2>
-                  <p *ngIf="health.value.result === 'failure'"><ion-text color="danger">{{ health.value.error }}</ion-text></p>
+                  <h2>{{ $any(health.value).result }}</h2>
+                  <p *ngIf="$any(health.value).result === 'failure'"><ion-text color="danger">{{ $any(health.value).error }}</ion-text></p>
                 </ion-label>
               </ion-item>
             </ng-container>
