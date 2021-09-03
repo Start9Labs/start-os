@@ -100,7 +100,7 @@
                 <p><ion-text [color]="pkg.installed.status['dependency-errors'][dep.key] ? 'warning' : 'success'">{{ pkg.installed.status['dependency-errors'][dep.key] ? pkg.installed.status['dependency-errors'][dep.key].type : 'satisfied' }}</ion-text></p>
               </ion-label>
 
-              <ion-button *ngIf="!pkg.installed.status['dependency-errors'][dep.key] || (pkg.installed.status['dependency-errors'][dep.key] && [DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthCheckFailed] | includes : pkg.installed.status['dependency-errors'][dep.key].type)" slot="end" size="small" [routerLink]="['/services', dep.key]">
+              <ion-button *ngIf="!pkg.installed.status['dependency-errors'][dep.key] || (pkg.installed.status['dependency-errors'][dep.key] && [DependencyErrorType.InterfaceHealthCheckFailed, DependencyErrorType.HealthCheckFailed] | includes : pkg.installed.status['dependency-errors'][dep.key].type)" slot="end" size="small" [routerLink]="['/services', dep.key]">
                 View
               </ion-button>
 

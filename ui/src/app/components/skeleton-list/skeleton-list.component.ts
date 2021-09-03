@@ -6,8 +6,8 @@ import { Component, Input } from '@angular/core'
   styleUrls: ['./skeleton-list.component.scss'],
 })
 export class SkeletonListComponent {
-  @Input() groups: number
-  @Input() rows: number = 3
+  @Input() groups: string
+  @Input() rows: string = '3'
   groupsArr: number[] = []
   rowsArr: number[] = []
 
