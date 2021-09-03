@@ -22,7 +22,7 @@ export class DependentsComponent implements OnInit, Loadable {
   }
   @Input() transitions: {
     cancel: () => any
-    next: () => any
+    next: (prevResult?: any) => any
     final: () => any
     error: (e: Error) => any
   }
