@@ -99,9 +99,7 @@
                 <!-- nested label -->
                 <ion-item button (click)="toggleExpand(entry.key, i)">
                   <form-label [data]="{
-                    spec: {
-                      name: objectListInfo[entry.key][i].displayAs || 'Entry ' + (i + 1)
-                    },
+                    spec: { name: objectListInfo[entry.key][i].displayAs || 'Entry ' + (i + 1) },
                     isNew: false,
                     isEdited: abstractControl.dirty
                   }"></form-label>
