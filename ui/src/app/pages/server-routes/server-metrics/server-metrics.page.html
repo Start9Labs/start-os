@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <skeleton-list *ngIf="loading; else loaded" groups="2"></skeleton-list>
+  <skeleton-list *ngIf="loading; else loaded" [groups]="2"></skeleton-list>
 
   <ng-template #loaded>
     <ion-item-group *ngFor="let metricGroup of metrics | keyvalue : asIsOrder">

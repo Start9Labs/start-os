@@ -179,6 +179,10 @@ export class AppActionsPage {
       loader.dismiss()
     }
   }
+
+  asIsOrder () {
+    return 0
+  }
 }
 
 interface LocalAction {
