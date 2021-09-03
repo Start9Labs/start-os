@@ -159,7 +159,7 @@ volumes: # this is the image where data will go from 0.2.x
   main:
     type: data # this is the image where files from the project asset directory will go
   compat:
-    type: assets # this is a pointer volume, where the image is specified in `<pointer-id>.volume-id` and the mount point is specificed in `main.mounts.<pointer-id>`
+    type: assets
 interfaces:
   main:
     name: Network Interface
@@ -455,9 +455,9 @@ Here we see that a Maximum Channel Size MUST be one of 3 possible options in ord
 
 ### Properties
 
-Next we need to create the Properties section for our package, to display any relevant info.  Te result of this step is a `stats.yaml` file, which is only populated at runtime.
+Next we need to create the Properties section for our package, to display any relevant info.  The result of this step is a `stats.yaml` file, which is only populated at runtime.  These commands will be issued in the `docker_entrypoint` file (or `configurator`, if you are using one).
 
-***THE STATS.YAML IS APPARENTLY BEING DEPRECATED, THIS SECTION NEEDS COMMENT***
+***STATS.YAML IS APPARENTLY BEING DEPRECATED, THIS SECTION NEEDS COMMENT***
 
 ### Instructions
 
