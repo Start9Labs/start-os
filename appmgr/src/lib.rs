@@ -31,6 +31,7 @@ pub mod hostname;
 pub mod id;
 pub mod inspect;
 pub mod install;
+pub mod logs;
 pub mod manager;
 pub mod middleware;
 pub mod migration;
@@ -77,7 +78,8 @@ pub fn main_api() -> Result<(), RpcError> {
     install::uninstall,
     config::config,
     control::start,
-    control::stop
+    control::stop,
+    logs::logs,
 ))]
 pub fn package() -> Result<(), RpcError> {
     Ok(())
