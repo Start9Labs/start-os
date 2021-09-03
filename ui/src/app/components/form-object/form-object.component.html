@@ -65,9 +65,9 @@
           <form-object
             [objectSpec]="
               spec.type === 'union' ? 
-                spec.variants[entry.value.controls[spec.tag.id].value] :
+                spec.variants[$any(entry.value).controls[spec.tag.id].value] :
                 spec.spec"
-            [formGroup]="entry.value"
+            [formGroup]="$any(entry.value)"
             [current]="current ? current[entry.key] : undefined"
             [unionSpec]="spec.type === 'union' ? spec : undefined"
           ></form-object>
@@ -91,7 +91,7 @@
           <!-- body -->
           <div class="nested-wrapper">
             <div
-              *ngFor="let abstractControl of formArr.controls; let i = index;"
+              *ngFor="let abstractControl of $any(formArr).controls; let i = index;"
               class="ion-padding-top"
             >
               <!-- nested -->
@@ -99,7 +99,7 @@
                 <!-- nested label -->
                 <ion-item button (click)="toggleExpand(entry.key, i)">
                   <form-label [data]="{
-                    spec: { name: objectListInfo[entry.key][i].displayAs || 'Entry ' + (i + 1) },
+                    spec: $any({ name: objectListInfo[entry.key][i].displayAs || 'Entry ' + (i + 1) }),
                     isNew: false,
                     isEdited: abstractControl.dirty
                   }"></form-label>
@@ -128,11 +128,11 @@
                   <form-object
                     [objectSpec]="
                       spec.subtype === 'union' ? 
-                        spec.spec.variants[abstractControl.controls[spec.spec.tag.id].value] :
-                        spec.spec.spec"
+                        $any(spec.spec).variants[abstractControl.controls[$any(spec.spec).tag.id].value] :
+                        $any(spec.spec).spec"
                     [formGroup]="abstractControl"
                     [current]="current && current[entry.key] ? current[entry.key][i] : undefined"
-                    [unionSpec]="spec.subtype === 'union' ? spec.spec : undefined"
+                    [unionSpec]="spec.subtype === 'union' ? $any(spec.spec) : undefined"
                     (onInputChange)="updateLabel(entry.key, i, spec.spec['display-as'])"
                   ></form-object>
                   <div style="text-align: right; padding-top: 12px;">
@@ -154,7 +154,7 @@
                 <form-error
                   *ngIf="abstractControl.errors"
                   [control]="abstractControl"
-                  [spec]="spec.spec"
+                  [spec]="$any(spec.spec)"
                 >
                 </form-error>
               </ion-item-group>
@@ -174,9 +174,9 @@
             }"></form-label>
           </p>
           <!-- list -->
-          <ion-item button detail="false" color="dark" (click)="presentModalEnumList(entry.key, spec, formArr.value)">
+          <ion-item button detail="false" color="dark" (click)="presentModalEnumList(entry.key, $any(spec), formArr.value)">
             <ion-label>
-              <h2>{{ getEnumListDisplay(formArr.value, spec.spec) }}</h2>
+              <h2>{{ getEnumListDisplay(formArr.value, $any(spec.spec)) }}</h2>
             </ion-label>
             <ion-button slot="end" fill="clear" color="light">
               <ion-icon slot="icon-only" name="chevron-down"></ion-icon>
@@ -186,7 +186,7 @@
       </ng-container>
       <form-error
         *ngIf="formGroup.get(entry.key).errors"
-        [control]="formGroup.get(entry.key)"
+        [control]="$any(formGroup.get(entry.key))"
         [spec]="spec"
         >
       </form-error>
