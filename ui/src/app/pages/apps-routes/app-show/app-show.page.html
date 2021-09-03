@@ -34,7 +34,7 @@
           <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.NeedsConfig" (click)="presentModalConfig()">
             Configure
           </ion-button>
-          <ion-button slot="end" class="action-button" *ngIf="[FeStatus.Running, FeStatus.NeedsAttention] | includes : rendering.feStatus" color="danger" (click)="stop()">
+          <ion-button slot="end" class="action-button" *ngIf="[FeStatus.Starting, FeStatus.Running, FeStatus.NeedsAttention] | includes : rendering.feStatus" color="danger" (click)="stop()">
             Stop
           </ion-button>
           <ion-button slot="end" class="action-button" *ngIf="rendering.feStatus === FeStatus.DependencyIssue" (click)="scrollToRequirements()">
