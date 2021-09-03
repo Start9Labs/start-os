@@ -51,115 +51,179 @@ Git submodules allow the use of another project while in the working project dir
 Simply run:
 ```git submodule add <link_to_source_project>```
 
-## Example - Embassy Pages
+## Example - Hello World
 
-Okay, let's actually package a service!  For this example, we're going to use the existing EOS service [Embassy Pages](https://github.com/Start9Labs/embassy-pages-wrapper).  This will give a good overview of service packaging, but obviously your app will be different.  This will assume a Linux development environment with all the recommended dependencies listed above.  To get started quickly, we'll use Start9's wrapper template.
+Okay, let's actually package a service!  For this example, we're going to use an example service [Hello World](https://github.com/Start9Labs/hello-world).  This repository can also be used as a template to quickly get started with your service.  This will give a good overview of service packaging, but obviously your app will be different.  This will assume a Linux development environment with all the recommended dependencies listed above.  To get started quickly, we'll use Start9's wrapper template.
 
 ### Clone the Template Repo and Edit the Manifest
 
 1. Clone and rename the repo (or alternatively, use the template generation button found on the github [repo](https://github.com/Start9Labs/hello-world-wrapper))
 ```
 git clone https://github.com/Start9Labs/hello-world-wrapper
-mv hello-world-wrapper embassy-pages-wrapper && cd embassy-pages-wrapper
+cd hello-world-wrapper
 ```
 
-2. Edit the `README.md` to explain what the service is, what dependencies are required, and build/install instructions.
+2. Edit the `README.md` to explain what the service is, what dependencies are required, build/install/contribute instructions, and any other information you'd like.
 
-3. Edit the `manifest` file.  This must be in `.json`, `.toml`, or `.yaml` format and in `kebab-case` style.  You can see descriptions of each key in our 'Hello World' example [here]<https://github.com/Start9Labs/hello-world-wrapper/blob/master/manifest.yaml>.  You can see our Embassy Pages example `manifest.toml` below:
+3. Edit the `manifest` file.  This must be in `.json`, `.toml`, or `.yaml` format and in `kebab-case` style.  You can see descriptions of each key (and some notes) in our 'Hello World' example `manifest.yaml` below:
 
 ```
-id = "embassy-pages"
-title = "Embassy Pages"
-version = "0.1.3"
-release-notes = "Upgrade to EmbassyOS v0.3.0"
-license = "nginx"
-wrapper-repo = "https://github.com/Start9Labs/embassy-pages-wrapper"
-upstream-repo = "http://hg.nginx.org/nginx/"
-build = ["make"]
-min-os-version = "0.3.0"
+# v0.3.0 and up Manifest example written in .yaml (.toml and .json are also acceptable)
 
-[description]
-long = "Embassy Pages is a simple web server that uses directories inside File Browser to serve Tor websites."
-short = "Create Tor websites, hosted on your Embassy."
-
-[assets]
-license = "LICENSE"
-icon = "icon.png"
-instructions = "instructions.md"
-docker-images = "image.tar"
-
-[main]
-type = "docker"
-image = "main"
-entrypoint = "/usr/local/bin/docker_entrypoint.sh"
-args = []
-mounts = { filebrowser = "/mnt/filebrowser" }
-io-format = "yaml"
-
-[health-checks]
-
-[config.get]
-type = "docker"
-image = "compat"
-system = true
-entrypoint = "compat"
-args = ["config", "get", "/root/start9/config.yaml", "/mnt/assets/config_spec.yaml"]
-mounts = { compat = "/mnt/assets", main = "/root" }
-io-format = "yaml"
-
-[config.set]
-type = "docker"
-image = "compat"
-system = true
-entrypoint = "compat"
-args = ["config", "set", "/root/start9/config.yaml"]
-mounts = { main = "/root" }
-io-format = "yaml"
-
-[dependencies.filebrowser]
-version = "^2.14.1.1"
-description = "Used to upload files to serve."
-critical = false
-recommended = true
-
-[volumes.main]
-type = "data"
-
-[volumes.filebrowser]
-type = "pointer"
-package-id = "filebrowser"
-volume-id = "main"
-path = "/"
-readonly = true
-
-[volumes.compat]
-type = "assets"
-
-[interfaces.main]
-name = "Homepage"
-description = "The homepage... (TODO)"
-tor-config = { port-mapping = { "80" = "80" } }
-ui = true
-protocols = ["tcp", "http"]
-
-[backup.create]
-type = "docker"
-image = "compat"
-system = true
-entrypoint = "true"
-args = []
-mounts = {}
-
-[backup.restore]
-type = "docker"
-image = "compat"
-system = true
-entrypoint = "true"
-args = []
-mounts = {}
+id: hello-world
+title: "Hello World"
+version: 0.2.0 # Service version
+release-notes: "Upgrade to EmbassyOS 2.16.0 and then to v0.3.0"
+license: mit
+wrapper-repo: "https://github.com/Start9Labs/hello-world-wrapper"
+upstream-repo: "https://github.com/Start9Labs/hello-world-wrapper" # There is no upstream repo in this example
+support-site: "https://docs.start9.com/"
+marketing-site: "https://start9.com/"
+build: ["make"] # Series of commands to build into an s9pk, in this case we are using make and all the build commands are in the makefile
+min-os-version: "0.3.0" # Minimum required version of EmbassyOS
+description:
+  short: Example service
+  long: |
+    Hello World is a simple example of a service wrapper that launches a web interface to say hello and nothing more.
+assets:
+  license: LICENSE # default = LICENSE.md
+  icon: icon.png # default = icon.png
+  instructions: docs/instructions.md # default = INSTRUCTIONS.md
+  docker-images: image.tar # default = image.tar
+main:
+  type: docker
+  image: main
+  entrypoint: "/usr/local/bin/docker_entrypoint.sh"
+  args: []
+  mounts: {} # Specifies where to put volumes, if there are any.  Empty in this example
+health-checks: {} # Health check config would go here
+config: ~ # Configuration options, none for hello-world, but see below example for format:
+#    get:
+#     type: docker
+#     image: compat
+#     entrypoint: compat
+#     args: 
+#       - "config"
+#       - "get"
+#       - "/root/.hello-world/start9/config.yaml"
+#       - "/mnt/assets/config_spec.yaml"
+#     mounts:
+#       compat: "/mnt/assets"
+#       main: "/root"
+#     io-format: yaml
+#   set:
+#     type: docker
+#     image: compat
+#     entrypoint: compat
+#     args:
+#       - "config"
+#       - "set"
+#       - "/root/.hello-world/start9/config.yaml"
+#     mounts:
+#       main: "/root"
+#     io-format: yaml
+dependencies: {} # Service pre-requisites, none for hello-world, but see below example (which would make BTC Proxy a dependency) for format:
+  # btc-rpc-proxy:
+  #   version: ">=0.3.2.1 <0.4.0"
+  #   recommended: true
+  #   critical: false
+  #   optional: Can alternatively configure an external bitcoin node.
+  #   description: Used to fetch validated blocks.
+  #   config:
+  #     check: 
+  #       type: docker
+  #       image: compat
+  #       system: true
+  #       # the compat image will contain a tool to check the config rules against the specified dependency
+  #       entrypoint: compat
+  #       args:
+  #         - "dependency"
+  #         - "check"
+  #         - "/mnt/assets/btc-rpc-proxy.rules.yaml"
+  #       mounts:
+  #         compat: "/mnt/assets"  
+  #     auto-configure:
+  #       type: docker
+  #       image: compat
+  #       # if true, the denoted image is prebuilt and comes stock with EOS
+  #       # uncommon: if you want something not prebuilt with EOS, you can bundle multiple docker images into the `image.tar` during the `make` build process
+  #       system: true
+  #       entrypoint: compat
+  #       args:
+  #         - "dependency"
+  #         - "auto-configure"
+  #         - "/mnt/assets/btc-rpc-proxy.rules.yaml"
+  #       mounts:
+  #         compat: "/mnt/assets"  
+volumes: # this is the image where data will go from 0.2.x
+  main:
+    type: data # this is the image where files from the project asset directory will go
+  compat:
+    type: assets # this is a pointer volume, where the image is specified in `<pointer-id>.volume-id` and the mount point is specificed in `main.mounts.<pointer-id>`
+interfaces:
+  main:
+    name: Network Interface
+    description: Specifies the interface to listen on for HTTP connections.
+    tor-config:
+      port-mapping:
+        80: "80"
+    lan-config:
+      80:
+        ssl: false
+        mapping: 80
+    ui: true
+    protocols:
+      - tcp
+      - http
+alerts: {}
+backup:
+  create:
+    type: docker
+    image: compat # default backup process of the compat docker image is duplicity - EOS will have access to the image defined here
+    system: true 
+    entrypoint: compat # command to run the backup executable, in this case, duplicity
+    args: # arguments to pass into the entrypoint, in this case duplicity - in this example, the full command run will be: `duplicity hello-world file:///mnt/backup /root`
+      - duplicity
+      - hello-world
+      - /mnt/backup
+      - /root
+    mounts:
+      # BACKUP is the default volume that is used for backups.  This is whatever backup drive is mounted to the defice, or a network filesystem.  
+      # The value here donates where the data mount point will be.  Backup drive is mounted to this location, which contains previous backups.
+      BACKUP: "/mnt/backup" 
+      main: "/root"
+  restore:
+    type: docker
+    image: compat
+    system: true
+    entrypoint: compat
+    args:
+      - duplicity
+      - hello-world
+      - /root
+      - /mnt/backup
+    mounts:
+      # See above comments under `backup: -> mounts:`
+      BACKUP: "/mnt/backup"
+      main: "/root"
+actions: {} # Commands that can be issued from the UI.  None for hello-world, but see below example (resetting a root user) for format:
+  # reset-root-user:
+  #   name: Reset Root User
+  #   description: Resets your root user (the first user) to username "admin" and a random password; restores any lost admin privileges.
+  #   warning: This will invalidate existing sessions and password managers if you have them set up.
+  #   allowed-statuses:
+  #     - stopped
+  #   implementation:
+  #     type: docker
+  #     image: main
+  #     system: true
+  #     entrypoint: docker_entrypoint.sh
+  #     args: ["reset-root-user"]
+  #     mounts:
+  #       main: "/root"
 ```
 
-Note the `[dependencies]` and `[volumes]` sections, which include File Browser such that files stored on a user's Embassy can be accessed and hosted onto a Page.
+Note the `dependencies` and `volumes` sections, which may access another service, for example, File Browser, such that files stored on a user's Embassy can be accessed in your service.
 
 For details on all the different possible dependency, type, and subtype definitions available for the `manifest` file, please see [here](https://docs.start9.com/contributing/services/manifest.html).
 
@@ -169,27 +233,22 @@ Next, it's time to edit the `Dockerfile`.  This defines how to build the image f
 
 1. We start by importing a base image, in this case Alpine, as recommended.
 
-`FROM alpine:3.13`
+`FROM arm64v8/alpine:3.12`
 
-2. Next we issue some commands, which add a repository, update, install some required software, and finally create a directory for the nginx software.
+2. Next we issue some commands, which in this example simply updates repositories, installs required software, and finally creates a directory for nginx.
 
 ```
-RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/community >> /etc/apk/repositories
 RUN apk update
 RUN apk add tini
-RUN apk add bash nginx yq
 
 RUN mkdir /run/nginx
 ```
 
-3. Next we will add the `docker_entrypoint.sh` file and `www` directory from the repository as well as copying over some `.css` files for styling.  Then we set the permissions for `docker_entrypoint.sh`.
+3. Next we will add the cross-compiled binary of `hello-world` to `/usr/local/bin/` and add the `docker_entrypoint.sh` file from the repository.  Then we set permissions for `docker_entrypoint.sh`.
 
 ```
+ADD ./hello-world/target/aarch64-unknown-linux-musl/release/hello-world /usr/local/bin/hello-world
 ADD ./docker_entrypoint.sh /usr/local/bin/docker_entrypoint.sh
-ADD www /var/www
-RUN cp /var/www/assets/main.css /var/www/fuck-off/main.css
-RUN cp /var/www/assets/main.css /var/www/index/main.css
-RUN cp /var/www/assets/main.css /var/www/welcome/main.css
 RUN chmod a+x /usr/local/bin/docker_entrypoint.sh
 ```
 
@@ -206,20 +265,13 @@ ENTRYPOINT ["/usr/local/bin/docker_entrypoint.sh"]
 5. Great, let's take a look at our final Embassy Pages `Dockerfile`:
 
 ```
-FROM alpine:3.13
+FROM arm64v8/alpine:3.12
 
-RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/community >> /etc/apk/repositories
 RUN apk update
 RUN apk add tini
-RUN apk add bash nginx yq
 
-RUN mkdir /run/nginx
-
+ADD ./hello-world/target/aarch64-unknown-linux-musl/release/hello-world /usr/local/bin/hello-world
 ADD ./docker_entrypoint.sh /usr/local/bin/docker_entrypoint.sh
-ADD www /var/www
-RUN cp /var/www/assets/main.css /var/www/fuck-off/main.css
-RUN cp /var/www/assets/main.css /var/www/index/main.css
-RUN cp /var/www/assets/main.css /var/www/welcome/main.css
 RUN chmod a+x /usr/local/bin/docker_entrypoint.sh
 
 WORKDIR /root
@@ -229,184 +281,77 @@ EXPOSE 80
 ENTRYPOINT ["/usr/local/bin/docker_entrypoint.sh"]
 ```
 
-6. Okay, let's move on to our `docker_entrypoint.sh` file.  This is a bash script that defines what to do when the service starts.  It will need to complete any environment setup (such as folder substructure), sets any environment variables, and executes the run command.  Let's take a look at our Pages example:
+6. Okay, let's move on to our `docker_entrypoint.sh` file.  This is a script that defines what to do when the service starts.  It will need to complete any environment setup (such as folder substructure), sets any environment variables, and executes the run command.  If you have built a `configurator`, it will also execute here.  Let's take a look at our (extremely basic) Hello World example:
 
 ```
-#!/bin/bash
+#!/bin/sh
 
 export HOST_IP=$(ip -4 route list match 0/0 | awk '{print $3}')
 
-echo start9/public > .backupignore
-echo start9/shared >> .backupignore
-
-home_type=$(yq e '.homepage.type' start9/config.yaml)
-subdomains=($(yq e '.subdomains.[].name' start9/config.yaml))
+exec tini hello-world
 ```
 
-7. First we've defined the file as a bash, exported the IP address, chosen folders to ignore during backup, and set the homepage and subdomains types from our config.
+7. We've defined the file, exported the IP address, and run the program.
 
-***I'VE ABANDONED THIS SECTION AFTER DISCUSSION LEADING TO THE IDEA THAT THIS MAY NOT BE A GOOD EXAMPLE FILE***
-
-```
-read -r -d "" build_site_desc <<EOT
-{
-    "description": "Subdomain link for the site " + .,
-    "masked": false,
-    "copyable": true,
-    "qr": false,
-    "type": "string",
-    "value": . + ".$TOR_ADDRESS"
-}
-EOT
-yq e ".subdomains.[].name | {.: $build_site_desc}" start9/config.yaml > start9/stats.yaml
-yq e -i '{"value": . }' start9/stats.yaml
-yq e -i '.type="object"' start9/stats.yaml
-yq e -i '.description="The available subdomains."' start9/stats.yaml
-yq e -i '{"Subdomains": . }' start9/stats.yaml
-yq e -i '{"data": .}' start9/stats.yaml
-yq e -i '.version = 2' start9/stats.yaml
-if [ ! -s start9/stats.yaml ] ; then
-    rm start9/stats.yaml
-fi
-
-bucket_size=64
-for subdomain in "${subdomains[@]}"; do
-    suffix=".${TOR_ADDRESS}"
-    len=$(( ${#suffix} + ${#subdomain} ))
-    if [[ $len -ge $bucket_size ]]; then
-        bucket_size=$(( $bucket_size * 2 ))
-    fi
-done
-
-if [[ $home_type = "index" ]]; then
-    if [ ${#subdomains} -ne 0 ]; then
-        cp /var/www/index/index-prefix.html /var/www/index/index.html
-        for subdomain in "${subdomains[@]}"; do
-            echo "      <li><a target=\"_blank\" href=\"http://${subdomain}.${TOR_ADDRESS}\">${subdomain}</a></li>" >> /var/www/index/index.html
-        done
-        cat /var/www/index/index-suffix.html >> /var/www/index/index.html
-    else
-        cp /var/www/index/empty.html /var/www/index/index.html
-    fi
-fi
-
-echo "server_names_hash_bucket_size ${bucket_size};" > /etc/nginx/conf.d/default.conf
-
-if [[ $home_type = "redirect" ]]; then
-    target=$(yq e '.homepage.target' start9/config.yaml)
-    cat >> /etc/nginx/conf.d/default.conf <<EOT
-server {
-  listen 80;
-  listen [::]:80;
-  server_name ${TOR_ADDRESS};
-  return 301 http://${target}.${TOR_ADDRESS}$request_uri;
-}
-EOT
-elif [[ $home_type = "filebrowser" ]]; then
-    directory=$(yq e '.homepage.directory' start9/config.yaml)
-    cat >> /etc/nginx/conf.d/default.conf <<EOT
-server {
-  autoindex on;
-  listen 80;
-  listen [::]:80;
-  server_name ${TOR_ADDRESS};
-  root "/root/start9/public/filebrowser/${directory}";
-}
-EOT
-else
-    cat >> /etc/nginx/conf.d/default.conf <<EOT
-server {
-  listen 80;
-  listen [::]:80;
-  server_name ${TOR_ADDRESS};
-  root "/var/www/${home_type}";
-}
-EOT
-fi
-
-for subdomain in "${subdomains[@]}"; do
-    subdomain_type=$(yq e ".subdomains.[] | select(.name == \"$subdomain\") | .settings |.type" start9/config.yaml)
-    if [[ $subdomain_type == "filebrowser" ]]; then
-        directory="$(yq e ".subdomains.[] | select(.name == \"$subdomain\") | .settings | .directory" start9/config.yaml)"
-        cat >> /etc/nginx/conf.d/default.conf <<EOT
-server {
-  autoindex on;
-  listen 80;
-  listen [::]:80;
-  server_name ${subdomain}.${TOR_ADDRESS};
-  root "/root/start9/public/filebrowser/${directory}";
-}
-EOT
-    elif [ $subdomain_type = "redirect" ]; then
-        if [ "$(yq e ".subdomains.[] | select(.name == \"$subdomain\") | .settings | .target == ~" start9/config.yaml)" = "true"]; then
-            cat >> /etc/nginx/conf.d/default.conf <<EOT
-server {
-  listen 80;
-  listen [::]:80;
-  server_name ${subdomain}.${TOR_ADDRESS};
-  return 301 http://${TOR_ADDRESS}$request_uri;
-}
-EOT
-        else
-            target="$(yq e ".subdomains.[] | select(.name == \"$subdomain\") | .settings | .target" start9/config.yaml)"
-            cat >> /etc/nginx/conf.d/default.conf <<EOT
-server {
-  listen 80;
-  listen [::]:80;
-  server_name ${subdomain}.${TOR_ADDRESS};
-  return 301 http://${target}.${TOR_ADDRESS}$request_uri;
-}
-EOT
-        fi
-    fi
-done
-
-exec tini -- nginx -g "daemon off;"
-```
-
-Additional details on the `Dockerfile` and `entrypoint` can be found [here](https://docs.start9.com/contributing/services/docker.html).
+For a more detailed `docker_entrypoint.sh`, please check out the [filebrowser-wrapper](https://github.com/Start9Labs/filebrowser-wrapper/blob/master/docker_entrypoint.sh).  Additional details on the `Dockerfile` and `entrypoint` can be found [here](https://docs.start9.com/contributing/services/docker.html).
 
 ### Makefile (Optional)
 
-Here, we will create a `Makefile`, which is optional, but recommended as it outlines the build and streamlines additional developer contributions.  Alternatively, you could use the `nix` specification instead of `make`.
+Here, we will create a `Makefile`, which is optional, but recommended as it outlines the build and streamlines additional developer contributions.  Alternatively, you could use any other build orchestration tool, such as `nix`, `bash`, `python`, `perl`, `ruby`, etc instead of `make`.
 
-Our example `Makefile` is fairly simple for Embassy Pages.  Let's take a look:
+Our example `Makefile` is agin fairly simple for Hello World.  Let's take a look:
 
 ```
+ASSETS := $(shell yq e '.assets.[].src' manifest.yaml)
+ASSET_PATHS := $(addprefix assets/,$(ASSETS))
+VERSION := $(shell toml get hello-world/Cargo.toml package.version)
+HELLO_WORLD_SRC := $(shell find ./hello-world/src) hello-world/Cargo.toml hello-world/Cargo.lock
+S9PK_PATH=$(shell find . -name hello-world.s9pk -print)
+
 .DELETE_ON_ERROR:
 
-all: embassy-pages.s9pk
+all: verify
 
-install: embassy-pages.s9pk
-	appmgr install embassy-pages.s9pk
+verify: hello-world.s9pk $(S9PK_PATH)
+		embassy-sdk verify $(S9PK_PATH)
 
-embassy-pages.s9pk: manifest.toml assets/compat/config_spec.yaml image.tar instructions.md
-	embassy-sdk pack
+# embassy-sdk pack errors come from here, check your manifest, config, instructions, and icon
+hello-world.s9pk: manifest.yaml assets/compat/config_spec.yaml config_rules.yaml image.tar docs/instructions.md $(ASSET_PATHS)
+		embassy-sdk pack
 
-image.tar: Dockerfile docker_entrypoint.sh
-	DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/embassy-pages/main:0.1.3 --platform=linux/arm/v7 -o type=docker,dest=image.tar .
+image.tar: Dockerfile docker_entrypoint.sh hello-world/target/aarch64-unknown-linux-musl/release/hello-world
+		DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/hello-world --platform=linux/arm64 -o type=docker,dest=image.tar .
+
+hello-world/target/aarch64-unknown-linux-musl/release/hello-world: $(HELLO_WORLD_SRC)
+		docker run --rm -it -v ~/.cargo/registry:/root/.cargo/registry -v "$(shell pwd)"/hello-world:/home/rust/src start9/rust-musl-cross:aarch64-musl cargo +beta build --release
+		docker run --rm -it -v ~/.cargo/registry:/root/.cargo/registry -v "$(shell pwd)"/hello-world:/home/rust/src start9/rust-musl-cross:aarch64-musl musl-strip target/aarch64-unknown-linux-musl/release/hello-world
+
+manifest.yaml: hello-world/Cargo.toml
+		yq e -i '.version = $(VERSION)' manifest.yaml
+
 ```
+1. The first 5 lines set environment variables.
 
-1. The first line simply removes the progress of a `make` process if it fails.
+2. The next line simply removes the progress of a `make` process if it fails.
 `.DELETE_ON_ERROR:`
 
-2. The `all` step is run when the `make` command is issued.  This means that the `embassy-pages.s9pk` must first be built, and so on.
+3. The `all` step is run when the `make` command is issued.  This attempts the `verify` step, which requires that the `hello-world.s9pk` must first be built, which first requires the `image.tar`, and so on.  Meaning each step essentially requires the next .
 
-3. Each step essentially requires the next, with the `image.tar` being required for all the above steps with the `docker` command, which is supplied with the `Dockerfile` and `docker_entrypoint.sh` files.  
+4. So the `.s9pk` is created with the `embassy-sdk pack` command, supplied with the `manifest`, `config_spec`, previously created `image.tar`, and `instructions.md`.  Your project may likely also contain a `config_rules` file.  Some of these files we have not yet edited, but that will come shortly.
 
-4. Next the `.s9pk` is created with the `embassy-sdk pack` command, supplied with the `manifest`, `config_spec`, previously created `image.tar`, and `instructions.md`.  Your project may likely also contain a `config_rules` file.  Some of these files we have not yet edited, but that will come shortly.
+5. The `image.tar` is built below this, the cross-compiled `hello-world` source code, and `manifest` at the bottom.
 
 For more details on creating a `Makefile` for your project, please check [here](https://docs.start9.com/contributing/services/makefile.html).
 
 ### Service Config Specification and Rules
 
-Most self-hosted packages require a configuration.  With EmbassyOS, these config options are provided to the user in a friendly GUI, and invalid configs are not permitted.  This allows the user to manage their software without a lot of technical skill.  Two files are created in this process:
+Most self-hosted packages require a configuration.  With EmbassyOS, these config options are provided to the user in a friendly GUI, and invalid configs are not permitted.  This allows the user to manage their software without a lot of technical skill, and minimal risk of borking their software.  Two files are created in this process:
 
 `config_spec.yaml` for specifying all the config options your package depends on to run
 
 `config_rules.yaml` for defining the ruleset that defines dependencies between config variables
 
-These are stored in `assets/compat/` for 0.2.x compatibility.  These files contain a detailed mapping of configuration options with acceptable values, defaults, and relational rule-sets.  Let's take a look at our `config_spec` for Embassy Pages:
+These are stored in `assets/compat/` for 0.2.x compatibility, and in `/assets/` for anything built for v0.3.0 and up (almost certainly what you're doing).  These files contain a detailed mapping of configuration options with acceptable values, defaults, and relational rule-sets.  Hello World has no configuration, as you can see [here](https://github.com/Start9Labs/hello-world-wrapper/blob/0.3.0/assets/compat/config_spec.yaml).  Instead, let's take a look at our `config_spec` for Embassy Pages, which actually has some config options:
 
 ```
 homepage:
@@ -498,7 +443,7 @@ We essentially have 2 config options (homepage and subdomains), with all of thei
 
 For all the possible types, please check our detailed documentation [here](https://docs.start9.com/contributing/services/config.html#types).
 
-In our example, there is *no need* for a `config_rules` file.  This is because there is not a rule-set required to define dependencies between config variables.  An example of when this would be required would be the following code, from the LND wrapper:
+In our example, there is *no need* for a `config_rules` file.  This is because there is not a rule-set required to define dependencies between config variables.  An example of when this would be required would be the following code, from the [LND wrapper](https://github.com/Start9Labs/lnd-wrapper/blob/master/config_rules.yaml):
 
 ```
 ---
