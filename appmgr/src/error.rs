@@ -52,6 +52,7 @@ pub enum ErrorKind {
     ParseTimestamp = 44,
     ParseSysInfo = 45,
     WifiError = 46,
+    Journald = 47,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -103,6 +104,7 @@ impl ErrorKind {
             ParseTimestamp => "Timestamp Parsing Error",
             ParseSysInfo => "System Info Parsing Error",
             WifiError => "Wifi Internal Error",
+            Journald => "Journald Error",
         }
     }
 }
