@@ -405,8 +405,6 @@ dependencies = [
  "rust-argon2",
  "serde",
  "serde_yaml",
- "tokio 1.11.0",
- "tokio-stream",
 ]
 
 [[package]]
