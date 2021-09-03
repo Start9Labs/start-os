@@ -3,6 +3,7 @@ pub mod util;
 
 use std::future::Future;
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures::{FutureExt, SinkExt, StreamExt};
 use patch_db::json_ptr::JsonPointer;
@@ -84,6 +85,12 @@ async fn ws_handler<
                     }
                     _ => (),
                 }
+            }
+            _ = tokio::time::sleep(Duration::from_secs(10)).fuse() => {
+                stream
+                    .send(Message::Ping(Vec::new()))
+                    .await
+                    .with_kind(crate::ErrorKind::Network)?;
             }
         }
     }

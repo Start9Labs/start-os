@@ -36,8 +36,8 @@ use crate::{Error, ResultExt};
 pub mod cleanup;
 pub mod progress;
 
-pub const PKG_CACHE: &'static str = "/mnt/embassy-os/cache/packages";
-pub const PKG_PUBLIC_DIR: &'static str = "/mnt/embassy-os/public/package-data";
+pub const PKG_CACHE: &'static str = "main/cache/packages";
+pub const PKG_PUBLIC_DIR: &'static str = "main/public/package-data";
 
 #[command(display(display_none))]
 pub async fn install(
@@ -170,7 +170,11 @@ pub async fn download_install_s9pk(
     let pkg_id = &temp_manifest.id;
     let version = &temp_manifest.version;
 
-    let pkg_cache_dir = Path::new(PKG_CACHE).join(pkg_id).join(version.as_str());
+    let pkg_cache_dir = ctx
+        .datadir
+        .join(PKG_CACHE)
+        .join(pkg_id)
+        .join(version.as_str());
     tokio::fs::create_dir_all(&pkg_cache_dir).await?;
     let pkg_cache = AsRef::<Path>::as_ref(pkg_id).with_extension("s9pk");
 
@@ -368,7 +372,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         }
         .with_kind(crate::ErrorKind::Registry)?;
         if let Some(manifest) = manifest {
-            let dir = Path::new(PKG_PUBLIC_DIR)
+            let dir = ctx
+                .datadir
+                .join(PKG_PUBLIC_DIR)
                 .join(&manifest.id)
                 .join(manifest.version.as_str());
             let icon_path = dir.join(format!("icon.{}", manifest.assets.icon_type()));
@@ -416,7 +422,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     }
     log::info!("Install {}@{}: Fetched Dependency Info", pkg_id, version);
 
-    let public_dir_path = Path::new(PKG_PUBLIC_DIR)
+    let public_dir_path = ctx
+        .datadir
+        .join(PKG_PUBLIC_DIR)
         .join(pkg_id)
         .join(version.as_str());
     tokio::fs::create_dir_all(&public_dir_path).await?;
@@ -512,7 +520,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let mut sql_tx = ctx.secret_store.begin().await?;
 
     log::info!("Install {}@{}: Creating volumes", pkg_id, version);
-    manifest.volumes.install(pkg_id, version).await?;
+    manifest.volumes.install(ctx, pkg_id, version).await?;
     log::info!("Install {}@{}: Created volumes", pkg_id, version);
 
     log::info!("Install {}@{}: Installing interfaces", pkg_id, version);
@@ -522,8 +530,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Creating manager", pkg_id, version);
     ctx.managers
         .add(
-            ctx.docker.clone(),
-            ctx.net_controller.clone(),
+            ctx.clone(),
             manifest.clone(),
             manifest.interfaces.tor_keys(&mut sql_tx, pkg_id).await?,
         )
@@ -572,8 +579,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         status: Status {
             configured: manifest.config.is_none(),
             main: MainStatus::Stopped,
-            dependency_errors: DependencyErrors::init(&mut tx, &manifest, &current_dependencies)
-                .await?,
+            dependency_errors: DependencyErrors::init(
+                ctx,
+                &mut tx,
+                &manifest,
+                &current_dependencies,
+            )
+            .await?,
         },
         manifest: manifest.clone(),
         system_pointers: Vec::new(),
@@ -600,6 +612,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     } = prev
     {
         update_dependents(
+            ctx,
             &mut tx,
             pkg_id,
             current_dependents
@@ -612,6 +625,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         if let Some(res) = prev_manifest
             .migrations
             .to(
+                ctx,
                 version,
                 pkg_id,
                 &prev_manifest.version,
@@ -626,15 +640,21 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         }
         if let Some(res) = manifest
             .migrations
-            .from(&prev_manifest.version, pkg_id, version, &manifest.volumes)
+            .from(
+                ctx,
+                &prev_manifest.version,
+                pkg_id,
+                version,
+                &manifest.volumes,
+            )
             .await?
         {
             configured &= res.configured;
         }
         if configured {
             crate::config::configure(
+                ctx,
                 &mut tx,
-                &ctx.docker,
                 pkg_id,
                 None,
                 &None,
@@ -646,7 +666,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             todo!("set as running if viable");
         }
     } else {
-        update_dependents(&mut tx, pkg_id, current_dependents.keys()).await?;
+        update_dependents(ctx, &mut tx, pkg_id, current_dependents.keys()).await?;
     }
 
     sql_tx.commit().await?;

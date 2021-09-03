@@ -9,9 +9,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::util::Invoke;
 use crate::{Error, ResultExt as _};
 
-pub const ROOT_DISK: &'static str = "/dev/mmcblk0";
-pub const MAIN_DISK: &'static str = "/dev/sda";
-
 pub struct Disks(IndexMap<String, DiskInfo>);
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -188,6 +185,49 @@ pub async fn mount_encfs<P0: AsRef<Path>, P1: AsRef<Path>>(
     } else {
         Ok(())
     }
+}
+
+pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
+    src: P0,
+    dst: P1,
+    read_only: bool,
+) -> Result<(), Error> {
+    log::info!(
+        "Binding {} to {}",
+        src.as_ref().display(),
+        dst.as_ref().display()
+    );
+    let is_mountpoint = tokio::process::Command::new("mountpoint")
+        .arg(dst.as_ref())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .await?;
+    if is_mountpoint.success() {
+        unmount(dst.as_ref()).await?;
+    }
+    tokio::fs::create_dir_all(&dst).await?;
+    let mut mount_cmd = tokio::process::Command::new("mount");
+    mount_cmd.arg("--bind");
+    if read_only {
+        mount_cmd.arg("-o").arg("ro");
+    }
+    mount_cmd
+        .arg(src.as_ref())
+        .arg(dst.as_ref())
+        .invoke(crate::ErrorKind::Filesystem)
+        .await
+        .map_err(|e| {
+            Error::new(
+                e.source.context(format!(
+                    "Binding {} to {}",
+                    src.as_ref().display(),
+                    dst.as_ref().display(),
+                )),
+                e.kind,
+            )
+        })?;
+    Ok(())
 }
 
 pub async fn unmount<P: AsRef<Path>>(mount_point: P) -> Result<(), Error> {

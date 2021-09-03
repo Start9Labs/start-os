@@ -18,6 +18,7 @@ use serde_json::{Number, Value};
 use super::util::{self, CharSet, NumRange, UniqueBy, STATIC_NULL};
 use super::{Config, MatchError, NoMatchWithPath, TimeoutError, TypeOf};
 use crate::config::ConfigurationError;
+use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::Error;
@@ -34,6 +35,7 @@ pub trait ValueSpec {
     // update is to fill in values for environment pointers recursively
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
@@ -148,11 +150,12 @@ where
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
-        self.inner.update(db, config_overrides, value).await
+        self.inner.update(ctx, db, config_overrides, value).await
     }
     fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
         self.inner.pointers(value)
@@ -188,11 +191,12 @@ where
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
-        self.inner.update(db, config_overrides, value).await
+        self.inner.update(ctx, db, config_overrides, value).await
     }
     fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
         self.inner.pointers(value)
@@ -261,11 +265,12 @@ where
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
-        self.inner.update(db, config_overrides, value).await
+        self.inner.update(ctx, db, config_overrides, value).await
     }
     fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
         self.inner.pointers(value)
@@ -371,19 +376,20 @@ impl ValueSpec for ValueSpecAny {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         match self {
-            ValueSpecAny::Boolean(a) => a.update(db, config_overrides, value).await,
-            ValueSpecAny::Enum(a) => a.update(db, config_overrides, value).await,
-            ValueSpecAny::List(a) => a.update(db, config_overrides, value).await,
-            ValueSpecAny::Number(a) => a.update(db, config_overrides, value).await,
-            ValueSpecAny::Object(a) => a.update(db, config_overrides, value).await,
-            ValueSpecAny::String(a) => a.update(db, config_overrides, value).await,
-            ValueSpecAny::Union(a) => a.update(db, config_overrides, value).await,
-            ValueSpecAny::Pointer(a) => a.update(db, config_overrides, value).await,
+            ValueSpecAny::Boolean(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecAny::Enum(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecAny::List(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecAny::Number(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecAny::Object(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecAny::String(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecAny::Union(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecAny::Pointer(a) => a.update(ctx, db, config_overrides, value).await,
         }
     }
     fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
@@ -463,6 +469,7 @@ impl ValueSpec for ValueSpecBoolean {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         _db: &mut Db,
         _config_overrides: &IndexMap<PackageId, Config>,
         _value: &mut Value,
@@ -550,6 +557,7 @@ impl ValueSpec for ValueSpecEnum {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         _db: &mut Db,
         _config_overrides: &IndexMap<PackageId, Config>,
         _value: &mut Value,
@@ -634,13 +642,14 @@ where
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         if let Value::Array(ref mut ls) = value {
             for (i, val) in ls.into_iter().enumerate() {
-                match self.spec.update(db, config_overrides, val).await {
+                match self.spec.update(ctx, db, config_overrides, val).await {
                     Err(ConfigurationError::NoMatch(e)) => {
                         Err(ConfigurationError::NoMatch(e.prepend(format!("{}", i))))
                     }
@@ -735,16 +744,17 @@ impl ValueSpec for ValueSpecList {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         match self {
-            ValueSpecList::Enum(a) => a.update(db, config_overrides, value).await,
-            ValueSpecList::Number(a) => a.update(db, config_overrides, value).await,
-            ValueSpecList::Object(a) => a.update(db, config_overrides, value).await,
-            ValueSpecList::String(a) => a.update(db, config_overrides, value).await,
-            ValueSpecList::Union(a) => a.update(db, config_overrides, value).await,
+            ValueSpecList::Enum(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecList::Number(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecList::Object(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecList::String(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecList::Union(a) => a.update(ctx, db, config_overrides, value).await,
         }
     }
     fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
@@ -857,6 +867,7 @@ impl ValueSpec for ValueSpecNumber {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         _db: &mut Db,
         _config_overrides: &IndexMap<PackageId, Config>,
         _value: &mut Value,
@@ -968,12 +979,13 @@ impl ValueSpec for ValueSpecObject {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         if let Value::Object(o) = value {
-            self.spec.update(db, config_overrides, o).await
+            self.spec.update(ctx, db, config_overrides, o).await
         } else {
             Err(ConfigurationError::NoMatch(NoMatchWithPath::new(
                 MatchError::InvalidType("object", value.type_of()),
@@ -1066,6 +1078,7 @@ impl ConfigSpec {
 
     pub async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         cfg: &mut Config,
@@ -1074,10 +1087,10 @@ impl ConfigSpec {
             match cfg.get_mut(k) {
                 None => {
                     let mut v = Value::Null;
-                    vs.update(db, config_overrides, &mut v).await?;
+                    vs.update(ctx, db, config_overrides, &mut v).await?;
                     cfg.insert(k.clone(), v);
                 }
-                Some(v) => match vs.update(db, config_overrides, v).await {
+                Some(v) => match vs.update(ctx, db, config_overrides, v).await {
                     Err(ConfigurationError::NoMatch(e)) => {
                         Err(ConfigurationError::NoMatch(e.prepend(k.clone())))
                     }
@@ -1156,6 +1169,7 @@ impl ValueSpec for ValueSpecString {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         _db: &mut Db,
         _config_overrides: &IndexMap<PackageId, Config>,
         _value: &mut Value,
@@ -1365,6 +1379,7 @@ impl ValueSpec for ValueSpecUnion {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
@@ -1378,7 +1393,7 @@ impl ValueSpec for ValueSpecUnion {
                     None => Err(ConfigurationError::NoMatch(NoMatchWithPath::new(
                         MatchError::Union(tag.clone(), self.variants.keys().cloned().collect()),
                     ))),
-                    Some(spec) => spec.update(db, config_overrides, o).await,
+                    Some(spec) => spec.update(ctx, db, config_overrides, o).await,
                 },
                 Some(other) => Err(ConfigurationError::NoMatch(
                     NoMatchWithPath::new(MatchError::InvalidType("string", other.type_of()))
@@ -1505,13 +1520,14 @@ impl ValueSpec for ValueSpecPointer {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         match self {
-            ValueSpecPointer::Package(a) => a.update(db, config_overrides, value).await,
-            ValueSpecPointer::System(a) => a.update(db, config_overrides, value).await,
+            ValueSpecPointer::Package(a) => a.update(ctx, db, config_overrides, value).await,
+            ValueSpecPointer::System(a) => a.update(ctx, db, config_overrides, value).await,
         }
     }
     fn pointers(&self, _value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
@@ -1543,6 +1559,7 @@ impl fmt::Display for PackagePointerSpec {
 impl PackagePointerSpec {
     async fn deref<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
     ) -> Result<Value, ConfigurationError> {
@@ -1602,7 +1619,7 @@ impl PackagePointerSpec {
                         (&*version, &*cfg_actions, &*volumes)
                     {
                         let cfg_res = cfg_actions
-                            .get(&self.package_id, version, volumes)
+                            .get(&ctx, &self.package_id, version, volumes)
                             .await
                             .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                         if let Some(cfg) = cfg_res.config {
@@ -1646,11 +1663,12 @@ impl ValueSpec for PackagePointerSpec {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
-        *value = self.deref(db, config_overrides).await?;
+        *value = self.deref(ctx, db, config_overrides).await?;
         Ok(())
     }
     fn pointers(&self, _value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
@@ -1762,6 +1780,7 @@ impl ValueSpec for SystemPointerSpec {
     }
     async fn update<Db: DbHandle>(
         &self,
+        ctx: &RpcContext,
         db: &mut Db,
         _config_overrides: &IndexMap<PackageId, Config>,
         value: &mut Value,

@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use bollard::container::KillContainerOptions;
-use bollard::Docker;
 use futures::future::{BoxFuture, FutureExt};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -172,7 +171,7 @@ pub async fn get(
         .get(&mut db, true)
         .await?;
     let volumes = pkg_model.manifest().volumes().get(&mut db, true).await?;
-    action.get(&id, &*version, &*volumes).await
+    action.get(&ctx, &id, &*version, &*volumes).await
 }
 
 #[command(
@@ -205,8 +204,8 @@ pub async fn set_dry(
     let mut tx = db.begin().await?;
     let mut breakages = IndexMap::new();
     configure(
+        &ctx,
         &mut tx,
-        &ctx.docker,
         &id,
         config,
         &timeout,
@@ -241,8 +240,8 @@ pub async fn set_impl(
     let mut tx = db.begin().await?;
     let mut breakages = IndexMap::new();
     configure(
+        &ctx,
         &mut tx,
-        &ctx.docker,
         &id,
         config,
         &timeout,
@@ -270,8 +269,8 @@ pub async fn set_impl(
 }
 
 pub fn configure<'a, Db: DbHandle>(
+    ctx: &'a RpcContext,
     db: &'a mut Db,
-    docker: &'a Docker,
     id: &'a PackageId,
     config: Option<Config>,
     timeout: &'a Option<Duration>,
@@ -311,7 +310,7 @@ pub fn configure<'a, Db: DbHandle>(
         let ConfigRes {
             config: old_config,
             spec,
-        } = action.get(id, &*version, &*volumes).await?;
+        } = action.get(ctx, id, &*version, &*volumes).await?;
 
         // determine new config to use
         let mut config = if let Some(config) = config.or_else(|| old_config.clone()) {
@@ -321,7 +320,7 @@ pub fn configure<'a, Db: DbHandle>(
         };
 
         spec.matches(&config)?; // check that new config matches spec
-        spec.update(db, &*overrides, &mut config).await?; // dereference pointers in the new config
+        spec.update(ctx, db, &*overrides, &mut config).await?; // dereference pointers in the new config
 
         // create backreferences to pointers
         let mut sys = pkg_model.clone().system_pointers().get_mut(db).await?;
@@ -360,7 +359,7 @@ pub fn configure<'a, Db: DbHandle>(
         let signal = if !dry_run {
             // run config action
             let res = action
-                .set(id, &*version, &*dependencies, &*volumes, &config)
+                .set(ctx, id, &*version, &*dependencies, &*volumes, &config)
                 .await?;
 
             // track dependencies with no pointers
@@ -489,7 +488,13 @@ pub fn configure<'a, Db: DbHandle>(
             {
                 let manifest = dependent_model.clone().manifest().get(db, true).await?;
                 if let Err(error) = cfg
-                    .check(dependent, &manifest.version, &manifest.volumes, &config)
+                    .check(
+                        ctx,
+                        dependent,
+                        &manifest.version,
+                        &manifest.volumes,
+                        &config,
+                    )
                     .await?
                 {
                     let dep_err = DependencyError::ConfigUnsatisfied { error };
@@ -509,7 +514,7 @@ pub fn configure<'a, Db: DbHandle>(
                     if let PackagePointerSpecVariant::Config { selector, multi } = ptr {
                         if selector.select(*multi, &next) != selector.select(*multi, &prev) {
                             if let Err(e) = configure(
-                                db, docker, dependent, None, timeout, dry_run, overrides, breakages,
+                                ctx, db, dependent, None, timeout, dry_run, overrides, breakages,
                             )
                             .await
                             {
@@ -542,7 +547,7 @@ pub fn configure<'a, Db: DbHandle>(
         }
 
         if let Some(signal) = signal {
-            docker
+            ctx.docker
                 .kill_container(
                     &DockerAction::container_name(id, None),
                     Some(KillContainerOptions {

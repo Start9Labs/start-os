@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::{IoFormat, Version};
@@ -36,6 +37,7 @@ pub struct DockerAction {
 impl DockerAction {
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         name: Option<&str>,
@@ -55,7 +57,7 @@ impl DockerAction {
                 .arg(Self::container_name(pkg_id, name));
         }
         cmd.args(
-            self.docker_args(pkg_id, pkg_version, volumes, allow_inject)
+            self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
                 .await,
         );
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
@@ -108,6 +110,7 @@ impl DockerAction {
 
     pub async fn sandboxed<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -116,7 +119,7 @@ impl DockerAction {
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run").arg("--rm").arg("--network=none");
         cmd.args(
-            self.docker_args(pkg_id, pkg_version, &volumes.to_readonly(), false)
+            self.docker_args(ctx, pkg_id, pkg_version, &volumes.to_readonly(), false)
                 .await,
         );
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
@@ -187,6 +190,7 @@ impl DockerAction {
 
     async fn docker_args<'a>(
         &'a self,
+        ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -204,7 +208,7 @@ impl DockerAction {
             } else {
                 continue;
             };
-            let src = dbg!(volume.path_for(pkg_id, pkg_version, volume_id));
+            let src = dbg!(volume.path_for(ctx, pkg_id, pkg_version, volume_id));
             if tokio::fs::metadata(&src).await.is_err() {
                 continue;
             }

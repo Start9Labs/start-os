@@ -5,6 +5,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::action::ActionImplementation;
+use crate::context::RpcContext;
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
@@ -46,6 +47,7 @@ pub struct HealthChecks(pub IndexMap<HealthCheckId, HealthCheck>);
 impl HealthChecks {
     pub async fn check_all(
         &self,
+        ctx: &RpcContext,
         started: &DateTime<Utc>,
         pkg_id: &PackageId,
         pkg_version: &Version,
@@ -55,7 +57,7 @@ impl HealthChecks {
             Ok::<_, Error>((
                 id.clone(),
                 check
-                    .check(id, started, pkg_id, pkg_version, volumes)
+                    .check(ctx, id, started, pkg_id, pkg_version, volumes)
                     .await?,
             ))
         }))
@@ -73,6 +75,7 @@ pub struct HealthCheck {
 impl HealthCheck {
     pub async fn check(
         &self,
+        ctx: &RpcContext,
         id: &HealthCheckId,
         started: &DateTime<Utc>,
         pkg_id: &PackageId,
@@ -82,6 +85,7 @@ impl HealthCheck {
         let res = self
             .implementation
             .execute(
+                ctx,
                 pkg_id,
                 pkg_version,
                 Some(&format!("{}Health", id)),
