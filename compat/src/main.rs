@@ -69,6 +69,11 @@ fn inner_main() -> Result<(), anyhow::Error> {
             SubCommand::with_name("dependency").subcommand(
                 SubCommand::with_name("check")
                     .arg(
+                        Arg::with_name("app_id")
+                            .help("identifier of the dependency")
+                            .required(true),
+                    )
+                    .arg(
                         Arg::with_name("mountpoint")
                             .help("Path to the config rules file")
                             .required(true),
