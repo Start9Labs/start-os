@@ -154,7 +154,7 @@ export class AppComponent {
     } else {
       url = 'https://start9.com'
     }
-    window.open(url, '_blank')
+    window.open(url, '_blank', 'noreferrer')
   }
 
   async presentAlertLogout () {
@@ -347,7 +347,7 @@ export class AppComponent {
           side: 'end',
           text: 'View solutions',
           handler: () => {
-            window.open(link, '_blank')
+            window.open(link, '_blank', 'noreferrer')
             return false
           },
         },

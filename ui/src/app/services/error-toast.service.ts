@@ -57,7 +57,7 @@ export function getErrorMessage (e: RequestError, link?: string): string | Ionic
   }
 
   if (link) {
-    message = new IonicSafeString(`${message}<br /><br /><a href=${link} target="_blank" style="color: white;">Get Help</a>`)
+    message = new IonicSafeString(`${message}<br /><br /><a href=${link} target="_blank" rel="noreferrer" style="color: white;">Get Help</a>`)
   }
 
   return message

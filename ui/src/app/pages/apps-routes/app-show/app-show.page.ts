@@ -79,7 +79,7 @@ export class AppShowPage {
   }
 
   launchUi (): void {
-    window.open(this.config.launchableURL(this.pkg), '_blank')
+    window.open(this.config.launchableURL(this.pkg), '_blank', 'noreferrer')
   }
 
   async stop (): Promise<void> {
@@ -124,7 +124,7 @@ export class AppShowPage {
   async donate (): Promise<void> {
     const url = this.pkg.manifest['donation-url']
     if (url) {
-      window.open(url, '_blank')
+      window.open(url, '_blank', 'noreferrer')
     } else {
       const alert = await this.alertCtrl.create({
         header: 'Not Accepting Donations',

@@ -79,7 +79,7 @@ export class AppInterfacesItemComponent {
   ) { }
 
   launch (url: string): void {
-    window.open(url, '_blank')
+    window.open(url, '_blank', 'noreferrer')
   }
 
   async copy (address: string): Promise<void> {
