@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
@@ -29,6 +30,7 @@ pub struct RpcContextConfig {
     pub bind_ws: Option<SocketAddr>,
     pub tor_control: Option<SocketAddr>,
     pub revision_cache_size: Option<usize>,
+    pub zfs_pool_name: Option<String>,
     pub datadir: Option<PathBuf>,
 }
 impl RpcContextConfig {
@@ -43,14 +45,20 @@ impl RpcContextConfig {
         {
             from_toml_async_reader(f).await
         } else {
-            Ok(RpcContextConfig::default())
+            Ok(Self::default())
         }
     }
-    pub fn datadir(&self) -> &Path {
+    pub fn zfs_pool_name(&self) -> &str {
+        self.zfs_pool_name
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or("embassy-data")
+    }
+    pub fn datadir(&self) -> Cow<'_, Path> {
         self.datadir
             .as_ref()
-            .map(|a| a.as_path())
-            .unwrap_or_else(|| Path::new("/embassy-data"))
+            .map(|a| Cow::Borrowed(a.as_path()))
+            .unwrap_or_else(|| Cow::Owned(Path::new("/").join(self.zfs_pool_name())))
     }
     pub async fn db(&self) -> Result<PatchDb, Error> {
         PatchDb::open(self.datadir().join("main").join("embassy.db"))
@@ -78,6 +86,7 @@ pub struct RpcContextSeed {
     pub bind_rpc: SocketAddr,
     pub bind_ws: SocketAddr,
     pub datadir: PathBuf,
+    pub zfs_pool_name: Arc<String>,
     pub db: PatchDb,
     pub secret_store: SqlitePool,
     pub docker: Docker,
@@ -92,11 +101,9 @@ pub struct RpcContextSeed {
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
-    pub async fn init<P: AsRef<Path>>(
-        cfg_path: Option<P>,
-        shutdown: Sender<Option<Shutdown>>,
-    ) -> Result<Self, Error> {
+    pub async fn init<P: AsRef<Path>>(cfg_path: Option<P>) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
+        let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let db = base.db().await?;
         let secret_store = base.secret_store().await?;
         let docker = Docker::connect_with_unix_defaults()?;
@@ -112,6 +119,7 @@ impl RpcContext {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             datadir: base.datadir().to_path_buf(),
+            zfs_pool_name: Arc::new(base.zfs_pool_name().to_owned()),
             db,
             secret_store,
             docker,
