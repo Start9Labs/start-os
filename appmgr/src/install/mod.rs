@@ -36,8 +36,8 @@ use crate::{Error, ResultExt};
 pub mod cleanup;
 pub mod progress;
 
-pub const PKG_CACHE: &'static str = "main/cache/packages";
-pub const PKG_PUBLIC_DIR: &'static str = "main/public/package-data";
+pub const PKG_CACHE: &'static str = "package-data/cache";
+pub const PKG_PUBLIC_DIR: &'static str = "package-data/public";
 
 #[command(display(display_none))]
 pub async fn install(

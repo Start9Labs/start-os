@@ -13,7 +13,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::Error;
 
-pub const PKG_VOLUME_DIR: &'static str = "main/volumes/package-data";
+pub const PKG_VOLUME_DIR: &'static str = "package-data/volumes";
 pub const BACKUP_DIR: &'static str = "/mnt/embassy-os-backups/EmbassyBackups";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

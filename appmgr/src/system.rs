@@ -1,43 +1,50 @@
 use std::fmt;
 
 use rpc_toolkit::command;
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::context::RpcContext;
-use crate::logs::{LogResponse, LogSource, fetch_logs};
-use crate::{Error, ErrorKind, ResultExt};
+use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
+use crate::util::{display_serializable, IoFormat};
+use crate::{Error, ErrorKind};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
-#[command(rpc_only)]
+#[command(display(display_logs))]
 pub async fn logs(
-    #[context] ctx: RpcContext,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
     #[arg] before_flag: Option<bool>,
 ) -> Result<LogResponse, Error> {
-    Ok(fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before_flag.unwrap_or(false)).await?)
+    Ok(fetch_logs(
+        LogSource::Service(SYSTEMD_UNIT),
+        limit,
+        cursor,
+        before_flag.unwrap_or(false),
+    )
+    .await?)
 }
 
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Celsius(f64);
 impl fmt::Display for Celsius {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:.1}°C", self.0)
     }
 }
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Percentage(f64);
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MebiBytes(f64);
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct GigaBytes(f64);
 
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsGeneral {
     temperature: Celsius,
 }
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsMemory {
     percentage_used: Percentage,
     total: MebiBytes,
@@ -47,7 +54,7 @@ pub struct MetricsMemory {
     swap_free: MebiBytes,
     swap_used: MebiBytes,
 }
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsCpu {
     user_space: Percentage,
     kernel_space: Percentage,
@@ -55,14 +62,14 @@ pub struct MetricsCpu {
     idle: Percentage,
     usage: Percentage,
 }
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsDisk {
     size: GigaBytes,
     used: GigaBytes,
     available: GigaBytes,
     used_percentage: Percentage,
 }
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Metrics {
     general: MetricsGeneral,
     memory: MetricsMemory,
@@ -70,8 +77,13 @@ pub struct Metrics {
     disk: MetricsDisk,
 }
 
-#[command(rpc_only)]
-pub async fn metrics(#[context] ctx: RpcContext) -> Result<Metrics, Error> {
+#[command(display(display_serializable))]
+pub async fn metrics(
+    #[context] ctx: RpcContext,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
+) -> Result<Metrics, Error> {
     match ctx.metrics_cache.read().await.clone() {
         None => Err(Error {
             source: anyhow::anyhow!("No Metrics Found"),
