@@ -8,6 +8,7 @@ use embassy::hostname::{get_hostname, get_id};
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
 use embassy::net::tor::{os_key, tor_health_check};
+use embassy::shutdown::Shutdown;
 use embassy::status::{check_all, synchronize_all};
 use embassy::util::daemon;
 use embassy::{Error, ErrorKind, ResultExt};
@@ -30,10 +31,9 @@ fn err_to_500(e: Error) -> Response<Body> {
         .unwrap()
 }
 
-async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
-    let (shutdown, _) = tokio::sync::broadcast::channel(1);
-
-    let rpc_ctx = RpcContext::init(cfg_path, shutdown).await?;
+async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
+    let rpc_ctx = RpcContext::init(cfg_path).await?;
+    let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
     let sig_handler_ctx = rpc_ctx.clone();
     let sig_handler = tokio::spawn(async move {
@@ -223,7 +223,10 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
 
     sig_handler.abort();
 
-    Ok(())
+    Ok(shutdown_recv
+        .recv()
+        .await
+        .with_kind(crate::ErrorKind::Unknown)?)
 }
 
 fn main() {
@@ -251,11 +254,16 @@ fn main() {
         _ => log::LevelFilter::Trace,
     });
     let cfg_path = matches.value_of("config");
-    let rt = tokio::runtime::Runtime::new().expect("failed to initialize runtime");
-    match rt.block_on(inner_main(cfg_path)) {
-        Ok(_) => (),
+
+    let res = {
+        let rt = tokio::runtime::Runtime::new().expect("failed to initialize runtime");
+        rt.block_on(inner_main(cfg_path))
+    };
+
+    match res {
+        Ok(None) => (),
+        Ok(Some(s)) => s.execute(),
         Err(e) => {
-            drop(rt);
             eprintln!("{}", e.source);
             log::debug!("{:?}", e.source);
             drop(e.source);

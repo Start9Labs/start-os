@@ -2,7 +2,9 @@ use digest::Digest;
 use tokio::process::Command;
 
 use crate::util::Invoke;
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, ResultExt};
+
+pub const PRODUCT_KEY_PATH: &'static str = "/boot/embassy-os/product_key.txt";
 
 pub async fn get_hostname() -> Result<String, Error> {
     let out = Command::new("hostname")
@@ -22,7 +24,9 @@ pub async fn set_hostname(hostname: &str) -> Result<(), Error> {
 }
 
 pub async fn get_product_key() -> Result<String, Error> {
-    let out = tokio::fs::read_to_string("/boot/embassy-os/product_key.txt").await?;
+    let out = tokio::fs::read_to_string(PRODUCT_KEY_PATH)
+        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, PRODUCT_KEY_PATH))?;
     Ok(out.trim().to_owned())
 }
 

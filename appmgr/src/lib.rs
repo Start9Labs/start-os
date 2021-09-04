@@ -65,12 +65,18 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     s9pk::pack,
     s9pk::verify,
     inspect::inspect,
+    server,
     package,
     net::net,
     auth::auth,
     db::db,
 ))]
 pub fn main_api() -> Result<(), RpcError> {
+    Ok(())
+}
+
+#[command(subcommands(system::logs, system::metrics, shutdown::shutdown, shutdown::restart))]
+pub fn server() -> Result<(), RpcError> {
     Ok(())
 }
 
@@ -94,5 +100,15 @@ pub fn package() -> Result<(), RpcError> {
     inspect::inspect
 ))]
 pub fn portable_api() -> Result<(), RpcError> {
+    Ok(())
+}
+
+#[command(subcommands(version::git_info, echo,))]
+pub fn recovery_api() -> Result<(), RpcError> {
+    Ok(())
+}
+
+#[command(subcommands(version::git_info, echo,))]
+pub fn setup_api() -> Result<(), RpcError> {
     Ok(())
 }
