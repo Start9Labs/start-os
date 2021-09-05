@@ -785,30 +785,30 @@ export module Mock {
   export const ServerLogs: Log[] = [
     {
       timestamp: '2019-12-26T14:20:30.872Z',
-      log: '****** START *****',
+      message: '****** START *****',
     },
     {
       timestamp: '2019-12-26T14:21:30.872Z',
-      log: 'ServerLogs ServerLogs ServerLogs ServerLogs ServerLogs',
+      message: 'ServerLogs ServerLogs ServerLogs ServerLogs ServerLogs',
     },
     {
       timestamp: '2019-12-26T14:22:30.872Z',
-      log: '****** FINISH *****',
+      message: '****** FINISH *****',
     },
   ]
 
   export const PackageLogs: Log[] = [
     {
       timestamp: '2019-12-26T14:20:30.872Z',
-      log: '****** START *****',
+      message: '****** START *****',
     },
     {
       timestamp: '2019-12-26T14:21:30.872Z',
-      log: 'PackageLogs PackageLogs PackageLogs PackageLogs PackageLogs',
+      message: 'PackageLogs PackageLogs PackageLogs PackageLogs PackageLogs',
     },
     {
       timestamp: '2019-12-26T14:22:30.872Z',
-      log: '****** FINISH *****',
+      message: '****** FINISH *****',
     },
   ]
 

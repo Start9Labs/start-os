@@ -137,7 +137,7 @@ export module RR {
   export type GetPackagePropertiesReq = { id: string } // package.properties
   export type GetPackagePropertiesRes<T extends number> = PackagePropertiesVersioned<T>
 
-  export type LogsRes = { logs: Log[], startCursor?: string, endCursor?: string }
+  export type LogsRes = { entries: Log[], 'start-cursor'?: string, 'end-cursor'?: string }
 
   export type GetPackageLogsReq = { id: string, cursor?: string, before_flag?: boolean, limit?: number } // package.logs
   export type GetPackageLogsRes = LogsRes
@@ -250,7 +250,7 @@ export interface TaggedDependencyError {
 
 export interface Log {
   timestamp: string
-  log: string
+  message: string
 }
 
 export interface ActionResponse {

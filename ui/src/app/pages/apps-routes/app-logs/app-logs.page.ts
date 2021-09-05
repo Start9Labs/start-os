@@ -1,4 +1,5 @@
 import { Component } from '@angular/core'
+import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
@@ -13,14 +14,17 @@ export class AppLogsPage {
   before: string
 
   constructor (
+    private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
-  ) { }
+  ) {
+    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+
+  }
 
   fetchFetchLogs () {
     return async (params: { before_flag?: boolean, limit?: number, cursor?: string }) => {
-      const pkgId = this.pkgId
       return this.embassyApi.getPackageLogs({
-        id: pkgId,
+        id: this.pkgId,
         before_flag: params.before_flag,
         cursor: params.cursor,
         limit: params.limit,

@@ -38,15 +38,16 @@ export class LogsPage {
         limit: this.limit,
       })
 
-      if (isBefore && logsRes.startCursor) {
-        this.startCursor = logsRes.startCursor
+      if ((isBefore || this.startCursor) && logsRes['start-cursor']) {
+        this.startCursor = logsRes['start-cursor']
       }
-      if (!isBefore && logsRes.endCursor) {
-        this.endCursor = logsRes.endCursor
+
+      if ((!isBefore || !this.endCursor) && logsRes['end-cursor']) {
+        this.endCursor = logsRes['end-cursor']
       }
       this.loading = false
 
-      return logsRes.logs
+      return logsRes.entries
     } catch (e) {
       this.errToast.present(e)
     }
@@ -61,7 +62,7 @@ export class LogsPage {
       const container = document.getElementById('container')
       const beforeContainerHeight = container.scrollHeight
       const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n') + (logs.length ? '\n\n' : '')
+      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.message}`).join('\n\n') + (logs.length ? '\n\n' : '')
       container.prepend(newLogs)
       const afterContainerHeight = container.scrollHeight
 
@@ -84,7 +85,7 @@ export class LogsPage {
 
       const container = document.getElementById('container')
       const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.log}`).join('\n\n') + (logs.length ? '\n\n' : '')
+      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.message}`).join('\n\n') + (logs.length ? '\n\n' : '')
       container.append(newLogs)
       this.loadingMore = false
       this.scrollEvent()
