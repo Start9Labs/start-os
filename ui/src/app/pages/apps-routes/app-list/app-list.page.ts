@@ -72,7 +72,6 @@ export class AppListPage {
           }
           // subscribe to pkg
           this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
-            console.log('package', pkg)
             let bulbClass = 'bulb-on'
             let img = ''
             const statusRendering = renderPkgStatus(pkg.state, pkg.installed?.status)
