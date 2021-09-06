@@ -8,7 +8,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "build-prod": "ng build --prod && tsc postprocess.ts && node postprocess.js && git log | head -n1 > www/git-hash.txt",
+    "build-prod": "ng build --configuration production && tsc postprocess.ts && node postprocess.js && git log | head -n1 > www/git-hash.txt",
     "lint": "ng lint"
   },
   "dependencies": {

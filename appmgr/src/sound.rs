@@ -20,7 +20,7 @@ lazy_static::lazy_static! {
     static ref SOUND_MUTEX: Mutex<Option<fd_lock_rs::FdLock<tokio::fs::File>>> = Mutex::new(None);
 }
 
-pub const SOUND_LOCK_FILE: &'static str = "/TODO/AIDEN/CHANGEME";
+pub const SOUND_LOCK_FILE: &'static str = "/etc/embassy/sound.lock";
 
 struct SoundInterface(Option<MutexGuard<'static, Option<fd_lock_rs::FdLock<tokio::fs::File>>>>);
 impl SoundInterface {

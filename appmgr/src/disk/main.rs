@@ -51,7 +51,7 @@ pub async fn create_fs(cfg: &RpcContextConfig) -> Result<(), Error> {
         .arg("-o")
         .arg("keylocation=file:///etc/embassy/password")
         .arg("-o")
-        .arg("keyformat=password")
+        .arg("keyformat=passphrase")
         .arg(format!("{}/main", cfg.zfs_pool_name()))
         .invoke(crate::ErrorKind::Zfs)
         .await?;
@@ -62,7 +62,7 @@ pub async fn create_fs(cfg: &RpcContextConfig) -> Result<(), Error> {
         .arg("-o")
         .arg("keylocation=file:///etc/embassy/password")
         .arg("-o")
-        .arg("keyformat=password")
+        .arg("keyformat=passphrase")
         .arg(format!("{}/package-data", cfg.zfs_pool_name()))
         .invoke(crate::ErrorKind::Zfs)
         .await?;
@@ -175,6 +175,11 @@ pub async fn mount(cfg: &RpcContextConfig, password: &str) -> Result<(), Error> 
     Command::new("zfs")
         .arg("load-key")
         .arg(format!("{}/main", cfg.zfs_pool_name()))
+        .invoke(crate::ErrorKind::Zfs)
+        .await?;
+    Command::new("zfs")
+        .arg("load-key")
+        .arg(format!("{}/package-data", cfg.zfs_pool_name()))
         .invoke(crate::ErrorKind::Zfs)
         .await?;
     tokio::fs::remove_file(PASSWORD_PATH)

@@ -61,9 +61,10 @@ impl RpcContextConfig {
             .unwrap_or_else(|| Cow::Owned(Path::new("/").join(self.zfs_pool_name())))
     }
     pub async fn db(&self) -> Result<PatchDb, Error> {
-        PatchDb::open(self.datadir().join("main").join("embassy.db"))
+        let db_path = self.datadir().join("main").join("embassy.db");
+        PatchDb::open(&db_path)
             .await
-            .map_err(Error::from)
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))
     }
     pub async fn secret_store(&self) -> Result<SqlitePool, Error> {
         let secret_store_url = format!(
