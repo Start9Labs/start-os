@@ -23,7 +23,7 @@ use crate::{Error, ErrorKind, ResultExt as _};
 
 #[test]
 fn random_key() {
-    println!("'0x{}'", hex::encode(TorSecretKeyV3::generate().as_bytes()));
+    println!("x'{}'", hex::encode(TorSecretKeyV3::generate().as_bytes()));
 }
 
 #[command(subcommands(list_services))]
