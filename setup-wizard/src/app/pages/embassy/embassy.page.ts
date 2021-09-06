@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { AlertController, iosTransitionAnimation, LoadingController, ModalController, NavController } from '@ionic/angular'
+import { iosTransitionAnimation, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { ApiService, EmbassyDrive } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
@@ -13,6 +13,7 @@ export class EmbassyPage {
   embassyDrives = []
   selectedDrive: EmbassyDrive = null
   loading = true
+  window = window
 
   constructor(
     private readonly apiService: ApiService,

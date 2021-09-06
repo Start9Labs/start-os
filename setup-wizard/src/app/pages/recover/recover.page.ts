@@ -14,6 +14,7 @@ export class RecoverPage {
   recoveryDrives = []
   selectedDrive: RecoveryDrive = null
   loading = true
+  window = window
 
   constructor(
     private readonly apiService: ApiService,
