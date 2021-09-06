@@ -24,6 +24,7 @@ impl Shutdown {
             Command::new("reboot").spawn().unwrap().wait().unwrap();
         } else {
             Command::new("shutdown")
+                .arg("-h")
                 .arg("now")
                 .spawn()
                 .unwrap()

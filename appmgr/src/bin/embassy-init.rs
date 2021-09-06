@@ -48,6 +48,13 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         false,
     )
     .await?;
+    // cp -r "/var/lib/docker", "/tmp/docker-data"
+    embassy::disk::util::bind(
+        "/tmp/docker-data",
+        "/var/lib/journal",
+        false,
+    )
+    .await?;
     embassy::ssh::sync_keys_from_db(todo!(), "/root/.ssh/authorized_keys").await?;
     todo!("sync wifi");
     embassy::hostname::sync_hostname().await?;
@@ -92,8 +99,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
         })
         .await
         .with_kind(embassy::ErrorKind::Network)?;
-    } else {
-        embassy::sound::MARIO_COIN.play().await?;
     }
 
     Ok(())
