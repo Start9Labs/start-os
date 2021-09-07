@@ -71,6 +71,7 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     auth::auth,
     db::db,
     ssh::ssh,
+    net::wifi::wifi
 ))]
 pub fn main_api() -> Result<(), RpcError> {
     Ok(())
