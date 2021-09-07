@@ -107,7 +107,7 @@ export module RR {
 
   // ssh
 
-  export type GetSSHKeysReq = { } // ssh.get
+  export type GetSSHKeysReq = { } // ssh.list
   export type GetSSHKeysRes = SSHKeys
 
   export type AddSSHKeyReq = { pubkey: string } // ssh.add

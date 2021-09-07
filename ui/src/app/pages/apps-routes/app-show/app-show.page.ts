@@ -13,6 +13,7 @@ import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
+import { PackageLoadingService } from 'src/app/services/package-loading.service'
 
 @Component({
   selector: 'app-show',
@@ -47,6 +48,7 @@ export class AppShowPage {
     private readonly embassyApi: ApiService,
     private readonly wizardBaker: WizardBaker,
     private readonly config: ConfigService,
+    private readonly packageLoadingService: PackageLoadingService,
     public readonly patch: PatchDbService,
     public readonly connectionService: ConnectionService,
   ) { }

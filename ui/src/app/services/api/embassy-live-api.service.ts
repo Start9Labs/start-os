@@ -171,7 +171,7 @@ export class LiveApiService extends ApiService {
   // ssh
 
   async getSshKeys (params: RR.GetSSHKeysReq): Promise <RR.GetSSHKeysRes> {
-    return this.http.rpcRequest({ method: 'ssh.get', params })
+    return this.http.rpcRequest({ method: 'ssh.list', params })
   }
 
   async addSshKey (params: RR.AddSSHKeyReq): Promise <RR.AddSSHKeyRes> {

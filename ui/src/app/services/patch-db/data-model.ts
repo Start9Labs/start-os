@@ -25,10 +25,6 @@ export interface ServerInfo {
     disk: string
     memory: string
   }
-  'connection-addresses': {
-    tor: string[]
-    clearnet: string[]
-  }
 }
 
 export enum ServerStatus {
