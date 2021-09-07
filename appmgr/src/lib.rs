@@ -36,6 +36,7 @@ pub mod manager;
 pub mod middleware;
 pub mod migration;
 pub mod net;
+pub mod properties;
 pub mod registry;
 pub mod s9pk;
 pub mod shutdown;
@@ -87,6 +88,7 @@ pub fn server() -> Result<(), RpcError> {
     control::start,
     control::stop,
     logs::logs,
+    properties::properties,
 ))]
 pub fn package() -> Result<(), RpcError> {
     Ok(())
