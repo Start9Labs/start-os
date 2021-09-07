@@ -70,6 +70,7 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     net::net,
     auth::auth,
     db::db,
+    ssh::ssh,
 ))]
 pub fn main_api() -> Result<(), RpcError> {
     Ok(())
