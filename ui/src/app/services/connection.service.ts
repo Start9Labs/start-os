@@ -39,13 +39,8 @@ export class ConnectionService {
       .pipe(
         distinctUntilChanged(),
       ),
-      // 3
-      this.patch.watch$('server-info', 'connection-addresses')
-      .pipe(
-        distinctUntilChanged(),
-      ),
     ])
-    .subscribe(async ([network, patchConnection, addrs]) => {
+    .subscribe(async ([network, patchConnection]) => {
       if (patchConnection !== PatchConnection.Disconnected) {
         this.connectionFailure$.next(ConnectionFailure.None)
       } else if (!network) {
@@ -53,48 +48,10 @@ export class ConnectionService {
       } else if (!this.configService.isTor()) {
         this.connectionFailure$.next(ConnectionFailure.Lan)
       } else {
-        // diagnosing
-        this.connectionFailure$.next(ConnectionFailure.Diagnosing)
-
-        if (!addrs) {
-          this.connectionFailure$.next(ConnectionFailure.Unknown)
-        } else {
-          const torSuccess = await this.testAddrs(addrs.tor)
-          if (torSuccess) {
-            // TOR SUCCESS, EMBASSY IS PROBLEM
-            this.connectionFailure$.next(ConnectionFailure.Embassy)
-          } else {
-            const clearnetSuccess = await this.testAddrs(addrs.clearnet)
-            if (clearnetSuccess) {
-              // CLEARNET SUCCESS, TOR IS PROBLEM
-              this.connectionFailure$.next(ConnectionFailure.Tor)
-            } else {
-              // INTERNET IS PROBLEM
-              this.connectionFailure$.next(ConnectionFailure.Internet)
-            }
-          }
-        }
+        this.connectionFailure$.next(ConnectionFailure.Tor)
       }
     })
     return [sub1, sub2]
-  }
-
-  private async testAddrs (addrs: string[]): Promise<boolean> {
-    if (!addrs.length) return true
-
-    const results = await Promise.all(addrs.map(async addr => {
-      try {
-        await this.httpService.httpRequest({
-          method: Method.GET,
-          url: addr,
-          withCredentials: false,
-        })
-        return true
-      } catch (e) {
-        return false
-      }
-    }))
-    return results.includes(true)
   }
 }
 
@@ -102,9 +59,6 @@ export enum ConnectionFailure {
   None = 'none',
   Diagnosing = 'diagnosing',
   Network = 'network',
-  Embassy = 'embassy',
   Tor = 'tor',
   Lan = 'lan',
-  Internet = 'internet',
-  Unknown = 'unknown',
 }
