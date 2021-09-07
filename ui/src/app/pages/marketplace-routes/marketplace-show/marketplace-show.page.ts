@@ -48,7 +48,9 @@ export class MarketplaceShowPage {
     this.subs = [
       this.patch.watch$('package-data', this.pkgId)
       .subscribe(pkg => {
+        if (!pkg) return
         this.localPkg = pkg
+        this.localPkg['install-progress'] = { ...this.localPkg['install-progress'] }
       }),
     ]
 
