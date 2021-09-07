@@ -75,21 +75,11 @@ export function hasLanUi (interfaces: { [id: string]: InterfaceDef }): boolean {
 }
 
 export function torUiAddress (pkg: PackageDataEntry): string {
-  const interfaces = pkg.manifest.interfaces
-  const id = Object.keys(interfaces).find(key => {
-    const val = interfaces[key]
-    return val.ui && val['tor-config']
-  })
-  return pkg.installed['interface-info'].addresses[id]['tor-address']
+  return pkg.installed?.['interface-addresses']?.ui?.['tor-address']
 }
 
 export function lanUiAddress (pkg: PackageDataEntry): string {
-  const interfaces = pkg.manifest.interfaces
-  const id = Object.keys(interfaces).find(key => {
-    const val = interfaces[key]
-    return val.ui && val['lan-config']
-  })
-  return pkg.installed['interface-info'].addresses[id]['lan-address']
+  return pkg.installed?.['interface-addresses']?.ui?.['lan-address']
 }
 
 export function hasUi (interfaces: { [id: string]: InterfaceDef }): boolean {
