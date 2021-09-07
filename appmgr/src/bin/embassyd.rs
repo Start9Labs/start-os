@@ -117,8 +117,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         }
     });
 
-    // let tor_health_check_task =
-    //     embassy::daemon::tor_health_check::tor_health_check_daemon(&rpc_ctx.net_controller.tor);
     let ws_ctx = rpc_ctx.clone();
     let ws_server = {
         let builder = Server::bind(&ws_ctx.bind_ws);
@@ -200,7 +198,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         rpc_ctx.shutdown.subscribe(),
     );
 
-    // embassy::sound::MARIO_COIN.play().await?;
+    embassy::sound::MARIO_COIN.play().await?;
 
     futures::try_join!(
         server.map_err(|e| Error::new(e, ErrorKind::Network)),
