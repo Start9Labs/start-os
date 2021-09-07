@@ -190,7 +190,7 @@ pub fn set(
     Ok((id, config, timeout, expire_id))
 }
 
-#[command(display(display_serializable))]
+#[command(rename = "dry", display(display_serializable))]
 pub async fn set_dry(
     #[context] ctx: RpcContext,
     #[parent_data] (id, config, timeout, _): (
