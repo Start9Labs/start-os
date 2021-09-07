@@ -86,9 +86,9 @@ impl SoundInterface {
     ) -> Result<(), Error> {
         {
             self.play(note).await?;
-            tokio::time::sleep(time_slice.to_duration((tempo_qpm as u64 * 19 / 20) as u16)).await;
+            tokio::time::sleep(time_slice.to_duration(tempo_qpm) * 19 / 20).await;
             self.stop().await?;
-            tokio::time::sleep(time_slice.to_duration(tempo_qpm / 20)).await;
+            tokio::time::sleep(time_slice.to_duration(tempo_qpm) / 20).await;
             Ok(())
         }
         .or_else(|e: Error| {
