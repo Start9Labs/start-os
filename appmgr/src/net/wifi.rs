@@ -517,6 +517,15 @@ pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<Count
     )))
 }
 
+pub async fn synchronize_wpa_supplicant_conf(main_datadir: &std::path::Path) -> Result<(), Error> {
+    let source = main_datadir.join("wpa_supplicant.conf");
+    if tokio::fs::metadata(&source).await.is_err() {
+        tokio::fs::write(&source, include_str!("wpa_supplicant.conf.template")).await?;
+    }
+    tokio::fs::symlink(&source, "/etc/wpa_supplicant.conf").await?;
+    Ok(())
+}
+
 #[tokio::test]
 pub async fn test_interface_connected() {
     println!("{}", interface_connected("wlp5s0").await.unwrap());

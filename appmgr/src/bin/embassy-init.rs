@@ -110,6 +110,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .await?;
     }
     log::info!("Enabled nginx public dir");
+    embassy::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
 
     Ok(())
 }
