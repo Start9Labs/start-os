@@ -1536,10 +1536,6 @@ export module Mock {
   //         disk: '1TB SSD',
   //         memory: '8GB',
   //       },
-  //       'connection-addresses': {
-  //         tor: ['http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion'],
-  //         clearnet: ['https://start9.com'],
-  //       },
   //     },
   //     'package-data': {
   //       'bitcoind': bitcoind,
