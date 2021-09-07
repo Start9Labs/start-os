@@ -223,7 +223,7 @@ pub enum TimeSlice {
 }
 impl TimeSlice {
     pub fn to_duration(&self, tempo_qpm: u16) -> Duration {
-        let micros_per_quarter = (tempo_qpm as f64) * 1_000_000f64;
+        let micros_per_quarter = 1_000_000f64 * 60f64 / tempo_qpm as f64;
         match &self {
             &Self::Sixteenth => Duration::from_micros((micros_per_quarter / 4.0) as u64),
             &Self::Eighth => Duration::from_micros((micros_per_quarter / 2.0) as u64),
