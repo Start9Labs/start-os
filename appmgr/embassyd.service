@@ -1,8 +1,7 @@
 [Unit]
 Description=Embassy Daemon
-After=network.target systemd-time-wait-sync.service
-Requires=network.target
-Wants=avahi-daemon.service
+After=embassy-init.service
+Requires=embassy-init.service
 
 [Service]
 Type=simple

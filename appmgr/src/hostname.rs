@@ -4,7 +4,7 @@ use tokio::process::Command;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
-pub const PRODUCT_KEY_PATH: &'static str = "/boot/embassy-os/product_key.txt";
+pub const PRODUCT_KEY_PATH: &'static str = "/embassy-os/product_key.txt";
 
 pub async fn get_hostname() -> Result<String, Error> {
     let out = Command::new("hostname")
@@ -38,7 +38,7 @@ pub async fn get_id() -> Result<String, Error> {
     Ok(hex::encode(&res[0..4]))
 }
 
-// cat /boot/embassy-os/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "start9-"$1}' | xargs hostnamectl set-hostname
+// cat /embassy-os/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "start9-"$1}' | xargs hostnamectl set-hostname
 pub async fn sync_hostname() -> Result<(), Error> {
     set_hostname(&format!("start9-{}", get_id().await?)).await?;
     Ok(())

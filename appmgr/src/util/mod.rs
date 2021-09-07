@@ -346,17 +346,16 @@ pub async fn daemon<F: FnMut() -> Fut, Fut: Future<Output = ()> + Send + 'static
     cooldown: std::time::Duration,
     mut shutdown: tokio::sync::broadcast::Receiver<Option<Shutdown>>,
 ) -> Result<(), anyhow::Error> {
-    while matches!(
-        shutdown.try_recv(),
-        Err(tokio::sync::broadcast::error::TryRecvError::Empty)
-    ) {
+    loop {
         match tokio::spawn(f()).await {
             Err(e) if e.is_panic() => return Err(anyhow!("daemon panicked!")),
             _ => (),
         }
-        tokio::time::sleep(cooldown).await
+        tokio::select! {
+            _ = shutdown.recv() => return Ok(()),
+            _ = tokio::time::sleep(cooldown) => (),
+        }
     }
-    Ok(())
 }
 
 pub trait SOption<T> {}
