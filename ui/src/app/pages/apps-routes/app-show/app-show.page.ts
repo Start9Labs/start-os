@@ -58,8 +58,9 @@ export class AppShowPage {
       this.patch.watch$('package-data', this.pkgId)
       .subscribe(pkg => {
         this.pkg = pkg
+        this.pkg['install-progress'] = { ...this.pkg['install-progress'] }
         this.rendering = renderPkgStatus(pkg.state, pkg.installed?.status)
-        this.mainStatus = pkg.installed?.status.main
+        this.mainStatus = { ...pkg.installed.status.main }
       }),
       // 2
       this.connectionService.watchFailure$()

@@ -6,7 +6,6 @@ import { Metric } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MainStatus } from 'src/app/services/patch-db/data-model'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { pauseFor } from 'src/app/util/misc.util'
 
 @Component({
@@ -27,19 +26,11 @@ export class AppMetricsPage {
   constructor (
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
-    private readonly patch: PatchDbService,
     private readonly embassyApi: ApiService,
   ) { }
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.subs = [
-      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main')
-      .subscribe(main => {
-        this.mainStatus = main
-      }),
-    ]
-
     this.startDaemon()
   }
 
@@ -49,7 +40,6 @@ export class AppMetricsPage {
 
   ngOnDestroy () {
     this.stopDaemon()
-    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async startDaemon (): Promise<void> {
