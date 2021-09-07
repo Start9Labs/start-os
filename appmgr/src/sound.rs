@@ -12,8 +12,8 @@ lazy_static::lazy_static! {
     static ref SEMITONE_K: f64 = 2f64.powf(1f64 / 12f64);
     static ref A_4: f64 = 440f64;
     static ref C_0: f64 = *A_4 / SEMITONE_K.powf(9f64) / 2f64.powf(4f64);
-    static ref EXPORT_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/export");
-    static ref UNEXPORT_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/unexport");
+    static ref EXPORT_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/export");
+    static ref UNEXPORT_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/unexport");
     static ref PERIOD_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/period");
     static ref DUTY_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/duty_cycle");
     static ref SWITCH_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/enable");
@@ -25,15 +25,10 @@ pub const SOUND_LOCK_FILE: &'static str = "/etc/embassy/sound.lock";
 struct SoundInterface(Option<MutexGuard<'static, Option<fd_lock_rs::FdLock<tokio::fs::File>>>>);
 impl SoundInterface {
     pub async fn lease() -> Result<Self, Error> {
-        tokio::fs::write(&*EXPORT_FILE, "0")
-            .await
-            .map_err(|e| Error {
-                source: e.into(),
-                kind: ErrorKind::SoundError,
-                revision: None,
-            })?;
         let mut guard = SOUND_MUTEX.lock().await;
-        let sound_file = tokio::fs::File::create(SOUND_LOCK_FILE).await?;
+        let sound_file = tokio::fs::File::create(SOUND_LOCK_FILE)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, SOUND_LOCK_FILE))?;
         *guard = Some(
             tokio::task::spawn_blocking(move || {
                 fd_lock_rs::FdLock::lock(sound_file, fd_lock_rs::LockType::Exclusive, true)
@@ -47,25 +42,41 @@ impl SoundInterface {
             })?
             .with_kind(ErrorKind::SoundError)?,
         );
+        tokio::fs::write(&*EXPORT_FILE, "0")
+            .await
+            .or_else(|e| {
+                if e.raw_os_error() == Some(16) {
+                    Ok(())
+                } else {
+                    Err(e)
+                }
+            })
+            .with_ctx(|_| (ErrorKind::SoundError, EXPORT_FILE.to_string_lossy()))?;
         Ok(SoundInterface(Some(guard)))
     }
     pub async fn play(&mut self, note: &Note) -> Result<(), Error> {
-        {
-            let curr_period = tokio::fs::read_to_string(&*PERIOD_FILE).await?;
-            if curr_period == "0\n" {
-                tokio::fs::write(&*PERIOD_FILE, "1000").await?;
-            }
-            let new_period = ((1.0 / note.frequency()) * 1_000_000_000.0).round() as u64;
-            tokio::fs::write(&*DUTY_FILE, "0").await?;
-            tokio::fs::write(&*PERIOD_FILE, format!("{}", new_period)).await?;
-            tokio::fs::write(&*DUTY_FILE, format!("{}", new_period / 2)).await?;
-            tokio::fs::write(&*SWITCH_FILE, "1").await
+        let curr_period = tokio::fs::read_to_string(&*PERIOD_FILE)
+            .await
+            .with_ctx(|_| (ErrorKind::SoundError, PERIOD_FILE.to_string_lossy()))?;
+        if curr_period == "0\n" {
+            tokio::fs::write(&*PERIOD_FILE, "1000")
+                .await
+                .with_ctx(|_| (ErrorKind::SoundError, PERIOD_FILE.to_string_lossy()))?;
         }
-        .map_err(|e| Error {
-            source: e.into(),
-            kind: ErrorKind::SoundError,
-            revision: None,
-        })
+        let new_period = ((1.0 / note.frequency()) * 1_000_000_000.0).round() as u64;
+        tokio::fs::write(&*DUTY_FILE, "0")
+            .await
+            .with_ctx(|_| (ErrorKind::SoundError, DUTY_FILE.to_string_lossy()))?;
+        tokio::fs::write(&*PERIOD_FILE, format!("{}", new_period))
+            .await
+            .with_ctx(|_| (ErrorKind::SoundError, PERIOD_FILE.to_string_lossy()))?;
+        tokio::fs::write(&*DUTY_FILE, format!("{}", new_period / 2))
+            .await
+            .with_ctx(|_| (ErrorKind::SoundError, DUTY_FILE.to_string_lossy()))?;
+        tokio::fs::write(&*SWITCH_FILE, "1")
+            .await
+            .with_ctx(|_| (ErrorKind::SoundError, SWITCH_FILE.to_string_lossy()))?;
+        Ok(())
     }
     pub async fn play_for_time_slice(
         &mut self,
@@ -89,11 +100,7 @@ impl SoundInterface {
     pub async fn stop(&mut self) -> Result<(), Error> {
         tokio::fs::write(&*SWITCH_FILE, "0")
             .await
-            .map_err(|e| Error {
-                source: e.into(),
-                kind: ErrorKind::SoundError,
-                revision: None,
-            })
+            .with_ctx(|_| (ErrorKind::SoundError, SWITCH_FILE.to_string_lossy()))
     }
 }
 

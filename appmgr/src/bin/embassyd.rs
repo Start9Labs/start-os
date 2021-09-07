@@ -98,11 +98,11 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
     let revision_cache_task = tokio::spawn(async move {
         let mut sub = rev_cache_ctx.db.subscribe();
         let mut shutdown = rev_cache_ctx.shutdown.subscribe();
-        while matches!(
-            shutdown.try_recv(),
-            Err(tokio::sync::broadcast::error::TryRecvError::Empty)
-        ) {
-            let rev = match sub.recv().await {
+        loop {
+            let rev = match tokio::select! {
+                a = sub.recv() => a,
+                _ = shutdown.recv() => break,
+            } {
                 Ok(a) => a,
                 Err(_) => {
                     rev_cache_ctx.revision_cache.write().await.truncate(0);
@@ -200,7 +200,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         rpc_ctx.shutdown.subscribe(),
     );
 
-    embassy::sound::MARIO_COIN.play().await?;
+    // embassy::sound::MARIO_COIN.play().await?;
 
     futures::try_join!(
         server.map_err(|e| Error::new(e, ErrorKind::Network)),
@@ -258,7 +258,10 @@ fn main() {
     let cfg_path = matches.value_of("config");
 
     let res = {
-        let rt = tokio::runtime::Runtime::new().expect("failed to initialize runtime");
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("failed to initialize runtime");
         rt.block_on(inner_main(cfg_path))
     };
 

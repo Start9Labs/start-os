@@ -253,33 +253,3 @@ pub async fn unmount<P: AsRef<Path>>(mount_point: P) -> Result<(), Error> {
         })?;
     Ok(())
 }
-
-#[must_use]
-pub struct MountGuard<P: AsRef<Path>> {
-    path: Option<P>,
-}
-impl<P: AsRef<Path>> MountGuard<P> {
-    pub async fn new(logicalname: &str, mount_point: P) -> Result<Self, Error> {
-        mount(logicalname, mount_point.as_ref()).await?;
-        Ok(Self {
-            path: Some(mount_point),
-        })
-    }
-    pub async fn unmount(mut self) -> Result<(), Error> {
-        if let Some(ref path) = self.path {
-            unmount(path).await?;
-            self.path = None;
-        }
-        Ok(())
-    }
-}
-impl<P: AsRef<Path>> Drop for MountGuard<P> {
-    fn drop(&mut self) {
-        if let Some(ref path) = self.path {
-            tokio::runtime::Runtime::new()
-                .unwrap()
-                .block_on(unmount(path))
-                .unwrap()
-        }
-    }
-}
