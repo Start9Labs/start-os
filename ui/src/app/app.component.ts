@@ -208,24 +208,13 @@ export class AppComponent {
           case ConnectionFailure.Diagnosing:
             message = new IonicSafeString('Running network diagnostics <ion-spinner style="padding: 0; margin: 0" name="dots"></ion-spinner>')
             break
-          case ConnectionFailure.Embassy:
-            message = 'Embassy appears to be offline.'
-            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#embassy-offline'
-            break
           case ConnectionFailure.Tor:
             message = 'Browser unable to connect over Tor.'
             link = 'https://docs.start9.com/support/FAQ/setup-faq.html#tor-failure'
             break
-          case ConnectionFailure.Internet:
-            message = 'Phone or computer has no Internet.'
-            break
           case ConnectionFailure.Lan:
             message = 'Embassy not found on Local Area Network.'
             link = 'https://docs.start9.com/support/FAQ/setup-faq.html#lan-failure'
-            break
-          case ConnectionFailure.Unknown:
-            message = 'Unknown connection error. Please refresh the page.'
-            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#unknown-failure'
             break
         }
         await this.presentToastOffline(message, link)
