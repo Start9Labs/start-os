@@ -47,6 +47,7 @@ export class AppListPage {
         }),
       )
       .subscribe(pkgs => {
+        console.log('PACKAGES LIST', pkgs)
         this.loading = false
 
         const ids = Object.keys(pkgs)
@@ -72,6 +73,8 @@ export class AppListPage {
           }
           // subscribe to pkg
           this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
+            console.log('SOLO PKG', id, pkg)
+            if (!pkg) return
             let bulbClass = 'bulb-on'
             let img = ''
             const statusRendering = renderPkgStatus(pkg.state, pkg.installed?.status)
@@ -91,6 +94,7 @@ export class AppListPage {
                 break
             }
             this.pkgs[id].entry = pkg
+            this.pkgs[id].entry['install-progress'] = { ...this.pkgs[id].entry['install-progress'] }
             this.pkgs[id].bulb = {
               class: bulbClass,
               img,

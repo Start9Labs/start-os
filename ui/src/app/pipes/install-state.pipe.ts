@@ -7,7 +7,11 @@ import { InstallProgress } from '../services/patch-db/data-model'
 export class InstallState implements PipeTransform {
 
   transform (loadData: InstallProgress): ProgressData {
-    const { downloaded, validated, unpacked, size } = loadData
+    console.log('LOAD DATA', loadData)
+    let { downloaded, validated, unpacked, size, 'download-complete': downloadComplete, 'validation-complete': validationComplete, 'unpack-complete': unpackComplete } = loadData
+    downloaded = downloadComplete ? size : downloaded
+    validated = validationComplete ? size : validated
+    unpacked = unpackComplete ? size : unpacked
 
     const downloadWeight = 1
     const validateWeight = .2
@@ -25,7 +29,7 @@ export class InstallState implements PipeTransform {
       downloadProgress: Math.round(100 * downloaded / size),
       validateProgress: Math.round(100 * validated / size),
       unpackProgress: Math.round(100 * unpacked / size),
-      isComplete: loadData['download-complete'] && loadData['validation-complete'] && loadData['unpack-complete'],
+      isComplete: downloadComplete && validationComplete && unpackComplete,
     }
   }
 }
