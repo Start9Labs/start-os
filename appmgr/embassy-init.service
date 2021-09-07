@@ -1,0 +1,13 @@
+[Unit]
+Description=Embassy Init
+After=network.target systemd-time-wait-sync.service
+Requires=network.target
+Wants=avahi-daemon.service nginx.service tor.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/embassy-init -vvv
+RemainAfterExit=true
+
+[Install]
+WantedBy=embassyd.service

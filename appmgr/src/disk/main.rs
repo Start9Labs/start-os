@@ -9,9 +9,13 @@ use crate::{Error, ResultExt};
 
 pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
 
-pub async fn create(cfg: &RpcContextConfig, disks: &[&str]) -> Result<String, Error> {
+pub async fn create(
+    cfg: &RpcContextConfig,
+    disks: &[&str],
+    password: &str,
+) -> Result<String, Error> {
     let guid = create_pool(cfg, disks).await?;
-    create_fs(cfg).await?;
+    create_fs(cfg, password).await?;
     export(cfg).await?;
     Ok(guid)
 }
@@ -41,7 +45,10 @@ pub async fn create_pool(cfg: &RpcContextConfig, disks: &[&str]) -> Result<Strin
     )?)
 }
 
-pub async fn create_fs(cfg: &RpcContextConfig) -> Result<(), Error> {
+pub async fn create_fs(cfg: &RpcContextConfig, password: &str) -> Result<(), Error> {
+    tokio::fs::write(PASSWORD_PATH, password)
+        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
     Command::new("zfs")
         .arg("create")
         .arg("-o")
@@ -58,6 +65,13 @@ pub async fn create_fs(cfg: &RpcContextConfig) -> Result<(), Error> {
     Command::new("zfs")
         .arg("create")
         .arg("-o")
+        .arg("reservation=5G")
+        .arg(format!("{}/updates", cfg.zfs_pool_name()))
+        .invoke(crate::ErrorKind::Zfs)
+        .await?;
+    Command::new("zfs")
+        .arg("create")
+        .arg("-o")
         .arg("encryption=on")
         .arg("-o")
         .arg("keylocation=file:///etc/embassy/password")
@@ -66,6 +80,20 @@ pub async fn create_fs(cfg: &RpcContextConfig) -> Result<(), Error> {
         .arg(format!("{}/package-data", cfg.zfs_pool_name()))
         .invoke(crate::ErrorKind::Zfs)
         .await?;
+    Command::new("zfs")
+        .arg("create")
+        .arg("-o")
+        .arg("encryption=on")
+        .arg("-o")
+        .arg("keylocation=file:///etc/embassy/password")
+        .arg("-o")
+        .arg("keyformat=passphrase")
+        .arg(format!("{}/tmp", cfg.zfs_pool_name()))
+        .invoke(crate::ErrorKind::Zfs)
+        .await?;
+    tokio::fs::remove_file(PASSWORD_PATH)
+        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
     Ok(())
 }
 
@@ -169,6 +197,7 @@ pub async fn mount(cfg: &RpcContextConfig, password: &str) -> Result<(), Error> 
             .invoke(crate::ErrorKind::Zfs)
             .await?;
     }
+
     tokio::fs::write(PASSWORD_PATH, password)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
@@ -182,9 +211,15 @@ pub async fn mount(cfg: &RpcContextConfig, password: &str) -> Result<(), Error> 
         .arg(format!("{}/package-data", cfg.zfs_pool_name()))
         .invoke(crate::ErrorKind::Zfs)
         .await?;
+    Command::new("zfs")
+        .arg("load-key")
+        .arg(format!("{}/tmp", cfg.zfs_pool_name()))
+        .invoke(crate::ErrorKind::Zfs)
+        .await?;
     tokio::fs::remove_file(PASSWORD_PATH)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+
     Command::new("zfs")
         .arg("mount")
         .arg(format!("{}/main", cfg.zfs_pool_name()))
@@ -193,6 +228,11 @@ pub async fn mount(cfg: &RpcContextConfig, password: &str) -> Result<(), Error> 
     Command::new("zfs")
         .arg("mount")
         .arg(format!("{}/package-data", cfg.zfs_pool_name()))
+        .invoke(crate::ErrorKind::Zfs)
+        .await?;
+    Command::new("zfs")
+        .arg("mount")
+        .arg(format!("{}/tmp", cfg.zfs_pool_name()))
         .invoke(crate::ErrorKind::Zfs)
         .await?;
     Ok(())

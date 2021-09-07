@@ -2,9 +2,11 @@ use std::path::Path;
 
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{RecoveryContext, SetupContext};
+use embassy::util::Invoke;
 use embassy::{Error, ResultExt};
 use http::StatusCode;
 use rpc_toolkit::rpc_server;
+use tokio::process::Command;
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
@@ -12,18 +14,16 @@ fn status_fn(_: i32) -> StatusCode {
 
 async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     let cfg = RpcContextConfig::load(cfg_path).await?;
-    if tokio::fs::metadata("/boot/embassy-os/disk.guid")
-        .await
-        .is_ok()
-    {
+    if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
         embassy::disk::main::load(
             &cfg,
-            tokio::fs::read_to_string("/boot/embassy-os/disk.guid")
+            tokio::fs::read_to_string("/embassy-os/disk.guid")
                 .await?
                 .trim(),
             "password",
         )
         .await?;
+        log::info!("Loaded Disk");
     } else {
         let ctx = SetupContext::init(cfg_path).await?;
         rpc_server!({
@@ -42,22 +42,50 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .with_kind(embassy::ErrorKind::Network)?;
     }
 
-    embassy::disk::util::bind(
-        cfg.datadir().join("main").join("logs"),
-        "/var/log/journal",
-        false,
-    )
-    .await?;
-    // cp -r "/var/lib/docker", "/tmp/docker-data"
-    embassy::disk::util::bind(
-        "/tmp/docker-data",
-        "/var/lib/journal",
-        false,
-    )
-    .await?;
-    embassy::ssh::sync_keys_from_db(todo!(), "/root/.ssh/authorized_keys").await?;
-    todo!("sync wifi");
+    let secret_store = cfg.secret_store().await?;
+    let log_dir = cfg.datadir().join("main").join("logs");
+    if tokio::fs::metadata(&log_dir).await.is_err() {
+        tokio::fs::create_dir_all(&log_dir).await?;
+    }
+    embassy::disk::util::bind(&log_dir, "/var/log/journal", false).await?;
+    Command::new("systemctl")
+        .arg("restart")
+        .arg("systemd-journald")
+        .invoke(embassy::ErrorKind::Journald)
+        .await?;
+    log::info!("Mounted Logs");
+    let tmp_docker = cfg.datadir().join("tmp").join("docker");
+    if tokio::fs::metadata(&tmp_docker).await.is_ok() {
+        tokio::fs::remove_dir_all(&tmp_docker).await?;
+    }
+    Command::new("cp")
+        .arg("-r")
+        .arg("/var/lib/docker")
+        .arg(&tmp_docker)
+        .invoke(embassy::ErrorKind::Filesystem)
+        .await?;
+    embassy::disk::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
+    log::info!("Mounted Docker Data");
+    embassy::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
+    log::info!("Synced SSH Keys");
+    // todo!("sync wifi");
     embassy::hostname::sync_hostname().await?;
+    log::info!("Synced Hostname");
+
+    if tokio::fs::metadata("/var/www/html/public").await.is_err() {
+        tokio::fs::create_dir_all("/var/www/html/public").await?
+    }
+    if tokio::fs::symlink_metadata("/var/www/html/public/package-data")
+        .await
+        .is_err()
+    {
+        tokio::fs::symlink(
+            cfg.datadir().join("package-data").join("public"),
+            "/var/www/html/public/package-data",
+        )
+        .await?;
+    }
+    log::info!("Enabled nginx public dir");
 
     Ok(())
 }
@@ -81,9 +109,9 @@ fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 
 async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
     if let Err(e) = init(cfg_path).await {
-        embassy::sound::BEETHOVEN.play().await?;
         log::error!("{}", e.source);
         log::debug!("{}", e.source);
+        embassy::sound::BEETHOVEN.play().await?;
         let ctx = RecoveryContext::init(cfg_path).await?;
         rpc_server!({
             command: embassy::recovery_api,
@@ -130,14 +158,17 @@ fn main() {
     });
     let cfg_path = matches.value_of("config");
 
-    run_script_if_exists("/boot/embassy-os/preinit.sh");
+    run_script_if_exists("/embassy-os/preinit.sh");
 
     let res = {
-        let rt = tokio::runtime::Runtime::new().expect("failed to initialize runtime");
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("failed to initialize runtime");
         rt.block_on(inner_main(cfg_path))
     };
 
-    run_script_if_exists("/boot/embassy-os/postinit.sh");
+    run_script_if_exists("/embassy-os/postinit.sh");
 
     match res {
         Ok(_) => (),
