@@ -14,6 +14,7 @@ import { ConnectionFailure, ConnectionService } from 'src/app/services/connectio
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 import { PackageLoadingService } from 'src/app/services/package-loading.service'
+import { ProgressData } from 'src/app/pipes/install-state.pipe'
 
 @Component({
   selector: 'app-show',
@@ -34,6 +35,7 @@ export class AppShowPage {
   PackageMainStatus = PackageMainStatus
   connectionFailure: boolean
   loading = true
+  installProgress: ProgressData
 
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []
@@ -60,9 +62,9 @@ export class AppShowPage {
       this.patch.watch$('package-data', this.pkgId)
       .subscribe(pkg => {
         this.pkg = pkg
-        this.pkg['install-progress'] = { ...this.pkg['install-progress'] }
+        this.installProgress = this.packageLoadingService.transform(this.pkg['install-progress'])
         this.rendering = renderPkgStatus(pkg.state, pkg.installed?.status)
-        this.mainStatus = { ...pkg.installed.status.main }
+        this.mainStatus = { ...pkg.installed?.status.main }
       }),
       // 2
       this.connectionService.watchFailure$()

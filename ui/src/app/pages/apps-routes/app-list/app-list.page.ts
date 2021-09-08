@@ -7,6 +7,7 @@ import { Subscription } from 'rxjs'
 import { PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { filter } from 'rxjs/operators'
 import { isEmptyObject } from 'src/app/util/misc.util'
+import { PackageLoadingService, ProgressData } from 'src/app/services/package-loading.service'
 
 @Component({
   selector: 'app-list',
@@ -24,6 +25,7 @@ export class AppListPage {
     }
     statusRendering: PkgStatusRendering | null
     sub: Subscription | null
+    installProgress: ProgressData
   }} = { }
   PackageState = PackageState
   loading = true
@@ -31,6 +33,7 @@ export class AppListPage {
   constructor (
     private readonly config: ConfigService,
     private readonly connectionService: ConnectionService,
+    private readonly installPackageService: PackageLoadingService,
     public readonly patch: PatchDbService,
   ) { }
 
@@ -70,6 +73,7 @@ export class AppListPage {
             },
             statusRendering: renderPkgStatus(pkgs[id].state, pkgs[id].installed?.status),
             sub: null,
+            installProgress: this.installPackageService.transform(pkgs[id]['install-progress']),
           }
           // subscribe to pkg
           this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
@@ -94,7 +98,7 @@ export class AppListPage {
                 break
             }
             this.pkgs[id].entry = pkg
-            this.pkgs[id].entry['install-progress'] = { ...this.pkgs[id].entry['install-progress'] }
+            this.pkgs[id].installProgress = !isEmptyObject(pkg['install-progress']) ? this.installPackageService.transform(pkg['install-progress']) : undefined
             this.pkgs[id].bulb = {
               class: bulbClass,
               img,
