@@ -6,12 +6,13 @@ import { SharingModule } from 'src/app/modules/sharing.module'
 import { FormsModule } from '@angular/forms'
 
 @NgModule({
+  declarations: [OSWelcomePage],
   imports: [
     CommonModule,
     IonicModule,
     FormsModule,
     SharingModule,
   ],
-  declarations: [OSWelcomePage],
+  exports: [OSWelcomePage],
 })
 export class OSWelcomePageModule { }

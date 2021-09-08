@@ -14,7 +14,6 @@ import { FormObjectComponentModule } from 'src/app/components/form-object/form-o
     ReactiveFormsModule,
     FormObjectComponentModule,
   ],
-  entryComponents: [GenericFormPage],
   exports: [GenericFormPage],
 })
 export class GenericFormPageModule { }

@@ -5,11 +5,12 @@ import { MarkdownPage } from './markdown.page'
 import { SharingModule } from 'src/app/modules/sharing.module'
 
 @NgModule({
+  declarations: [MarkdownPage],
   imports: [
     CommonModule,
     IonicModule,
     SharingModule,
   ],
-  declarations: [MarkdownPage],
+  exports: [MarkdownPage],
 })
 export class MarkdownPageModule { }
