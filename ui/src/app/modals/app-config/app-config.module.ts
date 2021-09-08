@@ -16,7 +16,6 @@ import { FormObjectComponentModule } from 'src/app/components/form-object/form-o
     FormObjectComponentModule,
     ReactiveFormsModule,
   ],
-  entryComponents: [AppConfigPage],
   exports: [AppConfigPage],
 })
 export class AppConfigPageModule { }

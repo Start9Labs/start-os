@@ -6,14 +6,12 @@ import { BackupConfirmationComponentModule } from '../backup-confirmation/backup
 import { SharingModule } from '../../modules/sharing.module'
 
 @NgModule({
+  declarations: [AppRestoreComponent],
   imports: [
     CommonModule,
     IonicModule,
     BackupConfirmationComponentModule,
     SharingModule,
-  ],
-  declarations: [
-    AppRestoreComponent,
   ],
   exports: [AppRestoreComponent],
 
