@@ -23,7 +23,7 @@ export class PackageLoadingService {
       validateWeight * validated +
       unpackWeight * unpacked)
 
-    const denominator = Math.floor(loadData.size * (downloadWeight + validateWeight + unpackWeight))
+    const denominator = Math.floor(size * (downloadWeight + validateWeight + unpackWeight))
 
     return {
       totalProgress: Math.round(100 * numerator / denominator),
