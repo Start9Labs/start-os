@@ -347,13 +347,13 @@ pub async fn daemon<F: FnMut() -> Fut, Fut: Future<Output = ()> + Send + 'static
     mut shutdown: tokio::sync::broadcast::Receiver<Option<Shutdown>>,
 ) -> Result<(), anyhow::Error> {
     loop {
-        match tokio::spawn(f()).await {
-            Err(e) if e.is_panic() => return Err(anyhow!("daemon panicked!")),
-            _ => (),
-        }
         tokio::select! {
             _ = shutdown.recv() => return Ok(()),
             _ = tokio::time::sleep(cooldown) => (),
+        }
+        match tokio::spawn(f()).await {
+            Err(e) if e.is_panic() => return Err(anyhow!("daemon panicked!")),
+            _ => (),
         }
     }
 }
