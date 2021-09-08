@@ -62,7 +62,6 @@ export class AppShowPage {
       this.patch.watch$('package-data', this.pkgId)
       .subscribe(pkg => {
         this.pkg = pkg
-        console.log('isnt empty', !isEmptyObject(pkg['install-progress']))
         this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
         this.rendering = renderPkgStatus(pkg.state, pkg.installed?.status)
         this.mainStatus = { ...pkg.installed?.status.main }
