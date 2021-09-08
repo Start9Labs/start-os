@@ -517,8 +517,8 @@ pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<Count
     )))
 }
 
-pub async fn synchronize_wpa_supplicant_conf(main_datadir: &std::path::Path) -> Result<(), Error> {
-    let source = main_datadir.join("wpa_supplicant.conf");
+pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(main_datadir: P) -> Result<(), Error> {
+    let source = main_datadir.as_ref().join("wpa_supplicant.conf");
     if tokio::fs::metadata(&source).await.is_err() {
         tokio::fs::write(&source, include_str!("wpa_supplicant.conf.template")).await?;
     }
