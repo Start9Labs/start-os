@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fs::File};
 use std::path::Path;
 
 use beau_collector::BeauCollector;
@@ -75,7 +75,7 @@ pub enum MatchError {
     ListUniquenessViolation,
 }
 
-pub fn set_configuration(
+pub fn validate_configuration(
     name: &str,
     config: Config,
     rules_path: &Path,
@@ -95,6 +95,7 @@ pub fn set_configuration(
             // copy new config that pass rule check into temp file
             serde_yaml::to_writer(temp, &config)?;
             std::fs::copy("config_temp.yaml", config_path)?;
+            std::fs::remove_file("config_temp.yaml")?;
             // return set result
             Ok(SetResult {
                 depends_on: indexmap::IndexMap::new(),

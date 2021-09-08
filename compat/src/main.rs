@@ -1,4 +1,4 @@
-use std::{fs::File, io::stdout, path::Path};
+use std::{fs::File, io::{stdin, stdout}, path::Path};
 
 #[macro_use] extern crate failure;
 extern crate pest;
@@ -10,7 +10,7 @@ mod config;
 use anyhow::anyhow;
 use backup::{create_backup, restore_backup};
 use clap::{App, Arg, SubCommand};
-use config::set_configuration;
+use config::validate_configuration;
 use embassy::config::action::ConfigRes;
 // enum == sum type, structs = product type, trait = type class
 pub enum CompatRes {
@@ -100,6 +100,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                             .help("The path to the data to be backed up in the container")
                             .required(true),
                     )
+            )
             .subcommand(
                 SubCommand::with_name("restore")
                     .arg(
@@ -138,15 +139,13 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 Ok(())
             },
             ("set", Some(sub_m)) => {
-                // valiate against rules
-                // save file
+                let config = serde_yaml::from_reader(stdin()).unwrap();
                 let cfg_path =
                     Path::new(sub_m.value_of("mountpoint").unwrap());
-                let config = serde_yaml::from_reader(File::open(cfg_path).unwrap()).unwrap();
                 let rules_path =
                     Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("app_id").unwrap();
-                match set_configuration(&name, config, rules_path, cfg_path) {
+                match validate_configuration(&name, config, rules_path, cfg_path) {
                     Ok(a) => {
                         serde_yaml::to_writer(stdout(), &a)?;
                         Ok(())
@@ -166,7 +165,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 let rules_path =
                     Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("app_id").unwrap();
-                match set_configuration(&name, config, rules_path, cfg_path) {
+                match validate_configuration(&name, config, rules_path, cfg_path) {
                     Ok(a) => {
                         serde_yaml::to_writer(stdout(), &a)?;
                     }
