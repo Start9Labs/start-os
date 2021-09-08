@@ -132,6 +132,14 @@ impl HasModel for Volumes {
     type Model = MapModel<Self>;
 }
 
+pub fn asset_dir(ctx: &RpcContext, pkg_id: &PackageId, version: &Version) -> PathBuf {
+    ctx.datadir
+        .join(PKG_VOLUME_DIR)
+        .join(pkg_id)
+        .join("assets")
+        .join(version.as_str())
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
@@ -184,15 +192,9 @@ impl Volume {
                 .datadir
                 .join(PKG_VOLUME_DIR)
                 .join(pkg_id)
-                .join("volumes")
+                .join("data")
                 .join(volume_id),
-            Volume::Assets {} => ctx
-                .datadir
-                .join(PKG_VOLUME_DIR)
-                .join(pkg_id)
-                .join("assets")
-                .join(version.as_str())
-                .join(volume_id),
+            Volume::Assets {} => asset_dir(ctx, pkg_id, version).join(volume_id),
             Volume::Pointer {
                 package_id,
                 volume_id,
@@ -202,7 +204,7 @@ impl Volume {
                 .datadir
                 .join(PKG_VOLUME_DIR)
                 .join(package_id)
-                .join("volumes")
+                .join("data")
                 .join(volume_id)
                 .join(if path.is_absolute() {
                     path.strip_prefix("/").unwrap()

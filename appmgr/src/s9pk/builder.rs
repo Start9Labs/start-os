@@ -103,7 +103,7 @@ impl<
             length: new_pos - position,
         };
         position = new_pos;
-        // docker_images
+        // assets
         std::io::copy(&mut self.assets, &mut writer)
             .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Assets"))?;
         let new_pos = writer.stream_position()?;
