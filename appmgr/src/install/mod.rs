@@ -31,6 +31,7 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{DependencyErrors, MainStatus, Status};
 use crate::util::{display_none, AsyncFileExt, Version};
+use crate::volume::asset_dir;
 use crate::{Error, ResultExt};
 
 pub mod cleanup;
@@ -186,108 +187,47 @@ pub async fn download_install_s9pk(
         let progress = InstallProgress::new(s9pk.content_length());
         let progress_model = pkg_data_entry.and_then(|pde| pde.install_progress());
 
-        async fn check_cache(
-            pkg_id: &PackageId,
-            version: &Version,
-            pkg_cache: &Path,
-            headers: &HeaderMap,
-            progress: &Arc<InstallProgress>,
-            model: OptionModel<InstallProgress>,
-            ctx: &RpcContext,
-        ) -> Option<S9pkReader<InstallProgressTracker<File>>> {
-            fn warn_ok<T, E: Display>(
-                pkg_id: &PackageId,
-                version: &Version,
-                res: Result<T, E>,
-            ) -> Option<T> {
-                match res {
-                    Ok(a) => Some(a),
-                    Err(e) => {
-                        log::warn!(
-                            "Install {}@{}: Could not open cache: {}",
-                            pkg_id,
-                            version,
-                            e
-                        );
-                        None
-                    }
-                }
-            }
-            let hash = headers.get("x-s9pk-hash")?;
-            let file = warn_ok(pkg_id, version, File::maybe_open(&pkg_cache).await)??;
-            let progress_reader = InstallProgressTracker::new(file, progress.clone());
-            let rdr = warn_ok(
-                pkg_id,
-                version,
-                progress
-                    .track_read_during(model, &ctx.db, || S9pkReader::from_reader(progress_reader))
-                    .await,
-            )?;
-            if hash.as_bytes() == rdr.hash_str().as_bytes() {
-                Some(rdr)
-            } else {
-                None
-            }
-        }
-        let cached = check_cache(
-            pkg_id,
-            version,
-            &pkg_cache,
-            s9pk.headers(),
-            &progress,
-            progress_model.clone(),
-            &ctx,
-        )
-        .await;
+        File::delete(&pkg_cache).await?;
+        let mut dst = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .read(true)
+            .open(&pkg_cache)
+            .await?;
 
-        let mut s9pk_reader = if let Some(cached) = cached {
-            progress.download_complete();
-            progress_model.put(&mut ctx.db.handle(), &progress).await?;
-            cached
-        } else {
-            File::delete(&pkg_cache).await?;
-            let mut dst = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .read(true)
-                .open(&pkg_cache)
+        progress
+            .track_download_during(progress_model.clone(), &ctx.db, || async {
+                let mut progress_writer = InstallProgressTracker::new(&mut dst, progress.clone());
+                tokio::io::copy(
+                    &mut tokio_util::io::StreamReader::new(s9pk.bytes_stream().map_err(|e| {
+                        std::io::Error::new(
+                            if e.is_connect() {
+                                std::io::ErrorKind::ConnectionRefused
+                            } else if e.is_timeout() {
+                                std::io::ErrorKind::TimedOut
+                            } else {
+                                std::io::ErrorKind::Other
+                            },
+                            e,
+                        )
+                    })),
+                    &mut progress_writer,
+                )
                 .await?;
+                progress.download_complete();
+                Ok(())
+            })
+            .await?;
 
-            progress
-                .track_download_during(progress_model.clone(), &ctx.db, || async {
-                    let mut progress_writer =
-                        InstallProgressTracker::new(&mut dst, progress.clone());
-                    tokio::io::copy(
-                        &mut tokio_util::io::StreamReader::new(s9pk.bytes_stream().map_err(|e| {
-                            std::io::Error::new(
-                                if e.is_connect() {
-                                    std::io::ErrorKind::ConnectionRefused
-                                } else if e.is_timeout() {
-                                    std::io::ErrorKind::TimedOut
-                                } else {
-                                    std::io::ErrorKind::Other
-                                },
-                                e,
-                            )
-                        })),
-                        &mut progress_writer,
-                    )
-                    .await?;
-                    progress.download_complete();
-                    Ok(())
-                })
-                .await?;
+        dst.seek(SeekFrom::Start(0)).await?;
 
-            dst.seek(SeekFrom::Start(0)).await?;
+        let progress_reader = InstallProgressTracker::new(dst, progress.clone());
+        let mut s9pk_reader = progress
+            .track_read_during(progress_model.clone(), &ctx.db, || {
+                S9pkReader::from_reader(progress_reader)
+            })
+            .await?;
 
-            let progress_reader = InstallProgressTracker::new(dst, progress.clone());
-            let rdr = progress
-                .track_read_during(progress_model.clone(), &ctx.db, || {
-                    S9pkReader::from_reader(progress_reader)
-                })
-                .await?;
-            rdr
-        };
         install_s9pk(&ctx, pkg_id, version, &mut s9pk_reader, progress).await?;
 
         Ok(())
@@ -512,7 +452,18 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Unpacked Docker Images", pkg_id, version,);
 
     log::info!("Install {}@{}: Unpacking Assets", pkg_id, version);
-    // TODO
+    progress
+        .track_read_during(progress_model.clone(), &ctx.db, || async {
+            let asset_dir = asset_dir(ctx, pkg_id, version);
+            if tokio::fs::metadata(&asset_dir).await.is_err() {
+                tokio::fs::create_dir_all(&asset_dir).await?;
+            }
+            let mut tar = tokio_tar::Archive::new(rdr.assets().await?);
+            tar.unpack(asset_dir).await?;
+
+            Ok(())
+        })
+        .await?;
     log::info!("Install {}@{}: Unpacked Assets", pkg_id, version);
 
     progress.unpack_complete.store(true, Ordering::SeqCst);
