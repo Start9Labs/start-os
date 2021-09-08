@@ -136,22 +136,22 @@
 
     <!-- ** installing or updating ** -->
     <div *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.state" style="padding: 16px;">
-      <p>Downloading: {{ (pkg['install-progress'] | installState).downloadProgress }}%</p>
+      <p>Downloading: {{ installProgress.downloadProgress }}%</p>
       <ion-progress-bar 
         [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'" 
-        [value]="(pkg['install-progress'] | installState).downloadProgress / 100"
+        [value]="installProgress.downloadProgress / 100"
       ></ion-progress-bar>
 
-      <p>Validating: {{ (pkg['install-progress'] | installState).validateProgress }}%</p>
+      <p>Validating: {{ installProgress.validateProgress }}%</p>
       <ion-progress-bar
         [color]="pkg['install-progress']['validation-complete'] ? 'success' : 'secondary'" 
-        [value]="(pkg['install-progress'] | installState).validateProgress / 100"
+        [value]="installProgress.validateProgress / 100"
       ></ion-progress-bar>
 
-      <p>Installing: {{ (pkg['install-progress'] | installState).unpackProgress }}%</p>
+      <p>Installing: {{ installProgress.unpackProgress }}%</p>
       <ion-progress-bar 
         [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'" 
-        [value]="(pkg['install-progress'] | installState).unpackProgress / 100"
+        [value]="installProgress.unpackProgress / 100"
       ></ion-progress-bar>
     </div>
   </ion-content>
