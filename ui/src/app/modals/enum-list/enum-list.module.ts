@@ -11,7 +11,6 @@ import { FormsModule } from '@angular/forms'
     IonicModule,
     FormsModule,
   ],
-  entryComponents: [EnumListPage],
   exports: [EnumListPage],
 })
 export class EnumListPageModule { }

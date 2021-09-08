@@ -7,9 +7,7 @@ import { SharingModule } from 'src/app/modules/sharing.module'
 import { FormsModule } from '@angular/forms'
 
 @NgModule({
-  declarations: [
-    BackupConfirmationComponent,
-  ],
+  declarations: [BackupConfirmationComponent],
   imports: [
     CommonModule,
     IonicModule,
