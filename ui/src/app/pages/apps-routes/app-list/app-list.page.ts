@@ -73,7 +73,7 @@ export class AppListPage {
             },
             statusRendering: renderPkgStatus(pkgs[id].state, pkgs[id].installed?.status),
             sub: null,
-            installProgress: this.installPackageService.transform(pkgs[id]['install-progress']),
+            installProgress: !isEmptyObject(pkgs[id]['install-progress']) ? this.installPackageService.transform(pkgs[id]['install-progress']) : undefined,
           }
           // subscribe to pkg
           this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
