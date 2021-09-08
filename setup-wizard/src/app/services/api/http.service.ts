@@ -52,7 +52,7 @@ export class HttpService {
 
     const options = {
       responseType: 'arraybuffer',
-      body: await AES_CTR.encryptPbkdf2( 'asdf', encodeUtf8( JSON.stringify(httpOpts.body))),
+      body: await AES_CTR.encryptPbkdf2( this.productKey, encodeUtf8( JSON.stringify(httpOpts.body))),
       observe: 'events',
       reportProgress: false,
       headers: {
@@ -67,7 +67,7 @@ export class HttpService {
 
     return (withTimeout(req, 60000))
       .toPromise()
-      .then(res => AES_CTR.decryptPbkdf2('asdf', new Uint8Array(res)))
+      .then(res => AES_CTR.decryptPbkdf2(this.productKey, new Uint8Array(res)))
       .then(res => JSON.parse(decodeUtf8(res)))
       .catch(e => { throw new HttpError(e) })
   }
