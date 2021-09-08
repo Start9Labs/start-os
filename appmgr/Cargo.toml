@@ -108,7 +108,7 @@ thiserror = "1.0.24"
 tokio = { version = "1.8.1", features = ["full"] }
 tokio-compat-02 = "0.2.0"
 tokio-stream = { version = "0.1.5", features = ["io-util", "sync"] }
-tokio-tar = "0.3.0"
+tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = "0.14.0"
 tokio-util = { version = "0.6.6", features = ["io"] }
 torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies" }
