@@ -1,7 +1,10 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{RecoveryContext, SetupContext};
+use embassy::hostname::get_product_key;
+use embassy::middleware::encrypt::encrypt;
 use embassy::util::Invoke;
 use embassy::{Error, ResultExt};
 use http::StatusCode;
@@ -14,6 +17,7 @@ fn status_fn(_: i32) -> StatusCode {
 
 async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     let cfg = RpcContextConfig::load(cfg_path).await?;
+    embassy::disk::util::mount("LABEL=EMBASSY", "/embassy-os").await?;
     if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
         embassy::disk::main::load(
             &cfg,
@@ -26,11 +30,14 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         log::info!("Loaded Disk");
     } else {
         let ctx = SetupContext::init(cfg_path).await?;
+        let encrypt = encrypt(Arc::new(get_product_key().await?));
         rpc_server!({
             command: embassy::setup_api,
             context: ctx.clone(),
             status: status_fn,
-            middleware: [ ]
+            middleware: [
+                encrypt,
+            ]
         })
         .with_graceful_shutdown({
             let mut shutdown = ctx.shutdown.subscribe();
@@ -65,6 +72,11 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .invoke(embassy::ErrorKind::Filesystem)
         .await?;
     embassy::disk::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
+    Command::new("systemctl")
+        .arg("restart")
+        .arg("docker")
+        .invoke(embassy::ErrorKind::Journald)
+        .await?;
     log::info!("Mounted Docker Data");
     embassy::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     log::info!("Synced SSH Keys");
