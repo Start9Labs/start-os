@@ -1,7 +1,7 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { AlertController, ModalController, IonContent, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
+import { isEmptyObject, isObject, Recommendation } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
@@ -18,6 +18,7 @@ import { FormService } from 'src/app/services/form.service'
 })
 export class AppConfigPage {
   @Input() pkgId: string
+  pkg: PackageDataEntry
   loadingText: string | undefined
   configSpec: ConfigSpec
   configForm: FormGroup
@@ -39,18 +40,24 @@ export class AppConfigPage {
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
-    public readonly patch: PatchDbService,
+    private readonly patch: PatchDbService,
   ) { }
 
   async ngOnInit () {
-    const rec = history.state?.configRecommendation as Recommendation
+    this.pkg = this.patch.data['package-data'][this.pkgId]
+    this.hasConfig = !!this.pkg.manifest.config
+
+    if (!this.hasConfig) return
+
+    this.rec = history.state?.configRecommendation as Recommendation
+
     try {
       this.loadingText = 'Loading Config'
       const { spec, config } = await this.embassyApi.getPackageConfig({ id: this.pkgId })
       let depConfig: object
-      if (rec) {
-        this.loadingText = `Setting properties to accommodate ${rec.dependentTitle}...`
-        depConfig = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': rec.dependentId })
+      if (this.rec) {
+        this.loadingText = `Setting properties to accommodate ${this.rec.dependentTitle}`
+        depConfig = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': this.rec.dependentId })
       }
       this.setConfig(spec, config, depConfig)
     } catch (e) {
@@ -67,7 +74,6 @@ export class AppConfigPage {
   setConfig (spec: ConfigSpec, config: object, depConfig?: object) {
     this.configSpec = spec
     this.current = config
-    this.hasConfig = !isEmptyObject(config)
     this.configForm = this.formService.createForm(spec, { ...config, ...depConfig })
     this.configForm.markAllAsTouched()
 
@@ -82,7 +88,7 @@ export class AppConfigPage {
       if (!next) throw new Error('Dependency config not compatible with service version. Please contact support')
       const newVal = config[key]
       // check if val is an object
-      if (newVal && typeof newVal === 'object' && !Array.isArray(newVal)) {
+      if (isObject(newVal)) {
         this.alterConfigRecursive(next as FormGroup, newVal)
       } else {
         let val1 = group.get(key).value
@@ -113,7 +119,7 @@ export class AppConfigPage {
     }
   }
 
-  async save (pkg: PackageDataEntry) {
+  async save () {
     if (this.configForm.invalid) {
       document.getElementsByClassName('validation-error')[0].parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
       return
@@ -131,7 +137,7 @@ export class AppConfigPage {
     try {
       this.saving = true
       const breakages = await this.embassyApi.drySetPackageConfig({
-        id: pkg.manifest.id,
+        id: this.pkg.manifest.id,
         config,
       })
 
@@ -139,7 +145,7 @@ export class AppConfigPage {
         const { cancelled } = await wizardModal(
           this.modalCtrl,
           this.wizardBaker.configure({
-            pkg,
+            pkg: this.pkg,
             breakages,
           }),
         )
@@ -147,7 +153,7 @@ export class AppConfigPage {
       }
 
       await this.embassyApi.setPackageConfig({
-        id: pkg.manifest.id,
+        id: this.pkg.manifest.id,
         config,
       })
       this.modalCtrl.dismiss()
