@@ -50,18 +50,22 @@ impl Shutdown {
 
 #[command(display(display_none))]
 pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
-    ctx.shutdown.send(Some(Shutdown {
-        zfs_pool: ctx.zfs_pool_name.clone(),
-        restart: false,
-    }));
+    ctx.shutdown
+        .send(Some(Shutdown {
+            zfs_pool: ctx.zfs_pool_name.clone(),
+            restart: false,
+        }))
+        .expect("receiver dropped");
     Ok(())
 }
 
 #[command(display(display_none))]
 pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
-    ctx.shutdown.send(Some(Shutdown {
-        zfs_pool: ctx.zfs_pool_name.clone(),
-        restart: true,
-    }));
+    ctx.shutdown
+        .send(Some(Shutdown {
+            zfs_pool: ctx.zfs_pool_name.clone(),
+            restart: true,
+        }))
+        .expect("receiver dropped");
     Ok(())
 }

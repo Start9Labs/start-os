@@ -113,12 +113,15 @@ where
     &'a T: IntoIterator<Item = &'a (Option<Note>, TimeSlice)>,
 {
     pub async fn play(&'a self) -> Result<(), Error> {
-        let mut sound = SoundInterface::lease().await?;
-        for (note, slice) in &self.note_sequence {
-            match note {
-                None => tokio::time::sleep(slice.to_duration(self.tempo_qpm)).await,
-                Some(n) => sound.play_for_time_slice(self.tempo_qpm, n, slice).await?,
-            };
+        #[cfg(feature = "sound")]
+        {
+            let mut sound = SoundInterface::lease().await?;
+            for (note, slice) in &self.note_sequence {
+                match note {
+                    None => tokio::time::sleep(slice.to_duration(self.tempo_qpm)).await,
+                    Some(n) => sound.play_for_time_slice(self.tempo_qpm, n, slice).await?,
+                };
+            }
         }
         Ok(())
     }
