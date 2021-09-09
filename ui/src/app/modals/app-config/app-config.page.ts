@@ -72,18 +72,18 @@ export class AppConfigPage {
     this.configForm.markAllAsTouched()
 
     if (depConfig) {
-      this.markDirtyRecursive(this.configForm, depConfig)
+      this.alterConfigRecursive(this.configForm, depConfig)
     }
   }
 
-  markDirtyRecursive (group: FormGroup, config: object) {
+  alterConfigRecursive (group: FormGroup, config: object) {
     Object.keys(config).forEach(key => {
       const next = group.get(key)
       if (!next) throw new Error('Dependency config not compatible with service version. Please contact support')
       const newVal = config[key]
       // check if val is an object
       if (newVal && typeof newVal === 'object' && !Array.isArray(newVal)) {
-        this.markDirtyRecursive(next as FormGroup, newVal)
+        this.alterConfigRecursive(next as FormGroup, newVal)
       } else {
         let val1 = group.get(key).value
         let val2 = config[key]
@@ -98,7 +98,7 @@ export class AppConfigPage {
 
   resetDefaults () {
     this.configForm = this.formService.createForm(this.configSpec)
-    this.markDirtyRecursive(this.configForm, this.current)
+    this.alterConfigRecursive(this.configForm, this.current)
   }
 
   dismissRec () {
