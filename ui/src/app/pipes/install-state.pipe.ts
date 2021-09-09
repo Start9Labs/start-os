@@ -7,7 +7,6 @@ import { InstallProgress } from '../services/patch-db/data-model'
 export class InstallState implements PipeTransform {
 
   transform (loadData: InstallProgress): ProgressData {
-    console.log('LOAD DATA', loadData)
     let { downloaded, validated, unpacked, size, 'download-complete': downloadComplete, 'validation-complete': validationComplete, 'unpack-complete': unpackComplete } = loadData
     downloaded = downloadComplete ? size : downloaded
     validated = validationComplete ? size : validated

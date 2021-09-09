@@ -67,31 +67,43 @@ export class ConfigService {
 }
 
 export function hasTorUi (interfaces: { [id: string]: InterfaceDef }): boolean {
-  return !!Object.values(interfaces).find(i => i.ui && i['tor-config'])
+  const int = getUiInterfaceValue(interfaces)
+  return !!int?.['tor-config']
 }
 
 export function hasLanUi (interfaces: { [id: string]: InterfaceDef }): boolean {
-  return !!Object.values(interfaces).find(i => i.ui && i['lan-config'])
+  const int = getUiInterfaceValue(interfaces)
+  return !!int?.['lan-config']
 }
 
 export function torUiAddress (pkg: PackageDataEntry): string {
-  return pkg.installed?.['interface-addresses']?.ui?.['tor-address']
+  const key = getUiInterfaceKey(pkg.manifest.interfaces)
+  return pkg.installed['interface-addresses'][key]['tor-address']
 }
 
 export function lanUiAddress (pkg: PackageDataEntry): string {
-  return pkg.installed?.['interface-addresses']?.ui?.['lan-address']
+  const key = getUiInterfaceKey(pkg.manifest.interfaces)
+  return pkg.installed['interface-addresses'][key]['lan-address']
 }
 
 export function hasUi (interfaces: { [id: string]: InterfaceDef }): boolean {
   return hasTorUi(interfaces) || hasLanUi(interfaces)
 }
 
-function removeProtocol (str: string): string {
+export function removeProtocol (str: string): string {
   if (str.startsWith('http://')) return str.slice(7)
   if (str.startsWith('https://')) return str.slice(8)
   return str
 }
 
-function removePort (str: string): string {
+export function removePort (str: string): string {
   return str.split(':')[0]
+}
+
+export function getUiInterfaceKey (interfaces: { [id: string]: InterfaceDef }): string {
+  return Object.keys(interfaces).find(key => interfaces[key].ui)
+}
+
+export function getUiInterfaceValue (interfaces: { [id: string]: InterfaceDef }): InterfaceDef {
+  return Object.values(interfaces).find(i => i.ui)
 }

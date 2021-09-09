@@ -50,7 +50,6 @@ export class AppListPage {
         }),
       )
       .subscribe(pkgs => {
-        console.log('PACKAGES LIST', pkgs)
         this.loading = false
 
         const ids = Object.keys(pkgs)
@@ -77,7 +76,6 @@ export class AppListPage {
           }
           // subscribe to pkg
           this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
-            console.log('SOLO PKG', id, pkg)
             if (!pkg) return
             let bulbClass = 'bulb-on'
             let img = ''

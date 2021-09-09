@@ -1,6 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AlertController, IonContent, ModalController, NavController } from '@ionic/angular'
+import { AlertController, IonContent, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Emver } from 'src/app/services/emver.service'
@@ -12,6 +12,7 @@ import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-m
 import { MarketplaceService } from '../marketplace.service'
 import { Subscription } from 'rxjs'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: 'marketplace-show',
@@ -33,11 +34,13 @@ export class MarketplaceShowPage {
     private readonly route: ActivatedRoute,
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
+    private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
     private readonly emver: Emver,
     private readonly patch: PatchDbService,
+    private readonly embassyApi: ApiService,
     public readonly marketplaceService: MarketplaceService,
   ) { }
 
@@ -121,21 +124,34 @@ export class MarketplaceShowPage {
     await modal.present()
   }
 
-  async install () {
+  async tryInstall () {
     const { id, title, version, alerts } = this.marketplaceService.pkgs[this.pkgId].manifest
-    const { cancelled } = await wizardModal(
-      this.modalCtrl,
-      this.wizardBaker.install({
-        id,
-        title,
-        version,
-        installAlert: alerts.install,
-      }),
-    )
-    if (cancelled) return
+
+    if (!alerts.install) {
+      await this.install(id, version)
+    } else {
+      const alert = await this.alertCtrl.create({
+        header: title,
+        subHeader: version,
+        message: alerts.install,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+          {
+            text: 'Install',
+            handler: () => {
+              this.install(id, version)
+            },
+          },
+        ],
+      })
+      await alert.present()
+    }
   }
 
-  async update (action: 'update' | 'downgrade') {
+  async presentModal (action: 'update' | 'downgrade') {
     const { id, title, version, dependencies, alerts } = this.marketplaceService.pkgs[this.pkgId].manifest
     const value = {
       id,
@@ -159,5 +175,22 @@ export class MarketplaceShowPage {
 
   dismissRec () {
     this.showRec = false
+  }
+
+  private async install (id: string, version?: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Beginning Installation',
+      cssClass: 'loader',
+    })
+    loader.present()
+
+    try {
+      await this.embassyApi.installPackage({ id, version })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 }

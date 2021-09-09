@@ -79,7 +79,6 @@ export class HttpService {
       case Method.PATCH:  req = this.http.patch(url, httpOpts.body, options) as any; break
       case Method.DELETE: req = this.http.delete(url, options) as any; break
     }
-    console.log('REQUEST', options)
 
     return (httpOpts.timeout ? withTimeout(req, httpOpts.timeout) : req)
       .toPromise()

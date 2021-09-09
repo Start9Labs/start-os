@@ -1,6 +1,7 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent, ToastController } from '@ionic/angular'
+import { getUiInterfaceKey } from 'src/app/services/config.service'
 import { InstalledPackageDataEntry, InterfaceDef } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { copyToClipboard } from 'src/app/util/web.util'
@@ -29,13 +30,14 @@ export class AppInterfacesPage {
     const pkgId = this.route.snapshot.paramMap.get('pkgId')
     const pkg = this.patch.data['package-data'][pkgId]
     const interfaces = pkg.manifest.interfaces
-    const addressesMap = pkg.installed['interface-addresses']
-    const ui = interfaces['ui']
+    const uiKey = getUiInterfaceKey(interfaces)
 
-    if (ui) {
-      const uiAddresses = addressesMap['ui']
+    const addressesMap = pkg.installed['interface-addresses']
+
+    if (uiKey) {
+      const uiAddresses = addressesMap[uiKey]
       this.ui = {
-        def: ui,
+        def: interfaces[uiKey],
         addresses: {
           'lan-address': uiAddresses['lan-address'] ? 'https://' + uiAddresses['lan-address'] : null,
           'tor-address': uiAddresses['tor-address'] ? 'http://' + uiAddresses['tor-address'] : null,
@@ -44,7 +46,7 @@ export class AppInterfacesPage {
     }
 
     this.other = Object.keys(interfaces)
-      .filter(key => key !== 'ui')
+      .filter(key => key !== uiKey)
       .map(key => {
         const addresses = addressesMap[key]
         return {
