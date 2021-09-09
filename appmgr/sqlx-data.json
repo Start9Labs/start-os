@@ -178,6 +178,24 @@
       ]
     }
   },
+  "c895b08869cc611708d37643ec92b5c827c1766c63e263d5687aa639357b27e6": {
+    "query": "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?) RETURNING key AS \"key!:Vec<u8>\"",
+    "describe": {
+      "columns": [
+        {
+          "name": "key!:Vec<u8>",
+          "ordinal": 0,
+          "type_info": "Null"
+        }
+      ],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": [
+        null
+      ]
+    }
+  },
   "d5117054072476377f3c4f040ea429d4c9b2cf534e76f35c80a2bf60e8599cca": {
     "query": "SELECT openssh_pubkey FROM ssh_keys",
     "describe": {
@@ -194,16 +212,6 @@
       "nullable": [
         false
       ]
-    }
-  },
-  "d79d608ceb862c15b741a6040044c6dd54a837a3a0c5594d15a6041c7bc68ea8": {
-    "query": "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?)",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Right": 3
-      },
-      "nullable": []
     }
   },
   "de2a5e90798d606047ab8180c044baac05469c0cdf151316bd58ee8c7196fdef": {
