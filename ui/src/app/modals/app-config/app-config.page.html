@@ -6,7 +6,7 @@
       </ion-button>
     </ion-buttons>
     <ion-title>Config</ion-title>
-    <ion-buttons slot="end" class="ion-padding-end">
+    <ion-buttons *ngIf="hasConfig" slot="end" class="ion-padding-end">
       <ion-button fill="clear" [disabled]="loadingText" (click)="resetDefaults()">
         <ion-icon slot="start" name="refresh"></ion-icon>
         Reset Defaults
@@ -24,7 +24,7 @@
   <ng-template #loaded>
 
     <ng-container *ngIf="patch.data['package-data'][pkgId] as pkg">
-      <ion-item>
+      <ion-item *ngIf="hasConfig && !pkg.installed.status.configured && !configForm.dirty">
         <ion-label>
           <ion-text color="success">To use the default config for {{ pkg.manifest.title }}, click "Save" below.</ion-text>
         </ion-label>
@@ -66,7 +66,7 @@
       </ion-item>
 
       <!-- has config -->
-      <form [formGroup]="configForm" (ngSubmit)="save(pkg)" novalidate>
+      <form *ngIf="hasConfig" [formGroup]="configForm" (ngSubmit)="save(pkg)" novalidate>
         <form-object
           [objectSpec]="configSpec"
           [formGroup]="configForm"
@@ -81,8 +81,11 @@
 <ion-footer>
   <ion-toolbar *ngIf="patch.data['package-data'][pkgId] as pkg">
     <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button fill="outline" [disabled]="saving" (click)="save(pkg)" class="enter-click" [class.no-click]="saving">
+      <ion-button *ngIf="hasConfig" fill="outline" [disabled]="saving" (click)="save(pkg)" class="enter-click" [class.no-click]="saving">
         Save
+      </ion-button>
+      <ion-button *ngIf="!loadingText && !hasConfig" fill="outline" (click)="dismiss()" class="enter-click">
+        Close
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
