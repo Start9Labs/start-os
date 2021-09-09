@@ -81,6 +81,10 @@ export async function doForAtLeast (promises: Promise<any>[], minTime: number): 
   return returned
 }
 
+export function isObject (val: any): boolean {
+  return val && typeof val === 'object' && !Array.isArray(val)
+}
+
 export function isEmptyObject (obj: object): boolean {
   if (!obj) return true
   return Object.keys(obj).length === 0 && obj.constructor === Object
