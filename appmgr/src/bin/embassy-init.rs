@@ -71,9 +71,14 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .arg(&tmp_docker)
         .invoke(embassy::ErrorKind::Filesystem)
         .await?;
+    Command::new("systemctl")
+        .arg("stop")
+        .arg("docker")
+        .invoke(embassy::ErrorKind::Journald)
+        .await?;
     embassy::disk::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
     Command::new("systemctl")
-        .arg("restart")
+        .arg("start")
         .arg("docker")
         .invoke(embassy::ErrorKind::Journald)
         .await?;

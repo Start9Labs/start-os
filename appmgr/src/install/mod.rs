@@ -96,7 +96,7 @@ pub async fn install(
         }
         _ => {
             return Err(Error::new(
-                anyhow!("Cannot install over an app in a transient state"),
+                anyhow!("Cannot install over a package in a transient state"),
                 crate::ErrorKind::InvalidRequest,
             ))
         }

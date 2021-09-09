@@ -305,10 +305,10 @@ impl Manager {
                             .unwrap(); // recv is still in scope, cannot fail
                     }
                     Ok(Err(e)) => {
-                        log::error!("application crashed: {}: {}", e.0, e.1)
+                        log::error!("service crashed: {}: {}", e.0, e.1)
                     }
                     Err(e) => {
-                        log::error!("failed to start application: {}", e)
+                        log::error!("failed to start service: {}", e)
                     }
                 }
             }
