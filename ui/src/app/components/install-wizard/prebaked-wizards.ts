@@ -11,50 +11,6 @@ export class WizardBaker {
     private readonly embassyApi: ApiService,
   ) { }
 
-  install (values: {
-    id: string
-    title: string
-    version: string
-    installAlert?: string
-  }): InstallWizardComponent['params'] {
-    const { id, title, version, installAlert } = values
-
-    const action = 'install'
-    const toolbar: TopbarParams = { action, title, version }
-
-    const slideDefinitions: SlideDefinition[] = [
-      installAlert ? {
-        slide: {
-          selector: 'alert',
-          params: {
-            title: 'Warning',
-            message: installAlert,
-            titleColor: 'warning',
-          },
-        },
-        bottomBar: {
-          cancel: { afterLoading: { text: 'Cancel' } }, next: 'Next',
-        },
-      } : undefined,
-      {
-        slide: {
-          selector: 'complete',
-          params: {
-            action,
-            verb: 'beginning installation for',
-            title,
-            executeAction: () => this.embassyApi.installPackage({ id, version }),
-          },
-        },
-        bottomBar: {
-          cancel: { whileLoading: {  } },
-          finish: 'Dismiss',
-        },
-      },
-    ]
-    return { toolbar, slideDefinitions: slideDefinitions.filter(exists) }
-  }
-
   update (values: {
     id: string
     title: string

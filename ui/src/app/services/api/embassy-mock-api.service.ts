@@ -77,7 +77,6 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     let entries
     if (Math.random() < .2) {
-      console.log('last page')
       entries = Mock.ServerLogs
     } else {
       const arrLength = params.limit ? Math.ceil(params.limit / Mock.ServerLogs.length) : 10
@@ -324,7 +323,6 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     let entries
     if (Math.random() < .2) {
-      console.log('last page')
       entries =  Mock.PackageLogs
     } else {
       const arrLength = params.limit ? Math.ceil(params.limit / Mock.PackageLogs.length) : 10

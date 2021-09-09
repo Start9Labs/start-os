@@ -366,7 +366,7 @@ export module Mock {
       rpc: {
         name: 'RPC interface',
         description: 'Good for connecting to your node at a distance.',
-        ui: true,
+        ui: false,
         'tor-config': {
           'port-mapping': { },
         },

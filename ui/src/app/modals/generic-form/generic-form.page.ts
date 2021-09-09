@@ -33,7 +33,6 @@ export class GenericFormPage {
       text: '',
       handler: () => Promise.resolve(true),
     }
-    console.log(this.submitBtn)
   }
 
   async dismiss (): Promise<void> {
