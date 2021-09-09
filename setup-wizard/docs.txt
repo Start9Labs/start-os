@@ -1,0 +1,53 @@
+verifyProductKey
+    Request
+      key: string
+
+    response
+      "is-recovering" : boolean
+      "tor-address"   : string
+
+getEmbassyDrives
+    Request
+    
+    Response
+      {
+        logicalname: string
+        labels: string[]
+        capacity: number
+        used: number
+      }[]
+
+getRecoveryDrives
+    Request
+
+    Response
+      {
+        logicalname: string
+        version: string
+        name: string
+      }[]
+
+getDataTransferProgress
+    Request
+    
+    Response
+      'bytes-transfered' : number
+      'total-bytes'      : number
+
+verifyRecoveryPassword
+    Request
+      logicalname : string
+      password    : string
+    
+    Response
+      boolean
+
+setupEmbassy
+    Request
+      embassyLogicalname   : string,
+      embassyPassword      : string
+      recoveryLogicalname? : string,
+      recoveryPassword?    : string
+
+    Response
+      "tor-address": string
