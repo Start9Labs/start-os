@@ -52,7 +52,7 @@ export module Mock {
       'shm-size': '',
     },
     'health-checks': { },
-    config: null,
+    config: { get: { } as any, set: { } as any },
     volumes: { },
     'min-os-version': '0.2.12',
     interfaces: {
@@ -359,7 +359,7 @@ export module Mock {
       'shm-size': '',
     },
     'health-checks': { },
-    config: null,
+    config: { get: { } as any, set: { } as any },
     volumes: { },
     'min-os-version': '0.2.12',
     interfaces: {
