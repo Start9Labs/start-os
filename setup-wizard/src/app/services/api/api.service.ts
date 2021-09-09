@@ -9,10 +9,10 @@ export abstract class ApiService {
   abstract getDataTransferProgress (): Promise<TransferProgressRes>;
   abstract verifyRecoveryPassword (logicalname: string, password: string): Promise<boolean>;
   abstract setupEmbassy (setupInfo: {
-    embassyLogicalname: string,
-    embassyPassword: string
-    recoveryLogicalname?: string,
-    recoveryPassword?: string
+    'embassy-logicalname': string,
+    'embassy-password': string
+    'recovery-logicalname'?: string,
+    'recovery-password'?: string
   }): Promise<SetupEmbassyRes>
 }
 
