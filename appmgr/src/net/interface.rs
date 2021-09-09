@@ -36,11 +36,18 @@ impl Interfaces {
             if iface.tor_config.is_some() || iface.lan_config.is_some() {
                 let key = TorSecretKeyV3::generate();
                 let key_vec = key.as_bytes().to_vec();
-                let key_row = sqlx::query!(
-                    "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?) RETURNING key AS \"key!:Vec<u8>\"",
+                sqlx::query!(
+                    "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?)",
                     **package_id,
                     **id,
                     key_vec,
+                )
+                .execute(&mut *secrets)
+                .await?;
+                let key_row = sqlx::query!(
+                    "SELECT key FROM tor WHERE package = ? AND interface = ?",
+                    **package_id,
+                    **id,
                 )
                 .fetch_one(&mut *secrets)
                 .await?;

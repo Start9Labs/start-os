@@ -1914,6 +1914,7 @@ dependencies = [
  "json-patch",
  "json-ptr",
  "lazy_static",
+ "log",
  "nix 0.20.1",
  "patch-db-macro",
  "qutex-2",
