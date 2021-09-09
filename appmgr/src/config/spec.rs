@@ -1980,9 +1980,9 @@ mod test {
                 "lan-address": {
                   "name": "LAN Address",
                   "type": "pointer",
-                  "subtype": "app",
+                  "subtype": "package",
                   "target": "lan-address",
-                  "app-id": "bitcoind",
+                  "package-id": "bitcoind",
                   "description": "the lan address"
                 }
               },
