@@ -45,10 +45,10 @@ export class StateService {
 
   async setupEmbassy () : Promise<{ torAddress: string }> {
     const ret = await this.apiService.setupEmbassy({
-      embassyLogicalname: this.embassyDrive.logicalname,
-      embassyPassword: this.embassyPassword,
-      recoveryLogicalname: this.recoveryDrive?.logicalname,
-      recoveryPassword: this.recoveryPassword
+      'embassy-logicalname': this.embassyDrive.logicalname,
+      'embassy-password': this.embassyPassword,
+      'recovery-logicalname': this.recoveryDrive?.logicalname,
+      'recovery-password': this.recoveryPassword
     })
 
     return { torAddress: ret['tor-address'] }
