@@ -70,8 +70,6 @@ impl MdnsControllerInner {
     }
     fn init() -> Self {
         unsafe {
-            // let app_list = crate::apps::list_info().await?;
-
             let simple_poll = avahi_sys::avahi_simple_poll_new();
             let poll = avahi_sys::avahi_simple_poll_get(simple_poll);
             let mut stack_err = 0;

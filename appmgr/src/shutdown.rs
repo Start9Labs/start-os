@@ -24,6 +24,13 @@ impl Shutdown {
             .unwrap()
             .wait()
             .unwrap();
+        Command::new("systemctl")
+            .arg("stop")
+            .arg("docker")
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap();
         if let Err(e) = export_blocking(&self.zfs_pool) {
             log::error!("Error Exporting ZFS Pool: {}", e);
         }
