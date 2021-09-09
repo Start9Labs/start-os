@@ -11,13 +11,13 @@
   <ion-item-group>
     <!-- iff ui -->
     <ng-container *ngIf="ui">
-      <ion-item-divider>Web User Interface</ion-item-divider>
+      <ion-item-divider>User Interface</ion-item-divider>
       <app-interfaces-item [interface]="ui"></app-interfaces-item>
     </ng-container>
 
     <!-- other interface -->
     <ng-container *ngIf="other.length">
-      <ion-item-divider>Other Interfaces</ion-item-divider>
+      <ion-item-divider>Machine Interfaces</ion-item-divider>
       <div *ngFor="let interface of other" style="margin-bottom: 30px;">
         <app-interfaces-item [interface]="interface"></app-interfaces-item>
       </div>

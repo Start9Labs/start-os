@@ -49,17 +49,17 @@
           </ion-col>
           <ion-col sizeXl="3" sizeLg="3" sizeMd="3" sizeSm="12" sizeXs="12" class="ion-align-self-center">
             <!-- no localPkg -->
-            <ion-button *ngIf="!localPkg; else localPkg2" expand="block" (click)="install()">
+            <ion-button *ngIf="!localPkg; else localPkg2" expand="block" (click)="tryInstall()">
               Install
             </ion-button>
             <!-- localPkg -->
             <ng-template #localPkg2>
               <!-- not installing, updating, or removing -->
               <ng-container *ngIf="localPkg.state === PackageState.Installed">
-                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === -1" expand="block" (click)="update('update')">
+                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === -1" expand="block" (click)="presentModal('update')">
                   Update
                 </ion-button>
-                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === 1" expand="block" color="warning" (click)="update('downgrade')">
+                <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === 1" expand="block" color="warning" (click)="presentModal('downgrade')">
                   Downgrade
                 </ion-button>
               </ng-container>
