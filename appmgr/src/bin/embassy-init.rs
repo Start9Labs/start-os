@@ -74,13 +74,18 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     Command::new("systemctl")
         .arg("stop")
         .arg("docker")
-        .invoke(embassy::ErrorKind::Journald)
+        .invoke(embassy::ErrorKind::Docker)
         .await?;
     embassy::disk::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
     Command::new("systemctl")
+        .arg("reset-failed")
+        .arg("docker")
+        .invoke(embassy::ErrorKind::Docker)
+        .await?;
+    Command::new("systemctl")
         .arg("start")
         .arg("docker")
-        .invoke(embassy::ErrorKind::Journald)
+        .invoke(embassy::ErrorKind::Docker)
         .await?;
     log::info!("Mounted Docker Data");
     embassy::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
