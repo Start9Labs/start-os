@@ -17,6 +17,13 @@ impl Shutdown {
     pub fn execute(&self) {
         use std::process::Command;
 
+        Command::new("systemctl")
+            .arg("stop")
+            .arg("systemd-journald")
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap();
         if let Err(e) = export_blocking(&self.zfs_pool) {
             log::error!("Error Exporting ZFS Pool: {}", e);
         }
