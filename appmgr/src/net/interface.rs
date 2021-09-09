@@ -36,14 +36,17 @@ impl Interfaces {
             if iface.tor_config.is_some() || iface.lan_config.is_some() {
                 let key = TorSecretKeyV3::generate();
                 let key_vec = key.as_bytes().to_vec();
-                sqlx::query!(
-                    "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?)",
+                let key_row = sqlx::query!(
+                    "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?) RETURNING key AS \"key!:Vec<u8>\"",
                     **package_id,
                     **id,
                     key_vec,
                 )
-                .execute(&mut *secrets)
+                .fetch_one(&mut *secrets)
                 .await?;
+                let mut key = [0_u8; 64];
+                key.clone_from_slice(&key_row.key);
+                let key = TorSecretKeyV3::from(key);
                 let onion = key.public().get_onion_address();
                 if iface.tor_config.is_some() {
                     addrs.tor_address = Some(onion.to_string());
