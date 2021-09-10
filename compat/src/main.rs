@@ -1,6 +1,11 @@
-use std::{fs::File, io::{stdin, stdout}, path::Path};
+use std::{
+    fs::File,
+    io::{stdin, stdout},
+    path::Path,
+};
 
-#[macro_use] extern crate failure;
+#[macro_use]
+extern crate failure;
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
@@ -15,7 +20,7 @@ use embassy::config::action::ConfigRes;
 // enum == sum type, structs = product type, trait = type class
 pub enum CompatRes {
     SetResult,
-    ConfigRes
+    ConfigRes,
 }
 
 fn main() {
@@ -33,37 +38,38 @@ fn main() {
 fn inner_main() -> Result<(), anyhow::Error> {
     let app = App::new("compat")
         .subcommand(
-            SubCommand::with_name("config").subcommand(
-                SubCommand::with_name("get")
-                    .arg(
-                        Arg::with_name("mountpoint")
-                            .help("Path to the config file")
-                            .required(true),
-                    )
-                    .arg(
-                        Arg::with_name("spec")
-                            .help("The path to the config spec in the container")
-                            .required(true),
-                    ),
-            )
-            .subcommand(
-                SubCommand::with_name("set")
-                    .arg(
-                        Arg::with_name("mountpoint")
-                            .help("Path to the config file")
-                            .required(true),
-                    )
-                    .arg(
-                        Arg::with_name("app_id")
-                            .help("service identifier")
-                            .required(true),
-                    )
-                    .arg(
-                        Arg::with_name("assets")
-                            .help("Path to the rules file")
-                            .required(true),
-                    )
-            )
+            SubCommand::with_name("config")
+                .subcommand(
+                    SubCommand::with_name("get")
+                        .arg(
+                            Arg::with_name("mountpoint")
+                                .help("Path to the config file")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("spec")
+                                .help("The path to the config spec in the container")
+                                .required(true),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("set")
+                        .arg(
+                            Arg::with_name("mountpoint")
+                                .help("Path to the config file")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("app_id")
+                                .help("service identifier")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("assets")
+                                .help("Path to the rules file")
+                                .required(true),
+                        ),
+                ),
         )
         .subcommand(
             SubCommand::with_name("dependency").subcommand(
@@ -77,50 +83,65 @@ fn inner_main() -> Result<(), anyhow::Error> {
                         Arg::with_name("mountpoint")
                             .help("Path to the config rules file")
                             .required(true),
-                    )
+                    ),
             ),
         )
         .subcommand(
-            SubCommand::with_name("duplicity").subcommand(
-                SubCommand::with_name("create")
-                    .arg(
-                        Arg::with_name("package-id")
-                            .help("The `id` field from the manifest file")
-                            .required(true),
-                    )
-                    .arg(
-                        Arg::with_name("mountpoint")
-                            .help(
-                                "The backups mount point"
-                            )
-                            .required(true),
-                    )
-                    .arg(
-                        Arg::with_name("datapath")
-                            .help("The path to the data to be backed up in the container")
-                            .required(true),
-                    )
-            )
-            .subcommand(
-                SubCommand::with_name("restore")
-                    .arg(
-                        Arg::with_name("package-id")
-                            .help("The `id` field from the manifest file")
-                            .required(true),
-                    )
-                    .arg(
-                        Arg::with_name("mountpoint")
-                            .help(
-                                "The backups mount point"
-                            )
-                            .required(true),
-                    )
-                    .arg(
-                        Arg::with_name("datapath")
-                            .help("The path to the data to be backed up in the container")
-                            .required(true),
-                    ),
-            ),
+            SubCommand::with_name("duplicity")
+                .subcommand(
+                    SubCommand::with_name("create")
+                        .arg(
+                            Arg::with_name("package-id")
+                                .help("The `id` field from the manifest file")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("mountpoint")
+                                .help("The backups mount point")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("datapath")
+                                .help("The path to the data to be backed up in the container")
+                                .required(true),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("restore")
+                        .arg(
+                            Arg::with_name("package-id")
+                                .help("The `id` field from the manifest file")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("mountpoint")
+                                .help("The backups mount point")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("datapath")
+                                .help("The path to the data to be backed up in the container")
+                                .required(true),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("properties")
+                        .arg(
+                            Arg::with_name("package-id")
+                                .help("The `id` field from the manifest file")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("mountpoint")
+                                .help("The backups mount point")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("datapath")
+                                .help("The path to the data to be backed up in the container")
+                                .required(true),
+                        ),
+                ),
         );
     let matches = app.get_matches();
     match matches.subcommand() {
@@ -137,33 +158,29 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 let spec = serde_yaml::from_reader(File::open(spec_path).unwrap()).unwrap();
                 serde_yaml::to_writer(stdout(), &ConfigRes { config: cfg, spec })?;
                 Ok(())
-            },
+            }
             ("set", Some(sub_m)) => {
                 let config = serde_yaml::from_reader(stdin()).unwrap();
-                let cfg_path =
-                    Path::new(sub_m.value_of("mountpoint").unwrap());
-                let rules_path =
-                    Path::new(sub_m.value_of("assets").unwrap());
+                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap());
+                let rules_path = Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("app_id").unwrap();
                 match validate_configuration(&name, config, rules_path, cfg_path) {
                     Ok(a) => {
                         serde_yaml::to_writer(stdout(), &a)?;
                         Ok(())
                     }
-                    Err(e) => Err(e)
+                    Err(e) => Err(e),
                 }
-            },
+            }
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
             }
         },
         ("dependency", Some(sub_m)) => match sub_m.subcommand() {
             ("check", Some(sub_m)) => {
-                let cfg_path =
-                    Path::new(sub_m.value_of("mountpoint").unwrap());
+                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap());
                 let config = serde_yaml::from_reader(File::open(cfg_path).unwrap()).unwrap();
-                let rules_path =
-                    Path::new(sub_m.value_of("assets").unwrap());
+                let rules_path = Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("app_id").unwrap();
                 match validate_configuration(&name, config, rules_path, cfg_path) {
                     Ok(a) => {
@@ -174,7 +191,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     }
                 }
                 Ok(())
-            },
+            }
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
             }
@@ -182,10 +199,10 @@ fn inner_main() -> Result<(), anyhow::Error> {
         ("duplicity", Some(sub_m)) => match sub_m.subcommand() {
             ("create", Some(sub_m)) => {
                 let res = create_backup(
-                        sub_m.value_of("mountpoint").unwrap(),
-                        sub_m.value_of("datapath").unwrap(),
-                        sub_m.value_of("package-id").unwrap(),
-                    );
+                    sub_m.value_of("mountpoint").unwrap(),
+                    sub_m.value_of("datapath").unwrap(),
+                    sub_m.value_of("package-id").unwrap(),
+                );
                 match res {
                     Ok(r) => {
                         serde_yaml::to_writer(stdout(), &r)?;
@@ -195,13 +212,13 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     }
                 }
                 Ok(())
-            },
+            }
             ("restore", Some(sub_m)) => {
                 let res = restore_backup(
-                        sub_m.value_of("package-id").unwrap(),
-                        sub_m.value_of("datapath").unwrap(),
-                        sub_m.value_of("mountpoint").unwrap(),
-                    );
+                    sub_m.value_of("package-id").unwrap(),
+                    sub_m.value_of("datapath").unwrap(),
+                    sub_m.value_of("mountpoint").unwrap(),
+                );
                 match res {
                     Ok(r) => {
                         serde_yaml::to_writer(stdout(), &r)?;
@@ -211,11 +228,22 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     }
                 }
                 Ok(())
-            },
+            }
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
-            },
+            }
         },
+        ("properties", Some(sub_m)) => {
+            let stats_path =
+                Path::new(sub_m.value_of("mountpoint").unwrap()).join("start9/stats.yaml");
+            let stats: serde_json::Value = if stats_path.exists() {
+                serde_yaml::from_reader(File::open(stats_path).unwrap()).unwrap()
+            } else {
+                serde_json::Value::from("{}")
+            };
+            serde_json::to_writer(stdout(), &stats)?;
+            Ok(())
+        }
         (subcmd, _) => {
             panic!("unknown subcommand: {}", subcmd);
         }
