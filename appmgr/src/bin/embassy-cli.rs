@@ -23,7 +23,7 @@ fn inner_main() -> Result<(), Error> {
                     .takes_value(false),
             )
             .arg(Arg::with_name("host").long("host").short("h").takes_value(true))
-            .arg(Arg::with_name("port").long("port").short("p").takes_value(true)),
+            .arg(Arg::with_name("proxy").long("proxy").short("p").takes_value(true)),
         context: matches => {
             simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
                 0 => log::LevelFilter::Off,
