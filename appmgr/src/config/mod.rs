@@ -396,7 +396,7 @@ pub fn configure<'a, Db: DbHandle>(
         let dependents = pkg_model.clone().current_dependents().get(db, true).await?;
         let prev = old_config.map(Value::Object).unwrap_or_default();
         let next = Value::Object(config.clone());
-        for (dependent, dep_info) in &*dependents {
+        for (dependent, dep_info) in dependents.iter().filter(|(dep_id, _)| dep_id != &id) {
             fn handle_broken_dependents<'a, Db: DbHandle>(
                 db: &'a mut Db,
                 id: &'a PackageId,

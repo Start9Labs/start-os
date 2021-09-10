@@ -260,10 +260,14 @@ impl DependencyConfig {
     }
 }
 
-pub async fn update_current_dependents<Db: DbHandle>(
+pub async fn update_current_dependents<
+    'a,
+    Db: DbHandle,
+    I: IntoIterator<Item = (&'a PackageId, &'a CurrentDependencyInfo)>,
+>(
     db: &mut Db,
     dependent_id: &PackageId,
-    current_dependencies: &IndexMap<PackageId, CurrentDependencyInfo>,
+    current_dependencies: I,
 ) -> Result<(), Error> {
     for (dependency, dep_info) in current_dependencies {
         if let Some(dependency_model) = crate::db::DatabaseModel::new()
