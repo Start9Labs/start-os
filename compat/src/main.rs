@@ -161,13 +161,13 @@ fn inner_main() -> Result<(), anyhow::Error> {
             }
             ("set", Some(sub_m)) => {
                 let config = serde_yaml::from_reader(stdin())?;
-                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap()).join("config.yaml");
+                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap());
                 if !cfg_path.exists() {
                     std::fs::create_dir_all(&cfg_path).unwrap();
                 };
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("app_id").unwrap();
-                match validate_configuration(&name, config, rules_path, &cfg_path) {
+                match validate_configuration(&name, config, rules_path, &cfg_path.join("config.yaml")) {
                     Ok(a) => {
                         serde_yaml::to_writer(stdout(), &a)?;
                         Ok(())
