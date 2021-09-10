@@ -13,42 +13,42 @@ export class LiveApiService extends ApiService {
 
   async verifyProductKey() {
     return this.http.rpcRequest<VerifyProductKeyRes>({
-      method: 'verifyProductKey',
+      method: 'setup.status',
       params: {}
     })
   }
 
   async getDataTransferProgress() {
     return this.http.rpcRequest<TransferProgressRes>({
-      method: 'getDataTransferProgress',
+      method: 'setup.recovery.status',
       params: {}
     })
   }
 
   async getEmbassyDrives() {
     return this.http.rpcRequest<EmbassyDrive[]>({
-      method: 'getEmbassyDrives',
+      method: 'setup.disk.list',
       params: {}
     })
   }
 
   async getRecoveryDrives() {
     return this.http.rpcRequest<RecoveryDrive[]>({
-      method: 'getRecoveryDrives',
+      method: 'setup.recovery.list',
       params: {}
     })
   }
 
   async verifyRecoveryPassword(logicalname, password) {
     return this.http.rpcRequest<boolean>({
-      method: 'verifyRecoveryPassword',
+      method: 'setup.recovery.test-password',
       params: {logicalname, password}
     })
   }
 
   async setupEmbassy (setupInfo) {
     return this.http.rpcRequest<SetupEmbassyRes>({
-      method: 'setupEmbassy',
+      method: 'setup.execute',
       params: setupInfo
     })
   }

@@ -1,4 +1,4 @@
-verifyProductKey
+setup.status
     Request
       key: string
 
@@ -6,7 +6,7 @@ verifyProductKey
       "is-recovering" : boolean
       "tor-address"   : string
 
-getEmbassyDrives
+setup.disk.list
     Request
     
     Response
@@ -17,7 +17,7 @@ getEmbassyDrives
         used: number
       }[]
 
-getRecoveryDrives
+setup.recovery.list
     Request
 
     Response
@@ -27,14 +27,14 @@ getRecoveryDrives
         name: string
       }[]
 
-getDataTransferProgress
+setup.recovery.status
     Request
     
     Response
       'bytes-transfered' : number
       'total-bytes'      : number
 
-verifyRecoveryPassword
+setup.recovery.test-password
     Request
       logicalname : string
       password    : string
@@ -42,12 +42,12 @@ verifyRecoveryPassword
     Response
       boolean
 
-setupEmbassy
+setup.execute
     Request
-      embassyLogicalname   : string,
-      embassyPassword      : string
-      recoveryLogicalname? : string,
-      recoveryPassword?    : string
+      embassy-logicalname   : string,
+      embassy-password      : string
+      recovery-logicalname? : string,
+      recovery-password?    : string
 
     Response
       "tor-address": string
