@@ -199,7 +199,7 @@ impl DockerAction {
         let mut res = Vec::with_capacity(
             (2 * self.mounts.len()) // --mount <MOUNT_ARG>
                 + (2 * self.shm_size_mb.is_some() as usize) // --shm-size <SHM_SIZE>
-                + 4 // --log-driver=journald --entrypoint <ENTRYPOINT> <IMAGE>
+                + 5 // --interactive --log-driver=journald --entrypoint <ENTRYPOINT> <IMAGE>
                 + self.args.len(), // [ARG...]
         );
         for (volume_id, dst) in &self.mounts {
@@ -227,6 +227,7 @@ impl DockerAction {
             res.push(OsStr::new("--shm-size").into());
             res.push(OsString::from(format!("{}m", shm_size_mb)).into());
         }
+        res.push(OsStr::new("--interactive").into());
         if self.inject && allow_inject {
             res.push(OsString::from(Self::container_name(pkg_id, None)).into());
             res.push(OsStr::new(&self.entrypoint).into());
