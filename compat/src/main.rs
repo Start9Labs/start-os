@@ -1,12 +1,8 @@
-<<<<<<< HEAD
 use std::{
     fs::File,
     io::{stdin, stdout},
     path::Path,
 };
-=======
-use std::{fs::File, io::{stderr, stdin, stdout}, path::Path};
->>>>>>> create config path if it doesnt exist
 
 #[macro_use]
 extern crate failure;
@@ -169,8 +165,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 if !cfg_path.exists() {
                     std::fs::create_dir_all(&cfg_path).unwrap();
                 };
-                let rules_path =
-                    Path::new(sub_m.value_of("assets").unwrap());
+                let rules_path = Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("app_id").unwrap();
                 match validate_configuration(&name, config, rules_path, &cfg_path) {
                     Ok(a) => {
