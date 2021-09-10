@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -20,10 +20,8 @@ use crate::{Error, ResultExt};
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct CliContextConfig {
-    #[serde(deserialize_with = "deserialize_host")]
-    pub host: Option<Host>,
-    pub port: Option<u16>,
-    pub url: Option<Url>,
+    pub bind_rpc: Option<SocketAddr>,
+    pub host: Option<Url>,
     #[serde(deserialize_with = "crate::util::deserialize_from_str_opt")]
     pub proxy: Option<Url>,
     pub developer_key_path: Option<PathBuf>,
@@ -69,26 +67,16 @@ impl CliContext {
         } else {
             CliContextConfig::default()
         };
-        if let Some(bind) = base.server_config.bind_rpc {
-            if base.host.is_none() {
-                base.host = Some(match bind.ip() {
-                    IpAddr::V4(a) => Host::Ipv4(a),
-                    IpAddr::V6(a) => Host::Ipv6(a),
-                });
-            }
-            if base.port.is_none() {
-                base.port = Some(bind.port())
-            }
-        }
-        let host = if let Some(host) = matches.value_of("host") {
-            Some(Host::parse(host).with_kind(crate::ErrorKind::ParseUrl)?)
+        let url = if let Some(host) = matches.value_of("host") {
+            host.parse()?
+        } else if let Some(host) = base.host {
+            host
         } else {
-            base.host
-        };
-        let port = if let Some(port) = matches.value_of("port") {
-            Some(port.parse()?)
-        } else {
-            base.port
+            format!(
+                "http://{}",
+                base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into())
+            )
+            .parse()?
         };
         let proxy = if let Some(proxy) = matches.value_of("proxy") {
             Some(proxy.parse()?)
@@ -110,15 +98,7 @@ impl CliContext {
             CookieStore::default()
         }));
         Ok(CliContext(Arc::new(CliContextSeed {
-            url: base.url.unwrap_or_else(|| {
-                format!(
-                    "http://{}:{}",
-                    host.unwrap_or_else(|| DEFAULT_HOST.to_owned()),
-                    port.unwrap_or(DEFAULT_PORT)
-                )
-                .parse()
-                .unwrap()
-            }),
+            url,
             client: {
                 let mut builder = Client::builder().cookie_provider(cookie_store.clone());
                 if let Some(proxy) = proxy {
