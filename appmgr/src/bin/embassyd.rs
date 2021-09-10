@@ -157,7 +157,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                     log::error!("Error in Status Sync daemon: {}", e);
                     log::debug!("{:?}", e);
                 } else {
-                    log::info!("Status Sync completed successfully");
+                    log::debug!("Status Sync completed successfully");
                 }
             }
         },
@@ -173,7 +173,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                     log::error!("Error in Health Check daemon: {}", e);
                     log::debug!("{:?}", e);
                 } else {
-                    log::info!("Health Check completed successfully");
+                    log::debug!("Health Check completed successfully");
                 }
             }
         },
