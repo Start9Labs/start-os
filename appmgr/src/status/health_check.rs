@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::action::ActionImplementation;
+use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
@@ -97,7 +97,7 @@ impl HealthCheck {
         Ok(HealthCheckResult {
             time: Utc::now(),
             result: match res {
-                Ok(()) => HealthCheckResultVariant::Success,
+                Ok(NoOutput) => HealthCheckResultVariant::Success,
                 Err((59, _)) => HealthCheckResultVariant::Disabled,
                 Err((60, _)) => HealthCheckResultVariant::Starting,
                 Err((61, message)) => HealthCheckResultVariant::Loading { message },
