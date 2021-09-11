@@ -48,7 +48,7 @@ impl HealthChecks {
     pub async fn check_all(
         &self,
         ctx: &RpcContext,
-        started: &DateTime<Utc>,
+        started: DateTime<Utc>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -77,7 +77,7 @@ impl HealthCheck {
         &self,
         ctx: &RpcContext,
         id: &HealthCheckId,
-        started: &DateTime<Utc>,
+        started: DateTime<Utc>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -90,7 +90,7 @@ impl HealthCheck {
                 pkg_version,
                 Some(&format!("{}Health", id)),
                 volumes,
-                Some(started),
+                Some(Utc::now().signed_duration_since(started).num_milliseconds()),
                 true,
             )
             .await?;
