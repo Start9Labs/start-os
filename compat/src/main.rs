@@ -127,20 +127,10 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 .subcommand(
                     SubCommand::with_name("properties")
                         .arg(
-                            Arg::with_name("package-id")
-                                .help("The `id` field from the manifest file")
-                                .required(true),
-                        )
-                        .arg(
                             Arg::with_name("mountpoint")
-                                .help("The backups mount point")
+                                .help("The data directory of the service to mount to.")
                                 .required(true),
                         )
-                        .arg(
-                            Arg::with_name("datapath")
-                                .help("The path to the data to be backed up in the container")
-                                .required(true),
-                        ),
                 ),
         );
     let matches = app.get_matches();
