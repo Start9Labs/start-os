@@ -259,7 +259,7 @@ impl MainStatus {
                     .health_checks
                     .check_all(
                         ctx,
-                        started,
+                        *started,
                         &manifest.id,
                         &manifest.version,
                         &manifest.volumes,
