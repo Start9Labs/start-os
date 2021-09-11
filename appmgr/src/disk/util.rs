@@ -1,139 +1,185 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
 use futures::future::try_join_all;
-use indexmap::IndexMap;
+use futures::TryStreamExt;
+use indexmap::{IndexMap, IndexSet};
+use regex::Regex;
+use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+use tokio::process::Command;
 
-use crate::util::Invoke;
+use crate::util::{Invoke, Version};
 use crate::{Error, ResultExt as _};
 
-pub struct Disks(IndexMap<String, DiskInfo>);
+pub const TMP_MOUNTPOINT: &'static str = "/media/embassy-os";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DiskInfo {
-    pub size: String,
-    pub description: Option<String>,
-    pub partitions: IndexMap<String, PartitionInfo>,
+    logicalname: PathBuf,
+    partitions: Vec<PartitionInfo>,
+    capacity: usize,
+    embassy_os: Option<PartitionInfo>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct PartitionInfo {
-    pub is_mounted: bool,
-    pub size: Option<String>,
-    pub label: Option<String>,
+    logicalname: PathBuf,
+    label: Option<String>,
+    capacity: usize,
+    used: Option<usize>,
 }
 
-pub async fn list() -> Result<Disks, Error> {
-    let output = tokio::process::Command::new("parted")
-        .arg("-lm")
-        .invoke(crate::ErrorKind::GParted)
-        .await?;
-    let output_str = std::str::from_utf8(&output)?;
-    let disks = output_str
-        .split("\n\n")
-        .filter_map(|s| -> Option<(String, DiskInfo)> {
-            let mut lines = s.split("\n");
-            let has_size = lines.next()? == "BYT;";
-            let disk_info_line = lines.next()?;
-            let mut disk_info_iter = disk_info_line.split(":");
-            let logicalname = disk_info_iter.next()?.to_owned();
-            let partition_prefix = if logicalname.ends_with(|c: char| c.is_digit(10)) {
-                logicalname.clone() + "p"
-            } else {
-                logicalname.clone()
-            };
-            let size = disk_info_iter.next()?.to_owned();
-            disk_info_iter.next()?; // transport-type
-            disk_info_iter.next()?; // logical-sector-size
-            disk_info_iter.next()?; // physical-sector-size
-            disk_info_iter.next()?; // partition-table-type
-            let description = disk_info_iter.next()?;
-            let description = if description.is_empty() {
-                None
-            } else {
-                Some(description.to_owned())
-            };
-            Some((
-                logicalname,
-                DiskInfo {
-                    size,
-                    description,
-                    partitions: lines
-                        .filter_map(|partition_info_line| -> Option<(String, PartitionInfo)> {
-                            let mut partition_info_iter = partition_info_line.split(":");
-                            let partition_idx = partition_info_iter.next()?;
-                            let logicalname = partition_prefix.clone() + partition_idx;
-                            let size = if has_size {
-                                partition_info_iter.next()?; // begin
-                                partition_info_iter.next()?; // end
-                                Some(partition_info_iter.next()?.to_owned())
-                            } else {
-                                None
-                            };
-                            Some((
-                                logicalname,
-                                PartitionInfo {
-                                    is_mounted: false,
-                                    size,
-                                    label: None,
-                                },
-                            ))
-                        })
-                        .collect(),
-                },
-            ))
-        });
-    Ok(Disks(
-        try_join_all(disks.map(|(logicalname, disk)| async move {
-            Ok::<_, Error>((
-                logicalname,
-                DiskInfo {
-                    partitions: try_join_all(disk.partitions.into_iter().map(
-                        |(logicalname, mut partition)| async move {
-                            let mut blkid_command = tokio::process::Command::new("blkid");
-                            let (blkid_res, findmnt_status) = futures::join!(
-                                blkid_command
-                                    .arg(&logicalname)
-                                    .arg("-s")
-                                    .arg("LABEL")
-                                    .arg("-o")
-                                    .arg("value")
-                                    .invoke(crate::ErrorKind::Blkid),
-                                tokio::process::Command::new("findmnt")
-                                    .arg(&logicalname)
-                                    .stdout(std::process::Stdio::null())
-                                    .stderr(std::process::Stdio::null())
-                                    .status()
-                            );
-                            let blkid_output = blkid_res?;
-                            let label = std::str::from_utf8(&blkid_output)?.trim();
-                            if !label.is_empty() {
-                                partition.label = Some(label.to_owned());
-                            }
-                            if findmnt_status?.success() {
-                                partition.is_mounted = true;
-                            }
-                            Ok::<_, Error>((logicalname, partition))
-                        },
-                    ))
-                    .await?
-                    .into_iter()
-                    .collect(),
-                    ..disk
-                },
-            ))
-        }))
-        .await?
-        .into_iter()
-        .collect(),
-    ))
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct EmbassyOsDiskInfo {
+    version: Version,
+    name: String,
 }
 
-pub async fn mount<P: AsRef<Path>>(logicalname: &str, mount_point: P) -> Result<(), Error> {
+const DISK_PATH: &'static str = "/dev/disk/by-path";
+
+lazy_static::lazy_static! {
+    static ref PARTITION_REGEX: Regex = Regex::new("-part[0-9]+$").unwrap();
+}
+
+pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
+    Ok(String::from_utf8(
+        Command::new("blockdev")
+            .arg("--getsize64")
+            .arg(path.as_ref())
+            .invoke(crate::ErrorKind::BlockDev)
+            .await?,
+    )?
+    .parse()?)
+}
+
+pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
+    let label = String::from_utf8(
+        Command::new("lsblk ")
+            .arg("-no")
+            .arg("label")
+            .arg(path.as_ref())
+            .invoke(crate::ErrorKind::BlockDev) // TODO: error kind
+            .await?,
+    )?;
+    Ok(if label.is_empty() { None } else { Some(label) })
+}
+
+pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
+    Ok(String::from_utf8(
+        Command::new("df")
+            .arg("--output=used")
+            .arg(path.as_ref())
+            .invoke(crate::ErrorKind::Unknown)
+            .await?,
+    )?
+    .lines()
+    .skip(1)
+    .next()
+    .unwrap_or_default()
+    .trim()
+    .parse()?)
+}
+
+pub async fn list() -> Result<Vec<DiskInfo>, Error> {
+    if tokio::fs::metadata(TMP_MOUNTPOINT).await.is_err() {
+        tokio::fs::create_dir_all(TMP_MOUNTPOINT)
+            .await
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, TMP_MOUNTPOINT))?;
+    }
+
+    let disks = tokio_stream::wrappers::ReadDirStream::new(
+        tokio::fs::read_dir(DISK_PATH)
+            .await
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, DISK_PATH))?,
+    )
+    .map_err(|e| {
+        Error::new(
+            anyhow::Error::from(e).context(DISK_PATH),
+            crate::ErrorKind::Filesystem,
+        )
+    })
+    .try_fold(IndexMap::new(), |mut disks, dir_entry| async move {
+        if let Some(disk_path) = dir_entry.path().file_name().and_then(|s| s.to_str()) {
+            let (disk_path, part_path) = if let Some(end) = PARTITION_REGEX.find(disk_path) {
+                (
+                    disk_path.strip_suffix(end.as_str()).unwrap_or_default(),
+                    Some(disk_path),
+                )
+            } else {
+                (disk_path, None)
+            };
+            let disk = tokio::fs::canonicalize(Path::new(DISK_PATH).join(disk_path)).await?;
+            if !disks.contains_key(&disk) {
+                disks.insert(disk.clone(), IndexSet::new());
+            }
+            if let Some(part_path) = part_path {
+                let part = tokio::fs::canonicalize(part_path).await?;
+                disks[&disk].insert(part);
+            }
+        }
+        Ok(disks)
+    })
+    .await?;
+
+    let mut res = Vec::with_capacity(disks.len());
+    for (disk, parts) in disks {
+        let mut partitions = Vec::with_capacity(parts.len());
+        let capacity = get_capacity(&disk)
+            .await
+            .map_err(|e| log::warn!("Could not get capacity of {}: {}", disk.display(), e.source))
+            .unwrap_or_default();
+        let mut embassy_os = None;
+        for part in parts {
+            let label = get_label(&part).await?;
+            let capacity = get_capacity(&part)
+                .await
+                .map_err(|e| {
+                    log::warn!("Could not get capacity of {}: {}", part.display(), e.source)
+                })
+                .unwrap_or_default();
+            let mut used = None;
+
+            let tmp_mountpoint = Path::new(TMP_MOUNTPOINT).join(&part);
+            if let Err(e) = mount(&part, &tmp_mountpoint).await {
+                log::warn!("Could not collect usage information: {}", e.source)
+            } else {
+                used = get_used(&tmp_mountpoint)
+                    .await
+                    .map_err(|e| {
+                        log::warn!("Could not get usage of {}: {}", part.display(), e.source)
+                    })
+                    .ok();
+                // todo!("check embassy-os");
+                unmount(&tmp_mountpoint).await?; // TODO: mount guard
+            }
+
+            partitions.push(PartitionInfo {
+                logicalname: part,
+                label,
+                capacity,
+                used,
+            });
+        }
+        res.push(DiskInfo {
+            logicalname: disk,
+            partitions,
+            capacity,
+            embassy_os,
+        })
+    }
+
+    Ok(res)
+}
+
+pub async fn mount<P0: AsRef<Path>, P1: AsRef<Path>>(
+    logicalname: P0,
+    mount_point: P1,
+) -> Result<(), Error> {
     let is_mountpoint = tokio::process::Command::new("mountpoint")
         .arg(mount_point.as_ref())
         .stdout(std::process::Stdio::null())
@@ -145,14 +191,16 @@ pub async fn mount<P: AsRef<Path>>(logicalname: &str, mount_point: P) -> Result<
     }
     tokio::fs::create_dir_all(&mount_point).await?;
     let mount_output = tokio::process::Command::new("mount")
-        .arg(logicalname)
+        .arg(logicalname.as_ref())
         .arg(mount_point.as_ref())
         .output()
         .await?;
     crate::ensure_code!(
         mount_output.status.success(),
         crate::ErrorKind::Filesystem,
-        "Error Mounting Drive: {}",
+        "Error Mounting {} to {}: {}",
+        logicalname.as_ref().display(),
+        mount_point.as_ref().display(),
         std::str::from_utf8(&mount_output.stderr).unwrap_or("Unknown Error")
     );
     Ok(())
