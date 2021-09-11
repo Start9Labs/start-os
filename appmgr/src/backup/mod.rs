@@ -1,8 +1,9 @@
 use anyhow::anyhow;
 use patch_db::HasModel;
+use regex::NoExpand;
 use serde::{Deserialize, Serialize};
 
-use crate::action::ActionImplementation;
+use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
@@ -21,7 +22,7 @@ impl BackupActions {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<(), Error> {
+    ) -> Result<NoOutput, Error> {
         let mut volumes = volumes.to_readonly();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
         self.create
@@ -37,7 +38,7 @@ impl BackupActions {
             .await?
             .map_err(|e| anyhow!("{}", e.1))
             .with_kind(crate::ErrorKind::Backup)?;
-        Ok(())
+        Ok(NoOutput)
     }
 
     pub async fn restore(
@@ -46,7 +47,7 @@ impl BackupActions {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<(), Error> {
+    ) -> Result<NoOutput, Error> {
         let mut volumes = volumes.clone();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
         self.restore
@@ -62,6 +63,6 @@ impl BackupActions {
             .await?
             .map_err(|e| anyhow!("{}", e.1))
             .with_kind(crate::ErrorKind::Restore)?;
-        Ok(())
+        Ok(NoOutput)
     }
 }
