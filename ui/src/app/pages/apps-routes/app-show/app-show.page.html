@@ -87,10 +87,10 @@
           </ion-item>
 
           <!-- ** dependencies ** -->
-          <ng-container *ngIf="!(pkg.installed['current-dependencies'] | empty)">
+          <ng-container *ngIf="!(currentDependencies | empty)">
             <ion-item-divider id="dependencies">Dependencies</ion-item-divider>
             <!-- A current-dependency is a subset of the pkg.manifest.dependencies that is currently required as determined by the service config. -->
-            <ion-item *ngFor="let dep of pkg.installed['current-dependencies'] | keyvalue">
+            <ion-item *ngFor="let dep of currentDependencies | keyvalue">
               <ion-thumbnail slot="start">
                 <img [src]="pkg.installed['dependency-info'][dep.key].icon" />
               </ion-thumbnail>
