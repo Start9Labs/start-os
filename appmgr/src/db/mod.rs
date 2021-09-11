@@ -37,11 +37,16 @@ async fn ws_handler<
         .with_kind(crate::ErrorKind::Unknown)?;
 
     // add 1 to the session counter and issue an RAII guard to subtract 1 on drop
-    ctx.session_count
+    ctx.websocket_count
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let decrementer = GeneralGuard::new(|| {
-        ctx.session_count
+        let new_count = ctx
+            .websocket_count
             .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        if new_count == 0 {
+            ctx.session_id
+                .store(rand::random(), std::sync::atomic::Ordering::SeqCst)
+        }
         ()
     });
 

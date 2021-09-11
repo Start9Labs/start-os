@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicU64, AtomicUsize};
 use std::sync::Arc;
 
 use bollard::Docker;
@@ -98,7 +98,8 @@ pub struct RpcContextSeed {
     pub revision_cache: RwLock<VecDeque<Arc<Revision>>>,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: Sender<Option<Shutdown>>,
-    pub session_count: AtomicUsize,
+    pub websocket_count: AtomicUsize,
+    pub session_id: AtomicU64,
 }
 
 #[derive(Clone)]
@@ -132,7 +133,8 @@ impl RpcContext {
             revision_cache: RwLock::new(VecDeque::new()),
             metrics_cache: RwLock::new(None),
             shutdown,
-            session_count: AtomicUsize::new(0),
+            websocket_count: AtomicUsize::new(0),
+            session_id: AtomicU64::new(rand::random()),
         });
         let res = Self(seed);
         res.managers
