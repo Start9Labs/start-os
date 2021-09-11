@@ -24,7 +24,7 @@ export module RR {
 
   // server
 
-  export type SetShareStatsReq = WithExpire<{ value: any }> // server.config.share-stats
+  export type SetShareStatsReq = WithExpire<{ value: boolean }> // server.config.share-stats
   export type SetShareStatsRes = WithRevision<null>
 
   export type GetServerLogsReq = { cursor?: string, before_flag?: boolean, limit?: number }
