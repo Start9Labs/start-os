@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use patch_db::{DbHandle, DiffPatch, HasModel, Map, MapModel};
 use serde::{Deserialize, Serialize};
 
-use crate::action::ActionImplementation;
+use crate::action::{ActionImplementation, NoOutput};
 use crate::config::Config;
 use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
@@ -226,7 +226,7 @@ impl DependencyConfig {
         dependent_version: &Version,
         dependent_volumes: &Volumes,
         dependency_config: &Config,
-    ) -> Result<Result<(), String>, Error> {
+    ) -> Result<Result<NoOutput, String>, Error> {
         Ok(self
             .check
             .sandboxed(
