@@ -1031,17 +1031,21 @@ impl<T> Future for NonDetachingJoinHandle<T> {
     }
 }
 
-pub struct GeneralGuard<F: FnOnce()>(Option<F>);
-impl<F: FnOnce()> GeneralGuard<F> {
+pub struct GeneralGuard<F: FnOnce() -> T, T = ()>(Option<F>);
+impl<F: FnOnce() -> T, T> GeneralGuard<F, T> {
     pub fn new(f: F) -> Self {
         GeneralGuard(Some(f))
     }
+
+    pub fn drop(mut self) -> T {
+        self.0.take().unwrap()()
+    }
 }
 
-impl<F: FnOnce()> Drop for GeneralGuard<F> {
+impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {
     fn drop(&mut self) {
         if let Some(destroy) = self.0.take() {
-            destroy()
+            destroy();
         }
     }
 }
