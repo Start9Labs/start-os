@@ -13,7 +13,7 @@
       <div style="margin-left: 16px;">
         <p class="input-label">{{ label }}</p>
         <ion-item lines="none" color="dark">
-          <ion-input [type]="useMask && !unmasked ? 'password' : 'text'" [(ngModel)]="value" name="value" (ionChange)="error = ''"></ion-input>
+          <ion-input [type]="useMask && !unmasked ? 'password' : 'text'" [(ngModel)]="value" name="value" [placeholder]="placeholder" (ionChange)="error = ''"></ion-input>
           <ion-button slot="end" *ngIf="useMask" fill="clear" color="light" (click)="toggleMask()">
             <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
           </ion-button>
@@ -28,7 +28,7 @@
         <ion-button fill="clear" (click)="cancel()">
           Cancel
         </ion-button>
-        <ion-button fill="clear" type="submit" [disabled]="!value">
+        <ion-button fill="clear" type="submit" [disabled]="!value && !nullable">
           {{ buttonText }}
         </ion-button>
       </div>
