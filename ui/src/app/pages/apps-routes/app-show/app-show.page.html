@@ -148,7 +148,7 @@
         [value]="installProgress.validateProgress / 100"
       ></ion-progress-bar>
 
-      <p>Installing: {{ installProgress.unpackProgress }}%</p>
+      <p>Unpacking: {{ installProgress.unpackProgress }}%</p>
       <ion-progress-bar 
         [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'" 
         [value]="installProgress.unpackProgress / 100"
