@@ -10,8 +10,10 @@ import { getErrorMessage } from 'src/app/services/error-toast.service'
 export class GenericInputComponent {
   @Input() title: string
   @Input() message: string
-  @Input() label = 'Enter value'
+  @Input() label: string
   @Input() buttonText = 'Submit'
+  @Input() placeholder = 'Enter Value'
+  @Input() nullable = false
   @Input() useMask = false
   @Input() value = ''
   @Input() submitFn: (value: string) => Promise<any>
