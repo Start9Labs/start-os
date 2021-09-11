@@ -68,7 +68,13 @@ pub fn main_api() -> Result<(), RpcError> {
     Ok(())
 }
 
-#[command(subcommands(system::logs, system::metrics, shutdown::shutdown, shutdown::restart))]
+#[command(subcommands(
+    system::config,
+    system::logs,
+    system::metrics,
+    shutdown::shutdown,
+    shutdown::restart
+))]
 pub fn server() -> Result<(), RpcError> {
     Ok(())
 }

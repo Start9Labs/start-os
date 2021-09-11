@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicU64, AtomicUsize};
 use std::sync::Arc;
 
 use bollard::Docker;
+use log::LevelFilter;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{PatchDb, Revision};
 use reqwest::Url;
@@ -25,6 +26,7 @@ use crate::manager::ManagerMap;
 use crate::net::tor::os_key;
 use crate::net::NetController;
 use crate::shutdown::Shutdown;
+use crate::util::logger::EmbassyLogger;
 use crate::util::{from_toml_async_reader, AsyncFileExt};
 use crate::{Error, ResultExt};
 
@@ -37,6 +39,7 @@ pub struct RpcContextConfig {
     pub revision_cache_size: Option<usize>,
     pub zfs_pool_name: Option<String>,
     pub datadir: Option<PathBuf>,
+    pub log_server: Option<Url>,
 }
 impl RpcContextConfig {
     pub async fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
@@ -116,17 +119,33 @@ pub struct RpcContextSeed {
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: Sender<Option<Shutdown>>,
     pub websocket_count: AtomicUsize,
-    pub session_id: AtomicU64,
+    pub logger: EmbassyLogger,
+    pub log_epoch: Arc<AtomicU64>,
 }
 
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
-    pub async fn init<P: AsRef<Path>>(cfg_path: Option<P>) -> Result<Self, Error> {
+    pub async fn init<P: AsRef<Path>>(
+        cfg_path: Option<P>,
+        log_level: LevelFilter,
+    ) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
         let db = base.db(&secret_store).await?;
+        let share = crate::db::DatabaseModel::new()
+            .server_info()
+            .share_stats()
+            .get(&mut db.handle(), true)
+            .await?;
+        let log_epoch = Arc::new(AtomicU64::new(rand::random()));
+        let logger = EmbassyLogger::new(
+            log_level,
+            log_epoch.clone(),
+            base.log_server.clone(),
+            *share,
+        );
         let docker = Docker::connect_with_unix_defaults()?;
         let net_controller = NetController::init(
             ([127, 0, 0, 1], 80).into(),
@@ -151,7 +170,8 @@ impl RpcContext {
             metrics_cache: RwLock::new(None),
             shutdown,
             websocket_count: AtomicUsize::new(0),
-            session_id: AtomicU64::new(rand::random()),
+            logger,
+            log_epoch,
         });
         let res = Self(seed);
         res.managers

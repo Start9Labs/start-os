@@ -13,6 +13,7 @@ use embassy::status::{check_all, synchronize_all};
 use embassy::util::daemon;
 use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
+use log::LevelFilter;
 use patch_db::json_ptr::JsonPointer;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
@@ -31,8 +32,11 @@ fn err_to_500(e: Error) -> Response<Body> {
         .unwrap()
 }
 
-async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
-    let rpc_ctx = RpcContext::init(cfg_path).await?;
+async fn inner_main(
+    cfg_path: Option<&str>,
+    log_level: LevelFilter,
+) -> Result<Option<Shutdown>, Error> {
+    let rpc_ctx = RpcContext::init(cfg_path, log_level).await?;
     let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
     let sig_handler_ctx = rpc_ctx.clone();
@@ -231,14 +235,15 @@ fn main() {
         )
         .get_matches();
 
-    simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
-        0 => log::LevelFilter::Off,
-        1 => log::LevelFilter::Error,
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
+    // initializes the bootstrap logger, this will be replaced with the EmbassyLogger later
+    let filter = match matches.occurrences_of("verbosity") {
+        0 => log::LevelFilter::Error,
+        1 => log::LevelFilter::Warn,
+        2 => log::LevelFilter::Info,
+        3 => log::LevelFilter::Debug,
         _ => log::LevelFilter::Trace,
-    });
+    };
+    simple_logging::log_to_stderr(filter);
     let cfg_path = matches.value_of("config");
 
     let res = {
@@ -246,7 +251,7 @@ fn main() {
             .enable_all()
             .build()
             .expect("failed to initialize runtime");
-        rt.block_on(inner_main(cfg_path))
+        rt.block_on(inner_main(cfg_path, filter))
     };
 
     match res {
