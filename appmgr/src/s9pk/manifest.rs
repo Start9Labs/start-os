@@ -118,6 +118,8 @@ pub struct Manifest {
     #[model]
     pub config: Option<ConfigActions>,
     #[model]
+    pub properties: ActionImplementation,
+    #[model]
     pub volumes: Volumes,
     // #[serde(default = "current_version")]
     pub min_os_version: Version,
