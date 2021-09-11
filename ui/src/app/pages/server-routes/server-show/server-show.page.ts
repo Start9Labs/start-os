@@ -3,6 +3,7 @@ import { AlertController, LoadingController, NavController } from '@ionic/angula
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'server-show',
@@ -19,6 +20,7 @@ export class ServerShowPage {
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
+    public readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {
@@ -48,8 +50,8 @@ export class ServerShowPage {
 
   async presentAlertShutdown () {
     const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: `Are you sure you want to shut down your Embassy? To turn it back on, you will need to physically unplug the device and plug it back in.`,
+      header: 'Warning',
+      message: `Embassy will remain off. To power back on, you will need to unplug the device and plug it back in.`,
       buttons: [
         {
           text: 'Cancel',
@@ -103,7 +105,21 @@ export class ServerShowPage {
 
   private setButtons (): void {
     this.settings = {
+      'Backups': [
+        {
+          title: 'Create Backup',
+          icon: 'save-outline',
+          action: () => this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
+          detail: true,
+        },
+      ],
       'Settings': [
+        {
+          title: 'Preferences',
+          icon: 'options-outline',
+          action: () => this.navCtrl.navigateForward(['preferences'], { relativeTo: this.route }),
+          detail: true,
+        },
         {
           title: 'Privacy and Security',
           icon: 'shield-checkmark-outline',
@@ -140,14 +156,6 @@ export class ServerShowPage {
           title: 'Logs',
           icon: 'newspaper-outline',
           action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
-          detail: true,
-        },
-      ],
-      'Backups': [
-        {
-          title: 'Create Backup',
-          icon: 'save-outline',
-          action: () => this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
           detail: true,
         },
       ],

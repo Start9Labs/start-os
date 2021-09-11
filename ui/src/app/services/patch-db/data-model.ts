@@ -7,6 +7,7 @@ export interface DataModel {
 }
 
 export interface UIData {
+  name: string
   'welcome-ack': string
   'auto-check-updates': boolean
 }

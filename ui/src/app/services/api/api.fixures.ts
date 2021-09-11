@@ -864,46 +864,46 @@ export module Mock {
     'signal-strength': 50,
   }
 
-  export const Disks: RR.GetDisksRes = {
-    '/dev/sda': {
-      size: '32GB',
-      description: 'Samsung',
-      partitions: {
-        'sdba2': {
-          size: null,
-          'is-mounted': false,
+  export const Disks: RR.GetDisksRes = [
+    {
+      logicalname: '/dev/sda',
+      partitions: [
+        {
+          logicalname: 'sdba1',
           label: 'Matt Stuff',
+          capacity: 1000000000000,
+          used: 0,
         },
+      ],
+      capacity: 1000000000000,
+      'embassy-os': {
+        version: '0.3.0',
+        name: '', // @TODO what is this?
       },
     },
-    '/dev/sba': {
-      size: '64GB',
-      description: 'small USB stick',
-      partitions: {
-        'sdba2': {
-          size: '16GB',
-          'is-mounted': true,
-          label: null,
-        },
-      },
-    },
-    '/dev/sbd': {
-      size: '128GB',
-      description: 'large USB stick',
-      partitions: {
-        'sdba1': {
-          size: '32GB',
-          'is-mounted': false,
+    {
+      logicalname: '/dev/sdb',
+      partitions: [
+        {
+          logicalname: 'sdba1',
           label: 'Partition 1',
+          capacity: 1000000000,
+          used: 1000000000,
         },
-        'sdba2': {
-          size: null,
-          'is-mounted': true,
+        {
+          logicalname: 'sdba2',
           label: 'Partition 2',
+          capacity: 900000000,
+          used: 300000000,
         },
+      ],
+      capacity: 10000000000,
+      'embassy-os': {
+        version: '0.3.0',
+        name: '', // @TODO what is this?
       },
     },
-  }
+  ]
 
   export const PackageProperties: RR.GetPackagePropertiesRes<2> = {
     version: 2,

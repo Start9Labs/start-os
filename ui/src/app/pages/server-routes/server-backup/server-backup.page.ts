@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
+import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
 import { DiskInfo } from 'src/app/services/api/api.types'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
@@ -11,7 +11,7 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
   styleUrls: ['./server-backup.page.scss'],
 })
 export class ServerBackupPage {
-  disks: DiskInfo
+  disks: DiskInfo[]
   loading = true
   allPartitionsMounted: boolean
 
@@ -33,7 +33,6 @@ export class ServerBackupPage {
   async getExternalDisks (): Promise<void> {
     try {
       this.disks = await this.embassyApi.getDisks({ })
-      this.allPartitionsMounted = Object.values(this.disks).every(d => Object.values(d.partitions).every(p => p['is-mounted']))
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -52,7 +51,7 @@ export class ServerBackupPage {
         submitFn: async (value: string) => await this.create(logicalname, value),
       },
       cssClass: 'alertlike-modal',
-      component: BackupConfirmationComponent,
+      component: GenericInputComponent,
     })
 
     return await m.present()

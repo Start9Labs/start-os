@@ -11,6 +11,7 @@ import { NotificationColorPipe } from '../pipes/notification-color.pipe'
 import { InstallState } from '../pipes/install-state.pipe'
 import { TextSpinnerComponentModule } from '../components/text-spinner/text-spinner.component.module'
 import { PwaBackComponentModule } from '../components/pwa-back-button/pwa-back.component.module'
+import { ConvertBytesPipe } from '../pipes/convert-bytes.pipe'
 
 @NgModule({
   declarations: [
@@ -28,6 +29,7 @@ import { PwaBackComponentModule } from '../components/pwa-back-button/pwa-back.c
     LaunchablePipe,
     EmptyPipe,
     NotificationColorPipe,
+    ConvertBytesPipe,
   ],
   imports: [
     TextSpinnerComponentModule,
@@ -48,6 +50,7 @@ import { PwaBackComponentModule } from '../components/pwa-back-button/pwa-back.c
     LaunchablePipe,
     EmptyPipe,
     NotificationColorPipe,
+    ConvertBytesPipe,
     // components
     TextSpinnerComponentModule,
     PwaBackComponentModule,

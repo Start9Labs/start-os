@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { AlertInput, AlertButton } from '@ionic/core'
+import { AlertInput, AlertButton, IonicSafeString } from '@ionic/core'
 import { ApiService } from './api/embassy-api.service'
 import { ConfigSpec } from '../pkg-config/config-types'
 import { AlertController, LoadingController } from '@ionic/angular'
@@ -120,7 +120,7 @@ export const serverConfig: ConfigSpec = {
   'auto-check-updates': {
     type: 'boolean',
     name: 'Auto Check for Updates',
-    description: 'On launch, EmbassyOS will automatically check for updates of itself and your installed services. Updating still requires user approval and action. No updates will ever be performed automatically.',
+    description: 'On launch, EmbassyOS will automatically check for updates of itself and your installed services. Updating still requires your approval and action. Updates will never be performed automatically.',
     default: true,
   },
   // 'eos-marketplace': {
@@ -143,8 +143,8 @@ export const serverConfig: ConfigSpec = {
   // },
   'share-stats': {
     type: 'boolean',
-    name: 'Share Anonymous Statistics',
-    description: 'Start9 uses this information to identify bugs quickly and improve EmbassyOS. The information is 100% anonymous and transmitted over Tor.',
+    name: 'Report Bugs',
+    description: new IonicSafeString(`Bug reports are anonymized and transmitted over Tor. This helps us identify and fix bugs quickly. <a href="https://docs.start9.com" target="_blank" rel="noreferrer">Read more</a> `) as any, // @TODO get actual link
     default: false,
   },
   // password: {

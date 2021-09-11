@@ -3,11 +3,11 @@ import { IonicSafeString, LoadingController, ModalController } from '@ionic/angu
 import { getErrorMessage } from 'src/app/services/error-toast.service'
 
 @Component({
-  selector: 'backup-confirmation',
-  templateUrl: './backup-confirmation.component.html',
-  styleUrls: ['./backup-confirmation.component.scss'],
+  selector: 'generic-input',
+  templateUrl: './generic-input.component.html',
+  styleUrls: ['./generic-input.component.scss'],
 })
-export class BackupConfirmationComponent {
+export class GenericInputComponent {
   @Input() title: string
   @Input() message: string
   @Input() label = 'Enter value'

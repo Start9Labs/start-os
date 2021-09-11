@@ -19,6 +19,7 @@ import { PatchDbService } from './services/patch-db/patch-db.service'
 import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstrap'
 import { SharingModule } from './modules/sharing.module'
 import { FormBuilder } from '@angular/forms'
+import { GenericInputComponentModule } from './modals/generic-input/generic-input.component.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -37,6 +38,7 @@ import { FormBuilder } from '@angular/forms'
     QrCodeModule,
     OSWelcomePageModule,
     MarkdownPageModule,
+    GenericInputComponentModule,
     SharingModule,
   ],
   providers: [
