@@ -21,7 +21,7 @@ use tokio_tungstenite::WebSocketStream;
 pub use self::model::DatabaseModel;
 use self::util::WithRevision;
 use crate::context::RpcContext;
-use crate::util::{display_serializable, IoFormat};
+use crate::util::{display_serializable, GeneralGuard, IoFormat};
 use crate::{Error, ResultExt};
 
 async fn ws_handler<
@@ -35,6 +35,21 @@ async fn ws_handler<
         .await
         .with_kind(crate::ErrorKind::Network)?
         .with_kind(crate::ErrorKind::Unknown)?;
+
+    // add 1 to the session counter and issue an RAII guard to subtract 1 on drop
+    ctx.websocket_count
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let decrementer = GeneralGuard::new(|| {
+        let new_count = ctx
+            .websocket_count
+            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        if new_count == 0 {
+            ctx.session_id
+                .store(rand::random(), std::sync::atomic::Ordering::SeqCst)
+        }
+        ()
+    });
+
     loop {
         if let Some(Message::Text(_)) = stream
             .next()
