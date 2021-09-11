@@ -13,6 +13,7 @@ pub mod rules;
 pub mod util;
 pub mod value;
 
+use anyhow::anyhow;
 pub use rules::{ConfigRuleEntry, ConfigRuleEntryWithSuggestions};
 pub use value::Config;
 
@@ -44,6 +45,45 @@ pub fn validate_configuration(
                 signal: Some(nix::sys::signal::SIGTERM),
             })
         }
-        Err(e) => Err(e),
+        Err(e) => anyhow!("{}", e),
+    }
+}
+
+pub fn validate_dependency_configuration(
+    name: &str,
+    config: Config,
+    rules_path: &Path,
+) -> Result<SetResult, anyhow::Error> {
+    let rules: Vec<ConfigRuleEntry> = serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
+    let mut cfgs = LinearMap::new();
+    cfgs.insert(name, Cow::Borrowed(&config));
+    let rule_check = rules
+        .into_iter()
+        .map(|r| r.check(&config, &cfgs))
+        .bcollect::<Vec<_>>();
+    match rule_check {
+        Ok(_) => (),
+        Err(e) => anyhow!("rule failure for dependency check: {}", e)
+    }
+}
+
+pub fn apply_dependency_configuration(
+    name: &str,
+    config: Config,
+    rules_path: &Path,
+) -> Result<Config, anyhow::Error> {
+    let rules: Vec<ConfigRuleEntryWithSuggestions> =
+        serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
+    let mut cfgs = LinearMap::new();
+    cfgs.insert(name, Cow::Borrowed(&config));
+
+    let rule_check = rules
+        .into_iter()
+        .map(|r| r.apply(name, &mut config, &cfgs))
+        .bcollect::<Vec<_>>();
+
+    match rule_check {
+        Ok(_) => &config,
+        Err(e) => anyhow!("rule application failure for dependency check: {}", e)
     }
 }

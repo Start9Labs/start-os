@@ -15,9 +15,8 @@ mod config;
 use anyhow::anyhow;
 use backup::{create_backup, restore_backup};
 use clap::{App, Arg, SubCommand};
-use config::validate_configuration;
+use config::{apply_dependency_configuration, validate_configuration};
 use embassy::config::action::ConfigRes;
-// enum == sum type, structs = product type, trait = type class
 pub enum CompatRes {
     SetResult,
     ConfigRes,
@@ -43,7 +42,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     SubCommand::with_name("get")
                         .arg(
                             Arg::with_name("mountpoint")
-                                .help("Path to the config file")
+                                .help("Path to the data mountpoint")
                                 .required(true),
                         )
                         .arg(
@@ -54,36 +53,60 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 )
                 .subcommand(
                     SubCommand::with_name("set")
-                        .arg(
-                            Arg::with_name("mountpoint")
-                                .help("Path to the config file")
-                                .required(true),
-                        )
-                        .arg(
-                            Arg::with_name("app_id")
-                                .help("service identifier")
-                                .required(true),
-                        )
-                        .arg(
-                            Arg::with_name("assets")
-                                .help("Path to the rules file")
-                                .required(true),
-                        ),
+                    .arg(
+                        Arg::with_name("package_id")
+                            .help("service identifier")
+                            .required(true),
+                    )
+                    .arg(
+                        Arg::with_name("mountpoint")
+                            .help("Path to the data mountpoint")
+                            .required(true),
+                    )
+                    .arg(
+                        Arg::with_name("assets")
+                            .help("Path to the rules file")
+                            .required(true),
+                    ),
                 ),
         )
         .subcommand(
-            SubCommand::with_name("dependency").subcommand(
+            SubCommand::with_name("dependency")
+            .subcommand(
                 SubCommand::with_name("check")
                     .arg(
-                        Arg::with_name("app_id")
+                        Arg::with_name("dependency_package_id")
                             .help("identifier of the dependency")
                             .required(true),
                     )
                     .arg(
                         Arg::with_name("mountpoint")
-                            .help("Path to the config rules file")
+                            .help("mountpoint for the dependent's config file")
+                            .required(true),
+                    )
+                    .arg(
+                        Arg::with_name("assets")
+                            .help("Path to the dependency's config rules file")
                             .required(true),
                     ),
+            )
+            .subcommand(
+                SubCommand::with_name("auto-configure")
+                    .arg(
+                        Arg::with_name("package_id")
+                            .help("package identifier of the dependent")
+                            .required(true),
+                    )
+                    .arg(
+                        Arg::with_name("dependency_package_id")
+                            .help("package identifier of the dependency")
+                            .required(true),
+                    )
+                    .arg(
+                        Arg::with_name("mountpoint")
+                            .help("data mountpoint for the dependent's config file")
+                            .required(true),
+                    )
             ),
         )
         .subcommand(
@@ -151,18 +174,15 @@ fn inner_main() -> Result<(), anyhow::Error> {
             }
             ("set", Some(sub_m)) => {
                 let config = serde_yaml::from_reader(stdin())?;
-                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap());
+                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap().join("start9"));
                 if !cfg_path.exists() {
                     std::fs::create_dir_all(&cfg_path).unwrap();
                 };
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
-                let name = sub_m.value_of("app_id").unwrap();
+                let name = sub_m.value_of("package_id").unwrap();
                 match validate_configuration(&name, config, rules_path, &cfg_path.join("config.yaml")) {
-                    Ok(a) => {
-                        serde_yaml::to_writer(stdout(), &a)?;
-                        Ok(())
-                    }
-                    Err(e) => Err(e),
+                    Ok(a) => serde_yaml::to_writer(stdout(), &a)?,
+                    Err(e) => Err(e)
                 }
             }
             (subcmd, _) => {
@@ -171,19 +191,25 @@ fn inner_main() -> Result<(), anyhow::Error> {
         },
         ("dependency", Some(sub_m)) => match sub_m.subcommand() {
             ("check", Some(sub_m)) => {
-                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap());
-                let config = serde_yaml::from_reader(File::open(cfg_path).unwrap()).unwrap();
+                let dependency_config = serde_yaml::from_reader(stdin())?;
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
-                let name = sub_m.value_of("app_id").unwrap();
-                match validate_configuration(&name, config, rules_path, cfg_path) {
-                    Ok(a) => {
-                        serde_yaml::to_writer(stdout(), &a)?;
-                    }
+                let name = sub_m.value_of("dependency_package_id").unwrap();
+                match validate_dependency_configuration(&name, dependency_config, rules_path) {
+                    Ok(a) => serde_yaml::to_writer(stdout(), &a)?,
                     Err(e) => {
-                        anyhow!("could not dependency check: {}", e);
+                        // error string is configs rules failure description
+                        Err(e)
                     }
                 }
-                Ok(())
+            }
+            ("auto-configure", Some(sub_m)) => {
+                let dependency_config = serde_yaml::from_reader(stdin())?;
+                let rules_path = Path::new(sub_m.value_of("assets").unwrap());
+                let name = sub_m.value_of("dependency_package_id").unwrap();
+                match apply_dependency_configuration(name, dependency_config, rules_path) {
+                    Ok(a) => serde_yaml::to_writer(stdout(), a)?,
+                    Err(e) => Err(e)
+                }
             }
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
@@ -197,14 +223,9 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     sub_m.value_of("package-id").unwrap(),
                 );
                 match res {
-                    Ok(r) => {
-                        serde_yaml::to_writer(stdout(), &r)?;
-                    }
-                    Err(e) => {
-                        anyhow!("could not create backup: {}", e);
-                    }
+                    Ok(r) => serde_yaml::to_writer(stdout(), &r)?,
+                    Err(e) => Err(anyhow!("could not create backup: {}", e))
                 }
-                Ok(())
             }
             ("restore", Some(sub_m)) => {
                 let res = restore_backup(
@@ -213,14 +234,9 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     sub_m.value_of("mountpoint").unwrap(),
                 );
                 match res {
-                    Ok(r) => {
-                        serde_yaml::to_writer(stdout(), &r)?;
-                    }
-                    Err(e) => {
-                        anyhow!("could not restore backup: {}", e);
-                    }
+                    Ok(r) => serde_yaml::to_writer(stdout(), &r)?,
+                    Err(e) => Err(anyhow!("could not restore backup: {}", e))
                 }
-                Ok(())
             }
             (subcmd, _) => {
                 panic!("unknown subcommand: {}", subcmd);
