@@ -8,7 +8,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorType, MainStatus, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
+import { CurrentDependencyInfo, DependencyErrorConfigUnsatisfied, DependencyErrorType, MainStatus, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -29,6 +29,7 @@ export class AppShowPage {
   FeStatus = FEStatus
   PackageState = PackageState
   DependencyErrorType = DependencyErrorType
+  currentDependencies: { [id: string]: CurrentDependencyInfo }
   rendering: PkgStatusRendering
   Math = Math
   mainStatus: MainStatus
@@ -63,6 +64,13 @@ export class AppShowPage {
       .subscribe(pkg => {
         this.pkg = pkg
         this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
+        // we can safely ignore any current dependencies that are not defined in the service manifest
+        this.currentDependencies = { }
+        Object.entries(pkg.installed['current-dependencies']).forEach(([id, value]) => {
+          if (pkg.manifest.dependencies[id]) {
+            this.currentDependencies[id] = value
+          }
+        })
         this.rendering = renderPkgStatus(pkg.state, pkg.installed?.status)
         this.mainStatus = { ...pkg.installed?.status.main }
       }),
