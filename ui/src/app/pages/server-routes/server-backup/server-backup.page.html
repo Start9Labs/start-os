@@ -13,7 +13,7 @@
     <ion-item class="ion-margin-bottom">
       <ion-label>
         <h2>
-          Select the drive where you want to create a backup of your Embassy, including all your installed services.
+          Select the drive where you want to create a backup of your Embassy.
         </h2>
       </ion-label>
     </ion-item>
@@ -38,22 +38,14 @@
     <!-- loaded -->
     <ng-container *ngIf="!loading">
 
-      <ion-item *ngIf="allPartitionsMounted">
-        <ion-text class="ion-text-wrap" color="warning">No partitions available. To begin a backup, insert a storage device into your Embassy.</ion-text>
-      </ion-item>
-
       <ion-item-group>
-        <div *ngFor="let disk of disks | keyvalue">
-          <ion-item-divider>{{ disk.key }} - {{ disk.value.size }}</ion-item-divider>
-          <ion-item button *ngFor="let partition of disk.value.partitions | keyvalue" [disabled]="partition.value['is-mounted']" (click)="presentModal(partition.key)">
+        <div *ngFor="let disk of disks">
+          <ion-item-divider>{{ disk.logicalname }} - {{ disk.capacity | convertBytes }}</ion-item-divider>
+          <ion-item button *ngFor="let partition of disk.partitions" (click)="presentModal(partition.logicalname)">
             <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
             <ion-label>
-              <h1>{{ partition.value.label || partition.key }}</h1>
-              <h2>{{ partition.value.size || 'unknown size' }}</h2>
-              <p *ngIf="!partition.value['is-mounted']; else unavailable"><ion-text color="success">Available</ion-text></p>
-              <ng-template #unavailable>
-                <p><ion-text color="danger">Unavailable</ion-text></p>
-              </ng-template>
+              <h1>{{ partition.label || partition.logicalname }}</h1>
+              <h2>{{ partition.capacity | convertBytes }}</h2>
             </ion-label>
           </ion-item>
         </div>

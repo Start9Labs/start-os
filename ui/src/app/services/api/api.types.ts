@@ -127,7 +127,7 @@ export module RR {
   // disk
 
   export type GetDisksReq = { } // disk.list
-  export type GetDisksRes = DiskInfo
+  export type GetDisksRes = DiskInfo[]
 
   export type EjectDisksReq = { logicalname: string } // disk.eject
   export type EjectDisksRes = null
@@ -289,23 +289,18 @@ export interface SessionMetadata {
 export type PlatformType = 'cli' | 'ios' | 'ipad' | 'iphone' | 'android' | 'phablet' | 'tablet' | 'cordova' | 'capacitor' | 'electron' | 'pwa' | 'mobile' | 'mobileweb' | 'desktop' | 'hybrid'
 
 export interface DiskInfo {
-  [id: string]: DiskInfoEntry
-}
-
-export interface DiskInfoEntry {
-  size: string
-  description: string | null
-  partitions: PartitionInfo
-}
-
-export interface PartitionInfo {
-  [logicalname: string]: PartitionInfoEntry
-}
-
-export interface PartitionInfoEntry {
-  'is-mounted': boolean // We do not allow backups to mounted partitions
-  size: string | null
-  label: string | null
+  logicalname: string
+  partitions: {
+    logicalname: string
+    label: string | null
+    capacity: number
+    used: number | null
+  }[],
+  capacity: number
+  'embassy-os': {
+    version: string
+    name: string
+  } | null
 }
 
 export interface ServerSpecs {

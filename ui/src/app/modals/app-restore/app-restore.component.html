@@ -13,39 +13,50 @@
 
 <ion-content class="ion-padding-top">
 
-  <text-spinner *ngIf="loading" text="Loading Drives"></text-spinner>
+  <!-- submitting -->
   <text-spinner *ngIf="submitting" text="Initiating Backup"></text-spinner>
 
-  <ion-content *ngIf="!loading && !submitting">
-    <ion-item class="ion-margin-bottom">
+  <!-- not submitting -->
+  <ion-item *ngIf="!submitting" class="ion-margin-bottom">
+    <ion-label>
+      <h2>
+        Select the drive containing the backup you would like to restore.
+        <br />
+        <br />
+        <ion-text color="warning">
+          Warning! All current data for {{ patch.data['package-data'][pkgId].manifest.title }} will be overwritten by the backup.
+        </ion-text>
+      </h2>
+    </ion-label>
+  </ion-item>
+
+  <!-- loading -->
+  <ng-container *ngIf="loading">
+    <ion-item-divider>
+      <ion-skeleton-text animated style="width: 120px; height: 16px;"></ion-skeleton-text>
+    </ion-item-divider>
+    <ion-item>
+      <ion-avatar slot="start" style="margin-right: 24px;">
+        <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
+      </ion-avatar>
       <ion-label>
-        <h2>
-          Select the drive containing the backup you would like to restore.
-          <br />
-          <br />
-          <ion-text color="warning">
-            Warning! All current data for {{ patch.data['package-data'][pkgId].manifest.title }} will be overwritten by the backup.
-          </ion-text>
-        </h2>
+        <ion-skeleton-text animated style="width: 100px; height: 20px; margin-bottom: 12px;"></ion-skeleton-text>
+        <ion-skeleton-text animated style="width: 50px; height: 16px; margin-bottom: 16px;"></ion-skeleton-text>
+        <ion-skeleton-text animated style="width: 100px;"></ion-skeleton-text>
       </ion-label>
     </ion-item>
+  </ng-container>
 
-    <ion-item *ngIf="allPartitionsMounted">
-      <ion-text class="ion-text-wrap" color="warning">No drives found containing a valid backup for {{ patch.data['package-data'][pkgId].manifest.title }}. Insert the storage device containing the backup you intend to restore.</ion-text>
-    </ion-item>
-
+  <!-- not loading and not submitting -->
+  <ion-content *ngIf="!loading && !submitting">
     <ion-item-group>
-      <div *ngFor="let disk of disks | keyvalue">
-        <ion-item-divider>{{ disk.key }} - {{ disk.value.size }}</ion-item-divider>
-        <ion-item button *ngFor="let partition of disk.value.partitions | keyvalue" [disabled]="partition.value['is-mounted']" (click)="presentModal(partition.key)">
+      <div *ngFor="let disk of disks">
+        <ion-item-divider>{{ disk.logicalname }} - {{ disk.capacity | convertBytes }}</ion-item-divider>
+        <ion-item button *ngFor="let partition of disk.partitions" (click)="presentModal(partition.logicalname)">
           <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
           <ion-label>
-            <h1>{{ partition.value.label || partition.key }}</h1>
-            <h2>{{ partition.value.size || 'unknown size' }}</h2>
-            <p *ngIf="!partition.value['is-mounted']; else unavailable"><ion-text color="success">Available</ion-text></p>
-            <ng-template #unavailable>
-              <p><ion-text color="danger">Unavailable</ion-text></p>
-            </ng-template>
+            <h1>{{ partition.label || partition.logicalname }}</h1>
+            <h2>{{ partition.capacity | convertBytes }}</h2>
           </ion-label>
         </ion-item>
       </div>

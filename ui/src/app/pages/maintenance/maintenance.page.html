@@ -1,14 +1,14 @@
-<ion-content *ngIf="patch.data['server-info'].status as status">
+<ion-content *ngIf="patch.data['server-info'].status as status" style="--background: black;">
 
   <ion-grid style="height: 100%;">
     <ion-row class="ion-align-items-center ion-text-center" style="height: 100%;">
       <ion-col>
         <ng-container *ngIf="status === ServerStatus.Updating">
-          <h1>Embassy Updating</h1>
-          <img src="assets/img/gifs/cube.gif" />
+          <h1>Embassy updating</h1>
+          <img src="assets/img/gifs/updating.gif" />
         </ng-container>
         <ng-container *ngIf="status === ServerStatus.BackingUp">
-          <h1>Backing Up</h1>
+          <h1>Embassy backing up</h1>
           <img src="assets/img/gifs/backing-up.gif" />
         </ng-container>
       </ion-col>

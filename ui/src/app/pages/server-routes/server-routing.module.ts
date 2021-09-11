@@ -34,6 +34,10 @@ const routes: Routes = [
     path: 'security',
     loadChildren: () => import('./security-routes/security-routing.module').then( m => m.SecurityRoutingModule),
   },
+  {
+    path: 'preferences',
+    loadChildren: () => import('./preferences/preferences.module').then( m => m.PreferencesPageModule),
+  },
 ]
 
 @NgModule({
