@@ -1030,3 +1030,18 @@ impl<T> Future for NonDetachingJoinHandle<T> {
         this.0.poll(cx)
     }
 }
+
+pub struct GeneralGuard<F: FnOnce()>(Option<F>);
+impl<F: FnOnce()> GeneralGuard<F> {
+    pub fn new(f: F) -> Self {
+        GeneralGuard(Some(f))
+    }
+}
+
+impl<F: FnOnce()> Drop for GeneralGuard<F> {
+    fn drop(&mut self) {
+        if let Some(destroy) = self.0.take() {
+            destroy()
+        }
+    }
+}
