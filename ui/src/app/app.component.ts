@@ -274,7 +274,7 @@ export class AppComponent {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Refresh Needed',
-      message: 'Your EmbassyOS UI is out of date. Hard refresh the page to get the latest UI.',
+      message: 'Your user interface is cached and out of date. Hard refresh the page to get the latest UI.',
       buttons: [
         {
           text: 'Refresh Page',

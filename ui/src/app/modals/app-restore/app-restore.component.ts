@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
+import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
 import { DiskInfo } from 'src/app/services/api/api.types'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -13,7 +13,7 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 })
 export class AppRestoreComponent {
   @Input() pkgId: string
-  disks: DiskInfo
+  disks: DiskInfo[]
   loading = true
   submitting = false
   allPartitionsMounted: boolean
@@ -39,7 +39,6 @@ export class AppRestoreComponent {
   async getExternalDisks (): Promise<void> {
     try {
       this.disks = await this.embassyApi.getDisks({ })
-      this.allPartitionsMounted = Object.values(this.disks).every(d => Object.values(d.partitions).every(p => p['is-mounted']))
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -59,7 +58,7 @@ export class AppRestoreComponent {
       },
       cssClass: 'alertlike-modal',
       presentingElement: await this.modalCtrl.getTop(),
-      component: BackupConfirmationComponent,
+      component: GenericInputComponent,
     })
 
     modal.onWillDismiss().then(res => {

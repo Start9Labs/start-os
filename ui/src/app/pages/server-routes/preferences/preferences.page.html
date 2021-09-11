@@ -1,0 +1,19 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <pwa-back-button></pwa-back-button>
+    </ion-buttons>
+    <ion-title>Preferences</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+
+  <ion-item-group>
+    <ion-item button (click)="presentModalName()">
+      <ion-label>{{ fields['name'].name }}</ion-label>
+      <ion-note slot="end">{{ patch.data.ui.name }}</ion-note>
+    </ion-item>
+  </ion-item-group>
+
+</ion-content>

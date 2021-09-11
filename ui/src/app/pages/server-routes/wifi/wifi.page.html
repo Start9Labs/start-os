@@ -23,7 +23,7 @@
     <ion-item-divider>Country</ion-item-divider>
 
     <!-- loading  -->
-    <ng-container *ngIf="loading">
+    <!-- <ng-container *ngIf="loading">
       <ion-item class="skeleton-parts">
         <ion-button slot="start" fill="clear">
           <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
@@ -32,16 +32,14 @@
           <ion-skeleton-text animated style="width: 150px;"></ion-skeleton-text>
         </ion-label>
       </ion-item>
-    </ng-container>
+    </ng-container> -->
 
     <!-- not loading -->
-    <ng-container *ngIf="!loading">
-      <ion-item button detail="false" (click)="presentAlertCountry()">
-        <ion-icon slot="start" name="earth-outline" size="large"></ion-icon>
-        <ion-label *ngIf="wifi.country">{{ wifi.country }} - {{ this.countries[wifi.country] }}</ion-label>
-        <ion-label *ngIf="!wifi.country">Select Country</ion-label>
-      </ion-item>
-    </ng-container>
+    <ion-item button detail="false" (click)="presentAlertCountry()" [disabled]="loading">
+      <ion-icon slot="start" name="earth-outline" size="large"></ion-icon>
+      <ion-label *ngIf="wifi.country">{{ wifi.country }} - {{ this.countries[wifi.country] }}</ion-label>
+      <ion-label *ngIf="!wifi.country">Select Country</ion-label>
+    </ion-item>
 
     <!-- loading  -->
     <ng-container *ngIf="loading">

@@ -3,7 +3,7 @@ import { AlertController, LoadingController, ModalController } from '@ionic/angu
 import { SSHKeys } from 'src/app/services/api/api.types'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { BackupConfirmationComponent } from 'src/app/modals/backup-confirmation/backup-confirmation.component'
+import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
 
 @Component({
   selector: 'ssh-keys',
@@ -41,7 +41,7 @@ export class SSHKeysPage {
     const { name, description } = sshSpec
 
     const modal = await this.modalCtrl.create({
-      component: BackupConfirmationComponent,
+      component: GenericInputComponent,
       componentProps: {
         title: name,
         message: description,
