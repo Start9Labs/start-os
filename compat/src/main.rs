@@ -15,7 +15,7 @@ mod config;
 use anyhow::anyhow;
 use backup::{create_backup, restore_backup};
 use clap::{App, Arg, SubCommand};
-use config::{apply_dependency_configuration, validate_configuration};
+use config::{apply_dependency_configuration, validate_configuration, validate_dependency_configuration};
 use embassy::config::action::ConfigRes;
 pub enum CompatRes {
     SetResult,
@@ -93,18 +93,13 @@ fn inner_main() -> Result<(), anyhow::Error> {
             .subcommand(
                 SubCommand::with_name("auto-configure")
                     .arg(
-                        Arg::with_name("package_id")
-                            .help("package identifier of the dependent")
-                            .required(true),
-                    )
-                    .arg(
                         Arg::with_name("dependency_package_id")
                             .help("package identifier of the dependency")
                             .required(true),
                     )
                     .arg(
-                        Arg::with_name("mountpoint")
-                            .help("data mountpoint for the dependent's config file")
+                        Arg::with_name("assets")
+                            .help("Path to the dependency's config rules file")
                             .required(true),
                     )
             ),
@@ -174,14 +169,17 @@ fn inner_main() -> Result<(), anyhow::Error> {
             }
             ("set", Some(sub_m)) => {
                 let config = serde_yaml::from_reader(stdin())?;
-                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap().join("start9"));
+                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap()).join("start9");
                 if !cfg_path.exists() {
                     std::fs::create_dir_all(&cfg_path).unwrap();
                 };
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("package_id").unwrap();
                 match validate_configuration(&name, config, rules_path, &cfg_path.join("config.yaml")) {
-                    Ok(a) => serde_yaml::to_writer(stdout(), &a)?,
+                    Ok(a) => {
+                        serde_yaml::to_writer(stdout(), &a)?;
+                        Ok(())
+                    }
                     Err(e) => Err(e)
                 }
             }
@@ -195,7 +193,10 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("dependency_package_id").unwrap();
                 match validate_dependency_configuration(&name, dependency_config, rules_path) {
-                    Ok(a) => serde_yaml::to_writer(stdout(), &a)?,
+                    Ok(a) => {
+                        serde_yaml::to_writer(stdout(), &a)?;
+                        Ok(())
+                    }
                     Err(e) => {
                         // error string is configs rules failure description
                         Err(e)
@@ -207,7 +208,10 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("dependency_package_id").unwrap();
                 match apply_dependency_configuration(name, dependency_config, rules_path) {
-                    Ok(a) => serde_yaml::to_writer(stdout(), a)?,
+                    Ok(a) => {
+                        serde_yaml::to_writer(stdout(), &a)?;
+                        Ok(())
+                    }
                     Err(e) => Err(e)
                 }
             }
@@ -223,7 +227,10 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     sub_m.value_of("package-id").unwrap(),
                 );
                 match res {
-                    Ok(r) => serde_yaml::to_writer(stdout(), &r)?,
+                    Ok(r) => {
+                        serde_yaml::to_writer(stdout(), &r)?;
+                        Ok(())
+                    }
                     Err(e) => Err(anyhow!("could not create backup: {}", e))
                 }
             }
@@ -234,7 +241,10 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     sub_m.value_of("mountpoint").unwrap(),
                 );
                 match res {
-                    Ok(r) => serde_yaml::to_writer(stdout(), &r)?,
+                    Ok(r) => {
+                        serde_yaml::to_writer(stdout(), &r)?;
+                        Ok(())
+                    }
                     Err(e) => Err(anyhow!("could not restore backup: {}", e))
                 }
             }

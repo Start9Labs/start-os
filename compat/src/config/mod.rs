@@ -4,10 +4,7 @@ use std::path::Path;
 use beau_collector::BeauCollector;
 use embassy::config::action::SetResult;
 use embassy::config::spec;
-use itertools::Itertools;
-use linear_map::set::LinearSet;
 use linear_map::LinearMap;
-use regex::Regex;
 
 pub mod rules;
 pub mod util;
@@ -45,7 +42,7 @@ pub fn validate_configuration(
                 signal: Some(nix::sys::signal::SIGTERM),
             })
         }
-        Err(e) => anyhow!("{}", e),
+        Err(e) => Err(anyhow!("{}", e))
     }
 }
 
@@ -53,7 +50,7 @@ pub fn validate_dependency_configuration(
     name: &str,
     config: Config,
     rules_path: &Path,
-) -> Result<SetResult, anyhow::Error> {
+) -> Result<(), anyhow::Error> {
     let rules: Vec<ConfigRuleEntry> = serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
     cfgs.insert(name, Cow::Borrowed(&config));
@@ -62,28 +59,28 @@ pub fn validate_dependency_configuration(
         .map(|r| r.check(&config, &cfgs))
         .bcollect::<Vec<_>>();
     match rule_check {
-        Ok(_) => (),
-        Err(e) => anyhow!("rule failure for dependency check: {}", e)
+        Ok(_) => Ok(()),
+        Err(e) => Err(anyhow!("rule failure for dependency check: {}", e))
     }
 }
 
 pub fn apply_dependency_configuration(
     name: &str,
-    config: Config,
+    mut config: Config,
     rules_path: &Path,
 ) -> Result<Config, anyhow::Error> {
     let rules: Vec<ConfigRuleEntryWithSuggestions> =
         serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
-    cfgs.insert(name, Cow::Borrowed(&config));
+    cfgs.insert(name, Cow::Owned(config.clone()));
 
     let rule_check = rules
         .into_iter()
-        .map(|r| r.apply(name, &mut config, &cfgs))
+        .map(|r| r.apply(name, &mut config, &mut cfgs))
         .bcollect::<Vec<_>>();
 
     match rule_check {
-        Ok(_) => &config,
-        Err(e) => anyhow!("rule application failure for dependency check: {}", e)
+        Ok(_) => Ok(config),
+        Err(e) => Err(anyhow!("rule application failure for dependency check: {}", e))
     }
 }
