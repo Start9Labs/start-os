@@ -62,20 +62,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             .expect("send shutdown signal");
     });
 
-    if !rpc_ctx.db.exists(&<JsonPointer>::default()).await? {
-        rpc_ctx
-            .db
-            .put(
-                &<JsonPointer>::default(),
-                &Database::init(
-                    get_id().await?,
-                    &get_hostname().await?,
-                    &os_key(&mut rpc_ctx.secret_store.acquire().await?).await?,
-                ),
-                None,
-            )
-            .await?;
-    }
     let auth = auth(rpc_ctx.clone());
     let ctx = rpc_ctx.clone();
     let server = rpc_server!({

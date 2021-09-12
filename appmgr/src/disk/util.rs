@@ -1,16 +1,15 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
-use futures::future::try_join_all;
 use futures::TryStreamExt;
 use indexmap::{IndexMap, IndexSet};
 use regex::Regex;
-use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
-use crate::util::{Invoke, Version};
+use crate::util::{from_yaml_async_reader, GeneralGuard, Invoke, Version};
 use crate::{Error, ResultExt as _};
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/embassy-os";
@@ -18,40 +17,78 @@ pub const TMP_MOUNTPOINT: &'static str = "/media/embassy-os";
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DiskInfo {
-    logicalname: PathBuf,
-    partitions: Vec<PartitionInfo>,
-    capacity: usize,
-    embassy_os: Option<PartitionInfo>,
+    pub logicalname: PathBuf,
+    pub vendor: Option<String>,
+    pub model: Option<String>,
+    pub partitions: Vec<PartitionInfo>,
+    pub capacity: usize,
+    pub embassy_os: Option<EmbassyOsDiskInfo>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct PartitionInfo {
-    logicalname: PathBuf,
-    label: Option<String>,
-    capacity: usize,
-    used: Option<usize>,
+    pub logicalname: PathBuf,
+    pub label: Option<String>,
+    pub capacity: usize,
+    pub used: Option<usize>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct EmbassyOsDiskInfo {
-    version: Version,
-    name: String,
+    pub version: Version,
 }
 
 const DISK_PATH: &'static str = "/dev/disk/by-path";
+const SYS_BLOCK_PATH: &'static str = "/sys/block";
 
 lazy_static::lazy_static! {
     static ref PARTITION_REGEX: Regex = Regex::new("-part[0-9]+$").unwrap();
 }
 
+pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
+    let vendor = tokio::fs::read_to_string(
+        Path::new(SYS_BLOCK_PATH)
+            .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
+                Error::new(
+                    anyhow!("not a canonical block device"),
+                    crate::ErrorKind::BlockDevice,
+                )
+            })?)
+            .join("device")
+            .join("vendor"),
+    )
+    .await?;
+    Ok(if vendor.is_empty() {
+        None
+    } else {
+        Some(vendor)
+    })
+}
+
+pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
+    let model = tokio::fs::read_to_string(
+        Path::new(SYS_BLOCK_PATH)
+            .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
+                Error::new(
+                    anyhow!("not a canonical block device"),
+                    crate::ErrorKind::BlockDevice,
+                )
+            })?)
+            .join("device")
+            .join("model"),
+    )
+    .await?;
+    Ok(if model.is_empty() { None } else { Some(model) })
+}
+
 pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     Ok(String::from_utf8(
-        Command::new("blockdev")
+        Command::new("BlockDevice")
             .arg("--getsize64")
             .arg(path.as_ref())
-            .invoke(crate::ErrorKind::BlockDev)
+            .invoke(crate::ErrorKind::BlockDevice)
             .await?,
     )?
     .parse()?)
@@ -63,7 +100,7 @@ pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
             .arg("-no")
             .arg("label")
             .arg(path.as_ref())
-            .invoke(crate::ErrorKind::BlockDev) // TODO: error kind
+            .invoke(crate::ErrorKind::BlockDevice)
             .await?,
     )?;
     Ok(if label.is_empty() { None } else { Some(label) })
@@ -74,7 +111,7 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
         Command::new("df")
             .arg("--output=used")
             .arg(path.as_ref())
-            .invoke(crate::ErrorKind::Unknown)
+            .invoke(crate::ErrorKind::Filesystem)
             .await?,
     )?
     .lines()
@@ -129,6 +166,14 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
     let mut res = Vec::with_capacity(disks.len());
     for (disk, parts) in disks {
         let mut partitions = Vec::with_capacity(parts.len());
+        let vendor = get_vendor(&disk)
+            .await
+            .map_err(|e| log::warn!("Could not get vendor of {}: {}", disk.display(), e.source))
+            .unwrap_or_default();
+        let model = get_model(&disk)
+            .await
+            .map_err(|e| log::warn!("Could not get model of {}: {}", disk.display(), e.source))
+            .unwrap_or_default();
         let capacity = get_capacity(&disk)
             .await
             .map_err(|e| log::warn!("Could not get capacity of {}: {}", disk.display(), e.source))
@@ -148,14 +193,29 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
             if let Err(e) = mount(&part, &tmp_mountpoint).await {
                 log::warn!("Could not collect usage information: {}", e.source)
             } else {
+                let mount_guard = GeneralGuard::new(|| {
+                    let path = tmp_mountpoint.clone();
+                    tokio::spawn(unmount(path))
+                });
                 used = get_used(&tmp_mountpoint)
                     .await
                     .map_err(|e| {
                         log::warn!("Could not get usage of {}: {}", part.display(), e.source)
                     })
                     .ok();
-                // todo!("check embassy-os");
-                unmount(&tmp_mountpoint).await?; // TODO: mount guard
+                if label.as_deref() == Some("rootfs") {
+                    let version_path = tmp_mountpoint.join("root").join("appmgr").join("version");
+                    if tokio::fs::metadata(&version_path).await.is_ok() {
+                        embassy_os = Some(EmbassyOsDiskInfo {
+                            version: from_yaml_async_reader(File::open(&version_path).await?)
+                                .await?,
+                        })
+                    }
+                }
+                mount_guard
+                    .drop()
+                    .await
+                    .with_kind(crate::ErrorKind::Unknown)??;
             }
 
             partitions.push(PartitionInfo {
@@ -167,6 +227,8 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
         }
         res.push(DiskInfo {
             logicalname: disk,
+            vendor,
+            model,
             partitions,
             capacity,
             embassy_os,

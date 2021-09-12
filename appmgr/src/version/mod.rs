@@ -175,7 +175,7 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
     todo!()
 }
 
-#[command(rename = "git-info", local)]
+#[command(rename = "git-info", local, metadata(authenticated = false))]
 pub fn git_info() -> Result<String, Error> {
     Ok(
         git_version::git_version!(args = ["--always", "--abbrev=40", "--dirty=-modified"])

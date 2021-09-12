@@ -12,7 +12,7 @@ pub enum ErrorKind {
     ConfigSpecViolation = 4,
     ConfigRulesViolation = 5,
     NotFound = 6,
-    InvalidPassword = 7,
+    InvalidPassword = 7, // REMOVE
     VersionIncompatible = 8,
     Network = 9,
     Registry = 10,
@@ -20,13 +20,13 @@ pub enum ErrorKind {
     Deserialization = 12,
     Utf8 = 13,
     ParseVersion = 14,
-    Duplicity = 15,
+    Duplicity = 15, // REMOVE
     Nginx = 16,
     Dependency = 17,
     ParseS9pk = 18,
     ParseUrl = 19,
-    GParted = 20,
-    BlockDev = 21,
+    GParted = 20, // REMOVE
+    BlockDevice = 21,
     InvalidOnionAddress = 22,
     Pack = 23,
     ValidateS9pk = 24,
@@ -54,6 +54,7 @@ pub enum ErrorKind {
     Wifi = 46,
     Journald = 47,
     Zfs = 48,
+    PasswordHashGeneration = 49,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -79,7 +80,7 @@ impl ErrorKind {
             ParseS9pk => "S9PK Parsing Error",
             ParseUrl => "URL Parsing Error",
             GParted => "GNU Parted Error",
-            BlockDev => "BlockDev Error",
+            BlockDevice => "Block Device Error",
             InvalidOnionAddress => "Invalid Onion Address",
             Pack => "Pack Error",
             ValidateS9pk => "S9PK Validation Error",
@@ -107,6 +108,7 @@ impl ErrorKind {
             Wifi => "WiFi Internal Error",
             Journald => "Journald Error",
             Zfs => "ZFS Error",
+            PasswordHashGeneration => "Password Hash Generation Error",
         }
     }
 }
