@@ -52,6 +52,11 @@
     <ion-item-group>
       <div *ngFor="let disk of disks">
         <ion-item-divider>{{ disk.logicalname }} - {{ disk.capacity | convertBytes }}</ion-item-divider>
+        <p class="item-subdivider" *ngIf="disk.vendor || disk.model">
+          {{ disk.vendor }}
+          <span *ngIf="disk.vendor && disk.model"> - </span>
+          {{ disk.model }}
+        </p>
         <ion-item button *ngFor="let partition of disk.partitions" (click)="presentModal(partition.logicalname)">
           <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
           <ion-label>

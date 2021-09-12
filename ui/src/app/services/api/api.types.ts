@@ -290,17 +290,22 @@ export type PlatformType = 'cli' | 'ios' | 'ipad' | 'iphone' | 'android' | 'phab
 
 export interface DiskInfo {
   logicalname: string
-  partitions: {
-    logicalname: string
-    label: string | null
-    capacity: number
-    used: number | null
-  }[],
+  vendor: string | null,
+  model: string | null,
+  partitions: PartitionInfo[],
   capacity: number
-  'embassy-os': {
-    version: string
-    name: string
-  } | null
+  'embassy-os': EmbassyOsDiskInfo | null
+}
+
+export interface PartitionInfo {
+  logicalname: string,
+  label: string | null,
+  capacity: number,
+  used: number | null,
+}
+
+export interface EmbassyOsDiskInfo {
+  version: string,
 }
 
 export interface ServerSpecs {
