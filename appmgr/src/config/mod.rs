@@ -279,6 +279,10 @@ pub fn configure<'a, Db: DbHandle>(
     breakages: &'a mut IndexMap<PackageId, TaggedDependencyError>,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
+        crate::db::DatabaseModel::new()
+            .package_data()
+            .lock(db, patch_db::LockType::Write)
+            .await;
         // fetch data from db
         let pkg_model = crate::db::DatabaseModel::new()
             .package_data()
