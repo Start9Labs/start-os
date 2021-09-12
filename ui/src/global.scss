@@ -58,6 +58,11 @@ $subheader-height: 48px;
   }
 }
 
+.item-subdivider {
+  padding: 0 16px;
+  margin-top: 0;
+}
+
 .loader {
   --spinner-color: var(--ion-color-warning) !important;
   z-index: 40000 !important;

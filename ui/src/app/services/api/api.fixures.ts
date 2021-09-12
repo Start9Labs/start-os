@@ -867,6 +867,8 @@ export module Mock {
   export const Disks: RR.GetDisksRes = [
     {
       logicalname: '/dev/sda',
+      model: null,
+      vendor: 'SSK',
       partitions: [
         {
           logicalname: 'sdba1',
@@ -878,11 +880,12 @@ export module Mock {
       capacity: 1000000000000,
       'embassy-os': {
         version: '0.3.0',
-        name: '', // @TODO what is this?
       },
     },
     {
       logicalname: '/dev/sdb',
+      model: 'JMS567 SATA 6Gb/s bridge',
+      vendor: 'Samsung',
       partitions: [
         {
           logicalname: 'sdba1',
@@ -900,7 +903,6 @@ export module Mock {
       capacity: 10000000000,
       'embassy-os': {
         version: '0.3.0',
-        name: '', // @TODO what is this?
       },
     },
   ]

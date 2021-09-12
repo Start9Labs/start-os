@@ -58,21 +58,13 @@ export class AppShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.setValues(this.patch.data['package-data'][this.pkgId])
+
     this.subs = [
       // 1
       this.patch.watch$('package-data', this.pkgId)
       .subscribe(pkg => {
-        this.pkg = pkg
-        this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
-        // we can safely ignore any current dependencies that are not defined in the service manifest
-        this.currentDependencies = { }
-        Object.entries(pkg.installed['current-dependencies']).forEach(([id, value]) => {
-          if (pkg.manifest.dependencies[id]) {
-            this.currentDependencies[id] = value
-          }
-        })
-        this.rendering = renderPkgStatus(pkg.state, pkg.installed?.status)
-        this.mainStatus = { ...pkg.installed?.status.main }
+        this.setValues(pkg)
       }),
       // 2
       this.connectionService.watchFailure$()
@@ -172,6 +164,20 @@ export class AppShowPage {
       },
     })
     await modal.present()
+  }
+
+  private setValues (pkg: PackageDataEntry): void {
+    this.pkg = pkg
+    this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
+    // we can safely ignore any current dependencies that are not defined in the service manifest
+    this.currentDependencies = { }
+    Object.entries(pkg.installed?.['current-dependencies'] || { }).forEach(([id, value]) => {
+      if (pkg.manifest.dependencies[id]) {
+        this.currentDependencies[id] = value
+      }
+    })
+    this.mainStatus = { ...pkg.installed?.status.main }
+    this.rendering = renderPkgStatus(pkg.state, pkg.installed?.status)
   }
 
   private async installDep (depId: string): Promise<void> {

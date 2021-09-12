@@ -52,7 +52,7 @@ export class MarketplaceService {
     const pkgs = await this.api.getMarketplacePkgs({
       ids: [{ id, version: version || '*' }],
     })
-    const pkg = pkgs[0]
+    const pkg = pkgs.find(pkg => pkg.manifest.id == id)
     if (pkg) {
       this.pkgs[id] = pkg
     } else {
