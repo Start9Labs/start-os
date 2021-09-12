@@ -29,18 +29,21 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
         .get(&mut db, true)
         .await?
         .to_owned();
-    manifest
-        .properties
-        .execute::<(), Value>(
-            &ctx,
-            &manifest.id,
-            &manifest.version,
-            None,
-            &manifest.volumes,
-            None,
-            false,
-        )
-        .await?
-        .map_err(|_| Error::new(anyhow!("Properties failure!"), crate::ErrorKind::Docker))
-        .and_then(|a| Ok(a))
+    if let Some(props) = manifest.properties {
+        props
+            .execute::<(), Value>(
+                &ctx,
+                &manifest.id,
+                &manifest.version,
+                None,
+                &manifest.volumes,
+                None,
+                false,
+            )
+            .await?
+            .map_err(|_| Error::new(anyhow!("Properties failure!"), crate::ErrorKind::Docker))
+            .and_then(|a| Ok(a))
+    } else {
+        Ok(Value::Null)
+    }
 }
