@@ -23,7 +23,6 @@ pub struct StatusRes {
 
 #[command(rpc_only)]
 pub fn status() -> Result<StatusRes, Error> {
-    // TODO
     Ok(StatusRes {
         is_recovering: false,
         tor_address: None,
@@ -45,9 +44,6 @@ pub async fn execute(
     let guid =
         crate::disk::main::create(&ctx.zfs_pool_name, [embassy_logicalname], DEFAULT_PASSWORD)
             .await?;
-    tokio::fs::write("/embassy-os/disk.guid", &guid)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, "/embassy-os/disk.guid"))?;
     crate::disk::main::load(&guid, &ctx.zfs_pool_name, &ctx.datadir, DEFAULT_PASSWORD).await?;
     let password = argon2::hash_encoded(
         embassy_password.as_bytes(),
@@ -66,6 +62,9 @@ pub async fn execute(
     )
     .execute(&mut sqlite_pool.acquire().await?)
     .await?;
+    tokio::fs::write("/embassy-os/disk.guid", &guid)
+        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, "/embassy-os/disk.guid"))?;
 
     Ok(SetupResult {
         tor_address: tor_key.public().get_onion_address().to_string(),
