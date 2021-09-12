@@ -165,8 +165,8 @@ pub fn encrypt<M: Metadata>(key: Arc<String>) -> DynMiddleware<M> {
                     async move {
                         if !encrypted
                             && metadata
-                                .get(&rpc_req.method.as_str(), "encrypted")
-                                .unwrap_or_default()
+                                .get(&rpc_req.method.as_str(), "authenticated")
+                                .unwrap_or(true)
                         {
                             let (res_parts, _) = Response::new(()).into_parts();
                             Ok(Err(to_response(

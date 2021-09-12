@@ -142,6 +142,16 @@
       "nullable": []
     }
   },
+  "70a100abc8ca04ffc559ca16460d4fd4c65aa34952ade2681491f0b44dc1aaa1": {
+    "query": "INSERT OR REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
   "8595651866e7db772260bd79e19d55b7271fd795b82a99821c935a9237c1aa16": {
     "query": "SELECT interface, key FROM tor WHERE package = ?",
     "describe": {

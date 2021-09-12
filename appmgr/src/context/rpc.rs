@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicU64, AtomicUsize};
 use std::sync::Arc;
 
 use bollard::Docker;
+use patch_db::json_ptr::JsonPointer;
 use patch_db::{PatchDb, Revision};
 use reqwest::Url;
 use rpc_toolkit::url::Host;
@@ -18,7 +19,10 @@ use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 
+use crate::db::model::Database;
+use crate::hostname::{get_hostname, get_id};
 use crate::manager::ManagerMap;
+use crate::net::tor::os_key;
 use crate::net::NetController;
 use crate::shutdown::Shutdown;
 use crate::util::{from_toml_async_reader, AsyncFileExt};
@@ -61,11 +65,24 @@ impl RpcContextConfig {
             .map(|a| Cow::Borrowed(a.as_path()))
             .unwrap_or_else(|| Cow::Owned(Path::new("/").join(self.zfs_pool_name())))
     }
-    pub async fn db(&self) -> Result<PatchDb, Error> {
+    pub async fn db(&self, secret_store: &SqlitePool) -> Result<PatchDb, Error> {
         let db_path = self.datadir().join("main").join("embassy.db");
-        PatchDb::open(&db_path)
+        let db = PatchDb::open(&db_path)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
+        if !db.exists(&<JsonPointer>::default()).await? {
+            db.put(
+                &<JsonPointer>::default(),
+                &Database::init(
+                    get_id().await?,
+                    &get_hostname().await?,
+                    &os_key(&mut secret_store.acquire().await?).await?,
+                ),
+                None,
+            )
+            .await?;
+        }
+        Ok(db)
     }
     pub async fn secret_store(&self) -> Result<SqlitePool, Error> {
         let secret_store_url = format!(
@@ -108,8 +125,8 @@ impl RpcContext {
     pub async fn init<P: AsRef<Path>>(cfg_path: Option<P>) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
-        let db = base.db().await?;
         let secret_store = base.secret_store().await?;
+        let db = base.db(&secret_store).await?;
         let docker = Docker::connect_with_unix_defaults()?;
         let net_controller = NetController::init(
             ([127, 0, 0, 1], 80).into(),

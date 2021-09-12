@@ -1,8 +1,13 @@
+use std::path::PathBuf;
+
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
+use torut::onion::TorSecretKeyV3;
 
-use crate::util::Version;
-use crate::Error;
+use crate::context::SetupContext;
+use crate::disk::disk;
+use crate::disk::main::DEFAULT_PASSWORD;
+use crate::{Error, ResultExt};
 
 #[command(subcommands(status, disk))]
 pub fn setup() -> Result<(), Error> {
@@ -16,7 +21,7 @@ pub struct StatusRes {
     tor_address: Option<String>,
 }
 
-#[command(rpc_only, metadata(encrypted = true))]
+#[command(rpc_only)]
 pub fn status() -> Result<StatusRes, Error> {
     // TODO
     Ok(StatusRes {
@@ -25,29 +30,44 @@ pub fn status() -> Result<StatusRes, Error> {
     })
 }
 
-#[command(subcommands(list))]
-pub fn disk() -> Result<(), Error> {
-    Ok(())
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct DiskInfo {
-    logicalname: String,
-    labels: Vec<String>,
-    capacity: usize,
-    used: Option<usize>,
-    recovery: Option<RecoveryInfo>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct RecoveryInfo {
-    version: Version,
-    name: String,
+pub struct SetupResult {
+    tor_address: String,
 }
 
 #[command(rpc_only)]
-pub fn list() -> Result<Vec<DiskInfo>, Error> {
-    todo!()
+pub async fn execute(
+    #[context] ctx: SetupContext,
+    #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
+    #[arg(rename = "embassy-password")] embassy_password: String,
+) -> Result<SetupResult, Error> {
+    let guid =
+        crate::disk::main::create(&ctx.zfs_pool_name, [embassy_logicalname], DEFAULT_PASSWORD)
+            .await?;
+    tokio::fs::write("/embassy-os/disk.guid", &guid)
+        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, "/embassy-os/disk.guid"))?;
+    crate::disk::main::load(&guid, &ctx.zfs_pool_name, &ctx.datadir, DEFAULT_PASSWORD).await?;
+    let password = argon2::hash_encoded(
+        embassy_password.as_bytes(),
+        &rand::random::<[u8; 16]>()[..],
+        &argon2::Config::default(),
+    )
+    .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
+    let tor_key = TorSecretKeyV3::generate();
+    let key_vec = tor_key.as_bytes().to_vec();
+    let sqlite_pool = ctx.secret_store().await?;
+    sqlx::query!(
+        "INSERT OR REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+        0,
+        password,
+        key_vec,
+    )
+    .execute(&mut sqlite_pool.acquire().await?)
+    .await?;
+
+    Ok(SetupResult {
+        tor_address: tor_key.public().get_onion_address().to_string(),
+    })
 }

@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{RecoveryContext, SetupContext};
+use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::hostname::get_product_key;
 use embassy::middleware::encrypt::encrypt;
 use embassy::util::Invoke;
@@ -20,11 +21,12 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     embassy::disk::util::mount("LABEL=EMBASSY", "/embassy-os").await?;
     if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
         embassy::disk::main::load(
-            &cfg,
             tokio::fs::read_to_string("/embassy-os/disk.guid")
                 .await?
                 .trim(),
-            "password",
+            cfg.zfs_pool_name(),
+            cfg.datadir(),
+            DEFAULT_PASSWORD,
         )
         .await?;
         log::info!("Loaded Disk");
