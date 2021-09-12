@@ -118,7 +118,7 @@ pub struct Manifest {
     #[model]
     pub config: Option<ConfigActions>,
     #[model]
-    pub properties: ActionImplementation,
+    pub properties: Option<ActionImplementation>,
     #[model]
     pub volumes: Volumes,
     // #[serde(default = "current_version")]
