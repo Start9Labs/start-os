@@ -718,36 +718,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40eebddd2156ce1bb37b20bbe5151340a31828b1f2d22ba4141f3531710e38df"
 dependencies = [
  "convert_case",
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> fix cargo lock
  "proc-macro2 1.0.29",
  "quote 1.0.9",
  "rustc_version 0.3.3",
  "syn 1.0.76",
-<<<<<<< HEAD
-=======
->>>>>>> wip update set result
- "proc-macro2 1.0.28",
- "quote 1.0.9",
- "rustc_version 0.3.3",
- "syn 1.0.74",
-<<<<<<< HEAD
-=======
->>>>>>> backups compiling
-=======
- "proc-macro2 1.0.29",
- "quote 1.0.9",
- "rustc_version 0.3.3",
- "syn 1.0.75",
->>>>>>> wip update set result
->>>>>>> wip update set result
-=======
->>>>>>> fix cargo lock
 ]
 
 [[package]]
@@ -2502,23 +2476,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "246e9f61b9bb77df069a947682be06e31ac43ea37862e244a69f177694ea6d22"
 dependencies = [
  "base64",
-<<<<<<< HEAD
-<<<<<<< HEAD
- "bytes 1.0.1",
-=======
-<<<<<<< HEAD
-<<<<<<< HEAD
  "bytes 1.1.0",
-=======
- "bytes 1.0.1",
->>>>>>> backups compiling
-=======
- "bytes 1.1.0",
->>>>>>> wip update set result
->>>>>>> wip update set result
-=======
- "bytes 1.1.0",
->>>>>>> fix cargo lock
  "cookie 0.14.4",
  "cookie_store 0.12.0",
  "encoding_rs",
@@ -2928,22 +2886,7 @@ checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
 
 [[package]]
 name = "sha2"
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-<<<<<<< HEAD
-version = "0.9.7"
-=======
->>>>>>> wip update set result
-version = "0.9.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91e36fa7752016a6c4483706d634fd82c48860dd2df17a0cfaaebc714f23b2dd"
-=======
-version = "0.9.6"
-=======
 version = "0.9.8"
->>>>>>> fix cargo lock
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b69f9a4c9740d74c5baa3fd2e547f9525fa8088a8a958e0ca2409a514e33f5fa"
 dependencies = [
@@ -3429,9 +3372,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.3.1"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "848a1e1181b9f6753b5e96a092749e29b11d19ede67dfbbd6c7dc7e0f49b5338"
+checksum = "5241dd6f21443a3606b432718b166d3cedc962fd4b8bea54a8bc7f514ebda986"
 dependencies = [
  "tinyvec_macros",
 ]
