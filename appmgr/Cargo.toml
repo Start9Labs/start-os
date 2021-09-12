@@ -106,7 +106,7 @@ sqlx = { version = "0.5", features = [
 ] }
 tar = "0.4.35"
 thiserror = "1.0.24"
-tokio = { version = "1.8.1", features = ["full"] }
+tokio = { version = "1.11.0", features = ["full"] }
 tokio-compat-02 = "0.2.0"
 tokio-stream = { version = "0.1.5", features = ["io-util", "sync"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
