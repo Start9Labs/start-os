@@ -142,14 +142,14 @@ fn inner_main() -> Result<(), anyhow::Error> {
                                 .required(true),
                         ),
                 )
-                .subcommand(
-                    SubCommand::with_name("properties")
-                        .arg(
-                            Arg::with_name("mountpoint")
-                                .help("The data directory of the service to mount to.")
-                                .required(true),
-                        )
-                ),
+        )
+        .subcommand(
+            SubCommand::with_name("properties")
+                .arg(
+                    Arg::with_name("mountpoint")
+                        .help("The data directory of the service to mount to.")
+                        .required(true),
+                )
         );
     let matches = app.get_matches();
     match matches.subcommand() {
