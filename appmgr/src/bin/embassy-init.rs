@@ -114,7 +114,6 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     Ok(())
 }
 
-// BLOCKING
 async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
     let script = path.as_ref();
     if script.exists() {
