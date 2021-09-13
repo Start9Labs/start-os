@@ -26,6 +26,7 @@ pub mod manager;
 pub mod middleware;
 pub mod migration;
 pub mod net;
+pub mod notifications;
 pub mod properties;
 pub mod recovery;
 pub mod s9pk;
