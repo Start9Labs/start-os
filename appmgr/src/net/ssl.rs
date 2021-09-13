@@ -26,7 +26,6 @@ struct SslStore {
 }
 impl SslStore {
     fn new(db: SqlitePool) -> Result<Self, Error> {
-        // TODO check db schema
         Ok(SslStore { secret_store: db })
     }
     async fn save_root_certificate(&self, key: &PKey<Private>, cert: &X509) -> Result<(), Error> {
