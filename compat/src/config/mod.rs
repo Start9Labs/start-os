@@ -30,8 +30,7 @@ pub fn validate_configuration(
     match rule_check {
         Ok(_) => {
             // create temp config file
-            std::fs::copy(config_path, config_path.with_extension("tmp"))?;
-            serde_yaml::to_writer(std::fs::File::open(config_path.with_extension("tmp"))?, &config)?;
+            serde_yaml::to_writer(std::fs::File::create(config_path.with_extension("tmp"))?, &config)?;
             std::fs::rename(config_path.with_extension("tmp"), config_path)?;
             // return set result
             Ok(SetResult {
