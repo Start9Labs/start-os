@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '../state.service'
-import { ApiService } from './api.service'
+import { ApiService, DiskInfo } from './api.service'
 
 @Injectable({
   providedIn: 'root'
@@ -30,6 +30,8 @@ export class MockApiService extends ApiService {
   async getDrives() {
     return [
       {
+        vendor: 'vendor',
+        model: 'model',
         logicalname: 'Name1',
         partitions: [{
             logicalname: 'Name1',
@@ -43,9 +45,11 @@ export class MockApiService extends ApiService {
           used: 200.1255312
       }],
         capacity: 150000,
-        'embassy-os': null
+        'embassy_os': null
       },
       {
+        vendor: 'vendor',
+        model: 'model',
         logicalname: 'Name2',
         partitions: [{
             logicalname: 'Name2',
@@ -54,9 +58,11 @@ export class MockApiService extends ApiService {
             used: 0.00,
         }],
         capacity: 1600.01234,
-        'embassy-os': null
+        'embassy_os': null
       },
       {
+        vendor: 'vendor',
+        model: 'model',
         logicalname: 'Name3',
         partitions: [{
             logicalname: 'Name3',
@@ -65,12 +71,13 @@ export class MockApiService extends ApiService {
             used: null
         }],
         capacity: 100000,
-        'embassy-os': {
+        'embassy_os': {
           version: '0.3.3',
-          name: 'My Embassy'
         }
       },
       {
+        vendor: 'vendor',
+        model: 'model',
         logicalname: 'Name4',
          partitions: [{
             logicalname: 'Name4',
@@ -79,9 +86,8 @@ export class MockApiService extends ApiService {
             used: null
         }],
         capacity: 10000,
-        'embassy-os': {
+        'embassy_os': {
           version: '0.2.7',
-          name: 'My Embassy'
         }
       }
 

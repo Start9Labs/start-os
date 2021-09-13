@@ -4,7 +4,7 @@ export abstract class ApiService {
   protected error$: Subject<string> = new Subject();
   watchError$ = this.error$.asObservable();
   abstract verifyProductKey (key: string): Promise<VerifyProductKeyRes>;
-  abstract getDrives (): Promise<Drive[]>;
+  abstract getDrives (): Promise<DiskInfo[]>;
   abstract getDataTransferProgress (): Promise<TransferProgressRes>;
   abstract verifyRecoveryPassword (logicalname: string, password: string): Promise<boolean>;
   abstract setupEmbassy (setupInfo: {
@@ -29,17 +29,22 @@ export interface SetupEmbassyRes {
   "tor-address": string
 }
 
-export interface Drive {
-  logicalname: string
-  partitions: {
-      logicalname: string
-      label: string | null
-      capacity: number
-      used: number | null
-  }[],
-  capacity: number
-  'embassy-os': {
-      version: string
-      name: string
-  } | null
-}[]
+export interface DiskInfo {
+  logicalname: string,
+  vendor: string | null,
+  model: string | null,
+  partitions: PartitionInfo[],
+  capacity: number,
+  embassy_os: EmbassyOsDiskInfo | null,
+}
+
+interface PartitionInfo {
+  logicalname: string,
+  label: string | null,
+  capacity: number,
+  used: number | null,
+}
+
+interface EmbassyOsDiskInfo {
+  version: string,
+}

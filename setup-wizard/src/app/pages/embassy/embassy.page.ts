@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { iosTransitionAnimation, LoadingController, ModalController, NavController } from '@ionic/angular'
-import { ApiService, Drive } from 'src/app/services/api/api.service'
+import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
 
@@ -11,7 +11,7 @@ import { PasswordPage } from '../password/password.page'
 })
 export class EmbassyPage {
   embassyDrives = []
-  selectedDrive: Drive = null
+  selectedDrive: DiskInfo = null
   loading = true
   window = window
 
@@ -24,12 +24,12 @@ export class EmbassyPage {
   ) {}
 
   async ngOnInit() {
-    const drives = (await this.apiService.getDrives()).filter(d => !d['embassy-os'])
-    this.embassyDrives = (await this.apiService.getDrives()).filter(d => !d['embassy-os'])
+    const drives = (await this.apiService.getDrives()).filter(d => !d['embassy_os'])
+    this.embassyDrives = (await this.apiService.getDrives()).filter(d => !d['embassy_os'])
     this.loading = false
   }
 
-  async chooseDrive(drive: Drive) {    
+  async chooseDrive(drive: DiskInfo) {    
     const modal = await this.modalController.create({
       component: PasswordPage,
       componentProps: {
@@ -64,12 +64,12 @@ export class EmbassyPage {
     await modal.present();
   }
 
-  getLabelLabel(drive: Drive) {
+  getLabelLabel(drive: DiskInfo) {
     const labels = drive.partitions.map(p => p.label).filter(l => !!l)
     return labels.length ? labels.join(' / ') : 'unnamed'
   }
 
-  getUsage(drive: Drive) {
+  getUsage(drive: DiskInfo) {
     let usage = 0
     drive.partitions.forEach(par => {
       if(par.used) {
