@@ -89,6 +89,11 @@ impl<'a> Id<&'a str> {
         Id(self.0.to_owned())
     }
 }
+impl From<Id> for String {
+    fn from(value: Id) -> Self {
+        value.0
+    }
+}
 impl<S: AsRef<str>> std::ops::Deref for Id<S> {
     type Target = S;
     fn deref(&self) -> &Self::Target {

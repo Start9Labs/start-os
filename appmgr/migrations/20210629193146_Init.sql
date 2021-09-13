@@ -37,3 +37,14 @@ CREATE TABLE IF NOT EXISTS certificates
     created_at TEXT,
     updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS notifications
+(
+    id INTEGER PRIMARY KEY,
+    package_id TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    code INTEGER NOT NULL,
+    level TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    data TEXT
+)
