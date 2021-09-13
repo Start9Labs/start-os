@@ -337,6 +337,8 @@ macro_rules! song {
     };
 }
 
+pub const BEP: Song<[(Option<Note>, TimeSlice); 1]> = song!(120, [note(A, 4, Quarter);]);
+
 pub const MARIO_DEATH: Song<[(Option<Note>, TimeSlice); 12]> = song!(400, [
     note(B, 4, Quarter);
     note(F, 5, Quarter);
