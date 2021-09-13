@@ -44,17 +44,17 @@
                   <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label class="ion-text-wrap">
                     <h1>{{ drive.logicalname }}</h1>
-                    <h2>{{ drive.name }}</h2>
-                    <p> Embassy version: {{drive.version}}</p>
+                    <h2>{{ drive['embassy-os'].name }}</h2>
+                    <p> Embassy version: {{drive['embassy-os'].version}}</p>
                   </ion-label>
-                  <ion-icon *ngIf="drive.version.startsWith('0.2') || passwords[drive.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
-                  <ion-icon *ngIf="!drive.version.startsWith('0.2') && !passwords[drive.logicalname]" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
+                  <ion-icon *ngIf="drive['embassy-os'].version.startsWith('0.2') || passwords[drive.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
+                  <ion-icon *ngIf="!drive['embassy-os'].version.startsWith('0.2') && !passwords[drive.logicalname]" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
 
                 </ion-item>
               </ng-container>
               <ion-button 
                   (click)="selectRecoveryDrive()"
-                  [disabled]="!selectedDrive || (!passwords[selectedDrive.logicalname] && !selectedDrive.version.startsWith('0.2'))"
+                  [disabled]="!selectedDrive || (!passwords[selectedDrive.logicalname] && !selectedDrive['embassy-os'].version.startsWith('0.2'))"
                   class="claim-button"
                 >
                   Next

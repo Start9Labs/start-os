@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
-import { ApiService, EmbassyDrive, RecoveryDrive } from 'src/app/services/api/api.service'
+import { ApiService, Drive } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -9,8 +9,8 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['password.page.scss'],
 })
 export class PasswordPage {
-  @Input() recoveryDrive: RecoveryDrive
-  @Input() embassyDrive: EmbassyDrive
+  @Input() recoveryDrive: Drive
+  @Input() embassyDrive: Drive
 
   pwError = ''
   password = ''
@@ -53,7 +53,6 @@ export class PasswordPage {
 
   async submitPw () {
     this.validate()
-    console.log('here')
     if (this.password !== this.passwordVer) {
       this.verError="*passwords do not match"
     }
@@ -83,5 +82,20 @@ export class PasswordPage {
 
   cancel () {
     this.modalController.dismiss()
+  }
+
+  getLabelLabel(drive: Drive) {
+    const labels = drive.partitions.map(p => p.label).filter(l => !!l)
+    return labels.length ? labels.join(' / ') : 'unnamed'
+  }
+
+  getUsage(drive: Drive) {
+    let usage = 0
+    drive.partitions.forEach(par => {
+      if(par.used) {
+        usage += par.used
+      }
+    })
+    return usage
   }
 }
