@@ -32,6 +32,11 @@ impl FromStr for PackageId {
         Ok(PackageId(Id::try_from(s.to_owned())?))
     }
 }
+impl From<PackageId> for String {
+    fn from(value: PackageId) -> Self {
+        value.0.into()
+    }
+}
 impl<S: AsRef<str>> From<Id<S>> for PackageId<S> {
     fn from(id: Id<S>) -> Self {
         PackageId(id)
