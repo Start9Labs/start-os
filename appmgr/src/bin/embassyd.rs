@@ -243,7 +243,6 @@ fn main() {
         3 => log::LevelFilter::Debug,
         _ => log::LevelFilter::Trace,
     };
-    simple_logging::log_to_stderr(filter);
     let cfg_path = matches.value_of("config");
 
     let res = {

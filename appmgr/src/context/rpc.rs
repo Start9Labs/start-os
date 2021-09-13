@@ -131,6 +131,9 @@ impl RpcContext {
         log_level: LevelFilter,
     ) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
+        let log_epoch = Arc::new(AtomicU64::new(rand::random()));
+        let logger =
+            EmbassyLogger::new(log_level, log_epoch.clone(), base.log_server.clone(), false);
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
         let db = base.db(&secret_store).await?;
@@ -139,13 +142,7 @@ impl RpcContext {
             .share_stats()
             .get(&mut db.handle(), true)
             .await?;
-        let log_epoch = Arc::new(AtomicU64::new(rand::random()));
-        let logger = EmbassyLogger::new(
-            log_level,
-            log_epoch.clone(),
-            base.log_server.clone(),
-            *share,
-        );
+        logger.set_sharing(*share);
         let docker = Docker::connect_with_unix_defaults()?;
         let net_controller = NetController::init(
             ([127, 0, 0, 1], 80).into(),
