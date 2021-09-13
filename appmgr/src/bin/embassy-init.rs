@@ -134,30 +134,36 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
 
     run_script_if_exists("/embassy-os/preinit.sh").await;
 
-    if let Err(e) = init(cfg_path).await {
-        log::error!("{}", e.source);
-        log::debug!("{}", e.source);
-        embassy::sound::BEETHOVEN.play().await?;
-        let ctx = RecoveryContext::init(cfg_path).await?;
-        rpc_server!({
-            command: embassy::recovery_api,
-            context: ctx.clone(),
-            status: status_fn,
-            middleware: [ ]
-        })
-        .with_graceful_shutdown({
-            let mut shutdown = ctx.shutdown.subscribe();
-            async move {
-                shutdown.recv().await.expect("context dropped");
-            }
-        })
+    let res = if let Err(e) = init(cfg_path).await {
+        (|| async {
+            log::error!("{}", e.source);
+            log::debug!("{}", e.source);
+            embassy::sound::BEETHOVEN.play().await?;
+            let ctx = RecoveryContext::init(cfg_path).await?;
+            rpc_server!({
+                command: embassy::recovery_api,
+                context: ctx.clone(),
+                status: status_fn,
+                middleware: [ ]
+            })
+            .with_graceful_shutdown({
+                let mut shutdown = ctx.shutdown.subscribe();
+                async move {
+                    shutdown.recv().await.expect("context dropped");
+                }
+            })
+            .await
+            .with_kind(embassy::ErrorKind::Network)?;
+            Ok::<_, Error>(())
+        })()
         .await
-        .with_kind(embassy::ErrorKind::Network)?;
-    }
+    } else {
+        Ok(())
+    };
 
     run_script_if_exists("/embassy-os/postinit.sh").await;
 
-    Ok(())
+    res
 }
 
 fn main() {
