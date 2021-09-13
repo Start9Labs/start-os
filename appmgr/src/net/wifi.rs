@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
 use clap::ArgMatches;
@@ -523,13 +523,10 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(main_datadir: P) ->
     if tokio::fs::metadata(&target).await.is_err() {
         tokio::fs::write(&target, include_str!("wpa_supplicant.conf.base")).await?;
     }
-    let link = PathBuf::from("/etc/wpa_supplicant.conf");
-    match tokio::fs::metadata(&link).await {
-        Err(_e) => {}
-        Ok(meta) => {
-            if meta.file_type().is_symlink() && link.read_link()? != target {
-                tokio::fs::remove_file(&link).await?
-            }
+    let link = Path::new("/etc/wpa_supplicant.conf");
+    if let Ok(meta) = tokio::fs::symlink_metadata(&link).await {
+        if meta.file_type().is_symlink() {
+            tokio::fs::remove_file(&link).await?
         }
     }
     tokio::fs::symlink(&target, link).await?;
