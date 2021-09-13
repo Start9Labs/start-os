@@ -5,7 +5,7 @@ use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use indexmap::IndexMap;
-use patch_db::{DbHandle, HasModel, Map, MapModel, ModelData};
+use patch_db::{DbHandle, HasModel, LockType, Map, MapModel, ModelData};
 use serde::{Deserialize, Serialize};
 
 use self::health_check::{HealthCheckId, HealthCheckResult};
@@ -23,24 +23,25 @@ pub mod health_check;
 pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
     let mut pkg_ids = crate::db::DatabaseModel::new()
         .package_data()
-        .keys(&mut ctx.db.handle(), true)
+        .keys(&mut ctx.db.handle(), false)
         .await?;
     for id in pkg_ids {
         async fn status(ctx: &RpcContext, id: PackageId) -> Result<(), Error> {
             let mut db = ctx.db.handle();
-            let pkg_data = crate::db::DatabaseModel::new()
+            let model = crate::db::DatabaseModel::new()
                 .package_data()
-                .idx_model(&id)
+                .idx_model(id)
                 .check(&mut db)
                 .await?
                 .ok_or_else(|| {
                     Error::new(
-                        anyhow!("VersionedPackageData does not exist"),
+                        anyhow!("PackageDataEntry does not exist"),
                         crate::ErrorKind::Database,
                     )
                 })?;
+            model.lock(&mut db, LockType::Write).await;
             let (mut status, manager) =
-                if let Some(installed) = pkg_data.installed().check(&mut db).await? {
+                if let Some(installed) = model.installed().check(&mut db).await? {
                     (
                         installed.clone().status().get_mut(&mut db).await?,
                         ctx.managers
@@ -80,7 +81,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let pkg_ids = crate::db::DatabaseModel::new()
         .package_data()
-        .keys(&mut db, true)
+        .keys(&mut db, false)
         .await?;
     let mut status_manifest = Vec::with_capacity(pkg_ids.len());
     let mut status_deps = Vec::with_capacity(pkg_ids.len());
@@ -96,6 +97,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                     crate::ErrorKind::Database,
                 )
             })?;
+        model.lock(&mut db, LockType::Write).await;
         if let Some(installed) = model.installed().check(&mut db).await? {
             status_manifest.push((
                 installed.clone().status(),
