@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { ApiService, EmbassyDrive, RecoveryDrive, SetupEmbassyRes, TransferProgressRes, VerifyProductKeyRes } from './api.service'
+import { ApiService, Drive, SetupEmbassyRes, TransferProgressRes, VerifyProductKeyRes } from './api.service'
 import { HttpService } from './http.service'
 
 @Injectable({
@@ -25,16 +25,9 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getEmbassyDrives() {
-    return this.http.rpcRequest<EmbassyDrive[]>({
+  async getDrives() {
+    return this.http.rpcRequest<Drive[]>({
       method: 'setup.disk.list',
-      params: {}
-    })
-  }
-
-  async getRecoveryDrives() {
-    return this.http.rpcRequest<RecoveryDrive[]>({
-      method: 'setup.recovery.list',
       params: {}
     })
   }

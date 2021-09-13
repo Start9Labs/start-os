@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { iosTransitionAnimation, ModalController, NavController } from '@ionic/angular'
-import { ApiService, RecoveryDrive } from 'src/app/services/api/api.service'
+import { ApiService, Drive } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
 
@@ -12,7 +12,7 @@ import { PasswordPage } from '../password/password.page'
 export class RecoverPage {
   passwords = {}
   recoveryDrives = []
-  selectedDrive: RecoveryDrive = null
+  selectedDrive: Drive = null
   loading = true
   window = window
 
@@ -24,11 +24,11 @@ export class RecoverPage {
   ) {}
 
   async ngOnInit() {
-    this.recoveryDrives = await this.apiService.getRecoveryDrives()
+    this.recoveryDrives = (await this.apiService.getDrives()).filter(d => !!d['embassy-os'])
     this.loading = false
   }
 
-  async chooseDrive(drive: RecoveryDrive) {
+  async chooseDrive(drive: Drive) {
 
     if (this.selectedDrive?.logicalname === drive.logicalname) {
       this.selectedDrive = null
@@ -37,7 +37,7 @@ export class RecoverPage {
       this.selectedDrive = drive
     }
 
-    if (drive.version.startsWith('0.2') || this.passwords[drive.logicalname]) return
+    if (drive['embassy-os'].version.startsWith('0.2') || this.passwords[drive.logicalname]) return
 
     const modal = await this.modalController.create({
       component: PasswordPage,

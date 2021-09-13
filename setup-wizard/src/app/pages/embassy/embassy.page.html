@@ -44,8 +44,8 @@
                   <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label class="ion-text-wrap">
                     <h1>{{ drive.logicalname }}</h1>
-                    <h2 style="min-height: 19px;">{{ drive.labels.length ? drive.labels.join(' / ') : 'unnamed' }}</h2>
-                    <p> Using {{drive.used.toFixed(2)}} of {{drive.capacity.toFixed(2)}} GiB</p>
+                    <h2 style="min-height: 19px;">{{ getLabelLabel(drive) }}</h2>
+                    <p> Using {{ getUsage(drive) }} of {{drive.capacity.toFixed(2)}} GiB</p>
                   </ion-label>
                 </ion-item>
               </ng-container>
