@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, path::PathBuf};
 use std::path::Path;
 
 use beau_collector::BeauCollector;
@@ -49,7 +49,7 @@ pub fn validate_dependency_configuration(
     name: &str,
     config: Config,
     rules_path: &Path,
-    dependent_config: &Path,
+    dependent_config: Config,
 ) -> Result<(), anyhow::Error> {
     let rules: Vec<ConfigRuleEntry> = serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
@@ -69,7 +69,7 @@ pub fn apply_dependency_configuration(
     name: &str,
     mut config: Config,
     rules_path: &Path,
-    dependent_config: &Path,
+    dependent_config: Config,
 ) -> Result<Config, anyhow::Error> {
     let rules: Vec<ConfigRuleEntryWithSuggestions> =
         serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
