@@ -30,10 +30,9 @@ pub fn validate_configuration(
     match rule_check {
         Ok(_) => {
             // create temp config file
-            let temp = std::fs::File::create("config_temp.yaml")?;
-            // copy new config that pass rule check into temp file
-            serde_yaml::to_writer(temp, &config)?;
-            std::fs::rename("config_temp.yaml", config_path)?;
+            std::fs::copy(config_path, config_path.with_extension("tmp"))?;
+            serde_yaml::to_writer(std::fs::File::open(config_path.with_extension("tmp"))?, &config)?;
+            std::fs::rename(config_path.with_extension("tmp"), config_path)?;
             // return set result
             Ok(SetResult {
                 depends_on: indexmap::IndexMap::new(),
