@@ -30,7 +30,7 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
             let mut db = ctx.db.handle();
             let model = crate::db::DatabaseModel::new()
                 .package_data()
-                .idx_model(id)
+                .idx_model(&id)
                 .check(&mut db)
                 .await?
                 .ok_or_else(|| {
