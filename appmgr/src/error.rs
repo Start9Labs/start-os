@@ -54,7 +54,8 @@ pub enum ErrorKind {
     Wifi = 46,
     Journald = 47,
     Zfs = 48,
-    PasswordHashGeneration = 49,
+    OpenSsl = 49,
+    PasswordHashGeneration = 50,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -108,6 +109,7 @@ impl ErrorKind {
             Wifi => "WiFi Internal Error",
             Journald => "Journald Error",
             Zfs => "ZFS Error",
+            OpenSsl => "OpenSSL Internal Error",
             PasswordHashGeneration => "Password Hash Generation Error",
         }
     }
@@ -201,6 +203,11 @@ impl From<torut::control::ConnError> for Error {
 impl From<std::net::AddrParseError> for Error {
     fn from(e: std::net::AddrParseError) -> Self {
         Error::new(e, ErrorKind::ParseNetAddress)
+    }
+}
+impl From<openssl::error::ErrorStack> for Error {
+    fn from(e: openssl::error::ErrorStack) -> Self {
+        Error::new(anyhow!("OpenSSL ERROR:\n{}", e), ErrorKind::OpenSsl)
     }
 }
 impl From<Error> for RpcError {

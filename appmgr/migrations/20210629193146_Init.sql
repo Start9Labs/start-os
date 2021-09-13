@@ -28,3 +28,12 @@ CREATE TABLE IF NOT EXISTS ssh_keys
     created_at      TEXT NOT NULL,
     PRIMARY KEY (fingerprint)
 );
+CREATE TABLE IF NOT EXISTS certificates
+(
+    id INTEGER PRIMARY KEY, -- Root = 0, Int = 1, Other = 2..
+    priv_key_pem TEXT NOT NULL,
+    certificate_pem TEXT NOT NULL,
+    lookup_string TEXT UNIQUE,
+    created_at TEXT,
+    updated_at TEXT
+);
