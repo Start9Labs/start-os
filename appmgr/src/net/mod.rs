@@ -14,6 +14,7 @@ use crate::Error;
 pub mod interface;
 #[cfg(feature = "avahi")]
 pub mod mdns;
+pub mod ssl;
 pub mod tor;
 pub mod wifi;
 
