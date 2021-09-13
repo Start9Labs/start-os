@@ -230,6 +230,16 @@
       ]
     }
   },
+  "8c87b09f997838b7e5be48ebb202d97eb9d512a51c6e67b1fb7df33abd79a0af": {
+    "query": "-- Add migration script here\nCREATE TABLE IF NOT EXISTS tor\n(\n    package     TEXT NOT NULL,\n    interface   TEXT NOT NULL,\n    key         BLOB NOT NULL CHECK (length(key) = 64),\n    PRIMARY KEY (package, interface)\n);\nCREATE TABLE IF NOT EXISTS session\n(\n    id         TEXT NOT NULL PRIMARY KEY,\n    logged_in TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    logged_out TIMESTAMP,\n    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    user_agent TEXT,\n    metadata   TEXT NOT NULL DEFAULT 'null'\n);\nCREATE TABLE IF NOT EXISTS account\n(\n    id INTEGER PRIMARY KEY CHECK (id = 0),\n    password TEXT NOT NULL,\n    tor_key BLOB NOT NULL CHECK (length(tor_key) = 64)\n);\nCREATE TABLE IF NOT EXISTS ssh_keys\n(\n    fingerprint     TEXT NOT NULL,\n    openssh_pubkey  TEXT NOT NULL,\n    created_at      TEXT NOT NULL,\n    PRIMARY KEY (fingerprint)\n);\nCREATE TABLE IF NOT EXISTS certificates\n(\n    id INTEGER PRIMARY KEY, -- Root = 0, Int = 1, Other = 2..\n    priv_key_pem TEXT NOT NULL,\n    certificate_pem TEXT NOT NULL,\n    lookup_string TEXT UNIQUE,\n    created_at TEXT,\n    updated_at TEXT\n);",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": []
+    }
+  },
   "9496e17a73672ac3675e02efa7c4bf8bd479b866c0d31fa1e3a85ef159310a57": {
     "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = ?",
     "describe": {
