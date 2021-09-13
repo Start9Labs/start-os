@@ -44,7 +44,7 @@ async fn ws_handler<
             .websocket_count
             .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
         if new_count == 0 {
-            ctx.session_id
+            ctx.log_epoch
                 .store(rand::random(), std::sync::atomic::Ordering::SeqCst)
         }
         ()

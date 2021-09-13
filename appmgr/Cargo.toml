@@ -104,6 +104,7 @@ sqlx = { version = "0.5", features = [
   "runtime-tokio-rustls",
   "sqlite",
 ] }
+stderrlog = "0.5.1"
 tar = "0.4.35"
 thiserror = "1.0.24"
 tokio = { version = "1.11.0", features = ["full"] }

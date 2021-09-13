@@ -455,6 +455,22 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
     })?
 }
 
+#[command(subcommands(share_stats))]
+pub async fn config() -> Result<(), Error> {
+    Ok(())
+}
+
+#[command(display(display_serializable))]
+async fn share_stats(#[context] ctx: RpcContext, #[arg] value: bool) -> Result<(), Error> {
+    crate::db::DatabaseModel::new()
+        .server_info()
+        .share_stats()
+        .put(&mut ctx.db.handle(), &value)
+        .await?;
+    ctx.logger.set_sharing(value);
+    Ok(())
+}
+
 #[tokio::test]
 pub async fn test_get_temp() {
     println!("{}", get_temp().await.unwrap())

@@ -55,6 +55,7 @@ impl Database {
                     tor: Vec::new(),
                     clearnet: Vec::new(),
                 },
+                share_stats: false,
             },
             package_data: AllPackageData::default(),
             broken_packages: Vec::new(),
@@ -82,6 +83,7 @@ pub struct ServerInfo {
     unread_notification_count: u64,
     specs: ServerSpecs,
     connection_addresses: ConnectionAddresses,
+    share_stats: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
