@@ -57,6 +57,7 @@ pub enum ErrorKind {
     OpenSsl = 49,
     PasswordHashGeneration = 50,
     RecoveryMode = 51,
+    ParseDbField = 52,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -113,6 +114,7 @@ impl ErrorKind {
             OpenSsl => "OpenSSL Internal Error",
             PasswordHashGeneration => "Password Hash Generation Error",
             RecoveryMode => "Embassy is in Recovery Mode",
+            ParseDbField => "Database Field Parse Error",
         }
     }
 }
