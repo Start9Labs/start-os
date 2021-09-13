@@ -22,7 +22,7 @@ impl EmbassyLogger {
         share_errors: bool,
     ) -> Self {
         let share_dest = match share_dest {
-            None => Url::parse("https://beta-registry-0-3.start9labs.com/errorLogs").unwrap(), // TODO
+            None => Url::parse("https://beta-registry-0-3.start9labs.com/error-logs").unwrap(), // TODO
             Some(a) => a,
         };
         let mut logger = stderrlog::new();
@@ -59,25 +59,27 @@ impl log::Log for EmbassyLogger {
     fn log(&self, record: &Record) {
         self.logger.log(record);
         if self.sharing.load(Ordering::SeqCst) {
-            match record.level() {
-                log::Level::Error => {
-                    let mut body = HashMap::new();
-                    body.insert(
-                        "log_epoch",
-                        format!("{}", self.log_epoch.load(Ordering::SeqCst)),
-                    );
-                    body.insert("log_string", format!("{}", record.args()));
-                    // we don't care about the result and need it to be fast
-                    tokio::spawn(
-                        Client::new()
-                            .post(self.share_dest.clone())
-                            .json(&body)
-                            .send(),
-                    );
-                }
-                _ => {}
+            if record.level() <= log::Level::Warn {
+                let mut body = HashMap::new();
+                body.insert(
+                    "log-epoch",
+                    format!("{}", self.log_epoch.load(Ordering::SeqCst)),
+                );
+                body.insert("log-message", format!("{}", record.args()));
+                // we don't care about the result and need it to be fast
+                tokio::spawn(
+                    Client::new()
+                        .post(self.share_dest.clone())
+                        .json(&body)
+                        .send(),
+                );
             }
         }
     }
     fn flush(&self) {}
+}
+
+#[tokio::test]
+pub async fn order_level() {
+    assert!(log::Level::Warn > log::Level::Error)
 }
