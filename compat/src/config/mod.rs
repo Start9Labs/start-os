@@ -33,8 +33,7 @@ pub fn validate_configuration(
             let temp = std::fs::File::create("config_temp.yaml")?;
             // copy new config that pass rule check into temp file
             serde_yaml::to_writer(temp, &config)?;
-            std::fs::copy("config_temp.yaml", config_path)?;
-            std::fs::remove_file("config_temp.yaml")?;
+            std::fs::rename("config_temp.yaml", config_path)?;
             // return set result
             Ok(SetResult {
                 depends_on: indexmap::IndexMap::new(),
