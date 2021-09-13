@@ -35,7 +35,7 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
                 &ctx,
                 &manifest.id,
                 &manifest.version,
-                None,
+                Some(&format!("Properties-{}", rand::random::<u64>())),
                 &manifest.volumes,
                 None,
                 false,
