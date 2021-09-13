@@ -12,19 +12,17 @@ setup.disk.list
     Response
       {
         logicalname: string
-        labels: string[]
+        partitions: {
+            logicalname: string
+            label: string | null
+            capacity: number
+            used: number | null
+        }[],
         capacity: number
-        used: number
-      }[]
-
-setup.recovery.list
-    Request
-
-    Response
-      {
-        logicalname: string
-        version: string
-        name: string
+        'embassy-os': {
+            version: string
+            name: string
+        } | null
       }[]
 
 setup.recovery.status

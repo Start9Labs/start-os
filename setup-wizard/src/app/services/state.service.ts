@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs';
-import { ApiService, EmbassyDrive, RecoveryDrive } from './api/api.service'
+import { ApiService, Drive } from './api/api.service'
 
 @Injectable({
   providedIn: 'root'
@@ -8,9 +8,9 @@ import { ApiService, EmbassyDrive, RecoveryDrive } from './api/api.service'
 export class StateService {
   polling = false
 
-  embassyDrive: EmbassyDrive;
+  embassyDrive: Drive;
   embassyPassword: string
-  recoveryDrive: RecoveryDrive;
+  recoveryDrive: Drive;
   recoveryPassword: string
   dataTransferProgress: { bytesTransfered: number; totalBytes: number } | null;
   dataProgress = 0;
