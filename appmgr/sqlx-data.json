@@ -104,6 +104,26 @@
       ]
     }
   },
+  "530192a2a530ee6b92e5b98e1eb1bf6d1426c7b0cb2578593a367cb0bf2c3ca8": {
+    "query": "UPDATE certificates SET priv_key_pem = ?, certificate_pem = ?, updated_at = datetime('now') WHERE lookup_string = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
+  "5c47da44b9c84468e95a13fc47301989900f130b3b5899d1ee6664df3ed812ac": {
+    "query": "INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (0, ?, ?, NULL, datetime('now'), datetime('now'))",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 2
+      },
+      "nullable": []
+    }
+  },
   "629be61c3c341c131ddbbff0293a83dbc6afd07cae69d246987f62cf0cc35c2a": {
     "query": "SELECT password FROM account",
     "describe": {
@@ -142,8 +162,42 @@
       "nullable": []
     }
   },
+  "6c96d76bffcc5f03290d8d8544a58521345ed2a843a509b17bbcd6257bb81821": {
+    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 1;",
+    "describe": {
+      "columns": [
+        {
+          "name": "priv_key_pem",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "certificate_pem",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
+  },
   "70a100abc8ca04ffc559ca16460d4fd4c65aa34952ade2681491f0b44dc1aaa1": {
     "query": "INSERT OR REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
+  "7d548d2472fa3707bd17364b4800e229b9c2b1c0a22e245bf4e635b9b16b8c24": {
+    "query": "INSERT INTO certificates (priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))",
     "describe": {
       "columns": [],
       "parameters": {
@@ -174,6 +228,40 @@
         false,
         false
       ]
+    }
+  },
+  "9496e17a73672ac3675e02efa7c4bf8bd479b866c0d31fa1e3a85ef159310a57": {
+    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "priv_key_pem",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "certificate_pem",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
+  },
+  "a1cbaac36d8e14c8c3e7276237c4824bff18861f91b0b08aa5791704c492acb7": {
+    "query": "INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (1, ?, ?, NULL, datetime('now'), datetime('now'))",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 2
+      },
+      "nullable": []
     }
   },
   "a6b0c8909a3a5d6d9156aebfb359424e6b5a1d1402e028219e21726f1ebd282e": {
@@ -259,6 +347,30 @@
       },
       "nullable": [
         false,
+        false,
+        false
+      ]
+    }
+  },
+  "ed848affa5bf92997cd441e3a50b3616b6724df3884bd9d199b3225e0bea8a54": {
+    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 0;",
+    "describe": {
+      "columns": [
+        {
+          "name": "priv_key_pem",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "certificate_pem",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
         false,
         false
       ]
