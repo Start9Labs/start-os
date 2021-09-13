@@ -473,6 +473,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
     let mut sql_tx = ctx.secret_store.begin().await?;
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .lock(&mut tx, patch_db::LockType::Write)
+        .await;
 
     log::info!("Install {}@{}: Creating volumes", pkg_id, version);
     manifest.volumes.install(ctx, pkg_id, version).await?;
