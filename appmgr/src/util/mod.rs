@@ -21,6 +21,8 @@ use tokio::task::{JoinError, JoinHandle};
 use crate::shutdown::Shutdown;
 use crate::{Error, ResultExt as _};
 
+pub mod logger;
+
 #[derive(Clone, Copy, Debug)]
 pub enum Never {}
 impl Never {}
