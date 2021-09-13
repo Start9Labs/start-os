@@ -115,15 +115,12 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     Ok(())
 }
 
-// BLOCKING
-fn run_script_if_exists<P: AsRef<Path>>(path: P) {
-    use std::process::Command;
-
+async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
     let script = path.as_ref();
     if script.exists() {
         match Command::new("/bin/bash").arg(script).spawn() {
             Ok(mut c) => {
-                if let Err(e) = c.wait() {
+                if let Err(e) = c.wait().await {
                     log::error!("Error Running {}: {}", script.display(), e)
                 }
             }
@@ -133,28 +130,40 @@ fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 }
 
 async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
-    if let Err(e) = init(cfg_path).await {
-        log::error!("{}", e.source);
-        log::debug!("{}", e.source);
-        embassy::sound::BEETHOVEN.play().await?;
-        let ctx = RecoveryContext::init(cfg_path).await?;
-        rpc_server!({
-            command: embassy::recovery_api,
-            context: ctx.clone(),
-            status: status_fn,
-            middleware: [ ]
-        })
-        .with_graceful_shutdown({
-            let mut shutdown = ctx.shutdown.subscribe();
-            async move {
-                shutdown.recv().await.expect("context dropped");
-            }
-        })
-        .await
-        .with_kind(embassy::ErrorKind::Network)?;
-    }
+    embassy::sound::BEP.play().await?;
 
-    Ok(())
+    run_script_if_exists("/embassy-os/preinit.sh").await;
+
+    let res = if let Err(e) = init(cfg_path).await {
+        (|| async {
+            log::error!("{}", e.source);
+            log::debug!("{}", e.source);
+            embassy::sound::BEETHOVEN.play().await?;
+            let ctx = RecoveryContext::init(cfg_path).await?;
+            rpc_server!({
+                command: embassy::recovery_api,
+                context: ctx.clone(),
+                status: status_fn,
+                middleware: [ ]
+            })
+            .with_graceful_shutdown({
+                let mut shutdown = ctx.shutdown.subscribe();
+                async move {
+                    shutdown.recv().await.expect("context dropped");
+                }
+            })
+            .await
+            .with_kind(embassy::ErrorKind::Network)?;
+            Ok::<_, Error>(())
+        })()
+        .await
+    } else {
+        Ok(())
+    };
+
+    run_script_if_exists("/embassy-os/postinit.sh").await;
+
+    res
 }
 
 fn main() {
@@ -183,8 +192,6 @@ fn main() {
     });
     let cfg_path = matches.value_of("config");
 
-    run_script_if_exists("/embassy-os/preinit.sh");
-
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -192,8 +199,6 @@ fn main() {
             .expect("failed to initialize runtime");
         rt.block_on(inner_main(cfg_path))
     };
-
-    run_script_if_exists("/embassy-os/postinit.sh");
 
     match res {
         Ok(_) => (),
