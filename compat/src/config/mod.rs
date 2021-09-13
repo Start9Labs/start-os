@@ -50,17 +50,19 @@ pub fn validate_dependency_configuration(
     name: &str,
     config: Config,
     rules_path: &Path,
+    dependent_config: &Path,
 ) -> Result<(), anyhow::Error> {
     let rules: Vec<ConfigRuleEntry> = serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
     cfgs.insert(name, Cow::Borrowed(&config));
+    cfgs.insert(name, Cow::Borrowed(&dependent_config));
     let rule_check = rules
         .into_iter()
         .map(|r| r.check(&config, &cfgs))
         .bcollect::<Vec<_>>();
     match rule_check {
         Ok(_) => Ok(()),
-        Err(e) => Err(anyhow!("rule failure for dependency check: {}", e))
+        Err(e) => Err(anyhow!("{}", e))
     }
 }
 
@@ -68,12 +70,13 @@ pub fn apply_dependency_configuration(
     name: &str,
     mut config: Config,
     rules_path: &Path,
+    dependent_config: &Path,
 ) -> Result<Config, anyhow::Error> {
     let rules: Vec<ConfigRuleEntryWithSuggestions> =
         serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
     cfgs.insert(name, Cow::Owned(config.clone()));
-
+    cfgs.insert(name, Cow::Owned(dependent_config.clone()));
     let rule_check = rules
         .into_iter()
         .map(|r| r.apply(name, &mut config, &mut cfgs))
@@ -81,6 +84,6 @@ pub fn apply_dependency_configuration(
 
     match rule_check {
         Ok(_) => Ok(config),
-        Err(e) => Err(anyhow!("rule application failure for dependency check: {}", e))
+        Err(e) => Err(anyhow!("{}", e))
     }
 }
