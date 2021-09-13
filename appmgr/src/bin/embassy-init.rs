@@ -115,14 +115,12 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
 }
 
 // BLOCKING
-fn run_script_if_exists<P: AsRef<Path>>(path: P) {
-    use std::process::Command;
-
+async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
     let script = path.as_ref();
     if script.exists() {
         match Command::new("/bin/bash").arg(script).spawn() {
             Ok(mut c) => {
-                if let Err(e) = c.wait() {
+                if let Err(e) = c.wait().await {
                     log::error!("Error Running {}: {}", script.display(), e)
                 }
             }
@@ -132,6 +130,10 @@ fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 }
 
 async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
+    embassy::sound::BEP.play().await?;
+
+    run_script_if_exists("/embassy-os/preinit.sh").await;
+
     if let Err(e) = init(cfg_path).await {
         log::error!("{}", e.source);
         log::debug!("{}", e.source);
@@ -152,6 +154,8 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
         .await
         .with_kind(embassy::ErrorKind::Network)?;
     }
+
+    run_script_if_exists("/embassy-os/postinit.sh").await;
 
     Ok(())
 }
@@ -182,8 +186,6 @@ fn main() {
     });
     let cfg_path = matches.value_of("config");
 
-    run_script_if_exists("/embassy-os/preinit.sh");
-
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -191,8 +193,6 @@ fn main() {
             .expect("failed to initialize runtime");
         rt.block_on(inner_main(cfg_path))
     };
-
-    run_script_if_exists("/embassy-os/postinit.sh");
 
     match res {
         Ok(_) => (),
