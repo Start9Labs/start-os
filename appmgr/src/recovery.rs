@@ -5,6 +5,7 @@ use rpc_toolkit::yajrc::RpcError;
 
 use crate::context::RecoveryContext;
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
+use crate::util::display_none;
 use crate::Error;
 
 pub const SYSTEMD_UNIT: &'static str = "embassy-init";
@@ -34,7 +35,8 @@ pub async fn logs(
     .await?)
 }
 
-#[command]
+#[command(display(display_none))]
 pub fn exit(#[context] ctx: RecoveryContext) -> Result<(), Error> {
     ctx.shutdown.send(()).expect("receiver dropped");
+    Ok(())
 }

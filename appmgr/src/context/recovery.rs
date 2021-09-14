@@ -3,6 +3,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 
+use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use tokio::fs::File;
@@ -37,12 +38,13 @@ impl RecoveryContextConfig {
 pub struct RecoveryContextSeed {
     pub bind_rpc: SocketAddr,
     pub shutdown: Sender<()>,
+    pub error: Arc<RpcError>,
 }
 
 #[derive(Clone)]
 pub struct RecoveryContext(Arc<RecoveryContextSeed>);
 impl RecoveryContext {
-    pub async fn init<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
+    pub async fn init<P: AsRef<Path>>(path: Option<P>, error: Error) -> Result<Self, Error> {
         let cfg = RecoveryContextConfig::load(path).await?;
 
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
@@ -50,6 +52,7 @@ impl RecoveryContext {
         Ok(Self(Arc::new(RecoveryContextSeed {
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,
+            error: Arc::new(error.into()),
         })))
     }
 }
