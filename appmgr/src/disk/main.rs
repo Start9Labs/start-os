@@ -152,22 +152,6 @@ pub async fn export(pool_name: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// BLOCKING
-pub fn export_blocking(pool: &str) -> Result<(), Error> {
-    let output = std::process::Command::new("zpool")
-        .arg("export")
-        .arg(pool)
-        .output()?;
-    if !output.status.success() {
-        Err(Error::new(
-            anyhow!("{}", String::from_utf8(output.stderr)?),
-            crate::ErrorKind::Zfs,
-        ))
-    } else {
-        Ok(())
-    }
-}
-
 pub async fn import(guid: &str) -> Result<(), Error> {
     Command::new("zpool")
         .arg("import")
