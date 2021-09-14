@@ -4,9 +4,8 @@ import { IonicModule } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { EmbassyPage } from './embassy.page';
 import { PasswordPageModule } from '../password/password.module';
-
 import { EmbassyPageRoutingModule } from './embassy-routing.module';
-
+import { PipesModule } from 'src/app/pipes/pipe.module'
 
 @NgModule({
   imports: [
@@ -15,6 +14,7 @@ import { EmbassyPageRoutingModule } from './embassy-routing.module';
     IonicModule,
     EmbassyPageRoutingModule,
     PasswordPageModule,
+    PipesModule,
   ],
   declarations: [EmbassyPage]
 })

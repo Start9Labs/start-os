@@ -19,8 +19,8 @@ export class RecoverPage {
   constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
-    private modalController: ModalController,
-    private stateService: StateService
+    private readonly  modalController: ModalController,
+    private readonly stateService: StateService
   ) {}
 
   async ngOnInit() {
@@ -43,7 +43,8 @@ export class RecoverPage {
       component: PasswordPage,
       componentProps: {
         recoveryDrive: this.selectedDrive
-      }
+      },
+      cssClass: 'alertlike-modal',
     })
     modal.onDidDismiss().then(async ret => {
       if (!ret.data) {

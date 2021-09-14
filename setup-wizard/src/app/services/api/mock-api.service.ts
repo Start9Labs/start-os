@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '../state.service'
-import { ApiService, DiskInfo } from './api.service'
+import { ApiService } from './api.service'
 
 @Injectable({
   providedIn: 'root'
@@ -30,69 +30,75 @@ export class MockApiService extends ApiService {
   async getDrives() {
     return [
       {
-        vendor: 'vendor',
-        model: 'model',
-        logicalname: 'Name1',
-        partitions: [{
-            logicalname: 'Name1',
+        vendor: 'Vendor',
+        model: 'Model',
+        logicalname: '/dev/sda',
+        partitions: [
+          {
+            logicalname: 'sda1',
             label: 'label 1',
             capacity: 100000,
             used: 200.1255312
-        }, {
-          logicalname: 'Name1',
-          label: 'label 2',
-          capacity: 50000,
-          used: 200.1255312
-      }],
+          },
+          {
+            logicalname: 'sda2',
+            label: 'label 2',
+            capacity: 50000,
+            used: 200.1255312
+          }
+        ],
         capacity: 150000,
         'embassy_os': null
       },
       {
-        vendor: 'vendor',
-        model: 'model',
-        logicalname: 'Name2',
-        partitions: [{
-            logicalname: 'Name2',
-            label: null,
-            capacity: 1600.01234,
-            used: 0.00,
-        }],
+        vendor: 'Vendor',
+        model: 'Model',
+        logicalname: 'dev/sdb',
+        partitions: [
+          // {
+          //   logicalname: 'sdb1',
+          //   label: null,
+          //   capacity: 1600.01234,
+          //   used: 0.00,
+          // }
+        ],
         capacity: 1600.01234,
         'embassy_os': null
       },
       {
-        vendor: 'vendor',
-        model: 'model',
-        logicalname: 'Name3',
-        partitions: [{
-            logicalname: 'Name3',
+        vendor: 'Vendor',
+        model: 'Model',
+        logicalname: 'dev/sdc',
+        partitions: [
+          {
+            logicalname: 'sdc1',
             label: 'label 1',
             capacity: null,
             used: null
-        }],
+          }
+        ],
         capacity: 100000,
         'embassy_os': {
           version: '0.3.3',
         }
       },
       {
-        vendor: 'vendor',
-        model: 'model',
-        logicalname: 'Name4',
-         partitions: [{
-            logicalname: 'Name4',
+        vendor: 'Vendor',
+        model: 'Model',
+        logicalname: '/dev/sdd',
+         partitions: [
+          {
+            logicalname: 'sdd1',
             label: null,
             capacity: 10000,
             used: null
-        }],
+          }
+        ],
         capacity: 10000,
         'embassy_os': {
           version: '0.2.7',
         }
       }
-
-
-      
     ]
   }
 
