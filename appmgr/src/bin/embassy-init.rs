@@ -139,7 +139,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             log::error!("{}", e.source);
             log::debug!("{}", e.source);
             embassy::sound::BEETHOVEN.play().await?;
-            let ctx = RecoveryContext::init(cfg_path).await?;
+            let ctx = RecoveryContext::init(cfg_path, e).await?;
             rpc_server!({
                 command: embassy::recovery_api,
                 context: ctx.clone(),
