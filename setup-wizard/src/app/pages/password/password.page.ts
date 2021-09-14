@@ -1,7 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
-import { StateService } from 'src/app/services/state.service'
 
 @Component({
   selector: 'app-password',
@@ -10,7 +9,7 @@ import { StateService } from 'src/app/services/state.service'
 })
 export class PasswordPage {
   @Input() recoveryDrive: DiskInfo
-  @Input() embassyDrive: DiskInfo
+  @Input() storageDrive: DiskInfo
 
   pwError = ''
   password = ''
@@ -20,18 +19,22 @@ export class PasswordPage {
   passwordVer = ''
   unmasked2 = false
 
+  hasData: boolean
+
   constructor(
     private modalController: ModalController,
     private apiService: ApiService,
     private loadingCtrl: LoadingController,
-    private stateService: StateService
   ) {}
 
-  ngOnInit() { }
+  ngOnInit() {
+    if (this.storageDrive && this.storageDrive.partitions.find(p => p.used)) {
+      this.hasData = true
+    }
+  }
 
   async verifyPw () {
-    
-    if(!this.recoveryDrive) this.pwError = 'No recovery drive' // unreachable
+    if (!this.recoveryDrive) this.pwError = 'No recovery drive' // unreachable
     const loader = await this.loadingCtrl.create({
       message: 'Verifying Password'
     })
@@ -79,23 +82,7 @@ export class PasswordPage {
     this.verError = this.password !== this.passwordVer ? "*passwords do not match" : ''
   }
 
-
   cancel () {
     this.modalController.dismiss()
-  }
-
-  getLabel(drive: DiskInfo) {
-    const labels = drive.partitions.map(p => p.label).filter(l => !!l)
-    return labels.length ? labels.join(' / ') : 'unnamed'
-  }
-
-  getUsage(drive: DiskInfo) {
-    let usage = 0
-    drive.partitions.forEach(par => {
-      if(par.used) {
-        usage += par.used
-      }
-    })
-    return usage
   }
 }

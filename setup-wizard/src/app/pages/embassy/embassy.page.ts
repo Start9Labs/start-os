@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { iosTransitionAnimation, LoadingController, ModalController, NavController } from '@ionic/angular'
+import { AlertController, iosTransitionAnimation, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
@@ -10,7 +10,7 @@ import { PasswordPage } from '../password/password.page'
   styleUrls: ['embassy.page.scss'],
 })
 export class EmbassyPage {
-  embassyDrives = []
+  storageDrives = []
   selectedDrive: DiskInfo = null
   loading = true
   window = window
@@ -18,23 +18,48 @@ export class EmbassyPage {
   constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
-    private modalController: ModalController,
-    private stateService: StateService,
-    private loadingCtrl: LoadingController
-  ) {}
+    private readonly modalController: ModalController,
+    private readonly alertCtrl: AlertController,
+    private readonly stateService: StateService,
+    private readonly loadingCtrl: LoadingController,
+  ) { }
 
-  async ngOnInit() {
-    const drives = (await this.apiService.getDrives()).filter(d => !d['embassy_os'])
-    this.embassyDrives = (await this.apiService.getDrives()).filter(d => !d['embassy_os'])
+  async ngOnInit () {
+    this.storageDrives = await this.apiService.getDrives()
     this.loading = false
   }
 
-  async chooseDrive(drive: DiskInfo) {    
+  async chooseDrive (drive: DiskInfo) {
+    if (!!drive.partitions.find(p => p.used)) {
+      const alert = await this.alertCtrl.create({
+        header: 'Warning',
+        subHeader: 'Drive contains data!',
+        message: 'All data stored on this drive will be permanently deleted.',
+        buttons: [
+          {
+            role: 'cancel',
+            text: 'Cancel',
+          },
+          {
+            text: 'Continue',
+            handler: () => {
+              this.presentModalPassword(drive)
+            }
+          }
+        ]
+      })
+      await alert.present()
+    } else {
+      this.presentModalPassword(drive)
+    }
+  }
+
+  private async presentModalPassword (drive: DiskInfo): Promise<void> {
     const modal = await this.modalController.create({
       component: PasswordPage,
       componentProps: {
-        embassyDrive: drive
-      }
+        storageDrive: drive
+      },
     })
     modal.onDidDismiss().then(async ret => {
       if (!ret.data || !ret.data.password) return
@@ -45,13 +70,13 @@ export class EmbassyPage {
       
       await loader.present()
   
-      this.stateService.embassyDrive = drive
+      this.stateService.storageDrive = drive
       this.stateService.embassyPassword = ret.data.password
   
       try {
         this.stateService.torAddress = (await this.stateService.setupEmbassy()).torAddress
       } catch (e) {
-        console.log(e.message)
+        console.error(e.message)
       } finally {
         loader.dismiss()
         if(!!this.stateService.recoveryDrive) {
@@ -61,21 +86,6 @@ export class EmbassyPage {
         }
       }
     })
-    await modal.present();
-  }
-
-  getLabel(drive: DiskInfo) {
-    const labels = drive.partitions.map(p => p.label).filter(l => !!l)
-    return labels.length ? labels.join(' / ') : 'unnamed'
-  }
-
-  getUsage(drive: DiskInfo) {
-    let usage = 0
-    drive.partitions.forEach(par => {
-      if(par.used) {
-        usage += par.used
-      }
-    })
-    return usage.toFixed(2)
+    await modal.present()
   }
 }

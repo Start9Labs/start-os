@@ -15,35 +15,16 @@ ion-item {
   --border-color: var(--ion-color-light);
 }
 
-.input-label {
-  text-align: left;
-  padding-bottom: 2px;
-  font-size: medium;
-  color: var(--ion-color-light);
-  font-weight: bold;
-}
-
-.claim-button {
-  margin-inline-start: 0;
-  margin-inline-end: 0;
-  margin-top: 24px;
-  height: 48px;
-  --background: linear-gradient(45deg, var(--ion-color-light) 16%, var(--ion-color-medium) 150%);
-}
-
-.card-footer {
-  text-align: left;
-  --background: rgb(222, 222, 222);
-  border-top: solid;
-  border-width: 1px;
-  border-color: var(--ion-color-medium);
-  ion-item {
-    --border-color: var(--ion-color-medium);
-  }
-}
-
 .divider {
   margin: 0;
   background: linear-gradient(90deg,var(--ion-color-dark) 0,var(--ion-color-medium) 50%,var(--ion-color-dark) 100%);
   height: 1px;
+}
+
+.addr-label {
+  text-align: left;
+  padding-bottom: 2px;
+  font-size: small;
+  color: var(--ion-color-light);
+  font-weight: bold;
 }

@@ -9,19 +9,15 @@
 
         <ion-card color="dark">
           <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
-            <ion-card-title>{{ loading ? 'Loading Embassy Drives' : 'Select Embassy Drive'}}</ion-card-title>
+            <ion-card-title>{{ loading ? 'Loading Drives' : 'Select Storage Drive'}}</ion-card-title>
             <ion-card-subtitle>Select the drive where all your Embassy data will be stored.</ion-card-subtitle>
           </ion-card-header>
 
           <ion-card-content class="ion-margin">
-            <ng-container *ngIf="!loading && !embassyDrives.length">
-              <h2 color="light">No Embassy drives found</h2>
-              <p color="light">Please connect an Embassy drive to your embassy and refresh the page.</p>
-              <ion-button 
-                (click)="window.location.reload()"
-                style="text-align:center"
-                class="claim-button"
-              >
+            <ng-container *ngIf="!loading && !storageDrives.length">
+              <h2 color="light">No drives found</h2>
+              <p color="light">Please connect an storage drive to your Embassy and refresh the page.</p>
+              <ion-button style="margin-top: 25px;" (click)="window.location.reload()" color="light">
                 Refresh
               </ion-button>
             </ng-container>
@@ -39,13 +35,16 @@
                   </ion-label>
                 </ion-item>
               </ng-container>
-              <ng-container *ngIf="embassyDrives.length">
-                <ion-item (click)="chooseDrive(drive)" class="ion-margin-bottom" button color="light" lines="none" *ngFor="let drive of embassyDrives">
+              <ng-container *ngIf="storageDrives.length">
+                <ion-item (click)="chooseDrive(drive)" class="ion-margin-bottom" button color="light" lines="none" *ngFor="let drive of storageDrives">
                   <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label class="ion-text-wrap">
-                    <h1>{{ drive.logicalname }}</h1>
-                    <h2 style="min-height: 19px;">{{ getLabel(drive) }}</h2>
-                    <p> Using {{ getUsage(drive) }} of {{drive.capacity.toFixed(2)}} GiB</p>
+                    <h1>{{ drive.logicalname }} - {{ drive.capacity | convertBytes }}</h1>
+                    <h2 *ngIf="drive.vendor || drive.model">
+                      {{ drive.vendor }}
+                      <span *ngIf="drive.vendor && drive.model"> - </span>
+                      {{ drive.model }}
+                    </h2>
                   </ion-label>
                 </ion-item>
               </ng-container>
