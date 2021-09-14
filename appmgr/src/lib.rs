@@ -27,6 +27,7 @@ pub mod middleware;
 pub mod migration;
 pub mod net;
 pub mod properties;
+pub mod recovery;
 pub mod s9pk;
 pub mod setup;
 pub mod shutdown;
@@ -62,7 +63,8 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     auth::auth,
     db::db,
     ssh::ssh,
-    net::wifi::wifi
+    net::wifi::wifi,
+    disk::disk,
 ))]
 pub fn main_api() -> Result<(), RpcError> {
     Ok(())
@@ -103,12 +105,12 @@ pub fn portable_api() -> Result<(), RpcError> {
     Ok(())
 }
 
-#[command(subcommands(version::git_info, echo,))]
+#[command(subcommands(version::git_info, echo, recovery::recovery))]
 pub fn recovery_api() -> Result<(), RpcError> {
     Ok(())
 }
 
-#[command(subcommands(version::git_info, echo,))]
+#[command(subcommands(version::git_info, echo, setup::setup))]
 pub fn setup_api() -> Result<(), RpcError> {
     Ok(())
 }
