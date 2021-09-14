@@ -13,6 +13,7 @@ use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
 use crate::dependencies::DependencyError;
 use crate::manager::{Manager, Status as ManagerStatus};
+use crate::notifications::{notify, NotificationLevel, NotificationSubtype};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::HealthCheckResultVariant;
 use crate::Error;
@@ -267,20 +268,34 @@ impl MainStatus {
                         &manifest.volumes,
                     )
                     .await?;
+                let mut should_stop = false;
                 for (check, res) in health {
-                    if matches!(
-                        res.result,
-                        health_check::HealthCheckResultVariant::Failure { .. }
-                    ) && manifest
-                        .health_checks
-                        .0
-                        .get(check)
-                        .map(|hc| hc.critical)
-                        .unwrap_or_default()
-                    {
-                        todo!("emit notification");
-                        *self = MainStatus::Stopping;
+                    match &res.result {
+                        health_check::HealthCheckResultVariant::Failure { error }
+                            if manifest
+                                .health_checks
+                                .0
+                                .get(check)
+                                .map(|hc| hc.critical)
+                                .unwrap_or_default() =>
+                        {
+                            notify(
+                                &ctx.secret_store,
+                                &ctx.db,
+                                Some(manifest.id.clone()),
+                                NotificationLevel::Error,
+                                String::from("Critical Health Check Failed"),
+                                format!("{} was shut down because a health check required for its operation failed\n{}", manifest.title, error),
+                                NotificationSubtype::General
+                            )
+                            .await?;
+                            should_stop = true;
+                        }
+                        _ => (),
                     }
+                }
+                if should_stop {
+                    *self = MainStatus::Stopping;
                 }
             }
             _ => (),
