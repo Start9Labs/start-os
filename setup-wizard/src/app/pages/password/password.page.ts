@@ -84,7 +84,7 @@ export class PasswordPage {
     this.modalController.dismiss()
   }
 
-  getLabelLabel(drive: DiskInfo) {
+  getLabel(drive: DiskInfo) {
     const labels = drive.partitions.map(p => p.label).filter(l => !!l)
     return labels.length ? labels.join(' / ') : 'unnamed'
   }
