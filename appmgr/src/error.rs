@@ -30,7 +30,7 @@ pub enum ErrorKind {
     InvalidOnionAddress = 22,
     Pack = 23,
     ValidateS9pk = 24,
-    OpenSSL = 25,
+    OpenSSL = 25, // REMOVE
     Tor = 26,
     ConfigGen = 27,
     ParseNumber = 28,
@@ -56,6 +56,7 @@ pub enum ErrorKind {
     Zfs = 48,
     OpenSsl = 49,
     PasswordHashGeneration = 50,
+    RecoveryMode = 51,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -85,7 +86,7 @@ impl ErrorKind {
             InvalidOnionAddress => "Invalid Onion Address",
             Pack => "Pack Error",
             ValidateS9pk => "S9PK Validation Error",
-            OpenSSL => "OpenSSL Error",
+            OpenSSL => "OpenSSL Error", // Remove
             Tor => "Tor Daemon Error",
             ConfigGen => "Config Generation Error",
             ParseNumber => "Number Parsing Error",
@@ -111,6 +112,7 @@ impl ErrorKind {
             Zfs => "ZFS Error",
             OpenSsl => "OpenSSL Internal Error",
             PasswordHashGeneration => "Password Hash Generation Error",
+            RecoveryMode => "Embassy is in Recovery Mode",
         }
     }
 }
