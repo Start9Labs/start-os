@@ -68,7 +68,7 @@ export module RR {
 
   // notification
 
-  export type GetNotificationsReq = WithExpire<{ page: number, 'per-page': number }> // notification.list
+  export type GetNotificationsReq = WithExpire<{ before?: number, after?: number, limit?: number }> // notification.list
   export type GetNotificationsRes = WithRevision<ServerNotification<number>[]>
 
   export type DeleteNotificationReq = { id: string } // notification.delete
@@ -326,7 +326,7 @@ export interface SSHKeyEntry {
 export type ServerNotifications = ServerNotification<any>[]
 
 export interface ServerNotification<T extends number> {
-  id: string
+  id: number
   'package-id': string | null
   'created-at': string
   code: T

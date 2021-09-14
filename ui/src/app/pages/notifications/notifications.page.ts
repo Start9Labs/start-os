@@ -13,10 +13,10 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 export class NotificationsPage {
   loading = true
   notifications: ServerNotifications = []
-  page = 1
+  beforeCursor: number
   needInfinite = false
   fromToast = false
-  readonly perPage = 20
+  readonly perPage = 40
 
   constructor (
     private readonly embassyApi: ApiService,
@@ -33,7 +33,7 @@ export class NotificationsPage {
   }
 
   async refresh (e: any) {
-    this.page = 1
+    this.beforeCursor = undefined
     this.notifications = await this.getNotifications(),
     e.target.complete()
   }
@@ -47,9 +47,9 @@ export class NotificationsPage {
   async getNotifications (): Promise<ServerNotifications> {
     let notifications: ServerNotifications = []
     try {
-      notifications = await this.embassyApi.getNotifications({ page: this.page, 'per-page': this.perPage })
+      notifications = await this.embassyApi.getNotifications({ before: this.beforeCursor, limit: this.perPage })
+      this.beforeCursor = notifications[notifications.length - 1]?.id
       this.needInfinite = notifications.length >= this.perPage
-      this.page++
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -68,6 +68,7 @@ export class NotificationsPage {
     try {
       await this.embassyApi.deleteNotification({ id })
       this.notifications.splice(index, 1)
+      this.beforeCursor = this.notifications[this.notifications.length - 1].id
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -86,6 +87,7 @@ export class NotificationsPage {
     try {
       await this.embassyApi.deleteAllNotifications({ })
       this.notifications = []
+      this.beforeCursor = undefined
     } catch (e) {
       this.errToast.present(e)
     } finally {
