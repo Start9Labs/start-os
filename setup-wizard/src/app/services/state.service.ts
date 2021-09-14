@@ -8,7 +8,7 @@ import { ApiService, DiskInfo } from './api/api.service'
 export class StateService {
   polling = false
 
-  embassyDrive: DiskInfo;
+  storageDrive: DiskInfo;
   embassyPassword: string
   recoveryDrive: DiskInfo;
   recoveryPassword: string
@@ -45,7 +45,7 @@ export class StateService {
 
   async setupEmbassy () : Promise<{ torAddress: string }> {
     const ret = await this.apiService.setupEmbassy({
-      'embassy-logicalname': this.embassyDrive.logicalname,
+      'embassy-logicalname': this.storageDrive.logicalname,
       'embassy-password': this.embassyPassword,
       'recovery-logicalname': this.recoveryDrive?.logicalname,
       'recovery-password': this.recoveryPassword

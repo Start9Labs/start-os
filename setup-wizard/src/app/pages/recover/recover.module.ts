@@ -4,8 +4,8 @@ import { IonicModule } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { RecoverPage } from './recover.page';
 import { PasswordPageModule } from '../password/password.module';
-
 import { RecoverPageRoutingModule } from './recover-routing.module';
+import { PipesModule } from 'src/app/pipes/pipe.module';
 
 
 @NgModule({
@@ -15,6 +15,7 @@ import { RecoverPageRoutingModule } from './recover-routing.module';
     IonicModule,
     RecoverPageRoutingModule,
     PasswordPageModule,
+    PipesModule,
   ],
   declarations: [RecoverPage]
 })
