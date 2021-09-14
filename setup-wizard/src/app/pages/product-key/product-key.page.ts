@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { iosTransitionAnimation, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { AES_CTR, decodeUtf8, encodeUtf8, HttpService } from 'src/app/services/api/http.service'
+import { HttpService } from 'src/app/services/api/http.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
