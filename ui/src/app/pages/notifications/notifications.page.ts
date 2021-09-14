@@ -57,7 +57,7 @@ export class NotificationsPage {
     }
   }
 
-  async delete (id: string, index: number): Promise<void> {
+  async delete (id: number, index: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -85,7 +85,7 @@ export class NotificationsPage {
     await loader.present()
 
     try {
-      await this.embassyApi.deleteAllNotifications({ })
+      await this.embassyApi.deleteAllNotifications({ before: this.notifications[0].id })
       this.notifications = []
       this.beforeCursor = undefined
     } catch (e) {
