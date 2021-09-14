@@ -68,7 +68,7 @@ export module RR {
 
   // notification
 
-  export type GetNotificationsReq = WithExpire<{ before?: number, after?: number, limit?: number }> // notification.list
+  export type GetNotificationsReq = WithExpire<{ before?: number, limit?: number }> // notification.list
   export type GetNotificationsRes = WithRevision<ServerNotification<number>[]>
 
   export type DeleteNotificationReq = { id: number } // notification.delete
