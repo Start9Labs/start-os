@@ -5,7 +5,9 @@ use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{RecoveryContext, SetupContext};
 use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::hostname::get_product_key;
+use embassy::middleware::cors::cors;
 use embassy::middleware::encrypt::encrypt;
+use embassy::middleware::recovery::recovery;
 use embassy::util::Invoke;
 use embassy::{Error, ResultExt};
 use http::StatusCode;
@@ -38,6 +40,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
             context: ctx.clone(),
             status: status_fn,
             middleware: [
+                cors,
                 encrypt,
             ]
         })
@@ -144,7 +147,10 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
                 command: embassy::recovery_api,
                 context: ctx.clone(),
                 status: status_fn,
-                middleware: [ ]
+                middleware: [
+                    cors,
+                    recovery,
+                ]
             })
             .with_graceful_shutdown({
                 let mut shutdown = ctx.shutdown.subscribe();
