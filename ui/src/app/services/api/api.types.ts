@@ -71,10 +71,10 @@ export module RR {
   export type GetNotificationsReq = WithExpire<{ before?: number, after?: number, limit?: number }> // notification.list
   export type GetNotificationsRes = WithRevision<ServerNotification<number>[]>
 
-  export type DeleteNotificationReq = { id: string } // notification.delete
+  export type DeleteNotificationReq = { id: number } // notification.delete
   export type DeleteNotificationRes = null
 
-  export type DeleteAllNotificationsReq = { } // notification.delete.all
+  export type DeleteAllNotificationsReq = { before: number } // notification.delete.all
   export type DeleteAllNotificationsRes = null
 
   // wifi
