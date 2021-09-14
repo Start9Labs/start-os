@@ -68,7 +68,7 @@ export class NotificationsPage {
     try {
       await this.embassyApi.deleteNotification({ id })
       this.notifications.splice(index, 1)
-      this.beforeCursor = this.notifications[this.notifications.length - 1].id
+      this.beforeCursor = this.notifications[this.notifications.length - 1]?.id
     } catch (e) {
       this.errToast.present(e)
     } finally {
