@@ -1,15 +1,18 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
+use tokio::process::Command;
 use torut::onion::TorSecretKeyV3;
 
 use crate::context::SetupContext;
 use crate::disk::disk;
 use crate::disk::main::DEFAULT_PASSWORD;
+use crate::util::Invoke;
 use crate::{Error, ResultExt};
 
-#[command(subcommands(status, disk))]
+#[command(subcommands(status, disk, execute))]
 pub fn setup() -> Result<(), Error> {
     Ok(())
 }
@@ -44,6 +47,21 @@ pub async fn execute(
     let guid =
         crate::disk::main::create(&ctx.zfs_pool_name, [embassy_logicalname], DEFAULT_PASSWORD)
             .await?;
+    let mut ctr = 0;
+    while {
+        ctr += 1;
+        ctr < 30 // 30s timeout
+    } && String::from_utf8(
+        Command::new("zpool")
+            .arg("import")
+            .invoke(crate::ErrorKind::Zfs)
+            .await?,
+    )?
+    .trim()
+        == "no pools available to import"
+    {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
     crate::disk::main::load(&guid, &ctx.zfs_pool_name, &ctx.datadir, DEFAULT_PASSWORD).await?;
     let password = argon2::hash_encoded(
         embassy_password.as_bytes(),
