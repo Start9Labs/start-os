@@ -294,15 +294,15 @@ export interface HealthCheckResultFailure {
   error: string
 }
 
-export type DependencyError = DependencyErrorNotInstalled | DependencyErrorNotRunning | DependencyErrorIncorrectVersion | DependencyErrorConfigUnsatisfied | DependencyErrorHealthCheckFailed | DependencyErrorInterfaceHealthCheckFailed
+export type DependencyError = DependencyErrorNotInstalled | DependencyErrorNotRunning | DependencyErrorIncorrectVersion | DependencyErrorConfigUnsatisfied | DependencyErrorHealthChecksFailed | DependencyErrorInterfaceHealthChecksFailed
 
 export enum DependencyErrorType {
   NotInstalled = 'not-installed',
   NotRunning = 'not-running',
   IncorrectVersion = 'incorrect-version',
   ConfigUnsatisfied = 'config-unsatisfied',
-  HealthCheckFailed = 'health-check-failed',
-  InterfaceHealthCheckFailed = 'interface-health-checks-failed',
+  HealthChecksFailed = 'health-checks-failed',
+  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
 }
 
 export interface DependencyErrorNotInstalled {
@@ -324,13 +324,13 @@ export interface DependencyErrorConfigUnsatisfied {
   errors: string[]
 }
 
-export interface DependencyErrorHealthCheckFailed {
-  type: DependencyErrorType.HealthCheckFailed
+export interface DependencyErrorHealthChecksFailed {
+  type: DependencyErrorType.HealthChecksFailed
   check: HealthCheckResult
 }
 
-export interface DependencyErrorInterfaceHealthCheckFailed {
-  type: DependencyErrorType.InterfaceHealthCheckFailed
+export interface DependencyErrorInterfaceHealthChecksFailed {
+  type: DependencyErrorType.InterfaceHealthChecksFailed
   failures: { [id: string]: HealthCheckResult }
 }
 
