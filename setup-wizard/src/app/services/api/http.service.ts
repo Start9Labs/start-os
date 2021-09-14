@@ -179,7 +179,7 @@ export const AES_CTR: AES_CTR = {
   encryptPbkdf2: async (secretKey: string, messageBuffer: Uint8Array) =>  {
     const salt = window.crypto.getRandomValues(new Uint8Array(16))
     const counter = window.crypto.getRandomValues(new Uint8Array(16))
-    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1, 256 / 8, 'sha512');
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1, 256 / 8, 'sha256');
     var aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
     var encryptedBytes = aesCtr.encrypt(messageBuffer);
     return new Uint8Array([...counter,...salt,...encryptedBytes])
@@ -188,7 +188,7 @@ export const AES_CTR: AES_CTR = {
     const counter = arr.slice(0, 16)
     const salt = arr.slice(16, 32)
     const cipher = arr.slice(32)
-    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1, 256 / 8, 'sha512');
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1, 256 / 8, 'sha256');
 
     var aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
     return aesCtr.decrypt(cipher);
