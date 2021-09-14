@@ -392,10 +392,12 @@ impl DependencyErrors {
                                 failures.insert(check.clone(), res);
                             }
                         }
-                        self.0.insert(
-                            dep_id.clone(),
-                            DependencyError::HealthChecksFailed { failures },
-                        );
+                        if !failures.is_empty() {
+                            self.0.insert(
+                                dep_id.clone(),
+                                DependencyError::HealthChecksFailed { failures },
+                            );
+                        }
                     }
                     _ => {
                         self.0.insert(dep_id.clone(), DependencyError::NotRunning);
