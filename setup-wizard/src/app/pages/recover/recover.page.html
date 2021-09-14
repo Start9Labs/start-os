@@ -10,13 +10,14 @@
         <ion-card color="dark">
           <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
             <ion-card-title>{{ loading ? 'Loading Recovery Drives' : 'Select Recovery Drive'}}</ion-card-title>
+            <ion-card-subtitle>Select the drive containing the Embassy you want to recover.</ion-card-subtitle>
           </ion-card-header>
 
 
           <ion-card-content class="ion-margin">
             <ng-container *ngIf="!loading && !recoveryDrives.length">
               <h2 color="light">No recovery drives found</h2>
-              <p color="light">Please connect a recovery drive to your embassy and refresh the page.</p>
+              <p color="light">Please connect a recovery drive to your Embassy and refresh the page.</p>
               <ion-button 
                 (click)="window.location.reload()"
                 style="text-align:center"
@@ -43,22 +44,27 @@
                 <ion-item (click)="chooseDrive(drive)" class="ion-margin-bottom" button color="light" lines="none" *ngFor="let drive of recoveryDrives" [ngClass]="drive.logicalname === selectedDrive?.logicalname ? 'selected' : null">
                   <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label class="ion-text-wrap">
-                    <h1>{{ drive.logicalname }}</h1>
-                    <h2>{{ drive.model }}</h2>
-                    <p> Embassy version: {{drive['embassy_os'].version}}</p>
+                    <h1>{{ drive.logicalname }} - {{ drive.capacity | convertBytes }}</h1>
+                    <h2 *ngIf="drive.vendor || drive.model">
+                      {{ drive.vendor }}
+                      <span *ngIf="drive.vendor && drive.model"> - </span>
+                      {{ drive.model }}
+                    </h2>
+                    <h2> Embassy version: {{drive['embassy_os'].version}}</h2>
                   </ion-label>
                   <ion-icon *ngIf="drive['embassy_os'].version.startsWith('0.2') || passwords[drive.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
                   <ion-icon *ngIf="!drive['embassy_os'].version.startsWith('0.2') && !passwords[drive.logicalname]" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
 
                 </ion-item>
               </ng-container>
-              <ion-button 
-                  (click)="selectRecoveryDrive()"
-                  [disabled]="!selectedDrive || (!passwords[selectedDrive.logicalname] && !selectedDrive['embassy_os'].version.startsWith('0.2'))"
-                  class="claim-button"
-                >
-                  Next
-                </ion-button>
+              <ion-button
+                (click)="selectRecoveryDrive()"
+                color="light"
+                [disabled]="!selectedDrive || (!passwords[selectedDrive.logicalname] && !selectedDrive['embassy_os'].version.startsWith('0.2'))"
+                class="claim-button"
+              >
+                Next
+              </ion-button>
             </ion-item-group>
           </ion-card-content>
         </ion-card>

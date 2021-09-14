@@ -25,37 +25,9 @@
 @import "~@ionic/angular/css/text-transformation.css";
 @import "~@ionic/angular/css/flex-utils.css";
 
-.input-label {
-  text-align: left;
-  padding-bottom: 2px;
-  font-size: small;
-  color: var(--ion-color-light);
-  font-weight: bold;
-}
-
-.alert-error .alert-title {
-  color: var(--ion-color-danger) !important;
-}
-
-.loader {
-  --spinner-color: var(--ion-color-light) !important;
-}
-
 ion-avatar {
   width: 27px;
   height: 27px;
-}
-
-ion-action-sheet {
-  --backdrop-opacity: 0.75 !important;
-}
-
-ion-alert {
-  --backdrop-opacity: 0.75 !important;
-}
-
-ion-loading {
-  --backdrop-opacity: 0.75 !important;
 }
 
 ion-item {
@@ -64,26 +36,28 @@ ion-item {
   --highlight-color-focused: var(--ion-color-light);
 }
 
-.divider {
-  margin: 50px 0;
-  height: 2px;
-  background: linear-gradient(90deg,rgba(255,255,255,0) 0,rgba(255, 255, 255, 0.31) 50%,rgba(255,255,255,0) 100%);
+.claim-button {
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+  margin-top: 24px;
+  min-width: 140px;
 }
 
-.footer {
-  margin-bottom: 24px;
-  ion-icon {
-    font-size: 28px;
-    margin-right: 10px;
+.alertlike-modal {
+  .modal-wrapper {
+    max-height: 380px !important;
+    top: 25% !important;
+    width: 90% !important;
+    left: 5% !important;
+    --box-shadow: none !important;
   }
 }
 
-.success-alert .alert-wrapper {
-  box-shadow: 4px 4px 30px var(--ion-color-light);
-  border: 1px solid rgba(255,255,255,.3);
-  background: var(--ion-color-light);
-}
-
-.success-alert .alert-title {
-  color: var(--ion-color-success);
+@media (min-width:1000px) {
+  .alertlike-modal {
+    .modal-wrapper {
+      width: 40% !important;
+      left: 30% !important;
+    }
+  }
 }
