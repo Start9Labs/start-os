@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::fmt::Display;
 use std::io::SeekFrom;
 use std::path::Path;
 use std::process::Stdio;
@@ -9,9 +8,9 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use emver::VersionRange;
 use futures::TryStreamExt;
-use http::{HeaderMap, StatusCode};
+use http::StatusCode;
 use indexmap::IndexMap;
-use patch_db::{DbHandle, OptionModel};
+use patch_db::DbHandle;
 use reqwest::Response;
 use rpc_toolkit::command;
 use tokio::fs::{File, OpenOptions};
