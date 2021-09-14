@@ -1,12 +1,13 @@
 use std::time::Duration;
 
 use anyhow::anyhow;
-use embassy::context::RpcContext;
+use embassy::context::{RecoveryContext, RpcContext};
 use embassy::db::model::Database;
 use embassy::db::subscribe;
 use embassy::hostname::{get_hostname, get_id};
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
+use embassy::middleware::recovery::recovery;
 use embassy::net::tor::{os_key, tor_health_check};
 use embassy::shutdown::Shutdown;
 use embassy::status::{check_all, synchronize_all};
@@ -250,7 +251,38 @@ fn main() {
             .enable_all()
             .build()
             .expect("failed to initialize runtime");
-        rt.block_on(inner_main(cfg_path, filter))
+        rt.block_on(async {
+            match inner_main(cfg_path, filter).await {
+                Ok(a) => Ok(a),
+                Err(e) => {
+                    (|| async {
+                        log::error!("{}", e.source);
+                        log::debug!("{}", e.source);
+                        embassy::sound::BEETHOVEN.play().await?;
+                        let ctx = RecoveryContext::init(cfg_path, e).await?;
+                        rpc_server!({
+                            command: embassy::recovery_api,
+                            context: ctx.clone(),
+                            status: status_fn,
+                            middleware: [
+                                cors,
+                                recovery,
+                            ]
+                        })
+                        .with_graceful_shutdown({
+                            let mut shutdown = ctx.shutdown.subscribe();
+                            async move {
+                                shutdown.recv().await.expect("context dropped");
+                            }
+                        })
+                        .await
+                        .with_kind(embassy::ErrorKind::Network)?;
+                        Ok::<_, Error>(None)
+                    })()
+                    .await
+                }
+            }
+        })
     };
 
     match res {
