@@ -32,12 +32,6 @@ export class NotificationsPage {
     this.loading = false
   }
 
-  async refresh (e: any) {
-    this.beforeCursor = undefined
-    this.notifications = await this.getNotifications(),
-    e.target.complete()
-  }
-
   async doInfinite (e: any) {
     const notifications = await this.getNotifications()
     this.notifications = this.notifications.concat(notifications)
