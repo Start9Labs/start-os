@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core'
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http'
 import { Observable, from, interval, race, Subject } from 'rxjs'
 import { map, take } from 'rxjs/operators'
+import * as aesjs from 'aes-js'
+import * as pbkdf2 from 'pbkdf2'
 
 @Injectable({
   providedIn: 'root',
@@ -175,53 +177,22 @@ type AES_CTR = {
 
 export const AES_CTR: AES_CTR = {
   encryptPbkdf2: async (secretKey: string, messageBuffer: Uint8Array) =>  {
-
-    const { key, salt } = await pbkdf2(secretKey, { name: 'AES-CTR', length: 256 })
+    const salt = window.crypto.getRandomValues(new Uint8Array(16))
     const counter = window.crypto.getRandomValues(new Uint8Array(16))
-    const algorithm = { name: 'AES-CTR', counter, length: 64 }
-
-    return window.crypto.subtle.encrypt(algorithm, key, messageBuffer)
-      .then(encrypted => new Uint8Array(encrypted))
-      .then(cipher => new Uint8Array([...counter,...salt,...cipher]))
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1, 256 / 8, 'sha512');
+    var aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
+    var encryptedBytes = aesCtr.encrypt(messageBuffer);
+    return new Uint8Array([...counter,...salt,...encryptedBytes])
   },
   decryptPbkdf2: async (secretKey: string, arr: Uint8Array) =>  {
     const counter = arr.slice(0, 16)
     const salt = arr.slice(16, 32)
     const cipher = arr.slice(32)
-    const { key } = await pbkdf2(secretKey, { name: 'AES-CTR', length: 256 }, salt)
-    const algorithm = { name: 'AES-CTR', counter, length: 64 };
-    
-    (window as any).stuff = { algorithm, key, cipher }
-    return window.crypto.subtle.decrypt(algorithm, key, cipher)
-      .then(decrypted => new Uint8Array(decrypted))
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1, 256 / 8, 'sha512');
+
+    var aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
+    return aesCtr.decrypt(cipher);
   },
-}
-
-async function pbkdf2 (secretKey: string, algorithm: AesKeyAlgorithm | HmacKeyGenParams, salt = window.crypto.getRandomValues(new Uint8Array(16))): Promise<{ salt: Uint8Array, key: CryptoKey, rawKey: Uint8Array }> {
-  const usages: KeyUsage[] = algorithm.name === 'AES-CTR' ? [ 'encrypt', 'decrypt' ] : [ 'sign' ]
-  const keyMaterial = await window.crypto.subtle.importKey(
-    'raw',
-    encodeUtf8(secretKey),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey'],
-  )
-
-  const key = await window.crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt,
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    keyMaterial,
-    algorithm,
-    true,
-    usages,
-  )
-
-  const rawKey = await window.crypto.subtle.exportKey('raw', key).then(r => new Uint8Array(r))
-  return { salt, key, rawKey }
 }
 
 export const encode16 = (buffer: Uint8Array) => buffer.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
