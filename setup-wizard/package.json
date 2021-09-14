@@ -19,6 +19,10 @@
     "@angular/platform-browser-dynamic": "^12.2.1",
     "@angular/router": "^12.2.1",
     "@ionic/angular": "^5.7.0",
+    "@types/aes-js": "^3.1.1",
+    "@types/pbkdf2": "^3.1.0",
+    "aes-js": "^3.1.2",
+    "pbkdf2": "^3.1.2",
     "rxjs": "^6.6.7",
     "tslib": "^2.3.1",
     "zone.js": "^0.11.4"
