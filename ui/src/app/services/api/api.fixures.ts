@@ -637,7 +637,7 @@ export module Mock {
 
   export const Notifications: ServerNotifications = [
     {
-      id: '123e4567-e89b-12d3-a456-426655440000',
+      id: 1,
       'package-id': null,
       'created-at': '2019-12-26T14:20:30.872Z',
       code: 1,
@@ -657,7 +657,7 @@ export module Mock {
       },
     },
     {
-      id: '123e4567-e89b-12d3-a456-426655440001',
+      id: 2,
       'package-id': 'bitcoind',
       'created-at': '2019-12-26T14:20:30.872Z',
       code: 2,
@@ -667,7 +667,7 @@ export module Mock {
       data: null,
     },
     {
-      id: '123e4567-e89b-12d3-a456-426655440002',
+      id: 3,
       'package-id': 'bitcoind',
       'created-at': '2019-12-26T14:20:30.872Z',
       code: 3,
@@ -677,7 +677,7 @@ export module Mock {
       data: null,
     },
     {
-      id: '123e4567-e89b-12d3-a456-426655440003',
+      id: 4,
       'package-id': 'bitcoind',
       'created-at': '2019-12-26T14:20:30.872Z',
       code: 4,
