@@ -143,7 +143,7 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteAllNotifications (params: RR.DeleteAllNotificationsReq): Promise <RR.DeleteAllNotificationsRes> {
-    return this.http.rpcRequest({ method: 'notification.delete.all', params })
+    return this.http.rpcRequest({ method: 'notification.delete-before', params })
   }
 
   // wifi
