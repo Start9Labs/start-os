@@ -2,23 +2,21 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use embassy::context::{RecoveryContext, RpcContext};
-use embassy::db::model::Database;
 use embassy::db::subscribe;
-use embassy::hostname::{get_hostname, get_id};
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
 use embassy::middleware::recovery::recovery;
-use embassy::net::tor::{os_key, tor_health_check};
+use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::status::{check_all, synchronize_all};
-use embassy::util::daemon;
+use embassy::util::{daemon, Invoke};
 use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
 use log::LevelFilter;
-use patch_db::json_ptr::JsonPointer;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
 use rpc_toolkit::{rpc_server, Context};
+use tokio::process::Command;
 use tokio::signal::unix::signal;
 
 fn status_fn(_: i32) -> StatusCode {
@@ -64,8 +62,26 @@ async fn inner_main(
         sig_handler_ctx
             .shutdown
             .send(None)
+            .map_err(|_| ())
             .expect("send shutdown signal");
     });
+
+    tokio::fs::write(
+        "/etc/nginx/sites-available/default",
+        include_str!("../nginx/main-ui.conf"),
+    )
+    .await
+    .with_ctx(|_| {
+        (
+            embassy::ErrorKind::Filesystem,
+            "/etc/nginx/sites-available/default",
+        )
+    })?;
+    Command::new("systemctl")
+        .arg("reload")
+        .arg("nginx")
+        .invoke(embassy::ErrorKind::Nginx)
+        .await?;
 
     let auth = auth(rpc_ctx.clone());
     let ctx = rpc_ctx.clone();

@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use anyhow::anyhow;
 use tokio::process::Command;
 
 use crate::util::Invoke;

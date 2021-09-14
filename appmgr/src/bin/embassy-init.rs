@@ -8,6 +8,8 @@ use embassy::hostname::get_product_key;
 use embassy::middleware::cors::cors;
 use embassy::middleware::encrypt::encrypt;
 use embassy::middleware::recovery::recovery;
+use embassy::net::mdns::MdnsController;
+use embassy::sound::MARIO_COIN;
 use embassy::util::Invoke;
 use embassy::{Error, ResultExt};
 use http::StatusCode;
@@ -33,8 +35,27 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .await?;
         log::info!("Loaded Disk");
     } else {
+        #[cfg(feature = "avahi")]
+        let mdns = MdnsController::init();
+        tokio::fs::write(
+            "/etc/nginx/sites-available/default",
+            include_str!("../nginx/setup-wizard.conf"),
+        )
+        .await
+        .with_ctx(|_| {
+            (
+                embassy::ErrorKind::Filesystem,
+                "/etc/nginx/sites-available/default",
+            )
+        })?;
+        Command::new("systemctl")
+            .arg("reload")
+            .arg("nginx")
+            .invoke(embassy::ErrorKind::Nginx)
+            .await?;
         let ctx = SetupContext::init(cfg_path).await?;
         let encrypt = encrypt(Arc::new(get_product_key().await?));
+        MARIO_COIN.play().await?;
         rpc_server!({
             command: embassy::setup_api,
             context: ctx.clone(),
@@ -99,16 +120,19 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     embassy::hostname::sync_hostname().await?;
     log::info!("Synced Hostname");
 
-    if tokio::fs::metadata("/var/www/html/public").await.is_err() {
-        tokio::fs::create_dir_all("/var/www/html/public").await?
+    if tokio::fs::metadata("/var/www/html/main/public")
+        .await
+        .is_err()
+    {
+        tokio::fs::create_dir_all("/var/www/html/main/public").await?
     }
-    if tokio::fs::symlink_metadata("/var/www/html/public/package-data")
+    if tokio::fs::symlink_metadata("/var/www/html/main/public/package-data")
         .await
         .is_err()
     {
         tokio::fs::symlink(
             cfg.datadir().join("package-data").join("public"),
-            "/var/www/html/public/package-data",
+            "/var/www/html/main/public/package-data",
         )
         .await?;
     }
@@ -142,6 +166,24 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             log::error!("{}", e.source);
             log::debug!("{}", e.source);
             embassy::sound::BEETHOVEN.play().await?;
+            #[cfg(feature = "avahi")]
+            let mdns = MdnsController::init();
+            tokio::fs::write(
+                "/etc/nginx/sites-available/default",
+                include_str!("../nginx/recovery-ui.conf"),
+            )
+            .await
+            .with_ctx(|_| {
+                (
+                    embassy::ErrorKind::Filesystem,
+                    "/etc/nginx/sites-available/default",
+                )
+            })?;
+            Command::new("systemctl")
+                .arg("reload")
+                .arg("nginx")
+                .invoke(embassy::ErrorKind::Nginx)
+                .await?;
             let ctx = RecoveryContext::init(cfg_path, e).await?;
             rpc_server!({
                 command: embassy::recovery_api,
