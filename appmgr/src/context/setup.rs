@@ -17,7 +17,8 @@ use url::Host;
 use crate::db::model::Database;
 use crate::hostname::{get_hostname, get_id};
 use crate::net::tor::os_key;
-use crate::util::{from_toml_async_reader, AsyncFileExt};
+use crate::util::io::from_toml_async_reader;
+use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]

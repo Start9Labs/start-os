@@ -26,8 +26,9 @@ use crate::manager::ManagerMap;
 use crate::net::tor::os_key;
 use crate::net::NetController;
 use crate::shutdown::Shutdown;
+use crate::util::io::from_toml_async_reader;
 use crate::util::logger::EmbassyLogger;
-use crate::util::{from_toml_async_reader, AsyncFileExt};
+use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
