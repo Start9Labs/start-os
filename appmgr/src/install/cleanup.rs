@@ -1,9 +1,11 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use anyhow::anyhow;
 use bollard::image::ListImagesOptions;
 use patch_db::{DbHandle, PatchDbHandle};
 
+use super::PKG_DOCKER_DIR;
 use crate::context::RpcContext;
 use crate::db::model::{InstalledPackageDataEntry, PackageDataEntry};
 use crate::s9pk::manifest::PackageId;
@@ -83,6 +85,10 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
         ctx.docker.remove_image(&image.id, None, None).await
     }))
     .await?;
+    let docker_path = Path::new(PKG_DOCKER_DIR).join(id).join(version.as_str());
+    if tokio::fs::metadata(&docker_path).await.is_ok() {
+        tokio::fs::remove_dir_all(&docker_path).await?;
+    }
     // TODO: delete public dir if not a dependency
 
     Ok(())
