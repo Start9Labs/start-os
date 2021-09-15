@@ -71,12 +71,15 @@ impl Stream for DecryptStream {
                         pbkdf2::<Hmac<Sha256>>(
                             this.key.as_bytes(),
                             &this.salt,
-                            100_000,
+                            1000,
                             aeskey.as_mut_slice(),
                         );
                         let ctr = Nonce::<Aes256Ctr>::from_slice(&this.ctr);
-                        *this.aes = Some(Aes256Ctr::new(&aeskey, &ctr));
-                        buf.to_vec().into()
+                        let mut aes = Aes256Ctr::new(dbg!(&aeskey), dbg!(&ctr));
+                        let mut res = buf.to_vec();
+                        aes.apply_keystream(&mut res);
+                        *this.aes = Some(aes);
+                        res.into()
                     } else {
                         hyper::body::Bytes::new()
                     }
@@ -98,12 +101,7 @@ impl EncryptStream {
     pub fn new(key: &str, body: Body) -> Self {
         let prefix: [u8; 32] = rand::random();
         let mut aeskey = CipherKey::<Aes256Ctr>::default();
-        pbkdf2::<Hmac<Sha256>>(
-            key.as_bytes(),
-            &prefix[16..],
-            100_000,
-            aeskey.as_mut_slice(),
-        );
+        pbkdf2::<Hmac<Sha256>>(key.as_bytes(), &prefix[16..], 1000, aeskey.as_mut_slice());
         let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
         let aes = Aes256Ctr::new(&aeskey, &ctr);
         EncryptStream {
@@ -189,6 +187,17 @@ pub fn encrypt<M: Metadata>(key: Arc<String>) -> DynMiddleware<M> {
                                                     "Content-Encoding",
                                                     HeaderValue::from_static("aesctr256"),
                                                 );
+                                                if let Some(len_header) =
+                                                    res.headers_mut().get_mut("Content-Length")
+                                                {
+                                                    if let Some(len) = len_header
+                                                        .to_str()
+                                                        .ok()
+                                                        .and_then(|l| l.parse::<u64>().ok())
+                                                    {
+                                                        *len_header = HeaderValue::from(len + 32);
+                                                    }
+                                                }
                                                 let body = std::mem::take(res.body_mut());
                                                 *res.body_mut() = Body::wrap_stream(
                                                     EncryptStream::new(&*key, body),

@@ -10,7 +10,8 @@ use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
 use url::Host;
 
-use crate::util::{from_toml_async_reader, AsyncFileExt};
+use crate::util::io::from_toml_async_reader;
+use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]

@@ -9,7 +9,8 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
-use crate::util::{from_yaml_async_reader, GeneralGuard, Invoke, Version};
+use crate::util::io::from_yaml_async_reader;
+use crate::util::{GeneralGuard, Invoke, Version};
 use crate::{Error, ResultExt as _};
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/embassy-os";
@@ -150,12 +151,24 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
             } else {
                 (disk_path, None)
             };
-            let disk = tokio::fs::canonicalize(Path::new(DISK_PATH).join(disk_path)).await?;
+            let disk_path = Path::new(DISK_PATH).join(disk_path);
+            let disk = tokio::fs::canonicalize(&disk_path).await.with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    disk_path.display().to_string(),
+                )
+            })?;
             if !disks.contains_key(&disk) {
                 disks.insert(disk.clone(), IndexSet::new());
             }
             if let Some(part_path) = part_path {
-                let part = tokio::fs::canonicalize(part_path).await?;
+                let part_path = Path::new(DISK_PATH).join(disk_path);
+                let part = tokio::fs::canonicalize(&part_path).await.with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        part_path.display().to_string(),
+                    )
+                })?;
                 disks[&disk].insert(part);
             }
         }
