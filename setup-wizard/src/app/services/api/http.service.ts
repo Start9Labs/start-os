@@ -16,7 +16,7 @@ export class HttpService {
     private readonly http: HttpClient,
   ) {
     const port = window.location.port
-    this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}`
+    this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}/rpc/v1`
   }
 
   async rpcRequest<T> (body: RPCOptions): Promise<T> {
