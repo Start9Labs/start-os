@@ -31,7 +31,7 @@ export class MaintenanceGuard implements CanActivate, CanActivateChild {
   }
 
   private runServerStatusCheck (): boolean {
-    if (ServerStatus.BackingUp === this.serverStatus || !this.isFullyDownloaded) {
+    if (ServerStatus.BackingUp === this.serverStatus && !this.isFullyDownloaded) {
       this.router.navigate(['/maintenance'], { replaceUrl: true })
       return false
     } else {
