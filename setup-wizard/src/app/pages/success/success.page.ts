@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { NavController, ToastController } from '@ionic/angular'
+import { ToastController } from '@ionic/angular'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
