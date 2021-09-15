@@ -53,6 +53,14 @@ ion-item {
   }
 }
 
+ion-toast {
+  --background: var(--ion-color-light);
+  --button-color: var(--ion-color-dark);
+  --border-style: solid;
+  --border-width: 1px;
+  --color: white;
+}
+
 .error-toast {
   --border-color: var(--ion-color-danger);
   width: 40%;
