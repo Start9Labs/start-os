@@ -40,3 +40,13 @@ pub fn exit(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
     ctx.shutdown.send(()).expect("receiver dropped");
     Ok(())
 }
+
+#[command(display(display_none))]
+pub fn restart(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
+    todo!()
+}
+
+#[command(rename = "forget-disk", display(display_none))]
+pub fn forget_disk(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
+    todo!()
+}
