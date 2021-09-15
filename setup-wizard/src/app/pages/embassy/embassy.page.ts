@@ -14,7 +14,6 @@ export class EmbassyPage {
   storageDrives = []
   selectedDrive: DiskInfo = null
   loading = true
-  window = window
 
   constructor(
     private readonly apiService: ApiService,
@@ -41,7 +40,6 @@ export class EmbassyPage {
     try {
       this.storageDrives = await this.apiService.getDrives()
     } catch (e) {
-      console.log(e)
       this.errorToastService.present(e.message)
     } finally {
       this.loading = false

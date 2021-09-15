@@ -74,7 +74,6 @@ export class HttpService {
 }
 
 function RpcError (e: RPCError['error']): void {
-  console.log("error", e)
   const { code, message, data } = e
 
   this.code = code

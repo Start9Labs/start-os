@@ -15,7 +15,6 @@ export class RecoverPage {
   recoveryDrives = []
   selectedDrive: DiskInfo = null
   loading = true
-  window = window
 
   constructor(
     private readonly apiService: ApiService,
@@ -40,7 +39,6 @@ export class RecoverPage {
     try {
       this.recoveryDrives = (await this.apiService.getDrives()).filter(d => !!d['embassy_os'])
     } catch (e) {
-      console.log(e)
       this.errorToastService.present(e.message)
     } finally {
       this.loading = false
