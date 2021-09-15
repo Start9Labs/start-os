@@ -7,11 +7,20 @@ import { PatchDbService } from '../services/patch-db/patch-db.service'
   providedIn: 'root',
 })
 export class MaintenanceGuard implements CanActivate, CanActivateChild {
+  serverStatus: ServerStatus
+  isFullyDownloaded: boolean = false
 
   constructor (
     private readonly router: Router,
     private readonly patch: PatchDbService,
-  ) { }
+  ) {
+    this.patch.watch$('server-info', 'status').subscribe(status => {
+      this.serverStatus = status
+    })
+    this.patch.watch$('server-info', 'update-progress').subscribe(progress => {
+      this.isFullyDownloaded = !!progress && (progress.size === progress.downloaded)
+    })
+  }
 
   canActivate (): boolean {
     return this.runServerStatusCheck()
@@ -22,7 +31,7 @@ export class MaintenanceGuard implements CanActivate, CanActivateChild {
   }
 
   private runServerStatusCheck (): boolean {
-    if ([ServerStatus.Updating, ServerStatus.BackingUp].includes(this.patch.getData()['server-info']?.status)) {
+    if (ServerStatus.BackingUp === this.serverStatus || !this.isFullyDownloaded) {
       this.router.navigate(['/maintenance'], { replaceUrl: true })
       return false
     } else {

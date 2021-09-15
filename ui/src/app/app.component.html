@@ -1,166 +1,175 @@
 <ion-app>
-  <ion-split-pane [disabled]="!showMenu" (ionSplitPaneVisible)="splitPaneVisible($event)" contentId="main-content">
-    <ion-menu contentId="main-content" type="overlay">
-      <ion-content color="light" scrollY="false">
-        <div style="text-align: center;" class="ion-padding">
-          <img style="width: 45%; cursor: pointer;" src="assets/img/logo.png" (click)="goToWebsite()">
-        </div>
-        <div class="divider"></div>
-        <ion-item-group style="padding: 30px 0px;">
-          <ion-menu-toggle auto-hide="false" *ngFor="let page of appPages; let i = index">
-            <ion-item
-              style="padding-left: 10px;"
-              color="transparent"
-              button
-              (click)="selectedIndex = i"
-              routerDirection="root"
-              [routerLink]="[page.url]"
-              lines="none"
-              detail="false"
-            >
-              <ion-icon slot="start" [name]="page.icon" [class]="selectedIndex === i ? 'bold' : 'dim'"></ion-icon>
-              <ion-label
-                style="font-family: 'Montserrat';"
-                [class]="selectedIndex === i ? 'bold' : 'dim'"
+  <ion-content>
+    <ion-split-pane [disabled]="!showMenu" (ionSplitPaneVisible)="splitPaneVisible($event)" contentId="main-content">
+      <ion-menu contentId="main-content" type="overlay">
+        <ion-content color="light" scrollY="false">
+          <div style="text-align: center;" class="ion-padding">
+            <img style="width: 45%; cursor: pointer;" src="assets/img/logo.png" (click)="goToWebsite()">
+          </div>
+          <div class="divider"></div>
+          <ion-item-group style="padding: 30px 0px;">
+            <ion-menu-toggle auto-hide="false" *ngFor="let page of appPages; let i = index">
+              <ion-item
+                style="padding-left: 10px;"
+                color="transparent"
+                button
+                (click)="selectedIndex = i"
+                routerDirection="root"
+                [routerLink]="[page.url]"
+                lines="none"
+                detail="false"
               >
-                {{ page.title }}
-              </ion-label>
-              <ion-badge *ngIf="page.url === '/notifications' && unreadCount" color="danger" style="margin-right: 3%;" [class.selected-badge]="selectedIndex == i">{{ unreadCount }}</ion-badge>
-            </ion-item>
-          </ion-menu-toggle>
-        </ion-item-group>
-        <div style="text-align: center; height: 75px; position:absolute; bottom:0; right:0; width: 100%;">
-          <div class="divider" style="margin-bottom: 10px;"></div>
-          <ion-menu-toggle auto-hide="false">
-            <ion-item button lines="none" style="--background: transparent; margin-bottom: 86px; text-align: center;" fill="clear" (click)="presentAlertLogout()">
-              <ion-label><ion-text
-                style="font-family: 'Montserrat';"
-                color="dark"
+                <ion-icon slot="start" [name]="page.icon" [class]="selectedIndex === i ? 'bold' : 'dim'"></ion-icon>
+                <ion-label
+                  style="font-family: 'Montserrat';"
+                  [class]="selectedIndex === i ? 'bold' : 'dim'"
                 >
-                  Log Out
-                </ion-text></ion-label>
-            </ion-item>
-          </ion-menu-toggle>
-        </div>
+                  {{ page.title }}
+                </ion-label>
+                <ion-badge *ngIf="page.url === '/notifications' && unreadCount" color="danger" style="margin-right: 3%;" [class.selected-badge]="selectedIndex == i">{{ unreadCount }}</ion-badge>
+              </ion-item>
+            </ion-menu-toggle>
+          </ion-item-group>
+          <div style="text-align: center; height: 75px; position:absolute; bottom:0; right:0; width: 100%;">
+            <div class="divider" style="margin-bottom: 10px;"></div>
+            <ion-menu-toggle auto-hide="false">
+              <ion-item button lines="none" style="--background: transparent; margin-bottom: 86px; text-align: center;" fill="clear" (click)="presentAlertLogout()">
+                <ion-label><ion-text
+                  style="font-family: 'Montserrat';"
+                  color="dark"
+                  >
+                    Log Out
+                  </ion-text></ion-label>
+              </ion-item>
+            </ion-menu-toggle>
+          </div>
+        </ion-content>
+      </ion-menu>
+      <ion-router-outlet id="main-content"></ion-router-outlet>
+      
+    </ion-split-pane>
+
+    <section id="preload" style="display: none;">
+      <!-- 3rd party components -->
+      <qr-code value="hello"></qr-code>
+
+      <img src="assets/img/success-bulb.png"/>
+      <img src="assets/img/danger-bulb.png"/>
+      <img src="assets/img/warning-bulb.png"/>
+      <img src="assets/img/off-bulb.png"/>
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+
+      <!-- Ionicons -->
+      <ion-icon name="add"></ion-icon>
+      <ion-icon name="alert-outline"></ion-icon>
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <ion-icon name="aperture-outline"></ion-icon>
+      <ion-icon name="arrow-back"></ion-icon>
+      <ion-icon name="arrow-up"></ion-icon>
+      <ion-icon name="briefcase-outline"></ion-icon>
+      <ion-icon name="bookmark-outline"></ion-icon>
+      <ion-icon name="checkmark-outline"></ion-icon>
+      <ion-icon name="chevron-down"></ion-icon>
+      <ion-icon name="chevron-up"></ion-icon>
+      <ion-icon name="chevron-forward"></ion-icon> <!-- needed for detail="true" on ion-item button -->
+      <ion-icon name="close"></ion-icon>
+      <ion-icon name="code-outline"></ion-icon>
+      <ion-icon name="color-wand-outline"></ion-icon>
+      <ion-icon name="construct-outline"></ion-icon>
+      <ion-icon name="copy-outline"></ion-icon>
+      <ion-icon name="cube-outline"></ion-icon>
+      <ion-icon name="desktop-outline"></ion-icon>
+      <ion-icon name="download-outline"></ion-icon>
+      <ion-icon name="earth-outline"></ion-icon>
+      <ion-icon name="ellipse"></ion-icon>
+      <ion-icon name="eye-off-outline"></ion-icon>
+      <ion-icon name="eye-outline"></ion-icon>
+      <ion-icon name="file-tray-stacked-outline"></ion-icon>
+      <ion-icon name="finger-print-outline"></ion-icon>
+      <ion-icon name="flash-outline"></ion-icon>
+      <ion-icon name="grid-outline"></ion-icon>
+      <ion-icon name="help-circle-outline"></ion-icon>
+      <ion-icon name="home-outline"></ion-icon>
+      <ion-icon name="information-circle-outline"></ion-icon>
+      <ion-icon name="key-outline"></ion-icon>
+      <ion-icon name="list-outline"></ion-icon>
+      <ion-icon name="logo-bitcoin"></ion-icon>
+      <ion-icon name="mail-outline"></ion-icon>
+      <ion-icon name="medkit-outline"></ion-icon>
+      <ion-icon name="newspaper-outline"></ion-icon>
+      <ion-icon name="notifications-outline"></ion-icon>
+      <ion-icon name="options-outline"></ion-icon>
+      <ion-icon name="phone-portrait-outline"></ion-icon>
+      <ion-icon name="play-circle-outline"></ion-icon>
+      <ion-icon name="power"></ion-icon>
+      <ion-icon name="pulse"></ion-icon>
+      <ion-icon name="qr-code-outline"></ion-icon>
+      <ion-icon name="receipt-outline"></ion-icon>
+      <ion-icon name="refresh"></ion-icon>
+      <ion-icon name="reload-outline"></ion-icon>
+      <ion-icon name="remove-outline"></ion-icon>
+      <ion-icon name="save-outline"></ion-icon>
+      <ion-icon name="shield-checkmark-outline"></ion-icon>
+      <ion-icon name="storefront-outline"></ion-icon>
+      <ion-icon name="terminal-outline"></ion-icon>
+      <ion-icon name="trash-outline"></ion-icon>
+      <ion-icon name="warning-outline"></ion-icon>
+      <ion-icon name="wifi"></ion-icon>
+      
+      <!-- Ionic components -->
+      <ion-action-sheet></ion-action-sheet>
+      <ion-alert></ion-alert>
+      <ion-badge></ion-badge>
+      <ion-button></ion-button>
+      <ion-buttons></ion-buttons>
+      <ion-card></ion-card>
+      <ion-card-content></ion-card-content>
+      <ion-card-header></ion-card-header>
+      <ion-checkbox></ion-checkbox>
+      <ion-content></ion-content>
+      <ion-fab></ion-fab>
+      <ion-fab-button></ion-fab-button>
+      <ion-footer></ion-footer>
+      <ion-grid></ion-grid>
+      <ion-header></ion-header>
+      <ion-popover></ion-popover>
+      <ion-content>
+        <ion-refresher slot="fixed"></ion-refresher>
+        <ion-refresher-content pullingContent="lines"></ion-refresher-content>
+        <ion-infinite-scroll></ion-infinite-scroll>
+        <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
       </ion-content>
-    </ion-menu>
-    <ion-router-outlet id="main-content"></ion-router-outlet>
-  </ion-split-pane>
-  <section id="preload" style="display: none;">
-    <!-- 3rd party components -->
-    <qr-code value="hello"></qr-code>
-
-    <img src="assets/img/success-bulb.png"/>
-    <img src="assets/img/danger-bulb.png"/>
-    <img src="assets/img/warning-bulb.png"/>
-    <img src="assets/img/off-bulb.png"/>
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
-
-    <!-- Ionicons -->
-    <ion-icon name="add"></ion-icon>
-    <ion-icon name="alert-outline"></ion-icon>
-    <ion-icon name="alert-circle-outline"></ion-icon>
-    <ion-icon name="aperture-outline"></ion-icon>
-    <ion-icon name="arrow-back"></ion-icon>
-    <ion-icon name="arrow-up"></ion-icon>
-    <ion-icon name="briefcase-outline"></ion-icon>
-    <ion-icon name="bookmark-outline"></ion-icon>
-    <ion-icon name="checkmark-outline"></ion-icon>
-    <ion-icon name="chevron-down"></ion-icon>
-    <ion-icon name="chevron-up"></ion-icon>
-    <ion-icon name="chevron-forward"></ion-icon> <!-- needed for detail="true" on ion-item button -->
-    <ion-icon name="close"></ion-icon>
-    <ion-icon name="code-outline"></ion-icon>
-    <ion-icon name="color-wand-outline"></ion-icon>
-    <ion-icon name="construct-outline"></ion-icon>
-    <ion-icon name="copy-outline"></ion-icon>
-    <ion-icon name="cube-outline"></ion-icon>
-    <ion-icon name="desktop-outline"></ion-icon>
-    <ion-icon name="download-outline"></ion-icon>
-    <ion-icon name="earth-outline"></ion-icon>
-    <ion-icon name="ellipse"></ion-icon>
-    <ion-icon name="eye-off-outline"></ion-icon>
-    <ion-icon name="eye-outline"></ion-icon>
-    <ion-icon name="file-tray-stacked-outline"></ion-icon>
-    <ion-icon name="finger-print-outline"></ion-icon>
-    <ion-icon name="flash-outline"></ion-icon>
-    <ion-icon name="grid-outline"></ion-icon>
-    <ion-icon name="help-circle-outline"></ion-icon>
-    <ion-icon name="home-outline"></ion-icon>
-    <ion-icon name="information-circle-outline"></ion-icon>
-    <ion-icon name="key-outline"></ion-icon>
-    <ion-icon name="list-outline"></ion-icon>
-    <ion-icon name="logo-bitcoin"></ion-icon>
-    <ion-icon name="mail-outline"></ion-icon>
-    <ion-icon name="medkit-outline"></ion-icon>
-    <ion-icon name="newspaper-outline"></ion-icon>
-    <ion-icon name="notifications-outline"></ion-icon>
-    <ion-icon name="options-outline"></ion-icon>
-    <ion-icon name="phone-portrait-outline"></ion-icon>
-    <ion-icon name="play-circle-outline"></ion-icon>
-    <ion-icon name="power"></ion-icon>
-    <ion-icon name="pulse"></ion-icon>
-    <ion-icon name="qr-code-outline"></ion-icon>
-    <ion-icon name="receipt-outline"></ion-icon>
-    <ion-icon name="refresh"></ion-icon>
-    <ion-icon name="reload-outline"></ion-icon>
-    <ion-icon name="remove-outline"></ion-icon>
-    <ion-icon name="save-outline"></ion-icon>
-    <ion-icon name="shield-checkmark-outline"></ion-icon>
-    <ion-icon name="storefront-outline"></ion-icon>
-    <ion-icon name="terminal-outline"></ion-icon>
-    <ion-icon name="trash-outline"></ion-icon>
-    <ion-icon name="warning-outline"></ion-icon>
-    <ion-icon name="wifi"></ion-icon>
-    
-    <!-- Ionic components -->
-    <ion-action-sheet></ion-action-sheet>
-    <ion-alert></ion-alert>
-    <ion-badge></ion-badge>
-    <ion-button></ion-button>
-    <ion-buttons></ion-buttons>
-    <ion-card></ion-card>
-    <ion-card-content></ion-card-content>
-    <ion-card-header></ion-card-header>
-    <ion-checkbox></ion-checkbox>
-    <ion-content></ion-content>
-    <ion-fab></ion-fab>
-    <ion-fab-button></ion-fab-button>
-    <ion-footer></ion-footer>
-    <ion-grid></ion-grid>
-    <ion-header></ion-header>
-    <ion-popover></ion-popover>
-    <ion-content>
-      <ion-refresher slot="fixed"></ion-refresher>
-      <ion-refresher-content pullingContent="lines"></ion-refresher-content>
-      <ion-infinite-scroll></ion-infinite-scroll>
-      <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
-    </ion-content>
-    <ion-input></ion-input>
-    <ion-item></ion-item>
-    <ion-item-divider></ion-item-divider>
-    <ion-item-group></ion-item-group>
-    <ion-label></ion-label>
-    <ion-list></ion-list>
-    <ion-loading></ion-loading>
-    <ion-modal></ion-modal>
-    <ion-note></ion-note>
-    <ion-radio></ion-radio>
-    <ion-row></ion-row>
-    <ion-segment></ion-segment>
-    <ion-segment-button></ion-segment-button>
-    <ion-select></ion-select>
-    <ion-select-option></ion-select-option>
-    <ion-slides></ion-slides>
-    <ion-spinner name="lines"></ion-spinner>
-    <ion-text></ion-text>
-    <ion-text style="font-weight: bold">load bold</ion-text>
-    <ion-title></ion-title>
-    <ion-toast></ion-toast>
-    <ion-toggle></ion-toggle>
-    <ion-toolbar></ion-toolbar>
-    <ion-menu-button></ion-menu-button>
-  </section>
+      <ion-input></ion-input>
+      <ion-item></ion-item>
+      <ion-item-divider></ion-item-divider>
+      <ion-item-group></ion-item-group>
+      <ion-label></ion-label>
+      <ion-list></ion-list>
+      <ion-loading></ion-loading>
+      <ion-modal></ion-modal>
+      <ion-note></ion-note>
+      <ion-radio></ion-radio>
+      <ion-row></ion-row>
+      <ion-segment></ion-segment>
+      <ion-segment-button></ion-segment-button>
+      <ion-select></ion-select>
+      <ion-select-option></ion-select-option>
+      <ion-slides></ion-slides>
+      <ion-spinner name="lines"></ion-spinner>
+      <ion-text></ion-text>
+      <ion-text style="font-weight: bold">load bold</ion-text>
+      <ion-title></ion-title>
+      <ion-toast></ion-toast>
+      <ion-toggle></ion-toggle>
+      <ion-toolbar></ion-toolbar>
+      <ion-menu-button></ion-menu-button>
+    </section>
+  </ion-content>
+  <!-- <ion-footer *ngIf="patch.data && patch.data['server-info'] && patch.data['server-info']['update-status']">
+    <ion-toolbar>
+      <ion-title>{{ patch.data['server-info']['update-status'] }}</ion-title>
+    </ion-toolbar>
+  </ion-footer> -->
 </ion-app>
 
 

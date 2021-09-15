@@ -101,14 +101,26 @@ export class MockApiService extends ApiService {
 
   async updateServerRaw (params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
+    const initialProgress = {
+      size: 10000,
+      downloaded: 0,
+    }
     const patch = [
       {
         op: PatchOp.REPLACE,
         path: '/server-info/status',
         value: ServerStatus.Updating,
       },
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/update-progress',
+        value: initialProgress,
+      },
     ]
     const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+
+    await this.updateOSProgress(initialProgress.size)
+
     setTimeout(async () => {
       const patch = [
         {
@@ -121,6 +133,10 @@ export class MockApiService extends ApiService {
           path: '/server-info/version',
           value: '3.1.0',
         },
+        {
+          op: PatchOp.REMOVE,
+          path: '/server-info/update-progress',
+        },
       ]
       await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
       // quickly revert patch to proper version to prevent infinite refresh loop
@@ -132,7 +148,7 @@ export class MockApiService extends ApiService {
         },
       ]
       this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch2 } })
-    }, this.revertTime)
+    }, 10000)
 
     return res
   }
@@ -563,5 +579,30 @@ export class MockApiService extends ApiService {
       ]
       this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
     }, 1000)
+  }
+
+  private async updateOSProgress (size: number) {
+    let downloaded = 0
+    while (downloaded < size) {
+      await pauseFor(250)
+      downloaded += 500
+      const patch = [
+        {
+          op: PatchOp.REPLACE,
+          path: `/server-info/update-progress/downloaded`,
+          value: downloaded,
+        },
+      ]
+      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    }
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/server-info/update-progress/downloaded`,
+        value: size,
+      },
+    ]
+    await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   }
 }
