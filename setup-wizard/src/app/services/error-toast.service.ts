@@ -20,6 +20,7 @@ export class ErrorToastService {
       duration: 0,
       position: 'top',
       cssClass: 'error-toast',
+      animated: true,
       buttons: [
         {
           side: 'end',
