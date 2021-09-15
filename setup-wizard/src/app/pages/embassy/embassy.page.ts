@@ -27,6 +27,17 @@ export class EmbassyPage {
   ) { }
 
   async ngOnInit () {
+    await this.getDrives()
+  }
+
+  async refresh () {
+    this.storageDrives = []
+    this.selectedDrive = null
+    this.loading = true
+    await this.getDrives()
+  }
+
+  async getDrives () {
     try {
       this.storageDrives = await this.apiService.getDrives()
     } catch (e) {

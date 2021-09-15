@@ -10,11 +10,8 @@ import { StateService } from 'src/app/services/state.service'
 export class SuccessPage {
   constructor(
     public stateService: StateService,
-    private readonly navCtrl: NavController,
     private toastCtrl: ToastController
-  ) {
-    this.stateService.torAddress = 'asdfasdfasdf.onion'
-  }
+  ) { }
 
   window = window
 
