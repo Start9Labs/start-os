@@ -105,6 +105,7 @@ export class MockApiService extends ApiService {
       size: 10000,
       downloaded: 0,
     }
+    console.log('here')
     const patch = [
       {
         op: PatchOp.REPLACE,
@@ -118,7 +119,6 @@ export class MockApiService extends ApiService {
       },
     ]
     const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-
     await this.updateOSProgress(initialProgress.size)
 
     setTimeout(async () => {
@@ -134,7 +134,7 @@ export class MockApiService extends ApiService {
           value: '3.1.0',
         },
         {
-          op: PatchOp.REMOVE,
+          op: PatchOp.REPLACE,
           path: '/server-info/update-progress',
         },
       ]
