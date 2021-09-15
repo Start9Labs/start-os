@@ -50,7 +50,7 @@ export class StateService {
       'recovery-logicalname': this.recoveryDrive?.logicalname,
       'recovery-password': this.recoveryPassword
     })
-
+    console.log("return", ret)
     return { torAddress: ret['tor-address'] }
   }
 }
