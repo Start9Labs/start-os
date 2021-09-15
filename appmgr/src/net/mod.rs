@@ -1,11 +1,14 @@
 use std::net::{Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 
 use rpc_toolkit::command;
+use sqlx::SqlitePool;
 use torut::onion::TorSecretKeyV3;
 
 use self::interface::{Interface, InterfaceId};
 #[cfg(feature = "avahi")]
 use self::mdns::MdnsController;
+use self::nginx::NginxController;
 use self::tor::TorController;
 use crate::net::interface::TorConfig;
 use crate::s9pk::manifest::PackageId;
@@ -14,6 +17,7 @@ use crate::Error;
 pub mod interface;
 #[cfg(feature = "avahi")]
 pub mod mdns;
+pub mod nginx;
 pub mod ssl;
 pub mod tor;
 pub mod wifi;
@@ -27,18 +31,20 @@ pub struct NetController {
     pub tor: TorController,
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
-    // nginx: NginxController, // TODO
+    nginx: NginxController,
 }
 impl NetController {
     pub async fn init(
         embassyd_addr: SocketAddr,
         embassyd_tor_key: TorSecretKeyV3,
         tor_control: SocketAddr,
+        db: SqlitePool,
     ) -> Result<Self, Error> {
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
+            nginx: NginxController::init(PathBuf::from("/etc/nginx"), db).await?,
         })
     }
 

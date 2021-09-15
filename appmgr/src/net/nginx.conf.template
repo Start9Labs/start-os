@@ -1,6 +1,8 @@
 server {{
-    listen {port};
+    listen {listen_args};
     server_name {hostname}.local;
+    {ssl_certificate_line}
+    {ssl_certificate_key_line}
     location / {{
         proxy_pass http://{app_ip}:{internal_port}/;
         proxy_set_header Host $host;
