@@ -21,6 +21,10 @@ export interface ServerInfo {
   'eos-marketplace': URL
   'package-marketplace': URL | null // uses EOS marketplace if null
   'unread-notification-count': number
+  'update-progress'?: {
+    size: number
+    downloaded: number
+  }
   specs: {
     cpu: string
     disk: string
