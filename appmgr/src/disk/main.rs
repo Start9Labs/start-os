@@ -8,6 +8,8 @@ use crate::{Error, ResultExt};
 pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
 
+// TODO: use IncorrectDisk / DiskNotAvailable / DiskCorrupted
+
 pub async fn create<I: IntoIterator<Item = P>, P: AsRef<Path>>(
     pool_name: &str,
     disks: I,

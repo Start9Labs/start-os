@@ -2,12 +2,12 @@ use std::path::Path;
 use std::sync::Arc;
 
 use embassy::context::rpc::RpcContextConfig;
-use embassy::context::{RecoveryContext, SetupContext};
+use embassy::context::{DiagnosticContext, SetupContext};
 use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::hostname::get_product_key;
 use embassy::middleware::cors::cors;
+use embassy::middleware::diagnostic::diagnostic;
 use embassy::middleware::encrypt::encrypt;
-use embassy::middleware::recovery::recovery;
 use embassy::net::mdns::MdnsController;
 use embassy::sound::MARIO_COIN;
 use embassy::util::Invoke;
@@ -172,7 +172,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             let mdns = MdnsController::init();
             tokio::fs::write(
                 "/etc/nginx/sites-available/default",
-                include_str!("../nginx/recovery-ui.conf"),
+                include_str!("../nginx/diagnostic-ui.conf"),
             )
             .await
             .with_ctx(|_| {
@@ -186,14 +186,14 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
                 .arg("nginx")
                 .invoke(embassy::ErrorKind::Nginx)
                 .await?;
-            let ctx = RecoveryContext::init(cfg_path, e).await?;
+            let ctx = DiagnosticContext::init(cfg_path, e).await?;
             rpc_server!({
-                command: embassy::recovery_api,
+                command: embassy::diagnostic_api,
                 context: ctx.clone(),
                 status: status_fn,
                 middleware: [
                     cors,
-                    recovery,
+                    diagnostic,
                 ]
             })
             .with_graceful_shutdown({

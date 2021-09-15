@@ -37,7 +37,7 @@ impl Database {
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()
                     .unwrap(),
-                status: ServerStatus::Running,
+                status: ServerStatus::Running {},
                 eos_marketplace: "https://beta-registry-0-3.start9labs.com".parse().unwrap(),
                 package_marketplace: None,
                 wifi: WifiInfo {
@@ -72,26 +72,38 @@ impl DatabaseModel {
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct ServerInfo {
-    id: String,
-    version: Version,
-    lan_address: Url,
-    tor_address: Url,
-    status: ServerStatus,
-    eos_marketplace: Url,
-    package_marketplace: Option<Url>,
-    wifi: WifiInfo,
-    unread_notification_count: u64,
-    specs: ServerSpecs,
-    connection_addresses: ConnectionAddresses,
-    share_stats: bool,
+    pub id: String,
+    pub version: Version,
+    pub lan_address: Url,
+    pub tor_address: Url,
+    #[serde(flatten)]
+    pub status: ServerStatus,
+    pub eos_marketplace: Url,
+    pub package_marketplace: Option<Url>,
+    pub wifi: WifiInfo,
+    pub unread_notification_count: u64,
+    pub specs: ServerSpecs,
+    pub connection_addresses: ConnectionAddresses,
+    pub share_stats: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
+#[serde(tag = "status")]
 pub enum ServerStatus {
-    Running,
-    Updating,
-    BackingUp,
+    Running {},
+    #[serde(rename_all = "kebab-case")]
+    Updating {
+        update_progress: UpdateProgress,
+    },
+    BackingUp {},
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct UpdateProgress {
+    pub size: u64,
+    pub downloaded: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

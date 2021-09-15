@@ -20,17 +20,17 @@ pub enum ErrorKind {
     Deserialization = 12,
     Utf8 = 13,
     ParseVersion = 14,
-    Duplicity = 15, // REMOVE
+    IncorrectDisk = 15,
     Nginx = 16,
     Dependency = 17,
     ParseS9pk = 18,
     ParseUrl = 19,
-    GParted = 20, // REMOVE
+    DiskNotAvailable = 20,
     BlockDevice = 21,
     InvalidOnionAddress = 22,
     Pack = 23,
     ValidateS9pk = 24,
-    OpenSSL = 25, // REMOVE
+    DiskCorrupted = 25,
     Tor = 26,
     ConfigGen = 27,
     ParseNumber = 28,
@@ -56,7 +56,7 @@ pub enum ErrorKind {
     Zfs = 48,
     OpenSsl = 49,
     PasswordHashGeneration = 50,
-    RecoveryMode = 51,
+    DiagnosticMode = 51,
     ParseDbField = 52,
 }
 impl ErrorKind {
@@ -77,17 +77,17 @@ impl ErrorKind {
             Deserialization => "Deserialization Error",
             Utf8 => "UTF-8 Parse Error",
             ParseVersion => "Version Parsing Error",
-            Duplicity => "Duplicity Error",
+            IncorrectDisk => "Incorrect Disk",
             Nginx => "Nginx Error",
             Dependency => "Dependency Error",
             ParseS9pk => "S9PK Parsing Error",
             ParseUrl => "URL Parsing Error",
-            GParted => "GNU Parted Error",
+            DiskNotAvailable => "Disk Not Available",
             BlockDevice => "Block Device Error",
             InvalidOnionAddress => "Invalid Onion Address",
             Pack => "Pack Error",
             ValidateS9pk => "S9PK Validation Error",
-            OpenSSL => "OpenSSL Error", // Remove
+            DiskCorrupted => "Disk Corrupted", // Remove
             Tor => "Tor Daemon Error",
             ConfigGen => "Config Generation Error",
             ParseNumber => "Number Parsing Error",
@@ -113,7 +113,7 @@ impl ErrorKind {
             Zfs => "ZFS Error",
             OpenSsl => "OpenSSL Internal Error",
             PasswordHashGeneration => "Password Hash Generation Error",
-            RecoveryMode => "Embassy is in Recovery Mode",
+            DiagnosticMode => "Embassy is in Diagnostic Mode",
             ParseDbField => "Database Field Parse Error",
         }
     }

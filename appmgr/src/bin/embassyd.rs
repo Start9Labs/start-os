@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use anyhow::anyhow;
-use embassy::context::{RecoveryContext, RpcContext};
+use embassy::context::{DiagnosticContext, RpcContext};
 use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
-use embassy::middleware::recovery::recovery;
+use embassy::middleware::diagnostic::diagnostic;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::status::{check_all, synchronize_all};
@@ -275,14 +275,14 @@ fn main() {
                         log::error!("{}", e.source);
                         log::debug!("{}", e.source);
                         embassy::sound::BEETHOVEN.play().await?;
-                        let ctx = RecoveryContext::init(cfg_path, e).await?;
+                        let ctx = DiagnosticContext::init(cfg_path, e).await?;
                         rpc_server!({
-                            command: embassy::recovery_api,
+                            command: embassy::diagnostic_api,
                             context: ctx.clone(),
                             status: status_fn,
                             middleware: [
                                 cors,
-                                recovery,
+                                diagnostic,
                             ]
                         })
                         .with_graceful_shutdown({

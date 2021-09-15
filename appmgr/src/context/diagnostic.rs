@@ -16,10 +16,10 @@ use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct RecoveryContextConfig {
+pub struct DiagnosticContextConfig {
     pub bind_rpc: Option<SocketAddr>,
 }
-impl RecoveryContextConfig {
+impl DiagnosticContextConfig {
     pub async fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
         let cfg_path = path
             .as_ref()
@@ -36,21 +36,21 @@ impl RecoveryContextConfig {
     }
 }
 
-pub struct RecoveryContextSeed {
+pub struct DiagnosticContextSeed {
     pub bind_rpc: SocketAddr,
     pub shutdown: Sender<()>,
     pub error: Arc<RpcError>,
 }
 
 #[derive(Clone)]
-pub struct RecoveryContext(Arc<RecoveryContextSeed>);
-impl RecoveryContext {
+pub struct DiagnosticContext(Arc<DiagnosticContextSeed>);
+impl DiagnosticContext {
     pub async fn init<P: AsRef<Path>>(path: Option<P>, error: Error) -> Result<Self, Error> {
-        let cfg = RecoveryContextConfig::load(path).await?;
+        let cfg = DiagnosticContextConfig::load(path).await?;
 
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
-        Ok(Self(Arc::new(RecoveryContextSeed {
+        Ok(Self(Arc::new(DiagnosticContextSeed {
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,
             error: Arc::new(error.into()),
@@ -58,7 +58,7 @@ impl RecoveryContext {
     }
 }
 
-impl Context for RecoveryContext {
+impl Context for DiagnosticContext {
     fn host(&self) -> Host<&str> {
         match self.0.bind_rpc.ip() {
             IpAddr::V4(a) => Host::Ipv4(a),
@@ -69,8 +69,8 @@ impl Context for RecoveryContext {
         self.0.bind_rpc.port()
     }
 }
-impl Deref for RecoveryContext {
-    type Target = RecoveryContextSeed;
+impl Deref for DiagnosticContext {
+    type Target = DiagnosticContextSeed;
     fn deref(&self) -> &Self::Target {
         &*self.0
     }
