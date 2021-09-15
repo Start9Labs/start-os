@@ -53,6 +53,16 @@ ion-item {
   }
 }
 
+.error-toast {
+  --border-color: var(--ion-color-danger);
+  width: 40%;
+  min-width: 400px;
+  --end: 8px;
+  right: 8px;
+  left: unset;
+  top: 64px;
+}
+
 @media (min-width:1000px) {
   .alertlike-modal {
     .modal-wrapper {

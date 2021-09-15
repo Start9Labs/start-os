@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import { AlertController, iosTransitionAnimation, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
 
@@ -22,11 +23,18 @@ export class EmbassyPage {
     private readonly alertCtrl: AlertController,
     private readonly stateService: StateService,
     private readonly loadingCtrl: LoadingController,
+    private readonly errorToastService: ErrorToastService,
   ) { }
 
   async ngOnInit () {
-    this.storageDrives = await this.apiService.getDrives()
-    this.loading = false
+    try {
+      this.storageDrives = await this.apiService.getDrives()
+    } catch (e) {
+      console.log(e)
+      this.errorToastService.present(e.message)
+    } finally {
+      this.loading = false
+    }
   }
 
   async chooseDrive (drive: DiskInfo) {

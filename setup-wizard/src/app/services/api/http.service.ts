@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http'
-import { Observable, from, interval, race, Subject } from 'rxjs'
+import { Observable, from, interval, race } from 'rxjs'
 import { map, take } from 'rxjs/operators'
 import * as aesjs from 'aes-js'
 import * as pbkdf2 from 'pbkdf2'
@@ -44,24 +44,32 @@ export class HttpService {
       this.fullUrl + httpOpts.url :
       httpOpts.url
 
+    const encryptedBody = await AES_CTR.encryptPbkdf2(this.productKey, encodeUtf8( JSON.stringify(httpOpts.body)))
     const options = {
       responseType: 'arraybuffer',
-      body: await AES_CTR.encryptPbkdf2(this.productKey, encodeUtf8( JSON.stringify(httpOpts.body))),
+      body: encryptedBody.buffer,
       observe: 'events',
       reportProgress: false,
+      
       headers: {
         'Content-Encoding': 'aesctr256',
         'Content-Type': 'application/json'
       },
     } as any
 
-    const req = this.http.post(url, httpOpts.body, options)
+    const req = this.http.post(url, options.body, options)
 
     return (withTimeout(req, 60000))
       .toPromise()
-      .then(res => AES_CTR.decryptPbkdf2(this.productKey, new Uint8Array(res)))
-      .then(res => JSON.parse(decodeUtf8(res)))
-      .catch(e => { throw new HttpError(e) })
+      .then(res => AES_CTR.decryptPbkdf2(this.productKey, (res as any).body as ArrayBuffer))
+      .then(res => JSON.parse(res))
+      .catch(e => {
+        if(!e.status && !e.statusText) {
+          throw new EncryptionError(e)
+        } else {
+          throw new HttpError(e) 
+        }
+      })
   }
 }
 
@@ -83,6 +91,12 @@ function HttpError (e: HttpErrorResponse): void {
 
   this.code = status
   this.message = statusText
+  this.details = null
+}
+
+function EncryptionError (e: HttpErrorResponse): void {
+  this.code = null
+  this.message = 'Invalid Key'
   this.details = null
 }
 
@@ -162,26 +176,32 @@ function withTimeout<U> (req: Observable<U>, timeout: number): Observable<U> {
 
 type AES_CTR = {
   encryptPbkdf2: (secretKey: string, messageBuffer: Uint8Array) => Promise<Uint8Array>
-  decryptPbkdf2: (secretKey, arr: Uint8Array) => Promise<Uint8Array>
+  decryptPbkdf2: (secretKey, arr: ArrayBuffer) => Promise<string>
 }
 
 export const AES_CTR: AES_CTR = {
   encryptPbkdf2: async (secretKey: string, messageBuffer: Uint8Array) =>  {
     const salt = window.crypto.getRandomValues(new Uint8Array(16))
     const counter = window.crypto.getRandomValues(new Uint8Array(16))
-    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1, 256 / 8, 'sha256');
-    var aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
-    var encryptedBytes = aesCtr.encrypt(messageBuffer);
+
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256');
+
+    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
+    const encryptedBytes = aesCtr.encrypt(messageBuffer);
     return new Uint8Array([...counter,...salt,...encryptedBytes])
   },
-  decryptPbkdf2: async (secretKey: string, arr: Uint8Array) =>  {
-    const counter = arr.slice(0, 16)
-    const salt = arr.slice(16, 32)
-    const cipher = arr.slice(32)
-    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1, 256 / 8, 'sha256');
+  decryptPbkdf2: async (secretKey: string, arr: ArrayBuffer) =>  {
+    const buff = new Uint8Array(arr)
+    const counter = buff.slice(0, 16)
+    const salt = buff.slice(16, 32)
 
-    var aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
-    return aesCtr.decrypt(cipher);
+    const cipher = buff.slice(32)
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256');
+
+    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
+    const decryptedBytes = aesCtr.decrypt(cipher);
+
+    return aesjs.utils.utf8.fromBytes(decryptedBytes);
   },
 }
 
