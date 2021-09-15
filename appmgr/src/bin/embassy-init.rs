@@ -114,6 +114,8 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .invoke(embassy::ErrorKind::Docker)
         .await?;
     log::info!("Mounted Docker Data");
+    embassy::install::load_images().await?;
+    log::info!("Loaded Docker Images");
     embassy::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     log::info!("Synced SSH Keys");
     // todo!("sync wifi");

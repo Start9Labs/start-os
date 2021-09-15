@@ -16,6 +16,7 @@ use rpc_toolkit::command;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
+use tokio_stream::wrappers::ReadDirStream;
 
 use self::cleanup::cleanup_failed;
 use crate::context::RpcContext;
@@ -669,4 +670,59 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Complete", pkg_id, version);
 
     Ok(())
+}
+
+pub async fn load_images() -> Result<(), Error> {
+    if tokio::fs::metadata(PKG_DOCKER_DIR).await.is_ok() {
+        ReadDirStream::new(tokio::fs::read_dir(PKG_DOCKER_DIR).await?)
+            .map_err(|e| {
+                Error::new(
+                    anyhow::Error::from(e).context(PKG_DOCKER_DIR),
+                    crate::ErrorKind::Filesystem,
+                )
+            })
+            .try_for_each_concurrent(None, |pkg_id| async move {
+                ReadDirStream::new(tokio::fs::read_dir(pkg_id.path()).await?)
+                    .map_err(|e| {
+                        Error::new(
+                            anyhow::Error::from(e).context(pkg_id.path().display().to_string()),
+                            crate::ErrorKind::Filesystem,
+                        )
+                    })
+                    .try_for_each_concurrent(None, |version| async move {
+                        let mut load = Command::new("docker")
+                            .arg("load")
+                            .stdin(Stdio::piped())
+                            .stderr(Stdio::piped())
+                            .spawn()?;
+                        let load_in = load.stdin.take().ok_or_else(|| {
+                            Error::new(
+                                anyhow!("Could not write to stdin of docker load"),
+                                crate::ErrorKind::Docker,
+                            )
+                        })?;
+                        let mut docker_rdr = File::open(version.path().join("image.tar")).await?;
+                        copy_and_shutdown(&mut docker_rdr, load_in).await?;
+                        let res = load.wait_with_output().await?;
+                        if !res.status.success() {
+                            Err(Error::new(
+                                anyhow!(
+                                    "{}",
+                                    String::from_utf8(res.stderr).unwrap_or_else(|e| format!(
+                                        "Could not parse stderr: {}",
+                                        e
+                                    ))
+                                ),
+                                crate::ErrorKind::Docker,
+                            ))
+                        } else {
+                            Ok(())
+                        }
+                    })
+                    .await
+            })
+            .await
+    } else {
+        Ok(())
+    }
 }
