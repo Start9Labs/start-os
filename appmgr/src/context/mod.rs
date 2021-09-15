@@ -1,10 +1,10 @@
 pub mod cli;
-pub mod recovery;
+pub mod diagnostic;
 pub mod rpc;
 pub mod setup;
 
 pub use cli::CliContext;
-pub use recovery::RecoveryContext;
+pub use diagnostic::DiagnosticContext;
 pub use rpc::RpcContext;
 pub use setup::SetupContext;
 
@@ -13,8 +13,8 @@ impl From<CliContext> for () {
         ()
     }
 }
-impl From<RecoveryContext> for () {
-    fn from(_: RecoveryContext) -> Self {
+impl From<DiagnosticContext> for () {
+    fn from(_: DiagnosticContext) -> Self {
         ()
     }
 }
