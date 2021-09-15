@@ -14,7 +14,8 @@ use patch_db::DbHandle;
 use reqwest::Response;
 use rpc_toolkit::command;
 use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
+use tokio::process::Command;
 
 use self::cleanup::cleanup_failed;
 use crate::context::RpcContext;
@@ -29,6 +30,7 @@ use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{DependencyErrors, MainStatus, Status};
+use crate::util::io::copy_and_shutdown;
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::volume::asset_dir;
 use crate::{Error, ResultExt};
@@ -38,6 +40,8 @@ pub mod progress;
 
 pub const PKG_CACHE: &'static str = "package-data/cache";
 pub const PKG_PUBLIC_DIR: &'static str = "package-data/public";
+pub const PKG_DOCKER_DIR: &'static str = "package-data/docker";
+pub const PKG_WASM_DIR: &'static str = "package-data/wasm";
 
 #[command(display(display_none))]
 pub async fn install(
@@ -418,21 +422,53 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
     progress
         .track_read_during(progress_model.clone(), &ctx.db, || async {
-            let mut load = tokio::process::Command::new("docker")
+            let image_tar_dir = Path::new(PKG_DOCKER_DIR)
+                .join(pkg_id)
+                .join(version.as_str());
+            if tokio::fs::metadata(&image_tar_dir).await.is_err() {
+                tokio::fs::create_dir_all(&image_tar_dir)
+                    .await
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            image_tar_dir.display().to_string(),
+                        )
+                    })?;
+            }
+            let image_tar_path = image_tar_dir.join("image.tar");
+            let mut tee = Command::new("tee")
+                .arg(&image_tar_path)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()?;
+            let mut load = Command::new("docker")
                 .arg("load")
                 .stdin(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()?;
-            let mut dst = load.stdin.take().ok_or_else(|| {
+            let tee_in = tee.stdin.take().ok_or_else(|| {
+                Error::new(
+                    anyhow!("Could not write to stdin of tee"),
+                    crate::ErrorKind::Docker,
+                )
+            })?;
+            let mut tee_out = tee.stdout.take().ok_or_else(|| {
+                Error::new(
+                    anyhow!("Could not read from stdout of tee"),
+                    crate::ErrorKind::Docker,
+                )
+            })?;
+            let load_in = load.stdin.take().ok_or_else(|| {
                 Error::new(
                     anyhow!("Could not write to stdin of docker load"),
                     crate::ErrorKind::Docker,
                 )
             })?;
-            tokio::io::copy(&mut rdr.docker_images().await?, &mut dst).await?;
-            dst.flush().await?;
-            dst.shutdown().await?;
-            drop(dst);
+            let mut docker_rdr = rdr.docker_images().await?;
+            tokio::try_join!(
+                copy_and_shutdown(&mut docker_rdr, tee_in),
+                copy_and_shutdown(&mut tee_out, load_in),
+            )?;
             let res = load.wait_with_output().await?;
             if !res.status.success() {
                 Err(Error::new(

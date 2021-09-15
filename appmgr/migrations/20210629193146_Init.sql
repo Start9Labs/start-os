@@ -47,4 +47,4 @@ CREATE TABLE IF NOT EXISTS notifications
     title TEXT NOT NULL,
     message TEXT NOT NULL,
     data TEXT
-)
+);

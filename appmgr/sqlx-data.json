@@ -20,6 +20,16 @@
       "nullable": []
     }
   },
+  "177c4b9cc7901a3b906e5969b86b1c11e6acbfb8e86e98f197d7333030b17964": {
+    "query": "DELETE FROM notifications WHERE id = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
   "3502e58f2ab48fb4566d21c920c096f81acfa3ff0d02f970626a4dcd67bac71d": {
     "query": "SELECT tor_key FROM account",
     "describe": {
@@ -162,6 +172,76 @@
       "nullable": []
     }
   },
+  "65e6c3fbb138da5cf385af096fdd3c062b6e826e12a8a4b23e16fcc773004c29": {
+    "query": "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications WHERE id < ? ORDER BY id DESC LIMIT ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "package_id",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Datetime"
+        },
+        {
+          "name": "code",
+          "ordinal": 3,
+          "type_info": "Int64"
+        },
+        {
+          "name": "level",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "title",
+          "ordinal": 5,
+          "type_info": "Text"
+        },
+        {
+          "name": "message",
+          "ordinal": 6,
+          "type_info": "Text"
+        },
+        {
+          "name": "data",
+          "ordinal": 7,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 2
+      },
+      "nullable": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ]
+    }
+  },
+  "6b9abc9e079cff975f8a7f07ff70548c7877ecae3be0d0f2d3f439a6713326c0": {
+    "query": "DELETE FROM notifications WHERE id < ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
   "6c96d76bffcc5f03290d8d8544a58521345ed2a843a509b17bbcd6257bb81821": {
     "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 1;",
     "describe": {
@@ -230,16 +310,6 @@
       ]
     }
   },
-  "8c87b09f997838b7e5be48ebb202d97eb9d512a51c6e67b1fb7df33abd79a0af": {
-    "query": "-- Add migration script here\nCREATE TABLE IF NOT EXISTS tor\n(\n    package     TEXT NOT NULL,\n    interface   TEXT NOT NULL,\n    key         BLOB NOT NULL CHECK (length(key) = 64),\n    PRIMARY KEY (package, interface)\n);\nCREATE TABLE IF NOT EXISTS session\n(\n    id         TEXT NOT NULL PRIMARY KEY,\n    logged_in TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    logged_out TIMESTAMP,\n    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    user_agent TEXT,\n    metadata   TEXT NOT NULL DEFAULT 'null'\n);\nCREATE TABLE IF NOT EXISTS account\n(\n    id INTEGER PRIMARY KEY CHECK (id = 0),\n    password TEXT NOT NULL,\n    tor_key BLOB NOT NULL CHECK (length(tor_key) = 64)\n);\nCREATE TABLE IF NOT EXISTS ssh_keys\n(\n    fingerprint     TEXT NOT NULL,\n    openssh_pubkey  TEXT NOT NULL,\n    created_at      TEXT NOT NULL,\n    PRIMARY KEY (fingerprint)\n);\nCREATE TABLE IF NOT EXISTS certificates\n(\n    id INTEGER PRIMARY KEY, -- Root = 0, Int = 1, Other = 2..\n    priv_key_pem TEXT NOT NULL,\n    certificate_pem TEXT NOT NULL,\n    lookup_string TEXT UNIQUE,\n    created_at TEXT,\n    updated_at TEXT\n);",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Right": 0
-      },
-      "nullable": []
-    }
-  },
   "9496e17a73672ac3675e02efa7c4bf8bd479b866c0d31fa1e3a85ef159310a57": {
     "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = ?",
     "describe": {
@@ -274,6 +344,16 @@
       "nullable": []
     }
   },
+  "a596bdc5014ba9e7b362398abf09ec6a100923e001247a79503d1e820ffe71c3": {
+    "query": "-- Add migration script here\nCREATE TABLE IF NOT EXISTS tor\n(\n    package     TEXT NOT NULL,\n    interface   TEXT NOT NULL,\n    key         BLOB NOT NULL CHECK (length(key) = 64),\n    PRIMARY KEY (package, interface)\n);\nCREATE TABLE IF NOT EXISTS session\n(\n    id         TEXT NOT NULL PRIMARY KEY,\n    logged_in TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    logged_out TIMESTAMP,\n    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    user_agent TEXT,\n    metadata   TEXT NOT NULL DEFAULT 'null'\n);\nCREATE TABLE IF NOT EXISTS account\n(\n    id INTEGER PRIMARY KEY CHECK (id = 0),\n    password TEXT NOT NULL,\n    tor_key BLOB NOT NULL CHECK (length(tor_key) = 64)\n);\nCREATE TABLE IF NOT EXISTS ssh_keys\n(\n    fingerprint     TEXT NOT NULL,\n    openssh_pubkey  TEXT NOT NULL,\n    created_at      TEXT NOT NULL,\n    PRIMARY KEY (fingerprint)\n);\nCREATE TABLE IF NOT EXISTS certificates\n(\n    id INTEGER PRIMARY KEY, -- Root = 0, Int = 1, Other = 2..\n    priv_key_pem TEXT NOT NULL,\n    certificate_pem TEXT NOT NULL,\n    lookup_string TEXT UNIQUE,\n    created_at TEXT,\n    updated_at TEXT\n);\nCREATE TABLE IF NOT EXISTS notifications\n(\n    id INTEGER PRIMARY KEY,\n    package_id TEXT,\n    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    code INTEGER NOT NULL,\n    level TEXT NOT NULL,\n    title TEXT NOT NULL,\n    message TEXT NOT NULL,\n    data TEXT\n);",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": []
+    }
+  },
   "a6b0c8909a3a5d6d9156aebfb359424e6b5a1d1402e028219e21726f1ebd282e": {
     "query": "SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys",
     "describe": {
@@ -304,6 +384,66 @@
       ]
     }
   },
+  "abfdeea8cd10343b85f647d7abc5dc3bd0b5891101b143485938192ee3b8c907": {
+    "query": "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "package_id",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Datetime"
+        },
+        {
+          "name": "code",
+          "ordinal": 3,
+          "type_info": "Int64"
+        },
+        {
+          "name": "level",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "title",
+          "ordinal": 5,
+          "type_info": "Text"
+        },
+        {
+          "name": "message",
+          "ordinal": 6,
+          "type_info": "Text"
+        },
+        {
+          "name": "data",
+          "ordinal": 7,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ]
+    }
+  },
   "d5117054072476377f3c4f040ea429d4c9b2cf534e76f35c80a2bf60e8599cca": {
     "query": "SELECT openssh_pubkey FROM ssh_keys",
     "describe": {
@@ -320,6 +460,16 @@
       "nullable": [
         false
       ]
+    }
+  },
+  "d54bd5b53f8c760e1f8cde604aa8b1bdc66e4e025a636bc44ffbcd788b5168fd": {
+    "query": "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES (?, ?, ?, ?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 6
+      },
+      "nullable": []
     }
   },
   "d79d608ceb862c15b741a6040044c6dd54a837a3a0c5594d15a6041c7bc68ea8": {
