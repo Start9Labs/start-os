@@ -86,7 +86,7 @@ pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
 
 pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     Ok(String::from_utf8(
-        Command::new("BlockDevice")
+        Command::new("blockdev")
             .arg("--getsize64")
             .arg(path.as_ref())
             .invoke(crate::ErrorKind::BlockDevice)
@@ -97,7 +97,7 @@ pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
 
 pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
     let label = String::from_utf8(
-        Command::new("lsblk ")
+        Command::new("lsblk")
             .arg("-no")
             .arg("label")
             .arg(path.as_ref())
@@ -162,7 +162,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                 disks.insert(disk.clone(), IndexSet::new());
             }
             if let Some(part_path) = part_path {
-                let part_path = Path::new(DISK_PATH).join(disk_path);
+                let part_path = Path::new(DISK_PATH).join(part_path);
                 let part = tokio::fs::canonicalize(&part_path).await.with_ctx(|_| {
                     (
                         crate::ErrorKind::Filesystem,
