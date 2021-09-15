@@ -16,6 +16,8 @@ use crate::{Error, ResultExt};
 
 pub mod docker;
 
+// TODO: create RPC endpoint that looks up the appropriate action and calls `execute`
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct ActionId<S: AsRef<str> = String>(Id<S>);
 impl<S: AsRef<str>> AsRef<ActionId<S>> for ActionId<S> {
@@ -160,7 +162,7 @@ impl ActionImplementation {
 
 pub struct NoOutput;
 impl<'de> Deserialize<'de> for NoOutput {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
