@@ -1,9 +1,7 @@
 import { Subject } from 'rxjs'
 
 export abstract class ApiService {
-  protected error$: Subject<string> = new Subject();
-  watchError$ = this.error$.asObservable();
-  abstract verifyProductKey (key: string): Promise<VerifyProductKeyRes>;
+  abstract verifyProductKey (): Promise<VerifyProductKeyRes>;
   abstract getDrives (): Promise<DiskInfo[]>;
   abstract getDataTransferProgress (): Promise<TransferProgressRes>;
   abstract verifyRecoveryPassword (logicalname: string, password: string): Promise<boolean>;

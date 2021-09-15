@@ -11,7 +11,7 @@ export class MockApiService extends ApiService {
     super()
   }
 
-  async verifyProductKey(key) {
+  async verifyProductKey () {
     await pauseFor(2000)
     return { 
       "is-recovering": false,
@@ -19,7 +19,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getDataTransferProgress() {
+  async getDataTransferProgress () {
     tries = Math.min(tries + 1, 4)
     return {
       'bytes-transfered': tries,
@@ -27,7 +27,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getDrives() {
+  async getDrives () {
     return [
       {
         vendor: 'Vendor',
@@ -102,7 +102,7 @@ export class MockApiService extends ApiService {
     ]
   }
 
-  async getRecoveryDrives() {
+  async getRecoveryDrives () {
     await pauseFor(2000)
     return [
       {
@@ -118,12 +118,17 @@ export class MockApiService extends ApiService {
     ]
   }
 
-  async verifyRecoveryPassword(logicalname, password) {
+  async verifyRecoveryPassword (logicalname: string, password: string) {
     await pauseFor(2000)
     return password.length > 8
   }
 
-  async setupEmbassy (setupInfo) {
+  async setupEmbassy (setupInfo: {
+    'embassy-logicalname': string,
+    'embassy-password': string
+    'recovery-logicalname'?: string,
+    'recovery-password'?: string
+  }) {
     await pauseFor(2000)
     return { "tor-address": 'asdfasdfasdf.onion' }
   }
