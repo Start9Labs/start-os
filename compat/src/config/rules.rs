@@ -1,9 +1,6 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-#[macro_use]
-extern crate failure;
-
 use linear_map::LinearMap;
 use pest::iterators::Pairs;
 use pest::Parser;
@@ -1051,7 +1048,11 @@ fn compile_value_expr(mut pairs: Pairs<Rule>) -> CompiledExpr<VarRes<Value>> {
         }
         Rule::num_expr => {
             let expr = compile_num_expr(expr.into_inner());
-            Box::new(move |cfg, cfgs| expr(cfg, cfgs).map(Value::Number))
+            Box::new(move |cfg, cfgs| expr(cfg, cfgs).map(|n| match
+                serde_json::Number::from_f64(n) {
+                    Some(a) => Value::Number(a),
+                    None => Value::Null
+            }))
         }
         Rule::bool_expr => {
             let expr = compile_bool_expr(expr.into_inner());

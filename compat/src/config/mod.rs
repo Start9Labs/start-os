@@ -1,6 +1,9 @@
 use std::borrow::Cow;
 use std::path::Path;
 
+#[macro_use]
+extern crate failure;
+
 use beau_collector::BeauCollector;
 use embassy::config::action::SetResult;
 use embassy::config::{Config, spec};
