@@ -19,7 +19,7 @@
               <h2 color="light">No recovery drives found</h2>
               <p color="light">Please connect a recovery drive to your Embassy and refresh the page.</p>
               <ion-button 
-                (click)="window.location.reload()"
+                (click)="refresh()"
                 style="text-align:center"
                 class="claim-button"
               >
@@ -62,6 +62,7 @@
                 color="light"
                 [disabled]="!selectedDrive || (!passwords[selectedDrive.logicalname] && !selectedDrive['embassy_os'].version.startsWith('0.2'))"
                 class="claim-button"
+                *ngIf="recoveryDrives.length"
               >
                 Next
               </ion-button>

@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import { iosTransitionAnimation, ModalController, NavController } from '@ionic/angular'
 import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
 
@@ -20,12 +21,30 @@ export class RecoverPage {
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly  modalController: ModalController,
-    private readonly stateService: StateService
+    private readonly stateService: StateService,
+    private readonly errorToastService: ErrorToastService,
   ) {}
 
-  async ngOnInit() {
-    this.recoveryDrives = (await this.apiService.getDrives()).filter(d => !!d['embassy_os'])
-    this.loading = false
+  async ngOnInit () {
+    await this.getDrives()
+  }
+
+  async refresh () {
+    this.recoveryDrives = []
+    this.selectedDrive = null
+    this.loading = true
+    await this.getDrives()
+  }
+
+  async getDrives () {
+    try {
+      this.recoveryDrives = (await this.apiService.getDrives()).filter(d => !!d['embassy_os'])
+    } catch (e) {
+      console.log(e)
+      this.errorToastService.present(e.message)
+    } finally {
+      this.loading = false
+    }
   }
 
   async chooseDrive(drive: DiskInfo) {
