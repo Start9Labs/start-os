@@ -17,7 +17,7 @@
             <ng-container *ngIf="!loading && !storageDrives.length">
               <h2 color="light">No drives found</h2>
               <p color="light">Please connect an storage drive to your Embassy and refresh the page.</p>
-              <ion-button style="margin-top: 25px;" (click)="window.location.reload()" color="light">
+              <ion-button style="margin-top: 25px;" (click)="refresh()" color="light">
                 Refresh
               </ion-button>
             </ng-container>
