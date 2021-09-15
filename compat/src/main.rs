@@ -145,7 +145,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                         )
                         .arg(
                             Arg::with_name("datapath")
-                                .help("The path to the data to be backed up in the container")
+                                .help("The path to the data to be restored to the container")
                                 .required(true),
                         ),
                 ),

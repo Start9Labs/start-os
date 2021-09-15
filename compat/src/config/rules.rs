@@ -1,13 +1,17 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+#[macro_use]
+extern crate failure;
+
 use linear_map::LinearMap;
 use pest::iterators::Pairs;
 use pest::Parser;
 use rand::SeedableRng;
+use serde_json::Value;
 
-use super::util::STATIC_NULL;
-use super::value::{Config, Value};
+use embassy::config::Config;
+use embassy::config::util::STATIC_NULL;
 
 #[derive(Parser)]
 #[grammar = "config/rule_parser.pest"]
@@ -363,16 +367,16 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
     if let Some(idx) = idx {
         let deref: Accessor = match idx.as_rule() {
             Rule::sub_ident_any => Box::new(|v, _| match v {
-                Value::List(l) => VarRes::Any(l.iter().map(VarRes::Exactly).collect()),
+                Value::Array(l) => VarRes::Any(l.iter().map(VarRes::Exactly).collect()),
                 Value::Object(o) => {
-                    VarRes::Any(o.0.iter().map(|(_, a)| VarRes::Exactly(a)).collect())
+                    VarRes::Any(o.iter().map(|(_, a)| VarRes::Exactly(a)).collect())
                 }
                 _ => VarRes::Exactly(&STATIC_NULL),
             }),
             Rule::sub_ident_all => Box::new(|v, _| match v {
-                Value::List(l) => VarRes::All(l.iter().map(VarRes::Exactly).collect()),
+                Value::Array(l) => VarRes::All(l.iter().map(VarRes::Exactly).collect()),
                 Value::Object(o) => {
-                    VarRes::All(o.0.iter().map(|(_, a)| VarRes::Exactly(a)).collect())
+                    VarRes::All(o.iter().map(|(_, a)| VarRes::Exactly(a)).collect())
                 }
                 _ => VarRes::Exactly(&STATIC_NULL),
             }),
@@ -384,22 +388,22 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                         let item_var = pred_iter.next().unwrap().as_str().to_owned();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
-                            Value::List(l) => VarRes::Exactly(
+                            Value::Array(l) => VarRes::Exactly(
                                 l.iter()
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .next()
                                     .unwrap_or(&STATIC_NULL),
                             ),
                             Value::Object(o) => VarRes::Exactly(
-                                o.0.iter()
+                                &o.iter()
                                     .map(|(_, item)| item)
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .next()
@@ -413,22 +417,22 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                         let item_var = pred_iter.next().unwrap().as_str().to_owned();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
-                            Value::List(l) => VarRes::Exactly(
+                            Value::Array(l) => VarRes::Exactly(
                                 l.iter()
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .next_back()
                                     .unwrap_or(&STATIC_NULL),
                             ),
                             Value::Object(o) => VarRes::Exactly(
-                                o.0.iter()
+                                &o.iter()
                                     .map(|(_, item)| item)
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .next_back()
@@ -442,22 +446,22 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                         let item_var = pred_iter.next().unwrap().as_str().to_owned();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
-                            Value::List(l) => VarRes::Any(
+                            Value::Array(l) => VarRes::Any(
                                 l.iter()
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .map(VarRes::Exactly)
                                     .collect(),
                             ),
                             Value::Object(o) => VarRes::Any(
-                                o.0.iter()
+                                o.iter()
                                     .map(|(_, item)| item)
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .map(VarRes::Exactly)
@@ -471,22 +475,22 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                         let item_var = pred_iter.next().unwrap().as_str().to_owned();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
-                            Value::List(l) => VarRes::All(
+                            Value::Array(l) => VarRes::All(
                                 l.iter()
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .map(VarRes::Exactly)
                                     .collect(),
                             ),
                             Value::Object(o) => VarRes::All(
-                                o.0.iter()
+                                o.iter()
                                     .map(|(_, item)| item)
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .map(VarRes::Exactly)
@@ -505,7 +509,7 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                         let idx = idx.as_str().to_owned();
                         Box::new(move |v, _| match v {
                             Value::Object(o) => {
-                                VarRes::Exactly(o.0.get(&idx).unwrap_or(&STATIC_NULL))
+                                VarRes::Exactly(o.get(&idx).unwrap_or(&STATIC_NULL))
                             }
                             _ => VarRes::Exactly(&STATIC_NULL),
                         })
@@ -514,7 +518,7 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                         let idx = compile_str_expr(idx.into_inner().next().unwrap().into_inner());
                         Box::new(move |v, dep_cfg| match v {
                             Value::Object(o) => idx(&Config::default(), dep_cfg).map(|idx| {
-                                idx.and_then(|idx| o.0.get(&idx)).unwrap_or(&STATIC_NULL)
+                                idx.and_then(|idx| o.get(&idx)).unwrap_or(&STATIC_NULL)
                             }),
                             _ => VarRes::Exactly(&STATIC_NULL),
                         })
@@ -528,14 +532,14 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                     Rule::sub_ident_index_base => {
                         let idx: usize = idx.as_str().parse().unwrap();
                         Box::new(move |v, _| match v {
-                            Value::List(l) => VarRes::Exactly(l.get(idx).unwrap_or(&STATIC_NULL)),
+                            Value::Array(l) => VarRes::Exactly(l.get(idx).unwrap_or(&STATIC_NULL)),
                             _ => VarRes::Exactly(&STATIC_NULL),
                         })
                     }
                     Rule::sub_ident_index_expr => {
                         let idx = compile_num_expr(idx.into_inner().next().unwrap().into_inner());
                         Box::new(move |v, dep_cfg| match v {
-                            Value::List(l) => idx(&Config::default(), dep_cfg)
+                            Value::Array(l) => idx(&Config::default(), dep_cfg)
                                 .map(|idx| l.get(idx as usize).unwrap_or(&STATIC_NULL)),
                             _ => VarRes::Exactly(&STATIC_NULL),
                         })
@@ -575,7 +579,7 @@ fn compile_var(mut var: Pairs<Rule>) -> CompiledExpr<VarRes<Value>> {
                 return VarRes::Exactly(Value::Null);
             };
         }
-        let val = cfg.0.get(&first_seg_string).unwrap_or(&STATIC_NULL);
+        let val = cfg.get(&first_seg_string).unwrap_or(&STATIC_NULL);
         if let Some(accessor) = &accessor {
             accessor(val, cfgs).map(|v| v.clone())
         } else {
@@ -596,20 +600,20 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                         let item_var = pred_iter.next().unwrap().as_str().to_owned();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
-                            Value::List(l) => l
+                            Value::Array(l) => l
                                 .iter_mut()
                                 .filter(|item| {
                                     let mut cfg = Config::default();
-                                    cfg.0.insert(item_var.clone(), (*item).clone());
+                                    cfg.insert(item_var.clone(), (*item).clone());
                                     predicate(&cfg, cfgs)
                                 })
                                 .next(),
                             Value::Object(o) => {
-                                o.0.iter_mut()
+                                o.iter_mut()
                                     .map(|(_, item)| item)
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .next()
@@ -622,20 +626,20 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                         let item_var = pred_iter.next().unwrap().as_str().to_owned();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
-                            Value::List(l) => l
+                            Value::Array(l) => l
                                 .iter_mut()
                                 .filter(|item| {
                                     let mut cfg = Config::default();
-                                    cfg.0.insert(item_var.clone(), (*item).clone());
+                                    cfg.insert(item_var.clone(), (*item).clone());
                                     predicate(&cfg, cfgs)
                                 })
                                 .next_back(),
                             Value::Object(o) => {
-                                o.0.iter_mut()
+                                o.iter_mut()
                                     .map(|(_, item)| item)
                                     .filter(|item| {
                                         let mut cfg = Config::default();
-                                        cfg.0.insert(item_var.clone(), (*item).clone());
+                                        cfg.insert(item_var.clone(), (*item).clone());
                                         predicate(&cfg, cfgs)
                                     })
                                     .next_back()
@@ -656,11 +660,11 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                         let idx = idx.as_str().to_owned();
                         Box::new(move |v, _| match v {
                             Value::Object(ref mut o) => {
-                                if o.0.contains_key(&idx) {
-                                    o.0.get_mut(&idx)
+                                if o.contains_key(&idx) {
+                                    o.get_mut(&idx)
                                 } else {
-                                    o.0.insert(idx.clone(), Value::Null);
-                                    o.0.get_mut(&idx)
+                                    o.insert(idx.clone(), Value::Null);
+                                    o.get_mut(&idx)
                                 }
                             }
                             _ => None,
@@ -671,11 +675,11 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                         Box::new(
                             move |v, dep_cfg| match (v, idx(&Config::default(), dep_cfg)) {
                                 (Value::Object(ref mut o), VarRes::Exactly(Some(ref idx))) => {
-                                    if o.0.contains_key(idx) {
-                                        o.0.get_mut(idx)
+                                    if o.contains_key(idx) {
+                                        o.get_mut(idx)
                                     } else {
-                                        o.0.insert(idx.clone(), Value::Null);
-                                        o.0.get_mut(idx)
+                                        o.insert(idx.clone(), Value::Null);
+                                        o.get_mut(idx)
                                     }
                                 }
                                 _ => None,
@@ -691,7 +695,7 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                     Rule::sub_ident_index_base => {
                         let idx: usize = idx.as_str().parse().unwrap();
                         Box::new(move |v, _| match v {
-                            Value::List(l) => {
+                            Value::Array(l) => {
                                 if l.len() > idx {
                                     l.get_mut(idx)
                                 } else if idx == l.len() {
@@ -708,7 +712,7 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                         let idx = compile_num_expr(idx.into_inner().next().unwrap().into_inner());
                         Box::new(
                             move |v, dep_cfg| match (v, idx(&Config::default(), dep_cfg)) {
-                                (Value::List(l), VarRes::Exactly(idx)) => {
+                                (Value::Array(l), VarRes::Exactly(idx)) => {
                                     let idx = idx as usize;
                                     if l.len() > idx {
                                         l.get_mut(idx)
@@ -746,11 +750,11 @@ fn compile_var_mut(mut var: Pairs<Rule>) -> Result<CompiledReference, failure::E
     let first_seg_string = first_seg.as_str().to_owned();
     let accessor_mut = compile_var_mut_rec(var)?;
     Ok(Box::new(move |cfg, cfgs| {
-        let var = if cfg.0.contains_key(&first_seg_string) {
-            cfg.0.get_mut(&first_seg_string).unwrap()
+        let var = if cfg.contains_key(&first_seg_string) {
+            cfg.get_mut(&first_seg_string).unwrap()
         } else {
-            cfg.0.insert(first_seg_string.clone(), Value::Null);
-            cfg.0.get_mut(&first_seg_string).unwrap()
+            cfg.insert(first_seg_string.clone(), Value::Null);
+            cfg.get_mut(&first_seg_string).unwrap()
         };
         if let Some(accessor_mut) = &accessor_mut {
             accessor_mut(var, cfgs)
@@ -776,10 +780,13 @@ fn compile_num_var(var: Pairs<Rule>) -> CompiledExpr<VarRes<f64>> {
     let var = compile_var(var);
     Box::new(move |cfg, cfgs| {
         var(cfg, cfgs).map(|a| match a {
-            Value::Number(n) => n,
+            Value::Number(n) => match n.as_f64() {
+                Some(n) => n,
+                None => f64::NAN,
+            },
             Value::String(s) => match s.parse() {
                 Ok(n) => n,
-                Err(_) => std::f64::NAN,
+                Err(_) => f64::NAN,
             },
             Value::Bool(b) => {
                 if b {
@@ -1059,12 +1066,12 @@ fn compile_del_action(mut pairs: Pairs<Rule>) -> Result<Mutator, failure::Error>
     let var = pairs.next().unwrap().as_str().to_owned();
     let predicate = compile_bool_expr(pairs.next().unwrap().into_inner());
     Ok(Box::new(move |cfg, cfgs| match (&list_mut)(cfg, cfgs) {
-        Some(Value::List(ref mut l)) => {
+        Some(Value::Array(ref mut l)) => {
             *l = std::mem::take(l)
                 .into_iter()
                 .filter(|item| {
                     let mut obj = Config::default();
-                    obj.0.insert(var.clone(), item.clone());
+                    obj.insert(var.clone(), item.clone());
                     !predicate(&obj, cfgs)
                 })
                 .collect();
@@ -1074,7 +1081,7 @@ fn compile_del_action(mut pairs: Pairs<Rule>) -> Result<Mutator, failure::Error>
                 .into_iter()
                 .filter(|(_, item)| {
                     let mut obj = Config::default();
-                    obj.0.insert(var.clone(), item.clone());
+                    obj.insert(var.clone(), item.clone());
                     !predicate(&obj, cfgs)
                 })
                 .collect();
@@ -1087,7 +1094,7 @@ fn compile_push_action(mut pairs: Pairs<Rule>, value: Value) -> Result<Mutator, 
     let list_mut = compile_var_mut(pairs.next().unwrap().into_inner())?;
     Ok(Box::new(move |cfg, cfgs| {
         let vec = match (&list_mut)(cfg, cfgs) {
-            Some(Value::List(ref mut a)) => a,
+            Some(Value::Array(ref mut a)) => a,
             _ => return,
         };
         vec.push(value.clone())
@@ -1169,10 +1176,10 @@ mod test {
         let mut cfg = Config::default();
         let mut cfgs = LinearMap::new();
         let mut foo = Config::default();
-        foo.0.insert("bar!\"".to_owned(), Value::Number(3.0));
-        cfg.0.insert(
+        foo.insert("bar!\"".to_owned(), Value::Number(3));
+        cfg.insert(
             "foo".to_owned(),
-            Value::List(vec![Value::Null, Value::Object(foo), Value::Number(3.0)]),
+            Value::Array(vec![Value::Null, Value::Object(foo), Value::Number(3)]),
         );
         cfgs.insert("my-app", Cow::Borrowed(&cfg));
         assert!((compile("#[my-app].foo.1.[\"ba\" + \"r!\\\"\"] = 3")
@@ -1188,10 +1195,10 @@ mod test {
         let mut cfg = Config::default();
         let mut cfgs = LinearMap::new();
         let mut foo = Config::default();
-        foo.0.insert("bar".to_owned(), Value::Number(3.0));
-        cfg.0.insert(
+        foo.insert("bar".to_owned(), Value::Number(3.0));
+        cfg.insert(
             "foo".to_owned(),
-            Value::List(vec![Value::Null, Value::Object(foo), Value::Number(3.0)]),
+            Value::Array(vec![Value::Null, Value::Object(foo), Value::Number(3.0)]),
         );
         cfgs.insert("my-app", Cow::Borrowed(&cfg));
         assert!((compile("#[my-app].foo.*.bar = 3")
@@ -1207,14 +1214,14 @@ mod test {
         let mut cfg = Config::default();
         let mut cfgs = LinearMap::new();
         let mut foo = Config::default();
-        foo.0.insert("bar".to_owned(), Value::Number(3.0));
-        foo.0.insert("baz".to_owned(), Value::Number(4.0));
+        foo.insert("bar".to_owned(), Value::Number(3.0));
+        foo.insert("baz".to_owned(), Value::Number(4.0));
         let mut qux = Config::default();
-        qux.0.insert("bar".to_owned(), Value::Number(7.0));
-        qux.0.insert("baz".to_owned(), Value::Number(4.0));
-        cfg.0.insert(
+        qux.insert("bar".to_owned(), Value::Number(7.0));
+        qux.insert("baz".to_owned(), Value::Number(4.0));
+        cfg.insert(
             "foo".to_owned(),
-            Value::List(vec![
+            Value::Array(vec![
                 Value::Null,
                 Value::Object(foo),
                 Value::Object(qux),
