@@ -74,9 +74,8 @@ export class AppComponent {
     private readonly connectionService: ConnectionService,
     private readonly startupAlertsService: StartupAlertsService,
     private readonly toastCtrl: ToastController,
-    private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
-    private readonly patch: PatchDbService,
+    public readonly patch: PatchDbService,
     private readonly config: ConfigService,
     readonly splitPane: SplitPaneTracker,
   ) {
