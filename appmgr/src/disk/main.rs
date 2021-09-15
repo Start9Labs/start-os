@@ -35,7 +35,7 @@ pub async fn create_pool<I: IntoIterator<Item = P>, P: AsRef<Path>>(
     disks: I,
 ) -> Result<String, Error> {
     let mut cmd = Command::new("zpool");
-    cmd.arg("create").arg(pool_name);
+    cmd.arg("create").arg("-f").arg(pool_name);
     for disk in disks {
         cmd.arg(disk.as_ref());
     }
