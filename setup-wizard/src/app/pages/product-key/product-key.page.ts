@@ -15,10 +15,10 @@ export class ProductKeyPage {
 
   constructor(
     private readonly navCtrl: NavController,
-    private stateService: StateService,
-    private apiService: ApiService,
-    private loadingCtrl: LoadingController,
-    private httpService: HttpService
+    private readonly stateService: StateService,
+    private readonly apiService: ApiService,
+    private readonly loadingCtrl: LoadingController,
+    private readonly httpService: HttpService
   ) {}
 
   async submit () {
@@ -30,8 +30,8 @@ export class ProductKeyPage {
     await loader.present()
 
     try {
-      const state = await this.apiService.verifyProductKey(this.productKey)
       this.httpService.productKey = this.productKey
+      const state = await this.apiService.verifyProductKey()
       if(state['is-recovering']) {
         await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward', animation: iosTransitionAnimation })
       } else if (!!state['tor-address']) {
