@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 
-use crate::context::RecoveryContext;
+use crate::context::DiagnosticContext;
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
 use crate::util::display_none;
 use crate::Error;
@@ -11,12 +11,12 @@ use crate::Error;
 pub const SYSTEMD_UNIT: &'static str = "embassy-init";
 
 #[command(subcommands(error, logs, exit))]
-pub fn recovery() -> Result<(), Error> {
+pub fn diagnostic() -> Result<(), Error> {
     Ok(())
 }
 
 #[command]
-pub fn error(#[context] ctx: RecoveryContext) -> Result<Arc<RpcError>, Error> {
+pub fn error(#[context] ctx: DiagnosticContext) -> Result<Arc<RpcError>, Error> {
     Ok(ctx.error.clone())
 }
 
@@ -36,7 +36,7 @@ pub async fn logs(
 }
 
 #[command(display(display_none))]
-pub fn exit(#[context] ctx: RecoveryContext) -> Result<(), Error> {
+pub fn exit(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
     ctx.shutdown.send(()).expect("receiver dropped");
     Ok(())
 }

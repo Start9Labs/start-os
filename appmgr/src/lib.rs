@@ -15,6 +15,7 @@ pub mod control;
 pub mod db;
 pub mod dependencies;
 pub mod developer;
+pub mod diagnostic;
 pub mod disk;
 pub mod error;
 pub mod hostname;
@@ -28,7 +29,6 @@ pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod properties;
-pub mod recovery;
 pub mod s9pk;
 pub mod setup;
 pub mod shutdown;
@@ -106,8 +106,8 @@ pub fn portable_api() -> Result<(), RpcError> {
     Ok(())
 }
 
-#[command(subcommands(version::git_info, echo, recovery::recovery))]
-pub fn recovery_api() -> Result<(), RpcError> {
+#[command(subcommands(version::git_info, echo, diagnostic::diagnostic))]
+pub fn diagnostic_api() -> Result<(), RpcError> {
     Ok(())
 }
 

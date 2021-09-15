@@ -7,7 +7,7 @@ use rpc_toolkit::Metadata;
 
 use crate::Error;
 
-pub async fn recovery<M: Metadata>(
+pub async fn diagnostic<M: Metadata>(
     _req: &mut Request<Body>,
     _metadata: M,
 ) -> Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError> {
@@ -19,8 +19,11 @@ pub async fn recovery<M: Metadata>(
                     if let Err(e) = rpc_res {
                         if e.code == -32601 {
                             *e = Error::new(
-                                anyhow::anyhow!("{} is not available on the Recovery API", method),
-                                crate::ErrorKind::RecoveryMode,
+                                anyhow::anyhow!(
+                                    "{} is not available on the Diagnostic API",
+                                    method
+                                ),
+                                crate::ErrorKind::DiagnosticMode,
                             )
                             .into();
                         }
