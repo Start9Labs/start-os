@@ -9,7 +9,6 @@ import * as pbkdf2 from 'pbkdf2'
   providedIn: 'root',
 })
 export class HttpService {
-  private unauthorizedApiResponse$ = new Subject()
   fullUrl: string
   productKey: string
 
@@ -20,32 +19,25 @@ export class HttpService {
     this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}`
   }
 
-  watchUnauth$ (): Observable<{ }> {
-    return this.unauthorizedApiResponse$.asObservable()
-  }
-
   async rpcRequest<T> (body: RPCOptions): Promise<T> {
 
     const httpOpts = {
       method: Method.POST,
       body,
-      url: `this.fullUrl`,
+      url: this.fullUrl,
     }
 
     const res = await this.httpRequest<RPCResponse<T>>(httpOpts)
 
-    if (isRpcError(res)) {
-      if (res.error.code === 34) this.unauthorizedApiResponse$.next(true)
-      throw new RpcError(res.error)
-    }
+    if (isRpcError(res)) throw new RpcError(res.error)
 
     if (isRpcSuccess(res)) return res.result
   }
 
   async httpRequest<T> (httpOpts: {
-        body: RPCOptions;
-        url: string;
-    }): Promise<T> {
+    body: RPCOptions;
+    url: string;
+  }): Promise<T> {
 
     const urlIsRelative = httpOpts.url.startsWith('/')
     const url = urlIsRelative ?
@@ -54,15 +46,13 @@ export class HttpService {
 
     const options = {
       responseType: 'arraybuffer',
-      body: await AES_CTR.encryptPbkdf2( this.productKey, encodeUtf8( JSON.stringify(httpOpts.body))),
+      body: await AES_CTR.encryptPbkdf2(this.productKey, encodeUtf8( JSON.stringify(httpOpts.body))),
       observe: 'events',
       reportProgress: false,
       headers: {
         'Content-Encoding': 'aesctr256',
         'Content-Type': 'application/json'
       },
-      // one minute
-      timeout: 60000,
     } as any
 
     const req = this.http.post(url, httpOpts.body, options)
@@ -157,7 +147,7 @@ export interface HttpOptions {
   params?: HttpParams | {
     [param: string]: string | string[]
   }
-  responseType?: 'json' | 'text'
+  responseType?: 'json' | 'text' | 'arrayBuffer'
   withCredentials?: boolean
   body?: any
   timeout?: number
