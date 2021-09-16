@@ -134,7 +134,7 @@ impl RpcContext {
         let base = RpcContextConfig::load(cfg_path).await?;
         let log_epoch = Arc::new(AtomicU64::new(rand::random()));
         let logger =
-            EmbassyLogger::new(log_level, log_epoch.clone(), base.log_server.clone(), false);
+            EmbassyLogger::init(log_level, log_epoch.clone(), base.log_server.clone(), false);
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
         let db = base.db(&secret_store).await?;
