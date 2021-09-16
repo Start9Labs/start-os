@@ -74,7 +74,7 @@ export module RR {
   export type DeleteNotificationReq = { id: number } // notification.delete
   export type DeleteNotificationRes = null
 
-  export type DeleteAllNotificationsReq = { before: number } // notification.delete.all
+  export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
   export type DeleteAllNotificationsRes = null
 
   // wifi
