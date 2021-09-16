@@ -119,40 +119,8 @@ export class MockApiService extends ApiService {
       },
     ]
     const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    console.log('update progress created')
-    await this.updateOSProgress(initialProgress.size)
 
-    console.log('about to update')
-    setTimeout(async () => {
-      const patch = [
-        {
-          op: PatchOp.REPLACE,
-          path: '/server-info/status',
-          value: ServerStatus.Running,
-        },
-        {
-          op: PatchOp.REPLACE,
-          path: '/server-info/version',
-          value: '3.1.0',
-        },
-        {
-          op: PatchOp.REMOVE,
-          path: '/server-info/update-progress',
-        },
-      ]
-
-      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-      // quickly revert patch to proper version to prevent infinite refresh loop
-      const patch2 = [
-        {
-          op: PatchOp.REPLACE,
-          path: '/server-info/version',
-          value: require('../../../../package.json').version,
-        },
-      ]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch2 } })
-    }, 10000)
-
+    this.updateOSProgress(initialProgress.size)
     return res
   }
 
@@ -607,5 +575,36 @@ export class MockApiService extends ApiService {
       },
     ]
     await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+
+    setTimeout(async () => {
+      const patch = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/status',
+          value: ServerStatus.Running,
+        },
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/version',
+          value: '3.1.0',
+        },
+        {
+          op: PatchOp.REMOVE,
+          path: '/server-info/update-progress',
+        },
+      ]
+
+      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+      // quickly revert patch to proper version to prevent infinite refresh loop
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/version',
+          value: require('../../../../package.json').version,
+        },
+      ]
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch2 } })
+    }, 10000)
+
   }
 }
