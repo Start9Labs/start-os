@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use rpc_toolkit::command;
 use sqlx::SqlitePool;
-use torut::onion::TorSecretKeyV3;
+use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 
 use self::interface::{Interface, InterfaceId};
 #[cfg(feature = "avahi")]
@@ -11,6 +11,7 @@ use self::mdns::MdnsController;
 use self::nginx::NginxController;
 use self::tor::TorController;
 use crate::net::interface::TorConfig;
+use crate::net::nginx::InterfaceMetadata;
 use crate::s9pk::manifest::PackageId;
 use crate::Error;
 
@@ -65,19 +66,41 @@ impl NetController {
                 Some(cfg) => Some((i.0, cfg, i.2)),
             })
             .collect::<Vec<(InterfaceId, TorConfig, TorSecretKeyV3)>>();
-        let (tor_res, _) = tokio::join!(self.tor.add(pkg_id, ip, interfaces_tor), {
-            #[cfg(feature = "avahi")]
-            let mdns_fut = self.mdns.add(
-                pkg_id,
-                interfaces
+        let (tor_res, _, _) = tokio::join!(
+            self.tor.add(pkg_id, ip, interfaces_tor),
+            {
+                #[cfg(feature = "avahi")]
+                let mdns_fut = self.mdns.add(
+                    pkg_id,
+                    interfaces
+                        .clone()
+                        .into_iter()
+                        .map(|(interface_id, _, key)| (interface_id, key)),
+                );
+                #[cfg(not(feature = "avahi"))]
+                let mdns_fut = futures::future::ready(());
+                mdns_fut
+            },
+            {
+                let interfaces = interfaces
                     .into_iter()
-                    .map(|(interface_id, _, key)| (interface_id, key)),
-            );
-            #[cfg(not(feature = "avahi"))]
-            let mdns_fut = futures::future::ready(());
-            mdns_fut
-        },);
+                    .filter_map(|(id, interface, tor_key)| match &interface.lan_config {
+                        None => None,
+                        Some(cfg) => Some((
+                            id,
+                            InterfaceMetadata {
+                                dns_base: OnionAddressV3::from(&tor_key.public())
+                                    .get_address_without_dot_onion(),
+                                lan_config: cfg.clone(),
+                                protocols: interface.protocols.clone(),
+                            },
+                        )),
+                    });
+                self.nginx.add(pkg_id.clone(), ip, interfaces)
+            }
+        );
         tor_res?;
+
         Ok(())
     }
 

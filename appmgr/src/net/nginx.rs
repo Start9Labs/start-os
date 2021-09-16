@@ -1,8 +1,8 @@
 use std::collections::HashMap;
+use std::net::Ipv4Addr;
 use std::path::PathBuf;
 
 use indexmap::IndexMap;
-use nix::sys::socket::Ipv4Addr;
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 
@@ -186,7 +186,7 @@ struct PackageNetInfo {
     interfaces: HashMap<InterfaceId, InterfaceMetadata>,
 }
 pub struct InterfaceMetadata {
-    dns_base: String,
-    lan_config: IndexMap<Port, LanPortConfig>,
-    protocols: Vec<String>,
+    pub dns_base: String,
+    pub lan_config: IndexMap<Port, LanPortConfig>,
+    pub protocols: Vec<String>,
 }
