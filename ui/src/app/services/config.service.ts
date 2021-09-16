@@ -35,7 +35,7 @@ export class ConfigService {
   mocks = mocks
 
   skipStartupAlerts  = mocks.enabled && mocks.skipStartupAlerts
-  isConsulate        = window['platform'] === 'ios'
+  supportsWebSockets = 'WebSocket' in window || 'MozWebSocket' in window
 
   isTor (): boolean {
     return (mocks.enabled && mocks.maskAs === 'tor') || this.origin.endsWith('.onion')
@@ -46,11 +46,11 @@ export class ConfigService {
   }
 
   usePoll (): boolean {
-    return this.isConsulate || (mocks.enabled && mocks.connection === 'poll')
+    return this.supportsWebSockets || (mocks.enabled && mocks.connection === 'poll')
   }
 
   isLaunchable (state: PackageState, status: PackageMainStatus, interfaces: { [id: string]: InterfaceDef }): boolean {
-    if (this.isConsulate || state !== PackageState.Installed) {
+    if (this.supportsWebSockets || state !== PackageState.Installed) {
       return false
     }
 
