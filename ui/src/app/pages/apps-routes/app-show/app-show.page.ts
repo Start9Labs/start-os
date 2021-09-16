@@ -299,14 +299,14 @@ export class AppShowPage {
         disabled: [],
       },
       // metrics
-      {
-        action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
-        title: 'Monitor',
-        icon: 'pulse-outline',
-        color: 'danger',
-        // @TODO make the disabled check better. Don't want to list every status here. Monitor should be disabled except is pkg is running.
-        disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
-      },
+      // {
+      //   action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
+      //   title: 'Monitor',
+      //   icon: 'pulse-outline',
+      //   color: 'danger',
+      //   // @TODO make the disabled check better. Don't want to list every status here. Monitor should be disabled except is pkg is running.
+      //   disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
+      // },
       // logs
       {
         action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
