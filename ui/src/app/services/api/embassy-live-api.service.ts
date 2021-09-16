@@ -54,7 +54,7 @@ export class LiveApiService extends ApiService {
   // server
 
   async setShareStatsRaw (params: RR.SetShareStatsReq): Promise<RR.SetShareStatsRes> {
-    return this.http.rpcRequest( { method: 'server.config.share-stats', params })
+    return this.http.rpcRequest( { method: 'server.config.share_stats', params })
   }
 
   async getServerLogs (params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {

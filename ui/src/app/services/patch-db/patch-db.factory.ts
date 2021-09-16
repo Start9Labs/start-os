@@ -11,7 +11,7 @@ export function PatchDbServiceFactory (
   embassyApi: ApiService,
 ): PatchDbService {
 
-  const { mocks, patchDb: { poll }, isConsulate } = config
+  const { mocks, patchDb: { poll }, supportsWebSockets } = config
 
   let source: Source<DataModel>
 
@@ -22,7 +22,7 @@ export function PatchDbServiceFactory (
       source = new WebsocketSource(`ws://localhost:${config.mocks.wsPort}/db`)
     }
   } else {
-    if (isConsulate) {
+    if (supportsWebSockets) {
       source = new PollSource({ ...poll }, embassyApi)
     } else {
       const protocol = window.location.protocol === 'http:' ? 'ws' : 'wss'
