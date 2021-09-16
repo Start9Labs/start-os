@@ -3,7 +3,7 @@ import { Storage } from '@ionic/storage-angular'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/embassy-api.service'
 import { Router, RoutesRecognized } from '@angular/router'
-import { debounceTime, distinctUntilChanged, filter, take } from 'rxjs/operators'
+import { debounceTime, distinctUntilChanged, filter, finalize, take, takeUntil, takeWhile } from 'rxjs/operators'
 import { AlertController, IonicSafeString, LoadingController, ToastController } from '@ionic/angular'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
@@ -14,7 +14,7 @@ import { ServerStatus } from './services/patch-db/data-model'
 import { ConnectionFailure, ConnectionService } from './services/connection.service'
 import { StartupAlertsService } from './services/startup-alerts.service'
 import { ConfigService } from './services/config.service'
-import { debounce, isEmptyObject } from './util/misc.util'
+import { debounce, isEmptyObject, pauseFor } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
 
@@ -40,6 +40,7 @@ export class AppComponent {
   serverName: string
   unreadCount: number
   subscriptions: Subscription[] = []
+  osUpdateProgress: { size: number, downloaded: number }
   appPages = [
     {
       title: 'Services',
@@ -243,10 +244,35 @@ export class AppComponent {
         this.showMenu = true
         this.router.navigate([''], { replaceUrl: true })
       }
-      if ([ServerStatus.Updating, ServerStatus.BackingUp].includes(status) && !route.startsWith(maintenance)) {
+      if (ServerStatus.BackingUp === status && !route.startsWith(maintenance)) {
         this.showMenu = false
         this.router.navigate([maintenance], { replaceUrl: true })
       }
+      if (ServerStatus.Updating === status) {
+        this.watchUpdateProgress()
+      }
+    })
+  }
+
+  private watchUpdateProgress (): Subscription {
+    return this.patch.watch$('server-info', 'update-progress')
+    .pipe(
+      filter(progress => !!progress),
+      takeWhile(progress => progress.downloaded < progress.size),
+      finalize(async () => {
+        const maintenance = '/maintenance'
+        const route = this.router.url
+        if (!route.startsWith(maintenance)) {
+          this.showMenu = false
+          this.router.navigate([maintenance], { replaceUrl: true })
+        }
+        if (this.osUpdateProgress) this.osUpdateProgress.downloaded = this.osUpdateProgress.size
+        await pauseFor(200)
+        this.osUpdateProgress = undefined
+      }),
+    )
+    .subscribe(progress => {
+      this.osUpdateProgress = progress
     })
   }
 
