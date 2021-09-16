@@ -76,7 +76,7 @@ export class AppComponent {
     private readonly startupAlertsService: StartupAlertsService,
     private readonly toastCtrl: ToastController,
     private readonly errToast: ErrorToastService,
-    public readonly patch: PatchDbService,
+    private readonly patch: PatchDbService,
     private readonly config: ConfigService,
     readonly splitPane: SplitPaneTracker,
   ) {
