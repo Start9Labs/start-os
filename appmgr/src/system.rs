@@ -6,7 +6,7 @@ use tokio::sync::RwLock;
 
 use crate::context::RpcContext;
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
-use crate::util::{display_serializable, IoFormat};
+use crate::util::{display_none, display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
@@ -460,7 +460,7 @@ pub async fn config() -> Result<(), Error> {
     Ok(())
 }
 
-#[command(display(display_serializable))]
+#[command(rename = "share-stats", display(display_none))]
 async fn share_stats(#[context] ctx: RpcContext, #[arg] value: bool) -> Result<(), Error> {
     crate::db::DatabaseModel::new()
         .server_info()
