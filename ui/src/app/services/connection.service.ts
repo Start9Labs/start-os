@@ -39,12 +39,19 @@ export class ConnectionService {
       .pipe(
         distinctUntilChanged(),
       ),
+      // 3
+      this.patch.watch$('server-info', 'update-progress')
+      .pipe(
+        distinctUntilChanged(),
+      ),
     ])
-    .subscribe(async ([network, patchConnection]) => {
+    .subscribe(async ([network, patchConnection, progress]) => {
       if (patchConnection !== PatchConnection.Disconnected) {
         this.connectionFailure$.next(ConnectionFailure.None)
       } else if (!network) {
         this.connectionFailure$.next(ConnectionFailure.Network)
+      } else if (!progress && progress.downloaded === progress.size) {
+        this.connectionFailure$.next(ConnectionFailure.None)
       } else if (!this.configService.isTor()) {
         this.connectionFailure$.next(ConnectionFailure.Lan)
       } else {
