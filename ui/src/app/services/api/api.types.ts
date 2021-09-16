@@ -24,7 +24,7 @@ export module RR {
 
   // server
 
-  export type SetShareStatsReq = WithExpire<{ value: boolean }> // server.config.share-stats
+  export type SetShareStatsReq = WithExpire<{ value: boolean }> // server.config.share_stats
   export type SetShareStatsRes = WithRevision<null>
 
   export type GetServerLogsReq = { cursor?: string, before_flag?: boolean, limit?: number }
@@ -110,7 +110,7 @@ export module RR {
   export type GetSSHKeysReq = { } // ssh.list
   export type GetSSHKeysRes = SSHKeys
 
-  export type AddSSHKeyReq = { pubkey: string } // ssh.add
+  export type AddSSHKeyReq = { key: string } // ssh.add
   export type AddSSHKeyRes = SSHKeys
 
   export type DeleteSSHKeyReq = { hash: string } // ssh.delete

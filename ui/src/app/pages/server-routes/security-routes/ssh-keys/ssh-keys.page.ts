@@ -62,7 +62,7 @@ export class SSHKeysPage {
     await loader.present()
 
     try {
-      const key = await this.embassyApi.addSshKey({ pubkey })
+      const key = await this.embassyApi.addSshKey({ key: pubkey })
       this.sshKeys = { ...this.sshKeys, ...key }
     } catch (e) {
       this.errToast.present(e)
