@@ -5,6 +5,7 @@ use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use indexmap::IndexMap;
+use lazy_static::__Deref;
 use patch_db::{DbHandle, HasModel, LockType, Map, MapModel, ModelData};
 use serde::{Deserialize, Serialize};
 
@@ -100,29 +101,32 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
             })?;
         model.lock(&mut db, LockType::Write).await;
         if let Some(installed) = model.installed().check(&mut db).await? {
-            let listed_deps = model
+            let listed_deps = installed
+                .clone()
                 .manifest()
                 .dependencies()
                 .get(&mut db, false)
                 .await?
                 .0
                 .keys()
-                .collect::<HashSet<&PackageId>>();
+                .map(|x| x.clone())
+                .collect::<HashSet<PackageId>>();
             status_manifest.push((
                 installed.clone().status(),
                 Arc::new(installed.clone().manifest().get(&mut db, true).await?),
             ));
             status_deps.push((
                 installed.clone().status(),
-                Arc::new(
+                Arc::new({
                     installed
                         .current_dependencies()
                         .get(&mut db, true)
                         .await?
-                        .into_iter()
-                        .filter(|(id, _)| listed_deps.contains(id))
-                        .collect::<IndexMap<PackageId, CurrentDependencyInfo>>(),
-                ),
+                        .iter()
+                        .filter(|(id, _)| listed_deps.contains(*id))
+                        .map(|x| (x.0.clone(), x.1.clone()))
+                        .collect::<IndexMap<PackageId, CurrentDependencyInfo>>()
+                }),
             ));
         }
     }
@@ -176,7 +180,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     async fn dependency_status<Db: DbHandle>(
         statuses: Arc<HashMap<PackageId, MainStatus>>,
         status_model: StatusModel,
-        current_deps: Arc<ModelData<IndexMap<PackageId, CurrentDependencyInfo>>>,
+        current_deps: Arc<IndexMap<PackageId, CurrentDependencyInfo>>,
         mut db: Db,
     ) -> Result<(), Error> {
         let mut status = status_model.get_mut(&mut db).await?;
