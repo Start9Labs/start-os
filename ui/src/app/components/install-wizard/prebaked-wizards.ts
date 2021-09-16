@@ -105,10 +105,7 @@ export class WizardBaker {
             action,
             verb: 'beginning update for',
             title,
-            executeAction: async () => {
-              this.embassyApi.updateServer({ })
-              return
-            },
+            executeAction: () => this.embassyApi.updateServer({ }),
           },
         },
         bottomBar: {
