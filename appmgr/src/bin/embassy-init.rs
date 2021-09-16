@@ -8,6 +8,7 @@ use embassy::hostname::get_product_key;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
 use embassy::middleware::encrypt::encrypt;
+#[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::sound::MARIO_COIN;
 use embassy::util::Invoke;

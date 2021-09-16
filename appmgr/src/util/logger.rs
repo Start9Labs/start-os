@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
-use log::{set_boxed_logger, LevelFilter, Metadata, Record};
+use log::{set_boxed_logger, set_max_level, LevelFilter, Metadata, Record};
 use reqwest::{Client, Url};
 use stderrlog::{StdErrLog, Timestamp};
 
@@ -15,7 +15,7 @@ pub struct EmbassyLogger {
     share_dest: Url,
 }
 impl EmbassyLogger {
-    pub fn new(
+    pub fn init(
         log_level: log::LevelFilter,
         log_epoch: Arc<AtomicU64>,
         share_dest: Option<Url>,
@@ -26,9 +26,7 @@ impl EmbassyLogger {
             Some(a) => a,
         };
         let mut logger = stderrlog::new();
-        logger
-            .module(module_path!())
-            .timestamp(Timestamp::Millisecond);
+        logger.timestamp(Timestamp::Millisecond);
         match log_level {
             LevelFilter::Off => logger.quiet(true),
             LevelFilter::Error => logger.verbosity(0),
@@ -45,6 +43,7 @@ impl EmbassyLogger {
             share_dest: share_dest,
         };
         set_boxed_logger(Box::new(embassy_logger.clone())).unwrap();
+        set_max_level(log_level);
         embassy_logger
     }
     pub fn set_sharing(&self, sharing: bool) {
@@ -76,10 +75,17 @@ impl log::Log for EmbassyLogger {
             }
         }
     }
-    fn flush(&self) {}
+    fn flush(&self) {
+        self.logger.flush()
+    }
 }
 
 #[tokio::test]
 pub async fn order_level() {
     assert!(log::Level::Warn > log::Level::Error)
+}
+
+#[test]
+pub fn module() {
+    println!("{}", module_path!())
 }
