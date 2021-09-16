@@ -1,12 +1,15 @@
 <ion-content>
   <div style="padding: 48px">
     <ng-container *ngIf="!restarted && !forgotten; else refresh">
-      <h1 class="ion-text-center" style="padding-bottom: 36px; font-size: calc(2vw + 12px);">EmbassyOS - Diagnostic Mode</h1>
-      <h2 style="padding-bottom: 16px; font-size: calc(1vw + 12px);">EmbassyOS launch error:</h2>
+      <h1 class="ion-text-center" style="padding-bottom: 36px; font-size: calc(2vw + 14px);">EmbassyOS - Diagnostic Mode</h1>
+      <h2 style="padding-bottom: 16px; font-size: calc(1vw + 14px); font-weight: bold;">EmbassyOS launch error:</h2>
       <div class="code-block">
         <code><ion-text color="warning">{{ error.problem }}</ion-text></code>
       </div>
-      <h2 style="padding-bottom: 16px; font-size: calc(1vw + 12px);">Possible solution</h2>
+      <ion-button routerLink="logs">
+        View Logs
+      </ion-button>
+      <h2 style="padding: 32px 0 16px 0; font-size: calc(1vw + 12px); font-weight: bold;">Possible solution:</h2>
       <div class="code-block">
         <code><ion-text color="success">{{ error.solution }}</ion-text></code>
       </div>
