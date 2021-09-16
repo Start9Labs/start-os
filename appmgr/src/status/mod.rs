@@ -5,7 +5,6 @@ use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use indexmap::IndexMap;
-use lazy_static::__Deref;
 use patch_db::{DbHandle, HasModel, LockType, Map, MapModel, ModelData};
 use serde::{Deserialize, Serialize};
 
