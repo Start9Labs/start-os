@@ -22,7 +22,7 @@ export function PatchDbServiceFactory (
       source = new WebsocketSource(`ws://localhost:${config.mocks.wsPort}/db`)
     }
   } else {
-    if (supportsWebSockets) {
+    if (!supportsWebSockets) {
       source = new PollSource({ ...poll }, embassyApi)
     } else {
       const protocol = window.location.protocol === 'http:' ? 'ws' : 'wss'
