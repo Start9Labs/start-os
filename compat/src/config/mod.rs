@@ -1,21 +1,15 @@
 use std::borrow::Cow;
 use std::path::Path;
 
-#[macro_use]
-extern crate failure;
-
 use beau_collector::BeauCollector;
 use embassy::config::action::SetResult;
 use embassy::config::{Config, spec};
 use linear_map::LinearMap;
 
 pub mod rules;
-// pub mod util;
-// pub mod value;
 
 use anyhow::anyhow;
 pub use rules::{ConfigRuleEntry, ConfigRuleEntryWithSuggestions};
-// pub use value::Config;
 
 pub fn validate_configuration(
     name: &str,
