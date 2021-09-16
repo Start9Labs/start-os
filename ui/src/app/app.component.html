@@ -165,11 +165,29 @@
       <ion-menu-button></ion-menu-button>
     </section>
   </ion-content>
-  <!-- <ion-footer *ngIf="patch.data && patch.data['server-info'] && patch.data['server-info']['update-status']">
-    <ion-toolbar>
-      <ion-title>{{ patch.data['server-info']['update-status'] }}</ion-title>
+  <ion-footer
+    [ngStyle]="{
+      'max-height': osUpdateProgress ? '100px' : '0px',
+      'overflow': 'hidden',
+      'transition-property': 'max-height',
+      'transition-duration': '1s',
+      'transition-delay': '.05s'
+    }"
+  >
+    <ion-toolbar style="border-top: 1px solid var(--ion-color-dark);" color="light">
+      <ion-list>
+        <ion-list-header>
+          <ion-label>Install Progress</ion-label>
+        </ion-list-header>
+        <div style="padding: 0 15px;">
+          <ion-progress-bar
+            color="secondary"
+            [value]="osUpdateProgress && osUpdateProgress.downloaded / osUpdateProgress.size"
+          ></ion-progress-bar>
+        </div>
+      </ion-list>
     </ion-toolbar>
-  </ion-footer> -->
+  </ion-footer>
 </ion-app>
 
 
