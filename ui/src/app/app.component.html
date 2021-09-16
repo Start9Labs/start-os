@@ -177,7 +177,7 @@
     <ion-toolbar style="border-top: 1px solid var(--ion-color-dark);" color="light">
       <ion-list>
         <ion-list-header>
-          <ion-label>Install Progress</ion-label>
+          <ion-label>Install Progress: {{ (100 * (osUpdateProgress?.downloaded || 1) / (osUpdateProgress?.size || 1)).toFixed(0) }}%</ion-label>
         </ion-list-header>
         <div style="padding: 0 15px;">
           <ion-progress-bar
