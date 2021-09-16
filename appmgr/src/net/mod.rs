@@ -66,7 +66,7 @@ impl NetController {
                 Some(cfg) => Some((i.0, cfg, i.2)),
             })
             .collect::<Vec<(InterfaceId, TorConfig, TorSecretKeyV3)>>();
-        let (tor_res, _, _) = tokio::join!(
+        let (tor_res, _, nginx_res) = tokio::join!(
             self.tor.add(pkg_id, ip, interfaces_tor),
             {
                 #[cfg(feature = "avahi")]
@@ -100,6 +100,7 @@ impl NetController {
             }
         );
         tor_res?;
+        nginx_res?;
 
         Ok(())
     }
@@ -109,14 +110,19 @@ impl NetController {
         pkg_id: &PackageId,
         interfaces: I,
     ) -> Result<(), Error> {
-        let (tor_res, _) = tokio::join!(self.tor.remove(pkg_id, interfaces.clone()), {
-            #[cfg(feature = "avahi")]
-            let mdns_fut = self.mdns.remove(pkg_id, interfaces);
-            #[cfg(not(feature = "avahi"))]
-            let mdns_fut = futures::future::ready(());
-            mdns_fut
-        });
+        let (tor_res, _, nginx_res) = tokio::join!(
+            self.tor.remove(pkg_id, interfaces.clone()),
+            {
+                #[cfg(feature = "avahi")]
+                let mdns_fut = self.mdns.remove(pkg_id, interfaces);
+                #[cfg(not(feature = "avahi"))]
+                let mdns_fut = futures::future::ready(());
+                mdns_fut
+            },
+            self.nginx.remove(pkg_id)
+        );
         tor_res?;
+        nginx_res?;
         Ok(())
     }
 }
