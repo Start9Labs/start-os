@@ -107,9 +107,10 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                 .dependencies()
                 .get(&mut db, false)
                 .await?
+                .to_owned()
                 .0
-                .keys()
-                .map(|x| x.clone())
+                .into_iter()
+                .map(|x| x.0)
                 .collect::<HashSet<PackageId>>();
             status_manifest.push((
                 installed.clone().status(),
@@ -122,9 +123,9 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                         .current_dependencies()
                         .get(&mut db, true)
                         .await?
-                        .iter()
-                        .filter(|(id, _)| listed_deps.contains(*id))
-                        .map(|x| (x.0.clone(), x.1.clone()))
+                        .to_owned()
+                        .into_iter()
+                        .filter(|(id, _)| listed_deps.contains(id))
                         .collect::<IndexMap<PackageId, CurrentDependencyInfo>>()
                 }),
             ));
