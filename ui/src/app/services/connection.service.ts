@@ -50,7 +50,7 @@ export class ConnectionService {
         this.connectionFailure$.next(ConnectionFailure.None)
       } else if (!network) {
         this.connectionFailure$.next(ConnectionFailure.Network)
-      } else if (!progress && progress.downloaded === progress.size) {
+      } else if (!!progress && progress.downloaded === progress.size) {
         this.connectionFailure$.next(ConnectionFailure.None)
       } else if (!this.configService.isTor()) {
         this.connectionFailure$.next(ConnectionFailure.Lan)
