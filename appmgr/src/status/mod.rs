@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::anyhow;
@@ -100,13 +100,29 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
             })?;
         model.lock(&mut db, LockType::Write).await;
         if let Some(installed) = model.installed().check(&mut db).await? {
+            let listed_deps = model
+                .manifest()
+                .dependencies()
+                .get(&mut db, false)
+                .await?
+                .0
+                .keys()
+                .collect::<HashSet<&PackageId>>();
             status_manifest.push((
                 installed.clone().status(),
                 Arc::new(installed.clone().manifest().get(&mut db, true).await?),
             ));
             status_deps.push((
                 installed.clone().status(),
-                Arc::new(installed.current_dependencies().get(&mut db, true).await?),
+                Arc::new(
+                    installed
+                        .current_dependencies()
+                        .get(&mut db, true)
+                        .await?
+                        .into_iter()
+                        .filter(|(id, _)| listed_deps.contains(id))
+                        .collect::<IndexMap<PackageId, CurrentDependencyInfo>>(),
+                ),
             ));
         }
     }
