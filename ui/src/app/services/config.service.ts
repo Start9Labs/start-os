@@ -46,11 +46,11 @@ export class ConfigService {
   }
 
   usePoll (): boolean {
-    return this.supportsWebSockets || (mocks.enabled && mocks.connection === 'poll')
+    return !this.supportsWebSockets || (mocks.enabled && mocks.connection === 'poll')
   }
 
   isLaunchable (state: PackageState, status: PackageMainStatus, interfaces: { [id: string]: InterfaceDef }): boolean {
-    if (this.supportsWebSockets || state !== PackageState.Installed) {
+    if (state !== PackageState.Installed) {
       return false
     }
 
