@@ -188,18 +188,7 @@ export class MockApiService extends ApiService {
 
   async getNotificationsRaw (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes> {
     await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/server-info/unread-notification-count',
-        value: 0,
-      },
-    ]
-    const { revision } = await this.http.rpcRequest<WithRevision<RR.GetNotificationsRes>>({ method: 'db.patch', params: { patch } }) as WithRevision<null>
-    return {
-      response: Mock.Notifications,
-      revision,
-    }
+   return Mock.Notifications
   }
 
   async deleteNotification (params: RR.DeleteNotificationReq): Promise<RR.DeleteNotificationRes> {
