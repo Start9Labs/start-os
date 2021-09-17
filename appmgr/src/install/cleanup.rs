@@ -57,6 +57,21 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
                 .await?;
             errs.0.insert(id.clone(), e);
             errs.save(db).await?;
+        } else {
+            let mut errs = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&dep)
+                .expect(db)
+                .await?
+                .installed()
+                .expect(db)
+                .await?
+                .status()
+                .dependency_errors()
+                .get_mut(db)
+                .await?;
+            errs.0.remove(id);
+            errs.save(db).await?;
         }
     }
     Ok(())
