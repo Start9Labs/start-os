@@ -83,7 +83,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // notification
 
-  abstract getNotificationsRaw (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes>
+  abstract getNotifications (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes>
 
   abstract deleteNotification (params: RR.DeleteNotificationReq): Promise<RR.DeleteNotificationRes>
 

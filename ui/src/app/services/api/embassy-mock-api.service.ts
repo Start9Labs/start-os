@@ -186,7 +186,7 @@ export class MockApiService extends ApiService {
 
   // notification
 
-  async getNotificationsRaw (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes> {
+  async getNotifications (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes> {
     await pauseFor(2000)
    return Mock.Notifications
   }

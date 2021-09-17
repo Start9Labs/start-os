@@ -41,8 +41,7 @@ export class NotificationsPage {
   async getNotifications (): Promise<ServerNotifications> {
     let notifications: ServerNotifications = []
     try {
-      notifications = await this.embassyApi.getNotificationsRaw({ before: this.beforeCursor, limit: this.perPage })
-      console.log(notifications)
+      notifications = await this.embassyApi.getNotifications({ before: this.beforeCursor, limit: this.perPage })
       this.beforeCursor = notifications[notifications.length - 1]?.id
       this.needInfinite = notifications.length >= this.perPage
     } catch (e) {
