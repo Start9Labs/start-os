@@ -6,9 +6,7 @@
 
 1a. `unxz ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz` to unzip
 
-1b. `export LOOPDEV=$(sudo losetup --show -fP ubuntu-21.04-preinstalled-server-arm64+raspi.img)` to set the `.img` file as a loop device environment variable
-
-2. Run `git clone https://github.com/Start9Labs/embassy-os` and then `cd embassy-os` to download and enter the embassy-os repository directory
+2. Run `git clone https://github.com/Start9Labs/embassy-os` to download the embassy-os repository directory
 
 2a. Plug in your 16GB microSD card. We are assuming it will be at /dev/mmcblk0
 
@@ -16,9 +14,11 @@
 
 3. Run `export OUTPUT_DEVICE=mmcblk0` where mmcblk0 is the sd card’s device name, be sure to change if yours differs
 
+3a. Run `export LOOPDEV=$(sudo losetup --show -fP ubuntu-21.04-preinstalled-server-arm64+raspi.img)` to set the `.img` file as a loop device environment variable
+
 4. Run `sudo ./build/partitioning.sh` You should see confirmation of write to disk
 
-5. Run `sudo ./build/filesystems.sh` You will see write progression twice, ignore the warning about lowercase labels
+5. Run `./build/filesystems.sh` You will see write progression twice, ignore the warning about lowercase labels
 
 6. Store a product key as an environment variable in $PRODUCT_KEY, with `export PRODUCT_KEY=123456`, obviously, this number is made up, and then:
 
@@ -28,7 +28,7 @@
 
 6c. `sudo mount /dev/mmcblk0p3 /mnt` to mount the writable filesystem
 
-7. Build embassy-os (LINK OR UPDATE, this step ridic – PULL LATEST CODE!!!) (for now, `docker run --rm --privileged linuxkit/binfmt:v0.8`, get rust-arm-cross.img and `docker load < rust-arm-cross.img`, have latest dev branch for patch, yajrc, and master for rpc-toolkit, then from appmgr dir: `./build-prod.sh`)
+7. Move into the EmbassyOS directory with `cd embassy-os` and Build embassy-os (LINK OR UPDATE, this step ridic – PULL LATEST CODE!!!) (for now, `docker run --rm --privileged linuxkit/binfmt:v0.8`, get rust-arm-cross.img and `docker load < rust-arm-cross.img`, have latest dev branch for patch, yajrc, and master for rpc-toolkit, then from appmgr dir: `./build-prod.sh`)
 
 8. Run `sudo ./build/copy.sh`
 
