@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::anyhow;
@@ -100,13 +100,33 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
             })?;
         model.lock(&mut db, LockType::Write).await;
         if let Some(installed) = model.installed().check(&mut db).await? {
+            let listed_deps = installed
+                .clone()
+                .manifest()
+                .dependencies()
+                .get(&mut db, false)
+                .await?
+                .to_owned()
+                .0
+                .into_iter()
+                .map(|x| x.0)
+                .collect::<HashSet<PackageId>>();
             status_manifest.push((
                 installed.clone().status(),
                 Arc::new(installed.clone().manifest().get(&mut db, true).await?),
             ));
             status_deps.push((
                 installed.clone().status(),
-                Arc::new(installed.current_dependencies().get(&mut db, true).await?),
+                Arc::new({
+                    installed
+                        .current_dependencies()
+                        .get(&mut db, true)
+                        .await?
+                        .to_owned()
+                        .into_iter()
+                        .filter(|(id, _)| listed_deps.contains(id))
+                        .collect::<IndexMap<PackageId, CurrentDependencyInfo>>()
+                }),
             ));
         }
     }
@@ -160,7 +180,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     async fn dependency_status<Db: DbHandle>(
         statuses: Arc<HashMap<PackageId, MainStatus>>,
         status_model: StatusModel,
-        current_deps: Arc<ModelData<IndexMap<PackageId, CurrentDependencyInfo>>>,
+        current_deps: Arc<IndexMap<PackageId, CurrentDependencyInfo>>,
         mut db: Db,
     ) -> Result<(), Error> {
         let mut status = status_model.get_mut(&mut db).await?;
