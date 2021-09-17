@@ -4,11 +4,12 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { IonContent, ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
-import { Subscription } from 'rxjs'
+import { defer, Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { catchError, finalize, take } from 'rxjs/operators'
 
 @Component({
   selector: 'marketplace-list',
@@ -36,6 +37,7 @@ export class MarketplaceListPage {
   readonly perPage = 30
 
   subs: Subscription[] = []
+  searchSub: Subscription
 
   constructor (
     private readonly marketplaceService: MarketplaceService,
@@ -74,7 +76,6 @@ export class MarketplaceListPage {
       this.errToast.present(e)
     } finally {
       this.pageLoading = false
-      this.pkgsLoading = false
     }
   }
 
@@ -111,29 +112,34 @@ export class MarketplaceListPage {
   }
 
   private async getPkgs (doInfinite = false): Promise<void> {
-    try {
-      if (this.category === 'updates') {
-        this.pkgs = this.marketplaceService.updates
-        if (this.pkgs.length) {
-          this.pkgsLoading = false
-        }
-        await this.marketplaceService.getUpdates(this.localPkgs)
-        this.pkgs = this.marketplaceService.updates
-      } else {
-        const pkgs = await this.marketplaceService.getPkgs(
-          this.category !== 'all' ? this.category : undefined,
-          this.query,
-          this.page,
-          this.perPage,
-        )
-        this.needInfinite = pkgs.length >= this.perPage
-        this.page++
-        this.pkgs = doInfinite ? this.pkgs.concat(pkgs) : pkgs
+    if (this.searchSub) this.searchSub.unsubscribe()
+
+    if (this.category === 'updates') {
+      this.pkgs = this.marketplaceService.updates
+      if (this.pkgs.length) {
+        this.pkgsLoading = false
       }
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      this.pkgsLoading = false
+      this.searchSub = defer(() => this.marketplaceService.getUpdates(this.localPkgs))
+      .pipe(take(1), catchError(e => this.errToast.present(e)))
+      .subscribe(_ => {
+        this.pkgs = this.marketplaceService.updates
+      })
+    } else {
+      this.searchSub = defer(() => this.marketplaceService.getPkgs(
+        this.category !== 'all' ? this.category : undefined,
+        this.query,
+        this.page,
+        this.perPage,
+      ))
+      .pipe(take(1), catchError(e => this.errToast.present(e)))
+      .subscribe(pkgs => {
+        if (pkgs) {
+          this.needInfinite = pkgs.length >= this.perPage
+          this.page++
+          this.pkgs = doInfinite ? this.pkgs.concat(pkgs) : pkgs
+        }
+        this.pkgsLoading = false
+      })
     }
   }
 
