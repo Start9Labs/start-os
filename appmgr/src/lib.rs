@@ -66,6 +66,7 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     ssh::ssh,
     net::wifi::wifi,
     disk::disk,
+    notifications::notification,
 ))]
 pub fn main_api() -> Result<(), RpcError> {
     Ok(())
