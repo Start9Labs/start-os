@@ -348,9 +348,9 @@ pub const MARIO_DEATH: Song<[(Option<Note>, TimeSlice); 12]> = song!(400, [
     note(E, 5, Triplet(&Half));
     note(D, 5, Triplet(&Half));
     note(C, 5, Quarter);
-    note(E, 5, Quarter);
+    note(E, 4, Quarter);
     rest(Quarter);
-    note(E, 5, Quarter);
+    note(E, 4, Quarter);
     note(C, 4, Half);
 ]);
 
