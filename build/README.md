@@ -16,9 +16,9 @@
 
 3. Run `export OUTPUT_DEVICE=mmcblk0` where mmcblk0 is the sd card’s device name, be sure to change if yours differs
 
-4. Run `sudo ./setup/partitioning.sh` You should see confirmation of write to disk
+4. Run `sudo ./build/partitioning.sh` You should see confirmation of write to disk
 
-5. Run `sudo ./setup/filesystems.sh` You will see write progression twice, ignore the warning about lowercase labels
+5. Run `sudo ./build/filesystems.sh` You will see write progression twice, ignore the warning about lowercase labels
 
 6. Store a product key as an environment variable in $PRODUCT_KEY, with `export PRODUCT_KEY=123456`, obviously, this number is made up, and then:
 
@@ -30,7 +30,7 @@
 
 7. Build embassy-os (LINK OR UPDATE, this step ridic – PULL LATEST CODE!!!) (for now, `docker run --rm --privileged linuxkit/binfmt:v0.8`, get rust-arm-cross.img and `docker load < rust-arm-cross.img`, have latest dev branch for patch, yajrc, and master for rpc-toolkit, then from appmgr dir: `./build-prod.sh`)
 
-8. Run `sudo ./setup/copy.sh`
+8. Run `sudo ./build/copy.sh`
 
 8a. `cat ~/.ssh/id_ed25519.pub | sudo tee -a /mnt/root/.ssh/authorized_keys` copy your ssh key over (assuming it is ~/.ssh/id_ed25519.pub)
 
@@ -38,7 +38,7 @@
 
 ## Time to remove your SD card and insert it into your hardware!!  See our DIY guide here (LINK REQUIRED) if you have not yet built your Embassy.
 
-9 SSH in (find by hacking) `ssh root@whateverIP` and run `sudo ./setup/initialization.sh` which you currently have to scp over from embassy-os dir
+9 SSH in (find by hacking) `ssh root@whateverIP` and run `sudo ./build/initialization.sh` which you currently have to scp over from embassy-os dir
 
 9a. Run `reboot`
 
