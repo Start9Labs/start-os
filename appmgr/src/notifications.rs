@@ -14,7 +14,7 @@ use crate::util::{display_none, display_serializable};
 use crate::{Error, ErrorKind};
 
 #[command(subcommands(list, delete, delete_before))]
-pub async fn notification(#[context] _ctx: RpcContext) -> Result<(), Error> {
+pub async fn notification() -> Result<(), Error> {
     Ok(())
 }
 
