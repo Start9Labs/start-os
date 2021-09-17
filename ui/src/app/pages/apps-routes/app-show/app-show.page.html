@@ -140,18 +140,21 @@
     <ion-progress-bar
       [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'"
       [value]="installProgress.downloadProgress / 100"
+      [buffer]="!installProgress.downloadProgress ? 0 : 1"
     ></ion-progress-bar>
 
     <p>Validating: {{ installProgress.validateProgress }}%</p>
     <ion-progress-bar
       [color]="pkg['install-progress']['validation-complete'] ? 'success' : 'secondary'"
       [value]="installProgress.validateProgress / 100"
+      [buffer]="installProgress.downloadProgress === 100 && !installProgress.validateProgress ? 0 : 1"
     ></ion-progress-bar>
 
     <p>Unpacking: {{ installProgress.unpackProgress }}%</p>
     <ion-progress-bar
       [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'"
       [value]="installProgress.unpackProgress / 100"
+      [buffer]="installProgress.validateProgress === 100 && !installProgress.unpackProgress ? 0 : 1"
     ></ion-progress-bar>
   </div>
 </ion-content>
