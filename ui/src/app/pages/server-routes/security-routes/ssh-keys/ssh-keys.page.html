@@ -46,14 +46,14 @@
 
     <!-- not loading -->
     <ng-container *ngIf="!loading">
-      <ion-item *ngFor="let ssh of sshKeys | keyvalue : asIsOrder">
+      <ion-item *ngFor="let ssh of sshKeys; let i = index">
         <ion-icon slot="start" name="key-outline" size="large"></ion-icon>
         <ion-label>
-          <h1>{{ ssh.value.hostname }}</h1>
-          <h2>{{ ssh.value['created-at'] | date: 'short' }}</h2>
-          <p>{{ ssh.value.alg }} {{ ssh.key }}</p>
+          <h1>{{ ssh.hostname }}</h1>
+          <h2>{{ ssh['created-at'] | date: 'short' }}</h2>
+          <p>{{ ssh.alg }} {{ ssh.hash }}</p>
         </ion-label>
-        <ion-button slot="end" fill="clear" color="danger" (click)="presentAlertDelete(ssh.key)">
+        <ion-button slot="end" fill="clear" color="danger" (click)="presentAlertDelete(i)">
           <ion-icon slot="start" name="close"></ion-icon>
           Remove
         </ion-button>
