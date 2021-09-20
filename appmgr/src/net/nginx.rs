@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
 
+use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
@@ -10,7 +11,7 @@ use super::interface::{InterfaceId, LanPortConfig};
 use super::ssl::SslManager;
 use crate::s9pk::manifest::PackageId;
 use crate::util::{Invoke, Port};
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, ResultExt};
 
 pub struct NginxController(Mutex<NginxControllerInner>);
 impl NginxController {
@@ -75,14 +76,23 @@ impl NginxControllerInner {
                         let (key, chain) = self.ssl_manager.certificate_for(&meta.dns_base).await?;
                         // write nginx ssl certs
                         futures::try_join!(
-                            tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?),
+                            tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?).map(
+                                |res| res.with_ctx(|_| (
+                                    ErrorKind::Filesystem,
+                                    ssl_path_key.display().to_string()
+                                ))
+                            ),
                             tokio::fs::write(
                                 &ssl_path_cert,
                                 chain
                                     .into_iter()
                                     .flat_map(|c| c.to_pem().unwrap())
                                     .collect::<Vec<u8>>()
-                            ),
+                            )
+                            .map(|res| res.with_ctx(|_| (
+                                ErrorKind::Filesystem,
+                                ssl_path_cert.display().to_string()
+                            ))),
                         )?;
 
                         (
@@ -113,14 +123,17 @@ impl NginxControllerInner {
                         internal_port = port.0,
                     ),
                 )
-                .await?;
+                .await
+                .with_ctx(|_| (ErrorKind::Filesystem, nginx_conf_path.display().to_string()))?;
                 let sites_enabled_link_path = self
                     .nginx_root
                     .join(format!("sites-enabled/{}_{}.conf", package, id));
                 if tokio::fs::metadata(&sites_enabled_link_path).await.is_ok() {
                     tokio::fs::remove_file(&sites_enabled_link_path).await?;
                 }
-                tokio::fs::symlink(&nginx_conf_path, &sites_enabled_link_path).await?;
+                tokio::fs::symlink(&nginx_conf_path, &sites_enabled_link_path)
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, nginx_conf_path.display().to_string()))?;
             }
         }
         match self.interfaces.get_mut(&package) {
@@ -143,24 +156,30 @@ impl NginxControllerInner {
         let removed = self.interfaces.remove(package);
         if let Some(net_info) = removed {
             for (id, _meta) in net_info.interfaces {
-                // TODO remove ssl certificates and nginx configs
+                // remove ssl certificates and nginx configs
+                let key_path = self
+                    .nginx_root
+                    .join(format!("ssl/{}_{}.key.pem", package, id));
+                let cert_path = self
+                    .nginx_root
+                    .join(format!("ssl/{}_{}.cert.pem", package, id));
+                let enabled_path = self
+                    .nginx_root
+                    .join(format!("sites-enabled/{}_{}.conf", package, id));
+                let available_path = self
+                    .nginx_root
+                    .join(format!("sites-available/{}_{}.conf", package, id));
                 let _ = futures::try_join!(
-                    tokio::fs::remove_file(
-                        self.nginx_root
-                            .join(format!("ssl/{}_{}.key.pem", package, id))
-                    ),
-                    tokio::fs::remove_file(
-                        self.nginx_root
-                            .join(format!("ssl/{}_{}.cert.pem", package, id))
-                    ),
-                    tokio::fs::remove_file(
-                        self.nginx_root
-                            .join(format!("sites-enabled/{}_{}.conf", package, id))
-                    ),
-                    tokio::fs::remove_file(
-                        self.nginx_root
-                            .join(format!("sites-available/{}_{}.conf", package, id))
-                    ),
+                    tokio::fs::remove_file(&key_path).map(|res| res
+                        .with_ctx(|_| (ErrorKind::Filesystem, key_path.display().to_string()))),
+                    tokio::fs::remove_file(&cert_path).map(|res| res
+                        .with_ctx(|_| (ErrorKind::Filesystem, key_path.display().to_string()))),
+                    tokio::fs::remove_file(&enabled_path).map(|res| res
+                        .with_ctx(|_| (ErrorKind::Filesystem, enabled_path.display().to_string()))),
+                    tokio::fs::remove_file(&available_path).map(|res| res.with_ctx(|_| (
+                        ErrorKind::Filesystem,
+                        available_path.display().to_string()
+                    ))),
                 )?;
             }
         }
