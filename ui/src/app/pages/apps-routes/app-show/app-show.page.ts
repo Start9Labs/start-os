@@ -8,8 +8,8 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { CurrentDependencyInfo, DependencyErrorConfigUnsatisfied, DependencyErrorType, MainStatus, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
-import { FEStatus, PkgStatusRendering, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
+import { CurrentDependencyInfo, DependencyErrorConfigUnsatisfied, DependencyErrorType, HealthCheckResult, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyRendering, DependencyStatus, HealthRendering, HealthStatus, PrimaryRendering, PrimaryStatus, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
@@ -22,20 +22,29 @@ import { ProgressData } from 'src/app/pipes/install-state.pipe'
   styleUrls: ['./app-show.page.scss'],
 })
 export class AppShowPage {
+  PackageState = PackageState
+  DependencyErrorType = DependencyErrorType
+  Math = Math
+  PS = PrimaryStatus
+  DS = DependencyStatus
+  HS = HealthStatus
+  PR = PrimaryRendering
+  DR = DependencyRendering
+  HR = HealthRendering
+
   pkgId: string
   pkg: PackageDataEntry
   hideLAN: boolean
   buttons: Button[] = []
-  FeStatus = FEStatus
-  PackageState = PackageState
-  DependencyErrorType = DependencyErrorType
   currentDependencies: { [id: string]: CurrentDependencyInfo }
-  rendering: PkgStatusRendering
-  Math = Math
-  mainStatus: MainStatus
-  PackageMainStatus = PackageMainStatus
+  statuses: {
+    primary: PrimaryStatus
+    dependency: DependencyStatus
+    health: HealthStatus
+  } = { } as any
   connectionFailure: boolean
   loading = true
+  healthChecks: { [id: string]: HealthCheckResult }
   installProgress: ProgressData
 
   @ViewChild(IonContent) content: IonContent
@@ -176,8 +185,12 @@ export class AppShowPage {
         this.currentDependencies[id] = value
       }
     })
-    this.mainStatus = { ...pkg.installed?.status.main }
-    this.rendering = renderPkgStatus(pkg.state, pkg.installed?.status)
+    if (pkg.installed?.status.main.status === PackageMainStatus.Running) {
+      this.healthChecks = { ...pkg.installed.status.main.health }
+    } else {
+      this.healthChecks = { }
+    }
+    this.statuses = renderPkgStatus(pkg)
   }
 
   private async installDep (depId: string): Promise<void> {
@@ -264,7 +277,6 @@ export class AppShowPage {
         title: 'Instructions',
         icon: 'list-outline',
         color: 'danger',
-        disabled: [],
       },
       // config
       {
@@ -272,7 +284,6 @@ export class AppShowPage {
         title: 'Config',
         icon: 'construct-outline',
         color: 'danger',
-        disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
       },
       // properties
       {
@@ -280,7 +291,6 @@ export class AppShowPage {
         title: 'Properties',
         icon: 'briefcase-outline',
         color: 'danger',
-        disabled: [],
       },
       // interfaces
       {
@@ -288,7 +298,6 @@ export class AppShowPage {
         title: 'Interfaces',
         icon: 'desktop-outline',
         color: 'danger',
-        disabled: [],
       },
       // actions
       {
@@ -296,7 +305,6 @@ export class AppShowPage {
         title: 'Actions',
         icon: 'flash-outline',
         color: 'danger',
-        disabled: [],
       },
       // metrics
       // {
@@ -304,8 +312,6 @@ export class AppShowPage {
       //   title: 'Monitor',
       //   icon: 'pulse-outline',
       //   color: 'danger',
-      //   // @TODO make the disabled check better. Don't want to list every status here. Monitor should be disabled except is pkg is running.
-      //   disabled: [FEStatus.Installing, FEStatus.Updating, FEStatus.Removing, FEStatus.BackingUp, FEStatus.Restoring],
       // },
       // logs
       {
@@ -313,14 +319,12 @@ export class AppShowPage {
         title: 'Logs',
         icon: 'receipt-outline',
         color: 'danger',
-        disabled: [],
       },
       {
         action: () => this.donate(),
         title: `Donate to ${this.pkg.manifest.title}`,
         icon: 'logo-bitcoin',
         color: 'danger',
-        disabled: [],
       },
     ]
   }
@@ -334,6 +338,5 @@ interface Button {
   title: string
   icon: string
   color: string
-  disabled: FEStatus[]
   action: Function
 }

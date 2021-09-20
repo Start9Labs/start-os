@@ -1,69 +1,113 @@
-import { HealthCheckResultLoading, MainStatusRunning, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
+import { isEmptyObject } from '../util/misc.util'
+import { PackageDataEntry, InstalledPackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
 
-export function renderPkgStatus (state: PackageState, status: Status): PkgStatusRendering {
-  switch (state) {
-    case PackageState.Installing: return { display: 'Installing', color: 'primary', showDots: true, feStatus: FEStatus.Installing }
-    case PackageState.Updating: return { display: 'Updating', color: 'primary', showDots: true, feStatus: FEStatus.Updating }
-    case PackageState.Removing: return { display: 'Removing', color: 'warning', showDots: true, feStatus: FEStatus.Removing }
-    case PackageState.Installed: return handleInstalledState(status)
-  }
-}
+export function renderPkgStatus (pkg: PackageDataEntry): {
+  primary: PrimaryStatus,
+  dependency: DependencyStatus | null,
+  health: HealthStatus | null
+} {
+  let primary: PrimaryStatus
+  let dependency: DependencyStatus | null = null
+  let health: HealthStatus | null = null
 
-function handleInstalledState (status: Status): PkgStatusRendering {
-  if (!status.configured) {
-    return { display: 'Needs Config', color: 'warning', showDots: false, feStatus: FEStatus.NeedsConfig }
-  }
-
-  if (Object.keys(status['dependency-errors']).length) {
-    return { display: 'Dependency Issue', color: 'warning', showDots: false, feStatus: FEStatus.DependencyIssue }
-  }
-
-  switch (status.main.status) {
-    case PackageMainStatus.Stopping: return { display: 'Stopping', color: 'dark', showDots: true, feStatus: FEStatus.Stopping }
-    case PackageMainStatus.Stopped: return { display: 'Stopped', color: 'dark', showDots: false, feStatus: FEStatus.Stopped }
-    case PackageMainStatus.BackingUp: return { display: 'Backing Up', color: 'warning', showDots: true, feStatus: FEStatus.BackingUp }
-    case PackageMainStatus.Restoring: return { display: 'Restoring', color: 'primary', showDots: true, feStatus: FEStatus.Restoring }
-    case PackageMainStatus.Running: return handleRunningState(status.main)
-  }
-}
-
-function handleRunningState (status: MainStatusRunning): PkgStatusRendering {
-  if (Object.values(status.health).some(h => h.result === 'failure')) {
-    return { display: 'Needs Attention', color: 'danger', showDots: false, feStatus: FEStatus.NeedsAttention }
-  } else if (Object.values(status.health).some(h => h.result === 'starting')) {
-    return { display: 'Starting', color: 'warning', showDots: true, feStatus: FEStatus.Starting }
-  } else if (Object.values(status.health).some(h => h.result === 'loading')) {
-    const firstLoading = Object.values(status.health).find(h => h.result === 'loading') as HealthCheckResultLoading
-    return { display: firstLoading.message, color: 'warning', showDots: true, feStatus: FEStatus.Loading }
+  if (pkg.state === PackageState.Installed) {
+    primary = PrimaryStatus[pkg.installed.status.main.status]
+    dependency = getDependencyStatus(pkg.installed)
+    health = getHealthStatus(pkg.installed.status)
   } else {
-    return { display: 'Running', color: 'success', showDots: false, feStatus: FEStatus.Running }
+    primary = PrimaryStatus[pkg.state]
+  }
+
+  return { primary, dependency, health }
+}
+
+function getDependencyStatus (pkg: InstalledPackageDataEntry): DependencyStatus {
+  if (isEmptyObject(pkg['current-dependencies'])) return null
+
+  const pkgIds = Object.keys(pkg.status['dependency-errors'])
+
+  for (let pkgId of pkgIds) {
+    if (pkg.manifest.dependencies[pkgId].critical) {
+      return DependencyStatus.Critical
+    }
+  }
+
+  return pkgIds.length ? DependencyStatus.Issue : DependencyStatus.Satisfied
+}
+
+function getHealthStatus (status: Status): HealthStatus {
+  if (!status.configured) {
+    return HealthStatus.NeedsConfig
+  }
+
+  if (status.main.status === PackageMainStatus.Running) {
+    const values = Object.values(status.main.health)
+    if (values.some(h => h.result === 'failure')) {
+      return HealthStatus.Failure
+    } else if (values.some(h => h.result === 'starting')) {
+      return HealthStatus.Starting
+    } else if (values.some(h => h.result === 'loading')) {
+      return HealthStatus.Loading
+    } else {
+      return HealthStatus.Healthy
+    }
   }
 }
 
-export interface PkgStatusRendering {
-  feStatus: FEStatus
+export interface StatusRendering {
   display: string
   color: string
-  showDots: boolean
+  showDots?: boolean
 }
 
-// aggregate of all pkg statuses, except for Installed, which implies a "main" or "FE" status
-export enum FEStatus {
-  // pkg
+export enum PrimaryStatus {
+  // state
   Installing = 'installing',
   Updating = 'updating',
   Removing = 'removing',
-  // main
+  // status
   Running = 'running',
   Stopping = 'stopping',
   Stopped = 'stopped',
   BackingUp = 'backing-up',
   Restoring = 'restoring',
-  // FE
-  NeedsAttention = 'needs-attention',
-  Starting = 'starting',
-  Connecting = 'connecting',
-  DependencyIssue = 'dependency-issue',
+}
+
+export enum DependencyStatus {
+  Issue = 'issue',
+  Critical = 'critical',
+  Satisfied = 'satisfied',
+}
+
+export enum HealthStatus {
   NeedsConfig = 'needs-config',
+  Failure = 'failure',
+  Starting = 'starting',
   Loading = 'loading',
+  Healthy = 'healthy',
+}
+
+export const PrimaryRendering: { [key: string]: StatusRendering } = {
+  [PrimaryStatus.Installing]: { display: 'Installing', color: 'primary', showDots: true },
+  [PrimaryStatus.Updating]: { display: 'Updating', color: 'primary', showDots: true },
+  [PrimaryStatus.Removing]: { display: 'Removing', color: 'warning', showDots: true },
+  [PrimaryStatus.Stopping]: { display: 'Stopping', color: 'dark', showDots: true },
+  [PrimaryStatus.Stopped]: { display: 'Stopped', color: 'dark', showDots: false },
+  [PrimaryStatus.BackingUp]: { display: 'Backing Up', color: 'warning', showDots: true },
+  [PrimaryStatus.Restoring]: { display: 'Restoring', color: 'primary', showDots: true },
+  [PrimaryStatus.Running]: { display: 'Running', color: 'success', showDots: false },
+}
+
+export const DependencyRendering: { [key: string]: StatusRendering }  = {
+  [DependencyStatus.Issue]: { display: 'Issue', color: 'warning' },
+  [DependencyStatus.Critical]: { display: 'Critical Issue', color: 'danger' },
+  [DependencyStatus.Satisfied]: { display: 'Satisfied', color: 'success' },
+}
+
+export const HealthRendering: { [key: string]: StatusRendering } = {
+  [HealthStatus.NeedsConfig]: { display: 'Needs Config', color: 'warning' },
+  [HealthStatus.Failure]: { display: 'Failure', color: 'danger' },
+  [HealthStatus.Starting]: { display: 'Starting', color: 'primary' },
+  [HealthStatus.Loading]: { display: 'Loading', color: 'primary' },
+  [HealthStatus.Healthy]: { display: 'Healthy', color: 'success' },
 }
