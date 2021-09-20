@@ -140,7 +140,7 @@ pub async fn list(
         .map(|r| {
             let k = PubKey(r.openssh_pubkey.parse().unwrap()).0;
             let alg = k.keytype().to_owned();
-            let fingerprint = k.fingerprint();
+            let fingerprint = k.fingerprint_md5();
             let hostname = k.comment.unwrap_or("".to_owned());
             let created_at = r.created_at;
             SshKeyResponse {
