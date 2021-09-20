@@ -63,6 +63,7 @@ export class SSHKeysPage {
 
     try {
       const key = await this.embassyApi.addSshKey({ key: pubkey })
+      console.log('key', key)
       this.sshKeys.push(key)
     } catch (e) {
       this.errToast.present(e)
@@ -103,7 +104,7 @@ export class SSHKeysPage {
     try {
       const entry = this.sshKeys[i]
       await this.embassyApi.deleteSshKey({ fingerprint: entry.fingerprint })
-      delete this.sshKeys[i]
+      this.sshKeys.splice(i, 1)
     } catch (e) {
       this.errToast.present(e)
     } finally {
