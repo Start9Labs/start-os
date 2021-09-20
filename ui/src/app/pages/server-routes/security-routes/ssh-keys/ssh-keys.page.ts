@@ -12,7 +12,7 @@ import { GenericInputComponent } from 'src/app/modals/generic-input/generic-inpu
 })
 export class SSHKeysPage {
   loading = true
-  sshKeys: SSHKey[]
+  sshKeys: SSHKey[] = []
   readonly docsUrl = 'https://docs.start9.com/user-manual/general/developer-options/ssh-setup.html'
 
   constructor (
