@@ -26,9 +26,20 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
         .package_data()
         .keys(&mut ctx.db.handle(), false)
         .await?;
+    // TODO: parallelize this
     for id in pkg_ids {
         async fn status(ctx: &RpcContext, id: PackageId) -> Result<(), Error> {
             let mut db = ctx.db.handle();
+            // TODO: DRAGONS!!
+            // this locks all of package data to solve a deadlock issue below. As of the writing of this comment, it
+            // hangs during the `check` operation on /package-data/<id>. There is another daemon loop somewhere that
+            // is likely iterating through packages in a different order.
+            crate::db::DatabaseModel::new()
+                .package_data()
+                .lock(&mut db, LockType::Write)
+                .await;
+
+            // Without the above lock, the below check operation will deadlock
             let model = crate::db::DatabaseModel::new()
                 .package_data()
                 .idx_model(&id)
@@ -40,7 +51,6 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
                         crate::ErrorKind::Database,
                     )
                 })?;
-            model.lock(&mut db, LockType::Write).await;
             let (mut status, manager) =
                 if let Some(installed) = model.installed().check(&mut db).await? {
                     (
