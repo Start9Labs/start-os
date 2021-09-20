@@ -58,6 +58,7 @@ pub enum ErrorKind {
     PasswordHashGeneration = 50,
     DiagnosticMode = 51,
     ParseDbField = 52,
+    Duplicate = 53,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -115,6 +116,7 @@ impl ErrorKind {
             PasswordHashGeneration => "Password Hash Generation Error",
             DiagnosticMode => "Embassy is in Diagnostic Mode",
             ParseDbField => "Database Field Parse Error",
+            Duplicate => "Duplication Error",
         }
     }
 }
