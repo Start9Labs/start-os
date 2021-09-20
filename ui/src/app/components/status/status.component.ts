@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { PkgStatusRendering } from 'src/app/services/pkg-status-rendering.service'
+import { StatusRendering } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
   selector: 'status',
@@ -7,7 +7,7 @@ import { PkgStatusRendering } from 'src/app/services/pkg-status-rendering.servic
   styleUrls: ['./status.component.scss'],
 })
 export class StatusComponent {
-  @Input() rendering: PkgStatusRendering
+  @Input() rendering: StatusRendering
   @Input() size?: string
   @Input() style?: string = 'regular'
   @Input() weight?: string = 'normal'
