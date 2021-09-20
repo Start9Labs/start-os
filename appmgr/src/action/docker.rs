@@ -208,18 +208,18 @@ impl DockerAction {
             } else {
                 continue;
             };
-            let src = dbg!(volume.path_for(ctx, pkg_id, pkg_version, volume_id));
+            let src = volume.path_for(ctx, pkg_id, pkg_version, volume_id);
             if tokio::fs::metadata(&src).await.is_err() {
                 continue;
             }
             res.push(OsStr::new("--mount").into());
             res.push(
-                dbg!(OsString::from(format!(
+                OsString::from(format!(
                     "type=bind,src={},dst={}{}",
                     src.display(),
                     dst.display(),
                     if volume.readonly() { ",readonly" } else { "" }
-                )))
+                ))
                 .into(),
             );
         }
