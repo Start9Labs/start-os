@@ -102,7 +102,7 @@ export class SSHKeysPage {
 
     try {
       const entry = this.sshKeys[i]
-      await this.embassyApi.deleteSshKey({ hash: entry.hash })
+      await this.embassyApi.deleteSshKey({ fingerprint: entry.fingerprint })
       delete this.sshKeys[i]
     } catch (e) {
       this.errToast.present(e)
