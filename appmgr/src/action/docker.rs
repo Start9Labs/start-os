@@ -68,7 +68,7 @@ impl DockerAction {
         };
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
-        let mut handle = dbg!(cmd).spawn().with_kind(crate::ErrorKind::Docker)?;
+        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
         if let (Some(input), Some(stdin)) = (&input_buf, &mut handle.stdin) {
             use tokio::io::AsyncWriteExt;
             stdin
