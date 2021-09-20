@@ -63,7 +63,6 @@ export class SSHKeysPage {
 
     try {
       const key = await this.embassyApi.addSshKey({ key: pubkey })
-      console.log('key', key)
       this.sshKeys.push(key)
     } catch (e) {
       this.errToast.present(e)
