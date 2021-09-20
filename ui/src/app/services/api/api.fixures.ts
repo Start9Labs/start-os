@@ -837,13 +837,13 @@ export module Mock {
       'created-at': new Date().toISOString(),
       alg: 'ed25519',
       hostname: 'Matt Key',
-      hash: '28:d2:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53',
+      fingerprint: '28:d2:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53',
     },
     {
       'created-at': new Date().toISOString(),
       alg: 'ed25519',
       hostname: 'Aiden Key',
-      hash: '12:f8:7e:78:61:b4:bf:e2:de:24:15:96:4e:d4:72:53',
+      fingerprint: '12:f8:7e:78:61:b4:bf:e2:de:24:15:96:4e:d4:72:53',
     },
   ]
 
@@ -851,7 +851,7 @@ export module Mock {
     'created-at': new Date().toISOString(),
     alg: 'ed25519',
     hostname: 'Lucy Key',
-    hash: '44:44:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53',
+    fingerprint: '44:44:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53',
   }
 
   export const Wifi: RR.GetWifiRes = {

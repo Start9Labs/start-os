@@ -113,7 +113,7 @@ export module RR {
   export type AddSSHKeyReq = { key: string } // ssh.add
   export type AddSSHKeyRes = SSHKey
 
-  export type DeleteSSHKeyReq = { hash: string } // ssh.delete
+  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.delete
   export type DeleteSSHKeyRes = null
 
   // backup
@@ -316,7 +316,7 @@ export interface SSHKey {
   'created-at': string
   alg: string
   hostname: string
-  hash: string
+  fingerprint: string
 }
 
 export type ServerNotifications = ServerNotification<any>[]
