@@ -22,7 +22,7 @@ pub struct PubKey(
 #[serde(rename_all = "kebab-case")]
 pub struct SshKeyResponse {
     pub alg: String,
-    pub hash: String,
+    pub fingerprint: String,
     pub hostname: String,
     pub created_at: String,
 }
@@ -31,7 +31,7 @@ impl std::fmt::Display for SshKeyResponse {
         write!(
             f,
             "{} {} {} {}",
-            self.created_at, self.alg, self.hash, self.hostname
+            self.created_at, self.alg, self.fingerprint, self.hostname
         )
     }
 }
@@ -108,14 +108,14 @@ fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches<'_>) {
     table.add_row(row![bc =>
         "CREATED AT",
         "ALGORITHM",
-        "HASH",
+        "FINGERPRINT",
         "HOSTNAME",
     ]);
     for key in all {
         let row = row![
             &format!("{}", key.created_at),
             &key.alg,
-            &key.hash,
+            &key.fingerprint,
             &key.hostname,
         ];
         table.add_row(row);
@@ -140,12 +140,12 @@ pub async fn list(
         .map(|r| {
             let k = PubKey(r.openssh_pubkey.parse().unwrap()).0;
             let alg = k.keytype().to_owned();
-            let hash = k.fingerprint();
+            let fingerprint = k.fingerprint();
             let hostname = k.comment.unwrap_or("".to_owned());
             let created_at = r.created_at;
             SshKeyResponse {
                 alg,
-                hash,
+                fingerprint,
                 hostname,
                 created_at,
             }
