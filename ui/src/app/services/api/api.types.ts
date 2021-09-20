@@ -108,10 +108,10 @@ export module RR {
   // ssh
 
   export type GetSSHKeysReq = { } // ssh.list
-  export type GetSSHKeysRes = SSHKeys
+  export type GetSSHKeysRes = SSHKey[]
 
   export type AddSSHKeyReq = { key: string } // ssh.add
-  export type AddSSHKeyRes = SSHKeys
+  export type AddSSHKeyRes = SSHKey
 
   export type DeleteSSHKeyReq = { hash: string } // ssh.delete
   export type DeleteSSHKeyRes = null
@@ -312,11 +312,7 @@ export interface ServerSpecs {
   [key: string]: string | number
 }
 
-export interface SSHKeys {
-  [hash: string]: SSHKeyEntry
-}
-
-export interface SSHKeyEntry {
+export interface SSHKey {
   'created-at': string
   alg: string
   hostname: string
