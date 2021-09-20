@@ -1,13 +1,14 @@
 use std::path::Path;
 
 use anyhow::anyhow;
+use chrono::Utc;
 use clap::ArgMatches;
 use rpc_toolkit::command;
 use sqlx::{Pool, Sqlite};
 
 use crate::context::RpcContext;
 use crate::util::{display_none, display_serializable, IoFormat};
-use crate::Error;
+use crate::{Error, ErrorKind};
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "~/.ssh/authorized_keys";
 
@@ -53,26 +54,41 @@ pub fn ssh() -> Result<(), Error> {
 }
 
 #[command(display(display_none))]
-pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<String, Error> {
+pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKeyResponse, Error> {
     let pool = &ctx.secret_store;
     // check fingerprint for duplicates
     let fp = key.0.fingerprint_md5();
-    if sqlx::query!("SELECT * FROM ssh_keys WHERE fingerprint = ?", fp)
+    match sqlx::query!("SELECT * FROM ssh_keys WHERE fingerprint = ?", fp)
         .fetch_optional(pool)
         .await?
-        .is_none()
     {
-        // if no duplicates, insert into DB
-        let raw_key = format!("{}", key.0);
-        sqlx::query!(
-            "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES (?, ?, datetime('now'))"
-        , fp, raw_key).execute(pool).await?;
-        // insert into live key file, for now we actually do a wholesale replacement of the keys file, for maximum
-        // consistency
-        sync_keys_from_db(pool, Path::new(SSH_AUTHORIZED_KEYS_FILE)).await?;
+        None => {
+            // if no duplicates, insert into DB
+            let raw_key = format!("{}", key.0);
+            let created_at = Utc::now().to_rfc3339();
+            sqlx::query!(
+                "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES (?, ?, ?)",
+                fp,
+                raw_key,
+                created_at
+            )
+            .execute(pool)
+            .await?;
+            // insert into live key file, for now we actually do a wholesale replacement of the keys file, for maximum
+            // consistency
+            sync_keys_from_db(pool, Path::new(SSH_AUTHORIZED_KEYS_FILE)).await?;
+            Ok(SshKeyResponse {
+                alg: key.0.keytype().to_owned(),
+                fingerprint: fp,
+                hostname: key.0.comment.unwrap_or(String::new()).to_owned(),
+                created_at,
+            })
+        }
+        Some(_) => Err(Error::new(
+            anyhow!("Duplicate ssh key"),
+            ErrorKind::Duplicate,
+        )),
     }
-    // return fingerprint
-    Ok(fp)
 }
 #[command(display(display_none))]
 pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> Result<(), Error> {
