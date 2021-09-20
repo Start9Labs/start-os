@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::anyhow;
 use futures::TryStreamExt;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use itertools::Either;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Sqlite};
@@ -150,7 +150,7 @@ pub struct Interface {
     pub tor_config: Option<TorConfig>,
     pub lan_config: Option<IndexMap<Port, LanPortConfig>>,
     pub ui: bool,
-    pub protocols: Vec<String>,
+    pub protocols: IndexSet<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]

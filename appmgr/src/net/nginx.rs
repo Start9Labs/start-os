@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 
@@ -14,10 +14,7 @@ use crate::{Error, ErrorKind};
 
 pub struct NginxController(Mutex<NginxControllerInner>);
 impl NginxController {
-    pub async fn init<P: ToOwned<Owned = PathBuf>>(
-        nginx_root: P,
-        db: SqlitePool,
-    ) -> Result<Self, Error> {
+    pub async fn init(nginx_root: PathBuf, db: SqlitePool) -> Result<Self, Error> {
         Ok(NginxController(Mutex::new(
             NginxControllerInner::init(nginx_root, db).await?,
         )))
@@ -41,12 +38,9 @@ pub struct NginxControllerInner {
     ssl_manager: SslManager,
 }
 impl NginxControllerInner {
-    async fn init<P: ToOwned<Owned = PathBuf>>(
-        nginx_root: P,
-        db: SqlitePool,
-    ) -> Result<Self, Error> {
+    async fn init(nginx_root: PathBuf, db: SqlitePool) -> Result<Self, Error> {
         Ok(NginxControllerInner {
-            nginx_root: nginx_root.to_owned(),
+            nginx_root,
             interfaces: HashMap::new(),
             ssl_manager: SslManager::init(db).await?,
         })
@@ -61,7 +55,7 @@ impl NginxControllerInner {
             .into_iter()
             .filter(|(_, meta)| {
                 // don't add nginx stuff for anything we can't connect to over some flavor of http
-                (meta.protocols.contains(&String::from("http")) || meta.protocols.contains(&String::from("https")))
+                (meta.protocols.contains("http") || meta.protocols.contains("https"))
                 // also don't add nginx unless it has at least one exposed port
                         && meta.lan_config.len() > 0
             })
@@ -120,12 +114,13 @@ impl NginxControllerInner {
                     ),
                 )
                 .await?;
-                tokio::fs::symlink(
-                    &nginx_conf_path,
-                    self.nginx_root
-                        .join(format!("sites-enabled/{}_{}.conf", package, id)),
-                )
-                .await?;
+                let sites_enabled_link_path = self
+                    .nginx_root
+                    .join(format!("sites-enabled/{}_{}.conf", package, id));
+                if tokio::fs::metadata(&sites_enabled_link_path).await.is_ok() {
+                    tokio::fs::remove_file(&sites_enabled_link_path).await?;
+                }
+                tokio::fs::symlink(&nginx_conf_path, &sites_enabled_link_path).await?;
             }
         }
         match self.interfaces.get_mut(&package) {
@@ -160,11 +155,11 @@ impl NginxControllerInner {
                     ),
                     tokio::fs::remove_file(
                         self.nginx_root
-                            .join(format!("sites-enabled/{}_{}.cert.pem", package, id))
+                            .join(format!("sites-enabled/{}_{}.conf", package, id))
                     ),
                     tokio::fs::remove_file(
                         self.nginx_root
-                            .join(format!("sites-available/{}_{}.cert.pem", package, id))
+                            .join(format!("sites-available/{}_{}.conf", package, id))
                     ),
                 )?;
             }
@@ -188,5 +183,5 @@ struct PackageNetInfo {
 pub struct InterfaceMetadata {
     pub dns_base: String,
     pub lan_config: IndexMap<Port, LanPortConfig>,
-    pub protocols: Vec<String>,
+    pub protocols: IndexSet<String>,
 }
