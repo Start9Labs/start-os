@@ -47,7 +47,7 @@ impl std::str::FromStr for PubKey {
     }
 }
 
-#[command(subcommands(add, remove, list,))]
+#[command(subcommands(add, delete, list,))]
 pub fn ssh() -> Result<(), Error> {
     Ok(())
 }
@@ -75,7 +75,7 @@ pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<Strin
     Ok(fp)
 }
 #[command(display(display_none))]
-pub async fn remove(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> Result<(), Error> {
+pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> Result<(), Error> {
     let pool = &ctx.secret_store;
     // check if fingerprint is in DB
     // if in DB, remove it from DB
