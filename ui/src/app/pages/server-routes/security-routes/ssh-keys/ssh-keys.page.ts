@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { AlertController, LoadingController, ModalController } from '@ionic/angular'
-import { SSHKeys } from 'src/app/services/api/api.types'
+import { SSHKey } from 'src/app/services/api/api.types'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
@@ -12,7 +12,7 @@ import { GenericInputComponent } from 'src/app/modals/generic-input/generic-inpu
 })
 export class SSHKeysPage {
   loading = true
-  sshKeys: SSHKeys
+  sshKeys: SSHKey[]
   readonly docsUrl = 'https://docs.start9.com/user-manual/general/developer-options/ssh-setup.html'
 
   constructor (
@@ -63,7 +63,7 @@ export class SSHKeysPage {
 
     try {
       const key = await this.embassyApi.addSshKey({ key: pubkey })
-      this.sshKeys = { ...this.sshKeys, ...key }
+      this.sshKeys.push(key)
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -71,7 +71,7 @@ export class SSHKeysPage {
     }
   }
 
-  async presentAlertDelete (hash: string) {
+  async presentAlertDelete (i: number) {
     const alert = await this.alertCtrl.create({
       header: 'Caution',
       message: `Are you sure you want to delete this key?`,
@@ -83,7 +83,7 @@ export class SSHKeysPage {
         {
           text: 'Delete',
           handler: () => {
-            this.delete(hash)
+            this.delete(i)
           },
           cssClass: 'enter-click',
         },
@@ -92,7 +92,7 @@ export class SSHKeysPage {
     await alert.present()
   }
 
-  async delete (hash: string): Promise<void> {
+  async delete (i: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -101,17 +101,14 @@ export class SSHKeysPage {
     await loader.present()
 
     try {
-      await this.embassyApi.deleteSshKey({ hash })
-      delete this.sshKeys[hash]
+      const entry = this.sshKeys[i]
+      await this.embassyApi.deleteSshKey({ hash: entry.hash })
+      delete this.sshKeys[i]
     } catch (e) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
-  }
-
-  asIsOrder (a: any, b: any) {
-    return 0
   }
 }
 
