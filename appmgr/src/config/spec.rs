@@ -1,7 +1,9 @@
 use std::borrow::{Borrow, Cow};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
+use std::iter::FromIterator;
 use std::ops::RangeBounds;
 use std::sync::Arc;
 use std::time::Duration;
@@ -42,7 +44,7 @@ pub trait ValueSpec {
         value: &mut Value,
     ) -> Result<(), ConfigurationError>;
     // returns all pointers that are live in the provided config
-    fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath>;
+    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath>;
     // requires returns whether the app id is the target of a pointer within it
     fn requires(&self, id: &PackageId, value: &Value) -> bool;
     // defines if 2 values of this type are equal for the purpose of uniqueness
@@ -158,7 +160,7 @@ where
     ) -> Result<(), ConfigurationError> {
         self.inner.update(ctx, db, config_overrides, value).await
     }
-    fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
         self.inner.pointers(value)
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
@@ -199,7 +201,7 @@ where
     ) -> Result<(), ConfigurationError> {
         self.inner.update(ctx, db, config_overrides, value).await
     }
-    fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
         self.inner.pointers(value)
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
@@ -273,7 +275,7 @@ where
     ) -> Result<(), ConfigurationError> {
         self.inner.update(ctx, db, config_overrides, value).await
     }
-    fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
         self.inner.pointers(value)
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
@@ -393,7 +395,7 @@ impl ValueSpec for ValueSpecAny {
             ValueSpecAny::Pointer(a) => a.update(ctx, db, config_overrides, value).await,
         }
     }
-    fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
         match self {
             ValueSpecAny::Boolean(a) => a.pointers(value),
             ValueSpecAny::Enum(a) => a.pointers(value),
@@ -477,8 +479,8 @@ impl ValueSpec for ValueSpecBoolean {
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(Vec::new())
+    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(HashSet::new())
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
         false
@@ -565,8 +567,8 @@ impl ValueSpec for ValueSpecEnum {
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(Vec::new())
+    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(HashSet::new())
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
         false
@@ -664,8 +666,8 @@ where
             )))
         }
     }
-    fn pointers(&self, _value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(Vec::new())
+    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(HashSet::new())
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
         if let Value::Array(ref ls) = value {
@@ -758,7 +760,7 @@ impl ValueSpec for ValueSpecList {
             ValueSpecList::Union(a) => a.update(ctx, db, config_overrides, value).await,
         }
     }
-    fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
         match self {
             ValueSpecList::Enum(a) => a.pointers(value),
             ValueSpecList::Number(a) => a.pointers(value),
@@ -875,8 +877,8 @@ impl ValueSpec for ValueSpecNumber {
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(Vec::new())
+    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(HashSet::new())
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
         false
@@ -943,7 +945,7 @@ impl ValueSpec for ValueSpecObject {
             )))
         }
     }
-    fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
         if let Value::Object(o) = value {
             self.spec.pointers(o)
         } else {
@@ -1052,18 +1054,19 @@ impl ConfigSpec {
         Ok(())
     }
 
-    pub fn pointers(&self, cfg: &Config) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
-        let mut res = Vec::new();
-        for (k, v) in cfg.iter() {
-            match self.0.get(k) {
-                None => (),
-                Some(vs) => match vs.pointers(v) {
-                    Err(e) => return Err(e.prepend(k.clone())),
-                    Ok(mut a) => res.append(&mut a),
-                },
-            };
-        }
-        Ok(res)
+    pub fn pointers(&self, cfg: &Config) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+        cfg.iter()
+            .filter_map(|(k, v)| self.0.get(k).map(|vs| (k, vs.pointers(v))))
+            .fold(Ok(HashSet::<ValueSpecPointer>::new()), |acc, v| {
+                match (acc, v) {
+                    // propagate existing errors
+                    (Err(e), _) => Err(e),
+                    // create new error case
+                    (Ok(_), (k, Err(e))) => Err(e.prepend(k.clone())),
+                    // combine sets
+                    (Ok(s0), (_, Ok(s1))) => Ok(HashSet::from_iter(s0.union(&s1).cloned())),
+                }
+            })
     }
 
     pub fn requires(&self, id: &PackageId, cfg: &Config) -> bool {
@@ -1127,8 +1130,8 @@ impl ValueSpec for ValueSpecString {
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(Vec::new())
+    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(HashSet::new())
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
         false
@@ -1357,7 +1360,7 @@ impl ValueSpec for ValueSpecUnion {
             )))
         }
     }
-    fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
         if let Value::Object(o) = value {
             match o.get(&self.tag.id) {
                 None => Err(NoMatchWithPath::new(MatchError::MissingTag(
@@ -1430,7 +1433,7 @@ impl DefaultableWith for ValueSpecUnion {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "subtype")]
 #[serde(rename_all = "kebab-case")]
 pub enum ValueSpecPointer {
@@ -1481,8 +1484,10 @@ impl ValueSpec for ValueSpecPointer {
             ValueSpecPointer::System(a) => a.update(ctx, db, config_overrides, value).await,
         }
     }
-    fn pointers(&self, _value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(vec![self.clone()])
+    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+        let mut pointers = HashSet::new();
+        pointers.insert(self.clone());
+        Ok(pointers)
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
         match self {
@@ -1495,7 +1500,7 @@ impl ValueSpec for ValueSpecPointer {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct PackagePointerSpec {
     pub package_id: PackageId,
@@ -1622,8 +1627,10 @@ impl ValueSpec for PackagePointerSpec {
         *value = self.deref(ctx, db, config_overrides).await?;
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(vec![ValueSpecPointer::Package(self.clone())])
+    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+        let mut pointers = HashSet::new();
+        pointers.insert(ValueSpecPointer::Package(self.clone()));
+        Ok(pointers)
     }
     fn requires(&self, id: &PackageId, _value: &Value) -> bool {
         &self.package_id == id
@@ -1633,7 +1640,7 @@ impl ValueSpec for PackagePointerSpec {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "target")]
 #[serde(rename_all = "kebab-case")]
 pub enum PackagePointerSpecVariant {
@@ -1696,8 +1703,19 @@ impl<'de> Deserialize<'de> for ConfigSelector {
         Ok(Self { src, compiled })
     }
 }
+impl PartialEq for ConfigSelector {
+    fn eq(&self, other: &ConfigSelector) -> bool {
+        self.src == other.src
+    }
+}
+impl Eq for ConfigSelector {}
+impl Hash for ConfigSelector {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.src.hash(state)
+    }
+}
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "target")]
 pub enum SystemPointerSpec {}
@@ -1739,8 +1757,10 @@ impl ValueSpec for SystemPointerSpec {
         *value = self.deref(db).await?;
         Ok(())
     }
-    fn pointers(&self, value: &Value) -> Result<Vec<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(vec![ValueSpecPointer::System(self.clone())])
+    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+        let mut pointers = HashSet::new();
+        pointers.insert(ValueSpecPointer::System(self.clone()));
+        Ok(pointers)
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
         false
