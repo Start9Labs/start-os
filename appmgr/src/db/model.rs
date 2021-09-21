@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use torut::onion::TorSecretKeyV3;
 
-use crate::config::spec::{PackagePointerSpecVariant, SystemPointerSpec};
+use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
@@ -235,7 +235,7 @@ pub struct StaticDependencyInfo {
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct CurrentDependencyInfo {
-    pub pointers: Vec<PackagePointerSpecVariant>,
+    pub pointers: Vec<PackagePointerSpec>,
     pub health_checks: BTreeSet<HealthCheckId>,
 }
 
