@@ -13,7 +13,6 @@ use rpc_toolkit::command;
 use serde_json::Value;
 
 use crate::action::docker::DockerAction;
-use crate::config::spec::PackagePointerSpecVariant;
 use crate::context::RpcContext;
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, InstalledPackageDataEntryModel,
@@ -346,14 +345,16 @@ pub fn configure<'a, Db: DbHandle>(
             .collect();
         for ptr in spec.pointers(&config)? {
             match ptr {
-                ValueSpecPointer::Package(PackagePointerSpec { package_id, target }) => {
-                    if let Some(current_dependency) = current_dependencies.get_mut(&package_id) {
-                        current_dependency.pointers.push(target);
+                ValueSpecPointer::Package(pkg_ptr) => {
+                    if let Some(current_dependency) =
+                        current_dependencies.get_mut(pkg_ptr.package_id())
+                    {
+                        current_dependency.pointers.push(pkg_ptr);
                     } else {
                         current_dependencies.insert(
-                            package_id,
+                            pkg_ptr.package_id().to_owned(),
                             CurrentDependencyInfo {
-                                pointers: vec![target],
+                                pointers: vec![pkg_ptr],
                                 health_checks: BTreeSet::new(),
                             },
                         );
@@ -448,7 +449,7 @@ pub fn configure<'a, Db: DbHandle>(
 
                 // handle backreferences
                 for ptr in &dep_info.pointers {
-                    if let PackagePointerSpecVariant::Config(cfg_ptr) = ptr {
+                    if let PackagePointerSpec::Config(cfg_ptr) = ptr {
                         if cfg_ptr.select(&next) != cfg_ptr.select(&prev) {
                             if let Err(e) = configure(
                                 ctx, db, dependent, None, timeout, dry_run, overrides, breakages,
