@@ -1,16 +1,18 @@
 use std::path::Path;
+use std::str::FromStr;
 
 use anyhow::anyhow;
 use indexmap::{IndexMap, IndexSet};
 use patch_db::HasModel;
+use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 
 use self::docker::DockerAction;
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
-use crate::id::Id;
+use crate::id::{Id, InvalidId};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{ValuePrimative, Version};
+use crate::util::{display_serializable, parse_stdin_deserializable, ValuePrimative, Version};
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
 
@@ -20,6 +22,17 @@ pub mod docker;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct ActionId<S: AsRef<str> = String>(Id<S>);
+impl FromStr for ActionId {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(ActionId(Id::try_from(s.to_owned())?))
+    }
+}
+impl From<ActionId> for String {
+    fn from(value: ActionId) -> Self {
+        value.0.into()
+    }
+}
 impl<S: AsRef<str>> AsRef<ActionId<S>> for ActionId<S> {
     fn as_ref(&self) -> &ActionId<S> {
         self
@@ -56,14 +69,14 @@ where
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Actions(pub IndexMap<ActionId, Action>);
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "version")]
 pub enum ActionResult {
     #[serde(rename = "0")]
     V0(ActionResultV0),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ActionResultV0 {
     pub message: String,
     pub value: ValuePrimative,
@@ -97,19 +110,21 @@ impl Action {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-        input: Config,
+        input: Option<Config>,
     ) -> Result<ActionResult, Error> {
-        self.input_spec
-            .matches(&input)
-            .with_kind(crate::ErrorKind::ConfigSpecViolation)?;
+        if let Some(ref input) = input {
+            self.input_spec
+                .matches(&input)
+                .with_kind(crate::ErrorKind::ConfigSpecViolation)?;
+        }
         self.implementation
             .execute(
                 ctx,
                 pkg_id,
                 pkg_version,
-                Some(&format!("{}Action", self.name)),
+                Some(&format!("{}Action", self.name.replace(" ", ""))),
                 volumes,
-                Some(input),
+                input,
                 true,
             )
             .await?
@@ -157,6 +172,43 @@ impl ActionImplementation {
                     .await
             }
         }
+    }
+}
+
+#[command(about = "Executes an action", display(display_serializable))]
+pub async fn action(
+    #[context] ctx: RpcContext,
+    #[arg(rename = "id")] pkg_id: PackageId,
+    #[arg(rename = "action-id")] action_id: ActionId,
+    #[arg(stdin, parse(parse_stdin_deserializable))] input: Option<Config>,
+) -> Result<ActionResult, Error> {
+    let mut db = ctx.db.handle();
+    let manifest = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&pkg_id)
+        .and_then(|p| p.installed())
+        .expect(&mut db)
+        .await
+        .with_kind(crate::ErrorKind::NotFound)?
+        .manifest()
+        .get(&mut db, true)
+        .await?
+        .to_owned();
+    if let Some(action) = manifest.actions.0.get(&action_id) {
+        action
+            .execute(
+                &ctx,
+                &manifest.id,
+                &manifest.version,
+                &manifest.volumes,
+                input,
+            )
+            .await
+    } else {
+        Err(Error::new(
+            anyhow!("Action not found in manifest"),
+            crate::ErrorKind::NotFound,
+        ))
     }
 }
 

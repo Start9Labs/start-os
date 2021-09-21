@@ -84,6 +84,7 @@ pub fn server() -> Result<(), RpcError> {
 }
 
 #[command(subcommands(
+    action::action,
     install::install,
     install::uninstall,
     config::config,
