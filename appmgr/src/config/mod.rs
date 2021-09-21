@@ -448,8 +448,8 @@ pub fn configure<'a, Db: DbHandle>(
 
                 // handle backreferences
                 for ptr in &dep_info.pointers {
-                    if let PackagePointerSpecVariant::Config { selector, multi } = ptr {
-                        if selector.select(*multi, &next) != selector.select(*multi, &prev) {
+                    if let PackagePointerSpecVariant::Config(cfg_ptr) = ptr {
+                        if cfg_ptr.select(&next) != cfg_ptr.select(&prev) {
                             if let Err(e) = configure(
                                 ctx, db, dependent, None, timeout, dry_run, overrides, breakages,
                             )
