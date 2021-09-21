@@ -12,6 +12,7 @@ use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jsonpath_lib::Compiled as CompiledJsonPath;
+use lazy_static::__Deref;
 use patch_db::{DbHandle, OptionModel};
 use rand::{CryptoRng, Rng};
 use regex::Regex;
@@ -1501,93 +1502,40 @@ impl ValueSpec for ValueSpecPointer {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "target")]
 #[serde(rename_all = "kebab-case")]
-pub struct PackagePointerSpec {
-    pub package_id: PackageId,
-    #[serde(flatten)]
-    pub target: PackagePointerSpecVariant,
-}
-impl fmt::Display for PackagePointerSpec {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}: {}", self.package_id, self.target)
-    }
+pub enum PackagePointerSpec {
+    TorAddress(TorAddressPointer),
+    LanAddress(LanAddressPointer),
+    Config(ConfigPointer),
 }
 impl PackagePointerSpec {
+    pub fn package_id(&self) -> &PackageId {
+        match self {
+            PackagePointerSpec::TorAddress(TorAddressPointer { package_id, .. }) => package_id,
+            PackagePointerSpec::LanAddress(LanAddressPointer { package_id, .. }) => package_id,
+            PackagePointerSpec::Config(ConfigPointer { package_id, .. }) => package_id,
+        }
+    }
     async fn deref<Db: DbHandle>(
         &self,
         ctx: &RpcContext,
         db: &mut Db,
         config_overrides: &BTreeMap<PackageId, Config>,
     ) -> Result<Value, ConfigurationError> {
-        match &self.target {
-            PackagePointerSpecVariant::Tor(TorAddressPointer { interface }) => {
-                let addr = crate::db::DatabaseModel::new()
-                    .package_data()
-                    .idx_model(&self.package_id)
-                    .and_then(|pde| pde.installed())
-                    .and_then(|installed| installed.interface_addresses().idx_model(interface))
-                    .and_then(|addresses| addresses.tor_address())
-                    .get(db, true)
-                    .await
-                    .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
-                Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
-            }
-            PackagePointerSpecVariant::Lan(LanAddressPointer { interface }) => {
-                let addr = crate::db::DatabaseModel::new()
-                    .package_data()
-                    .idx_model(&self.package_id)
-                    .and_then(|pde| pde.installed())
-                    .and_then(|installed| installed.interface_addresses().idx_model(interface))
-                    .and_then(|addresses| addresses.lan_address())
-                    .get(db, true)
-                    .await
-                    .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
-                Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
-            }
-            PackagePointerSpecVariant::Config(ConfigPointer { selector, multi }) => {
-                if let Some(cfg) = config_overrides.get(&self.package_id) {
-                    Ok(selector.select(*multi, &Value::Object(cfg.clone())))
-                } else {
-                    let manifest_model: OptionModel<Manifest> = crate::db::DatabaseModel::new()
-                        .package_data()
-                        .idx_model(&self.package_id)
-                        .and_then(|pde| pde.installed())
-                        .map(|installed| installed.manifest())
-                        .into();
-                    let version = manifest_model
-                        .clone()
-                        .map(|manifest| manifest.version())
-                        .get(db, true)
-                        .await
-                        .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
-                    let cfg_actions = manifest_model
-                        .clone()
-                        .and_then(|manifest| manifest.config())
-                        .get(db, true)
-                        .await
-                        .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
-                    let volumes = manifest_model
-                        .map(|manifest| manifest.volumes())
-                        .get(db, true)
-                        .await
-                        .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
-                    if let (Some(version), Some(cfg_actions), Some(volumes)) =
-                        (&*version, &*cfg_actions, &*volumes)
-                    {
-                        let cfg_res = cfg_actions
-                            .get(&ctx, &self.package_id, version, volumes)
-                            .await
-                            .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
-                        if let Some(cfg) = cfg_res.config {
-                            Ok(selector.select(*multi, &Value::Object(cfg)))
-                        } else {
-                            Ok(Value::Null)
-                        }
-                    } else {
-                        Ok(Value::Null)
-                    }
-                }
-            }
+        match &self {
+            PackagePointerSpec::TorAddress(tor) => tor.deref(db).await,
+            PackagePointerSpec::LanAddress(lan) => lan.deref(db).await,
+            PackagePointerSpec::Config(cfg) => cfg.deref(ctx, db, config_overrides).await,
+        }
+    }
+}
+impl fmt::Display for PackagePointerSpec {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PackagePointerSpec::TorAddress(tor) => write!(f, "{}", tor),
+            PackagePointerSpec::LanAddress(lan) => write!(f, "{}", lan),
+            PackagePointerSpec::Config(cfg) => write!(f, "{}", cfg),
         }
     }
 }
@@ -1607,13 +1555,14 @@ impl ValueSpec for PackagePointerSpec {
         Ok(())
     }
     fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
-        if manifest.id != self.package_id && !manifest.dependencies.0.contains_key(&self.package_id)
+        if &manifest.id != self.package_id()
+            && !manifest.dependencies.0.contains_key(self.package_id())
         {
             return Err(NoMatchWithPath::new(MatchError::InvalidPointer(
                 ValueSpecPointer::Package(self.clone()),
             )));
         }
-        match self.target {
+        match self {
             _ => Ok(()),
         }
     }
@@ -1633,7 +1582,7 @@ impl ValueSpec for PackagePointerSpec {
         Ok(pointers)
     }
     fn requires(&self, id: &PackageId, _value: &Value) -> bool {
-        &self.package_id == id
+        self.package_id() == id
     }
     fn eq(&self, _lhs: &Value, _rhs: &Value) -> bool {
         false
@@ -1641,48 +1590,70 @@ impl ValueSpec for PackagePointerSpec {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "target")]
 #[serde(rename_all = "kebab-case")]
-pub enum PackagePointerSpecVariant {
-    Tor(TorAddressPointer),
-    Lan(LanAddressPointer),
-    Config(ConfigPointer),
-}
-impl fmt::Display for PackagePointerSpecVariant {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Tor(tor) => write!(f, "{}", tor),
-            Self::Lan(lan) => write!(f, "{}", lan),
-            Self::Config(cfg) => write!(f, "{}", cfg),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TorAddressPointer {
+    package_id: PackageId,
     interface: InterfaceId,
+}
+impl TorAddressPointer {
+    async fn deref<Db: DbHandle>(&self, db: &mut Db) -> Result<Value, ConfigurationError> {
+        let addr = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(&self.package_id)
+            .and_then(|pde| pde.installed())
+            .and_then(|installed| installed.interface_addresses().idx_model(&self.interface))
+            .and_then(|addresses| addresses.tor_address())
+            .get(db, true)
+            .await
+            .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
+        Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
+    }
 }
 impl fmt::Display for TorAddressPointer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TorAddressPointer { interface } => write!(f, "tor-address: {}", interface),
+            TorAddressPointer {
+                package_id,
+                interface,
+            } => write!(f, "{}: tor-address: {}", package_id, interface),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct LanAddressPointer {
+    package_id: PackageId,
     interface: InterfaceId,
 }
 impl fmt::Display for LanAddressPointer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LanAddressPointer { interface } => write!(f, "lan-address: {}", interface),
+            LanAddressPointer {
+                package_id,
+                interface,
+            } => write!(f, "{}: lan-address: {}", package_id, interface),
         }
     }
 }
+impl LanAddressPointer {
+    async fn deref<Db: DbHandle>(&self, db: &mut Db) -> Result<Value, ConfigurationError> {
+        let addr = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(&self.package_id)
+            .and_then(|pde| pde.installed())
+            .and_then(|installed| installed.interface_addresses().idx_model(&self.interface))
+            .and_then(|addresses| addresses.lan_address())
+            .get(db, true)
+            .await
+            .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
+        Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct ConfigPointer {
+    package_id: PackageId,
     selector: Arc<ConfigSelector>,
     multi: bool,
 }
@@ -1690,11 +1661,64 @@ impl ConfigPointer {
     pub fn select(&self, val: &Value) -> Value {
         self.selector.select(self.multi, val)
     }
+    async fn deref<Db: DbHandle>(
+        &self,
+        ctx: &RpcContext,
+        db: &mut Db,
+        config_overrides: &BTreeMap<PackageId, Config>,
+    ) -> Result<Value, ConfigurationError> {
+        if let Some(cfg) = config_overrides.get(&self.package_id) {
+            Ok(self.select(&Value::Object(cfg.clone())))
+        } else {
+            let manifest_model: OptionModel<_> = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&self.package_id)
+                .and_then(|pde| pde.installed())
+                .map(|installed| installed.manifest())
+                .into();
+            let version = manifest_model
+                .clone()
+                .map(|manifest| manifest.version())
+                .get(db, true)
+                .await
+                .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
+            let cfg_actions = manifest_model
+                .clone()
+                .and_then(|manifest| manifest.config())
+                .get(db, true)
+                .await
+                .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
+            let volumes = manifest_model
+                .map(|manifest| manifest.volumes())
+                .get(db, true)
+                .await
+                .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
+            if let (Some(version), Some(cfg_actions), Some(volumes)) =
+                (&*version, &*cfg_actions, &*volumes)
+            {
+                let cfg_res = cfg_actions
+                    .get(&ctx, &self.package_id, version, volumes)
+                    .await
+                    .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
+                if let Some(cfg) = cfg_res.config {
+                    Ok(self.select(&Value::Object(cfg)))
+                } else {
+                    Ok(Value::Null)
+                }
+            } else {
+                Ok(Value::Null)
+            }
+        }
+    }
 }
 impl fmt::Display for ConfigPointer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ConfigPointer { selector, .. } => write!(f, "config: {}", selector),
+            ConfigPointer {
+                package_id,
+                selector,
+                ..
+            } => write!(f, "{}: config: {}", package_id, selector),
         }
     }
 }
