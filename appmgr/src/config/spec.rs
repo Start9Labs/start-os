@@ -1520,7 +1520,7 @@ impl PackagePointerSpec {
         config_overrides: &BTreeMap<PackageId, Config>,
     ) -> Result<Value, ConfigurationError> {
         match &self.target {
-            PackagePointerSpecVariant::TorAddress { interface } => {
+            PackagePointerSpecVariant::Tor(TorAddressPointer { interface }) => {
                 let addr = crate::db::DatabaseModel::new()
                     .package_data()
                     .idx_model(&self.package_id)
@@ -1532,7 +1532,7 @@ impl PackagePointerSpec {
                     .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                 Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
             }
-            PackagePointerSpecVariant::LanAddress { interface } => {
+            PackagePointerSpecVariant::Lan(LanAddressPointer { interface }) => {
                 let addr = crate::db::DatabaseModel::new()
                     .package_data()
                     .idx_model(&self.package_id)
@@ -1544,7 +1544,7 @@ impl PackagePointerSpec {
                     .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
                 Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
             }
-            PackagePointerSpecVariant::Config { selector, multi } => {
+            PackagePointerSpecVariant::Config(ConfigPointer { selector, multi }) => {
                 if let Some(cfg) = config_overrides.get(&self.package_id) {
                     Ok(selector.select(*multi, &Value::Object(cfg.clone())))
                 } else {
@@ -1644,23 +1644,57 @@ impl ValueSpec for PackagePointerSpec {
 #[serde(tag = "target")]
 #[serde(rename_all = "kebab-case")]
 pub enum PackagePointerSpecVariant {
-    TorAddress {
-        interface: InterfaceId,
-    },
-    LanAddress {
-        interface: InterfaceId,
-    },
-    Config {
-        selector: Arc<ConfigSelector>,
-        multi: bool,
-    },
+    Tor(TorAddressPointer),
+    Lan(LanAddressPointer),
+    Config(ConfigPointer),
 }
 impl fmt::Display for PackagePointerSpecVariant {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::TorAddress { interface } => write!(f, "tor-address: {}", interface),
-            Self::LanAddress { interface } => write!(f, "lan-address: {}", interface),
-            Self::Config { selector, .. } => write!(f, "config: {}", selector),
+            Self::Tor(tor) => write!(f, "{}", tor),
+            Self::Lan(lan) => write!(f, "{}", lan),
+            Self::Config(cfg) => write!(f, "{}", cfg),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TorAddressPointer {
+    interface: InterfaceId,
+}
+impl fmt::Display for TorAddressPointer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TorAddressPointer { interface } => write!(f, "tor-address: {}", interface),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LanAddressPointer {
+    interface: InterfaceId,
+}
+impl fmt::Display for LanAddressPointer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LanAddressPointer { interface } => write!(f, "lan-address: {}", interface),
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ConfigPointer {
+    selector: Arc<ConfigSelector>,
+    multi: bool,
+}
+impl ConfigPointer {
+    pub fn select(&self, val: &Value) -> Value {
+        self.selector.select(self.multi, val)
+    }
+}
+impl fmt::Display for ConfigPointer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConfigPointer { selector, .. } => write!(f, "config: {}", selector),
         }
     }
 }
@@ -1671,7 +1705,7 @@ pub struct ConfigSelector {
     compiled: CompiledJsonPath,
 }
 impl ConfigSelector {
-    pub fn select(&self, multi: bool, val: &Value) -> Value {
+    fn select(&self, multi: bool, val: &Value) -> Value {
         let selected = self.compiled.select(&val).ok().unwrap_or_else(Vec::new);
         if multi {
             Value::Array(selected.into_iter().cloned().collect())
