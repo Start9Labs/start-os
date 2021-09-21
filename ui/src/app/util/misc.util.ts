@@ -86,6 +86,7 @@ export function isObject (val: any): boolean {
 }
 
 export function isEmptyObject (obj: object): boolean {
+  if (obj === undefined) return true
   return !Object.keys(obj).length
 }
 
