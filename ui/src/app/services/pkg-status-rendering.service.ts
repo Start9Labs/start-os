@@ -11,17 +11,18 @@ export function renderPkgStatus (pkg: PackageDataEntry): {
   let health: HealthStatus | null = null
 
   if (pkg.state === PackageState.Installed) {
-    primary = PrimaryStatus[pkg.installed.status.main.status]
+    primary = pkg.installed.status.main.status as string as PrimaryStatus
     dependency = getDependencyStatus(pkg.installed)
     health = getHealthStatus(pkg.installed.status)
   } else {
-    primary = PrimaryStatus[pkg.state]
+    primary = pkg.state as string as PrimaryStatus
   }
 
   return { primary, dependency, health }
 }
 
 function getDependencyStatus (pkg: InstalledPackageDataEntry): DependencyStatus {
+  console.log('pkg', pkg)
   if (isEmptyObject(pkg['current-dependencies'])) return null
 
   const pkgIds = Object.keys(pkg.status['dependency-errors'])
