@@ -102,6 +102,7 @@ where
 pub struct Manifest {
     pub id: PackageId,
     pub title: String,
+    #[model]
     pub version: Version,
     pub description: Description,
     #[serde(default)]
