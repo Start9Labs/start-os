@@ -42,7 +42,17 @@
               <img *ngIf="!connectionFailure" [class]="pkg.value.bulb.class" [src]="pkg.value.bulb.img" />
   
               <ion-card-header>
-                <status *ngIf="[PackageState.Installed, PackageState.Removing] | includes : pkg.value.entry.state" [disconnected]="connectionFailure" [rendering]="pkg.value.statusRendering" size="calc(8px + .4vw)" weight="bold"></status>
+                <ion-grid class="status-grid">
+                  <ion-row class="ion-align-items-center">
+                    <ion-col></ion-col>
+                    <ion-col>
+                      <status *ngIf="[PackageState.Installed, PackageState.Removing] | includes : pkg.value.entry.state" [disconnected]="connectionFailure" [rendering]="pkg.value.primaryRendering" size="calc(8px + .4vw)" weight="bold"></status>
+                    </ion-col>
+                    <ion-col>
+                      <ion-icon *ngIf="pkg.value.error" name="warning-outline" color="warning"></ion-icon>
+                    </ion-col>
+                  </ion-row>
+                </ion-grid>
                 <p *ngIf="!!pkg.value.installProgress" class="main-status"><ion-text color="primary">{{ pkg.value.entry.state | titlecase }}...{{ pkg.value.installProgress.totalProgress }}%</ion-text></p>
                 <ion-card-title>{{ pkg.value.entry.manifest.title }}</ion-card-title>
               </ion-card-header>

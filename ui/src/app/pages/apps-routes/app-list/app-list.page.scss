@@ -1,5 +1,6 @@
 .installed-card {
-  margin: 2px;
+  margin: 4px;
+  padding: 4px;
   background: linear-gradient(37deg, #333333, #131313);
   border-radius: 10px;
   text-align: center;
@@ -82,4 +83,18 @@
   font-size: calc(8px + .4vw);
   font-weight: bold;
   margin: 0;
+}
+
+.status-grid {
+  --ion-grid-padding: 0;
+  ion-row {
+    min-height: 22px;
+  }
+  ion-col {
+    --ion-grid-column-padding: 0
+  }
+  ion-icon {
+    font-size: calc(12px + .4vw);
+    padding-top: 4px;
+  }
 }
