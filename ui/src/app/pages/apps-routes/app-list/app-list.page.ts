@@ -4,7 +4,7 @@ import { ConnectionFailure, ConnectionService } from 'src/app/services/connectio
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
-import { PrimaryRendering, renderPkgStatus, StatusRendering } from 'src/app/services/pkg-status-rendering.service'
+import { DependencyStatus, HealthStatus, PrimaryRendering, renderPkgStatus, StatusRendering } from 'src/app/services/pkg-status-rendering.service'
 import { filter } from 'rxjs/operators'
 import { isEmptyObject } from 'src/app/util/misc.util'
 import { PackageLoadingService, ProgressData } from 'src/app/services/package-loading.service'
@@ -15,19 +15,11 @@ import { PackageLoadingService, ProgressData } from 'src/app/services/package-lo
   styleUrls: ['./app-list.page.scss'],
 })
 export class AppListPage {
+  PackageState = PackageState
+
   subs: Subscription[] = []
   connectionFailure: boolean
-  pkgs: { [id: string]: {
-    entry: PackageDataEntry
-    bulb: {
-      class: string
-      img: string
-    }
-    statusRendering: StatusRendering | null
-    sub: Subscription | null
-    installProgress: ProgressData
-  }} = { }
-  PackageState = PackageState
+  pkgs: { [id: string]: PkgInfo } = { }
   loading = true
 
   constructor (
@@ -70,17 +62,19 @@ export class AppListPage {
               class: 'bulb-off',
               img: 'assets/img/off-bulb.png',
             },
-            statusRendering: PrimaryRendering[renderPkgStatus(pkgs[id]).primary],
-            sub: null,
+            primaryRendering: PrimaryRendering[renderPkgStatus(pkgs[id]).primary],
             installProgress: !isEmptyObject(pkgs[id]['install-progress']) ? this.installPackageService.transform(pkgs[id]['install-progress']) : undefined,
+            error: false,
+            sub: null,
           }
           // subscribe to pkg
           this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
             if (!pkg) return
             let bulbClass = 'bulb-on'
             let img = ''
-            const statusRendering = PrimaryRendering[renderPkgStatus(pkg).primary]
-            switch (statusRendering.color) {
+            const statuses = renderPkgStatus(pkg)
+            const primaryRendering = PrimaryRendering[statuses.primary]
+            switch (primaryRendering.color) {
               case 'danger':
                 img = 'assets/img/danger-bulb.png'
                 break
@@ -101,7 +95,8 @@ export class AppListPage {
               class: bulbClass,
               img,
             }
-            this.pkgs[id].statusRendering = statusRendering
+            this.pkgs[id].primaryRendering = primaryRendering
+            this.pkgs[id].error = [HealthStatus.NeedsConfig, HealthStatus.Failure].includes(statuses.health) || [DependencyStatus.Issue, DependencyStatus.Critical].includes(statuses.dependency)
           })
         })
       }),
@@ -127,4 +122,16 @@ export class AppListPage {
   asIsOrder () {
     return 0
   }
+}
+
+interface PkgInfo {
+  entry: PackageDataEntry
+  bulb: {
+    class: string
+    img: string
+  }
+  primaryRendering: StatusRendering
+  installProgress: ProgressData
+  error: boolean
+  sub: Subscription | null
 }
