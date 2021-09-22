@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Subscription } from 'rxjs'
 import { copyToClipboard } from 'src/app/util/web.util'
-import { AlertController, IonContent, NavController, PopoverController, ToastController } from '@ionic/angular'
+import { AlertController, IonContent, ModalController, NavController, ToastController } from '@ionic/angular'
 import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -34,7 +34,7 @@ export class AppPropertiesPage {
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly toastCtrl: ToastController,
-    private readonly popoverCtrl: PopoverController,
+    private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
   ) { }
@@ -100,16 +100,15 @@ export class AppPropertiesPage {
     await toast.present()
   }
 
-  async showQR (text: string, ev: any): Promise<void> {
-    const popover = await this.popoverCtrl.create({
+  async showQR (text: string): Promise<void> {
+    const modal = await this.modalCtrl.create({
       component: QRComponent,
-      cssClass: 'qr-popover',
-      event: ev,
       componentProps: {
         text,
       },
+      cssClass: 'qr-modal',
     })
-    return await popover.present()
+    await modal.present()
   }
 
   toggleMask (key: string) {
