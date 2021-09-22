@@ -6,13 +6,14 @@ export function renderPkgStatus (pkg: PackageDataEntry): {
   dependency: DependencyStatus | null,
   health: HealthStatus | null
 } {
+  console.log('PKGPKG', pkg)
   let primary: PrimaryStatus
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
 
   if (pkg.state === PackageState.Installed) {
     primary = pkg.installed.status.main.status as string as PrimaryStatus
-    dependency = getDependencyStatus(pkg.installed)
+    dependency = getDependencyStatus(pkg)
     health = getHealthStatus(pkg.installed.status)
   } else {
     primary = pkg.state as string as PrimaryStatus
@@ -21,11 +22,11 @@ export function renderPkgStatus (pkg: PackageDataEntry): {
   return { primary, dependency, health }
 }
 
-function getDependencyStatus (pkg: InstalledPackageDataEntry): DependencyStatus {
-  console.log('pkg', pkg)
-  if (isEmptyObject(pkg['current-dependencies'])) return null
+function getDependencyStatus (pkg: PackageDataEntry): DependencyStatus {
+  const installed = pkg.installed
+  if (isEmptyObject(installed['current-dependencies'])) return null
 
-  const pkgIds = Object.keys(pkg.status['dependency-errors'])
+  const pkgIds = Object.keys(installed.status['dependency-errors'])
 
   for (let pkgId of pkgIds) {
     if (pkg.manifest.dependencies[pkgId].critical) {
@@ -92,8 +93,8 @@ export const PrimaryRendering: { [key: string]: StatusRendering } = {
   [PrimaryStatus.Installing]: { display: 'Installing', color: 'primary', showDots: true },
   [PrimaryStatus.Updating]: { display: 'Updating', color: 'primary', showDots: true },
   [PrimaryStatus.Removing]: { display: 'Removing', color: 'warning', showDots: true },
-  [PrimaryStatus.Stopping]: { display: 'Stopping', color: 'dark', showDots: true },
-  [PrimaryStatus.Stopped]: { display: 'Stopped', color: 'dark', showDots: false },
+  [PrimaryStatus.Stopping]: { display: 'Stopping', color: 'dark-shade', showDots: true },
+  [PrimaryStatus.Stopped]: { display: 'Stopped', color: 'dark-shade', showDots: false },
   [PrimaryStatus.BackingUp]: { display: 'Backing Up', color: 'warning', showDots: true },
   [PrimaryStatus.Restoring]: { display: 'Restoring', color: 'primary', showDots: true },
   [PrimaryStatus.Running]: { display: 'Running', color: 'success', showDots: false },

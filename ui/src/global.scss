@@ -174,6 +174,15 @@ ion-button {
   box-shadow: 0 0 70px 70px black;
 }
 
+.qr-modal {
+  .modal-wrapper {
+    width: 400px !important;
+    height: 400px !important;
+    top: unset !important;
+    left: unset !important;
+  }
+}
+
 .modal-wrapper {
   position: absolute;
   height: 90% !important;
@@ -234,11 +243,6 @@ ion-slides {
     height: 100%;
     width: 100%
   }
-}
-
-.qr-popover {
-  --width: auto;
-  --background: transparent !important;
 }
 
 ion-item-divider {

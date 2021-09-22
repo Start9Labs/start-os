@@ -19,19 +19,11 @@
 
 <ion-content>
   <ion-item-group>
-    <!-- ** always ** -->
+    <!-- ** status ** -->
     <ion-item-divider>Status</ion-item-divider>
     <ion-item>
       <ion-label style="overflow: visible;">
         <status [disconnected]="connectionFailure" size="x-large" weight="500" [rendering]="PR[statuses.primary]"></status>
-        <span *ngIf="statuses.dependency">
-          Dependencies:
-          <status [disconnected]="connectionFailure" size="medium" weight="500" [rendering]="DR[statuses.dependency]"></status>
-        </span>
-        <span *ngIf="statuses.health">
-          Health:
-          <status [disconnected]="connectionFailure" size="medium" weight="500" [rendering]="HR[statuses.health]"></status>
-        </span>
       </ion-label>
       <ng-container *ngIf="pkg.state === PackageState.Installed && !connectionFailure">
         <ion-button slot="end" class="action-button" *ngIf="pkg.manifest.interfaces | hasUi" [disabled]="!(pkg.state | isLaunchable : pkg.installed.status.main.status : pkg.manifest.interfaces)" (click)="launchUi()">
@@ -44,15 +36,11 @@
         <ion-button slot="end" class="action-button" *ngIf="statuses.primary === PS.Running" color="danger" (click)="stop()">
           Stop
         </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="statuses.dependency && status.dependency !== DS.Satisfied" (click)="scrollToRequirements()">
-          Fix
-        </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="statuses.primary === PS.Stopped && statuses.dependency !== DS.Critical" color="success" (click)="tryStart()">
+        <ion-button slot="end" class="action-button" *ngIf="statuses.primary === PS.Stopped && pkg.installed.status.configured && statuses.dependency !== DS.Critical" color="success" (click)="tryStart()">
           Start
         </ion-button>
       </ng-container>
     </ion-item>
-
     <!-- ** installed ** -->
     <ng-container *ngIf="pkg.state === PackageState.Installed">
       <!-- ** !restoring/backing-up ** -->
@@ -87,55 +75,32 @@
             </ion-item>
           </ng-container>
         </ng-container>
-
+        <!-- ** dependencies ** -->
+        <ng-container *ngIf="!(dependencies | empty)">
+          <ion-item-divider>Dependencies</ion-item-divider>
+          <!-- dependencies are a subset of the pkg.manifest.dependencies that are currently required as determined by the service config -->
+          <ion-item button *ngFor="let dep of dependencies | keyvalue" (click)="dep.value.action()">
+            <ion-thumbnail slot="start">
+              <img [src]="dep.value.icon" />
+            </ion-thumbnail>
+            <ion-label>
+              <h2 style="font-family: 'Montserrat'">{{ dep.value.title }}</h2>
+              <p>{{ dep.value.version | displayEmver }}</p>
+              <p><ion-text [color]="!!dep.value.errorText ? 'warning' : 'success'">{{ dep.value.errorText || 'satisfied' }}</ion-text></p>
+            </ion-label>
+            <ion-spinner *ngIf="dep.value.spinnerColor" slot="end" [color]="dep.value.spinnerColor" style="height: 3vh; width: 3vh"></ion-spinner>
+            <ion-button *ngIf="dep.value.actionText" slot="end" fill="clear">
+              {{ dep.value.actionText }}
+              <ion-icon slot="end" name="arrow-forward"></ion-icon>
+            </ion-button>
+          </ion-item>
+        </ng-container>
         <!-- ** menu ** -->
         <ion-item-divider>Menu</ion-item-divider>
         <ion-item button detail *ngFor="let button of buttons" (click)="button.action()">
           <ion-icon slot="start" [name]="button.icon"></ion-icon>
           <ion-label>{{ button.title }}</ion-label>
         </ion-item>
-
-        <!-- ** dependencies ** -->
-        <ng-container *ngIf="!(currentDependencies | empty)">
-          <ion-item-divider id="dependencies">Dependencies</ion-item-divider>
-          <!-- A current-dependency is a subset of the pkg.manifest.dependencies that is currently required as determined by the service config. -->
-          <ion-item *ngFor="let dep of currentDependencies | keyvalue">
-            <ion-thumbnail slot="start">
-              <img [src]="pkg.installed['dependency-info'][dep.key].icon" />
-            </ion-thumbnail>
-            <ion-label>
-              <h2 style="font-family: 'Montserrat'">{{ pkg.installed['dependency-info'][dep.key].manifest.title }}</h2>
-              <p>{{ pkg.manifest.dependencies[dep.key].version | displayEmver }}</p>
-              <p><ion-text [color]="pkg.installed.status['dependency-errors'][dep.key] ? 'warning' : 'success'">{{ pkg.installed.status['dependency-errors'][dep.key] ? pkg.installed.status['dependency-errors'][dep.key].type : 'satisfied' }}</ion-text></p>
-            </ion-label>
-
-            <ion-button *ngIf="!pkg.installed.status['dependency-errors'][dep.key] || (pkg.installed.status['dependency-errors'][dep.key] && [DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthChecksFailed] | includes : pkg.installed.status['dependency-errors'][dep.key].type)" slot="end" size="small" [routerLink]="['/services', dep.key]">
-              View
-            </ion-button>
-
-            <ng-container *ngIf="pkg.installed.status['dependency-errors'][dep.key]">
-              <ion-button *ngIf="!patch.data['package-data'][dep.key]" slot="end" size="small" (click)="fixDep('install', dep.key)">
-                Install
-              </ion-button>
-
-              <ng-container *ngIf="patch.data['package-data'][dep.key] && patch.data['package-data'][dep.key].state === PackageState.Installed">
-                <ion-button *ngIf="pkg.installed.status['dependency-errors'][dep.key].type === DependencyErrorType.NotRunning" slot="end" size="small" [routerLink]="['/services', dep.key]">
-                  Start
-                </ion-button>
-                <ion-button *ngIf="pkg.installed.status['dependency-errors'][dep.key].type === DependencyErrorType.IncorrectVersion" slot="end" size="small" (click)="fixDep('update', dep.key)">
-                  Update
-                </ion-button>
-                <ion-button *ngIf="pkg.installed.status['dependency-errors'][dep.key].type === DependencyErrorType.ConfigUnsatisfied" slot="end" size="small" (click)="fixDep('configure', dep.key)">
-                  Configure
-                </ion-button>
-              </ng-container>
-
-              <div *ngIf="patch.data['package-data'][dep.key] && patch.data['package-data'][dep.key].state !== PackageState.Installed" slot="end">
-                <ion-spinner [color]="patch.data['package-data'][dep.key].state === PackageState.Removing ? 'danger' : 'primary'" style="height: 3vh; width: 3vh" name="dots"></ion-spinner>
-              </div>
-            </ng-container>
-          </ion-item>
-        </ng-container>
       </ng-container>
       <!-- @TODO better maintenance messaging -->
       <ng-template #maintenance>
