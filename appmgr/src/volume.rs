@@ -128,6 +128,7 @@ impl Map for Volumes {
         self.0.get(key)
     }
 }
+pub type VolumesModel = MapModel<Volumes>;
 impl HasModel for Volumes {
     type Model = MapModel<Self>;
 }

@@ -6,7 +6,7 @@ use bollard::container::KillContainerOptions;
 use futures::future::{BoxFuture, FutureExt};
 use indexmap::IndexSet;
 use itertools::Itertools;
-use patch_db::DbHandle;
+use patch_db::{DbHandle, ModelData, OptionModel};
 use rand::SeedableRng;
 use regex::Regex;
 use rpc_toolkit::command;
@@ -21,7 +21,7 @@ use crate::db::util::WithRevision;
 use crate::dependencies::{
     update_current_dependents, BreakageRes, DependencyError, TaggedDependencyError,
 };
-use crate::s9pk::manifest::PackageId;
+use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::status::handle_broken_dependents;
 use crate::util::{
     display_none, display_serializable, parse_duration, parse_stdin_deserializable, IoFormat,
@@ -63,6 +63,8 @@ pub enum ConfigurationError {
     NoMatch(#[from] NoMatchWithPath),
     #[error("System Error: {0}")]
     SystemError(Error),
+    #[error("Permission Denied: {0}")]
+    PermissionDenied(ValueSpecPointer),
 }
 impl From<ConfigurationError> for Error {
     fn from(err: ConfigurationError) -> Self {
@@ -326,8 +328,20 @@ pub fn configure<'a, Db: DbHandle>(
             spec.gen(&mut rand::rngs::StdRng::from_entropy(), timeout)?
         };
 
+        let manifest = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(id)
+            .and_then(|m| m.installed())
+            .map::<_, Manifest>(|i| i.manifest())
+            .expect(db)
+            .await?
+            .get(db, true)
+            .await
+            .with_kind(crate::ErrorKind::NotFound)?;
+
         spec.matches(&config)?; // check that new config matches spec
-        spec.update(ctx, db, &*overrides, &mut config).await?; // dereference pointers in the new config
+        spec.update(ctx, db, &*manifest, &*overrides, &mut config)
+            .await?; // dereference pointers in the new config
 
         // create backreferences to pointers
         let mut sys = pkg_model.clone().system_pointers().get_mut(db).await?;
