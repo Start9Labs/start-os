@@ -1,12 +1,11 @@
 import { isEmptyObject } from '../util/misc.util'
-import { PackageDataEntry, InstalledPackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
+import { PackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
 
 export function renderPkgStatus (pkg: PackageDataEntry): {
   primary: PrimaryStatus,
   dependency: DependencyStatus | null,
   health: HealthStatus | null
 } {
-  console.log('PKGPKG', pkg)
   let primary: PrimaryStatus
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
@@ -92,10 +91,10 @@ export enum HealthStatus {
 export const PrimaryRendering: { [key: string]: StatusRendering } = {
   [PrimaryStatus.Installing]: { display: 'Installing', color: 'primary', showDots: true },
   [PrimaryStatus.Updating]: { display: 'Updating', color: 'primary', showDots: true },
-  [PrimaryStatus.Removing]: { display: 'Removing', color: 'warning', showDots: true },
+  [PrimaryStatus.Removing]: { display: 'Removing', color: 'danger', showDots: true },
   [PrimaryStatus.Stopping]: { display: 'Stopping', color: 'dark-shade', showDots: true },
   [PrimaryStatus.Stopped]: { display: 'Stopped', color: 'dark-shade', showDots: false },
-  [PrimaryStatus.BackingUp]: { display: 'Backing Up', color: 'warning', showDots: true },
+  [PrimaryStatus.BackingUp]: { display: 'Backing Up', color: 'primary', showDots: true },
   [PrimaryStatus.Restoring]: { display: 'Restoring', color: 'primary', showDots: true },
   [PrimaryStatus.Running]: { display: 'Running', color: 'success', showDots: false },
 }

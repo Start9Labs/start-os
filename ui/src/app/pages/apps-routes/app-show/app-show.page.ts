@@ -65,13 +65,47 @@ export class AppShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.setValues(this.patch.data['package-data'])
+    // this.setServiceValues(this.patch.data['package-data'])
 
     this.subs = [
       // 1
-      this.patch.watch$('package-data')
-      .subscribe(pkgs => {
-        this.setValues(pkgs)
+      this.patch.watch$('package-data', this.pkgId)
+      .subscribe(pkg => {
+        this.pkg = pkg
+        this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
+        this.statuses = renderPkgStatus(pkg)
+
+        // health
+        if (this.pkg.installed?.status.main.status === PackageMainStatus.Running) {
+          this.healthChecks = { ...this.pkg.installed.status.main.health }
+        } else {
+          this.healthChecks = { }
+        }
+
+        // dependencies
+        if (!pkg.installed) {
+          this.dependencies = { }
+        } else {
+          const currentDeps = pkg.installed['current-dependencies']
+          Object.keys(currentDeps).forEach(key => {
+            const manifestDep = pkg.manifest.dependencies[key]
+            if (!this.dependencies[key] && manifestDep) {
+              this.dependencies[key] = { } as any
+              this.dependencies[key].sub = this.patch.watch$('package-data', key)
+              .subscribe(localDep => {
+                this.setDepValues(key, manifestDep.version, localDep)
+              })
+            }
+          })
+
+          // unsub to deleted
+          Object.keys(this.dependencies).forEach(key => {
+            if (!currentDeps[key]) {
+              this.dependencies[key].sub.unsubscribe()
+              delete this.dependencies[key]
+            }
+          })
+        }
       }),
       // 2
       this.connectionService.watchFailure$()
@@ -88,6 +122,9 @@ export class AppShowPage {
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
+    Object.values(this.dependencies).forEach(dep => {
+      dep.sub.unsubscribe()
+    })
   }
 
   launchUi (): void {
@@ -166,87 +203,63 @@ export class AppShowPage {
     await modal.present()
   }
 
-  private setValues (pkgs: { [id: string]: PackageDataEntry }): void {
-    this.pkg = pkgs[this.pkgId]
-    this.installProgress = !isEmptyObject(this.pkg['install-progress']) ? this.packageLoadingService.transform(this.pkg['install-progress']) : undefined
-    this.statuses = renderPkgStatus(this.pkg)
+  private setDepValues (id: string, version: string, localDep: PackageDataEntry | undefined): void {
+    let errorText = ''
+    let spinnerColor = ''
+    let actionText = 'View'
+    let action: () => any = () => this.navCtrl.navigateForward(`/services/${id}`)
 
-    if (!this.pkg.installed) {
-      this.dependencies = { }
-      this.healthChecks = { }
-    } else {
-      // ** dependencies
-      Object.keys(this.pkg.installed['current-dependencies'] || { })
-        .forEach(id => {
-          // we can safely ignore any current dependencies that are not defined in the service manifest
-          const manifestDep = this.pkg.manifest.dependencies[id]
-          if (manifestDep) {
-            let errorText = ''
-            let spinnerColor = ''
-            let actionText = 'View'
-            let action: () => any = () => this.navCtrl.navigateForward(`/services/${id}`)
+    const error = this.pkg.installed.status['dependency-errors'][id] || null
 
-            const error = this.pkg.installed.status['dependency-errors'][id] || null
+    if (error) {
+      // health checks failed
+      if ([DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthChecksFailed].includes(error.type)) {
+        errorText = 'Health Check Failed'
+      // not fully installed (same as !localDep?.installed)
+      } else if (error.type === DependencyErrorType.NotInstalled) {
+        if (localDep) {
+          errorText = localDep.state // 'Installing' | 'Removing'
+        } else {
+          errorText = 'Not Installed'
+          actionText = 'Install'
+          action = () => this.fixDep('install', id)
+        }
+      // incorrect version
+      } else if (error.type === DependencyErrorType.IncorrectVersion) {
+        if (localDep) {
+          errorText = localDep.state // 'Updating' | 'Removing'
+        } else {
+          errorText = 'Incorrect Version'
+          actionText = 'Update'
+          action = () => this.fixDep('update', id)
+        }
+      // not running
+      } else if (error.type === DependencyErrorType.NotRunning) {
+        errorText = 'Not Running'
+        actionText = 'Start'
+      // config unsatisfied
+      } else if (error.type === DependencyErrorType.ConfigUnsatisfied) {
+        errorText = 'Config Not Satisfied'
+        actionText = 'Auto Config'
+        action = () => this.fixDep('configure', id)
+      }
 
-            if (error) {
-              const localDep = pkgs[id]
-              // health checks failed
-              if ([DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthChecksFailed].includes(error.type)) {
-                errorText = 'Health Check Failed'
-              // not fully installed (same as !localDep?.installed)
-              } else if (error.type === DependencyErrorType.NotInstalled) {
-                if (localDep) {
-                  errorText = localDep.state // 'Installing' | 'Removing'
-                } else {
-                  errorText = 'Not Installed'
-                  actionText = 'Install'
-                  action = () => this.fixDep('install', id)
-                }
-              // incorrect version
-              } else if (error.type === DependencyErrorType.IncorrectVersion) {
-                if (localDep) {
-                  errorText = localDep.state // 'Updating' | 'Removing'
-                } else {
-                  errorText = 'Incorrect Version'
-                  actionText = 'Update'
-                  action = () => this.fixDep('update', id)
-                }
-              // not running
-              } else if (error.type === DependencyErrorType.NotRunning) {
-                errorText = 'Not Running'
-                actionText = 'Start'
-              // config unsatisfied
-              } else if (error.type === DependencyErrorType.ConfigUnsatisfied) {
-                errorText = 'Config Not Satisfied'
-                actionText = 'Auto Config'
-                action = () => this.fixDep('configure', id)
-              }
-
-              if (localDep && localDep.state !== PackageState.Installed) {
-                spinnerColor = localDep.state === PackageState.Removing ? 'danger' : 'primary'
-              }
-            }
-
-            if (!this.dependencies[id]) this.dependencies[id] = { } as any
-
-            const depInfo = this.pkg.installed['dependency-info'][id]
-
-            this.dependencies[id].title = depInfo.manifest.title
-            this.dependencies[id].icon = depInfo.icon
-            this.dependencies[id].version = manifestDep.version
-            this.dependencies[id].errorText = errorText
-            this.dependencies[id].actionText = actionText
-            this.dependencies[id].spinnerColor = spinnerColor
-            this.dependencies[id].action = action
-          }
-        })
-      // ** health
-      if (this.pkg.installed.status.main.status === PackageMainStatus.Running) {
-        this.healthChecks = { ...this.pkg.installed.status.main.health }
-      } else {
-        this.healthChecks = { }
+      if (localDep && localDep.state !== PackageState.Installed) {
+        spinnerColor = localDep.state === PackageState.Removing ? 'danger' : 'primary'
       }
     }
+
+    if (!this.dependencies[id]) this.dependencies[id] = { } as any
+
+    const depInfo = this.pkg.installed['dependency-info'][id]
+
+    this.dependencies[id].title = depInfo.manifest.title
+    this.dependencies[id].icon = depInfo.icon
+    this.dependencies[id].version = version
+    this.dependencies[id].errorText = errorText
+    this.dependencies[id].actionText = actionText
+    this.dependencies[id].spinnerColor = spinnerColor
+    this.dependencies[id].action = action
   }
 
   private async installDep (depId: string): Promise<void> {
@@ -398,6 +411,7 @@ interface DependencyInfo {
   spinnerColor: string
   actionText: string
   action: () => any
+  sub: Subscription
 }
 
 interface Button {
