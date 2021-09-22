@@ -11,6 +11,7 @@ use anyhow::anyhow;
 use async_trait::async_trait;
 use clap::ArgMatches;
 use digest::Digest;
+use patch_db::HasModel;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use tokio::fs::File;
@@ -327,7 +328,7 @@ impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, HasModel)]
 pub struct Version {
     version: emver::Version,
     string: String,
