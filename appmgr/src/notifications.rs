@@ -4,11 +4,12 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
-use patch_db::{LockType, PatchDb};
+use patch_db::{LockType, PatchDb, Revision};
 use rpc_toolkit::command;
 use sqlx::SqlitePool;
 
 use crate::context::RpcContext;
+use crate::db::util::WithRevision;
 use crate::s9pk::manifest::PackageId;
 use crate::util::{display_none, display_serializable};
 use crate::{Error, ErrorKind};
@@ -23,7 +24,7 @@ pub async fn list(
     #[context] ctx: RpcContext,
     #[arg] before: Option<u32>,
     #[arg] limit: Option<u32>,
-) -> Result<Vec<Notification>, Error> {
+) -> Result<WithRevision<Vec<Notification>>, Error> {
     let limit = limit.unwrap_or(40);
     let mut handle = ctx.db.handle();
     match before {
@@ -66,8 +67,11 @@ pub async fn list(
                 })
                 .collect::<Result<Vec<Notification>, Error>>()?;
             // set notification count to zero
-            model.put(&mut handle, &0).await?;
-            Ok(notifs)
+            let r = model.put(&mut handle, &0).await?;
+            Ok(WithRevision {
+                response: notifs,
+                revision: r,
+            })
         }
         Some(before) => {
             let records = sqlx::query!(
@@ -75,7 +79,7 @@ pub async fn list(
                 before,
                 limit
             ).fetch_all(&ctx.secret_store).await?;
-            records
+            let res = records
                 .into_iter()
                 .map(|r| {
                     Ok(Notification {
@@ -103,7 +107,11 @@ pub async fn list(
                         },
                     })
                 })
-                .collect::<Result<Vec<Notification>, Error>>()
+                .collect::<Result<Vec<Notification>, Error>>()?;
+            Ok(WithRevision {
+                response: res,
+                revision: None,
+            })
         }
     }
 }
