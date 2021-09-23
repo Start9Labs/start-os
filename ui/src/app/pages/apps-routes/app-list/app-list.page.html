@@ -24,38 +24,44 @@
         Marketplace
       </ion-button>
     </div>
-  
+
     <ng-template #list>
       <ion-grid>
         <ion-row>
-          <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="4" sizeSm="3" sizeLg="3" sizeXl="2">
+          <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="6" sizeSm="4" sizeLg="3">
             <ion-card class="installed-card" [routerLink]="['/services', pkg.value.entry.manifest.id]">
+              <div
+                class="bulb"
+                [style.background-color]="connectionFailure ? 'var(--ion-color-dark)' : 'var(--ion-color-' + pkg.value.primaryRendering.color + ')'"
+              >
+            </div>
               <div class="launch-container" *ngIf="pkg.value.entry.manifest.interfaces | hasUi">
                 <div class="launch-button-triangle"  (click)="launchUi(pkg.value.entry, $event)" [class.launch-disabled]="!(pkg.value.entry.state | isLaunchable : pkg.value.entry.installed?.status.main.status : pkg.value.entry.manifest.interfaces)">
                   <ion-icon name="open-outline"></ion-icon>
                 </div>
               </div>
-    
-              <img style="position: absolute" class="main-img" [src]="pkg.value.entry['static-files'].icon" alt="icon" />
-              <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
-              <img *ngIf="connectionFailure" class="bulb-off" src="assets/img/off-bulb.png" />
-              <img *ngIf="!connectionFailure" [class]="pkg.value.bulb.class" [src]="pkg.value.bulb.img" />
-  
+              <img class="main-img" [src]="pkg.value.entry['static-files'].icon" alt="icon" />
               <ion-card-header>
-                <ion-grid class="status-grid">
-                  <ion-row class="ion-align-items-center">
-                    <ion-col></ion-col>
-                    <ion-col>
-                      <status *ngIf="[PackageState.Installed, PackageState.Removing] | includes : pkg.value.entry.state" [disconnected]="connectionFailure" [rendering]="pkg.value.primaryRendering" size="calc(8px + .4vw)" weight="bold"></status>
-                    </ion-col>
-                    <ion-col>
-                      <ion-icon *ngIf="pkg.value.error" name="warning-outline" color="warning"></ion-icon>
-                    </ion-col>
-                  </ion-row>
-                </ion-grid>
-                <p *ngIf="!!pkg.value.installProgress" class="main-status"><ion-text color="primary">{{ pkg.value.entry.state | titlecase }}...{{ pkg.value.installProgress.totalProgress }}%</ion-text></p>
-                <ion-card-title>{{ pkg.value.entry.manifest.title }}</ion-card-title>
+                <ion-card-title>
+                  {{ pkg.value.entry.manifest.title }}
+                </ion-card-title>
               </ion-card-header>
+              <ion-card-content>
+                <ion-toolbar class="status-toolbar">
+                  <ion-title>
+                    <ion-text *ngIf="!!pkg.value.installProgress" color="primary">{{ pkg.value.entry.state | titlecase }}...{{ pkg.value.installProgress.totalProgress }}%</ion-text>
+                    <status
+                      *ngIf="[PackageState.Installed, PackageState.Removing] | includes : pkg.value.entry.state"
+                      [disconnected]="connectionFailure"
+                      [rendering]="pkg.value.primaryRendering"
+                      weight="bold"
+                      size="calc(10px + .5vw)"
+                    >
+                    </status>
+                  </ion-title>
+                  <ion-icon *ngIf="pkg.value.error" name="warning-outline" color="warning"></ion-icon>
+                </ion-toolbar>
+              </ion-card-content>
             </ion-card>
           </ion-col>
         </ion-row>
