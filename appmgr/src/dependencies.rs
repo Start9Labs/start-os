@@ -143,7 +143,7 @@ impl DepInfo {
             .package_data()
             .idx_model(dependency_id)
             .and_then(|pde| pde.installed())
-            .check(db)
+            .check(db, true)
             .await?
         {
             (
@@ -274,7 +274,7 @@ pub async fn update_current_dependents<
             .package_data()
             .idx_model(&dependency)
             .and_then(|pkg| pkg.installed())
-            .check(db)
+            .check(db, true)
             .await?
         {
             dependency_model

@@ -22,12 +22,12 @@ pub async fn start(
         .package_data()
         .idx_model(&id)
         .and_then(|pkg| pkg.installed())
-        .expect(&mut tx)
-        .await
-        .with_ctx(|_| {
-            (
+        .check(&mut tx, false)
+        .await?
+        .ok_or_else(|| {
+            Error::new(
+                anyhow!("{} is not installed", id),
                 crate::ErrorKind::NotFound,
-                format!("{} is not installed", id),
             )
         })?;
     let version = installed
@@ -70,18 +70,16 @@ pub async fn stop(
         .package_data()
         .idx_model(&id)
         .and_then(|pkg| pkg.installed())
-        .expect(&mut tx)
-        .await
+        .map(|m| m.status().main())
+        .get_mut(&mut tx)
+        .await?
+        .expect_some()
         .with_ctx(|_| {
             (
                 crate::ErrorKind::NotFound,
                 format!("{} is not installed", id),
             )
-        })?
-        .status()
-        .main()
-        .get_mut(&mut tx)
-        .await?;
+        })?;
 
     *status = MainStatus::Stopping;
     status.save(&mut tx).await?;

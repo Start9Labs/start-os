@@ -22,14 +22,17 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
         let man = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(&dep)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?
-            .manifest()
+            .and_then(|m| m.installed())
+            .map(|m| m.manifest())
             .get(db, true)
-            .await?;
+            .await?
+            .check()
+            .ok_or_else(|| {
+                Error::new(
+                    anyhow!("/package-data/{}/installed/manifest does not exist", dep),
+                    crate::ErrorKind::Database,
+                )
+            })?;
         if let Err(e) = man
             .dependencies
             .0
@@ -46,30 +49,22 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
             let mut errs = crate::db::DatabaseModel::new()
                 .package_data()
                 .idx_model(&dep)
-                .expect(db)
-                .await?
-                .installed()
-                .expect(db)
-                .await?
-                .status()
-                .dependency_errors()
+                .and_then(|m| m.installed())
+                .map(|m| m.status().dependency_errors())
                 .get_mut(db)
-                .await?;
+                .await?
+                .expect_some()?;
             errs.0.insert(id.clone(), e);
             errs.save(db).await?;
         } else {
             let mut errs = crate::db::DatabaseModel::new()
                 .package_data()
                 .idx_model(&dep)
-                .expect(db)
-                .await?
-                .installed()
-                .expect(db)
-                .await?
-                .status()
-                .dependency_errors()
+                .and_then(|m| m.installed())
+                .map(|m| m.status().dependency_errors())
                 .get_mut(db)
-                .await?;
+                .await?
+                .expect_some()?;
             errs.0.remove(id);
             errs.save(db).await?;
         }
@@ -118,14 +113,12 @@ pub async fn cleanup_failed<Db: DbHandle>(
     let pde = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(id)
-        .expect(db)
-        .await?
         .get(db, true)
         .await?
-        .to_owned();
+        .into_owned();
     if match &pde {
-        PackageDataEntry::Installing { .. } => true,
-        PackageDataEntry::Updating { manifest, .. } => {
+        Some(PackageDataEntry::Installing { .. }) => true,
+        Some(PackageDataEntry::Updating { manifest, .. }) => {
             if &manifest.version != version {
                 true
             } else {
@@ -141,18 +134,18 @@ pub async fn cleanup_failed<Db: DbHandle>(
     }
 
     match pde {
-        PackageDataEntry::Installing { .. } => {
+        Some(PackageDataEntry::Installing { .. }) => {
             crate::db::DatabaseModel::new()
                 .package_data()
                 .remove(db, id)
                 .await?;
         }
-        PackageDataEntry::Updating {
+        Some(PackageDataEntry::Updating {
             installed,
             manifest,
             static_files,
             ..
-        } => {
+        }) => {
             crate::db::DatabaseModel::new()
                 .package_data()
                 .idx_model(id)

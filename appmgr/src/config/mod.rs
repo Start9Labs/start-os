@@ -5,6 +5,7 @@ use bollard::container::KillContainerOptions;
 use futures::future::{BoxFuture, FutureExt};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
+use patch_db::json_ptr::JsonPointer;
 use patch_db::DbHandle;
 use rand::SeedableRng;
 use regex::Regex;
@@ -20,10 +21,11 @@ use crate::dependencies::{
     update_current_dependents, BreakageRes, DependencyError, TaggedDependencyError,
 };
 use crate::s9pk::manifest::PackageId;
+use crate::status::handle_broken_dependents;
 use crate::util::{
     display_none, display_serializable, parse_duration, parse_stdin_deserializable, IoFormat,
 };
-use crate::{Error, ResultExt as _};
+use crate::{ensure_code, Error, ResultExt as _};
 
 pub mod action;
 pub mod spec;
@@ -152,26 +154,35 @@ pub async fn get(
     let pkg_model = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
-        .and_then(|m| m.installed())
-        .expect(&mut db)
-        .await
-        .with_kind(crate::ErrorKind::NotFound)?;
-    let action = pkg_model
+        .and_then(|m| m.installed());
+    let not_installed = || {
+        Error::new(
+            anyhow!("{} is not installed", id),
+            crate::ErrorKind::NotFound,
+        )
+    };
+    let version = pkg_model
         .clone()
-        .manifest()
-        .config()
+        .map(|m| m.manifest().version())
+        .get(&mut db, true)
+        .await?
+        .to_owned()
+        .ok_or_else(not_installed)?;
+    let volumes = pkg_model
+        .clone()
+        .map(|m| m.manifest().volumes())
+        .get(&mut db, true)
+        .await?
+        .to_owned()
+        .ok_or_else(not_installed)?;
+    let action = pkg_model
+        .and_then(|m| m.manifest().config())
         .get(&mut db, true)
         .await?
         .to_owned()
         .ok_or_else(|| Error::new(anyhow!("{} has no config", id), crate::ErrorKind::NotFound))?;
-    let version = pkg_model
-        .clone()
-        .manifest()
-        .version()
-        .get(&mut db, true)
-        .await?;
-    let volumes = pkg_model.manifest().volumes().get(&mut db, true).await?;
-    action.get(&ctx, &id, &*version, &*volumes).await
+
+    action.get(&ctx, &id, &version, &volumes).await
 }
 
 #[command(
@@ -217,13 +228,8 @@ pub async fn set_dry(
     crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
-        .expect(&mut tx)
-        .await?
-        .installed()
-        .expect(&mut tx)
-        .await?
-        .status()
-        .configured()
+        .and_then(|m| m.installed())
+        .map(|m| m.status().configured())
         .put(&mut tx, &true)
         .await?;
     Ok(BreakageRes {
@@ -253,13 +259,8 @@ pub async fn set_impl(
     crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
-        .expect(&mut tx)
-        .await?
-        .installed()
-        .expect(&mut tx)
-        .await?
-        .status()
-        .configured()
+        .and_then(|m| m.installed())
+        .map(|m| m.status().configured())
         .put(&mut tx, &true)
         .await?;
     Ok(WithRevision {
@@ -281,16 +282,29 @@ pub fn configure<'a, Db: DbHandle>(
     async move {
         crate::db::DatabaseModel::new()
             .package_data()
-            .lock(db, patch_db::LockType::Write)
+            .lock(db)
             .await;
         // fetch data from db
         let pkg_model = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(id)
-            .and_then(|m| m.installed())
-            .expect(db)
-            .await
-            .with_kind(crate::ErrorKind::NotFound)?;
+            .and_then(|m| m.installed());
+        let pkg_model: InstalledPackageDataEntryModel = if pkg_model.exists(db, true).await? {
+            JsonPointer::from(pkg_model).into()
+        } else {
+            return Err(Error::new(
+                anyhow!("{} is not installed", id),
+                crate::ErrorKind::NotFound,
+            ));
+        };
+        let version = pkg_model.clone().manifest().version().get(db, true).await?;
+        let dependencies = pkg_model
+            .clone()
+            .manifest()
+            .dependencies()
+            .get(db, true)
+            .await?;
+        let volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
         let action = pkg_model
             .clone()
             .manifest()
@@ -301,14 +315,6 @@ pub fn configure<'a, Db: DbHandle>(
             .ok_or_else(|| {
                 Error::new(anyhow!("{} has no config", id), crate::ErrorKind::NotFound)
             })?;
-        let version = pkg_model.clone().manifest().version().get(db, true).await?;
-        let dependencies = pkg_model
-            .clone()
-            .manifest()
-            .dependencies()
-            .get(db, true)
-            .await?;
-        let volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
 
         // get current config and current spec
         let ConfigRes {
@@ -401,92 +407,25 @@ pub fn configure<'a, Db: DbHandle>(
         let prev = old_config.map(Value::Object).unwrap_or_default();
         let next = Value::Object(config.clone());
         for (dependent, dep_info) in dependents.iter().filter(|(dep_id, _)| dep_id != &id) {
-            fn handle_broken_dependents<'a, Db: DbHandle>(
-                db: &'a mut Db,
-                id: &'a PackageId,
-                dependency: &'a PackageId,
-                model: InstalledPackageDataEntryModel,
-                error: DependencyError,
-                breakages: &'a mut IndexMap<PackageId, TaggedDependencyError>,
-            ) -> BoxFuture<'a, Result<(), Error>> {
-                async move {
-                    let mut status = model.clone().status().get_mut(db).await?;
-
-                    let old = status.dependency_errors.0.remove(id);
-                    let newly_broken = old.is_none();
-                    status.dependency_errors.0.insert(
-                        id.clone(),
-                        if let Some(old) = old {
-                            old.merge_with(error.clone())
-                        } else {
-                            error.clone()
-                        },
-                    );
-                    if newly_broken {
-                        breakages.insert(
-                            id.clone(),
-                            TaggedDependencyError {
-                                dependency: dependency.clone(),
-                                error: error.clone(),
-                            },
-                        );
-                        if status.main.running() {
-                            if model
-                                .clone()
-                                .manifest()
-                                .dependencies()
-                                .idx_model(dependency)
-                                .expect(db)
-                                .await?
-                                .get(db, true)
-                                .await?
-                                .critical
-                            {
-                                status.main.stop();
-                                let dependents = model.current_dependents().get(db, true).await?;
-                                for (dependent, _) in &*dependents {
-                                    let dependent_model = crate::db::DatabaseModel::new()
-                                        .package_data()
-                                        .idx_model(dependent)
-                                        .and_then(|pkg| pkg.installed())
-                                        .expect(db)
-                                        .await?;
-                                    handle_broken_dependents(
-                                        db,
-                                        dependent,
-                                        id,
-                                        dependent_model,
-                                        DependencyError::NotRunning,
-                                        breakages,
-                                    )
-                                    .await?;
-                                }
-                            }
-                        }
-                    }
-
-                    status.save(db).await?;
-
-                    Ok(())
-                }
-                .boxed()
-            }
-
             // check if config passes dependent check
             let dependent_model = crate::db::DatabaseModel::new()
                 .package_data()
                 .idx_model(dependent)
                 .and_then(|pkg| pkg.installed())
-                .expect(db)
-                .await?;
+                .check(db, true)
+                .await?
+                .ok_or_else(|| {
+                    Error::new(
+                        anyhow!("{} is not installed", dependent),
+                        crate::ErrorKind::NotFound,
+                    )
+                })?;
             if let Some(cfg) = &*dependent_model
                 .clone()
                 .manifest()
                 .dependencies()
                 .idx_model(id)
-                .expect(db)
-                .await?
-                .config()
+                .and_then(|m| m.config())
                 .get(db, true)
                 .await?
             {
@@ -527,8 +466,14 @@ pub fn configure<'a, Db: DbHandle>(
                                         .package_data()
                                         .idx_model(dependent)
                                         .and_then(|pkg| pkg.installed())
-                                        .expect(db)
-                                        .await?;
+                                        .check(db, true)
+                                        .await?
+                                        .ok_or_else(|| {
+                                            Error::new(
+                                                anyhow!("{} is not installed", dependent),
+                                                crate::ErrorKind::NotFound,
+                                            )
+                                        })?;
                                     handle_broken_dependents(
                                         db,
                                         dependent,

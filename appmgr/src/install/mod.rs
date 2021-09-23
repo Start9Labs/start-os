@@ -277,16 +277,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     rdr.validated();
     let model = crate::db::DatabaseModel::new()
         .package_data()
-        .idx_model(pkg_id)
-        .check(&mut ctx.db.handle())
-        .await?
-        .ok_or_else(|| {
-            Error::new(
-                anyhow!("PackageDataEntry does not exist"),
-                crate::ErrorKind::Database,
-            )
-        })?;
-    let progress_model = model.clone().install_progress();
+        .idx_model(pkg_id);
+    let progress_model = model.clone().and_then(|m| m.install_progress());
 
     log::info!("Install {}@{}: Unpacking Manifest", pkg_id, version);
     let manifest = progress
@@ -511,7 +503,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let mut sql_tx = ctx.secret_store.begin().await?;
     crate::db::DatabaseModel::new()
         .package_data()
-        .lock(&mut tx, patch_db::LockType::Write)
+        .lock(&mut tx)
         .await;
 
     log::info!("Install {}@{}: Creating volumes", pkg_id, version);
@@ -557,9 +549,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             if let Some(dep) = crate::db::DatabaseModel::new()
                 .package_data()
                 .idx_model(&package)
-                .expect(&mut tx)
-                .await?
-                .installed()
+                .and_then(|m| m.installed())
                 .and_then(|i| i.current_dependencies().idx_model(pkg_id))
                 .get(&mut tx, true)
                 .await?
@@ -589,7 +579,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         current_dependencies,
         interface_addresses,
     };
-    let mut pde = model.get_mut(&mut tx).await?;
+    let mut pde = model.get_mut(&mut tx).await?.expect_some()?;
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {
