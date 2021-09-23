@@ -234,10 +234,6 @@ ion-button {
   }
 }
 
-.custom-modal {
-  border-radius: 8px;
-}
-
 ion-slides {
   .slider-wrapper {
     height: 100%;
@@ -255,7 +251,7 @@ ion-item-divider {
 }
 
 ion-item {
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 ion-label {
@@ -278,7 +274,7 @@ ion-loading {
   border-width: 1px;
   border-style: groove;
   border-color: dimgrey;
-  border-radius: 10px;
+  border-radius: 6px;
   box-shadow: 4px 4px 16px var(--ion-color-primary);
   --padding-start: 10px;
 }
