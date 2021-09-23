@@ -58,10 +58,6 @@ export class AppListPage {
           if (this.pkgs[id]) return
           this.pkgs[id] = {
             entry: pkgs[id],
-            bulb: {
-              class: 'bulb-off',
-              img: 'assets/img/off-bulb.png',
-            },
             primaryRendering: PrimaryRendering[renderPkgStatus(pkgs[id]).primary],
             installProgress: !isEmptyObject(pkgs[id]['install-progress']) ? this.installPackageService.transform(pkgs[id]['install-progress']) : undefined,
             error: false,
@@ -70,31 +66,10 @@ export class AppListPage {
           // subscribe to pkg
           this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
             if (!pkg) return
-            let bulbClass = 'bulb-on'
-            let img = ''
             const statuses = renderPkgStatus(pkg)
             const primaryRendering = PrimaryRendering[statuses.primary]
-            switch (primaryRendering.color) {
-              case 'danger':
-                img = 'assets/img/danger-bulb.png'
-                break
-              case 'success':
-                img = 'assets/img/success-bulb.png'
-                break
-              case 'warning':
-                img = 'assets/img/warning-bulb.png'
-                break
-              default:
-                bulbClass = 'bulb-off',
-                img = 'assets/img/off-bulb.png'
-                break
-            }
             this.pkgs[id].entry = pkg
             this.pkgs[id].installProgress = !isEmptyObject(pkg['install-progress']) ? this.installPackageService.transform(pkg['install-progress']) : undefined
-            this.pkgs[id].bulb = {
-              class: bulbClass,
-              img,
-            }
             this.pkgs[id].primaryRendering = primaryRendering
             this.pkgs[id].error = [HealthStatus.NeedsConfig, HealthStatus.Failure].includes(statuses.health) || [DependencyStatus.Issue, DependencyStatus.Critical].includes(statuses.dependency)
           })
@@ -126,10 +101,6 @@ export class AppListPage {
 
 interface PkgInfo {
   entry: PackageDataEntry
-  bulb: {
-    class: string
-    img: string
-  }
   primaryRendering: StatusRendering
   installProgress: ProgressData
   error: boolean

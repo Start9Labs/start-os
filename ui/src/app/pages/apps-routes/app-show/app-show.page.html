@@ -27,8 +27,8 @@
       </ion-label>
       <ng-container *ngIf="pkg.state === PackageState.Installed && !connectionFailure">
         <ion-button slot="end" class="action-button" *ngIf="pkg.manifest.interfaces | hasUi" [disabled]="!(pkg.state | isLaunchable : pkg.installed.status.main.status : pkg.manifest.interfaces)" (click)="launchUi()">
-          <ion-icon slot="start" name="open-outline"></ion-icon>
-          Open UI
+          Launch UI
+          <ion-icon slot="end" name="open-outline"></ion-icon>
         </ion-button>
         <ion-button slot="end" class="action-button" *ngIf="!pkg.installed.status.configured" (click)="presentModalConfig()">
           Configure
