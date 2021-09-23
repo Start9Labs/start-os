@@ -41,7 +41,11 @@ pub struct CliContextSeed {
 impl Drop for CliContextSeed {
     fn drop(&mut self) {
         let tmp = format!("{}.tmp", self.cookie_path.display());
-        let mut writer = File::create(&tmp).unwrap();
+        let mut writer = fd_lock_rs::FdLock::lock(
+            File::create(&tmp).unwrap(),
+            fd_lock_rs::LockType::Exclusive,
+            true,
+        );
         let store = self.cookie_store.lock().unwrap();
         store.save_json(&mut writer).unwrap();
         writer.sync_all().unwrap();
