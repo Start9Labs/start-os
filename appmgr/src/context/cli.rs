@@ -45,7 +45,7 @@ impl Drop for CliContextSeed {
             File::create(&tmp).unwrap(),
             fd_lock_rs::LockType::Exclusive,
             true,
-        );
+        )?;
         let store = self.cookie_store.lock().unwrap();
         store.save_json(&mut writer).unwrap();
         writer.sync_all().unwrap();
