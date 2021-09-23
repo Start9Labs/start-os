@@ -1,13 +1,29 @@
 [package]
-name = "compat"
-version = "0.1.0"
 authors = ["Aiden McClelland <me@drbonez.dev>"]
 edition = "2018"
+name = "compat"
+version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = { version = "1.0.40", features = ["backtrace"] }
+beau_collector = "0.2.1"
 clap = "2.33.3"
-serde = { version="1.0.118", features=["derive", "rc"] }
+embassy-os = { path = "../appmgr", default-features = false }
+emver = { version = "0.1.2", features = ["serde"] }
+failure = "0.1.8"
+indexmap = { version = "1.6.2", features = ["serde"] }
+itertools = "0.10.0"
+lazy_static = "1.4"
+linear-map = { version = "1.2", features = ["serde_impl"] }
+log = "0.4.11"
+nix = "0.22.0"
+pest = "2.1"
+pest_derive = "2.1"
+rand = "0.7"
+regex = "1.4.2"
+rust-argon2 = "0.8.3"
+serde = { version = "1.0.118", features = ["derive", "rc"] }
+serde_json = "1.0.67"
 serde_yaml = "0.8.17"
-embassy-os = { path="../appmgr", default-features=false }
