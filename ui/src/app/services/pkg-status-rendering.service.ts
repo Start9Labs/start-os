@@ -11,7 +11,7 @@ export function renderPkgStatus (pkg: PackageDataEntry): {
   let health: HealthStatus | null = null
 
   if (pkg.state === PackageState.Installed) {
-    primary = pkg.installed.status.main.status as string as PrimaryStatus
+    primary = getPrimaryStatus(pkg.installed.status)
     dependency = getDependencyStatus(pkg)
     health = getHealthStatus(pkg.installed.status)
   } else {
@@ -19,6 +19,14 @@ export function renderPkgStatus (pkg: PackageDataEntry): {
   }
 
   return { primary, dependency, health }
+}
+
+function getPrimaryStatus (status: Status): PrimaryStatus {
+  if (!status.configured) {
+    return PrimaryStatus.NeedsConfig
+  } else {
+    return status.main.status as any as PrimaryStatus
+  }
 }
 
 function getDependencyStatus (pkg: PackageDataEntry): DependencyStatus {
@@ -37,10 +45,6 @@ function getDependencyStatus (pkg: PackageDataEntry): DependencyStatus {
 }
 
 function getHealthStatus (status: Status): HealthStatus {
-  if (!status.configured) {
-    return HealthStatus.NeedsConfig
-  }
-
   if (status.main.status === PackageMainStatus.Running) {
     const values = Object.values(status.main.health)
     if (values.some(h => h.result === 'failure')) {
@@ -72,6 +76,8 @@ export enum PrimaryStatus {
   Stopped = 'stopped',
   BackingUp = 'backing-up',
   Restoring = 'restoring',
+  // config
+  NeedsConfig = 'needs-config',
 }
 
 export enum DependencyStatus {
@@ -81,7 +87,6 @@ export enum DependencyStatus {
 }
 
 export enum HealthStatus {
-  NeedsConfig = 'needs-config',
   Failure = 'failure',
   Starting = 'starting',
   Loading = 'loading',
@@ -97,6 +102,7 @@ export const PrimaryRendering: { [key: string]: StatusRendering } = {
   [PrimaryStatus.BackingUp]: { display: 'Backing Up', color: 'primary', showDots: true },
   [PrimaryStatus.Restoring]: { display: 'Restoring', color: 'primary', showDots: true },
   [PrimaryStatus.Running]: { display: 'Running', color: 'success', showDots: false },
+  [PrimaryStatus.NeedsConfig]: { display: 'Needs Config', color: 'warning' },
 }
 
 export const DependencyRendering: { [key: string]: StatusRendering }  = {
@@ -106,7 +112,6 @@ export const DependencyRendering: { [key: string]: StatusRendering }  = {
 }
 
 export const HealthRendering: { [key: string]: StatusRendering } = {
-  [HealthStatus.NeedsConfig]: { display: 'Needs Config', color: 'warning' },
   [HealthStatus.Failure]: { display: 'Failure', color: 'danger' },
   [HealthStatus.Starting]: { display: 'Starting', color: 'primary' },
   [HealthStatus.Loading]: { display: 'Loading', color: 'primary' },

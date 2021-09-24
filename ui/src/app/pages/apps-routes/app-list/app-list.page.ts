@@ -71,7 +71,7 @@ export class AppListPage {
             this.pkgs[id].entry = pkg
             this.pkgs[id].installProgress = !isEmptyObject(pkg['install-progress']) ? this.installPackageService.transform(pkg['install-progress']) : undefined
             this.pkgs[id].primaryRendering = primaryRendering
-            this.pkgs[id].error = [HealthStatus.NeedsConfig, HealthStatus.Failure].includes(statuses.health) || [DependencyStatus.Issue, DependencyStatus.Critical].includes(statuses.dependency)
+            this.pkgs[id].error = statuses.health === HealthStatus.Failure || [DependencyStatus.Issue, DependencyStatus.Critical].includes(statuses.dependency)
           })
         })
       }),
