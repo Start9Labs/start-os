@@ -1592,7 +1592,7 @@ impl PackagePointerSpec {
                 if let Some(cfg) = config_overrides.get(&self.package_id) {
                     Ok(selector.select(*multi, &Value::Object(cfg.clone())))
                 } else {
-                    let manifest_model: OptionModel<_> = crate::db::DatabaseModel::new()
+                    let manifest_model: OptionModel<Manifest> = crate::db::DatabaseModel::new()
                         .package_data()
                         .idx_model(&self.package_id)
                         .and_then(|pde| pde.installed())

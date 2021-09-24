@@ -14,12 +14,15 @@ use serde_json::Value;
 use crate::action::docker::DockerAction;
 use crate::config::spec::PackagePointerSpecVariant;
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
+use crate::db::model::{
+    CurrentDependencyInfo, InstalledPackageDataEntry, InstalledPackageDataEntryModel,
+};
 use crate::db::util::WithRevision;
 use crate::dependencies::{
     update_current_dependents, BreakageRes, DependencyError, TaggedDependencyError,
 };
 use crate::s9pk::manifest::PackageId;
+use crate::status::handle_broken_dependents;
 use crate::util::{
     display_none, display_serializable, parse_duration, parse_stdin_deserializable, IoFormat,
 };
@@ -281,7 +284,7 @@ pub fn configure<'a, Db: DbHandle>(
     async move {
         crate::db::DatabaseModel::new()
             .package_data()
-            .lock(db, patch_db::LockType::Write)
+            .lock(db, true)
             .await;
         // fetch data from db
         let pkg_model = crate::db::DatabaseModel::new()
@@ -401,77 +404,6 @@ pub fn configure<'a, Db: DbHandle>(
         let prev = old_config.map(Value::Object).unwrap_or_default();
         let next = Value::Object(config.clone());
         for (dependent, dep_info) in dependents.iter().filter(|(dep_id, _)| dep_id != &id) {
-            fn handle_broken_dependents<'a, Db: DbHandle>(
-                db: &'a mut Db,
-                id: &'a PackageId,
-                dependency: &'a PackageId,
-                model: InstalledPackageDataEntryModel,
-                error: DependencyError,
-                breakages: &'a mut IndexMap<PackageId, TaggedDependencyError>,
-            ) -> BoxFuture<'a, Result<(), Error>> {
-                async move {
-                    let mut status = model.clone().status().get_mut(db).await?;
-
-                    let old = status.dependency_errors.0.remove(id);
-                    let newly_broken = old.is_none();
-                    status.dependency_errors.0.insert(
-                        id.clone(),
-                        if let Some(old) = old {
-                            old.merge_with(error.clone())
-                        } else {
-                            error.clone()
-                        },
-                    );
-                    if newly_broken {
-                        breakages.insert(
-                            id.clone(),
-                            TaggedDependencyError {
-                                dependency: dependency.clone(),
-                                error: error.clone(),
-                            },
-                        );
-                        if status.main.running() {
-                            if model
-                                .clone()
-                                .manifest()
-                                .dependencies()
-                                .idx_model(dependency)
-                                .expect(db)
-                                .await?
-                                .get(db, true)
-                                .await?
-                                .critical
-                            {
-                                status.main.stop();
-                                let dependents = model.current_dependents().get(db, true).await?;
-                                for (dependent, _) in &*dependents {
-                                    let dependent_model = crate::db::DatabaseModel::new()
-                                        .package_data()
-                                        .idx_model(dependent)
-                                        .and_then(|pkg| pkg.installed())
-                                        .expect(db)
-                                        .await?;
-                                    handle_broken_dependents(
-                                        db,
-                                        dependent,
-                                        id,
-                                        dependent_model,
-                                        DependencyError::NotRunning,
-                                        breakages,
-                                    )
-                                    .await?;
-                                }
-                            }
-                        }
-                    }
-
-                    status.save(db).await?;
-
-                    Ok(())
-                }
-                .boxed()
-            }
-
             // check if config passes dependent check
             let dependent_model = crate::db::DatabaseModel::new()
                 .package_data()

@@ -344,6 +344,16 @@
       "nullable": []
     }
   },
+  "a596bdc5014ba9e7b362398abf09ec6a100923e001247a79503d1e820ffe71c3": {
+    "query": "-- Add migration script here\nCREATE TABLE IF NOT EXISTS tor\n(\n    package     TEXT NOT NULL,\n    interface   TEXT NOT NULL,\n    key         BLOB NOT NULL CHECK (length(key) = 64),\n    PRIMARY KEY (package, interface)\n);\nCREATE TABLE IF NOT EXISTS session\n(\n    id         TEXT NOT NULL PRIMARY KEY,\n    logged_in TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    logged_out TIMESTAMP,\n    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    user_agent TEXT,\n    metadata   TEXT NOT NULL DEFAULT 'null'\n);\nCREATE TABLE IF NOT EXISTS account\n(\n    id INTEGER PRIMARY KEY CHECK (id = 0),\n    password TEXT NOT NULL,\n    tor_key BLOB NOT NULL CHECK (length(tor_key) = 64)\n);\nCREATE TABLE IF NOT EXISTS ssh_keys\n(\n    fingerprint     TEXT NOT NULL,\n    openssh_pubkey  TEXT NOT NULL,\n    created_at      TEXT NOT NULL,\n    PRIMARY KEY (fingerprint)\n);\nCREATE TABLE IF NOT EXISTS certificates\n(\n    id INTEGER PRIMARY KEY, -- Root = 0, Int = 1, Other = 2..\n    priv_key_pem TEXT NOT NULL,\n    certificate_pem TEXT NOT NULL,\n    lookup_string TEXT UNIQUE,\n    created_at TEXT,\n    updated_at TEXT\n);\nCREATE TABLE IF NOT EXISTS notifications\n(\n    id INTEGER PRIMARY KEY,\n    package_id TEXT,\n    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    code INTEGER NOT NULL,\n    level TEXT NOT NULL,\n    title TEXT NOT NULL,\n    message TEXT NOT NULL,\n    data TEXT\n);",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": []
+    }
+  },
   "a6b0c8909a3a5d6d9156aebfb359424e6b5a1d1402e028219e21726f1ebd282e": {
     "query": "SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys",
     "describe": {

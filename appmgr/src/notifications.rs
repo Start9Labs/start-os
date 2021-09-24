@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
-use patch_db::{LockType, PatchDb, Revision};
+use patch_db::{PatchDb, Revision};
 use rpc_toolkit::command;
 use sqlx::SqlitePool;
 
@@ -32,7 +32,7 @@ pub async fn list(
             let model = crate::db::DatabaseModel::new()
                 .server_info()
                 .unread_notification_count();
-            model.lock(&mut handle, patch_db::LockType::Write).await;
+            model.lock(&mut handle, true).await;
             let records = sqlx::query!(
                 "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT ?",
                 limit
