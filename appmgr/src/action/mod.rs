@@ -109,6 +109,7 @@ impl Action {
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
+        action_id: &ActionId,
         volumes: &Volumes,
         input: Option<Config>,
     ) -> Result<ActionResult, Error> {
@@ -122,7 +123,7 @@ impl Action {
                 ctx,
                 pkg_id,
                 pkg_version,
-                Some(&format!("{}Action", self.name.replace(" ", ""))),
+                Some(&format!("{}Action", action_id)),
                 volumes,
                 input,
                 true,
@@ -200,6 +201,7 @@ pub async fn action(
                 &ctx,
                 &manifest.id,
                 &manifest.version,
+                &action_id,
                 &manifest.volumes,
                 input,
             )
