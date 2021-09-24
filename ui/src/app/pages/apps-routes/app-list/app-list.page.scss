@@ -2,7 +2,7 @@
   margin: 4px;
   padding: 4px;
   background: linear-gradient(37deg, #333333, #131313);
-  border-radius: 6px;
+  border-radius: 6px 0 6px 6px;
   text-align: center;
 
   ion-card-header {
@@ -25,13 +25,24 @@
 }
 
 .bulb {
-  position: absolute !important;
-  left: 10px !important;
-  top: 10px !important;
   height: calc(10px + .5vw);
   width: calc(10px + .5vw);
   border-radius: 100%;
-  box-shadow: 0 0 4px 4px rgba(255, 255, 255, 0.3)
+  box-shadow: 0 0 4px 4px rgba(255, 255, 255, 0.3);
+  position: absolute !important;
+  left: 10px !important;
+  top: 10px !important;
+}
+
+.warning-icon {
+  position: absolute !important;
+  left: 8px !important;
+  top: 8px !important;
+  font-size: 19px;
+  border-radius: 100%;
+  padding: 1px;
+  background-color: rgba(255,213,52, 0.1);
+  box-shadow: 0 0 4px 4px rgba(255,213,52, 0.1);
 }
 
 .launch-button-triangle {
@@ -65,6 +76,7 @@
 .launch-container {
   position: absolute;
   right: 0px;
+  top: 0px;
 }
 
 .status-toolbar {
