@@ -119,3 +119,7 @@ tokio-util = { version = "0.6.8", features = ["io"] }
 torut = "0.2.0"
 typed-builder = "0.9.1"
 url = { version = "2.2.2", features = ["serde"] }
+
+[dependencies.serde_with]
+version = "1.10.0"
+features = [ "macros", "json" ]
