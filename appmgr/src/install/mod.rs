@@ -277,16 +277,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     rdr.validated();
     let model = crate::db::DatabaseModel::new()
         .package_data()
-        .idx_model(pkg_id)
-        .check(&mut ctx.db.handle())
-        .await?
-        .ok_or_else(|| {
-            Error::new(
-                anyhow!("PackageDataEntry does not exist"),
-                crate::ErrorKind::Database,
-            )
-        })?;
-    let progress_model = model.clone().install_progress();
+        .idx_model(pkg_id);
+    let progress_model = model.clone().and_then(|m| m.install_progress());
 
     log::info!("Install {}@{}: Unpacking Manifest", pkg_id, version);
     let manifest = progress
@@ -589,7 +581,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         current_dependencies,
         interface_addresses,
     };
-    let mut pde = model.get_mut(&mut tx).await?;
+    let mut pde = model.expect(&mut tx).await?.get_mut(&mut tx).await?;
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {
