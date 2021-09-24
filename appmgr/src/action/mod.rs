@@ -2,6 +2,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 use anyhow::anyhow;
+use clap::ArgMatches;
 use indexmap::{IndexMap, IndexSet};
 use patch_db::HasModel;
 use rpc_toolkit::command;
@@ -12,7 +13,7 @@ use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::id::{Id, InvalidId};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{display_serializable, parse_stdin_deserializable, ValuePrimative, Version};
+use crate::util::{IoFormat, ValuePrimative, Version, display_serializable, parse_stdin_deserializable};
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
 
@@ -176,12 +177,26 @@ impl ActionImplementation {
     }
 }
 
-#[command(about = "Executes an action", display(display_serializable))]
+fn display_action_result(action_result: ActionResult, matches: &ArgMatches<'_>) {
+    if matches.is_present("format") {
+        return display_serializable(action_result, matches);
+    }
+    match action_result {
+        ActionResult::V0(ar) => {
+            println!("{}: {}", ar.message, serde_json::to_string(&ar.value).unwrap());
+        },
+    }
+}
+
+#[command(about = "Executes an action", display(display_action_result))]
 pub async fn action(
     #[context] ctx: RpcContext,
     #[arg(rename = "id")] pkg_id: PackageId,
     #[arg(rename = "action-id")] action_id: ActionId,
     #[arg(stdin, parse(parse_stdin_deserializable))] input: Option<Config>,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
 ) -> Result<ActionResult, Error> {
     let mut db = ctx.db.handle();
     let manifest = crate::db::DatabaseModel::new()
