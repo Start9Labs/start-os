@@ -29,12 +29,15 @@
       <ion-grid>
         <ion-row>
           <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="6" sizeSm="4" sizeLg="3">
-            <ion-card class="installed-card" [routerLink]="['/services', pkg.value.entry.manifest.id]">
+            <ion-card class="installed-card warn-shadow" [routerLink]="['/services', pkg.value.entry.manifest.id]">
               <div
+                *ngIf="!pkg.value.error"
                 class="bulb"
                 [style.background-color]="connectionFailure ? 'var(--ion-color-dark)' : 'var(--ion-color-' + pkg.value.primaryRendering.color + ')'"
               >
-            </div>
+              </div>
+              <ion-icon *ngIf="pkg.value.error" class="warning-icon" name="warning-outline" color="warning"></ion-icon>
+              
               <div class="launch-container" *ngIf="pkg.value.entry.manifest.interfaces | hasUi">
                 <div class="launch-button-triangle"  (click)="launchUi(pkg.value.entry, $event)" [class.launch-disabled]="!(pkg.value.entry.state | isLaunchable : pkg.value.entry.installed?.status.main.status : pkg.value.entry.manifest.interfaces)">
                   <ion-icon name="open-outline"></ion-icon>
@@ -59,7 +62,6 @@
                     >
                     </status>
                   </ion-title>
-                  <ion-icon *ngIf="pkg.value.error" name="warning-outline" color="warning"></ion-icon>
                 </ion-toolbar>
               </ion-card-content>
             </ion-card>
