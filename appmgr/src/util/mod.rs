@@ -11,7 +11,7 @@ use anyhow::anyhow;
 use async_trait::async_trait;
 use clap::ArgMatches;
 use digest::Digest;
-use patch_db::HasModel;
+use patch_db::{HasModel, Model};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use tokio::fs::File;
@@ -328,7 +328,7 @@ impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
     }
 }
 
-#[derive(Debug, Clone, HasModel)]
+#[derive(Debug, Clone)]
 pub struct Version {
     version: emver::Version,
     string: String,
@@ -409,6 +409,9 @@ impl Serialize for Version {
     {
         self.string.serialize(serializer)
     }
+}
+impl HasModel for Version {
+    type Model = Model<Version>;
 }
 
 #[async_trait]

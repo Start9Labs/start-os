@@ -255,6 +255,8 @@ impl HasModel for InterfaceAddressMap {
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct InterfaceAddresses {
+    #[model]
     pub tor_address: Option<String>,
+    #[model]
     pub lan_address: Option<String>,
 }
