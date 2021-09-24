@@ -170,7 +170,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             log::debug!("{}", e.source);
             embassy::sound::BEETHOVEN.play().await?;
             #[cfg(feature = "avahi")]
-            let mdns = MdnsController::init();
+            let _mdns = MdnsController::init();
             tokio::fs::write(
                 "/etc/nginx/sites-available/default",
                 include_str!("../nginx/diagnostic-ui.conf"),
