@@ -122,7 +122,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
         .await?
         .get(db, true)
         .await?
-        .to_owned();
+        .into_owned();
     if match &pde {
         PackageDataEntry::Installing { .. } => true,
         PackageDataEntry::Updating { manifest, .. } => {

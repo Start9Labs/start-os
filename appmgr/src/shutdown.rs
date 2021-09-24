@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use patch_db::{LockType, PatchDbHandle};
+use patch_db::PatchDbHandle;
 use rpc_toolkit::command;
 
 use crate::context::RpcContext;
@@ -67,9 +67,7 @@ impl Shutdown {
 #[command(display(display_none))]
 pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
     let mut db = ctx.db.handle();
-    crate::db::DatabaseModel::new()
-        .lock(&mut db, LockType::Write)
-        .await;
+    crate::db::DatabaseModel::new().lock(&mut db, true).await;
     ctx.shutdown
         .send(Some(Shutdown {
             zfs_pool: ctx.zfs_pool_name.clone(),
@@ -84,9 +82,7 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
 #[command(display(display_none))]
 pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
     let mut db = ctx.db.handle();
-    crate::db::DatabaseModel::new()
-        .lock(&mut db, LockType::Write)
-        .await;
+    crate::db::DatabaseModel::new().lock(&mut db, true).await;
     ctx.shutdown
         .send(Some(Shutdown {
             zfs_pool: ctx.zfs_pool_name.clone(),
