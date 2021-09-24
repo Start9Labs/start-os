@@ -853,6 +853,7 @@ dependencies = [
  "sequence_trie",
  "serde",
  "serde_json",
+ "serde_with",
  "serde_yaml",
  "sha2",
  "simple-logging",
@@ -2831,6 +2832,7 @@ checksum = "062b87e45d8f26714eacfaef0ed9a583e2bfd50ebd96bdd3c200733bd5758e2c"
 dependencies = [
  "rustversion",
  "serde",
+ "serde_json",
  "serde_with_macros",
 ]
 
