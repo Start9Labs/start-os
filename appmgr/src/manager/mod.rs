@@ -38,14 +38,16 @@ impl ManagerMap {
             .keys(db, true)
             .await?
         {
-            let man = if let Some(installed) = crate::db::DatabaseModel::new()
+            let man: Manifest = if let Some(manifest) = crate::db::DatabaseModel::new()
                 .package_data()
                 .idx_model(&package)
                 .and_then(|pkg| pkg.installed())
-                .check(db)
+                .map(|m| m.manifest())
+                .get(db, true)
                 .await?
+                .to_owned()
             {
-                installed.manifest().get(db, true).await?.to_owned()
+                manifest
             } else {
                 continue;
             };
