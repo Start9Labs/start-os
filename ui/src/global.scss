@@ -143,6 +143,10 @@ ion-badge {
   font-weight: bold;
 }
 
+ion-icon {
+  pointer-events: none;
+}
+
 ion-toolbar {
   --min-height: 72px;
   --ion-background-color: var(--ion-color-light); 
