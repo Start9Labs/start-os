@@ -6,6 +6,7 @@ use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
+use embassy::net::mdns::MdnsController;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::status::{check_all, synchronize_all};
@@ -275,6 +276,24 @@ fn main() {
                         log::error!("{}", e.source);
                         log::debug!("{}", e.source);
                         embassy::sound::BEETHOVEN.play().await?;
+                        #[cfg(feature = "avahi")]
+                        let _mdns = MdnsController::init();
+                        tokio::fs::write(
+                            "/etc/nginx/sites-available/default",
+                            include_str!("../nginx/diagnostic-ui.conf"),
+                        )
+                        .await
+                        .with_ctx(|_| {
+                            (
+                                embassy::ErrorKind::Filesystem,
+                                "/etc/nginx/sites-available/default",
+                            )
+                        })?;
+                        Command::new("systemctl")
+                            .arg("reload")
+                            .arg("nginx")
+                            .invoke(embassy::ErrorKind::Nginx)
+                            .await?;
                         let ctx = DiagnosticContext::init(cfg_path, e).await?;
                         rpc_server!({
                             command: embassy::diagnostic_api,
