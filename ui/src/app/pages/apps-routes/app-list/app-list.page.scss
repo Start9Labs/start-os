@@ -80,12 +80,6 @@
 }
 
 .status-toolbar {
-  --min-height: 42px;
+  --min-height: 36px;
   border-radius: 6px;
-  ion-icon {
-    font-size: calc(10px + .5vw);
-    position: absolute;
-    right: 10px;
-    top: calc(2vh);
-  }
 }
