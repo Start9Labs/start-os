@@ -36,7 +36,7 @@
                 [style.background-color]="connectionFailure ? 'var(--ion-color-dark)' : 'var(--ion-color-' + pkg.value.primaryRendering.color + ')'"
               >
               </div>
-              <ion-icon *ngIf="pkg.value.error" class="warning-icon" name="warning-outline" color="warning"></ion-icon>
+              <ion-icon *ngIf="pkg.value.error" class="warning-icon" name="warning" color="warning"></ion-icon>
               
               <div class="launch-container" *ngIf="pkg.value.entry.manifest.interfaces | hasUi">
                 <div class="launch-button-triangle"  (click)="launchUi(pkg.value.entry, $event)" [class.launch-disabled]="!(pkg.value.entry.state | isLaunchable : pkg.value.entry.installed?.status.main.status : pkg.value.entry.manifest.interfaces)">
@@ -52,7 +52,13 @@
               <ion-card-content>
                 <ion-toolbar class="status-toolbar">
                   <ion-title>
-                    <ion-text *ngIf="!!pkg.value.installProgress" color="primary">{{ pkg.value.entry.state | titlecase }}...{{ pkg.value.installProgress.totalProgress }}%</ion-text>
+                    <ion-text
+                      *ngIf="!!pkg.value.installProgress"
+                      color="primary"
+                      style="font-weight: bold; font-size: calc(10px + .3vw);"
+                    >
+                      {{ pkg.value.entry.state | titlecase }} {{ pkg.value.installProgress.totalProgress }}%
+                    </ion-text>
                     <status
                       *ngIf="[PackageState.Installed, PackageState.Removing] | includes : pkg.value.entry.state"
                       [disconnected]="connectionFailure"
