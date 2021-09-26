@@ -1,23 +1,23 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>{{ header }}</ion-title>
+    <ion-title>Execution Complete</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
   <div style="height: 100%">
-   <h2 style="margin: 0; text-align: center;">{{ message }}</h2>
+   <h2 style="margin: 0; text-align: center;">{{ actionRes.message }}</h2>
 
-    <ion-item *ngIf="value" style="width: 250px; margin: auto; margin-top: 20px;" color="light">
+    <ion-item *ngIf="actionRes.value" style="width: 250px; margin: auto; margin-top: 20px;" color="light">
       <ion-label>
-        <p>{{ value }}</p>
+        <p>{{ actionRes.value }}</p>
       </ion-label>
-      <ion-button *ngIf="copyable" fill="clear" (click)="copy(value)">
+      <ion-button *ngIf="actionRes.copyable" fill="clear" (click)="copy(actionRes.value)">
         <ion-icon slot="icon-only" name="copy-outline" size="small"></ion-icon>
       </ion-button>
     </ion-item>
-    <div *ngIf="qr" class="ion-padding" style="text-align: center;">
-      <qr-code [value]="value" size="150"></qr-code>
+    <div *ngIf="actionRes.qr" class="ion-padding" style="text-align: center;">
+      <qr-code [value]="actionRes.value" size="150"></qr-code>
     </div>
 
 
@@ -26,8 +26,8 @@
 
 <ion-footer>
   <ion-toolbar>
-    <ion-buttons *ngIf="!loadingText" slot="end" class="ion-padding-end">
-      <ion-button *ngIf="!hasConfig" fill="outline" (click)="dismiss()" class="enter-click">
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button fill="outline" (click)="dismiss()" class="enter-click">
         Close
       </ion-button>
     </ion-buttons>
