@@ -158,7 +158,7 @@ export class AppActionsPage {
         'action-id': actionId,
         input,
       })
-      this.modalCtrl.dismiss()
+      await this.modalCtrl.dismiss()
       const successModal = await this.modalCtrl.create({
         component: ActionSuccessPage,
         cssClass: res.qr ? 'action-success-modal-qr' : 'action-success-modal',
@@ -167,7 +167,7 @@ export class AppActionsPage {
         },
       })
 
-      setTimeout(() => successModal.present(), 400)
+      await successModal.present()
 
     } catch (e) {
       this.errToast.present(e)
