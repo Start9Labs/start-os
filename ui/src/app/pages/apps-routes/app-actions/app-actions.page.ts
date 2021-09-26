@@ -163,11 +163,7 @@ export class AppActionsPage {
         component: ActionSuccessPage,
         cssClass: res.qr ? 'action-success-modal-qr' : 'action-success-modal',
         componentProps: {
-          header: 'Execution Complete',
-          message: res.message,
-          value: res.value,
-          qr: res.qr,
-          copyable: res.copyable,
+          actionRes: res,
         },
       })
 
