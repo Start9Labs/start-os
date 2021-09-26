@@ -11,6 +11,7 @@ import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppRestoreComponent } from 'src/app/modals/app-restore/app-restore.component'
 import { isEmptyObject } from 'src/app/util/misc.util'
+import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 
 @Component({
   selector: 'app-actions',
@@ -157,20 +158,21 @@ export class AppActionsPage {
         'action-id': actionId,
         input,
       })
-
-      const successAlert = await this.alertCtrl.create({
-        header: 'Execution Complete',
-        message: res.message.split('\n').join('</br ></br />'),
-        buttons: [
-          {
-            text: 'Ok',
-            role: 'cancel',
-            cssClass: 'enter-click',
-          },
-        ],
+      this.modalCtrl.dismiss()
+      // console.log('action res', res)
+      const successModal = await this.modalCtrl.create({
+        component: ActionSuccessPage,
+        cssClass: res.qr ? 'action-success-modal-qr' : 'action-success-modal',
+        componentProps: {
+          header: 'Execution Complete',
+          message: res.message,
+          value: res.value,
+          qr: res.qr,
+          copyable: res.copyable,
+        },
       })
 
-      setTimeout(() => successAlert.present(), 400)
+      setTimeout(() => successModal.present(), 400)
 
     } catch (e) {
       this.errToast.present(e)
