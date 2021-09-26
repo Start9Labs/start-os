@@ -1,6 +1,5 @@
 import { Component, Input } from '@angular/core'
 import { ModalController, ToastController } from '@ionic/angular'
-import { QRComponent } from 'src/app/components/qr/qr.component'
 import { copyToClipboard } from 'src/app/util/web.util'
 
 @Component({
@@ -20,10 +19,6 @@ export class ActionSuccessPage {
     private readonly modalCtrl: ModalController,
     private readonly toastCtrl: ToastController,
   ) { }
-
-  ngOnInit () {
-    console.log(this.qr)
-  }
 
   async copy (address: string) {
     let message = ''
