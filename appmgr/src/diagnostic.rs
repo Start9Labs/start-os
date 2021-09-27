@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use rpc_toolkit::command;
@@ -55,6 +56,10 @@ pub fn restart(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
 }
 
 #[command(rename = "forget-disk", display(display_none))]
-pub fn forget_disk(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
-    todo!()
+pub async fn forget_disk() -> Result<(), Error> {
+    let disk_guid = Path::new("/embassy-os/disk.guid");
+    if tokio::fs::metadata(disk_guid).await.is_ok() {
+        tokio::fs::remove_file(disk_guid).await?;
+    }
+    Ok(())
 }

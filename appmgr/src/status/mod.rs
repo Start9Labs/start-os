@@ -35,10 +35,10 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
                 // this locks all of package data to solve a deadlock issue below. As of the writing of this comment, it
                 // hangs during the `check` operation on /package-data/<id>. There is another daemon loop somewhere that
                 // is likely iterating through packages in a different order.
-                // crate::db::DatabaseModel::new()
-                //     .package_data()
-                //     .lock(&mut db)
-                //     .await;
+                crate::db::DatabaseModel::new()
+                    .package_data()
+                    .lock(&mut db, true)
+                    .await;
 
                 // Without the above lock, the below check operation will deadlock
                 let (mut status, manager) = if let Some(installed) = crate::db::DatabaseModel::new()
