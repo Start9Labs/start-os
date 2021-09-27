@@ -532,7 +532,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .0
         .iter()
         .filter_map(|(id, info)| {
-            if info.optional.is_none() {
+            if info.requirement.required() {
                 Some((id.clone(), CurrentDependencyInfo::default()))
             } else {
                 None
