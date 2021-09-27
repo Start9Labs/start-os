@@ -1,36 +1,30 @@
 <ion-header>
   <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="dismiss()" class="enter-click">
+        <ion-icon name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
     <ion-title>Execution Complete</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
-  <div style="height: 100%">
-   <h2 style="margin: 0; text-align: center;">{{ actionRes.message }}</h2>
+<ion-content>
+  <ion-item>
+    <ion-label>
+      <h2>{{ actionRes.message }}</h2>
+    </ion-label>
+  </ion-item>
 
-    <ion-item *ngIf="actionRes.value" style="width: 250px; margin: auto; margin-top: 20px;" color="light">
-      <ion-label>
-        <p>{{ actionRes.value }}</p>
-      </ion-label>
-      <ion-button *ngIf="actionRes.copyable" fill="clear" (click)="copy(actionRes.value)">
-        <ion-icon slot="icon-only" name="copy-outline" size="small"></ion-icon>
-      </ion-button>
-    </ion-item>
-    <div *ngIf="actionRes.qr" class="ion-padding" style="text-align: center;">
-      <qr-code [value]="actionRes.value" size="150"></qr-code>
+  <div *ngIf="actionRes.value" class="ion-text-center" style="padding: 64px 0;">
+    <div *ngIf="actionRes.qr" class="ion-padding-bottom">
+      <qr-code [value]="actionRes.value" size="240"></qr-code>
     </div>
 
-
+    <p *ngIf="!actionRes.copyable">{{ actionRes.value }}</p>
+    <a *ngIf="actionRes.copyable" style="cursor: copy;" (click)="copy(actionRes.value)">
+      <b>{{ actionRes.value }}</b>
+      <sup><ion-icon name="copy-outline" style="padding-left: 6px; font-size: small;"></ion-icon></sup>
+    </a>
   </div>
 </ion-content>
-
-<ion-footer>
-  <ion-toolbar>
-    <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button fill="outline" (click)="dismiss()" class="enter-click">
-        Close
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-footer>
-

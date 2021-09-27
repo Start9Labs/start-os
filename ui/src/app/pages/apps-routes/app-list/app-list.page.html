@@ -43,7 +43,8 @@
                   <ion-icon name="open-outline"></ion-icon>
                 </div>
               </div>
-              <img class="main-img" [src]="pkg.value.entry['static-files'].icon" alt="icon" />
+              <img style="position: absolute" class="main-img" [src]="pkg.value.entry['static-files'].icon" [alt]="pkg.value.entry.manifest.title" />
+              <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
               <ion-card-header>
                 <ion-card-title>
                   {{ pkg.value.entry.manifest.title }}
