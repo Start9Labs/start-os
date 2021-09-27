@@ -17,7 +17,7 @@ const URL: &str = "https://beta-registry-0-3.start9labs.com/eos/latest";
 const HEADER_KEY: &str = "CHECKSUM";
 mod latest_information;
 
-pub fn display_properties(response: (), _: &ArgMatches<'_>) {
+pub fn display_properties(_: (), _: &ArgMatches<'_>) {
     println!("Test");
 }
 #[command(display(display_properties))]
