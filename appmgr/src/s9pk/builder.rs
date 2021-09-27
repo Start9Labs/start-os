@@ -61,7 +61,7 @@ impl<
                 "Serializing Manifest (CBOR)",
             )
         })?;
-        let new_pos = writer.stream_position()?;
+        let new_pos = writer.inner_mut().stream_position()?;
         header.table_of_contents.manifest = FileSection {
             position,
             length: new_pos - position,
@@ -70,7 +70,7 @@ impl<
         // license
         std::io::copy(&mut self.license, &mut writer)
             .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying License"))?;
-        let new_pos = writer.stream_position()?;
+        let new_pos = writer.inner_mut().stream_position()?;
         header.table_of_contents.license = FileSection {
             position,
             length: new_pos - position,
@@ -79,7 +79,7 @@ impl<
         // instructions
         std::io::copy(&mut self.instructions, &mut writer)
             .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Instructions"))?;
-        let new_pos = writer.stream_position()?;
+        let new_pos = writer.inner_mut().stream_position()?;
         header.table_of_contents.instructions = FileSection {
             position,
             length: new_pos - position,
@@ -88,7 +88,7 @@ impl<
         // icon
         std::io::copy(&mut self.icon, &mut writer)
             .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Icon"))?;
-        let new_pos = writer.stream_position()?;
+        let new_pos = writer.inner_mut().stream_position()?;
         header.table_of_contents.icon = FileSection {
             position,
             length: new_pos - position,
@@ -97,7 +97,7 @@ impl<
         // docker_images
         std::io::copy(&mut self.docker_images, &mut writer)
             .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Docker Images"))?;
-        let new_pos = writer.stream_position()?;
+        let new_pos = writer.inner_mut().stream_position()?;
         header.table_of_contents.docker_images = FileSection {
             position,
             length: new_pos - position,
@@ -106,7 +106,7 @@ impl<
         // assets
         std::io::copy(&mut self.assets, &mut writer)
             .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Assets"))?;
-        let new_pos = writer.stream_position()?;
+        let new_pos = writer.inner_mut().stream_position()?;
         header.table_of_contents.assets = FileSection {
             position,
             length: new_pos - position,
