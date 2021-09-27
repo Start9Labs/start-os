@@ -6,6 +6,7 @@ use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
+#[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;

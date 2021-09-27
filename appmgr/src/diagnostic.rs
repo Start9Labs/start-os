@@ -5,12 +5,13 @@ use rpc_toolkit::yajrc::RpcError;
 
 use crate::context::DiagnosticContext;
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
+use crate::shutdown::Shutdown;
 use crate::util::display_none;
 use crate::Error;
 
 pub const SYSTEMD_UNIT: &'static str = "embassy-init";
 
-#[command(subcommands(error, logs, exit))]
+#[command(subcommands(error, logs, exit, restart, forget_disk))]
 pub fn diagnostic() -> Result<(), Error> {
     Ok(())
 }
@@ -37,13 +38,20 @@ pub async fn logs(
 
 #[command(display(display_none))]
 pub fn exit(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
-    ctx.shutdown.send(()).expect("receiver dropped");
+    ctx.shutdown.send(None).expect("receiver dropped");
     Ok(())
 }
 
 #[command(display(display_none))]
 pub fn restart(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
-    todo!()
+    ctx.shutdown
+        .send(Some(Shutdown {
+            zfs_pool: ctx.zfs_pool_name.clone(),
+            db_handle: None,
+            restart: true,
+        }))
+        .expect("receiver dropped");
+    Ok(())
 }
 
 #[command(rename = "forget-disk", display(display_none))]

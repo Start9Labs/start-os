@@ -9,11 +9,11 @@ use crate::sound::MARIO_DEATH;
 use crate::util::{display_none, Invoke};
 use crate::Error;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Shutdown {
-    zfs_pool: Arc<String>,
-    restart: bool,
-    db_handle: Arc<PatchDbHandle>,
+    pub zfs_pool: Arc<String>,
+    pub restart: bool,
+    pub db_handle: Option<Arc<PatchDbHandle>>,
 }
 impl Shutdown {
     /// BLOCKING
@@ -43,7 +43,7 @@ impl Shutdown {
                 {
                     log::error!("Error Stopping Docker: {}", e);
                 }
-                if let Err(e) = export(&self.zfs_pool).await {
+                if let Err(e) = export(&*self.zfs_pool).await {
                     log::error!("Error Exporting ZFS Pool: {}", e);
                 }
                 if let Err(e) = MARIO_DEATH.play().await {
@@ -72,7 +72,7 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
         .send(Some(Shutdown {
             zfs_pool: ctx.zfs_pool_name.clone(),
             restart: false,
-            db_handle: Arc::new(db),
+            db_handle: Some(Arc::new(db)),
         }))
         .map_err(|_| ())
         .expect("receiver dropped");
@@ -87,7 +87,7 @@ pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
         .send(Some(Shutdown {
             zfs_pool: ctx.zfs_pool_name.clone(),
             restart: true,
-            db_handle: Arc::new(db),
+            db_handle: Some(Arc::new(db)),
         }))
         .map_err(|_| ())
         .expect("receiver dropped");

@@ -10,7 +10,7 @@ use crate::context::RpcContext;
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
-static SSH_AUTHORIZED_KEYS_FILE: &str = "~/.ssh/authorized_keys";
+static SSH_AUTHORIZED_KEYS_FILE: &str = "/root/.ssh/authorized_keys";
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct PubKey(

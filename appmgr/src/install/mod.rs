@@ -181,7 +181,7 @@ pub async fn download_install_s9pk(
         .join(pkg_id)
         .join(version.as_str());
     tokio::fs::create_dir_all(&pkg_cache_dir).await?;
-    let pkg_cache = AsRef::<Path>::as_ref(pkg_id).with_extension("s9pk");
+    let pkg_cache = pkg_cache_dir.join(AsRef::<Path>::as_ref(pkg_id).with_extension("s9pk"));
 
     let pkg_data_entry = crate::db::DatabaseModel::new()
         .package_data()
@@ -415,7 +415,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
     progress
         .track_read_during(progress_model.clone(), &ctx.db, || async {
-            let image_tar_dir = Path::new(PKG_DOCKER_DIR)
+            let image_tar_dir = ctx
+                .datadir
+                .join(PKG_DOCKER_DIR)
                 .join(pkg_id)
                 .join(version.as_str());
             if tokio::fs::metadata(&image_tar_dir).await.is_err() {

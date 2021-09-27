@@ -10,6 +10,7 @@ use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
 use url::Host;
 
+use crate::shutdown::Shutdown;
 use crate::util::io::from_toml_async_reader;
 use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
@@ -18,6 +19,7 @@ use crate::{Error, ResultExt};
 #[serde(rename_all = "kebab-case")]
 pub struct DiagnosticContextConfig {
     pub bind_rpc: Option<SocketAddr>,
+    pub zfs_pool_name: Option<String>,
 }
 impl DiagnosticContextConfig {
     pub async fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
@@ -34,12 +36,19 @@ impl DiagnosticContextConfig {
             Ok(Self::default())
         }
     }
+    pub fn zfs_pool_name(&self) -> &str {
+        self.zfs_pool_name
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or("embassy-data")
+    }
 }
 
 pub struct DiagnosticContextSeed {
     pub bind_rpc: SocketAddr,
-    pub shutdown: Sender<()>,
+    pub shutdown: Sender<Option<Shutdown>>,
     pub error: Arc<RpcError>,
+    pub zfs_pool_name: Arc<String>,
 }
 
 #[derive(Clone)]
@@ -54,6 +63,7 @@ impl DiagnosticContext {
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,
             error: Arc::new(error.into()),
+            zfs_pool_name: Arc::new(cfg.zfs_pool_name().to_owned()),
         })))
     }
 }
