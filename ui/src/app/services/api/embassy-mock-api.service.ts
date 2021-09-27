@@ -406,12 +406,7 @@ export class MockApiService extends ApiService {
 
   async executePackageAction (params: RR.ExecutePackageActionReq): Promise<RR.ExecutePackageActionRes> {
     await pauseFor(2000)
-    return {
-      message: 'Action success!',
-      value: 'new password',
-      copyable: true,
-      qr: false,
-    }
+    return Mock.ActionResponse
   }
 
   async startPackageRaw (params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
