@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -36,8 +37,9 @@ fn err_to_500(e: Error) -> Response<Body> {
 async fn inner_main(
     cfg_path: Option<&str>,
     log_level: LevelFilter,
+    module_logging: HashMap<String, LevelFilter>,
 ) -> Result<Option<Shutdown>, Error> {
-    let rpc_ctx = RpcContext::init(cfg_path, log_level).await?;
+    let rpc_ctx = RpcContext::init(cfg_path, log_level, module_logging).await?;
     let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
     let sig_handler_ctx = rpc_ctx.clone();
@@ -252,6 +254,12 @@ fn main() {
                 .multiple(true)
                 .takes_value(false),
         )
+        .arg(
+            clap::Arg::with_name("log-module")
+                .long("log-module")
+                .multiple(true)
+                .takes_value(true),
+        )
         .get_matches();
 
     // initializes the bootstrap logger, this will be replaced with the EmbassyLogger later
@@ -262,6 +270,19 @@ fn main() {
         3 => log::LevelFilter::Debug,
         _ => log::LevelFilter::Trace,
     };
+    let module_logging = matches
+        .values_of("log-module")
+        .into_iter()
+        .flatten()
+        .filter_map(|s| s.split_once("="))
+        .map(|(m, l)| {
+            (
+                m.to_owned(),
+                l.parse()
+                    .expect(&format!("Invalid 'log-module' argument: {}", l)),
+            )
+        })
+        .collect::<HashMap<_, LevelFilter>>();
     let cfg_path = matches.value_of("config");
 
     let res = {
@@ -270,7 +291,7 @@ fn main() {
             .build()
             .expect("failed to initialize runtime");
         rt.block_on(async {
-            match inner_main(cfg_path, filter).await {
+            match inner_main(cfg_path, filter, module_logging).await {
                 Ok(a) => Ok(a),
                 Err(e) => {
                     (|| async {
