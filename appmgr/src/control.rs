@@ -1,6 +1,7 @@
+use std::collections::BTreeMap;
+
 use anyhow::anyhow;
 use chrono::Utc;
-use indexmap::IndexMap;
 use patch_db::DbHandle;
 use rpc_toolkit::command;
 
@@ -41,7 +42,7 @@ pub async fn start(
 
     *status = MainStatus::Running {
         started: Utc::now(),
-        health: IndexMap::new(),
+        health: BTreeMap::new(),
     };
     status
         .synchronize(

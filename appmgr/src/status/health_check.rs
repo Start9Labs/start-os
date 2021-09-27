@@ -1,7 +1,7 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
-use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::action::{ActionImplementation, NoOutput};
@@ -12,7 +12,7 @@ use crate::util::Version;
 use crate::volume::Volumes;
 use crate::Error;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct HealthCheckId<S: AsRef<str> = String>(Id<S>);
 impl<S: AsRef<str>> std::fmt::Display for HealthCheckId<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -43,7 +43,7 @@ impl<S: AsRef<str>> AsRef<Path> for HealthCheckId<S> {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct HealthChecks(pub IndexMap<HealthCheckId, HealthCheck>);
+pub struct HealthChecks(pub BTreeMap<HealthCheckId, HealthCheck>);
 impl HealthChecks {
     pub async fn check_all(
         &self,
@@ -52,7 +52,7 @@ impl HealthChecks {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<IndexMap<HealthCheckId, HealthCheckResult>, Error> {
+    ) -> Result<BTreeMap<HealthCheckId, HealthCheckResult>, Error> {
         let res = futures::future::try_join_all(self.0.iter().map(|(id, check)| async move {
             Ok::<_, Error>((
                 id.clone(),

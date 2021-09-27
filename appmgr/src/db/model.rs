@@ -1,6 +1,6 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use indexmap::{IndexMap, IndexSet};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
@@ -130,7 +130,7 @@ pub struct ConnectionAddresses {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct AllPackageData(pub IndexMap<PackageId, PackageDataEntry>);
+pub struct AllPackageData(pub BTreeMap<PackageId, PackageDataEntry>);
 impl Map for AllPackageData {
     type Key = PackageId;
     type Value = PackageDataEntry;
@@ -216,11 +216,11 @@ pub struct InstalledPackageDataEntry {
     pub manifest: Manifest,
     pub system_pointers: Vec<SystemPointerSpec>,
     #[model]
-    pub dependency_info: IndexMap<PackageId, StaticDependencyInfo>,
+    pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
     #[model]
-    pub current_dependents: IndexMap<PackageId, CurrentDependencyInfo>,
+    pub current_dependents: BTreeMap<PackageId, CurrentDependencyInfo>,
     #[model]
-    pub current_dependencies: IndexMap<PackageId, CurrentDependencyInfo>,
+    pub current_dependencies: BTreeMap<PackageId, CurrentDependencyInfo>,
     #[model]
     pub interface_addresses: InterfaceAddressMap,
 }
@@ -236,11 +236,11 @@ pub struct StaticDependencyInfo {
 #[serde(rename_all = "kebab-case")]
 pub struct CurrentDependencyInfo {
     pub pointers: Vec<PackagePointerSpecVariant>,
-    pub health_checks: IndexSet<HealthCheckId>,
+    pub health_checks: BTreeSet<HealthCheckId>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct InterfaceAddressMap(pub IndexMap<InterfaceId, InterfaceAddresses>);
+pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
 impl Map for InterfaceAddressMap {
     type Key = InterfaceId;
     type Value = InterfaceAddresses;

@@ -69,7 +69,7 @@ impl<'de> Deserialize<'de> for IdUnchecked<&'de str> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id<S: AsRef<str> = String>(S);
 impl<S: AsRef<str>> Id<S> {
     pub fn try_from(value: S) -> Result<Self, InvalidId> {
@@ -137,7 +137,7 @@ impl<S: AsRef<str>> Serialize for Id<S> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ImageId<S: AsRef<str> = String>(Id<S>);
 impl<S: AsRef<str>> std::fmt::Display for ImageId<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

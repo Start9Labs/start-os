@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use anyhow::anyhow;
 use futures::TryStreamExt;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use itertools::Either;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Sqlite};
@@ -17,7 +17,7 @@ use crate::Error;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct Interfaces(pub IndexMap<InterfaceId, Interface>); // TODO
+pub struct Interfaces(pub BTreeMap<InterfaceId, Interface>); // TODO
 impl Interfaces {
     pub async fn install<Ex>(
         &self,
@@ -27,7 +27,7 @@ impl Interfaces {
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
     {
-        let mut interface_addresses = InterfaceAddressMap(IndexMap::new());
+        let mut interface_addresses = InterfaceAddressMap(BTreeMap::new());
         for (id, iface) in &self.0 {
             let mut addrs = InterfaceAddresses {
                 tor_address: None,
@@ -101,7 +101,7 @@ impl Interfaces {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct InterfaceId<S: AsRef<str> = String>(Id<S>);
 impl<S: AsRef<str>> From<Id<S>> for InterfaceId<S> {
     fn from(id: Id<S>) -> Self {
@@ -148,7 +148,7 @@ pub struct Interface {
     pub name: String,
     pub description: String,
     pub tor_config: Option<TorConfig>,
-    pub lan_config: Option<IndexMap<Port, LanPortConfig>>,
+    pub lan_config: Option<BTreeMap<Port, LanPortConfig>>,
     pub ui: bool,
     pub protocols: IndexSet<String>,
 }
@@ -156,7 +156,7 @@ pub struct Interface {
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct TorConfig {
-    pub port_mapping: IndexMap<Port, Port>,
+    pub port_mapping: BTreeMap<Port, Port>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
