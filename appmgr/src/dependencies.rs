@@ -116,12 +116,25 @@ impl HasModel for Dependencies {
     type Model = MapModel<Self>;
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+#[serde(tag = "type")]
+pub enum DependencyRequirement {
+    OptIn { how: String },
+    OptOut { how: String },
+    Required,
+}
+impl DependencyRequirement {
+    pub fn required(&self) -> bool {
+        matches!(self, &DependencyRequirement::Required)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct DepInfo {
     pub version: VersionRange,
-    pub optional: Option<String>,
-    pub recommended: bool,
+    pub requirement: DependencyRequirement,
     pub description: Option<String>,
     pub critical: bool,
     #[serde(default)]
