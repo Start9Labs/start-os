@@ -832,6 +832,13 @@ export module Mock {
     },
   }
 
+  export const ActionResponse: RR.ExecutePackageActionRes = {
+    message: 'Password changed successfully. If you lose your new password, you will be lost forever.',
+    value: 'NewPassword1234!',
+    copyable: true,
+    qr: true,
+  }
+
   export const SshKeys: RR.GetSSHKeysRes = [
     {
       'created-at': new Date().toISOString(),
