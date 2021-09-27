@@ -13,7 +13,9 @@ use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::id::{Id, InvalidId};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{IoFormat, ValuePrimative, Version, display_serializable, parse_stdin_deserializable};
+use crate::util::{
+    display_serializable, parse_stdin_deserializable, IoFormat, ValuePrimative, Version,
+};
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
 
@@ -80,7 +82,7 @@ pub enum ActionResult {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ActionResultV0 {
     pub message: String,
-    pub value: ValuePrimative,
+    pub value: Option<String>,
     pub copyable: bool,
     pub qr: bool,
 }
@@ -183,8 +185,12 @@ fn display_action_result(action_result: ActionResult, matches: &ArgMatches<'_>) 
     }
     match action_result {
         ActionResult::V0(ar) => {
-            println!("{}: {}", ar.message, serde_json::to_string(&ar.value).unwrap());
-        },
+            println!(
+                "{}: {}",
+                ar.message,
+                serde_json::to_string(&ar.value).unwrap()
+            );
+        }
     }
 }
 
