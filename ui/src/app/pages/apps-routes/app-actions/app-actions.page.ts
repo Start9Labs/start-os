@@ -158,10 +158,9 @@ export class AppActionsPage {
         'action-id': actionId,
         input,
       })
-      await this.modalCtrl.dismiss()
+      this.modalCtrl.dismiss()
       const successModal = await this.modalCtrl.create({
         component: ActionSuccessPage,
-        cssClass: res.qr ? 'action-success-modal-qr' : 'action-success-modal',
         componentProps: {
           actionRes: res,
         },
