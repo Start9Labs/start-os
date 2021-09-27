@@ -8,6 +8,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   providedIn: 'root',
 })
 export class MarketplaceService {
+  allPkgs: MarketplacePkg[] = []
   pkgs: { [id: string]: MarketplacePkg } = { }
   updates: MarketplacePkg[] = []
   releaseNotes: { [id: string]: {
@@ -32,6 +33,15 @@ export class MarketplaceService {
     })
 
     this.updates = updates
+  }
+
+  async getAllPkgs (): Promise<void> {
+    this.allPkgs = await this.getPkgs(
+      undefined,
+      null,
+      1,
+      100000,
+    )
   }
 
   async getPkgs (category: string, query: string, page: number, perPage: number) : Promise<MarketplacePkg[]> {
