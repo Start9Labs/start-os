@@ -4,12 +4,12 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { IonContent, ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
-import { defer, Subscription } from 'rxjs'
+import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { catchError, finalize, take } from 'rxjs/operators'
+import { pauseFor } from 'src/app/util/misc.util'
 
 @Component({
   selector: 'marketplace-list',
@@ -28,16 +28,12 @@ export class MarketplaceListPage {
 
   data: MarketplaceData
   eos: MarketplaceEOS
+  allPkgs: MarketplacePkg[] = []
   pkgs: MarketplacePkg[] = []
 
   PackageState = PackageState
 
-  page = 1
-  needInfinite = false
-  readonly perPage = 30
-
   subs: Subscription[] = []
-  searchSub: Subscription
 
   constructor (
     private readonly marketplaceService: MarketplaceService,
@@ -62,10 +58,12 @@ export class MarketplaceListPage {
       const [data, eos] = await Promise.all([
         this.api.getMarketplaceData({ }),
         this.api.getEos({ }),
-        this.getPkgs(),
+        this.getAllPkgs(),
       ])
       this.eos = eos
       this.data = data
+
+      this.getPkgs()
 
       // category should start as first item in array
       // remove here then add at beginning
@@ -87,16 +85,10 @@ export class MarketplaceListPage {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async doInfinite (e: any): Promise<void> {
-    await this.getPkgs(true)
-    e.target.complete()
-  }
-
   async search (): Promise<void> {
-    if (!this.query) return
-    this.pkgsLoading = true
+    // you can actually press enter and run code before the data binds to this.category
+    await pauseFor(200)
     this.category = undefined
-    this.page = 1
     await this.getPkgs()
   }
 
@@ -111,43 +103,42 @@ export class MarketplaceListPage {
     )
   }
 
-  private async getPkgs (doInfinite = false): Promise<void> {
-    if (this.searchSub) this.searchSub.unsubscribe()
+  private async getAllPkgs (): Promise<void> {
+    this.allPkgs = await this.marketplaceService.getPkgs(
+      undefined,
+      this.query,
+      1,
+      100000,
+    )
+    this.pkgsLoading = false
+  }
 
+  private async getPkgs (): Promise<void> {
     if (this.category === 'updates') {
-      this.pkgs = this.marketplaceService.updates
-      if (this.pkgs.length) {
-        this.pkgsLoading = false
-      }
-      this.searchSub = defer(() => this.marketplaceService.getUpdates(this.localPkgs))
-      .pipe(take(1), catchError(e => this.errToast.present(e)))
-      .subscribe(_ => {
-        this.pkgs = this.marketplaceService.updates
+      this.pkgs = this.allPkgs.filter(pkg => {
+        return this.localPkgs[pkg.manifest.id] && pkg.manifest.version !== this.localPkgs[pkg.manifest.id].manifest.version
       })
     } else {
-      this.searchSub = defer(() => this.marketplaceService.getPkgs(
-        this.category !== 'all' ? this.category : undefined,
-        this.query,
-        this.page,
-        this.perPage,
-      ))
-      .pipe(take(1), catchError(e => this.errToast.present(e)))
-      .subscribe(pkgs => {
-        if (pkgs) {
-          this.needInfinite = pkgs.length >= this.perPage
-          this.page++
-          this.pkgs = doInfinite ? this.pkgs.concat(pkgs) : pkgs
+      this.pkgs = this.allPkgs.filter(pkg => {
+        if (this.query) {
+          return  pkg.manifest.id.toUpperCase().includes(this.query.toUpperCase()) ||
+                  pkg.manifest.title.toUpperCase().includes(this.query.toUpperCase()) ||
+                  pkg.manifest.description.short.toUpperCase().includes(this.query.toUpperCase()) ||
+                  pkg.manifest.description.long.toUpperCase().includes(this.query.toUpperCase())
+        } else {
+          if (this.category === 'all' || !this.category) {
+            return true
+          } else {
+            return pkg.categories.includes(this.category)
+          }
         }
-        this.pkgsLoading = false
       })
     }
   }
 
   async switchCategory (category: string): Promise<void> {
-    this.pkgsLoading = true
     this.category = category
     this.query = undefined
-    this.page = 1
     await this.getPkgs()
   }
 }
