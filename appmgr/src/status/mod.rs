@@ -301,7 +301,9 @@ impl MainStatus {
             },
             ManagerStatus::Running => match self {
                 MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restoring { .. } => {
+                    dbg!("stopping");
                     manager.stop().await?;
+                    dbg!("stopped");
                 }
                 MainStatus::Running { .. } => (),
                 MainStatus::BackingUp { .. } => {
