@@ -1,8 +1,8 @@
 use std::borrow::Borrow;
+use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
-use indexmap::IndexMap;
 use patch_db::{HasModel, Map, MapModel};
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -16,7 +16,7 @@ use crate::Error;
 pub const PKG_VOLUME_DIR: &'static str = "package-data/volumes";
 pub const BACKUP_DIR: &'static str = "/mnt/embassy-os-backups/EmbassyBackups";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VolumeId<S: AsRef<str> = String> {
     Backup,
     Custom(Id<S>),
@@ -73,7 +73,7 @@ impl<S: AsRef<str>> Serialize for VolumeId<S> {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Volumes(IndexMap<VolumeId, Volume>);
+pub struct Volumes(BTreeMap<VolumeId, Volume>);
 impl Volumes {
     pub async fn install(
         &self,
@@ -111,7 +111,7 @@ impl Volumes {
     }
 }
 impl Deref for Volumes {
-    type Target = IndexMap<VolumeId, Volume>;
+    type Target = BTreeMap<VolumeId, Volume>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }

@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
 
 use futures::FutureExt;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 
@@ -201,6 +201,6 @@ struct PackageNetInfo {
 }
 pub struct InterfaceMetadata {
     pub dns_base: String,
-    pub lan_config: IndexMap<Port, LanPortConfig>,
+    pub lan_config: BTreeMap<Port, LanPortConfig>,
     pub protocols: IndexSet<String>,
 }

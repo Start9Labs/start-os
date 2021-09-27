@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
 use anyhow::anyhow;
@@ -6,7 +7,6 @@ use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use http::header::COOKIE;
 use http::HeaderValue;
-use indexmap::IndexMap;
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
@@ -160,7 +160,7 @@ pub struct Session {
 #[serde(rename_all = "kebab-case")]
 pub struct SessionList {
     current: String,
-    sessions: IndexMap<String, Session>,
+    sessions: BTreeMap<String, Session>,
 }
 
 #[command(subcommands(list, kill))]

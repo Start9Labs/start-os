@@ -1,4 +1,5 @@
 use std::borrow::{Borrow, Cow};
+use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
@@ -6,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use itertools::Itertools;
 use jsonpath_lib::Compiled as CompiledJsonPath;
 use patch_db::{DbHandle, OptionModel};
@@ -37,7 +38,7 @@ pub trait ValueSpec {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError>;
     // returns all pointers that are live in the provided config
@@ -152,7 +153,7 @@ where
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         self.inner.update(ctx, db, config_overrides, value).await
@@ -193,7 +194,7 @@ where
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         self.inner.update(ctx, db, config_overrides, value).await
@@ -267,7 +268,7 @@ where
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         self.inner.update(ctx, db, config_overrides, value).await
@@ -378,7 +379,7 @@ impl ValueSpec for ValueSpecAny {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         match self {
@@ -471,7 +472,7 @@ impl ValueSpec for ValueSpecBoolean {
         &self,
         ctx: &RpcContext,
         _db: &mut Db,
-        _config_overrides: &IndexMap<PackageId, Config>,
+        _config_overrides: &BTreeMap<PackageId, Config>,
         _value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         Ok(())
@@ -507,7 +508,7 @@ impl DefaultableWith for ValueSpecBoolean {
 #[serde(rename_all = "kebab-case")]
 pub struct ValueSpecEnum {
     pub values: IndexSet<String>,
-    pub value_names: IndexMap<String, String>,
+    pub value_names: BTreeMap<String, String>,
 }
 impl<'de> serde::de::Deserialize<'de> for ValueSpecEnum {
     fn deserialize<D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -516,7 +517,7 @@ impl<'de> serde::de::Deserialize<'de> for ValueSpecEnum {
         pub struct _ValueSpecEnum {
             pub values: IndexSet<String>,
             #[serde(default)]
-            pub value_names: IndexMap<String, String>,
+            pub value_names: BTreeMap<String, String>,
         }
 
         let mut r#enum = _ValueSpecEnum::deserialize(deserializer)?;
@@ -559,7 +560,7 @@ impl ValueSpec for ValueSpecEnum {
         &self,
         ctx: &RpcContext,
         _db: &mut Db,
-        _config_overrides: &IndexMap<PackageId, Config>,
+        _config_overrides: &BTreeMap<PackageId, Config>,
         _value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         Ok(())
@@ -644,7 +645,7 @@ where
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         if let Value::Array(ref mut ls) = value {
@@ -746,7 +747,7 @@ impl ValueSpec for ValueSpecList {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         match self {
@@ -869,7 +870,7 @@ impl ValueSpec for ValueSpecNumber {
         &self,
         ctx: &RpcContext,
         _db: &mut Db,
-        _config_overrides: &IndexMap<PackageId, Config>,
+        _config_overrides: &BTreeMap<PackageId, Config>,
         _value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         Ok(())
@@ -887,56 +888,6 @@ impl ValueSpec for ValueSpecNumber {
         }
     }
 }
-// TODO: remove
-// #[derive(Clone, Copy, Debug, Serialize)]
-// pub struct Number(pub f64);
-// impl<'de> serde::de::Deserialize<'de> for Number {
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//     where
-//         D: serde::de::Deserializer<'de>,
-//     {
-//         use serde::de::*;
-//         struct NumberVisitor;
-//         impl<'de> Visitor<'de> for NumberVisitor {
-//             type Value = Number;
-
-//             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-//                 formatter.write_str("a number")
-//             }
-//             fn visit_i8<E: Error>(self, value: i8) -> Result<Self::Value, E> {
-//                 Ok(Number(value.into()))
-//             }
-//             fn visit_i16<E: Error>(self, value: i16) -> Result<Self::Value, E> {
-//                 Ok(Number(value.into()))
-//             }
-//             fn visit_i32<E: Error>(self, value: i32) -> Result<Self::Value, E> {
-//                 Ok(Number(value.into()))
-//             }
-//             fn visit_i64<E: Error>(self, value: i64) -> Result<Self::Value, E> {
-//                 Ok(Number(value as f64))
-//             }
-//             fn visit_u8<E: Error>(self, value: u8) -> Result<Self::Value, E> {
-//                 Ok(Number(value.into()))
-//             }
-//             fn visit_u16<E: Error>(self, value: u16) -> Result<Self::Value, E> {
-//                 Ok(Number(value.into()))
-//             }
-//             fn visit_u32<E: Error>(self, value: u32) -> Result<Self::Value, E> {
-//                 Ok(Number(value.into()))
-//             }
-//             fn visit_u64<E: Error>(self, value: u64) -> Result<Self::Value, E> {
-//                 Ok(Number(value as f64))
-//             }
-//             fn visit_f32<E: Error>(self, value: f32) -> Result<Self::Value, E> {
-//                 Ok(Number(value.into()))
-//             }
-//             fn visit_f64<E: Error>(self, value: f64) -> Result<Self::Value, E> {
-//                 Ok(Number(value))
-//             }
-//         }
-//         deserializer.deserialize_any(NumberVisitor)
-//     }
-// }
 impl DefaultableWith for ValueSpecNumber {
     type DefaultSpec = Option<Number>;
     type Error = crate::util::Never;
@@ -981,7 +932,7 @@ impl ValueSpec for ValueSpecObject {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         if let Value::Object(o) = value {
@@ -1042,7 +993,7 @@ impl Defaultable for ValueSpecObject {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ConfigSpec(pub IndexMap<String, ValueSpecAny>);
+pub struct ConfigSpec(pub BTreeMap<String, ValueSpecAny>);
 impl ConfigSpec {
     pub fn matches(&self, value: &Config) -> Result<(), NoMatchWithPath> {
         for (key, val) in self.0.iter() {
@@ -1080,7 +1031,7 @@ impl ConfigSpec {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         cfg: &mut Config,
     ) -> Result<(), ConfigurationError> {
         for (k, vs) in self.0.iter() {
@@ -1171,7 +1122,7 @@ impl ValueSpec for ValueSpecString {
         &self,
         ctx: &RpcContext,
         _db: &mut Db,
-        _config_overrides: &IndexMap<PackageId, Config>,
+        _config_overrides: &BTreeMap<PackageId, Config>,
         _value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         Ok(())
@@ -1263,14 +1214,14 @@ pub struct UnionTag {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
-    pub variant_names: IndexMap<String, String>,
+    pub variant_names: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ValueSpecUnion {
     pub tag: UnionTag,
-    pub variants: IndexMap<String, ConfigSpec>,
+    pub variants: BTreeMap<String, ConfigSpec>,
     pub display_as: Option<String>,
     pub unique_by: UniqueBy,
 }
@@ -1287,7 +1238,7 @@ impl<'de> serde::de::Deserialize<'de> for ValueSpecUnion {
         #[derive(Deserialize)]
         #[serde(rename_all = "kebab-case")]
         pub struct _ValueSpecUnion {
-            pub variants: IndexMap<String, ConfigSpec>,
+            pub variants: BTreeMap<String, ConfigSpec>,
             pub tag: _UnionTag,
             pub display_as: Option<String>,
             #[serde(default)]
@@ -1381,7 +1332,7 @@ impl ValueSpec for ValueSpecUnion {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         if let Value::Object(o) = value {
@@ -1522,7 +1473,7 @@ impl ValueSpec for ValueSpecPointer {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         match self {
@@ -1561,7 +1512,7 @@ impl PackagePointerSpec {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
     ) -> Result<Value, ConfigurationError> {
         match &self.target {
             PackagePointerSpecVariant::TorAddress { interface } => {
@@ -1665,7 +1616,7 @@ impl ValueSpec for PackagePointerSpec {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        config_overrides: &IndexMap<PackageId, Config>,
+        config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         *value = self.deref(ctx, db, config_overrides).await?;
@@ -1782,7 +1733,7 @@ impl ValueSpec for SystemPointerSpec {
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        _config_overrides: &IndexMap<PackageId, Config>,
+        _config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         *value = self.deref(db).await?;

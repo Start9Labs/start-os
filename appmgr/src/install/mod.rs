@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::io::SeekFrom;
 use std::path::Path;
 use std::process::Stdio;
@@ -9,7 +9,6 @@ use anyhow::anyhow;
 use emver::VersionRange;
 use futures::TryStreamExt;
 use http::StatusCode;
-use indexmap::IndexMap;
 use patch_db::DbHandle;
 use reqwest::Response;
 use rpc_toolkit::command;
@@ -287,7 +286,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Unpacked Manifest", pkg_id, version);
 
     log::info!("Install {}@{}: Fetching Dependency Info", pkg_id, version);
-    let mut dependency_info = IndexMap::with_capacity(manifest.dependencies.0.len());
+    let mut dependency_info = BTreeMap::new();
     let reg_url = ctx.package_registry_url().await?;
     for (dep, info) in &manifest.dependencies.0 {
         let manifest: Option<Manifest> = match reqwest::get(format!(
@@ -542,7 +541,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     update_current_dependents(&mut tx, pkg_id, &current_dependencies).await?;
     let current_dependents = {
         // search required dependencies
-        let mut deps = IndexMap::new();
+        let mut deps = BTreeMap::new();
         for package in crate::db::DatabaseModel::new()
             .package_data()
             .keys(&mut tx, true)
@@ -648,8 +647,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 None,
                 &None,
                 false,
-                &mut IndexMap::new(),
-                &mut IndexMap::new(),
+                &mut BTreeMap::new(),
+                &mut BTreeMap::new(),
             )
             .await?;
             todo!("set as running if viable");

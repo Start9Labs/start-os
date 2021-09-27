@@ -1,5 +1,6 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use anyhow::anyhow;
-use indexmap::{IndexMap, IndexSet};
 use nix::sys::signal::Signal;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
@@ -93,5 +94,5 @@ pub struct SetResult {
     #[serde(deserialize_with = "crate::util::deserialize_from_str_opt")]
     #[serde(serialize_with = "crate::util::serialize_display_opt")]
     pub signal: Option<Signal>,
-    pub depends_on: IndexMap<PackageId, IndexSet<HealthCheckId>>,
+    pub depends_on: BTreeMap<PackageId, BTreeSet<HealthCheckId>>,
 }
