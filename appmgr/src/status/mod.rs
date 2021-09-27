@@ -1,11 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
-use indexmap::IndexMap;
 use patch_db::{DbHandle, HasModel, Map, MapModel, ModelData};
 use serde::{Deserialize, Serialize};
 
@@ -129,7 +128,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                         .to_owned()
                         .into_iter()
                         .filter(|(id, _)| listed_deps.contains(id))
-                        .collect::<IndexMap<PackageId, CurrentDependencyInfo>>()
+                        .collect::<BTreeMap<PackageId, CurrentDependencyInfo>>()
                 }),
             ));
         }
@@ -182,7 +181,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
         id: &PackageId,
         statuses: Arc<HashMap<PackageId, MainStatus>>,
         model: InstalledPackageDataEntryModel,
-        current_deps: Arc<IndexMap<PackageId, CurrentDependencyInfo>>,
+        current_deps: Arc<BTreeMap<PackageId, CurrentDependencyInfo>>,
         mut db: Db,
     ) -> Result<(), Error> {
         for (dep_id, dep_info) in &*current_deps {
@@ -192,7 +191,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                     started: Some(_),
                     ref health,
                 }) => {
-                    let mut failures = IndexMap::new();
+                    let mut failures = BTreeMap::new();
                     for check in &dep_info.health_checks {
                         let res = health
                             .get(check)
@@ -219,7 +218,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                     dep_id,
                     model.clone(),
                     err,
-                    &mut IndexMap::new(),
+                    &mut BTreeMap::new(),
                 )
                 .await?;
             } else {
@@ -274,11 +273,11 @@ pub enum MainStatus {
     Stopping,
     Running {
         started: DateTime<Utc>,
-        health: IndexMap<HealthCheckId, HealthCheckResult>,
+        health: BTreeMap<HealthCheckId, HealthCheckResult>,
     },
     BackingUp {
         started: Option<DateTime<Utc>>,
-        health: IndexMap<HealthCheckId, HealthCheckResult>,
+        health: BTreeMap<HealthCheckId, HealthCheckResult>,
     },
     Restoring {
         running: bool,
@@ -394,7 +393,7 @@ impl MainStatus {
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct DependencyErrors(pub IndexMap<PackageId, DependencyError>);
+pub struct DependencyErrors(pub BTreeMap<PackageId, DependencyError>);
 impl Map for DependencyErrors {
     type Key = PackageId;
     type Value = DependencyError;
@@ -410,9 +409,9 @@ impl DependencyErrors {
         ctx: &RpcContext,
         db: &mut Db,
         manifest: &Manifest,
-        current_dependencies: &IndexMap<PackageId, CurrentDependencyInfo>,
+        current_dependencies: &BTreeMap<PackageId, CurrentDependencyInfo>,
     ) -> Result<DependencyErrors, Error> {
-        let mut res = IndexMap::new();
+        let mut res = BTreeMap::new();
         for dep_id in current_dependencies.keys() {
             if let Err(e) = manifest
                 .dependencies
@@ -448,7 +447,7 @@ pub fn handle_broken_dependents<'a, Db: DbHandle>(
     dependency: &'a PackageId,
     model: InstalledPackageDataEntryModel,
     error: DependencyError,
-    breakages: &'a mut IndexMap<PackageId, TaggedDependencyError>,
+    breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
         let mut status = model.clone().status().get_mut(db).await?;

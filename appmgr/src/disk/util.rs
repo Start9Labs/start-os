@@ -1,8 +1,9 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
 use futures::TryStreamExt;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
@@ -141,7 +142,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
             crate::ErrorKind::Filesystem,
         )
     })
-    .try_fold(IndexMap::new(), |mut disks, dir_entry| async move {
+    .try_fold(BTreeMap::new(), |mut disks, dir_entry| async move {
         if let Some(disk_path) = dir_entry.path().file_name().and_then(|s| s.to_str()) {
             let (disk_path, part_path) = if let Some(end) = PARTITION_REGEX.find(disk_path) {
                 (
@@ -169,7 +170,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                         part_path.display().to_string(),
                     )
                 })?;
-                disks[&disk].insert(part);
+                disks.get_mut(&disk).unwrap().insert(part);
             }
         }
         Ok(disks)

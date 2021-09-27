@@ -1,6 +1,7 @@
+use std::collections::BTreeMap;
+
 use anyhow::anyhow;
 use emver::VersionRange;
-use indexmap::IndexMap;
 use patch_db::{DbHandle, DiffPatch, HasModel, Map, MapModel};
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +30,7 @@ pub enum DependencyError {
     }, // { "type": "config-unsatisfied", "error": "Bitcoin Core must have pruning set to manual." }
     NotRunning,   // { "type": "not-running" }
     HealthChecksFailed {
-        failures: IndexMap<HealthCheckId, HealthCheckResult>,
+        failures: BTreeMap<HealthCheckId, HealthCheckResult>,
     }, // { "type": "health-checks-failed", "checks": { "rpc": { "time": "2021-05-11T18:21:29Z", "result": "warming-up" } } }
 }
 impl DependencyError {
@@ -100,11 +101,11 @@ pub struct TaggedDependencyError {
 #[serde(rename_all = "kebab-case")]
 pub struct BreakageRes {
     pub patch: DiffPatch,
-    pub breakages: IndexMap<PackageId, TaggedDependencyError>,
+    pub breakages: BTreeMap<PackageId, TaggedDependencyError>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Dependencies(pub IndexMap<PackageId, DepInfo>);
+pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
 impl Map for Dependencies {
     type Key = PackageId;
     type Value = DepInfo;
@@ -209,7 +210,7 @@ impl DepInfo {
                 health,
             }
             | MainStatus::Running { health, .. } => {
-                let mut failures = IndexMap::with_capacity(health.len());
+                let mut failures = BTreeMap::new();
                 for (check, res) in health {
                     if !matches!(res.result, HealthCheckResultVariant::Success) {
                         failures.insert(check.clone(), res.clone());

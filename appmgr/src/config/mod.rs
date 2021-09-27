@@ -1,9 +1,10 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
 use anyhow::anyhow;
 use bollard::container::KillContainerOptions;
 use futures::future::{BoxFuture, FutureExt};
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use itertools::Itertools;
 use patch_db::DbHandle;
 use rand::SeedableRng;
@@ -205,7 +206,7 @@ pub async fn set_dry(
 ) -> Result<BreakageRes, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
-    let mut breakages = IndexMap::new();
+    let mut breakages = BTreeMap::new();
     configure(
         &ctx,
         &mut tx,
@@ -213,7 +214,7 @@ pub async fn set_dry(
         config,
         &timeout,
         true,
-        &mut IndexMap::new(),
+        &mut BTreeMap::new(),
         &mut breakages,
     )
     .await?;
@@ -241,7 +242,7 @@ pub async fn set_impl(
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
-    let mut breakages = IndexMap::new();
+    let mut breakages = BTreeMap::new();
     configure(
         &ctx,
         &mut tx,
@@ -249,7 +250,7 @@ pub async fn set_impl(
         config,
         &timeout,
         false,
-        &mut IndexMap::new(),
+        &mut BTreeMap::new(),
         &mut breakages,
     )
     .await?;
@@ -278,8 +279,8 @@ pub fn configure<'a, Db: DbHandle>(
     config: Option<Config>,
     timeout: &'a Option<Duration>,
     dry_run: bool,
-    overrides: &'a mut IndexMap<PackageId, Config>,
-    breakages: &'a mut IndexMap<PackageId, TaggedDependencyError>,
+    overrides: &'a mut BTreeMap<PackageId, Config>,
+    breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
         crate::db::DatabaseModel::new()
@@ -332,7 +333,7 @@ pub fn configure<'a, Db: DbHandle>(
         // create backreferences to pointers
         let mut sys = pkg_model.clone().system_pointers().get_mut(db).await?;
         sys.truncate(0);
-        let mut current_dependencies: IndexMap<PackageId, CurrentDependencyInfo> = dependencies
+        let mut current_dependencies: BTreeMap<PackageId, CurrentDependencyInfo> = dependencies
             .0
             .iter()
             .filter_map(|(id, info)| {
@@ -353,7 +354,7 @@ pub fn configure<'a, Db: DbHandle>(
                             package_id,
                             CurrentDependencyInfo {
                                 pointers: vec![target],
-                                health_checks: IndexSet::new(),
+                                health_checks: BTreeSet::new(),
                             },
                         );
                     }

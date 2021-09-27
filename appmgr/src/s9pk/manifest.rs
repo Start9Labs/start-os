@@ -19,7 +19,7 @@ use crate::volume::Volumes;
 
 pub const SYSTEM_PACKAGE_ID: PackageId<&'static str> = PackageId(SYSTEM_ID);
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PackageId<S: AsRef<str> = String>(Id<S>);
 impl<'a> PackageId<&'a str> {
     pub fn owned(&self) -> PackageId {

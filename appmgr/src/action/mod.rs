@@ -1,9 +1,10 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::str::FromStr;
 
 use anyhow::anyhow;
 use clap::ArgMatches;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use patch_db::HasModel;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
@@ -13,9 +14,7 @@ use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::id::{Id, InvalidId};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{
-    display_serializable, parse_stdin_deserializable, IoFormat, ValuePrimative, Version,
-};
+use crate::util::{display_serializable, parse_stdin_deserializable, IoFormat, Version};
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
 
@@ -23,7 +22,7 @@ pub mod docker;
 
 // TODO: create RPC endpoint that looks up the appropriate action and calls `execute`
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ActionId<S: AsRef<str> = String>(Id<S>);
 impl FromStr for ActionId {
     type Err = InvalidId;
@@ -70,7 +69,7 @@ where
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Actions(pub IndexMap<ActionId, Action>);
+pub struct Actions(pub BTreeMap<ActionId, Action>);
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "version")]
