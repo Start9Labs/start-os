@@ -12,11 +12,11 @@
 
 	- Find current devices with `lsblk`
 
-3. Run `export OUTPUT_DEVICE=mmcblk0` where mmcblk0 is the sd card’s device name, be sure to change if yours differs
+3. Run `export OUTPUT_DEVICE=/dev/mmcblk0` where `/dev/mmcblk0` is the sd card’s device name, be sure to change if yours differs
 
 3a. Run `export LOOPDEV=$(sudo losetup --show -fP ubuntu-21.04-preinstalled-server-arm64+raspi.img)` to set the `.img` file as a loop device environment variable
 
-4. Run `sudo ./build/partitioning.sh` You should see confirmation of write to disk
+4. Run `./build/partitioning.sh` You should see confirmation of write to disk
 
 5. Run `./build/filesystems.sh` You will see write progression twice, ignore the warning about lowercase labels
 
