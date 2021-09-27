@@ -255,7 +255,7 @@ export interface Log {
 
 export interface ActionResponse {
   message: string
-  value: string | number | boolean | null
+  value: string | null
   copyable: boolean
   qr: boolean
 }
