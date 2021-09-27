@@ -28,7 +28,6 @@ export class MarketplaceListPage {
 
   data: MarketplaceData
   eos: MarketplaceEOS
-  allPkgs: MarketplacePkg[] = []
   pkgs: MarketplacePkg[] = []
 
   PackageState = PackageState
@@ -58,11 +57,12 @@ export class MarketplaceListPage {
       const [data, eos] = await Promise.all([
         this.api.getMarketplaceData({ }),
         this.api.getEos({ }),
-        this.getAllPkgs(),
+        this.marketplaceService.getAllPkgs(),
       ])
       this.eos = eos
       this.data = data
 
+      this.pkgsLoading = false
       this.getPkgs()
 
       // category should start as first item in array
@@ -103,23 +103,13 @@ export class MarketplaceListPage {
     )
   }
 
-  private async getAllPkgs (): Promise<void> {
-    this.allPkgs = await this.marketplaceService.getPkgs(
-      undefined,
-      this.query,
-      1,
-      100000,
-    )
-    this.pkgsLoading = false
-  }
-
   private async getPkgs (): Promise<void> {
     if (this.category === 'updates') {
-      this.pkgs = this.allPkgs.filter(pkg => {
+      this.pkgs = this.marketplaceService.allPkgs.filter(pkg => {
         return this.localPkgs[pkg.manifest.id] && pkg.manifest.version !== this.localPkgs[pkg.manifest.id].manifest.version
       })
     } else {
-      this.pkgs = this.allPkgs.filter(pkg => {
+      this.pkgs = this.marketplaceService.allPkgs.filter(pkg => {
         if (this.query) {
           return  pkg.manifest.id.toUpperCase().includes(this.query.toUpperCase()) ||
                   pkg.manifest.title.toUpperCase().includes(this.query.toUpperCase()) ||
