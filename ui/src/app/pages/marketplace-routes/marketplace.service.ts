@@ -36,6 +36,8 @@ export class MarketplaceService {
   }
 
   async getAllPkgs (): Promise<void> {
+    if (this.allPkgs.length) return
+
     this.allPkgs = await this.getPkgs(
       undefined,
       null,
