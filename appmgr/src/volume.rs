@@ -200,7 +200,7 @@ impl Volume {
                 volume_id,
                 path,
                 ..
-            } => dbg!(ctx
+            } => ctx
                 .datadir
                 .join(PKG_VOLUME_DIR)
                 .join(package_id)
@@ -210,7 +210,7 @@ impl Volume {
                     path.strip_prefix("/").unwrap()
                 } else {
                     path.as_ref()
-                })),
+                }),
             Volume::Certificate { interface_id } => ctx
                 .datadir
                 .join(PKG_VOLUME_DIR)
