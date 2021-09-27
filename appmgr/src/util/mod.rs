@@ -686,6 +686,12 @@ impl<H: Digest, W: std::io::Write> HashWriter<H, W> {
     pub fn finish(self) -> (H, W) {
         (self.hasher, self.writer)
     }
+    pub fn inner(&self) -> &W {
+        &self.writer
+    }
+    pub fn inner_mut(&mut self) -> &mut W {
+        &mut self.writer
+    }
 }
 impl<H: Digest, W: std::io::Write> std::io::Write for HashWriter<H, W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
@@ -695,17 +701,6 @@ impl<H: Digest, W: std::io::Write> std::io::Write for HashWriter<H, W> {
     }
     fn flush(&mut self) -> std::io::Result<()> {
         self.writer.flush()
-    }
-}
-impl<H: Digest, W: std::io::Write> std::ops::Deref for HashWriter<H, W> {
-    type Target = W;
-    fn deref(&self) -> &Self::Target {
-        &self.writer
-    }
-}
-impl<H: Digest, W: std::io::Write> std::ops::DerefMut for HashWriter<H, W> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.writer
     }
 }
 
