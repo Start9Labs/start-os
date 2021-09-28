@@ -5,12 +5,12 @@ use std::path::Path;
 use ed25519_dalek::Keypair;
 use rpc_toolkit::command;
 
-use crate::context::CliContext;
+use crate::context::SdkContext;
 use crate::util::display_none;
 use crate::{Error, ResultExt};
 
 #[command(cli_only, blocking, display(display_none))]
-pub fn init(#[context] ctx: CliContext) -> Result<(), Error> {
+pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
     if !ctx.developer_key_path.exists() {
         let parent = ctx.developer_key_path.parent().unwrap_or(Path::new("/"));
         if !parent.exists() {
