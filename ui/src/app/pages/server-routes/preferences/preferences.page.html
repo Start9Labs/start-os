@@ -12,7 +12,7 @@
   <ion-item-group>
     <ion-item button (click)="presentModalName()">
       <ion-label>{{ fields['name'].name }}</ion-label>
-      <ion-note slot="end">{{ patch.data.ui.name }}</ion-note>
+      <ion-note slot="end">{{ patch.data.ui.name || defaultName }}</ion-note>
     </ion-item>
   </ion-item-group>
 

@@ -14,6 +14,7 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 export class PreferencesPage {
   @ViewChild(IonContent) content: IonContent
   fields = fields
+  defaultName: string
 
   constructor (
     private readonly modalCtrl: ModalController,
@@ -22,6 +23,10 @@ export class PreferencesPage {
     private readonly api: ApiService,
     public readonly patch: PatchDbService,
   ) { }
+
+  ngOnInit () {
+    this.defaultName = `Embassy-${this.patch.data['server-info'].id}`
+  }
 
   ngAfterViewInit () {
     this.content.scrollToPoint(undefined, 1)
@@ -34,11 +39,11 @@ export class PreferencesPage {
         message: 'This is for your reference only.',
         label: 'Device Name',
         useMask: false,
-        placeholder: this.patch.data['server-info'].id,
+        placeholder: this.defaultName,
         nullable: true,
         value: this.patch.data.ui.name,
         buttonText: 'Save',
-        submitFn: async (value: string) => await this.setDbValue('name', value || this.patch.data['server-info'].id),
+        submitFn: async (value: string) => await this.setDbValue('name', value || this.defaultName),
       },
       cssClass: 'alertlike-modal',
       presentingElement: await this.modalCtrl.getTop(),

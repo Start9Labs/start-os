@@ -344,8 +344,15 @@ export interface DependencyInfo {
 
 export interface DependencyEntry {
   version: string
-  optional: string | null
-  recommended: boolean
+  requirement: {
+    type: 'opt-in'
+    how: string
+  } | {
+    type: 'opt-out'
+    how: string
+  } | {
+    type: 'required'
+  }
   description: string | null
   critical: boolean,
   config: {

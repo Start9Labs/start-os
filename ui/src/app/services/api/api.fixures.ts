@@ -262,9 +262,11 @@ export module Mock {
     dependencies: {
       'bitcoind': {
         version: '=0.21.0',
+        requirement: {
+          type: 'opt-out',
+          how: 'You can use an external node if you prefer.',
+        },
         description: 'LND needs bitcoin to live.',
-        optional: null,
-        recommended: true,
         critical: true,
         config: {
           check: {
@@ -294,8 +296,10 @@ export module Mock {
       'bitcoin-proxy': {
         version: '>=0.2.2',
         description: 'As long as Bitcoin is pruned, LND needs Bitcoin Proxy to fetch block over the P2P network.',
-        optional: null,
-        recommended: true,
+        requirement: {
+          type: 'opt-in',
+          how: 'You can choose to use Bitcoin Proxy for permission management',
+        },
         critical: true,
         config: {
           check: {
@@ -410,8 +414,9 @@ export module Mock {
       'bitcoind': {
         version: '>=0.20.0',
         description: 'Bitcoin Proxy requires a Bitcoin node.',
-        optional: null,
-        recommended: true,
+        requirement: {
+          type: 'required',
+        },
         critical: false,
         config: {
           check: {

@@ -391,7 +391,7 @@ export class AppShowPage {
       },
       {
         action: () => this.donate(),
-        title: `Donate to ${this.pkg.manifest.title}`,
+        title: 'Donate',
         icon: 'logo-bitcoin',
         color: 'danger',
       },
