@@ -15,6 +15,7 @@ apt install -y \
 			    sqlite3
 sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
+sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
 docker run --privileged --rm tonistiigi/binfmt --install all
 docker network create -d bridge --subnet 172.18.0.1/16 start9
 echo '{ "storage-driver": "zfs" }' > /etc/docker/daemon.json
