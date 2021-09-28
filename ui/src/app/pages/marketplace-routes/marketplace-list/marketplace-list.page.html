@@ -11,19 +11,22 @@
 
   <ion-grid style="padding-bottom: 32px;">
     <ion-row>
-      <ion-col sizeMd="6" offset-md="3">
+      <ion-col sizeSm="8" offset-sm="2">
         <ion-toolbar color="transparent">
-          <ion-searchbar enterkeyhint="search" color="dark" (keyup.enter)="search()" debounce="300" [(ngModel)]="query"></ion-searchbar>
-          <ion-button style="height: 42px;" slot="end" color="primary" fill="solid" (click)="search()">
-            <ion-icon slot="icon-only" name="search-outline"></ion-icon>
-          </ion-button>
+          <ion-searchbar
+            enterkeyhint="search"
+            color="dark"
+            debounce="250"
+            [(ngModel)]="query"
+            (ionChange)="search()"
+          ></ion-searchbar>
         </ion-toolbar>
       </ion-col>
     </ion-row>
   </ion-grid>
 
-  <!-- page loading -->
-  <ng-container *ngIf="pageLoading; else pageLoaded">
+  <!-- loading -->
+  <ng-container *ngIf="loading; else pageLoaded">
     <div class="scrollable ion-text-center">
       <ion-button *ngFor="let cat of ['', '', '', '', '', '', '']" fill="clear">
         <ion-skeleton-text animated style="width: 80px; border-radius: 0;"></ion-skeleton-text>
@@ -33,11 +36,11 @@
     <div class="divider" style="margin: 24px 0;"></div>
   </ng-container>
 
-  <!-- page loaded -->
+  <!-- loaded -->
   <ng-template #pageLoaded>
     <div class="scrollable ion-text-center">
       <ion-button
-        *ngFor="let cat of data.categories"
+        *ngFor="let cat of categories"
         fill="clear"
         [class]="cat === category ? 'selected' : 'dim'"
         (click)="switchCategory(cat)"
@@ -49,8 +52,8 @@
     <div class="divider" style="margin: 24px;"></div>
   </ng-template>
 
-  <!-- packages loading -->
-  <ng-container *ngIf="pkgsLoading; else pkgsLoaded">
+  <!-- loading -->
+  <ng-container *ngIf="loading; else pkgsLoaded">
     <ion-grid>
       <ion-row>
         <ion-col *ngFor="let pkg of ['', '', '', '']" sizeXs="12" sizeSm="12" sizeMd="6">
@@ -73,15 +76,15 @@
   <ng-template #pkgsLoaded>
     <ion-grid>
       <ion-row>
-        <ion-col *ngIf="eos && category === 'featured'" sizeXs="12" sizeSm="12" sizeMd="6">
+        <ion-col *ngIf="marketplaceService.eos && category === 'featured'" sizeXs="12" sizeSm="12" sizeMd="6">
           <ion-item button class="eos-item" (click)="updateEos()">
             <ion-thumbnail slot="start">
               <img src="assets/img/icon.png" />
             </ion-thumbnail>
             <ion-label>
               <h3>Now Available...</h3>
-              <h2>Embassy OS {{ eos.version }}</h2>
-              <p>{{ eos.headline }}</p>
+              <h2>Embassy OS {{ marketplaceService.eos.version }}</h2>
+              <p>{{ marketplaceService.eos.headline }}</p>
             </ion-label>
           </ion-item>
         </ion-col>

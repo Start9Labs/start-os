@@ -162,7 +162,7 @@ export class ServerShowPage {
       'Power': [
         {
           title: 'Restart',
-          icon: 'reload-outline',
+          icon: 'reload',
           action: () => this.presentAlertRestart(),
           detail: false,
         },

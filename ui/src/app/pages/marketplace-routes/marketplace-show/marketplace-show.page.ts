@@ -13,6 +13,7 @@ import { MarketplaceService } from '../marketplace.service'
 import { Subscription } from 'rxjs'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { MarketplacePkg } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'marketplace-show',
@@ -23,11 +24,11 @@ export class MarketplaceShowPage {
   @ViewChild(IonContent) content: IonContent
   loading = true
   pkgId: string
+  pkg: MarketplacePkg
   localPkg: PackageDataEntry
   PackageState = PackageState
   rec: Recommendation | null = null
   showRec = true
-
   subs: Subscription[] = []
 
   constructor (
@@ -41,7 +42,7 @@ export class MarketplaceShowPage {
     private readonly emver: Emver,
     private readonly patch: PatchDbService,
     private readonly embassyApi: ApiService,
-    public readonly marketplaceService: MarketplaceService,
+    private readonly marketplaceService: MarketplaceService,
   ) { }
 
   async ngOnInit () {
@@ -57,10 +58,18 @@ export class MarketplaceShowPage {
       }),
     ]
 
-    if (this.marketplaceService.pkgs[this.pkgId]) {
+    try {
+      if (!this.marketplaceService.pkgs.length) {
+        await this.marketplaceService.load()
+      }
+      this.pkg = this.marketplaceService.pkgs.find(pkg => pkg.manifest.id === this.pkgId)
+      if (!this.pkg) {
+        throw new Error(`Service with ID "${this.pkgId}" not found.`)
+      }
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
       this.loading = false
-    } else {
-      this.getPkg()
     }
   }
 
@@ -72,27 +81,16 @@ export class MarketplaceShowPage {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async getPkg (version?: string): Promise<void> {
-    try {
-      await this.marketplaceService.getPkg(this.pkgId, version)
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      await pauseFor(100)
-      this.loading = false
-    }
-  }
-
   async presentAlertVersions () {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
-      inputs: this.marketplaceService.pkgs[this.pkgId].versions.sort((a, b) => -1 * this.emver.compare(a, b)).map(v => {
+      inputs: this.pkg.versions.sort((a, b) => -1 * this.emver.compare(a, b)).map(v => {
         return {
           name: v, // for CSS
           type: 'radio',
           label: displayEmver(v), // appearance on screen
           value: v, // literal SEM version value
-          checked: this.marketplaceService.pkgs[this.pkgId].manifest.version === v,
+          checked: this.pkg.manifest.version === v,
         }
       }),
       buttons: [
@@ -116,7 +114,7 @@ export class MarketplaceShowPage {
     const modal = await this.modalCtrl.create({
       componentProps: {
         title,
-        contentUrl: this.marketplaceService.pkgs[this.pkgId][title],
+        contentUrl: this.pkg[title],
       },
       component: MarkdownPage,
     })
@@ -125,7 +123,7 @@ export class MarketplaceShowPage {
   }
 
   async tryInstall () {
-    const { id, title, version, alerts } = this.marketplaceService.pkgs[this.pkgId].manifest
+    const { id, title, version, alerts } = this.pkg.manifest
 
     if (!alerts.install) {
       await this.install(id, version)
@@ -152,7 +150,7 @@ export class MarketplaceShowPage {
   }
 
   async presentModal (action: 'update' | 'downgrade') {
-    const { id, title, version, dependencies, alerts } = this.marketplaceService.pkgs[this.pkgId].manifest
+    const { id, title, version, dependencies, alerts } = this.pkg.manifest
     const value = {
       id,
       title,
@@ -175,6 +173,18 @@ export class MarketplaceShowPage {
 
   dismissRec () {
     this.showRec = false
+  }
+
+  private async getPkg (version?: string): Promise<void> {
+    this.loading = true
+    try {
+      this.pkg = await this.marketplaceService.getPkg(this.pkgId, version)
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      await pauseFor(100)
+      this.loading = false
+    }
   }
 
   private async install (id: string, version?: string): Promise<void> {
