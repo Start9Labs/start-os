@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use beau_collector::BeauCollector;
@@ -31,7 +32,7 @@ pub fn validate_configuration(
             std::fs::rename(config_path.with_extension("tmp"), config_path)?;
             // return set result
             Ok(SetResult {
-                depends_on: indexmap::IndexMap::new(),
+                depends_on: BTreeMap::new(),
                 // sending sigterm so service is restarted - in 0.3.x services, this is whatever signal is needed to send to the process to pick up the configuration
                 signal: Some(nix::sys::signal::SIGTERM),
             })
@@ -43,16 +44,17 @@ pub fn validate_configuration(
 pub fn validate_dependency_configuration(
     name: &str,
     config: Config,
+    parent_name: &str,
+    parent_config: Config,
     rules_path: &Path,
-    dependent_config: Config,
 ) -> Result<(), anyhow::Error> {
     let rules: Vec<ConfigRuleEntry> = serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
+    cfgs.insert(parent_name, Cow::Borrowed(&parent_config));
     cfgs.insert(name, Cow::Borrowed(&config));
-    cfgs.insert(name, Cow::Borrowed(&dependent_config));
     let rule_check = rules
         .into_iter()
-        .map(|r| r.check(&config, &cfgs))
+        .map(|r| r.check(&parent_config, &cfgs))
         .bcollect::<Vec<_>>();
     match rule_check {
         Ok(_) => Ok(()),
@@ -62,22 +64,22 @@ pub fn validate_dependency_configuration(
 
 pub fn apply_dependency_configuration(
     name: &str,
-    mut config: Config,
+    config: Config,
+    parent_name: &str,
+    mut parent_config: Config,
     rules_path: &Path,
-    dependent_config: Config,
 ) -> Result<Config, anyhow::Error> {
     let rules: Vec<ConfigRuleEntryWithSuggestions> =
         serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
+    cfgs.insert(parent_name, Cow::Owned(parent_config.clone()));
     cfgs.insert(name, Cow::Owned(config.clone()));
-    cfgs.insert(name, Cow::Owned(dependent_config.clone()));
     let rule_check = rules
         .into_iter()
-        .map(|r| r.apply(name, &mut config, &mut cfgs))
+        .map(|r| r.apply(parent_name, &mut parent_config, &mut cfgs))
         .bcollect::<Vec<_>>();
-
     match rule_check {
-        Ok(_) => Ok(config),
-        Err(e) => Err(anyhow!("{}", e))
+        Ok(_) => Ok(parent_config),
+        Err(e) => Err(anyhow!("{}", e)),
     }
 }
