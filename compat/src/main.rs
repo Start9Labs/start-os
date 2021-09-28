@@ -77,6 +77,11 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 .subcommand(
                     SubCommand::with_name("check")
                         .arg(
+                            Arg::with_name("dependent_package_id")
+                                .help("Package identifier of this package (the child/depdendent)")
+                                .required(true),
+                        )
+                        .arg(
                             Arg::with_name("dependency_package_id")
                                 .help("Identifier of the dependency")
                                 .required(true),
@@ -95,8 +100,13 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 .subcommand(
                     SubCommand::with_name("auto-configure")
                         .arg(
+                            Arg::with_name("dependent_package_id")
+                                .help("Package identifier of this package (the child/depdendent)")
+                                .required(true),
+                        )
+                        .arg(
                             Arg::with_name("dependency_package_id")
-                                .help("Package identifier of the dependency")
+                                .help("Package identifier of the parent/dependency")
                                 .required(true),
                         )
                         .arg(
@@ -200,20 +210,22 @@ fn inner_main() -> Result<(), anyhow::Error> {
         },
         ("dependency", Some(sub_m)) => match sub_m.subcommand() {
             ("check", Some(sub_m)) => {
-                let dependency_config = serde_yaml::from_reader(stdin())?;
-                let dependent_config = serde_yaml::from_reader(
+                let parent_config = serde_yaml::from_reader(stdin())?;
+                let config = serde_yaml::from_reader(
                     File::open(
                         Path::new(sub_m.value_of("mountpoint").unwrap()).join("start9/config.yaml"),
                     )
                     .unwrap(),
                 )?;
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
-                let name = sub_m.value_of("dependency_package_id").unwrap();
+                let name = sub_m.value_of("dependent_package_id").unwrap();
+                let parent_name = sub_m.value_of("dependency_package_id").unwrap();
                 match validate_dependency_configuration(
-                    &name,
-                    dependency_config,
+                    name,
+                    config,
+                    parent_name,
+                    parent_config,
                     rules_path,
-                    dependent_config,
                 ) {
                     Ok(a) => {
                         serde_yaml::to_writer(stdout(), &a)?;
@@ -226,20 +238,22 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 }
             }
             ("auto-configure", Some(sub_m)) => {
-                let dependency_config = serde_yaml::from_reader(stdin())?;
-                let dependent_config = serde_yaml::from_reader(
+                let parent_config = serde_yaml::from_reader(stdin())?;
+                let config = serde_yaml::from_reader(
                     File::open(
                         Path::new(sub_m.value_of("mountpoint").unwrap()).join("start9/config.yaml"),
                     )
                     .unwrap(),
                 )?;
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
-                let name = sub_m.value_of("dependency_package_id").unwrap();
+                let name = sub_m.value_of("dependent_package_id").unwrap();
+                let parent_name = sub_m.value_of("dependency_package_id").unwrap();
                 match apply_dependency_configuration(
                     name,
-                    dependency_config,
+                    config,
+                    parent_name,
+                    parent_config,
                     rules_path,
-                    dependent_config,
                 ) {
                     Ok(a) => {
                         serde_yaml::to_writer(stdout(), &a)?;
