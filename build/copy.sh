@@ -8,6 +8,12 @@ sudo cp target/aarch64-unknown-linux-gnu/release/embassyd /mnt/usr/local/bin
 sudo cp target/aarch64-unknown-linux-gnu/release/embassy-cli /mnt/usr/local/bin
 sudo cp *.service /mnt/etc/systemd/system/
 
-echo "application/wasm		wasm;" | sudo tee -a "/mnt/etc/nginx/mime.types"
+# Enter the ui directory, copy over the 3 ui components
+cd ../ui/
 
+sudo cp -R ui/ /mnt/var/www/html/
+sudo cp -R setup/ /mnt/var/www/html/
+sudo cp -R diagnostic/ /mnt/var/www/html/
+
+# Make the .ssh directory
 sudo mkdir -p /mnt/root/.ssh
