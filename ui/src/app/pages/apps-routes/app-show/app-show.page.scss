@@ -12,3 +12,13 @@
   height: 20px;
   width: 20px;
 }
+
+.inline {
+  * {
+    display: inline-block;
+    vertical-align: middle;
+  }
+  ion-icon {
+    padding-right: 4px;
+  }
+}

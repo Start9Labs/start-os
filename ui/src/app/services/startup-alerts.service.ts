@@ -38,21 +38,18 @@ export class StartupAlertsService {
       shouldRun: () => this.shouldRunOsWelcome(),
       check: async () => true,
       display: () => this.displayOsWelcome(),
-      hasRun: this.config.skipStartupAlerts,
     }
     const osUpdate: Check<RR.GetMarketplaceEOSRes | undefined> = {
       name: 'osUpdate',
       shouldRun: () => this.shouldRunOsUpdateCheck(),
       check: () => this.osUpdateCheck(),
       display: pkg => this.displayOsUpdateCheck(pkg),
-      hasRun: this.config.skipStartupAlerts,
     }
     const pkgsUpdate: Check<boolean> = {
       name: 'pkgsUpdate',
       shouldRun: () => this.shouldRunAppsCheck(),
       check: () => this.appsCheck(),
       display: () => this.displayAppsCheck(),
-      hasRun: this.config.skipStartupAlerts,
     }
     this.checks = [osWelcome, osUpdate, pkgsUpdate]
   }
@@ -70,7 +67,7 @@ export class StartupAlertsService {
     .subscribe(async data => {
       this.data = data
       await this.checks
-      .filter(c => !c.hasRun && c.shouldRun())
+      .filter(c => !this.config.skipStartupAlerts && c.shouldRun())
       // returning true in the below block means to continue to next modal
       // returning false means to skip all subsequent modals
       .reduce(async (previousDisplay, c) => {
@@ -81,7 +78,7 @@ export class StartupAlertsService {
           console.error(`Exception in ${c.name} check:`, e)
           return true
         }
-        c.hasRun = true
+
         const displayRes = await previousDisplay
 
         if (!checkRes) return true
@@ -113,8 +110,8 @@ export class StartupAlertsService {
   }
 
   private async appsCheck (): Promise<boolean> {
-    await this.marketplaceService.getUpdates(this.data['package-data'])
-    return !!this.marketplaceService.updates.length
+    const updates = await this.marketplaceService.getUpdates(this.data['package-data'])
+    return !!updates.length
   }
 
   private async displayOsWelcome (): Promise<boolean> {
@@ -220,8 +217,6 @@ type Check<T> = {
   // display an alert based on the result of the check.
   // return false if subsequent modals should not be displayed
   display: (a: T) => Promise<boolean>
-  // tracks if this check has run in this app instance.
-  hasRun: boolean
   // for logging purposes
   name: string
 }

@@ -24,15 +24,19 @@ export class AppReleaseNotes {
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     try {
+      const promises = []
       if (!this.marketplaceService.releaseNotes[this.pkgId]) {
-        await this.marketplaceService.getReleaseNotes(this.pkgId)
+        promises.push(this.marketplaceService.getReleaseNotes(this.pkgId))
       }
+      if (!this.marketplaceService.pkgs.length) {
+        promises.push(this.marketplaceService.load())
+      }
+      await Promise.all(promises)
     } catch (e) {
       this.errToast.present(e)
     } finally {
       this.loading = false
     }
-
   }
 
   ngAfterViewInit () {

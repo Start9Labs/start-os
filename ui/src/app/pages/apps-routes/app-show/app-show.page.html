@@ -63,13 +63,13 @@
             <ion-item *ngFor="let health of healthChecks | keyvalue : asIsOrder">
               <ng-container *ngIf="$any(health.value).result as result">
                 <ion-spinner class="icon-spinner" color="warning" slot="start" *ngIf="['starting', 'loading'] | includes : result"></ion-spinner>
-                <ion-icon slot="start" *ngIf="result === 'success'" name="checkmark-outline" color="success"></ion-icon>
-                <ion-icon slot="start" *ngIf="result === 'failure'" name="close" color="danger"></ion-icon>
-                <ion-icon slot="start" *ngIf="result === 'disabled'" name="remove-outline" color="dark"></ion-icon>
+                <ion-icon slot="start" *ngIf="result === 'success'" name="checkmark" color="success"></ion-icon>
+                <ion-icon slot="start" *ngIf="result === 'failure'" name="warning" color="warning"></ion-icon>
+                <ion-icon slot="start" *ngIf="result === 'disabled'" name="remove" color="dark"></ion-icon>
                 <ion-label>
-                  <p>{{ health.key }}</p>
-                  <h2>{{ result }}</h2>
-                  <p *ngIf="result === 'failure'"><ion-text color="danger">{{ $any(health.value).error }}</ion-text></p>
+                  <h2 style="font-weight: bold;">{{ health.key }}</h2>
+                  <h2>Result: {{ result | titlecase }}</h2>
+                  <p *ngIf="result === 'failure'"><ion-text color="warning">{{ $any(health.value).error }}</ion-text></p>
                 </ion-label>
               </ng-container>
             </ion-item>
@@ -84,9 +84,14 @@
               <img [src]="dep.value.icon" />
             </ion-thumbnail>
             <ion-label>
-              <h2 style="font-family: 'Montserrat'">{{ dep.value.title }}</h2>
+              <h2 class="inline" style="font-family: 'Montserrat'">
+                <ion-icon *ngIf="!!dep.value.errorText" slot="start" name="warning" color="warning"></ion-icon>
+                {{ dep.value.title }}
+              </h2>
               <p>{{ dep.value.version | displayEmver }}</p>
-              <p><ion-text [color]="!!dep.value.errorText ? 'warning' : 'success'">{{ dep.value.errorText || 'satisfied' }}</ion-text></p>
+              <p>
+                <ion-text [color]="!!dep.value.errorText ? 'warning' : 'success'">{{ dep.value.errorText || 'satisfied' }}</ion-text>
+              </p>
             </ion-label>
             <ion-spinner *ngIf="dep.value.spinnerColor" slot="end" [color]="dep.value.spinnerColor" style="height: 3vh; width: 3vh"></ion-spinner>
             <ion-button *ngIf="dep.value.actionText" slot="end" fill="clear">
