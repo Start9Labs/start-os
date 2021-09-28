@@ -47,18 +47,19 @@ pub async fn execute(
     let guid =
         crate::disk::main::create(&ctx.zfs_pool_name, [embassy_logicalname], DEFAULT_PASSWORD)
             .await?;
+    let search_string = format!("id: {}", guid);
     let mut ctr = 0;
     while {
         ctr += 1;
         ctr < 30 // 30s timeout
-    } && String::from_utf8(
+    } && !String::from_utf8(
         Command::new("zpool")
             .arg("import")
             .invoke(crate::ErrorKind::Zfs)
             .await?,
     )?
-    .trim()
-        == "no pools available to import"
+    .lines()
+    .any(|line| line.trim() == &search_string)
     {
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
