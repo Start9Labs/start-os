@@ -75,7 +75,7 @@ impl Stream for DecryptStream {
                             aeskey.as_mut_slice(),
                         );
                         let ctr = Nonce::<Aes256Ctr>::from_slice(&this.ctr);
-                        let mut aes = Aes256Ctr::new(dbg!(&aeskey), dbg!(&ctr));
+                        let mut aes = Aes256Ctr::new(&aeskey, &ctr);
                         let mut res = buf.to_vec();
                         aes.apply_keystream(&mut res);
                         *this.aes = Some(aes);

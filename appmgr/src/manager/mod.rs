@@ -351,7 +351,8 @@ impl Manager {
             .await
         {
             Err(bollard::errors::Error::DockerResponseNotFoundError { .. })
-            | Err(bollard::errors::Error::DockerResponseConflictError { .. }) => (), // Already stopped
+            | Err(bollard::errors::Error::DockerResponseConflictError { .. })
+            | Err(bollard::errors::Error::DockerResponseNotModifiedError { .. }) => (), // Already stopped
             a => a?,
         };
         self.shared.status.store(
@@ -413,7 +414,8 @@ impl Manager {
             .await
         {
             Err(bollard::errors::Error::DockerResponseNotFoundError { .. })
-            | Err(bollard::errors::Error::DockerResponseConflictError { .. }) => (),
+            | Err(bollard::errors::Error::DockerResponseConflictError { .. })
+            | Err(bollard::errors::Error::DockerResponseNotModifiedError { .. }) => (), // Already stopped
             a => a?,
         };
         self.shared.status.store(
