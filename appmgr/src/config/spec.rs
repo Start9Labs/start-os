@@ -1,5 +1,5 @@
 use std::borrow::{Borrow, Cow};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -46,7 +46,7 @@ pub trait ValueSpec {
         value: &mut Value,
     ) -> Result<(), ConfigurationError>;
     // returns all pointers that are live in the provided config
-    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath>;
+    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath>;
     // requires returns whether the app id is the target of a pointer within it
     fn requires(&self, id: &PackageId, value: &Value) -> bool;
     // defines if 2 values of this type are equal for the purpose of uniqueness
@@ -165,7 +165,7 @@ where
             .update(ctx, db, manifest, config_overrides, value)
             .await
     }
-    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         self.inner.pointers(value)
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
@@ -209,7 +209,7 @@ where
             .update(ctx, db, manifest, config_overrides, value)
             .await
     }
-    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         self.inner.pointers(value)
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
@@ -286,7 +286,7 @@ where
             .update(ctx, db, manifest, config_overrides, value)
             .await
     }
-    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         self.inner.pointers(value)
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
@@ -407,7 +407,7 @@ impl ValueSpec for ValueSpecAny {
             ValueSpecAny::Pointer(a) => a.update(ctx, db, manifest, config_overrides, value).await,
         }
     }
-    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         match self {
             ValueSpecAny::Boolean(a) => a.pointers(value),
             ValueSpecAny::Enum(a) => a.pointers(value),
@@ -492,8 +492,8 @@ impl ValueSpec for ValueSpecBoolean {
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(HashSet::new())
+    fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(BTreeSet::new())
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
         false
@@ -581,8 +581,8 @@ impl ValueSpec for ValueSpecEnum {
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(HashSet::new())
+    fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(BTreeSet::new())
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
         false
@@ -685,8 +685,8 @@ where
             )))
         }
     }
-    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(HashSet::new())
+    fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(BTreeSet::new())
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
         if let Value::Array(ref ls) = value {
@@ -780,7 +780,7 @@ impl ValueSpec for ValueSpecList {
             ValueSpecList::Union(a) => a.update(ctx, db, manifest, config_overrides, value).await,
         }
     }
-    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         match self {
             ValueSpecList::Enum(a) => a.pointers(value),
             ValueSpecList::Number(a) => a.pointers(value),
@@ -898,8 +898,8 @@ impl ValueSpec for ValueSpecNumber {
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(HashSet::new())
+    fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(BTreeSet::new())
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
         false
@@ -969,7 +969,7 @@ impl ValueSpec for ValueSpecObject {
             )))
         }
     }
-    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         if let Value::Object(o) = value {
             self.spec.pointers(o)
         } else {
@@ -1080,17 +1080,17 @@ impl ConfigSpec {
         Ok(())
     }
 
-    pub fn pointers(&self, cfg: &Config) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+    pub fn pointers(&self, cfg: &Config) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         cfg.iter()
             .filter_map(|(k, v)| self.0.get(k).map(|vs| (k, vs.pointers(v))))
-            .fold(Ok(HashSet::<ValueSpecPointer>::new()), |acc, v| {
+            .fold(Ok(BTreeSet::<ValueSpecPointer>::new()), |acc, v| {
                 match (acc, v) {
                     // propagate existing errors
                     (Err(e), _) => Err(e),
                     // create new error case
                     (Ok(_), (k, Err(e))) => Err(e.prepend(k.clone())),
                     // combine sets
-                    (Ok(s0), (_, Ok(s1))) => Ok(HashSet::from_iter(s0.union(&s1).cloned())),
+                    (Ok(s0), (_, Ok(s1))) => Ok(BTreeSet::from_iter(s0.union(&s1).cloned())),
                 }
             })
     }
@@ -1157,8 +1157,8 @@ impl ValueSpec for ValueSpecString {
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
-        Ok(HashSet::new())
+    fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
+        Ok(BTreeSet::new())
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
         false
@@ -1388,7 +1388,7 @@ impl ValueSpec for ValueSpecUnion {
             )))
         }
     }
-    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         if let Value::Object(o) = value {
             match o.get(&self.tag.id) {
                 None => Err(NoMatchWithPath::new(MatchError::MissingTag(
@@ -1461,7 +1461,7 @@ impl DefaultableWith for ValueSpecUnion {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(tag = "subtype")]
 #[serde(rename_all = "kebab-case")]
 pub enum ValueSpecPointer {
@@ -1517,8 +1517,8 @@ impl ValueSpec for ValueSpecPointer {
             }
         }
     }
-    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
-        let mut pointers = HashSet::new();
+    fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
+        let mut pointers = BTreeSet::new();
         pointers.insert(self.clone());
         Ok(pointers)
     }
@@ -1533,7 +1533,7 @@ impl ValueSpec for ValueSpecPointer {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(tag = "target")]
 #[serde(rename_all = "kebab-case")]
 pub enum PackagePointerSpec {
@@ -1614,8 +1614,8 @@ impl ValueSpec for PackagePointerSpec {
         *value = self.deref(ctx, db, manifest, config_overrides).await?;
         Ok(())
     }
-    fn pointers(&self, _value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
-        let mut pointers = HashSet::new();
+    fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
+        let mut pointers = BTreeSet::new();
         pointers.insert(ValueSpecPointer::Package(self.clone()));
         Ok(pointers)
     }
@@ -1627,7 +1627,7 @@ impl ValueSpec for PackagePointerSpec {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct TorAddressPointer {
     package_id: PackageId,
@@ -1658,7 +1658,7 @@ impl fmt::Display for TorAddressPointer {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct LanAddressPointer {
     package_id: PackageId,
@@ -1688,7 +1688,7 @@ impl LanAddressPointer {
         Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
     }
 }
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ConfigPointer {
     package_id: PackageId,
@@ -1805,13 +1805,23 @@ impl PartialEq for ConfigSelector {
     }
 }
 impl Eq for ConfigSelector {}
+impl PartialOrd for ConfigSelector {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.src.partial_cmp(&other.src)
+    }
+}
+impl Ord for ConfigSelector {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.src.cmp(&other.src)
+    }
+}
 impl Hash for ConfigSelector {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.src.hash(state)
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "target")]
 pub struct TorKeyPointer {
@@ -1849,7 +1859,7 @@ impl fmt::Display for TorKeyPointer {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "target")]
 pub enum SystemPointerSpec {}
@@ -1892,8 +1902,8 @@ impl ValueSpec for SystemPointerSpec {
         *value = self.deref(db).await?;
         Ok(())
     }
-    fn pointers(&self, value: &Value) -> Result<HashSet<ValueSpecPointer>, NoMatchWithPath> {
-        let mut pointers = HashSet::new();
+    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
+        let mut pointers = BTreeSet::new();
         pointers.insert(ValueSpecPointer::System(self.clone()));
         Ok(pointers)
     }

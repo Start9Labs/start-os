@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -187,7 +187,7 @@ pub enum NotificationSubtype {
     BackupReport {
         server_attempted: bool,
         server_error: Option<String>,
-        packages: HashMap<String, Option<String>>,
+        packages: BTreeMap<String, Option<String>>,
     },
 }
 impl NotificationSubtype {

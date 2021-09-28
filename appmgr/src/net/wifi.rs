@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Duration;
 
@@ -353,7 +353,7 @@ impl<'a> WpaCli<'a> {
             .await?;
         Ok(())
     }
-    pub async fn list_networks_low(&self) -> Result<HashMap<String, NetworkId>, Error> {
+    pub async fn list_networks_low(&self) -> Result<BTreeMap<String, NetworkId>, Error> {
         let r = Command::new("wpa_cli")
             .arg("-i")
             .arg(self.interface)
@@ -369,7 +369,7 @@ impl<'a> WpaCli<'a> {
                 let ssid = cs.next()?.to_owned();
                 Some((ssid, nid))
             })
-            .collect::<HashMap<String, NetworkId>>())
+            .collect::<BTreeMap<String, NetworkId>>())
     }
     pub async fn select_network_low(&self, id: &NetworkId) -> Result<(), Error> {
         let _ = Command::new("wpa_cli")

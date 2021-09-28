@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
@@ -137,7 +137,7 @@ pub struct TorControllerInner {
     embassyd_tor_key: TorSecretKeyV3,
     control_addr: SocketAddr,
     connection: Option<AuthenticatedConnection>,
-    services: HashMap<(PackageId, InterfaceId), (TorSecretKeyV3, TorConfig, Ipv4Addr)>,
+    services: BTreeMap<(PackageId, InterfaceId), (TorSecretKeyV3, TorConfig, Ipv4Addr)>,
 }
 impl TorControllerInner {
     async fn add<'a, I: IntoIterator<Item = (InterfaceId, TorConfig, TorSecretKeyV3)>>(
@@ -230,7 +230,7 @@ impl TorControllerInner {
             embassyd_tor_key,
             control_addr: tor_control,
             connection: Some(connection),
-            services: HashMap::new(),
+            services: BTreeMap::new(),
         };
         controller.add_embassyd_onion().await?;
         Ok(controller)
@@ -314,7 +314,7 @@ impl TorControllerInner {
         self.connection.replace(new_connection);
 
         // swap empty map for owned old service map
-        let old_services = std::mem::replace(&mut self.services, HashMap::new());
+        let old_services = std::mem::replace(&mut self.services, BTreeMap::new());
 
         // re add all of the services on the new control socket
         for ((package_id, interface_id), (tor_key, tor_cfg, ipv4)) in old_services {

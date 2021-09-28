@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::SeekFrom;
 use std::path::Path;
 use std::process::Stdio;
@@ -606,7 +606,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             current_dependents
                 .keys()
                 .chain(prev.current_dependents.keys())
-                .collect::<HashSet<_>>(),
+                .collect::<BTreeSet<_>>(),
         )
         .await?;
         let mut configured = prev.status.configured;
