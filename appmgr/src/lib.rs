@@ -54,9 +54,6 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
 #[command(subcommands(
     version::git_info,
     echo,
-    developer::init,
-    s9pk::pack,
-    s9pk::verify,
     inspect::inspect,
     server,
     package,

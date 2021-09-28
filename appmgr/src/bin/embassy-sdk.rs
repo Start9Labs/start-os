@@ -1,4 +1,4 @@
-use embassy::context::CliContext;
+use embassy::context::SdkContext;
 use embassy::Error;
 use rpc_toolkit::run_cli;
 use rpc_toolkit::yajrc::RpcError;
@@ -30,7 +30,7 @@ fn inner_main() -> Result<(), Error> {
                 4 => log::LevelFilter::Debug,
                 _ => log::LevelFilter::Trace,
             });
-            CliContext::init(matches)?
+            SdkContext::init(matches)?
         },
         exit: |e: RpcError| {
             match e.data {
