@@ -184,7 +184,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
         current_deps: Arc<BTreeMap<PackageId, CurrentDependencyInfo>>,
         mut db: Db,
     ) -> Result<(), Error> {
-        for (dep_id, dep_info) in &*current_deps {
+        for (dep_id, dep_info) in current_deps.iter().filter(|(dep_id, _)| dep_id != &id) {
             if let Some(err) = match statuses.get(dep_id) {
                 Some(MainStatus::Running { ref health, .. })
                 | Some(MainStatus::BackingUp {
@@ -412,17 +412,14 @@ impl DependencyErrors {
         current_dependencies: &BTreeMap<PackageId, CurrentDependencyInfo>,
     ) -> Result<DependencyErrors, Error> {
         let mut res = BTreeMap::new();
-        for dep_id in current_dependencies.keys() {
-            if let Err(e) = manifest
+        for (dep_id, info) in current_dependencies.keys().filter_map(|dep_id| {
+            manifest
                 .dependencies
                 .0
                 .get(dep_id)
-                .ok_or_else(|| {
-                    Error::new(
-                        anyhow!("current dependency not in manifest"),
-                        crate::ErrorKind::Dependency,
-                    )
-                })?
+                .map(|info| (dep_id, info))
+        }) {
+            if let Err(e) = info
                 .satisfied(
                     ctx,
                     db,

@@ -283,7 +283,10 @@ pub async fn update_current_dependents<
     dependent_id: &PackageId,
     current_dependencies: I,
 ) -> Result<(), Error> {
-    for (dependency, dep_info) in current_dependencies {
+    for (dependency, dep_info) in current_dependencies
+        .into_iter()
+        .filter(|(dependency, _)| dependency != &dependent_id)
+    {
         if let Some(dependency_model) = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(&dependency)

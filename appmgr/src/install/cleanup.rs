@@ -1,7 +1,5 @@
-use std::collections::{BTreeMap, HashMap};
-use std::path::Path;
+use std::collections::HashMap;
 
-use anyhow::anyhow;
 use bollard::image::ListImagesOptions;
 use patch_db::{DbHandle, PatchDbHandle};
 
@@ -30,19 +28,12 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
             .manifest()
             .get(db, true)
             .await?;
-        if let Err(e) = man
-            .dependencies
-            .0
-            .get(id)
-            .ok_or_else(|| {
-                Error::new(
-                    anyhow!("missing dependency info"),
-                    crate::ErrorKind::Database,
-                )
-            })?
-            .satisfied(ctx, db, id, None, dep, &man.version, &man.volumes)
-            .await?
-        {
+        if let Err(e) = if let Some(info) = man.dependencies.0.get(id) {
+            info.satisfied(ctx, db, id, None, dep, &man.version, &man.volumes)
+                .await?
+        } else {
+            Ok(())
+        } {
             let mut errs = crate::db::DatabaseModel::new()
                 .package_data()
                 .idx_model(&dep)
