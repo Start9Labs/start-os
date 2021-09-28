@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::anyhow;
 use rpc_toolkit::command;
 
-use crate::context::CliContext;
+use crate::context::SdkContext;
 use crate::s9pk::builder::S9pkPacker;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
@@ -19,7 +19,7 @@ pub mod reader;
 pub const SIG_CONTEXT: &'static [u8] = b"s9pk";
 
 #[command(cli_only, display(display_none), blocking)]
-pub fn pack(#[context] ctx: CliContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
+pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
     use std::fs::File;
     use std::io::Read;
 
