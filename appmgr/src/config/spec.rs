@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jsonpath_lib::Compiled as CompiledJsonPath;
 use patch_db::{DbHandle, OptionModel};
@@ -993,7 +993,7 @@ impl Defaultable for ValueSpecObject {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ConfigSpec(pub BTreeMap<String, ValueSpecAny>);
+pub struct ConfigSpec(pub IndexMap<String, ValueSpecAny>);
 impl ConfigSpec {
     pub fn matches(&self, value: &Config) -> Result<(), NoMatchWithPath> {
         for (key, val) in self.0.iter() {
