@@ -114,7 +114,7 @@ impl ConfigRuleEntry {
         cfgs: &LinearMap<&str, Cow<Config>>,
     ) -> Result<(), anyhow::Error> {
         if !(self.rule.compiled)(cfg, cfgs) {
-            anyhow::anyhow!("{}", self.description);
+            return Err(anyhow::anyhow!("{}", self.description))
         }
         Ok(())
     }
