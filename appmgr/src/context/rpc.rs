@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -130,7 +130,7 @@ impl RpcContext {
     pub async fn init<P: AsRef<Path>>(
         cfg_path: Option<P>,
         log_level: LevelFilter,
-        module_logging: HashMap<String, LevelFilter>,
+        module_logging: BTreeMap<String, LevelFilter>,
     ) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
         let log_epoch = Arc::new(AtomicU64::new(rand::random()));

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::anyhow;
@@ -72,7 +72,7 @@ impl Interfaces {
         &self,
         secrets: &mut Ex,
         package_id: &PackageId,
-    ) -> Result<HashMap<InterfaceId, TorSecretKeyV3>, Error>
+    ) -> Result<BTreeMap<InterfaceId, TorSecretKeyV3>, Error>
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
     {

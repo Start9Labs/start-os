@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use anyhow::anyhow;
@@ -113,7 +113,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                 .0
                 .into_iter()
                 .map(|x| x.0)
-                .collect::<HashSet<PackageId>>();
+                .collect::<BTreeSet<PackageId>>();
             status_manifest.push((
                 installed.clone().status(),
                 Arc::new(installed.clone().manifest().get(&mut db, true).await?),
@@ -151,7 +151,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
         Ok(res)
     }
     let (status_sender, mut statuses_recv) = tokio::sync::mpsc::channel(status_manifest.len() + 1);
-    let mut statuses = HashMap::with_capacity(status_manifest.len());
+    let mut statuses = BTreeMap::new();
     futures::stream::iter(
         status_manifest
             .into_iter()
@@ -179,7 +179,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     let statuses = Arc::new(statuses);
     async fn dependency_status<Db: DbHandle>(
         id: &PackageId,
-        statuses: Arc<HashMap<PackageId, MainStatus>>,
+        statuses: Arc<BTreeMap<PackageId, MainStatus>>,
         model: InstalledPackageDataEntryModel,
         current_deps: Arc<BTreeMap<PackageId, CurrentDependencyInfo>>,
         mut db: Db,
