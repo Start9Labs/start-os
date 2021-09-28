@@ -21,8 +21,9 @@ use crate::db::util::WithRevision;
 use crate::dependencies::{
     update_current_dependents, BreakageRes, DependencyError, TaggedDependencyError,
 };
+use crate::install::cleanup::update_dependents;
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
-use crate::status::handle_broken_dependents;
+use crate::status::{handle_broken_dependents, DependencyErrors};
 use crate::util::{
     display_none, display_serializable, parse_duration, parse_stdin_deserializable, IoFormat,
 };
@@ -339,6 +340,7 @@ pub fn configure<'a, Db: DbHandle>(
             .await
             .with_kind(crate::ErrorKind::NotFound)?;
 
+        spec.validate(&*manifest)?;
         spec.matches(&config)?; // check that new config matches spec
         spec.update(ctx, db, &*manifest, &*overrides, &mut config)
             .await?; // dereference pointers in the new config
@@ -401,6 +403,17 @@ pub fn configure<'a, Db: DbHandle>(
             }
 
             // track dependency health checks
+            current_dependencies = current_dependencies
+                .into_iter()
+                .filter(|(dep_id, _)| {
+                    if dep_id != id && !manifest.dependencies.0.contains_key(dep_id) {
+                        log::warn!("Illegal dependency specified: {}", dep_id);
+                        false
+                    } else {
+                        true
+                    }
+                })
+                .collect();
             let mut deps = pkg_model.clone().current_dependencies().get_mut(db).await?;
             *deps = current_dependencies.clone();
             deps.save(db).await?;
@@ -411,6 +424,14 @@ pub fn configure<'a, Db: DbHandle>(
 
         // update dependencies
         update_current_dependents(db, id, &current_dependencies).await?;
+        let mut errs = pkg_model
+            .clone()
+            .status()
+            .dependency_errors()
+            .get_mut(db)
+            .await?;
+        *errs = DependencyErrors::init(ctx, db, &*manifest, &current_dependencies).await?;
+        errs.save(db).await;
 
         // cache current config for dependents
         overrides.insert(id.clone(), config.clone());
