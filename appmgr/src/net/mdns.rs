@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use avahi_sys::{
     self, avahi_entry_group_add_service, avahi_entry_group_commit, avahi_entry_group_free,
@@ -35,7 +35,7 @@ impl MdnsController {
 pub struct MdnsControllerInner {
     hostname: Vec<u8>,
     entry_group: *mut AvahiEntryGroup,
-    services: HashMap<(PackageId, InterfaceId), TorSecretKeyV3>,
+    services: BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>,
 }
 unsafe impl Send for MdnsControllerInner {}
 unsafe impl Sync for MdnsControllerInner {}
@@ -115,7 +115,7 @@ impl MdnsControllerInner {
             MdnsControllerInner {
                 hostname: hostname_buf,
                 entry_group: group,
-                services: HashMap::new(),
+                services: BTreeMap::new(),
             }
         }
     }

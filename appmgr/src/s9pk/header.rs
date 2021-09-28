@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::io::Write;
 
 use anyhow::anyhow;
@@ -100,12 +100,12 @@ impl TableOfContents {
         reader.read_exact(&mut toc_len).await?;
         let toc_len = u32::from_be_bytes(toc_len);
         let mut reader = reader.take(toc_len as u64);
-        let mut table = HashMap::new();
+        let mut table = BTreeMap::new();
         while let Some((label, section)) = FileSection::deserialize_entry(&mut reader).await? {
             table.insert(label, section);
         }
         fn from_table(
-            table: &HashMap<Vec<u8>, FileSection>,
+            table: &BTreeMap<Vec<u8>, FileSection>,
             label: &str,
         ) -> std::io::Result<FileSection> {
             table.get(label.as_bytes()).copied().ok_or_else(|| {

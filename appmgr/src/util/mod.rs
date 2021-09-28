@@ -387,6 +387,16 @@ impl PartialEq for Version {
     }
 }
 impl Eq for Version {}
+impl PartialOrd for Version {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.version.partial_cmp(&other.version)
+    }
+}
+impl Ord for Version {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.version.cmp(&other.version)
+    }
+}
 impl Hash for Version {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.version.hash(state)

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
@@ -21,7 +21,7 @@ use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
 
 #[derive(Default)]
-pub struct ManagerMap(RwLock<HashMap<(PackageId, Version), Arc<Manager>>>);
+pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
     pub async fn init<Db: DbHandle, Ex>(
         &self,
@@ -32,7 +32,7 @@ impl ManagerMap {
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
     {
-        let mut res = HashMap::new();
+        let mut res = BTreeMap::new();
         for package in crate::db::DatabaseModel::new()
             .package_data()
             .keys(db, true)
@@ -65,7 +65,7 @@ impl ManagerMap {
         &self,
         ctx: RpcContext,
         manifest: Manifest,
-        tor_keys: HashMap<InterfaceId, TorSecretKeyV3>,
+        tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
     ) -> Result<(), Error> {
         let mut lock = self.0.write().await;
         let id = (manifest.id.clone(), manifest.version.clone());
@@ -125,7 +125,7 @@ struct ManagerSharedState {
     on_stop: Sender<OnStop>,
     manifest: Manifest,
     container_name: String,
-    tor_keys: HashMap<InterfaceId, TorSecretKeyV3>,
+    tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
 }
 
 #[derive(Clone, Copy)]
@@ -246,7 +246,7 @@ impl Manager {
     async fn create(
         ctx: RpcContext,
         manifest: Manifest,
-        tor_keys: HashMap<InterfaceId, TorSecretKeyV3>,
+        tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
     ) -> Result<Self, Error> {
         let (on_stop, mut recv) = channel(OnStop::Sleep);
         let shared = Arc::new(ManagerSharedState {

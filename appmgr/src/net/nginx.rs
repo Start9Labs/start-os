@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
 
@@ -35,14 +35,14 @@ impl NginxController {
 
 pub struct NginxControllerInner {
     nginx_root: PathBuf,
-    interfaces: HashMap<PackageId, PackageNetInfo>,
+    interfaces: BTreeMap<PackageId, PackageNetInfo>,
     ssl_manager: SslManager,
 }
 impl NginxControllerInner {
     async fn init(nginx_root: PathBuf, db: SqlitePool) -> Result<Self, Error> {
         Ok(NginxControllerInner {
             nginx_root,
-            interfaces: HashMap::new(),
+            interfaces: BTreeMap::new(),
             ssl_manager: SslManager::init(db).await?,
         })
     }
@@ -60,7 +60,7 @@ impl NginxControllerInner {
                 // also don't add nginx unless it has at least one exposed port
                         && meta.lan_config.len() > 0
             })
-            .collect::<HashMap<InterfaceId, InterfaceMetadata>>();
+            .collect::<BTreeMap<InterfaceId, InterfaceMetadata>>();
 
         for (id, meta) in interface_map.iter() {
             for (port, lan_port_config) in meta.lan_config.iter() {
@@ -197,7 +197,7 @@ impl NginxControllerInner {
 }
 struct PackageNetInfo {
     ip: Ipv4Addr,
-    interfaces: HashMap<InterfaceId, InterfaceMetadata>,
+    interfaces: BTreeMap<InterfaceId, InterfaceMetadata>,
 }
 pub struct InterfaceMetadata {
     pub dns_base: String,

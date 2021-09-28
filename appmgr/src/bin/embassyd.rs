@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -37,7 +37,7 @@ fn err_to_500(e: Error) -> Response<Body> {
 async fn inner_main(
     cfg_path: Option<&str>,
     log_level: LevelFilter,
-    module_logging: HashMap<String, LevelFilter>,
+    module_logging: BTreeMap<String, LevelFilter>,
 ) -> Result<Option<Shutdown>, Error> {
     let rpc_ctx = RpcContext::init(cfg_path, log_level, module_logging).await?;
     let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
@@ -282,7 +282,7 @@ fn main() {
                     .expect(&format!("Invalid 'log-module' argument: {}", l)),
             )
         })
-        .collect::<HashMap<_, LevelFilter>>();
+        .collect::<BTreeMap<_, LevelFilter>>();
     let cfg_path = matches.value_of("config");
 
     let res = {
