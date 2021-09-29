@@ -2,44 +2,46 @@
 ### This guide assumes a linux environment
 ### `Text in this format are commands to run`
 
-1. Download [ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz](https://ubuntu.com/download/raspberry-pi/thank-you?version=21.04&architecture=server-arm64+raspi)
+1. a)  Download [ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz](https://ubuntu.com/download/raspberry-pi/thank-you?version=21.04&architecture=server-arm64+raspi)
 
-1a. `unxz ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz` to unzip
+1. b) `unxz ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz` to unzip
 
-2. Run `git clone https://github.com/Start9Labs/embassy-os` to download the embassy-os repository directory
+2. a) Run `git clone https://github.com/Start9Labs/embassy-os` to download the embassy-os repository
 
-2a. Plug in your 16GB microSD card. We are assuming it will be at /dev/mmcblk0
+2. b)  Plug in your 16GB microSD card. In this example, we are assuming it will be at /dev/mmcblk0
 
-	- Find current devices with `lsblk`
+	- Find the location of your device with `lsblk` or `fdisk -l`
 
-3. Run `export OUTPUT_DEVICE=/dev/mmcblk0` where `/dev/mmcblk0` is the sd card’s device name, be sure to change if yours differs
+3. a) Run `export OUTPUT_DEVICE=/dev/mmcblk0` where `/dev/mmcblk0` is the sd card’s device name, be sure to change if yours differs
 
-3a. Run `export LOOPDEV=$(sudo losetup --show -fP ubuntu-21.04-preinstalled-server-arm64+raspi.img)` to set the `.img` file as a loop device environment variable
+3. b) Run `export LOOPDEV=$(sudo losetup --show -fP ubuntu-21.04-preinstalled-server-arm64+raspi.img)` to set the `.img` file as a loop device environment variable
 
 4. Run `./build/partitioning.sh` You should see confirmation of write to disk
 
 5. Run `./build/filesystems.sh` You will see write progression twice, ignore the warning about lowercase labels
 
-6. Store a product key as an environment variable in $PRODUCT_KEY, with `export PRODUCT_KEY=123456`, obviously, this number is made up, and then:
+6. a) Store a product key as an environment variable in $PRODUCT_KEY, with `export PRODUCT_KEY=test1234`, obviously, this number is made up, but must be 8 alphanumeric characters, then:
 
-6a. `echo $PRODUCT_KEY | sudo tee /mnt/product_key.txt` to add it to the `product_key.txt` file.
+6. b) `echo $PRODUCT_KEY | sudo tee /mnt/product_key.txt` to add it to the `product_key.txt` file.
 
-6b. `sudo umount /mnt` to unmount again
+6. c) `sudo umount /mnt` to unmount again
 
-6c. `sudo mount /dev/mmcblk0p3 /mnt` to mount the writable filesystem
+6. d) `sudo mount /dev/mmcblk0p3 /mnt` to mount the writable filesystem
 
-7. Move into the EmbassyOS directory with `cd embassy-os` and Build embassy-os (LINK OR UPDATE, this step ridic – PULL LATEST CODE!!!) (for now, `docker run --rm --privileged linuxkit/binfmt:v0.8`, get rust-arm-cross.img and `docker load < rust-arm-cross.img`, have latest dev branch for patch, yajrc, and master for rpc-toolkit, then from appmgr dir: `./build-prod.sh`)
+7. a) Build EmbassyOS: Move into the EmbassyOS directory with `cd embassy-os` and Build embassy-os (NEEDS UPDATE – PULL LATEST CODE!!!) (for now, `docker run --rm --privileged linuxkit/binfmt:v0.8`, get rust-arm-cross.img and `docker load < rust-arm-cross.img`, then from appmgr dir: `./build-prod.sh`)
 
-8. Run `sudo ./build/copy.sh`
+7. b) Build UI: First, make sure you have `git`, `node`, and `npm` installed.  Then, `cd ui` to enter ui dir, and run `npm i -g @ionic/cli` to install Ionic, `npm i` to install
 
-8a. `cat ~/.ssh/id_ed25519.pub | sudo tee -a /mnt/root/.ssh/authorized_keys` copy your ssh key over (assuming it is ~/.ssh/id_ed25519.pub)
+8. a) Run `sudo ./build/copy.sh`
 
-8b. `sudo umount /mnt` unmount once again
+8. b) `cat ~/.ssh/id_ed25519.pub | sudo tee -a /mnt/root/.ssh/authorized_keys` copy your ssh key over (assuming it is ~/.ssh/id_ed25519.pub)
 
-## Time to remove your SD card and insert it into your hardware!!  See our DIY guide here (LINK REQUIRED) if you have not yet built your Embassy.
+8. c) `sudo umount /mnt` unmount once again
 
-9 SSH in (find by hacking) `ssh root@whateverIP` and run `sudo ./build/initialization.sh` which you currently have to scp over from embassy-os dir
+## Time to remove your SD card and insert it into your hardware!!  See our [DIY guide]https://docs.start9.com/getting-started/diy.html) if you have not yet built your Embassy.
 
-9a. Run `reboot`
+9. a) SSH in (find by hacking) `ssh root@whateverIP` and run `sudo ./build/initialization.sh` which you currently have to scp over from embassy-os dir
+
+9. b) Run `reboot`
 
 10. Do the setup
