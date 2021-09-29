@@ -40,8 +40,7 @@
 
 ## Time to remove your SD card and insert it into your hardware!!  See our [DIY guide](https://docs.start9.com/getting-started/diy.html) if you have not yet put built your device.
 
-9. a) Get IP (find by hacking) and visit x.x.x.x:8000
-# `ssh root@whateverIP` and run `sudo ./build/initialization.sh` which you currently have to scp over from embassy-os dir
-#9. b) Run `reboot`
+9. a) Get IP (find by hacking) and visit x.x.x.x:80
+9. b) `ssh root@whateverIP` and run `sudo ./build/initialization.sh` which you currently have to scp over from the `embassy-os` dir
 
 10. Do the setup
