@@ -4,12 +4,12 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { isEmptyObject, isObject, Recommendation } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
+import { ConfigSpec, ListValueSpecObject, ListValueSpecUnion } from 'src/app/pkg-config/config-types'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { FormGroup } from '@angular/forms'
-import { FormService } from 'src/app/services/form.service'
+import { FormArray, FormGroup } from '@angular/forms'
+import { convertToNumberRecursive, FormService } from 'src/app/services/form.service'
 
 @Component({
   selector: 'app-config',
@@ -71,37 +71,6 @@ export class AppConfigPage {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  setConfig (spec: ConfigSpec, config: object, depConfig?: object) {
-    this.configSpec = spec
-    this.current = config
-    this.configForm = this.formService.createForm(spec, { ...config, ...depConfig })
-    this.configForm.markAllAsTouched()
-
-    if (depConfig) {
-      this.alterConfigRecursive(this.configForm, depConfig)
-    }
-  }
-
-  alterConfigRecursive (group: FormGroup, config: object) {
-    Object.keys(config).forEach(key => {
-      const next = group.get(key)
-      if (!next) throw new Error('Dependency config not compatible with service version. Please contact support')
-      const newVal = config[key]
-      // check if val is an object
-      if (isObject(newVal)) {
-        this.alterConfigRecursive(next as FormGroup, newVal)
-      } else {
-        let val1 = group.get(key).value
-        let val2 = config[key]
-        if (Array.isArray(newVal)) {
-          val1 = JSON.stringify(val1)
-          val2 = JSON.stringify(val2)
-        }
-        if (val1 != val2) next.markAsDirty()
-      }
-    })
-  }
-
   resetDefaults () {
     this.configForm = this.formService.createForm(this.configSpec)
     this.alterConfigRecursive(this.configForm, this.current)
@@ -120,6 +89,10 @@ export class AppConfigPage {
   }
 
   async save () {
+    convertToNumberRecursive(this.configSpec, this.configForm)
+
+    console.log('SAVING', this.configForm.value)
+
     if (this.configForm.invalid) {
       document.getElementsByClassName('validation-error')[0].parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
       return
@@ -132,10 +105,11 @@ export class AppConfigPage {
     })
     await loader.present()
 
-    const config = this.configForm.value
+    this.saving = true
 
     try {
-      this.saving = true
+      const config = this.configForm.value
+
       const breakages = await this.embassyApi.drySetPackageConfig({
         id: this.pkg.manifest.id,
         config,
@@ -163,6 +137,37 @@ export class AppConfigPage {
       this.saving = false
       loader.dismiss()
     }
+  }
+
+  private setConfig (spec: ConfigSpec, config: object, depConfig?: object) {
+    this.configSpec = spec
+    this.current = config
+    this.configForm = this.formService.createForm(spec, { ...config, ...depConfig })
+    this.configForm.markAllAsTouched()
+
+    if (depConfig) {
+      this.alterConfigRecursive(this.configForm, depConfig)
+    }
+  }
+
+  private alterConfigRecursive (group: FormGroup, config: object) {
+    Object.keys(config).forEach(key => {
+      const next = group.get(key)
+      if (!next) throw new Error('Dependency config not compatible with service version. Please contact support')
+      const newVal = config[key]
+      // check if val is an object
+      if (isObject(newVal)) {
+        this.alterConfigRecursive(next as FormGroup, newVal)
+      } else {
+        let val1 = group.get(key).value
+        let val2 = config[key]
+        if (Array.isArray(newVal)) {
+          val1 = JSON.stringify(val1)
+          val2 = JSON.stringify(val2)
+        }
+        if (val1 != val2) next.markAsDirty()
+      }
+    })
   }
 
   private async presentAlertUnsaved () {

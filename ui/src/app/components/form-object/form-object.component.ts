@@ -1,7 +1,7 @@
 import { Component, Input, Output, SimpleChange, EventEmitter } from '@angular/core'
-import { AbstractFormGroupDirective, FormArray, FormGroup } from '@angular/forms'
+import { AbstractControl, AbstractFormGroupDirective, FormArray, FormGroup } from '@angular/forms'
 import { AlertButton, AlertController, IonicSafeString, ModalController } from '@ionic/angular'
-import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecBoolean, ValueSpecList, ValueSpecListOf, ValueSpecUnion } from 'src/app/pkg-config/config-types'
+import { ConfigSpec, ListValueSpecOf, ListValueSpecString, ValueSpec, ValueSpecBoolean, ValueSpecEnum, ValueSpecList, ValueSpecListOf, ValueSpecNumber, ValueSpecString, ValueSpecUnion } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
 import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
@@ -109,10 +109,8 @@ export class FormObjectComponent {
     if (text) return new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
   }
 
-  handleInputChange (spec: ValueSpec) {
-    if (['string', 'number'].includes(spec.type)) {
-      this.onInputChange.emit()
-    }
+  handleInputChange () {
+    this.onInputChange.emit()
   }
 
   handleBooleanChange (key: string, spec: ValueSpecBoolean) {

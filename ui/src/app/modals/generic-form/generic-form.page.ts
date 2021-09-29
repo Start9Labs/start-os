@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { FormGroup } from '@angular/forms'
 import { ModalController } from '@ionic/angular'
-import { FormService } from 'src/app/services/form.service'
+import { convertToNumberRecursive, FormService } from 'src/app/services/form.service'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 
 export interface ActionButton {
@@ -40,6 +40,8 @@ export class GenericFormPage {
   }
 
   async handleClick (handler: ActionButton['handler']): Promise<void> {
+    convertToNumberRecursive(this.spec, this.formGroup)
+
     if (this.formGroup.invalid) {
       this.formGroup.markAllAsTouched()
       document.getElementsByClassName('validation-error')[0].parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })

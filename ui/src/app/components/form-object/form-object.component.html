@@ -5,7 +5,14 @@
       <p class="input-label">{{ unionSpec.tag.name }}</p>
       <ion-item>
         <ion-label>{{ unionSpec.tag.name }}</ion-label>
-        <ion-select [interfaceOptions]="{ message: getWarningText(unionSpec.warning) }" slot="end" placeholder="Select" [formControlName]="unionSpec.tag.id" [selectedText]="unionSpec.tag['variant-names'][entry.value.value]" (ionChange)="updateUnion($event)">
+        <ion-select
+          [interfaceOptions]="{ message: getWarningText(unionSpec.warning) }"
+          slot="end"
+          placeholder="Select"
+          [formControlName]="unionSpec.tag.id"
+          [selectedText]="unionSpec.tag['variant-names'][entry.value.value]"
+          (ionChange)="updateUnion($event)"
+        >
           <ion-select-option *ngFor="let option of Object.keys(unionSpec.variants)" [value]="option">
             {{ unionSpec.tag['variant-names'][option] }}
           </ion-select-option>
@@ -23,17 +30,21 @@
             isEdited: entry.value.dirty
           }"></form-label>
         </h4>
-        <!-- string -->
-        <ion-item color="dark" *ngIf="spec.type === 'string'">
-          <ion-input [type]="spec.masked && !unmasked[entry.key] ? 'password' : 'text'" [placeholder]="'Enter ' + spec.name" [formControlName]="entry.key" (ionFocus)="presentAlertChangeWarning(entry.key, spec)" (ionChange)="handleInputChange(spec)"></ion-input>
-          <ion-button *ngIf="spec.masked" fill="clear" color="light" (click)="unmasked[entry.key] = !unmasked[entry.key]">
+        <!-- string or number -->
+        <ion-item color="dark" *ngIf="spec.type === 'string' || spec.type === 'number'">
+          <ion-input
+            [type]="spec.type === 'string' && spec.masked && !unmasked[entry.key] ? 'password' : 'text'"
+            [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
+            [placeholder]="'Enter ' + spec.name"
+            [formControlName]="entry.key"
+            (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
+            (ionChange)="handleInputChange()"
+          >
+          </ion-input>
+          <ion-button *ngIf="spec.type === 'string' && spec.masked" slot="end" fill="clear" color="light" (click)="unmasked[entry.key] = !unmasked[entry.key]">
             <ion-icon slot="icon-only" [name]="unmasked[entry.key] ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
           </ion-button>
-        </ion-item>
-        <!-- number -->
-        <ion-item color="dark" *ngIf="spec.type === 'number'">
-          <ion-input type="tel" [placeholder]="'Enter ' + spec.name" [formControlName]="entry.key" (ionFocus)="presentAlertChangeWarning(entry.key, spec)" (ionChange)="handleInputChange(spec)"></ion-input>
-          <ion-note *ngIf="spec.units" slot="end" color="light" style="font-size: medium;">{{ spec.units }}</ion-note>
+          <ion-note *ngIf="spec.type === 'number' && spec.units" slot="end" color="light" style="font-size: medium;">{{ spec.units }}</ion-note>
         </ion-item>
         <!-- boolean -->
         <ion-item *ngIf="spec.type === 'boolean'">
@@ -43,7 +54,13 @@
         <!-- enum -->
         <ion-item *ngIf="spec.type === 'enum'">
           <ion-label>{{ spec.name }}</ion-label>
-          <ion-select [interfaceOptions]="{ message: getWarningText(spec.warning) }" slot="end" placeholder="Select" [formControlName]="entry.key" [selectedText]="spec['value-names'][formGroup.get(entry.key).value]" (ionChange)="handleInputChange(spec)">
+          <ion-select
+            [interfaceOptions]="{ message: getWarningText(spec.warning) }"
+            slot="end"
+            placeholder="Select"
+            [formControlName]="entry.key"
+            [selectedText]="spec['value-names'][formGroup.get(entry.key).value]"
+          >
             <ion-select-option *ngFor="let option of spec.values" [value]="option">
               {{ spec['value-names'][option] }}
             </ion-select-option>
@@ -146,7 +163,13 @@
               <!-- string or number -->
               <ion-item-group *ngIf="spec.subtype === 'string' || spec.subtype === 'number'">
                 <ion-item color="dark">
-                  <ion-input type="spec.spec.masked ? 'password' : 'text'" [placeholder]="'Enter ' + spec.name" [formControlName]="i"></ion-input>
+                  <ion-input
+                    [type]="$any(spec.spec).masked ? 'password' : 'text'"
+                    [inputmode]="spec.subtype === 'number' ? 'tel' : 'text'"
+                    [placeholder]="'Enter ' + spec.name"
+                    [formControlName]="i"
+                  >
+                  </ion-input>
                   <ion-button slot="end" color="danger" (click)="presentAlertDelete(entry.key, i)">
                     <ion-icon slot="icon-only" name="close"></ion-icon>
                   </ion-button>
