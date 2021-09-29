@@ -1135,7 +1135,7 @@ export module Mock {
         'range': '(-100,100]',
         'units': 'BTC',
       },
-      'secondaryNumbers': {
+      'unluckyNumbers': {
         'name': 'Unlucky Numbers',
         'type': 'list',
         'subtype': 'number',
@@ -1345,6 +1345,8 @@ export module Mock {
           '192.168.1.1',
         ],
         'spec': {
+          'masked': false,
+          'copyable': false,
           'pattern': '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))',
           'pattern-description': 'must be a valid ipv4, ipv6, or domain name',
         },
@@ -1356,7 +1358,10 @@ export module Mock {
         'description': 'api keys that are authorized to access your Bitcoin node.',
         'range': '[0,*)',
         'default': [],
-        'spec': { },
+        'spec': {
+          'masked': false,
+          'copyable': false,
+        },
       },
     },
     // actual config

@@ -19,8 +19,6 @@ export interface ValueSpecString extends ListValueSpecString, WithStandalone {
   type: 'string'
   default?: DefaultString
   nullable: boolean
-  masked: boolean
-  copyable: boolean
 }
 
 export interface ValueSpecNumber extends ListValueSpecNumber, WithStandalone {
@@ -88,9 +86,10 @@ export function isValueSpecListOf<S extends ListValueSpecType> (t: ValueSpecList
 }
 
 export interface ListValueSpecString {
-  // @TODO add masked?
   pattern?: string
   'pattern-description'?: string
+  masked: boolean
+  copyable: boolean
 }
 
 export interface ListValueSpecNumber {

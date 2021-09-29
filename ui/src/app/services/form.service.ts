@@ -17,14 +17,6 @@ export class FormService {
     return this.getFormGroup(config, [], current)
   }
 
-  getListItemValidators (spec: ValueSpecList) {
-    if (isValueSpecListOf(spec, 'string')) {
-      return this.stringValidators(spec.spec)
-    } else if (isValueSpecListOf(spec, 'number')) {
-      return this.numberValidators(spec.spec)
-    }
-  }
-
   getUnionObject (spec: ValueSpecUnion | ListValueSpecUnion, selection: string, current?: { [key: string]: any }): FormGroup {
     const { variants, tag } = spec
     const { name, description, warning } = isFullUnion(spec) ? spec : { ...spec.tag, warning: undefined }
@@ -41,15 +33,6 @@ export class FormService {
     return this.getFormGroup({ [spec.tag.id]: enumSpec, ...spec.variants[selection] }, [], current)
   }
 
-  getFormGroup (config: ConfigSpec, validators: ValidatorFn[] = [], current: { [key: string]: any } = { }): FormGroup {
-    let group = { }
-    Object.entries(config).map(([key, spec]) => {
-      if (spec.type === 'pointer') return
-      group[key] = this.getFormEntry(key, spec, current ? current[key] : { })
-    })
-    return this.formBuilder.group(group, { validators } )
-  }
-
   getListItem (spec: ValueSpecList, entry: any) {
     const listItemValidators = this.getListItemValidators(spec)
     if (isValueSpecListOf(spec, 'string')) {
@@ -63,6 +46,23 @@ export class FormService {
     } else if (isValueSpecListOf(spec, 'union')) {
       return this.getUnionObject(spec.spec, spec.spec.default, entry)
     }
+  }
+
+  private getListItemValidators (spec: ValueSpecList) {
+    if (isValueSpecListOf(spec, 'string')) {
+      return this.stringValidators(spec.spec)
+    } else if (isValueSpecListOf(spec, 'number')) {
+      return this.numberValidators(spec.spec)
+    }
+  }
+
+  private getFormGroup (config: ConfigSpec, validators: ValidatorFn[] = [], current: { [key: string]: any } = { }): FormGroup {
+    let group = { }
+    Object.entries(config).map(([key, spec]) => {
+      if (spec.type === 'pointer') return
+      group[key] = this.getFormEntry(key, spec, current ? current[key] : { })
+    })
+    return this.formBuilder.group(group, { validators } )
   }
 
   private getFormEntry (key: string, spec: ValueSpec, currentValue: any): FormGroup | FormArray | FormControl {
@@ -404,4 +404,37 @@ const sampleUniqueBy: UniqueBy = {
       null,
     ] },
   ],
+}
+
+export function convertToNumberRecursive (configSpec: ConfigSpec, group: FormGroup) {
+  Object.entries(configSpec).forEach(([key, valueSpec]) => {
+    if (valueSpec.type === 'number') {
+      const control = group.get(key)
+      control.setValue(Number(control.value))
+    } else if (valueSpec.type === 'object') {
+      convertToNumberRecursive(valueSpec.spec, group.get(key) as FormGroup)
+    } else if (valueSpec.type === 'union') {
+      const control = group.get(key) as FormGroup
+      const spec = valueSpec.variants[control.controls[valueSpec.tag.id].value]
+      convertToNumberRecursive(spec, control)
+    } else if (valueSpec.type === 'list') {
+      const formArr = group.get(key) as FormArray
+      if (valueSpec.subtype === 'number') {
+        formArr.controls.forEach(control => {
+          control.setValue(Number(control.value))
+        })
+      } else if (valueSpec.subtype === 'object') {
+        formArr.controls.forEach((formGroup: FormGroup) => {
+          const objectSpec = valueSpec.spec as ListValueSpecObject
+          convertToNumberRecursive(objectSpec.spec, formGroup)
+        })
+      } else if (valueSpec.subtype === 'union') {
+        formArr.controls.forEach((formGroup: FormGroup) => {
+          const unionSpec = valueSpec.spec as ListValueSpecUnion
+          const spec = unionSpec.variants[formGroup.controls[unionSpec.tag.id].value]
+          convertToNumberRecursive(spec, formGroup)
+        })
+      }
+    }
+  })
 }
