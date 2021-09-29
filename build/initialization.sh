@@ -31,3 +31,4 @@ SocksPolicy reject *
 ControlPort 9051
 CookieAuthentication 1
 EOF
+reboot
