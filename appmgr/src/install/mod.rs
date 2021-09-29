@@ -24,14 +24,14 @@ use crate::db::model::{
     StaticFiles,
 };
 use crate::db::util::WithRevision;
-use crate::dependencies::update_current_dependents;
+use crate::dependencies::{update_current_dependents, BreakageRes, DependencyError};
 use crate::install::cleanup::{cleanup, update_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
-use crate::status::{DependencyErrors, MainStatus, Status};
+use crate::status::{handle_broken_dependents, DependencyErrors, MainStatus, Status};
 use crate::util::io::copy_and_shutdown;
-use crate::util::{display_none, AsyncFileExt, Version};
+use crate::util::{display_none, display_serializable, AsyncFileExt, Version};
 use crate::volume::asset_dir;
 use crate::{Error, ResultExt};
 
@@ -120,11 +120,60 @@ pub async fn install(
     })
 }
 
-#[command(display(display_none))]
-pub async fn uninstall(
+#[command(
+    subcommands(self(uninstall_impl(async)), uninstall_dry),
+    display(display_none)
+)]
+pub async fn uninstall(#[arg] id: PackageId) -> Result<PackageId, Error> {
+    Ok(id)
+}
+
+#[command(rename = "dry", display(display_serializable))]
+pub async fn uninstall_dry(
     #[context] ctx: RpcContext,
-    #[arg] id: PackageId,
-) -> Result<WithRevision<()>, Error> {
+    #[parent_data] id: PackageId,
+) -> Result<BreakageRes, Error> {
+    let mut db = ctx.db.handle();
+    let deps = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .expect(&mut db)
+        .await?
+        .installed()
+        .expect(&mut db)
+        .await?
+        .current_dependents()
+        .get(&mut db, true)
+        .await?;
+    let mut tx = db.begin().await?;
+    let mut breakages = BTreeMap::new();
+    for dep_id in deps.keys() {
+        let model = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(&dep_id)
+            .expect(&mut tx)
+            .await?
+            .installed()
+            .expect(&mut tx)
+            .await?;
+        handle_broken_dependents(
+            &mut tx,
+            dep_id,
+            &id,
+            model,
+            DependencyError::NotInstalled,
+            &mut breakages,
+        )
+        .await?;
+    }
+
+    Ok(BreakageRes {
+        breakages,
+        patch: tx.abort().await?,
+    })
+}
+
+pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
 
