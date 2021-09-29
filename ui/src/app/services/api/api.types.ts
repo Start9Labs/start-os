@@ -184,7 +184,6 @@ export module RR {
   export type DryConfigureDependencyReq = { 'dependency-id': string, 'dependent-id': string } // package.dependency.configure.dry
   export type DryConfigureDependencyRes = object
 
-
   // marketplace
 
   export type GetMarketplaceDataReq = { }
