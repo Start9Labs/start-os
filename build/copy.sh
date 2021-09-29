@@ -9,8 +9,8 @@ sudo cp target/aarch64-unknown-linux-gnu/release/embassy-cli /mnt/usr/local/bin
 sudo cp *.service /mnt/etc/systemd/system/
 
 # Make the frontend directories, enter the embassy-os directory, copy over the 3 ui components
-mkdir /mnt/var/www
-mkdir /mnt/var/www/html
+sudo mkdir /mnt/var/www
+sudo mkdir /mnt/var/www/html
 cd ..
 
 sudo cp -R ui/ /mnt/var/www/html/
