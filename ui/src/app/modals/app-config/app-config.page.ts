@@ -4,11 +4,11 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { isEmptyObject, isObject, Recommendation } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { ConfigSpec, ListValueSpecObject, ListValueSpecUnion } from 'src/app/pkg-config/config-types'
+import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { FormArray, FormGroup } from '@angular/forms'
+import { FormGroup } from '@angular/forms'
 import { convertToNumberRecursive, FormService } from 'src/app/services/form.service'
 
 @Component({
@@ -18,6 +18,7 @@ import { convertToNumberRecursive, FormService } from 'src/app/services/form.ser
 })
 export class AppConfigPage {
   @Input() pkgId: string
+  @Input() rec: Recommendation | null = null
   pkg: PackageDataEntry
   loadingText: string | undefined
   configSpec: ConfigSpec
@@ -26,7 +27,6 @@ export class AppConfigPage {
   hasConfig = false
   saving = false
 
-  rec: Recommendation | null = null
   showRec = true
   openRec = false
 
@@ -48,8 +48,6 @@ export class AppConfigPage {
     this.hasConfig = !!this.pkg.manifest.config
 
     if (!this.hasConfig) return
-
-    this.rec = history.state?.configRecommendation as Recommendation
 
     try {
       this.loadingText = 'Loading Config'

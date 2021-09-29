@@ -193,12 +193,10 @@ export class AppShowPage {
     }
   }
 
-  async presentModalConfig (): Promise<void> {
+  async presentModalConfig (props: { pkgId: string, rec?: Recommendation }): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: AppConfigPage,
-      componentProps: {
-        pkgId: this.pkgId,
-      },
+      componentProps: props,
     })
     await modal.present()
   }
@@ -293,11 +291,12 @@ export class AppShowPage {
       dependentIcon: this.pkg['static-files'].icon,
       description,
     }
-    const navigationExtras: NavigationExtras = {
-      state: { configRecommendation },
+    const params = {
+      pkgId: depId,
+      rec: configRecommendation,
     }
 
-    await this.navCtrl.navigateForward(`/services/${depId}/config`, navigationExtras)
+    await this.presentModalConfig(params)
   }
 
   private async presentAlertStart (message: string): Promise<void> {
@@ -349,7 +348,7 @@ export class AppShowPage {
       },
       // config
       {
-        action: async () => this.presentModalConfig(),
+        action: async () => this.presentModalConfig({ pkgId: this.pkgId }),
         title: 'Config',
         icon: 'construct-outline',
         color: 'danger',
