@@ -10,6 +10,27 @@ import { MarketplaceService } from '../marketplace.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import Fuse from 'fuse.js/dist/fuse.min.js'
 
+const defaultOps = {
+  isCaseSensitive: false,
+  includeScore: true,
+  shouldSort: true,
+  includeMatches: false,
+  findAllMatches: false,
+  minMatchCharLength: 1,
+  location: 0,
+  threshold: 0.6,
+  distance: 100,
+  useExtendedSearch: false,
+  ignoreLocation: false,
+  ignoreFieldNorm: false,
+  keys: [
+    'manifest.id',
+    'manifest.title',
+    'manifest.description.short',
+    'manifest.description.long',
+  ],
+}
+
 @Component({
   selector: 'marketplace-list',
   templateUrl: './marketplace-list.page.html',
@@ -105,58 +126,15 @@ export class MarketplaceListPage {
         return this.localPkgs[id] && version !== this.localPkgs[id].manifest.version
       })
     } else if (this.query) {
-      const options = {
-        isCaseSensitive: false,
-        includeScore: true,
-        shouldSort: true,
-        includeMatches: false,
-        findAllMatches: false,
-        minMatchCharLength: 1,
-        location: 0,
-        threshold: 0.6,
-        distance: 100,
-        useExtendedSearch: false,
-        ignoreLocation: false,
-        ignoreFieldNorm: false,
-        keys: [
-          'manifest.id',
-          'manifest.title',
-          'manifest.description.short',
-          'manifest.description.long',
-        ],
-      }
-      const fuse = new Fuse(this.marketplaceService.pkgs, options)
+      const fuse = new Fuse(this.marketplaceService.pkgs, defaultOps)
       this.pkgs = fuse.search(this.query).map(p => p.item)
 
     } else {
-      const options = {
-        isCaseSensitive: false,
-        includeScore: true,
-        shouldSort: true,
-        includeMatches: false,
-        findAllMatches: false,
-        minMatchCharLength: 1,
-        location: 0,
-        threshold: 1,
-        distance: 100,
-        useExtendedSearch: false,
-        ignoreLocation: false,
-        ignoreFieldNorm: false,
-        keys: [
-          'manifest.id',
-          'manifest.title',
-          'manifest.description.short',
-          'manifest.description.long',
-        ],
-      }
-
-
       const pkgsToSort = this.marketplaceService.pkgs.filter(p => {
-        if (this.category === 'all') return true
-        return p.categories.includes(this.category)
+        return this.category === 'all' || p.categories.includes(this.category)
       })
 
-      const fuse = new Fuse(pkgsToSort, options)
+      const fuse = new Fuse(pkgsToSort, { threshold: 1, ...defaultOps})
       this.pkgs = fuse.search(this.category !== 'all' ? this.category : 'bit').map(p => p.item)
     }
   }
