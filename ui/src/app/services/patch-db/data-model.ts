@@ -272,28 +272,23 @@ export enum HealthResult {
 }
 
 export interface HealthCheckResultStarting {
-  time: string // UTC date string
   result: HealthResult.Starting
 }
 
 export interface HealthCheckResultDisabled {
-  time: string // UTC date string
   result: HealthResult.Disabled
 }
 
 export interface HealthCheckResultSuccess {
-  time: string // UTC date string
   result: HealthResult.Success
 }
 
 export interface HealthCheckResultLoading {
-  time: string // UTC date string
   result: HealthResult.Loading
   message: string
 }
 
 export interface HealthCheckResultFailure {
-  time: string // UTC date string
   result: HealthResult.Failure
   error: string
 }
