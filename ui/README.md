@@ -6,29 +6,15 @@
 
 `npm i -g @ionic/cli`
 
-`git clone https://github.com/Start9Labs/patch-db.git`
-
 `git clone https://github.com/Start9Labs/ws-example.git`
 
 `git clone https://github.com/Start9Labs/embassy-os.git`
 
-`git clone https://github.com/Start9Labs/rpc-toolkit.git`
-
-`git clone https://github.com/dr-bonez/yajrc`
-
-Then open  `patch-db`, `ws-example`, and `embassy-os`, in separate tabs.
-
-### patch-db
-
-**Sync submodules**
+`cd embassy-os`
 
 `git submodule update --init --recursive`
 
-`cd client/`
-
-`npm i`
-
-`npm run build`
+Then open  `ws-example`, and `embassy-os`, in separate tabs.
 
 ### ws-example
 
@@ -39,6 +25,8 @@ Then open  `patch-db`, `ws-example`, and `embassy-os`, in separate tabs.
 ### embassy-os
 
 `cd ui/`
+
+`npm run build-deps`
 
 `npm i`
 

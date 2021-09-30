@@ -1,0 +1,10 @@
+[Unit]
+Description=Boot process for system initialization.
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/initialization.sh
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
