@@ -9,7 +9,10 @@ export class LiveApiService extends ApiService {
 
   constructor (
     private readonly http: HttpService,
-  ) { super() }
+  ) {
+      super();
+      (window as any).rpcClient = this
+    }
 
   async getStatic (url: string): Promise<string> {
     return this.http.httpRequest({
