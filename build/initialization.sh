@@ -3,16 +3,16 @@
 # Update repositories, install dependencies, do some initial configurations, set hostname, enable embassy-init, and config Tor
 apt update
 apt install -y \
-	  docker.io \
-	    tor \
-	      nginx \
-	        libavahi-client3 \
-		  avahi-daemon \
-		    iotop \
-		      bmon \
-		        zfsutils-linux \
-			  exfat-utils \
-			    sqlite3
+	docker.io \
+	tor \
+	nginx \
+	libavahi-client3 \
+	avahi-daemon \
+	iotop \
+	bmon \
+	zfsutils-linux \
+	exfat-utils \
+	sqlite3
 sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
@@ -31,4 +31,7 @@ SocksPolicy reject *
 ControlPort 9051
 CookieAuthentication 1
 EOF
+
+systemctl disable initialization.service
+sync
 reboot

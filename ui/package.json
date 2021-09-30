@@ -28,7 +28,7 @@
     "marked": "3.0.2",
     "mustache": "^4.2.0",
     "ng-qrcode": "^5.0.0",
-    "patch-db-client": "file: ../../../../patch-db/client",
+    "patch-db-client": "file: ../../../patch-db/client",
     "rxjs": "^6.6.7",
     "uuid": "^8.3.2",
     "zone.js": "^0.11.4"
