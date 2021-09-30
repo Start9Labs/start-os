@@ -32,8 +32,9 @@ ubuntu.img:
 	unxz ubuntu.img.xz
 
 product_key.txt:
-	echo "X\c" > product_key.txt
+	echo -ne "X\c" > product_key.txt
 	cat /dev/random | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
+	echo >> product_key.txt
 
 $(EMBASSY_BINS): $(APPMGR_SRC)
 	cd appmgr && ./build-prod.sh
