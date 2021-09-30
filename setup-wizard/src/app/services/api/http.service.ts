@@ -79,10 +79,10 @@ function RpcError (e: RPCError['error']): void {
   this.code = code
   this.message = message
 
-  if (typeof data === 'string') {
-    this.details = e.data
-  } else {
+  if (typeof data !== 'string') {
     this.details = data.details
+  } else {
+    this.details = data
   }
 }
 
