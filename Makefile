@@ -45,7 +45,7 @@ ui/www: $(UI_SRC) ui/node_modules patch-db/client/dist ui/config.json
 	npm --prefix ui run build-prod
 
 ui/config.json:
-	cp ui/config-sample.json ui/config.json
+	jq '.mocks.enabled = false' ui/config-sample.json > ui/config.json
 
 setup-wizard/node_modules: setup-wizard/package.json
 	npm --prefix setup-wizard install
@@ -54,7 +54,7 @@ setup-wizard/www: $(SETUP_WIZARD_SRC) setup-wizard/node_modules setup-wizard/con
 	npm --prefix setup-wizard run build-prod
 
 setup-wizard/config.json:
-	cp setup-wizard/config-sample.json setup-wizard/config.json
+	jq '.useMocks = false' setup-wizard/config-sample.json > setup-wizard/config.json
 
 diagnostic-ui/node_modules: diagnostic-ui/package.json
 	npm --prefix diagnostic-ui install
@@ -63,7 +63,7 @@ diagnostic-ui/www: $(DIAGNOSTIC_UI_SRC) diagnostic-ui/node_modules diagnostic-ui
 	npm --prefix diagnostic-ui run build-prod
 
 diagnostic-ui/config.json:
-	cp diagnostic-ui/config-sample.json diagnostic-ui/config.json
+	jq '.useMocks = false' diagnostic-ui/config-sample.json > diagnostic-ui/config.json
 
 patch-db/client/node_modules: patch-db/client/package.json
 	npm --prefix patch-db/client install
