@@ -1,4 +1,4 @@
 .DS_Store
 /*.img
-/buster.zip
-/product_key
+/ubuntu.img.xz
+/product_key.txt
