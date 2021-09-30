@@ -94,6 +94,7 @@ export class EmbassyPage {
         this.stateService.torAddress = (await this.stateService.setupEmbassy()).torAddress
       } catch (e) {
         console.error(e.message)
+        console.error(e.details)
       } finally {
         loader.dismiss()
         if(!!this.stateService.recoveryDrive) {
