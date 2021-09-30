@@ -8,6 +8,7 @@ import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import Fuse from 'fuse.js/dist/fuse.min.js'
 
 @Component({
   selector: 'marketplace-list',
@@ -103,23 +104,60 @@ export class MarketplaceListPage {
         const { id, version } = pkg.manifest
         return this.localPkgs[id] && version !== this.localPkgs[id].manifest.version
       })
+    } else if (this.query) {
+      const options = {
+        isCaseSensitive: false,
+        includeScore: true,
+        shouldSort: true,
+        includeMatches: false,
+        findAllMatches: false,
+        minMatchCharLength: 1,
+        location: 0,
+        threshold: 0.6,
+        distance: 100,
+        useExtendedSearch: false,
+        ignoreLocation: false,
+        ignoreFieldNorm: false,
+        keys: [
+          'manifest.id',
+          'manifest.title',
+          'manifest.description.short',
+          'manifest.description.long',
+        ],
+      }
+      const fuse = new Fuse(this.marketplaceService.pkgs, options)
+      this.pkgs = fuse.search(this.query).map(p => p.item)
+
     } else {
-      this.pkgs = this.marketplaceService.pkgs.filter(pkg => {
-        const { id, title, description } = pkg.manifest
-        if (this.query) {
-          const query = this.query.toUpperCase()
-          return  id.toUpperCase().includes(query) ||
-                  title.toUpperCase().includes(query) ||
-                  description.short.toUpperCase().includes(query) ||
-                  description.long.toUpperCase().includes(query)
-        } else {
-          if (this.category === 'all' || !this.category) {
-            return true
-          } else {
-            return pkg.categories.includes(this.category)
-          }
-        }
+      const options = {
+        isCaseSensitive: false,
+        includeScore: true,
+        shouldSort: true,
+        includeMatches: false,
+        findAllMatches: false,
+        minMatchCharLength: 1,
+        location: 0,
+        threshold: 1,
+        distance: 100,
+        useExtendedSearch: false,
+        ignoreLocation: false,
+        ignoreFieldNorm: false,
+        keys: [
+          'manifest.id',
+          'manifest.title',
+          'manifest.description.short',
+          'manifest.description.long',
+        ],
+      }
+
+
+      const pkgsToSort = this.marketplaceService.pkgs.filter(p => {
+        if (this.category === 'all') return true
+        return p.categories.includes(this.category)
       })
+
+      const fuse = new Fuse(pkgsToSort, options)
+      this.pkgs = fuse.search(this.category !== 'all' ? this.category : 'bit').map(p => p.item)
     }
   }
 }
