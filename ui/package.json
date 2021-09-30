@@ -23,6 +23,7 @@
     "@start9labs/emver": "0.1.5",
     "ajv": "^6.12.6",
     "core-js": "^3.17.2",
+    "fuse.js": "^6.4.6",
     "json-pointer": "^0.6.1",
     "jsonpointerx": "^1.1.4",
     "marked": "3.0.2",
