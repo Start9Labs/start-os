@@ -30,7 +30,7 @@
           Launch UI
           <ion-icon slot="end" name="open-outline"></ion-icon>
         </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="!pkg.installed.status.configured" (click)="presentModalConfig()">
+        <ion-button slot="end" class="action-button" *ngIf="!pkg.installed.status.configured" (click)="presentModalConfig({ pkgId })">
           Configure
         </ion-button>
         <ion-button slot="end" class="action-button" *ngIf="statuses.primary === PS.Running" color="danger" (click)="stop()">
