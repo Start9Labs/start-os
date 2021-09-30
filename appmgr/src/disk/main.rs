@@ -51,7 +51,9 @@ pub async fn create_pool<I: IntoIterator<Item = P>, P: AsRef<Path>>(
             .arg(pool_name)
             .invoke(crate::ErrorKind::Zfs)
             .await?,
-    )?)
+    )?
+    .trim() // this allocates but fuck it
+    .to_owned())
 }
 
 pub async fn create_fs(pool_name: &str, password: &str) -> Result<(), Error> {
