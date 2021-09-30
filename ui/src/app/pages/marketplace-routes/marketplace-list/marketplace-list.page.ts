@@ -96,7 +96,9 @@ export class MarketplaceListPage {
   }
 
   async search (): Promise<void> {
-    this.category = undefined
+    if (this.query) {
+      this.category = undefined
+    }
     await this.filterPkgs()
   }
 
@@ -140,7 +142,7 @@ export class MarketplaceListPage {
       }
 
       const fuse = new Fuse(pkgsToSort, { ...defaultOps, threshold: 1 })
-      this.pkgs = fuse.search(this.category !== 'all' ? this.category : 'bit').map(p => p.item)
+      this.pkgs = fuse.search(this.category !== 'all' ? this.category || '' : 'bit').map(p => p.item)
     }
   }
 }
