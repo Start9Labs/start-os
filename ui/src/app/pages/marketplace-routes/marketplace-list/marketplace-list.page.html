@@ -74,6 +74,13 @@
 
   <!-- packages loaded -->
   <ng-template #pkgsLoaded>
+    <div
+      class="ion-padding"
+      *ngIf="!pkgs.length && category ==='updates'"
+      style="text-align: center;"
+    >
+      <h1>👏👏👏 Up to date! 👏👏👏</h1>
+    </div>
     <ion-grid>
       <ion-row>
         <ion-col *ngIf="marketplaceService.eos && category === 'featured'" sizeXs="12" sizeSm="12" sizeMd="6">
