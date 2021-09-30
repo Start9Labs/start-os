@@ -134,7 +134,12 @@ export class MarketplaceListPage {
         return this.category === 'all' || p.categories.includes(this.category)
       })
 
-      const fuse = new Fuse(pkgsToSort, { threshold: 1, ...defaultOps})
+      const opts = {
+        ...defaultOps,
+        threshold: 1,
+      }
+
+      const fuse = new Fuse(pkgsToSort, { ...defaultOps, threshold: 1 })
       this.pkgs = fuse.search(this.category !== 'all' ? this.category : 'bit').map(p => p.item)
     }
   }
