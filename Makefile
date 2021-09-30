@@ -6,8 +6,23 @@ APPMGR_SRC := $(shell find appmgr/src) appmgr/Cargo.toml appmgr/Cargo.lock
 UI_SRC := $(shell find ui/src)
 SETUP_WIZARD_SRC := $(shell find setup-wizard/src)
 DIAGNOSTIC_UI_SRC := $(shell find diagnostic-ui/src)
+PATCH_DB_CLIENT_SRC = $(shell find patch-db/client)
 
 all: eos.img
+
+clean:
+	rm -f eos.img
+	rm -f ubuntu.img
+	rm -f product_key.txt
+	sudo rm -f $(EMBASSY_BINS)
+	rm -rf ui/node_modules
+	rm -rf ui/www
+	rm -rf setup-wizard/node_modules
+	rm -rf setup-wizard/www
+	rm -rf diagnostic-ui/node_modules
+	rm -rf diagnostic-ui/www
+	rm -rf patch-db/client/node_modules
+	rm -rf patch-db/client/dist
 
 eos.img: $(EMBASSY_SRC)
 	./build/make-image.sh
@@ -26,20 +41,35 @@ $(EMBASSY_BINS): $(APPMGR_SRC)
 ui/node_modules: ui/package.json
 	npm --prefix ui install
 
-ui/www: $(UI_SRC) ui/node_modules
+ui/www: $(UI_SRC) ui/node_modules patch-db/client/dist ui/config.json
 	npm --prefix ui run build-prod
+
+ui/config.json:
+	cp ui/config-sample.json ui/config.json
 
 setup-wizard/node_modules: setup-wizard/package.json
 	npm --prefix setup-wizard install
 
-setup-wizard/www: $(SETUP_WIZARD_SRC) setup-wizard/node_modules
+setup-wizard/www: $(SETUP_WIZARD_SRC) setup-wizard/node_modules setup-wizard/config.json
 	npm --prefix setup-wizard run build-prod
+
+setup-wizard/config.json:
+	cp setup-wizard/config-sample.json setup-wizard/config.json
 
 diagnostic-ui/node_modules: diagnostic-ui/package.json
 	npm --prefix diagnostic-ui install
 
-diagnostic-ui/www: $(DIAGNOSTIC_UI_SRC) diagnostic-ui/node_modules
+diagnostic-ui/www: $(DIAGNOSTIC_UI_SRC) diagnostic-ui/node_modules diagnostic-ui/config.json
 	npm --prefix diagnostic-ui run build-prod
+
+diagnostic-ui/config.json:
+	cp diagnostic-ui/config-sample.json diagnostic-ui/config.json
+
+patch-db/client/node_modules: patch-db/client/package.json
+	npm --prefix patch-db/client install
+
+patch-db/client/dist: $(PATCH_DB_SRC) patch-db/client/node_modules
+	npm --prefix patch-db/client run build
 
 ui: $(EMBASSY_UIS)
 
