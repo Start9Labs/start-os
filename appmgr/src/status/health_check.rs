@@ -52,7 +52,7 @@ impl HealthChecks {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<BTreeMap<HealthCheckId, HealthCheckResult>, Error> {
+    ) -> Result<BTreeMap<HealthCheckId, HealthCheckResultVariant>, Error> {
         let res = futures::future::try_join_all(self.0.iter().map(|(id, check)| async move {
             Ok::<_, Error>((
                 id.clone(),
@@ -81,7 +81,7 @@ impl HealthCheck {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<HealthCheckResult, Error> {
+    ) -> Result<HealthCheckResultVariant, Error> {
         let res = self
             .implementation
             .execute(
@@ -94,33 +94,14 @@ impl HealthCheck {
                 true,
             )
             .await?;
-        Ok(HealthCheckResult {
-            time: Utc::now(),
-            result: match res {
+        Ok(match res {
                 Ok(NoOutput) => HealthCheckResultVariant::Success,
                 Err((59, _)) => HealthCheckResultVariant::Disabled,
                 Err((60, _)) => HealthCheckResultVariant::Starting,
                 Err((61, message)) => HealthCheckResultVariant::Loading { message },
                 Err((_, error)) => HealthCheckResultVariant::Failure { error },
             },
-        })
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct HealthCheckResult {
-    pub time: DateTime<Utc>,
-    #[serde(flatten)]
-    pub result: HealthCheckResultVariant,
-}
-impl HealthCheckResult {
-    pub fn not_available() -> Self {
-        HealthCheckResult {
-            time: Utc::now(),
-            result: HealthCheckResultVariant::Failure {
-                error: "Health Check Status Not Available".to_owned(),
-            },
-        }
+        )
     }
 }
 

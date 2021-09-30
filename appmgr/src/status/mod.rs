@@ -8,7 +8,7 @@ use futures::{FutureExt, StreamExt};
 use patch_db::{DbHandle, HasModel, Map, MapModel, ModelData};
 use serde::{Deserialize, Serialize};
 
-use self::health_check::{HealthCheckId, HealthCheckResult};
+use self::health_check::{HealthCheckId};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
 use crate::dependencies::{
@@ -198,11 +198,8 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                         let res = health
                             .get(check)
                             .cloned()
-                            .unwrap_or_else(|| HealthCheckResult {
-                                result: HealthCheckResultVariant::Disabled,
-                                time: Utc::now(),
-                            });
-                        if !matches!(res.result, HealthCheckResultVariant::Success) {
+                            .unwrap_or_else(|| HealthCheckResultVariant::Disabled);
+                        if !matches!(res, HealthCheckResultVariant::Success) {
                             failures.insert(check.clone(), res);
                         }
                     }
@@ -268,11 +265,11 @@ pub enum MainStatus {
     Stopping,
     Running {
         started: DateTime<Utc>,
-        health: BTreeMap<HealthCheckId, HealthCheckResult>,
+        health: BTreeMap<HealthCheckId, HealthCheckResultVariant>,
     },
     BackingUp {
         started: Option<DateTime<Utc>>,
-        health: BTreeMap<HealthCheckId, HealthCheckResult>,
+        health: BTreeMap<HealthCheckId, HealthCheckResultVariant>,
     },
     Restoring {
         running: bool,
@@ -329,7 +326,7 @@ impl MainStatus {
                     .await?;
                 let mut should_stop = false;
                 for (check, res) in health {
-                    match &res.result {
+                    match &res {
                         health_check::HealthCheckResultVariant::Failure { error }
                             if manifest
                                 .health_checks
