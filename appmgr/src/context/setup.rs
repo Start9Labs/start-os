@@ -61,7 +61,7 @@ pub struct SetupContextSeed {
     pub bind_rpc: SocketAddr,
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
-    pub zfs_pool_name: String,
+    pub zfs_pool_name: Arc<String>,
 }
 
 #[derive(Clone)]
@@ -71,7 +71,7 @@ impl SetupContext {
         let cfg = SetupContextConfig::load(path).await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let datadir = cfg.datadir().into_owned();
-        let zfs_pool_name = cfg.zfs_pool_name().to_owned();
+        let zfs_pool_name = Arc::new(cfg.zfs_pool_name().to_owned());
         Ok(Self(Arc::new(SetupContextSeed {
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,

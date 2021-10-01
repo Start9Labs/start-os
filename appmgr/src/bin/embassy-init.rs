@@ -24,20 +24,9 @@ fn status_fn(_: i32) -> StatusCode {
 async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     let cfg = RpcContextConfig::load(cfg_path).await?;
     embassy::disk::util::mount("LABEL=EMBASSY", "/embassy-os").await?;
-    if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
-        embassy::disk::main::load(
-            tokio::fs::read_to_string("/embassy-os/disk.guid")
-                .await?
-                .trim(),
-            cfg.zfs_pool_name(),
-            cfg.datadir(),
-            DEFAULT_PASSWORD,
-        )
-        .await?;
-        log::info!("Loaded Disk");
-    } else {
+    if tokio::fs::metadata("/embassy-os/disk.guid").await.is_err() {
         #[cfg(feature = "avahi")]
-        let mdns = MdnsController::init();
+        let _mdns = MdnsController::init();
         tokio::fs::write(
             "/etc/nginx/sites-available/default",
             include_str!("../nginx/setup-wizard.conf"),
@@ -76,6 +65,16 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .with_kind(embassy::ErrorKind::Network)?;
     }
 
+    embassy::disk::main::load(
+        tokio::fs::read_to_string("/embassy-os/disk.guid")
+            .await?
+            .trim(),
+        cfg.zfs_pool_name(),
+        cfg.datadir(),
+        DEFAULT_PASSWORD,
+    )
+    .await?;
+    log::info!("Loaded Disk");
     let secret_store = cfg.secret_store().await?;
     let log_dir = cfg.datadir().join("main").join("logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
