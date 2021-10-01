@@ -207,7 +207,7 @@ export class AppShowPage {
     let actionText = 'View'
     let action: () => any = () => this.navCtrl.navigateForward(`/services/${id}`)
 
-    const error = this.pkg.installed.status['dependency-errors'][id] || null
+    const error = this.pkg.installed.status['dependency-errors'][id]
 
     if (error) {
       // health checks failed
