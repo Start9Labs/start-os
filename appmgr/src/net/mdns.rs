@@ -34,7 +34,7 @@ impl MdnsController {
 
 pub struct MdnsControllerInner {
     hostname: Vec<u8>,
-    hostname_raw: *const i8,
+    hostname_raw: *const u8,
     entry_group: *mut AvahiEntryGroup,
     services: BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>,
 }
