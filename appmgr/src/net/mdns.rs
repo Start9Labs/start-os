@@ -34,6 +34,7 @@ impl MdnsController {
 
 pub struct MdnsControllerInner {
     hostname: Vec<u8>,
+    hostname_raw: *const i8,
     entry_group: *mut AvahiEntryGroup,
     services: BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>,
 }
@@ -43,6 +44,19 @@ unsafe impl Sync for MdnsControllerInner {}
 impl MdnsControllerInner {
     fn load_services(&mut self) {
         unsafe {
+            let http_tcp_cstr = std::ffi::CString::new("_http._tcp")
+                .expect("Could not cast _http._tcp to c string");
+            avahi_entry_group_add_service(
+                self.entry_group,
+                avahi_sys::AVAHI_IF_UNSPEC,
+                avahi_sys::AVAHI_PROTO_UNSPEC,
+                avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_USE_MULTICAST,
+                self.hostname_raw,
+                http_tcp_cstr.as_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+                443,
+            );
             for key in self.services.values() {
                 let lan_address = key
                     .public()
@@ -84,25 +98,9 @@ impl MdnsControllerInner {
             let group =
                 avahi_sys::avahi_entry_group_new(avahi_client, Some(noop), std::ptr::null_mut());
             let mut hostname_buf = vec![0];
-            {
-                let hostname_raw = avahi_sys::avahi_client_get_host_name_fqdn(avahi_client);
-                hostname_buf
-                    .extend_from_slice(std::ffi::CStr::from_ptr(hostname_raw).to_bytes_with_nul());
-                let http_tcp_cstr = std::ffi::CString::new("_http._tcp")
-                    .expect("Could not cast _http._tcp to c string");
-                avahi_entry_group_add_service(
-                    group,
-                    avahi_sys::AVAHI_IF_UNSPEC,
-                    avahi_sys::AVAHI_PROTO_UNSPEC,
-                    avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_USE_MULTICAST,
-                    hostname_raw,
-                    http_tcp_cstr.as_ptr(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    443,
-                );
-                avahi_free(hostname_raw as *mut c_void);
-            }
+            let hostname_raw = avahi_sys::avahi_client_get_host_name_fqdn(avahi_client);
+            hostname_buf
+                .extend_from_slice(std::ffi::CStr::from_ptr(hostname_raw).to_bytes_with_nul());
             let buflen = hostname_buf.len();
             debug_assert!(hostname_buf.ends_with(b".local\0"));
             debug_assert!(!hostname_buf[..(buflen - 7)].contains(&b'.'));
@@ -110,10 +108,9 @@ impl MdnsControllerInner {
             hostname_buf[0] = (buflen - 8) as u8; // set the prefix length to len - 8 (leading byte, .local, nul) for the main address
             hostname_buf[buflen - 7] = 5; // set the prefix length to 5 for "local"
 
-            avahi_entry_group_commit(group);
-
             MdnsControllerInner {
                 hostname: hostname_buf,
+                hostname_raw,
                 entry_group: group,
                 services: BTreeMap::new(),
             }
@@ -148,6 +145,7 @@ impl MdnsControllerInner {
 impl Drop for MdnsControllerInner {
     fn drop(&mut self) {
         unsafe {
+            avahi_free(self.hostname_raw as *mut c_void);
             avahi_entry_group_free(self.entry_group);
         }
     }
