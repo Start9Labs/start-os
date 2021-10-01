@@ -57,12 +57,14 @@ impl MdnsControllerInner {
                 std::ptr::null(),
                 443,
             );
+            log::info!("Published {:?}", self.hostname_raw);
             for key in self.services.values() {
                 let lan_address = key
                     .public()
                     .get_onion_address()
                     .get_address_without_dot_onion()
                     + ".local";
+                log::debug!("Adding mdns CNAME entry for {}", &lan_address);
                 let lan_address_ptr = std::ffi::CString::new(lan_address)
                     .expect("Could not cast lan address to c string");
                 let _ = avahi_sys::avahi_entry_group_add_record(

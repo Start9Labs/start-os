@@ -184,7 +184,7 @@ async fn inner_main(
                     log::error!("Error in Health Check daemon: {}", e);
                     log::debug!("{:?}", e);
                 } else {
-                    log::debug!("Health Check completed successfully");
+                    log::trace!("Health Check completed successfully");
                 }
             }
         },
