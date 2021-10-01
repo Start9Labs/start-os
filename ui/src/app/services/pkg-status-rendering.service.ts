@@ -33,15 +33,16 @@ function getDependencyStatus (pkg: PackageDataEntry): DependencyStatus {
   const installed = pkg.installed
   if (isEmptyObject(installed['current-dependencies'])) return null
 
-  const pkgIds = Object.keys(installed.status['dependency-errors'])
+  const depErrors = installed.status['dependency-errors']
+  const depIds = Object.keys(depErrors).filter(key => !!depErrors[key])
 
-  for (let pkgId of pkgIds) {
+  for (let pkgId of depIds) {
     if (pkg.manifest.dependencies[pkgId].critical) {
       return DependencyStatus.Critical
     }
   }
 
-  return pkgIds.length ? DependencyStatus.Issue : DependencyStatus.Satisfied
+  return depIds.length ? DependencyStatus.Issue : DependencyStatus.Satisfied
 }
 
 function getHealthStatus (status: Status): HealthStatus {

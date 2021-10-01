@@ -224,7 +224,7 @@ export interface Action {
 export interface Status {
   configured: boolean
   main: MainStatus
-  'dependency-errors': { [id: string]: DependencyError }
+  'dependency-errors': { [id: string]: DependencyError | null }
 }
 
 export type MainStatus = MainStatusStopped | MainStatusStopping | MainStatusRunning | MainStatusBackingUp | MainStatusRestoring
