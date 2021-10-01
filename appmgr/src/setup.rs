@@ -84,6 +84,7 @@ pub async fn execute(
     tokio::fs::write("/embassy-os/disk.guid", &guid)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, "/embassy-os/disk.guid"))?;
+    ctx.shutdown.send(()).expect("failed to shutdown");
 
     Ok(SetupResult {
         tor_address: tor_key.public().get_onion_address().to_string(),
