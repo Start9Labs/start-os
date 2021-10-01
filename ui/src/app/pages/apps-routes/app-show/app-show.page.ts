@@ -338,11 +338,14 @@ export class AppShowPage {
   }
 
   private setButtons (): void {
+    const pkgTitle = this.pkg.manifest.title
+
     this.buttons = [
       // instructions
       {
         action: () => this.navCtrl.navigateForward(['instructions'], { relativeTo: this.route }),
         title: 'Instructions',
+        description: '',
         icon: 'list-outline',
         color: 'danger',
       },
@@ -350,6 +353,7 @@ export class AppShowPage {
       {
         action: async () => this.presentModalConfig({ pkgId: this.pkgId }),
         title: 'Config',
+        description: `Customize ${pkgTitle}`,
         icon: 'construct-outline',
         color: 'danger',
       },
@@ -357,27 +361,31 @@ export class AppShowPage {
       {
         action: () => this.navCtrl.navigateForward(['properties'], { relativeTo: this.route }),
         title: 'Properties',
+        description: 'Runtime information, credentials, and other values of interest',
         icon: 'briefcase-outline',
-        color: 'danger',
-      },
-      // interfaces
-      {
-        action: () => this.navCtrl.navigateForward(['interfaces'], { relativeTo: this.route }),
-        title: 'Interfaces',
-        icon: 'desktop-outline',
         color: 'danger',
       },
       // actions
       {
         action: () => this.navCtrl.navigateForward(['actions'], { relativeTo: this.route }),
         title: 'Actions',
+        description: `Uninstall, recover from backup, and other commands specific to ${pkgTitle}`,
         icon: 'flash-outline',
+        color: 'danger',
+      },
+      // interfaces
+      {
+        action: () => this.navCtrl.navigateForward(['interfaces'], { relativeTo: this.route }),
+        title: 'Interfaces',
+        description: 'User and machine access points',
+        icon: 'desktop-outline',
         color: 'danger',
       },
       // metrics
       // {
       //   action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
       //   title: 'Monitor',
+      //   description: 'View system usage',
       //   icon: 'pulse-outline',
       //   color: 'danger',
       // },
@@ -385,12 +393,14 @@ export class AppShowPage {
       {
         action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         title: 'Logs',
+        description: '',
         icon: 'receipt-outline',
         color: 'danger',
       },
       {
         action: () => this.donate(),
         title: 'Donate',
+        description: `Support ${pkgTitle}`,
         icon: 'logo-bitcoin',
         color: 'danger',
       },
@@ -415,6 +425,7 @@ interface DependencyInfo {
 
 interface Button {
   title: string
+  description: string
   icon: string
   color: string
   action: Function
