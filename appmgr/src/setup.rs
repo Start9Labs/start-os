@@ -44,6 +44,23 @@ pub async fn execute(
     #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
     #[arg(rename = "embassy-password")] embassy_password: String,
 ) -> Result<SetupResult, Error> {
+    match execute_inner(ctx, embassy_logicalname, embassy_password).await {
+        Ok(a) => {
+            log::info!("Setup Successful! Tor Address: {}", a.tor_address);
+            Ok(a)
+        }
+        Err(e) => {
+            log::error!("Error Setting Up Embassy: {}", e);
+            Err(e)
+        }
+    }
+}
+
+pub async fn execute_inner(
+    ctx: SetupContext,
+    embassy_logicalname: PathBuf,
+    embassy_password: String,
+) -> Result<SetupResult, Error> {
     let guid =
         crate::disk::main::create(&ctx.zfs_pool_name, [embassy_logicalname], DEFAULT_PASSWORD)
             .await?;
