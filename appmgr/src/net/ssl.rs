@@ -14,6 +14,8 @@ use tokio::sync::Mutex;
 
 use crate::{Error, ErrorKind};
 
+static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
+
 pub struct SslManager {
     store: SslStore,
     root_cert: X509,
@@ -204,7 +206,7 @@ fn generate_key() -> Result<PKey<Private>, Error> {
 }
 fn make_root_cert(root_key: &PKey<Private>) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
-    builder.set_version(3)?;
+    builder.set_version(CERTIFICATE_VERSION)?;
 
     let embargo = Asn1Time::days_from_now(0)?;
     builder.set_not_before(&embargo)?;
@@ -257,7 +259,7 @@ fn make_int_cert(
     applicant: &PKey<Private>,
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
-    builder.set_version(3)?;
+    builder.set_version(CERTIFICATE_VERSION)?;
 
     let embargo = Asn1Time::days_from_now(0)?;
     builder.set_not_before(&embargo)?;
@@ -318,7 +320,7 @@ fn make_leaf_cert(
     applicant: (&PKey<Private>, &str),
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
-    builder.set_version(3)?;
+    builder.set_version(CERTIFICATE_VERSION)?;
 
     let embargo = Asn1Time::days_from_now(0)?;
     builder.set_not_before(&embargo)?;
