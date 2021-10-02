@@ -44,13 +44,13 @@ export class HttpService {
       this.fullUrl + httpOpts.url :
       httpOpts.url
 
-    const encryptedBody = await AES_CTR.encryptPbkdf2(this.productKey, encodeUtf8( JSON.stringify(httpOpts.body)))
+    const encryptedBody = await AES_CTR.encryptPbkdf2(this.productKey, encodeUtf8(JSON.stringify(httpOpts.body)))
     const options = {
       responseType: 'arraybuffer',
       body: encryptedBody.buffer,
       observe: 'events',
       reportProgress: false,
-      
+
       headers: {
         'Content-Encoding': 'aesctr256',
         'Content-Type': 'application/json'
@@ -59,15 +59,15 @@ export class HttpService {
 
     const req = this.http.post(url, options.body, options)
 
-    return (withTimeout(req, 60000))
+    return (req)
       .toPromise()
       .then(res => AES_CTR.decryptPbkdf2(this.productKey, (res as any).body as ArrayBuffer))
       .then(res => JSON.parse(res))
       .catch(e => {
-        if(!e.status && !e.statusText) {
+        if (!e.status && !e.statusText) {
           throw new EncryptionError(e)
         } else {
-          throw new HttpError(e) 
+          throw new HttpError(e)
         }
       })
   }
@@ -100,11 +100,11 @@ function EncryptionError (e: HttpErrorResponse): void {
   this.details = null
 }
 
-function isRpcError<Error, Result> (arg: { error: Error } | { result: Result}): arg is { error: Error } {
+function isRpcError<Error, Result> (arg: { error: Error } | { result: Result }): arg is { error: Error } {
   return !!(arg as any).error
 }
 
-function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result}): arg is { result: Result } {
+function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result }): arg is { result: Result } {
   return !!(arg as any).result
 }
 
@@ -180,7 +180,7 @@ type AES_CTR = {
 }
 
 export const AES_CTR: AES_CTR = {
-  encryptPbkdf2: async (secretKey: string, messageBuffer: Uint8Array) =>  {
+  encryptPbkdf2: async (secretKey: string, messageBuffer: Uint8Array) => {
     const salt = window.crypto.getRandomValues(new Uint8Array(16))
     const counter = window.crypto.getRandomValues(new Uint8Array(16))
 
@@ -188,9 +188,9 @@ export const AES_CTR: AES_CTR = {
 
     const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
     const encryptedBytes = aesCtr.encrypt(messageBuffer);
-    return new Uint8Array([...counter,...salt,...encryptedBytes])
+    return new Uint8Array([...counter, ...salt, ...encryptedBytes])
   },
-  decryptPbkdf2: async (secretKey: string, arr: ArrayBuffer) =>  {
+  decryptPbkdf2: async (secretKey: string, arr: ArrayBuffer) => {
     const buff = new Uint8Array(arr)
     const counter = buff.slice(0, 16)
     const salt = buff.slice(16, 32)
