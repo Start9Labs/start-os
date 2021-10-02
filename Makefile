@@ -25,6 +25,7 @@ clean:
 	rm -rf patch-db/client/dist
 
 eos.img: $(EMBASSY_SRC)
+	! test -f eos.img || rm eos.img
 	./build/make-image.sh
 
 ubuntu.img:
