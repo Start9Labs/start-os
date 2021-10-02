@@ -3,6 +3,8 @@ use std::time::Duration;
 
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use torut::onion::TorSecretKeyV3;
 
@@ -98,9 +100,11 @@ pub async fn execute_inner(
     )
     .execute(&mut sqlite_pool.acquire().await?)
     .await?;
-    tokio::fs::write("/embassy-os/disk.guid", &guid)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, "/embassy-os/disk.guid"))?;
+    let mut guid_file = File::create("/embassy-os/disk.guid").await?;
+    guid_file.write_all(guid.as_bytes()).await?;
+    guid_file.sync_all().await?;
+    crate::disk::main::export(&ctx.zfs_pool_name).await?;
+
     ctx.shutdown.send(()).expect("failed to shutdown");
 
     Ok(SetupResult {
