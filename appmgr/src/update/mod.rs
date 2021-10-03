@@ -5,7 +5,6 @@ use futures::Stream;
 use lazy_static::lazy_static;
 use regex::Regex;
 use rpc_toolkit::command;
-use serde_json::Value;
 use sha2::Sha256;
 use tokio::io::AsyncWriteExt;
 use tokio::pin;
@@ -106,7 +105,7 @@ lazy_static! {
     static ref PARSE_COLOR: Regex = Regex::new("#LABEL=(\\w+) /media/root-ro/").unwrap();
 }
 
-async fn maybe_do_update(mut ctx: RpcContext) -> Result<Option<()>, Error> {
+async fn maybe_do_update(ctx: RpcContext) -> Result<Option<()>, Error> {
     let mut db = ctx.db.handle();
     let latest_version = reqwest::get(URL)
         .await
@@ -123,7 +122,6 @@ async fn maybe_do_update(mut ctx: RpcContext) -> Result<Option<()>, Error> {
     if &latest_version <= &current_version {
         return Ok(None);
     }
-    let file_name = "/tmp/test";
     let mounted_blue = mount_label(WritableDrives::Blue)
         .await
         .with_kind(ErrorKind::Filesystem)?;
@@ -135,9 +133,9 @@ async fn maybe_do_update(mut ctx: RpcContext) -> Result<Option<()>, Error> {
         let (new_label, _current_label) = query_mounted_label(&mounted_blue, &mounted_green)
             .await
             .with_kind(ErrorKind::Filesystem)?;
-        download_file(file_name, &new_label).await?;
+        download_file(&new_label).await?;
 
-        swap_boot_label(&mut ctx, &new_label, &mounted_boot).await?;
+        swap_boot_label(&new_label, &mounted_boot).await?;
         Ok::<_, Error>(())
     }
     .await;
@@ -185,7 +183,7 @@ async fn query_mounted_label<'a>(
     }
 }
 
-async fn download_file(file_name: &str, new_label: &NewLabel<'_>) -> Result<(), Error> {
+async fn download_file(new_label: &NewLabel<'_>) -> Result<(), Error> {
     let download_request = reqwest::get(URL).await.with_kind(ErrorKind::Network)?;
     let hash_from_header: String = download_request
         .headers()
@@ -195,16 +193,23 @@ async fn download_file(file_name: &str, new_label: &NewLabel<'_>) -> Result<(), 
         .with_kind(ErrorKind::InvalidRequest)?
         .to_owned();
     let stream_download = download_request.bytes_stream();
-    let file_sum = write_stream_to_file(stream_download, file_name).await?;
+    let file_sum = write_stream_to_label(stream_download, new_label).await?;
     check_download(&hash_from_header, file_sum).await?;
     Ok(())
 }
 
-async fn write_stream_to_file(
+async fn write_stream_to_label(
     stream_download: impl Stream<Item = Result<rpc_toolkit::hyper::body::Bytes, reqwest::Error>>,
-    file: &str,
+    file: &NewLabel<'_>,
 ) -> Result<Vec<u8>, Error> {
-    let mut file = tokio::fs::File::create(file)
+    let folder = file.0 .0.mount_folder();
+    let file_path = format!("{}/download.img", folder);
+    tokio::process::Command::new("rm")
+        .arg("-rf")
+        .arg(format!("{}/*", folder))
+        .output()
+        .await?;
+    let mut file = tokio::fs::File::create(&file_path)
         .await
         .with_kind(ErrorKind::Filesystem)?;
     let mut hasher = Sha256::new();
@@ -213,6 +218,13 @@ async fn write_stream_to_file(
         file.write(&item).await.with_kind(ErrorKind::Filesystem)?;
         hasher.update(item);
     }
+    file.flush().await.with_kind(ErrorKind::Filesystem)?;
+    drop(file);
+    tokio::process::Command::new("dd")
+        .arg(format!("if={}", file_path))
+        .arg(format!("of={}", folder))
+        .output()
+        .await?;
     Ok(hasher.finalize().to_vec())
 }
 
@@ -226,7 +238,6 @@ async fn check_download(hash_from_header: &str, file_digest: Vec<u8>) -> Result<
     Ok(())
 }
 async fn swap_boot_label(
-    ctx: &mut RpcContext,
     new_label: &NewLabel<'_>,
     mounted_boot: &MountedResource<Boot>,
 ) -> Result<(), Error> {
