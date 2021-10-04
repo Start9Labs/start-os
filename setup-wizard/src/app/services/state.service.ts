@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs';
 import { ApiService, DiskInfo } from './api/api.service'
+import { ErrorToastService } from './error-toast.service';
 
 @Injectable({
   providedIn: 'root'
@@ -19,7 +20,8 @@ export class StateService {
   torAddress: string
 
   constructor(
-    private readonly apiService: ApiService
+    private readonly apiService: ApiService,
+    private errorToastService: ErrorToastService
   ) {}
 
   async pollDataTransferProgress(callback?: () => void) {
@@ -30,15 +32,23 @@ export class StateService {
       this.dataTransferProgress?.totalBytes &&
       this.dataTransferProgress.bytesTransfered === this.dataTransferProgress.totalBytes
     ) {return }
-    
-    const progress = await this.apiService.getDataTransferProgress()
-    this.dataTransferProgress = {
-      bytesTransfered: progress['bytes-transfered'],
-      totalBytes: progress['total-bytes']
+      
+
+    let progress 
+    try {
+      progress =await this.apiService.getDataTransferProgress()
+    } catch (e) {
+      this.errorToastService.present(`${e.message}: ${e.details}`)
     }
-    if (this.dataTransferProgress.totalBytes) {
-      this.dataProgress = this.dataTransferProgress.bytesTransfered / this.dataTransferProgress.totalBytes
-      this.dataProgSubject.next(this.dataProgress)
+    if (progress) {
+      this.dataTransferProgress = {
+        bytesTransfered: progress['bytes-transfered'],
+        totalBytes: progress['total-bytes']
+      }
+      if (this.dataTransferProgress.totalBytes) {
+        this.dataProgress = this.dataTransferProgress.bytesTransfered / this.dataTransferProgress.totalBytes
+        this.dataProgSubject.next(this.dataProgress)
+      }
     }
     this.pollDataTransferProgress(callback)
   }

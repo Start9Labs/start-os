@@ -30,7 +30,6 @@ export class SuccessPage {
 
   async goToEmbassy () {
     window.location.reload()
-    // await this.navCtrl.navigateForward(`/recover`, { animationDirection: 'forward' })
   }
 
   async copyToClipboard (str: string): Promise<boolean> {
