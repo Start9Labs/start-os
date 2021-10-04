@@ -26,6 +26,7 @@ use crate::manager::ManagerMap;
 use crate::net::tor::os_key;
 use crate::net::NetController;
 use crate::shutdown::Shutdown;
+use crate::system::launch_metrics_task;
 use crate::util::io::from_toml_async_reader;
 use crate::util::logger::EmbassyLogger;
 use crate::util::AsyncFileExt;
@@ -162,6 +163,7 @@ impl RpcContext {
         )
         .await?;
         let managers = ManagerMap::default();
+        let metrics_cache = RwLock::new(None);
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
@@ -174,7 +176,7 @@ impl RpcContext {
             managers,
             revision_cache_size: base.revision_cache_size.unwrap_or(512),
             revision_cache: RwLock::new(VecDeque::new()),
-            metrics_cache: RwLock::new(None),
+            metrics_cache,
             shutdown,
             websocket_count: AtomicUsize::new(0),
             logger,
@@ -183,6 +185,13 @@ impl RpcContext {
                 Ipv4Addr::new(127, 0, 0, 1),
                 9050,
             ))),
+        });
+        let metrics_seed = seed.clone();
+        tokio::spawn(async move {
+            launch_metrics_task(&metrics_seed.metrics_cache, || {
+                metrics_seed.shutdown.subscribe()
+            })
+            .await
         });
         let res = Self(seed);
         res.managers
