@@ -714,12 +714,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     Ok(())
 }
 
-pub async fn load_images() -> Result<(), Error> {
-    if tokio::fs::metadata(PKG_DOCKER_DIR).await.is_ok() {
-        ReadDirStream::new(tokio::fs::read_dir(PKG_DOCKER_DIR).await?)
+pub async fn load_images(ctx: RpcContext) -> Result<(), Error> {
+    let docker_dir = ctx.datadir.join(PKG_DOCKER_DIR);
+    if tokio::fs::metadata(&docker_dir).await.is_ok() {
+        ReadDirStream::new(tokio::fs::read_dir(&docker_dir).await?)
             .map_err(|e| {
                 Error::new(
-                    anyhow::Error::from(e).context(PKG_DOCKER_DIR),
+                    anyhow::Error::from(e).context(format!("{:?}", &docker_dir)),
                     crate::ErrorKind::Filesystem,
                 )
             })
