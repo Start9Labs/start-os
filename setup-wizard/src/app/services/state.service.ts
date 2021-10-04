@@ -21,7 +21,7 @@ export class StateService {
 
   constructor(
     private readonly apiService: ApiService,
-    private errorToastService: ErrorToastService
+    private readonly errorToastService: ErrorToastService
   ) {}
 
   async pollDataTransferProgress(callback?: () => void) {
