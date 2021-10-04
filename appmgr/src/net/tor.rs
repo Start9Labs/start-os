@@ -366,7 +366,12 @@ pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
         .await;
     match result {
         // if success, do nothing
-        Ok(_) => {}
+        Ok(_) => {
+            log::debug!(
+                "Successfully verified main tor address liveness at {}",
+                onion
+            )
+        }
         // if failure, disconnect tor control port, and restart tor controller
         Err(e) => {
             log::error!("Unable to reach self over tor: {}", e);
