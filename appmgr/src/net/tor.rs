@@ -349,6 +349,7 @@ impl TorControllerInner {
 }
 
 pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
+    log::debug!("Attempting to self-check tor address");
     let onion = tor_controller.embassyd_onion().await;
     let result = client
         .post(format!("http://{}/rpc/v1", onion))
