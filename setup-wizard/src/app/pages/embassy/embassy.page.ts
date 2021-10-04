@@ -93,6 +93,7 @@ export class EmbassyPage {
       try {
         this.stateService.torAddress = (await this.stateService.setupEmbassy()).torAddress
       } catch (e) {
+        this.errorToastService.present(`${e.message}: ${e.details}`)
         console.error(e.message)
         console.error(e.details)
       } finally {
