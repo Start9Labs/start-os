@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, VecDeque};
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicUsize};
@@ -37,6 +37,7 @@ pub struct RpcContextConfig {
     pub bind_rpc: Option<SocketAddr>,
     pub bind_ws: Option<SocketAddr>,
     pub tor_control: Option<SocketAddr>,
+    pub tor_socks: Option<SocketAddr>,
     pub revision_cache_size: Option<usize>,
     pub zfs_pool_name: Option<String>,
     pub datadir: Option<PathBuf>,
@@ -122,6 +123,7 @@ pub struct RpcContextSeed {
     pub websocket_count: AtomicUsize,
     pub logger: EmbassyLogger,
     pub log_epoch: Arc<AtomicU64>,
+    pub tor_socks: SocketAddr,
 }
 
 #[derive(Clone)]
@@ -177,6 +179,10 @@ impl RpcContext {
             websocket_count: AtomicUsize::new(0),
             logger,
             log_epoch,
+            tor_socks: base.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
+                Ipv4Addr::new(127, 0, 0, 1),
+                9050,
+            ))),
         });
         let res = Self(seed);
         res.managers
