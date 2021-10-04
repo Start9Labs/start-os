@@ -16,12 +16,11 @@ const useMocks = require('../../config.json').useMocks as boolean
   entryComponents: [],
   imports: [
     BrowserModule,
-    IonicModule.forRoot(),
-    AppRoutingModule,
-    HttpClientModule,
     IonicModule.forRoot({  
       navAnimation: iosTransitionAnimation,
     }), 
+    AppRoutingModule,
+    HttpClientModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },

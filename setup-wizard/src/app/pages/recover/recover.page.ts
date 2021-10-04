@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { iosTransitionAnimation, ModalController, NavController } from '@ionic/angular'
+import { ModalController, NavController } from '@ionic/angular'
 import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
@@ -79,7 +79,7 @@ export class RecoverPage {
     const pw = this.passwords[this.selectedDrive.logicalname]
     if(pw) {
       this.stateService.recoveryPassword = pw
-    } 
-    await this.navCtrl.navigateForward(`/embassy`, { animationDirection: 'forward', animation: iosTransitionAnimation })
+    }
+    await this.navCtrl.navigateForward(`/product-key`)
   }
 }

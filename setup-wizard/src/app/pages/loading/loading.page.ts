@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { iosTransitionAnimation, NavController } from '@ionic/angular'
+import { NavController } from '@ionic/angular'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -16,12 +16,11 @@ export class LoadingPage {
   ngOnInit () {
     this.stateService.pollDataTransferProgress()
     const progSub = this.stateService.dataProgSubject.subscribe(async progress => {
-      if(progress === 1) {
+      if (progress === 1) {
         progSub.unsubscribe()
-        await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward', animation: iosTransitionAnimation })
+        await this.navCtrl.navigateForward(`/success`)
       }
     })
   }
-
 }
 

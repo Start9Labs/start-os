@@ -1,30 +1,27 @@
-import { Subject } from 'rxjs'
-
 export abstract class ApiService {
-  abstract verifyProductKey (): Promise<VerifyProductKeyRes>;
-  abstract getDrives (): Promise<DiskInfo[]>;
-  abstract getDataTransferProgress (): Promise<TransferProgressRes>;
-  abstract verifyRecoveryPassword (logicalname: string, password: string): Promise<boolean>;
-  abstract setupEmbassy (setupInfo: {
-    'embassy-logicalname': string,
-    'embassy-password': string
-    'recovery-logicalname'?: string,
-    'recovery-password'?: string
-  }): Promise<SetupEmbassyRes>
+  // unencrypted
+  abstract getStatus (): Promise<GetStatusRes> // setup.status
+  abstract getDrives (): Promise<DiskInfo[]> // setup.disk.list
+  abstract set02XDrive (): Promise<void> // setup.recovery.v2.set
+  abstract getRecoveryStatus (): Promise<RecoveryStatusRes> // setup.recovery.status
+
+  // encrypted
+  abstract verify02XProductKey (): Promise<void> // echo - throws error if invalid
+  abstract verify03XPassword (logicalname: string, password: string): Promise<boolean> // setup.recovery.test-password
+  abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<string> // setup.execute
+  abstract getTorAddress (): Promise<string> // setup.tor-address
 }
 
-export interface VerifyProductKeyRes {
-  "is-recovering": boolean
-  "tor-address": string
+export interface GetStatusRes {
+  'product-key': boolean
+  migrating: boolean
 }
 
-export interface TransferProgressRes {
-  'bytes-transfered': number;
-  'total-bytes': number;
-}
-
-export interface SetupEmbassyRes {
-  "tor-address": string
+export interface SetupEmbassyReq {
+  'embassy-logicalname': string
+  'embassy-password': string
+  'recovery-logicalname'?: string
+  'recovery-password'?: string
 }
 
 export interface DiskInfo {
@@ -33,7 +30,12 @@ export interface DiskInfo {
   model: string | null,
   partitions: PartitionInfo[],
   capacity: number,
-  embassy_os: EmbassyOsDiskInfo | null,
+  'embassy-os': EmbassyOsDiskInfo | null,
+}
+
+export interface RecoveryStatusRes {
+  'bytes-transferred': number
+  'total-bytes': number
 }
 
 interface PartitionInfo {

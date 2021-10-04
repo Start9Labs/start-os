@@ -9,8 +9,8 @@ import { StateService } from 'src/app/services/state.service'
 })
 export class SuccessPage {
   constructor(
-    public stateService: StateService,
-    private toastCtrl: ToastController
+    private readonly toastCtrl: ToastController,
+    public readonly stateService: StateService,
   ) { }
 
   window = window

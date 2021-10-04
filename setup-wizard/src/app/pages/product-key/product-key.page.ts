@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { iosTransitionAnimation, LoadingController, NavController } from '@ionic/angular'
+import { LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { HttpService } from 'src/app/services/api/http.service'
 import { StateService } from 'src/app/services/state.service'
@@ -32,13 +32,14 @@ export class ProductKeyPage {
     try {
       this.httpService.productKey = this.productKey
       const state = await this.apiService.verifyProductKey()
+      const torAddress = state['tor-address']
       if(state['is-recovering']) {
-        await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward', animation: iosTransitionAnimation })
-      } else if (!!state['tor-address']) {
-        this.stateService.torAddress = state['tor-address']
-        await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward', animation: iosTransitionAnimation })
+        await this.navCtrl.navigateForward(`/loading`)
+      } else if (!!torAddress) {
+        this.stateService.torAddress = torAddress
+        await this.navCtrl.navigateForward(`/success`)
       } else {
-        await this.navCtrl.navigateForward(`/home`, { animationDirection: 'forward', animation: iosTransitionAnimation })
+        await this.navCtrl.navigateForward(`/embassy`)
       }
     } catch (e) {
       this.error = e.message

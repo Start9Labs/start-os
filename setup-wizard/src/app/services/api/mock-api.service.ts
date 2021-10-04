@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '../state.service'
-import { ApiService } from './api.service'
+import { ApiService, SetupEmbassyReq } from './api.service'
+
+let tries = 0
 
 @Injectable({
   providedIn: 'root'
@@ -11,23 +13,18 @@ export class MockApiService extends ApiService {
     super()
   }
 
-  async verifyProductKey () {
-    await pauseFor(2000)
-    return { 
-      "is-recovering": false,
-      "tor-address": null 
-    }
-  }
+  // ** UNENCRYPTED **
 
-  async getDataTransferProgress () {
-    tries = Math.min(tries + 1, 4)
+  async getStatus () {
+    await pauseFor(1000)
     return {
-      'bytes-transfered': tries,
-      'total-bytes': 4
+      'product-key': true,
+      migrating: false,
     }
   }
 
   async getDrives () {
+    await pauseFor(1000)
     return [
       {
         vendor: 'Vendor',
@@ -48,7 +45,7 @@ export class MockApiService extends ApiService {
           }
         ],
         capacity: 150000,
-        'embassy_os': null
+        'embassy-os': null
       },
       {
         vendor: 'Vendor',
@@ -63,7 +60,7 @@ export class MockApiService extends ApiService {
           // }
         ],
         capacity: 1600.01234,
-        'embassy_os': null
+        'embassy-os': null
       },
       {
         vendor: 'Vendor',
@@ -78,7 +75,7 @@ export class MockApiService extends ApiService {
           }
         ],
         capacity: 100000,
-        'embassy_os': {
+        'embassy-os': {
           version: '0.3.3',
         }
       },
@@ -86,7 +83,7 @@ export class MockApiService extends ApiService {
         vendor: 'Vendor',
         model: 'Model',
         logicalname: '/dev/sdd',
-         partitions: [
+          partitions: [
           {
             logicalname: 'sdd1',
             label: null,
@@ -95,12 +92,48 @@ export class MockApiService extends ApiService {
           }
         ],
         capacity: 10000,
-        'embassy_os': {
+        'embassy-os': {
           version: '0.2.7',
-        }
-      }
+        },
+      },
     ]
   }
+
+  async set02XDrive () {
+    await pauseFor(1000)
+    return
+  }
+
+  async getRecoveryStatus () {
+    tries = Math.min(tries + 1, 4)
+    return {
+      'bytes-transferred': tries,
+      'total-bytes': 4
+    }
+  }
+
+  // ** ENCRYPTED **
+
+  async verify02XProductKey () {
+    await pauseFor(1000)
+    return
+  }
+
+  async verify03XPassword (logicalname: string, password: string) {
+    await pauseFor(2000)
+    return password.length > 8
+  }
+
+  async setupEmbassy (setupInfo: SetupEmbassyReq) {
+    await pauseFor(3000)
+    return 'asdfasdfasdf.onion'
+  }
+
+  async getTorAddress () {
+    await pauseFor(2000)
+    return 'asdfasdfasdf.onion'
+  }
+
 
   async getRecoveryDrives () {
     await pauseFor(2000)
@@ -117,21 +150,4 @@ export class MockApiService extends ApiService {
       }
     ]
   }
-
-  async verifyRecoveryPassword (logicalname: string, password: string) {
-    await pauseFor(2000)
-    return password.length > 8
-  }
-
-  async setupEmbassy (setupInfo: {
-    'embassy-logicalname': string,
-    'embassy-password': string
-    'recovery-logicalname'?: string,
-    'recovery-password'?: string
-  }) {
-    await pauseFor(2000)
-    return { "tor-address": 'asdfasdfasdf.onion' }
-  }
 }
-
-let tries = 0

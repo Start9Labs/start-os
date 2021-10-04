@@ -99,9 +99,9 @@ export class EmbassyPage {
       } finally {
         loader.dismiss()
         if(!!this.stateService.recoveryDrive) {
-          await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward', animation: iosTransitionAnimation })
+          await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward' })
         } else {
-          await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward', animation: iosTransitionAnimation })
+          await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward' })
         }
       }
     })
