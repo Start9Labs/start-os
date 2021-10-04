@@ -195,7 +195,7 @@ async fn inner_main(
     let tor_client = Client::builder()
         .proxy(
             Proxy::http(format!(
-                "socks5://{}:{}",
+                "socks5h://{}:{}",
                 rpc_ctx.tor_socks.ip(),
                 rpc_ctx.tor_socks.port()
             ))
