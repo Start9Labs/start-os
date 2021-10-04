@@ -194,8 +194,8 @@ async fn inner_main(
     let tor_health_ctx = rpc_ctx.clone();
     let tor_client = Client::builder()
         .proxy(
-            Proxy::all(format!(
-                "socks5h://{}:{}",
+            Proxy::http(format!(
+                "socks5://{}:{}",
                 rpc_ctx.tor_socks.ip(),
                 rpc_ctx.tor_socks.port()
             ))
