@@ -39,7 +39,7 @@ export class RecoverPage {
     try {
       this.recoveryDrives = (await this.apiService.getDrives()).filter(d => !!d['embassy_os'])
     } catch (e) {
-      this.errorToastService.present(e.message)
+      this.errorToastService.present(`${e.message}: ${e.data}`)
     } finally {
       this.loading = false
     }
