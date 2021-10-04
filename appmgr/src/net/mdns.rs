@@ -77,7 +77,10 @@ impl MdnsControllerInner {
                 avahi_free(e_str as *mut c_void);
                 panic!("Failed to load Avahi services");
             }
-            log::info!("Published {:?}", self.hostname_raw);
+            log::info!(
+                "Published {:?}",
+                std::ffi::CStr::from_ptr(self.hostname_raw)
+            );
             for key in self.services.values() {
                 let lan_address = key
                     .public()
@@ -150,7 +153,6 @@ impl MdnsControllerInner {
             }
             let mut hostname_buf = vec![0];
             let hostname_raw = avahi_sys::avahi_client_get_host_name_fqdn(avahi_client);
-            log::debug!("hostname_raw: {:?}", std::ffi::CStr::from_ptr(hostname_raw));
             hostname_buf
                 .extend_from_slice(std::ffi::CStr::from_ptr(hostname_raw).to_bytes_with_nul());
             let buflen = hostname_buf.len();
