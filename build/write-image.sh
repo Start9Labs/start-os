@@ -33,6 +33,8 @@ sudo cp product_key.txt /tmp/eos-mnt
 sudo umount /tmp/eos-mnt
 
 sudo mount ${OUTPUT_DEVICE}p3 /tmp/eos-mnt
+
+sudo sed -i 's/LABEL=writable/LABEL=green/g' /tmp/eos-mnt/etc/fstab
 # Enter the appmgr directory, copy over the built EmbassyOS binaries and systemd services, edit the nginx config, then create the .ssh directory
 cd appmgr/
 
