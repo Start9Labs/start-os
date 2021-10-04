@@ -103,6 +103,7 @@ pub async fn execute_inner(
     let mut guid_file = File::create("/embassy-os/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
+    sqlite_pool.close().await;
 
     ctx.shutdown.send(()).expect("failed to shutdown");
 
