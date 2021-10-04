@@ -2,10 +2,12 @@ use std::fmt;
 
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
+use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 
 use crate::context::RpcContext;
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
+use crate::shutdown::Shutdown;
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
@@ -94,7 +96,10 @@ pub async fn metrics(
     }
 }
 
-pub async fn launch_metrics_task(cache: &RwLock<Option<Metrics>>) {
+pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
+    cache: &RwLock<Option<Metrics>>,
+    mut mk_shutdown: F,
+) {
     // fetch init temp
     let init_temp;
     loop {
@@ -172,17 +177,20 @@ pub async fn launch_metrics_task(cache: &RwLock<Option<Metrics>>) {
         })
     }
     // launch persistent temp task
-    let temp_task = launch_temp_task(cache);
+    let temp_task = launch_temp_task(cache, mk_shutdown());
     // launch persistent cpu task
-    let cpu_task = launch_cpu_task(cache, proc_stat);
+    let cpu_task = launch_cpu_task(cache, proc_stat, mk_shutdown());
     // launch persistent mem task
-    let mem_task = launch_mem_task(cache);
+    let mem_task = launch_mem_task(cache, mk_shutdown());
     // launch persistent disk task
-    let disk_task = launch_disk_task(cache);
+    let disk_task = launch_disk_task(cache, mk_shutdown());
     tokio::join!(temp_task, cpu_task, mem_task, disk_task,);
 }
 
-async fn launch_temp_task(cache: &RwLock<Option<Metrics>>) {
+async fn launch_temp_task(
+    cache: &RwLock<Option<Metrics>>,
+    mut shutdown: Receiver<Option<Shutdown>>,
+) {
     loop {
         match get_temp().await {
             Ok(a) => {
@@ -193,11 +201,18 @@ async fn launch_temp_task(cache: &RwLock<Option<Metrics>>) {
                 log::error!("Could not get new temperature: {}", e);
             }
         }
-        tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+        tokio::select! {
+            _ = shutdown.recv() => return,
+            _ = tokio::time::sleep(tokio::time::Duration::from_secs(4)) => (),
+        }
     }
 }
 
-async fn launch_cpu_task(cache: &RwLock<Option<Metrics>>, mut init: ProcStat) {
+async fn launch_cpu_task(
+    cache: &RwLock<Option<Metrics>>,
+    mut init: ProcStat,
+    mut shutdown: Receiver<Option<Shutdown>>,
+) {
     loop {
         // read /proc/stat, diff against previous metrics, compute cpu load
         match get_cpu_info(&mut init).await {
@@ -209,11 +224,17 @@ async fn launch_cpu_task(cache: &RwLock<Option<Metrics>>, mut init: ProcStat) {
                 log::error!("Could not get new CPU Metrics: {}", e);
             }
         }
-        tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+        tokio::select! {
+            _ = shutdown.recv() => return,
+            _ = tokio::time::sleep(tokio::time::Duration::from_secs(4)) => (),
+        }
     }
 }
 
-async fn launch_mem_task(cache: &RwLock<Option<Metrics>>) {
+async fn launch_mem_task(
+    cache: &RwLock<Option<Metrics>>,
+    mut shutdown: Receiver<Option<Shutdown>>,
+) {
     loop {
         // read /proc/meminfo
         match get_mem_info().await {
@@ -225,11 +246,16 @@ async fn launch_mem_task(cache: &RwLock<Option<Metrics>>) {
                 log::error!("Could not get new Memory Metrics: {}", e);
             }
         }
-
-        tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+        tokio::select! {
+            _ = shutdown.recv() => return,
+            _ = tokio::time::sleep(tokio::time::Duration::from_secs(4)) => (),
+        }
     }
 }
-async fn launch_disk_task(cache: &RwLock<Option<Metrics>>) {
+async fn launch_disk_task(
+    cache: &RwLock<Option<Metrics>>,
+    mut shutdown: Receiver<Option<Shutdown>>,
+) {
     loop {
         // run df and capture output
         match get_disk_info().await {
@@ -241,7 +267,10 @@ async fn launch_disk_task(cache: &RwLock<Option<Metrics>>) {
                 log::error!("Could not get new Disk Metrics: {}", e);
             }
         }
-        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        tokio::select! {
+            _ = shutdown.recv() => return,
+            _ = tokio::time::sleep(tokio::time::Duration::from_secs(60)) => (),
+        }
     }
 }
 
