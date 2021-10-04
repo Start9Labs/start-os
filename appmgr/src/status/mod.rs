@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 use self::health_check::{HealthCheckId, HealthCheckResult};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
-use crate::dependencies::{DependencyError, TaggedDependencyError};
+use crate::dependencies::{
+    break_transitive, DependencyError, DependencyErrors, TaggedDependencyError,
+};
 use crate::manager::{Manager, Status as ManagerStatus};
 use crate::notifications::{notify, NotificationLevel, NotificationSubtype};
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -212,15 +214,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                 }
                 _ => Some(DependencyError::NotRunning),
             } {
-                handle_broken_dependents(
-                    &mut db,
-                    id,
-                    dep_id,
-                    model.clone(),
-                    err,
-                    &mut BTreeMap::new(),
-                )
-                .await?;
+                break_transitive(&mut db, id, dep_id, err, &mut BTreeMap::new()).await?;
             } else {
                 let mut errs = model
                     .clone()
@@ -262,6 +256,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
 pub struct Status {
     pub configured: bool,
     pub main: MainStatus,
+    #[model]
     pub dependency_errors: DependencyErrors,
 }
 
@@ -390,132 +385,4 @@ impl MainStatus {
             _ => (),
         }
     }
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct DependencyErrors(pub BTreeMap<PackageId, DependencyError>);
-impl Map for DependencyErrors {
-    type Key = PackageId;
-    type Value = DependencyError;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-impl HasModel for DependencyErrors {
-    type Model = MapModel<Self>;
-}
-impl DependencyErrors {
-    pub async fn init<Db: DbHandle>(
-        ctx: &RpcContext,
-        db: &mut Db,
-        manifest: &Manifest,
-        current_dependencies: &BTreeMap<PackageId, CurrentDependencyInfo>,
-    ) -> Result<DependencyErrors, Error> {
-        let mut res = BTreeMap::new();
-        for (dep_id, info) in current_dependencies.keys().filter_map(|dep_id| {
-            manifest
-                .dependencies
-                .0
-                .get(dep_id)
-                .map(|info| (dep_id, info))
-        }) {
-            if let Err(e) = info
-                .satisfied(
-                    ctx,
-                    db,
-                    dep_id,
-                    None,
-                    &manifest.id,
-                    &manifest.version,
-                    &manifest.volumes,
-                )
-                .await?
-            {
-                res.insert(dep_id.clone(), e);
-            }
-        }
-        Ok(DependencyErrors(res))
-    }
-}
-
-pub fn handle_broken_dependents<'a, Db: DbHandle>(
-    db: &'a mut Db,
-    id: &'a PackageId,
-    dependency: &'a PackageId,
-    model: InstalledPackageDataEntryModel,
-    error: DependencyError,
-    breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
-) -> BoxFuture<'a, Result<(), Error>> {
-    async move {
-        let mut status = model.clone().status().get_mut(db).await?;
-
-        let old = status.dependency_errors.0.remove(id);
-        let newly_broken = old.is_none();
-        status.dependency_errors.0.insert(
-            id.clone(),
-            if let Some(old) = old {
-                old.merge_with(error.clone())
-            } else {
-                error.clone()
-            },
-        );
-        if newly_broken {
-            breakages.insert(
-                id.clone(),
-                TaggedDependencyError {
-                    dependency: dependency.clone(),
-                    error: error.clone(),
-                },
-            );
-            if status.main.running() {
-                if model
-                    .clone()
-                    .manifest()
-                    .dependencies()
-                    .idx_model(dependency)
-                    .get(db, true)
-                    .await?
-                    .into_owned()
-                    .ok_or_else(|| {
-                        Error::new(
-                            anyhow!("{} not in listed dependencies", dependency),
-                            crate::ErrorKind::Database,
-                        )
-                    })?
-                    .critical
-                {
-                    status.main.stop();
-                    let dependents = model.current_dependents().get(db, true).await?;
-                    for (dependent, _) in &*dependents {
-                        let dependent_model = crate::db::DatabaseModel::new()
-                            .package_data()
-                            .idx_model(dependent)
-                            .and_then(|pkg| pkg.installed())
-                            .check(db)
-                            .await?
-                            .ok_or_else(|| {
-                                Error::new(
-                                    anyhow!("{} is not installed", dependent),
-                                    crate::ErrorKind::NotFound,
-                                )
-                            })?;
-                        handle_broken_dependents(
-                            db,
-                            dependent,
-                            id,
-                            dependent_model,
-                            DependencyError::NotRunning,
-                            breakages,
-                        )
-                        .await?;
-                    }
-                }
-            }
-        }
-
-        status.save(db).await?;
-
-        Ok(())
-    }
-    .boxed()
 }

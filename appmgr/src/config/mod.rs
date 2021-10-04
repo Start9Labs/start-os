@@ -19,11 +19,11 @@ use crate::db::model::{
 };
 use crate::db::util::WithRevision;
 use crate::dependencies::{
-    update_current_dependents, BreakageRes, DependencyError, TaggedDependencyError,
+    break_transitive, update_current_dependents, BreakageRes, DependencyError, DependencyErrors,
+    TaggedDependencyError,
 };
 use crate::install::cleanup::update_dependents;
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
-use crate::status::{handle_broken_dependents, DependencyErrors};
 use crate::util::{
     display_none, display_serializable, parse_duration, parse_stdin_deserializable, IoFormat,
 };
@@ -471,15 +471,7 @@ pub fn configure<'a, Db: DbHandle>(
                     .await?
                 {
                     let dep_err = DependencyError::ConfigUnsatisfied { error };
-                    handle_broken_dependents(
-                        db,
-                        dependent,
-                        id,
-                        dependent_model,
-                        dep_err,
-                        breakages,
-                    )
-                    .await?;
+                    break_transitive(db, dependent, id, dep_err, breakages).await?;
                 }
 
                 // handle backreferences
@@ -492,17 +484,10 @@ pub fn configure<'a, Db: DbHandle>(
                             .await
                             {
                                 if e.kind == crate::ErrorKind::ConfigRulesViolation {
-                                    let dependent_model = crate::db::DatabaseModel::new()
-                                        .package_data()
-                                        .idx_model(dependent)
-                                        .and_then(|pkg| pkg.installed())
-                                        .expect(db)
-                                        .await?;
-                                    handle_broken_dependents(
+                                    break_transitive(
                                         db,
                                         dependent,
                                         id,
-                                        dependent_model,
                                         DependencyError::ConfigUnsatisfied {
                                             error: format!("{}", e),
                                         },

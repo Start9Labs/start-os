@@ -24,12 +24,15 @@ use crate::db::model::{
     StaticFiles,
 };
 use crate::db::util::WithRevision;
-use crate::dependencies::{update_current_dependents, BreakageRes, DependencyError};
+use crate::dependencies::{
+    break_all_dependents_transitive, update_current_dependents, BreakageRes, DependencyError,
+    DependencyErrors,
+};
 use crate::install::cleanup::{cleanup, update_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
-use crate::status::{handle_broken_dependents, DependencyErrors, MainStatus, Status};
+use crate::status::{MainStatus, Status};
 use crate::util::io::copy_and_shutdown;
 use crate::util::{display_none, display_serializable, AsyncFileExt, Version};
 use crate::volume::asset_dir;
@@ -134,38 +137,10 @@ pub async fn uninstall_dry(
     #[parent_data] id: PackageId,
 ) -> Result<BreakageRes, Error> {
     let mut db = ctx.db.handle();
-    let deps = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&id)
-        .expect(&mut db)
-        .await?
-        .installed()
-        .expect(&mut db)
-        .await?
-        .current_dependents()
-        .get(&mut db, true)
-        .await?;
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
-    for dep_id in deps.keys() {
-        let model = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(&dep_id)
-            .expect(&mut tx)
-            .await?
-            .installed()
-            .expect(&mut tx)
-            .await?;
-        handle_broken_dependents(
-            &mut tx,
-            dep_id,
-            &id,
-            model,
-            DependencyError::NotInstalled,
-            &mut breakages,
-        )
+    break_all_dependents_transitive(&mut tx, &id, DependencyError::NotInstalled, &mut breakages)
         .await?;
-    }
 
     Ok(BreakageRes {
         breakages,
