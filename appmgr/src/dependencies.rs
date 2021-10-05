@@ -303,7 +303,7 @@ impl std::fmt::Display for DependencyError {
                     } else {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{} @ {}", check, res)?;
+                    write!(f, "{}: {}", check, res)?;
                 }
                 Ok(())
             }
