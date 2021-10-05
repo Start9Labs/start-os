@@ -52,7 +52,7 @@ impl HealthChecks {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<BTreeMap<HealthCheckId, HealthCheckResultVariant>, Error> {
+    ) -> Result<BTreeMap<HealthCheckId, HealthCheckResult>, Error> {
         let res = futures::future::try_join_all(self.0.iter().map(|(id, check)| async move {
             Ok::<_, Error>((
                 id.clone(),
@@ -81,7 +81,7 @@ impl HealthCheck {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<HealthCheckResultVariant, Error> {
+    ) -> Result<HealthCheckResult, Error> {
         let res = self
             .implementation
             .execute(
@@ -95,34 +95,33 @@ impl HealthCheck {
             )
             .await?;
         Ok(match res {
-                Ok(NoOutput) => HealthCheckResultVariant::Success,
-                Err((59, _)) => HealthCheckResultVariant::Disabled,
-                Err((60, _)) => HealthCheckResultVariant::Starting,
-                Err((61, message)) => HealthCheckResultVariant::Loading { message },
-                Err((_, error)) => HealthCheckResultVariant::Failure { error },
-            },
-        )
+            Ok(NoOutput) => HealthCheckResult::Success,
+            Err((59, _)) => HealthCheckResult::Disabled,
+            Err((60, _)) => HealthCheckResult::Starting,
+            Err((61, message)) => HealthCheckResult::Loading { message },
+            Err((_, error)) => HealthCheckResult::Failure { error },
+        })
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "result")]
-pub enum HealthCheckResultVariant {
+pub enum HealthCheckResult {
     Success,
     Disabled,
     Starting,
     Loading { message: String },
     Failure { error: String },
 }
-impl std::fmt::Display for HealthCheckResultVariant {
+impl std::fmt::Display for HealthCheckResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HealthCheckResultVariant::Success => write!(f, "Succeeded"),
-            HealthCheckResultVariant::Disabled => write!(f, "Disabled"),
-            HealthCheckResultVariant::Starting => write!(f, "Starting"),
-            HealthCheckResultVariant::Loading { message } => write!(f, "Loading ({})", message),
-            HealthCheckResultVariant::Failure { error } => write!(f, "Failed ({})", error),
+            HealthCheckResult::Success => write!(f, "Succeeded"),
+            HealthCheckResult::Disabled => write!(f, "Disabled"),
+            HealthCheckResult::Starting => write!(f, "Starting"),
+            HealthCheckResult::Loading { message } => write!(f, "Loading ({})", message),
+            HealthCheckResult::Failure { error } => write!(f, "Failed ({})", error),
         }
     }
 }
