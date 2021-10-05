@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { FormGroup } from '@angular/forms'
 import { ModalController } from '@ionic/angular'
-import { convertToNumberRecursive, FormService } from 'src/app/services/form.service'
+import { convertValuesRecursive, FormService } from 'src/app/services/form.service'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 
 export interface ActionButton {
@@ -40,7 +40,7 @@ export class GenericFormPage {
   }
 
   async handleClick (handler: ActionButton['handler']): Promise<void> {
-    convertToNumberRecursive(this.spec, this.formGroup)
+    convertValuesRecursive(this.spec, this.formGroup)
 
     if (this.formGroup.invalid) {
       this.formGroup.markAllAsTouched()

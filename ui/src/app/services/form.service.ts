@@ -153,12 +153,13 @@ function isFullUnion (spec: ValueSpecUnion | ListValueSpecUnion): spec is ValueS
 
 export function numberInRange (stringRange: string): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    if (!control.value) return null
+    const value = control.value
+    if (!value) return null
     try {
-      Range.from(stringRange).checkIncludes(control.value)
+      Range.from(stringRange).checkIncludes(value)
       return null
     } catch (e) {
-      return { numberNotInRange: { value: getRangeMessage(stringRange) } }
+      return { numberNotInRange: { value: `Number must be ${e.message}` } }
     }
   }
 }
@@ -181,28 +182,13 @@ export function isInteger (): ValidatorFn {
 
 export function listInRange (stringRange: string): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    const range = Range.from(stringRange)
-    const min = range.integralMin()
-    const max = range.integralMax()
-    const length = control.value.length
-    if ((min && length < min) || (max && length > max)) {
-      return { listNotInRange: { value: getRangeMessage(stringRange, true) } }
-    } else {
+    try {
+      Range.from(stringRange).checkIncludes(control.value.length)
       return null
+    } catch (e) {
+      return { numberNotInRange: { value: `List must be ${e.message}` } }
     }
   }
-}
-
-function getRangeMessage (stringRange: string, isList = false): string {
-  const range = Range.from(stringRange)
-  const min = range.integralMin()
-  const max = range.integralMax()
-  const messageStart =  isList ? 'List length must be ' : 'Must be '
-  const minMessage = !!min ? `greater than ${min}` : ''
-  const and = !!min && !!max ? ' and ' : ''
-  const maxMessage = !!max ? `less than ${max}` : ''
-
-  return `${messageStart} ${minMessage}${and}${maxMessage}`
 }
 
 export function listUnique (spec: ValueSpecList): ValidatorFn {
@@ -391,48 +377,41 @@ function isUnion (spec: any): spec is ListValueSpecUnion {
   return !!spec.tag
 }
 
-const sampleUniqueBy: UniqueBy = {
-  all: [
-    'last name',
-    { any: [
-      'favorite color',
-      null,
-    ] },
-    { any: [
-      'favorite color',
-      'first name',
-      null,
-    ] },
-  ],
-}
-
-export function convertToNumberRecursive (configSpec: ConfigSpec, group: FormGroup) {
+export function convertValuesRecursive (configSpec: ConfigSpec, group: FormGroup) {
   Object.entries(configSpec).forEach(([key, valueSpec]) => {
     if (valueSpec.type === 'number') {
       const control = group.get(key)
-      control.setValue(Number(control.value))
+      control.setValue(control.value ? Number(control.value) : null)
+    } else if (valueSpec.type === 'string') {
+      const control = group.get(key)
+      if (!control.value) control.setValue(null)
     } else if (valueSpec.type === 'object') {
-      convertToNumberRecursive(valueSpec.spec, group.get(key) as FormGroup)
+      convertValuesRecursive(valueSpec.spec, group.get(key) as FormGroup)
     } else if (valueSpec.type === 'union') {
       const control = group.get(key) as FormGroup
       const spec = valueSpec.variants[control.controls[valueSpec.tag.id].value]
-      convertToNumberRecursive(spec, control)
+      convertValuesRecursive(spec, control)
     } else if (valueSpec.type === 'list') {
       const formArr = group.get(key) as FormArray
       if (valueSpec.subtype === 'number') {
         formArr.controls.forEach(control => {
-          control.setValue(Number(control.value))
+          control.setValue(control.value ? Number(control.value) : null)
+        })
+      } else if (valueSpec.subtype === 'string') {
+        formArr.controls.forEach(control => {
+          if (!control.value) control.setValue(null)
+          control.setValue(control.value ? Number(control.value) : null)
         })
       } else if (valueSpec.subtype === 'object') {
         formArr.controls.forEach((formGroup: FormGroup) => {
           const objectSpec = valueSpec.spec as ListValueSpecObject
-          convertToNumberRecursive(objectSpec.spec, formGroup)
+          convertValuesRecursive(objectSpec.spec, formGroup)
         })
       } else if (valueSpec.subtype === 'union') {
         formArr.controls.forEach((formGroup: FormGroup) => {
           const unionSpec = valueSpec.spec as ListValueSpecUnion
           const spec = unionSpec.variants[formGroup.controls[unionSpec.tag.id].value]
-          convertToNumberRecursive(spec, formGroup)
+          convertValuesRecursive(spec, formGroup)
         })
       }
     }

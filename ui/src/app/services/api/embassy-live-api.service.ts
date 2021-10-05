@@ -260,12 +260,12 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'package.stop', params })
   }
 
-  async dryRemovePackage (params: RR.DryRemovePackageReq): Promise <RR.DryRemovePackageRes> {
-    return this.http.rpcRequest({ method: 'package.remove.dry', params })
+  async dryUninstallPackage (params: RR.DryUninstallPackageReq): Promise <RR.DryUninstallPackageRes> {
+    return this.http.rpcRequest({ method: 'package.uninstall.dry', params })
   }
 
-  async removePackageRaw (params: RR.RemovePackageReq): Promise <RR.RemovePackageRes> {
-    return this.http.rpcRequest({ method: 'package.remove', params })
+  async uninstallPackageRaw (params: RR.UninstallPackageReq): Promise <RR.UninstallPackageRes> {
+    return this.http.rpcRequest({ method: 'package.uninstall', params })
   }
 
   async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise <RR.DryConfigureDependencyRes> {

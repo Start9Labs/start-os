@@ -6,7 +6,6 @@ export class Range {
   minInclusive: boolean
   maxInclusive: boolean
 
-
   static from (s: string): Range {
     const r = new Range()
     r.minInclusive = s.startsWith('[')
@@ -18,11 +17,23 @@ export class Range {
   }
 
   checkIncludes (n: number) {
-    if (this.hasMin() !== undefined && ((!this.minInclusive && this.min == n || (this.min > n)))) {
-      throw new Error(`Value must be ${this.minMessage()}.`)
+    if (
+      this.hasMin() !== undefined &&
+      (
+        (this.min > n) ||
+        (!this.minInclusive && this.min == n)
+      )
+    ) {
+      throw new Error(this.minMessage())
     }
-    if (this.hasMax() && ((!this.maxInclusive && this.max == n || (this.max < n)))) {
-      throw new Error(`Value must be ${this.maxMessage()}.`)
+    if (
+      this.hasMax() &&
+      (
+        (this.max < n) ||
+        (!this.maxInclusive && this.max == n)
+      )
+    ) {
+      throw new Error(this.maxMessage())
     }
   }
 

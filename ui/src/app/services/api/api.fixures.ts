@@ -979,7 +979,7 @@ export module Mock {
         'warning': 'Chain will have to resync!',
         'default': true,
       },
-      'objectList': {
+      'object-list': {
         'name': 'Object List',
         'type': 'list',
         'subtype': 'object',
@@ -987,24 +987,24 @@ export module Mock {
         'range': '[0,4]',
         'default': [
           {
-            'firstName': 'Admin',
-            'lastName': 'User',
+            'first-name': 'Admin',
+            'last-name': 'User',
             'age': 40,
           },
           {
-            'firstName': 'Admin2',
-            'lastName': 'User',
+            'first-name': 'Admin2',
+            'last-name': 'User',
             'age': 40,
           },
         ],
         // the outer spec here, at the list level, says that what's inside (the inner spec) pertains to its inner elements.
         // it just so happens that ValueSpecObject's have the field { spec: ConfigSpec }
-        // see 'unionList' below for a different example.
+        // see 'union-list' below for a different example.
         'spec': {
-          'unique-by': 'lastName',
-          'display-as': `I'm {{lastName}}, {{firstName}} {{lastName}}`,
+          'unique-by': 'last-name',
+          'display-as': `I'm {{last-name}}, {{first-name}} {{last-name}}`,
           'spec': {
-            'firstName': {
+            'first-name': {
               'name': 'First Name',
               'type': 'string',
               'description': 'User first name',
@@ -1013,7 +1013,7 @@ export module Mock {
               'masked': false,
               'copyable': false,
             },
-            'lastName': {
+            'last-name': {
               'name': 'Last Name',
               'type': 'string',
               'description': 'User first name',
@@ -1040,7 +1040,7 @@ export module Mock {
           },
         },
       },
-      'unionList': {
+      'union-list': {
         'name': 'Union List',
         'type': 'list',
         'subtype': 'union',
@@ -1105,7 +1105,7 @@ export module Mock {
           'unique-by': 'preference',
         },
       },
-      'randomEnum': {
+      'random-enum': {
         'name': 'Random Enum',
         'type': 'enum',
         'value-names': {
@@ -1124,18 +1124,18 @@ export module Mock {
           'option3',
         ],
       },
-      'favoriteNumber': {
+      'favorite-number': {
         'name': 'Favorite Number',
         'type': 'number',
         'integral': false,
         'description': 'Your favorite number of all time',
         'warning': 'Once you set this number, it can never be changed without severe consequences.',
-        'nullable': false,
+        'nullable': true,
         'default': 7,
         'range': '(-100,100]',
         'units': 'BTC',
       },
-      'unluckyNumbers': {
+      'unlucky-numbers': {
         'name': 'Unlucky Numbers',
         'type': 'list',
         'subtype': 'number',
@@ -1276,7 +1276,7 @@ export module Mock {
           },
         },
       },
-      'bitcoinNode': {
+      'bitcoin-node': {
         'name': 'Bitcoin Node Settings',
         'type': 'union',
         'unique-by': null,
@@ -1324,9 +1324,9 @@ export module Mock {
         'description': 'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
         'nullable': false,
         'default': 8333,
-        'range': '[0, 9999]',
+        'range': '(0, 9998]',
       },
-      'favoriteSlogan': {
+      'favorite-slogan': {
         'name': 'Favorite Slogan',
         'type': 'string',
         'description': 'You most favorite slogan in the whole world, used for paying you.',
@@ -1367,22 +1367,22 @@ export module Mock {
     // actual config
     config: {
       testnet: false,
-      objectList: [
+      'object-list': [
         {
-          'firstName': 'Admin',
-          'lastName': 'User',
+          'first-name': 'Admin',
+          'last-name': 'User',
           'age': 40,
         },
         {
-          'firstName': 'Admin2',
-          'lastName': 'User',
+          'first-name': 'Admin2',
+          'last-name': 'User',
           'age': 40,
         },
       ],
-      unionList: undefined,
-      randomEnum: 'option1',
-      favoriteNumber: 8,
-      secondaryNumbers: undefined,
+      'union-list': undefined,
+      'random-enum': 'option1',
+      'favorite-number': null,
+      'secondary-numbers': undefined,
       rpcsettings: {
         laws: {
           law1: 'The first law',
@@ -1395,7 +1395,7 @@ export module Mock {
       advanced: {
         notifications: ['email'],
       },
-      bitcoinNode: undefined,
+      'bitcoin-node': undefined,
       port: 5959,
       rpcallowip: undefined,
       rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
@@ -1403,12 +1403,12 @@ export module Mock {
   }
 
   export const mockCupsDependentConfig = {
-    randomEnum: 'option1',
+    'random-enum': 'option1',
     testnet: false,
-    favoriteNumber: 8,
-    secondaryNumbers: [13, 58, 20],
-    objectList: [],
-    unionList: [],
+    'favorite-number': 8,
+    'secondary-numbers': [13, 58, 20],
+    'object-list': [],
+    'union-list': [],
     rpcsettings: {
       laws: null,
       rpcpass: null,
@@ -1418,7 +1418,7 @@ export module Mock {
     advanced: {
       notifications: [],
     },
-    bitcoinNode: { type: 'internal' },
+    'bitcoin-Node': { type: 'internal' },
     port: 5959,
     rpcallowip: [],
     rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],

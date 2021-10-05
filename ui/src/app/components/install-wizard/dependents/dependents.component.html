@@ -20,10 +20,8 @@
       {{ longMessage }}
     </div>
     <div style="margin: 25px 0px;">
-      <div style="border-width: 0px 0px 1px 0px; font-size: unset; text-align: left; font-weight: bold; margin-left: 13px; border-style: solid; border-color: var(--ion-color-light-tint);" 
-        *ngIf="hasDependentViolation"
-      >
-        <ion-text color="warning">Will Stop</ion-text>
+      <div *ngIf="hasDependentViolation" style="border-width: 0px 0px 1px 0px; font-size: unset; text-align: left; font-weight: bold; margin-left: 13px; border-style: solid; border-color: var(--ion-color-light-tint);">
+        <ion-text color="warning">Affected Services</ion-text>
       </div>
       <ion-item
         style="--ion-item-background: margin-top: 5px"
