@@ -1,11 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use bollard::image::ListImagesOptions;
 use patch_db::{DbHandle, PatchDbHandle};
 
 use super::PKG_DOCKER_DIR;
 use crate::context::RpcContext;
-use crate::db::model::{InstalledPackageDataEntry, PackageDataEntry};
+use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry};
+use crate::dependencies::update_current_dependents;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::Error;
@@ -166,6 +167,26 @@ pub async fn cleanup_failed<Db: DbHandle>(
     Ok(())
 }
 
+pub async fn remove_current_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a PackageId>>(
+    db: &mut Db,
+    id: &PackageId,
+    current_dependencies: I,
+) -> Result<(), Error> {
+    for dep in current_dependencies {
+        if let Some(current_dependents) = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(dep)
+            .and_then(|m| m.installed())
+            .map::<_, BTreeMap<PackageId, CurrentDependencyInfo>>(|m| m.current_dependents())
+            .check(db)
+            .await?
+        {
+            current_dependents.remove(db, id).await?
+        }
+    }
+    Ok(())
+}
+
 pub async fn uninstall(
     ctx: &RpcContext,
     db: &mut PatchDbHandle,
@@ -177,6 +198,12 @@ pub async fn uninstall(
         .package_data()
         .remove(&mut tx, &entry.manifest.id)
         .await?;
+    remove_current_dependents(
+        &mut tx,
+        &entry.manifest.id,
+        entry.current_dependencies.keys(),
+    )
+    .await?;
     update_dependents(
         ctx,
         &mut tx,

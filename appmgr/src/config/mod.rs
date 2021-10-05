@@ -22,7 +22,7 @@ use crate::dependencies::{
     break_transitive, update_current_dependents, BreakageRes, DependencyError, DependencyErrors,
     TaggedDependencyError,
 };
-use crate::install::cleanup::update_dependents;
+use crate::install::cleanup::{remove_current_dependents, update_dependents};
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::util::{
     display_none, display_serializable, parse_duration, parse_stdin_deserializable, IoFormat,
@@ -414,15 +414,16 @@ pub fn configure<'a, Db: DbHandle>(
                     }
                 })
                 .collect();
-            let mut deps = pkg_model.clone().current_dependencies().get_mut(db).await?;
-            *deps = current_dependencies.clone();
-            deps.save(db).await?;
             res.signal
         } else {
             None
         };
 
         // update dependencies
+        let mut deps = pkg_model.clone().current_dependencies().get_mut(db).await?;
+        remove_current_dependents(db, id, deps.keys()).await?;
+        *deps = current_dependencies.clone();
+        deps.save(db).await?;
         update_current_dependents(db, id, &current_dependencies).await?;
         let mut errs = pkg_model
             .clone()
