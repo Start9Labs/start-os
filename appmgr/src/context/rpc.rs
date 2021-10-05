@@ -27,6 +27,7 @@ use crate::hostname::{get_hostname, get_id};
 use crate::manager::ManagerMap;
 use crate::net::tor::os_key;
 use crate::net::NetController;
+use crate::notifications::NotificationManager;
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;
 use crate::util::io::from_toml_async_reader;
@@ -126,6 +127,7 @@ pub struct RpcContextSeed {
     pub logger: EmbassyLogger,
     pub log_epoch: Arc<AtomicU64>,
     pub tor_socks: SocketAddr,
+    pub notification_manager: NotificationManager,
 }
 
 #[derive(Clone)]
@@ -165,6 +167,7 @@ impl RpcContext {
         .await?;
         let managers = ManagerMap::default();
         let metrics_cache = RwLock::new(None);
+        let notification_manager = NotificationManager::new(secret_store.clone(), db.clone(), 3600);
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
@@ -186,6 +189,7 @@ impl RpcContext {
                 Ipv4Addr::new(127, 0, 0, 1),
                 9050,
             ))),
+            notification_manager,
         });
         let metrics_seed = seed.clone();
         tokio::spawn(async move {
