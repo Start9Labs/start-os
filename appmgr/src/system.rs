@@ -1,6 +1,7 @@
 use std::fmt;
 
 use rpc_toolkit::command;
+use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
@@ -28,6 +29,12 @@ pub async fn logs(
     .await?)
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct MetricLeaf<T> {
+    value: T,
+    unit: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Celsius(f64);
 impl fmt::Display for Celsius {
@@ -40,7 +47,11 @@ impl Serialize for Celsius {
     where
         S: Serializer,
     {
-        todo!()
+        MetricLeaf {
+            value: format!("{:.1}", self.0),
+            unit: Some(String::from("°C")),
+        }
+        .serialize(serializer)
     }
 }
 impl<'de> Deserialize<'de> for Celsius {
@@ -48,7 +59,8 @@ impl<'de> Deserialize<'de> for Celsius {
     where
         D: Deserializer<'de>,
     {
-        todo!()
+        let s = MetricLeaf::<String>::deserialize(deserializer)?;
+        Ok(Celsius(s.value.parse().map_err(serde::de::Error::custom)?))
     }
 }
 #[derive(Clone, Debug)]
@@ -58,7 +70,11 @@ impl Serialize for Percentage {
     where
         S: Serializer,
     {
-        todo!()
+        MetricLeaf {
+            value: format!("{:.1}", self.0),
+            unit: Some(String::from("%")),
+        }
+        .serialize(serializer)
     }
 }
 impl<'de> Deserialize<'de> for Percentage {
@@ -66,7 +82,10 @@ impl<'de> Deserialize<'de> for Percentage {
     where
         D: Deserializer<'de>,
     {
-        todo!()
+        let s = MetricLeaf::<String>::deserialize(deserializer)?;
+        Ok(Percentage(
+            s.value.parse().map_err(serde::de::Error::custom)?,
+        ))
     }
 }
 
@@ -77,7 +96,11 @@ impl Serialize for MebiBytes {
     where
         S: Serializer,
     {
-        todo!()
+        MetricLeaf {
+            value: format!("{:.2}", self.0),
+            unit: Some(String::from("MiB")),
+        }
+        .serialize(serializer)
     }
 }
 impl<'de> Deserialize<'de> for MebiBytes {
@@ -85,7 +108,10 @@ impl<'de> Deserialize<'de> for MebiBytes {
     where
         D: Deserializer<'de>,
     {
-        todo!()
+        let s = MetricLeaf::<String>::deserialize(deserializer)?;
+        Ok(MebiBytes(
+            s.value.parse().map_err(serde::de::Error::custom)?,
+        ))
     }
 }
 
@@ -96,7 +122,11 @@ impl Serialize for GigaBytes {
     where
         S: Serializer,
     {
-        todo!()
+        MetricLeaf {
+            value: format!("{:.2}", self.0),
+            unit: Some(String::from("GB")),
+        }
+        .serialize(serializer)
     }
 }
 impl<'de> Deserialize<'de> for GigaBytes {
@@ -104,7 +134,10 @@ impl<'de> Deserialize<'de> for GigaBytes {
     where
         D: Deserializer<'de>,
     {
-        todo!()
+        let s = MetricLeaf::<String>::deserialize(deserializer)?;
+        Ok(GigaBytes(
+            s.value.parse().map_err(serde::de::Error::custom)?,
+        ))
     }
 }
 
