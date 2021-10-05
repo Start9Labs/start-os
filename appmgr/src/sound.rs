@@ -378,15 +378,15 @@ pub const MARIO_COIN: Song<[(Option<Note>, TimeSlice); 2]> = song!(400, [
 ]);
 
 pub const BEETHOVEN: Song<[(Option<Note>, TimeSlice); 9]> = song!(216, [
-    note(G, 5, Eighth);
-    note(G, 5, Eighth);
-    note(G, 5, Eighth);
-    note(Eb, 5, Half);
+    note(G, 4, Eighth);
+    note(G, 4, Eighth);
+    note(G, 4, Eighth);
+    note(Eb, 4, Half);
     rest(Half);
-    note(F, 5, Eighth);
-    note(F, 5, Eighth);
-    note(F, 5, Eighth);
-    note(D, 5, Half);
+    note(F, 4, Eighth);
+    note(F, 4, Eighth);
+    note(F, 4, Eighth);
+    note(D, 4, Half);
 ]);
 
 lazy_static::lazy_static! {
