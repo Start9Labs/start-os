@@ -365,6 +365,11 @@ impl From<Version> for emver::Version {
         v.version
     }
 }
+impl Default for Version {
+    fn default() -> Self {
+        Self::from(emver::Version::default())
+    }
+}
 impl Deref for Version {
     type Target = emver::Version;
     fn deref(&self) -> &Self::Target {

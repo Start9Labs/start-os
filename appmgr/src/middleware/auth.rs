@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use basic_cookies::Cookie;
 use digest::Digest;
 use futures::future::BoxFuture;
-use futures::FutureExt;
+use futures::{FutureExt, TryFutureExt};
 use http::StatusCode;
 use rpc_toolkit::command_helpers::prelude::RequestParts;
 use rpc_toolkit::hyper::header::COOKIE;
@@ -44,8 +44,7 @@ pub fn hash_token(token: &str) -> String {
     .to_lowercase()
 }
 
-pub async fn is_authed(ctx: &RpcContext, req: &RequestParts) -> Result<(), Error> {
-    let id = get_id(req)?;
+pub async fn is_authed(ctx: &RpcContext, id: &str) -> Result<(), Error> {
     let session = sqlx::query!("UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = ? AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP", id)
         .execute(&mut ctx.secret_store.acquire().await?)
         .await?;
@@ -73,7 +72,10 @@ pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                             .get(rpc_req.method.as_str(), "authenticated")
                             .unwrap_or(true)
                         {
-                            if let Err(e) = is_authed(&ctx, req).await {
+                            if let Err(e) = async { get_id(req) }
+                                .and_then(|id| async move { is_authed(&ctx, &id).await })
+                                .await
+                            {
                                 let (res_parts, _) = Response::new(()).into_parts();
                                 return Ok(Err(to_response(
                                     &req.headers,
