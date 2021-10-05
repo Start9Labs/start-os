@@ -1,10 +1,12 @@
 pub mod model;
 pub mod util;
 
+use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::anyhow;
 use futures::{FutureExt, SinkExt, StreamExt};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{Dump, Revision};
@@ -21,6 +23,7 @@ use tokio_tungstenite::WebSocketStream;
 pub use self::model::DatabaseModel;
 use self::util::WithRevision;
 use crate::context::RpcContext;
+use crate::middleware::auth::hash_token;
 use crate::util::{display_serializable, GeneralGuard, IoFormat};
 use crate::{Error, ResultExt};
 
@@ -39,7 +42,7 @@ async fn ws_handler<
     // add 1 to the session counter and issue an RAII guard to subtract 1 on drop
     ctx.websocket_count
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    let decrementer = GeneralGuard::new(|| {
+    let _decrementer = GeneralGuard::new(|| {
         let new_count = ctx
             .websocket_count
             .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
@@ -51,13 +54,22 @@ async fn ws_handler<
     });
 
     loop {
-        if let Some(Message::Text(_)) = stream
+        if let Some(Message::Text(cookie)) = stream
             .next()
             .await
             .transpose()
             .with_kind(crate::ErrorKind::Network)?
         {
-            // TODO: check auth
+            let cookie_str = serde_json::from_str::<Cow<str>>(&cookie)
+                .with_kind(crate::ErrorKind::Deserialization)?;
+            let id = basic_cookies::Cookie::parse(&cookie_str)
+                .with_kind(crate::ErrorKind::Authorization)?
+                .into_iter()
+                .find(|c| c.get_name() == "session")
+                .ok_or_else(|| {
+                    Error::new(anyhow!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
+                })?;
+            crate::middleware::auth::is_authed(&ctx, &hash_token(id.get_value())).await?;
             break;
         }
     }

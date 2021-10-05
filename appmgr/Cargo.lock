@@ -829,9 +829,9 @@ dependencies = [
 
 [[package]]
 name = "emver"
-version = "0.1.2"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79b2c25504998d1069f80a8082e3c558acd7c103a2f2399306b12ed06fec5db8"
+checksum = "ed260c4d7efaec031b9c4f6c4d3cf136e3df2bbfe50925800236f5e847f28704"
 dependencies = [
  "either",
  "fp-core",

@@ -63,6 +63,9 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         })
         .await
         .with_kind(embassy::ErrorKind::Network)?;
+        let pool_name = ctx.zfs_pool_name.clone();
+        drop(ctx);
+        embassy::disk::main::export(&*pool_name).await?;
     }
 
     embassy::disk::main::load(

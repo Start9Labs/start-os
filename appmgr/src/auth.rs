@@ -117,7 +117,7 @@ pub async fn login(
     res.headers.insert(
         "set-cookie",
         HeaderValue::from_str(&format!(
-            "session={}; SameSite=Lax; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
+            "session={}; Path=/; SameSite=Lax; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
             token
         ))
         .with_kind(crate::ErrorKind::Unknown)?, // Should be impossible, but don't want to panic
