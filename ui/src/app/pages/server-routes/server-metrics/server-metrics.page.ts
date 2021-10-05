@@ -48,8 +48,10 @@ export class ServerMetricsPage {
   async getMetrics (): Promise<void> {
     try {
       const metrics = await this.embassyApi.getServerMetrics({ })
-      Object.entries(metrics).forEach(([key, val]) => {
-        this.metrics[key] = val
+      Object.entries(metrics).forEach(([groupKey, groupVal]) => {
+        Object.entries(groupVal).forEach(([key, val]) => {
+          this.metrics[groupKey][key] = val
+        })
       })
     } catch (e) {
       this.errToast.present(e)

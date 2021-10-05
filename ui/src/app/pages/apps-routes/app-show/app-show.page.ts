@@ -64,7 +64,6 @@ export class AppShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    // this.setServiceValues(this.patch.data['package-data'])
 
     this.subs = [
       // 1
