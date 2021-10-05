@@ -1,7 +1,7 @@
 use std::fmt;
 
 use rpc_toolkit::command;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 
@@ -28,54 +28,141 @@ pub async fn logs(
     .await?)
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Celsius(f64);
 impl fmt::Display for Celsius {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:.1}°C", self.0)
     }
 }
-#[derive(Deserialize, Serialize, Clone, Debug)]
+impl Serialize for Celsius {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        todo!()
+    }
+}
+impl<'de> Deserialize<'de> for Celsius {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
+    }
+}
+#[derive(Clone, Debug)]
 pub struct Percentage(f64);
-#[derive(Deserialize, Serialize, Clone, Debug)]
+impl Serialize for Percentage {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        todo!()
+    }
+}
+impl<'de> Deserialize<'de> for Percentage {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct MebiBytes(f64);
-#[derive(Deserialize, Serialize, Clone, Debug)]
+impl Serialize for MebiBytes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        todo!()
+    }
+}
+impl<'de> Deserialize<'de> for MebiBytes {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct GigaBytes(f64);
+impl Serialize for GigaBytes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        todo!()
+    }
+}
+impl<'de> Deserialize<'de> for GigaBytes {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
+    }
+}
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsGeneral {
+    #[serde(rename = "Temparature")]
     temperature: Celsius,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsMemory {
+    #[serde(rename = "Percentage Used")]
     percentage_used: Percentage,
+    #[serde(rename = "Total")]
     total: MebiBytes,
+    #[serde(rename = "Available")]
     available: MebiBytes,
+    #[serde(rename = "Used")]
     used: MebiBytes,
+    #[serde(rename = "Swap Total")]
     swap_total: MebiBytes,
+    #[serde(rename = "Swap Free")]
     swap_free: MebiBytes,
+    #[serde(rename = "Swap Used")]
     swap_used: MebiBytes,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsCpu {
+    #[serde(rename = "User Space")]
     user_space: Percentage,
+    #[serde(rename = "Kernel Space")]
     kernel_space: Percentage,
+    #[serde(rename = "I/O Wait")]
     wait: Percentage,
+    #[serde(rename = "Idle")]
     idle: Percentage,
+    #[serde(rename = "Usage")]
     usage: Percentage,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsDisk {
+    #[serde(rename = "Size")]
     size: GigaBytes,
+    #[serde(rename = "Used")]
     used: GigaBytes,
+    #[serde(rename = "Available")]
     available: GigaBytes,
+    #[serde(rename = "Percentage Used")]
     used_percentage: Percentage,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Metrics {
+    #[serde(rename = "General")]
     general: MetricsGeneral,
+    #[serde(rename = "Memory")]
     memory: MetricsMemory,
+    #[serde(rename = "CPU")]
     cpu: MetricsCpu,
+    #[serde(rename = "Disk")]
     disk: MetricsDisk,
 }
 
