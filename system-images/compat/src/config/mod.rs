@@ -4,7 +4,7 @@ use std::path::Path;
 
 use beau_collector::BeauCollector;
 use embassy::config::action::SetResult;
-use embassy::config::{Config, spec};
+use embassy::config::{spec, Config};
 use linear_map::LinearMap;
 
 pub mod rules;
@@ -28,7 +28,10 @@ pub fn validate_configuration(
     match rule_check {
         Ok(_) => {
             // create temp config file
-            serde_yaml::to_writer(std::fs::File::create(config_path.with_extension("tmp"))?, &config)?;
+            serde_yaml::to_writer(
+                std::fs::File::create(config_path.with_extension("tmp"))?,
+                &config,
+            )?;
             std::fs::rename(config_path.with_extension("tmp"), config_path)?;
             // return set result
             Ok(SetResult {
@@ -37,7 +40,7 @@ pub fn validate_configuration(
                 signal: Some(nix::sys::signal::SIGTERM),
             })
         }
-        Err(e) => Err(anyhow!("{}", e))
+        Err(e) => Err(anyhow!("{}", e)),
     }
 }
 
@@ -58,28 +61,28 @@ pub fn validate_dependency_configuration(
         .bcollect::<Vec<_>>();
     match rule_check {
         Ok(_) => Ok(()),
-        Err(e) => Err(anyhow!("{}", e))
+        Err(e) => Err(anyhow!("{}", e)),
     }
 }
 
 pub fn apply_dependency_configuration(
-    name: &str,
+    package_id: &str,
     config: Config,
-    parent_name: &str,
-    mut parent_config: Config,
+    dependency_id: &str,
+    mut dep_config: Config,
     rules_path: &Path,
 ) -> Result<Config, anyhow::Error> {
     let rules: Vec<ConfigRuleEntryWithSuggestions> =
         serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
-    cfgs.insert(parent_name, Cow::Owned(parent_config.clone()));
-    cfgs.insert(name, Cow::Owned(config.clone()));
+    cfgs.insert(dependency_id, Cow::Owned(dep_config.clone()));
+    cfgs.insert(package_id, Cow::Owned(config.clone()));
     let rule_check = rules
         .into_iter()
-        .map(|r| r.apply(parent_name, &mut parent_config, &mut cfgs))
+        .map(|r| r.apply(dependency_id, &mut dep_config, &mut cfgs))
         .bcollect::<Vec<_>>();
     match rule_check {
-        Ok(_) => Ok(parent_config),
+        Ok(_) => Ok(dep_config),
         Err(e) => Err(anyhow!("{}", e)),
     }
 }
