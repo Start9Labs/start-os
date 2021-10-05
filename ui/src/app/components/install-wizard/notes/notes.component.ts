@@ -1,13 +1,11 @@
-import { Component, Input, OnInit } from '@angular/core'
-import { BehaviorSubject, Subject } from 'rxjs'
-import { Loadable } from '../loadable'
+import { Component, Input } from '@angular/core'
 
 @Component({
   selector: 'notes',
   templateUrl: './notes.component.html',
   styleUrls: ['../install-wizard.component.scss'],
 })
-export class NotesComponent implements OnInit, Loadable {
+export class NotesComponent {
   @Input() params: {
     notes: { [version: string]: string }
     title: string
@@ -15,13 +13,7 @@ export class NotesComponent implements OnInit, Loadable {
     headline: string
   }
 
-  loading$ = new BehaviorSubject(false)
-  cancel$ = new Subject<void>()
-
   load () { }
-
-  constructor () { }
-  ngOnInit () { }
 
   asIsOrder () {
     return 0

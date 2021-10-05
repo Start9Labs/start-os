@@ -41,7 +41,6 @@ export class WizardBaker {
         slide: {
           selector: 'dependents',
           params: {
-            skipConfirmationDialogue: true,
             action,
             verb: 'updating',
             title,
@@ -143,7 +142,6 @@ export class WizardBaker {
       { slide: {
           selector: 'dependents',
           params: {
-            skipConfirmationDialogue: true,
             action,
             verb: 'downgrading',
             title,
