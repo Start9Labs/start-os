@@ -84,6 +84,7 @@ impl DependencyError {
         db: &'a mut Db,
         id: &'a PackageId,
         dependency: &'a PackageId,
+        mut dependency_config: Option<Config>,
         info: &'a DepInfo,
     ) -> BoxFuture<'a, Result<Option<Self>, Error>> {
         async move {
@@ -100,7 +101,7 @@ impl DependencyError {
                             expected: info.version.clone(),
                             received: Default::default(),
                         }
-                        .try_heal(ctx, db, id, dependency, info)
+                        .try_heal(ctx, db, id, dependency, dependency_config, info)
                         .await?
                     } else {
                         Some(DependencyError::NotInstalled)
@@ -120,7 +121,7 @@ impl DependencyError {
                         DependencyError::ConfigUnsatisfied {
                             error: String::new(),
                         }
-                        .try_heal(ctx, db, id, dependency, info)
+                        .try_heal(ctx, db, id, dependency, dependency_config, info)
                         .await?
                     } else {
                         Some(DependencyError::IncorrectVersion {
@@ -148,7 +149,9 @@ impl DependencyError {
                         .await?
                         .get(db, true)
                         .await?;
-                    let dependency_config = if let Some(cfg_info) = &dependency_manifest.config {
+                    let dependency_config = if let Some(cfg) = dependency_config.take() {
+                        cfg
+                    } else if let Some(cfg_info) = &dependency_manifest.config {
                         cfg_info
                             .get(
                                 ctx,
@@ -183,7 +186,7 @@ impl DependencyError {
                         }
                     }
                     DependencyError::NotRunning
-                        .try_heal(ctx, db, id, dependency, info)
+                        .try_heal(ctx, db, id, dependency, Some(dependency_config), info)
                         .await?
                 }
                 DependencyError::NotRunning => {
@@ -200,7 +203,7 @@ impl DependencyError {
                         DependencyError::HealthChecksFailed {
                             failures: BTreeMap::new(),
                         }
-                        .try_heal(ctx, db, id, dependency, info)
+                        .try_heal(ctx, db, id, dependency, dependency_config, info)
                         .await?
                     } else {
                         Some(DependencyError::NotRunning)
@@ -247,7 +250,7 @@ impl DependencyError {
                                 Some(DependencyError::HealthChecksFailed { failures })
                             } else {
                                 DependencyError::Transitive
-                                    .try_heal(ctx, db, id, dependency, info)
+                                    .try_heal(ctx, db, id, dependency, dependency_config, info)
                                     .await?
                             }
                         }
@@ -257,7 +260,7 @@ impl DependencyError {
                 DependencyError::Transitive => {
                     if crate::db::DatabaseModel::new()
                         .package_data()
-                        .idx_model(id)
+                        .idx_model(dependency)
                         .and_then(|m| m.installed())
                         .map::<_, DependencyErrors>(|m| m.status().dependency_errors())
                         .get(db, true)
@@ -371,91 +374,24 @@ impl DepInfo {
         dependency_id: &PackageId,
         dependency_config: Option<Config>, // fetch if none
         dependent_id: &PackageId,
-        dependent_version: &Version,
-        dependent_volumes: &Volumes,
     ) -> Result<Result<(), DependencyError>, Error> {
-        let (manifest, info) = if let Some(dep_model) = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(dependency_id)
-            .and_then(|pde| pde.installed())
-            .check(db)
-            .await?
-        {
-            (
-                dep_model.clone().manifest().get(db, true).await?,
-                dep_model.get(db, true).await?,
-            )
-        } else {
-            return Ok(Err(DependencyError::NotInstalled));
-        };
-        if !&manifest.version.satisfies(&self.version) {
-            return Ok(Err(DependencyError::IncorrectVersion {
-                expected: self.version.clone(),
-                received: manifest.version.clone(),
-            }));
-        }
-        let dependency_config = if let Some(cfg) = dependency_config {
-            cfg
-        } else if let Some(cfg_info) = &manifest.config {
-            cfg_info
-                .get(ctx, dependency_id, &manifest.version, &manifest.volumes)
-                .await?
-                .config
-                .unwrap_or_default()
-        } else {
-            Config::default()
-        };
-        if let Some(cfg_req) = &self.config {
-            if let Err(e) = cfg_req
-                .check(
+        Ok(
+            if let Some(err) = DependencyError::NotInstalled
+                .try_heal(
                     ctx,
+                    db,
                     dependent_id,
-                    dependent_version,
-                    dependent_volumes,
-                    &dependency_config,
+                    dependency_id,
+                    dependency_config,
+                    self,
                 )
-                .await
+                .await?
             {
-                if e.kind == crate::ErrorKind::ConfigRulesViolation {
-                    return Ok(Err(DependencyError::ConfigUnsatisfied {
-                        error: format!("{}", e),
-                    }));
-                } else {
-                    return Err(e);
-                }
-            }
-        }
-        match &info.status.main {
-            MainStatus::BackingUp {
-                started: Some(_),
-                health,
-            }
-            | MainStatus::Running { health, .. } => {
-                let mut failures = BTreeMap::new();
-                for (check, res) in health {
-                    if !matches!(res.result, HealthCheckResultVariant::Success)
-                        && info
-                            .current_dependents
-                            .get(dependent_id)
-                            .ok_or_else(|| {
-                                Error::new(
-                                    anyhow!("current dependency info not found"),
-                                    crate::ErrorKind::Database,
-                                )
-                            })?
-                            .health_checks
-                            .contains(check)
-                    {
-                        failures.insert(check.clone(), res.clone());
-                    }
-                }
-                if !failures.is_empty() {
-                    return Ok(Err(DependencyError::HealthChecksFailed { failures }));
-                }
-            }
-            _ => return Ok(Err(DependencyError::NotRunning)),
-        }
-        Ok(Ok(()))
+                Err(err)
+            } else {
+                Ok(())
+            },
+        )
     }
 }
 
@@ -564,18 +500,7 @@ impl DependencyErrors {
                 .get(dep_id)
                 .map(|info| (dep_id, info))
         }) {
-            if let Err(e) = info
-                .satisfied(
-                    ctx,
-                    db,
-                    dep_id,
-                    None,
-                    &manifest.id,
-                    &manifest.version,
-                    &manifest.volumes,
-                )
-                .await?
-            {
+            if let Err(e) = info.satisfied(ctx, db, dep_id, None, &manifest.id).await? {
                 res.insert(dep_id.clone(), e);
             }
         }
@@ -723,23 +648,14 @@ pub fn heal_transitive<'a, Db: DbHandle>(
 
         if let Some(old) = old {
             let info = model
-            .manifest()
-            .dependencies()
-            .idx_model(dependency)
-            .expect(db)
-            .await?
-            .get(db, true)
-            .await?;
-            if let Some(new) = old
-                .try_heal(
-                    ctx,
-                    db,
-                    id,
-                    dependency,
-                    &*info,
-                )
+                .manifest()
+                .dependencies()
+                .idx_model(dependency)
+                .expect(db)
                 .await?
-            {
+                .get(db, true)
+                .await?;
+            if let Some(new) = old.try_heal(ctx, db, id, dependency, None, &*info).await? {
                 status.dependency_errors.0.insert(dependency.clone(), new);
             } else {
                 heal_all_dependents_transitive(ctx, db, id).await?;

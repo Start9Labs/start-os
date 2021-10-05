@@ -431,7 +431,7 @@ pub fn configure<'a, Db: DbHandle>(
             .get_mut(db)
             .await?;
         *errs = DependencyErrors::init(ctx, db, &*manifest, &current_dependencies).await?;
-        errs.save(db).await;
+        errs.save(db).await?;
 
         // cache current config for dependents
         overrides.insert(id.clone(), config.clone());

@@ -7,9 +7,13 @@ use rpc_toolkit::command;
 
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;
+use crate::dependencies::{
+    break_all_dependents_transitive, heal_all_dependents_transitive, BreakageRes, DependencyError,
+    TaggedDependencyError,
+};
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
-use crate::util::display_none;
+use crate::util::{display_none, display_serializable};
 use crate::{Error, ResultExt};
 
 #[command(display(display_none))]
@@ -46,12 +50,17 @@ pub async fn start(
     };
     status
         .synchronize(
-            &*ctx.managers.get(&(id, version)).await.ok_or_else(|| {
-                Error::new(anyhow!("Manager not found"), crate::ErrorKind::Docker)
-            })?,
+            &*ctx
+                .managers
+                .get(&(id.clone(), version))
+                .await
+                .ok_or_else(|| {
+                    Error::new(anyhow!("Manager not found"), crate::ErrorKind::Docker)
+                })?,
         )
         .await?;
     status.save(&mut tx).await?;
+    heal_all_dependents_transitive(&ctx, &mut tx, &id).await?;
 
     Ok(WithRevision {
         revision: tx.commit(None).await?,
@@ -59,19 +68,16 @@ pub async fn start(
     })
 }
 
-#[command(display(display_none))]
-pub async fn stop(
-    #[context] ctx: RpcContext,
-    #[arg] id: PackageId,
-) -> Result<WithRevision<()>, Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-
+async fn stop_common<Db: DbHandle>(
+    db: &mut Db,
+    id: &PackageId,
+    breakages: &mut BTreeMap<PackageId, TaggedDependencyError>,
+) -> Result<(), Error> {
     let mut status = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
         .and_then(|pkg| pkg.installed())
-        .expect(&mut tx)
+        .expect(db)
         .await
         .with_ctx(|_| {
             (
@@ -81,11 +87,43 @@ pub async fn stop(
         })?
         .status()
         .main()
-        .get_mut(&mut tx)
+        .get_mut(db)
         .await?;
 
     *status = MainStatus::Stopping;
-    status.save(&mut tx).await?;
+    status.save(db).await?;
+    break_all_dependents_transitive(db, &id, DependencyError::NotRunning, breakages).await?;
+
+    Ok(())
+}
+
+#[command(subcommands(self(stop_impl(async)), stop_dry), display(display_none))]
+pub fn stop(#[arg] id: PackageId) -> Result<PackageId, Error> {
+    Ok(id)
+}
+
+#[command(rename = "dry", display(display_serializable))]
+pub async fn stop_dry(
+    #[context] ctx: RpcContext,
+    #[parent_data] id: PackageId,
+) -> Result<BreakageRes, Error> {
+    let mut db = ctx.db.handle();
+    let mut tx = db.begin().await?;
+
+    let mut breakages = BTreeMap::new();
+    stop_common(&mut tx, &id, &mut breakages).await?;
+
+    Ok(BreakageRes {
+        breakages,
+        patch: tx.abort().await?,
+    })
+}
+
+pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
+    let mut db = ctx.db.handle();
+    let mut tx = db.begin().await?;
+
+    stop_common(&mut tx, &id, &mut BTreeMap::new()).await?;
 
     Ok(WithRevision {
         revision: tx.commit(None).await?,

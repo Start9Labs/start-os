@@ -29,8 +29,7 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
             .get(db, true)
             .await?;
         if let Err(e) = if let Some(info) = man.dependencies.0.get(id) {
-            info.satisfied(ctx, db, id, None, dep, &man.version, &man.volumes)
-                .await?
+            info.satisfied(ctx, db, id, None, dep).await?
         } else {
             Ok(())
         } {
