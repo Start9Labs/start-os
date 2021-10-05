@@ -94,54 +94,34 @@ impl HealthCheck {
                 true,
             )
             .await?;
-        Ok(HealthCheckResult {
-            time: Utc::now(),
-            result: match res {
-                Ok(NoOutput) => HealthCheckResultVariant::Success,
-                Err((59, _)) => HealthCheckResultVariant::Disabled,
-                Err((60, _)) => HealthCheckResultVariant::Starting,
-                Err((61, message)) => HealthCheckResultVariant::Loading { message },
-                Err((_, error)) => HealthCheckResultVariant::Failure { error },
-            },
+        Ok(match res {
+            Ok(NoOutput) => HealthCheckResult::Success,
+            Err((59, _)) => HealthCheckResult::Disabled,
+            Err((60, _)) => HealthCheckResult::Starting,
+            Err((61, message)) => HealthCheckResult::Loading { message },
+            Err((_, error)) => HealthCheckResult::Failure { error },
         })
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct HealthCheckResult {
-    pub time: DateTime<Utc>,
-    #[serde(flatten)]
-    pub result: HealthCheckResultVariant,
-}
-impl HealthCheckResult {
-    pub fn not_available() -> Self {
-        HealthCheckResult {
-            time: Utc::now(),
-            result: HealthCheckResultVariant::Failure {
-                error: "Health Check Status Not Available".to_owned(),
-            },
-        }
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "result")]
-pub enum HealthCheckResultVariant {
+pub enum HealthCheckResult {
     Success,
     Disabled,
     Starting,
     Loading { message: String },
     Failure { error: String },
 }
-impl std::fmt::Display for HealthCheckResultVariant {
+impl std::fmt::Display for HealthCheckResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HealthCheckResultVariant::Success => write!(f, "Succeeded"),
-            HealthCheckResultVariant::Disabled => write!(f, "Disabled"),
-            HealthCheckResultVariant::Starting => write!(f, "Starting"),
-            HealthCheckResultVariant::Loading { message } => write!(f, "Loading ({})", message),
-            HealthCheckResultVariant::Failure { error } => write!(f, "Failed ({})", error),
+            HealthCheckResult::Success => write!(f, "Succeeded"),
+            HealthCheckResult::Disabled => write!(f, "Disabled"),
+            HealthCheckResult::Starting => write!(f, "Starting"),
+            HealthCheckResult::Loading { message } => write!(f, "Loading ({})", message),
+            HealthCheckResult::Failure { error } => write!(f, "Failed ({})", error),
         }
     }
 }
