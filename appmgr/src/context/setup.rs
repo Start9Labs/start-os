@@ -3,12 +3,14 @@ use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use patch_db::json_ptr::JsonPointer;
 use patch_db::PatchDb;
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::migrate::MigrateDatabase;
+use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Sqlite, SqlitePool};
 use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
@@ -101,7 +103,7 @@ impl SetupContext {
     pub async fn secret_store(&self) -> Result<SqlitePool, Error> {
         let secret_store = SqlitePool::connect_with(
             SqliteConnectOptions::new()
-                .filename(self.datadir().join("main").join("secrets.db"))
+                .filename(self.datadir.join("main").join("secrets.db"))
                 .create_if_missing(true)
                 .busy_timeout(Duration::from_secs(30)),
         )
