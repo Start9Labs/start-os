@@ -386,7 +386,7 @@ pub const BEETHOVEN: Song<[(Option<Note>, TimeSlice); 9]> = song!(216, [
     note(F, 5, Eighth);
     note(F, 5, Eighth);
     note(F, 5, Eighth);
-    note(D, 4, Half);
+    note(D, 5, Half);
 ]);
 
 lazy_static::lazy_static! {
