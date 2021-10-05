@@ -15,7 +15,7 @@ use crate::dependencies::{
     break_transitive, DependencyError, DependencyErrors, TaggedDependencyError,
 };
 use crate::manager::{Manager, Status as ManagerStatus};
-use crate::notifications::{notify, NotificationLevel, NotificationSubtype};
+use crate::notifications::{NotificationLevel, NotificationSubtype};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::HealthCheckResult;
 use crate::Error;
@@ -335,9 +335,7 @@ impl MainStatus {
                                 .map(|hc| hc.critical)
                                 .unwrap_or_default() =>
                         {
-                            notify(
-                                &ctx.secret_store,
-                                &ctx.db,
+                            ctx.notification_manager.notify(
                                 Some(manifest.id.clone()),
                                 NotificationLevel::Error,
                                 String::from("Critical Health Check Failed"),
