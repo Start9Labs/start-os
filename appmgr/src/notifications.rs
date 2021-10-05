@@ -1,9 +1,10 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::str::FromStr;
 
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
+use futures::lock::Mutex;
 use patch_db::{PatchDb, Revision};
 use rpc_toolkit::command;
 use sqlx::SqlitePool;
@@ -132,7 +133,7 @@ pub async fn delete_before(#[context] ctx: RpcContext, #[arg] before: u32) -> Re
     Ok(())
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum NotificationLevel {
     Success,
     Info,
@@ -231,26 +232,43 @@ impl NotificationSubtype {
     }
 }
 
-pub async fn notify(
-    sqlite: &SqlitePool,
-    patchdb: &PatchDb,
-    package_id: Option<PackageId>,
-    level: NotificationLevel,
-    title: String,
-    message: String,
-    subtype: NotificationSubtype,
-) -> Result<(), Error> {
-    let mut handle = patchdb.handle();
-    let mut count = crate::db::DatabaseModel::new()
-        .server_info()
-        .unread_notification_count()
-        .get_mut(&mut handle)
-        .await?;
-    let sql_package_id = package_id.map::<String, _>(|p| p.into());
-    let sql_code = subtype.code();
-    let sql_level = format!("{}", level);
-    let sql_data = format!("{}", subtype.to_json());
-    sqlx::query!(
+pub struct NotificationManager {
+    sqlite: SqlitePool,
+    patchdb: PatchDb,
+    cache: Mutex<HashMap<(Option<PackageId>, NotificationLevel, String), i64>>,
+    debounce_interval: u32,
+}
+impl NotificationManager {
+    pub fn new(sqlite: SqlitePool, patchdb: PatchDb, debounce_interval: u32) -> Self {
+        NotificationManager {
+            sqlite,
+            patchdb,
+            cache: Mutex::new(HashMap::new()),
+            debounce_interval,
+        }
+    }
+    pub async fn notify(
+        &self,
+        package_id: Option<PackageId>,
+        level: NotificationLevel,
+        title: String,
+        message: String,
+        subtype: NotificationSubtype,
+    ) -> Result<(), Error> {
+        if !self.should_notify(&package_id, &level, &title).await {
+            return Ok(());
+        }
+        let mut handle = self.patchdb.handle();
+        let mut count = crate::db::DatabaseModel::new()
+            .server_info()
+            .unread_notification_count()
+            .get_mut(&mut handle)
+            .await?;
+        let sql_package_id = package_id.map::<String, _>(|p| p.into());
+        let sql_code = subtype.code();
+        let sql_level = format!("{}", level);
+        let sql_data = format!("{}", subtype.to_json());
+        sqlx::query!(
         "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES (?, ?, ?, ?, ?, ?)",
         sql_package_id,
         sql_code,
@@ -258,10 +276,50 @@ pub async fn notify(
         title,
         message,
         sql_data
-    ).execute(sqlite).await?;
-    *count += 1;
-    count.save(&mut handle).await?;
-    Ok(())
+    ).execute(&self.sqlite).await?;
+        *count += 1;
+        count.save(&mut handle).await?;
+        Ok(())
+    }
+    async fn gc(&self) {
+        let mut guard = self.cache.lock().await;
+        let mut temp = HashMap::new();
+        for (k, v) in (*guard).drain() {
+            if v + self.debounce_interval as i64 > Utc::now().timestamp() {
+                temp.insert(k, v);
+            }
+        }
+        *guard = temp
+    }
+    async fn should_notify(
+        &self,
+        package_id: &Option<PackageId>,
+        level: &NotificationLevel,
+        title: &String,
+    ) -> bool {
+        if level == &NotificationLevel::Error {
+            return true;
+        }
+        self.gc();
+        let mut guard = self.cache.lock().await;
+        let k = (package_id.clone(), level.clone(), title.clone());
+        let v = (*guard).get(&k);
+        match v {
+            None => {
+                (*guard).insert(k, Utc::now().timestamp());
+                true
+            }
+            Some(t) => {
+                if t + self.debounce_interval as i64 > Utc::now().timestamp() {
+                    false
+                } else {
+                    // this path should be very rare due to gc above
+                    (*guard).remove(&k);
+                    true
+                }
+            }
+        }
+    }
 }
 
 #[test]
