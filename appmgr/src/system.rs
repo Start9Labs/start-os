@@ -600,13 +600,17 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
         .invoke(ErrorKind::ParseSysInfo);
     let (size_bytes, alloc_bytes, free_bytes) =
         futures::try_join!(size_task, alloc_task, free_task)?;
-    let size = String::from_utf8(size_bytes)?.parse::<f64>().map_err(|e| {
-        Error::new(
-            anyhow::anyhow!("Could not parse disk size: {}", e),
-            ErrorKind::ParseSysInfo,
-        )
-    })?;
+    let size = String::from_utf8(size_bytes)?
+        .trim()
+        .parse::<f64>()
+        .map_err(|e| {
+            Error::new(
+                anyhow::anyhow!("Could not parse disk size: {}", e),
+                ErrorKind::ParseSysInfo,
+            )
+        })?;
     let alloc = String::from_utf8(alloc_bytes)?
+        .trim()
         .parse::<f64>()
         .map_err(|e| {
             Error::new(
@@ -614,12 +618,15 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
                 ErrorKind::ParseSysInfo,
             )
         })?;
-    let free = String::from_utf8(free_bytes)?.parse::<f64>().map_err(|e| {
-        Error::new(
-            anyhow::anyhow!("Could not parse disk alloc: {}", e),
-            ErrorKind::ParseSysInfo,
-        )
-    })?;
+    let free = String::from_utf8(free_bytes)?
+        .trim()
+        .parse::<f64>()
+        .map_err(|e| {
+            Error::new(
+                anyhow::anyhow!("Could not parse disk alloc: {}", e),
+                ErrorKind::ParseSysInfo,
+            )
+        })?;
     Ok(MetricsDisk {
         size: GigaBytes(size / 1_000_000_000.0),
         used: GigaBytes(alloc / 1_000_000_000.0),
