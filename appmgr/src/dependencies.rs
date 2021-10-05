@@ -12,7 +12,7 @@ use crate::config::Config;
 use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::status::health_check::{HealthCheckId, HealthCheckResult, HealthCheckResultVariant};
+use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::{MainStatus, Status};
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -228,7 +228,7 @@ impl DependencyError {
                         | MainStatus::Running { health, .. } => {
                             let mut failures = BTreeMap::new();
                             for (check, res) in health {
-                                if !matches!(res.result, HealthCheckResultVariant::Success)
+                                if !matches!(res, HealthCheckResult::Success)
                                     && crate::db::DatabaseModel::new()
                                         .package_data()
                                         .idx_model(id)
@@ -303,7 +303,7 @@ impl std::fmt::Display for DependencyError {
                     } else {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{} @ {} {}", check, res.time, res.result)?;
+                    write!(f, "{}: {}", check, res)?;
                 }
                 Ok(())
             }

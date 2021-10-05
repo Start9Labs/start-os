@@ -8,7 +8,7 @@ use futures::{FutureExt, StreamExt};
 use patch_db::{DbHandle, HasModel, Map, MapModel, ModelData};
 use serde::{Deserialize, Serialize};
 
-use self::health_check::{HealthCheckId, HealthCheckResult};
+use self::health_check::HealthCheckId;
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
 use crate::dependencies::{
@@ -17,7 +17,7 @@ use crate::dependencies::{
 use crate::manager::{Manager, Status as ManagerStatus};
 use crate::notifications::{notify, NotificationLevel, NotificationSubtype};
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::status::health_check::HealthCheckResultVariant;
+use crate::status::health_check::HealthCheckResult;
 use crate::Error;
 
 pub mod health_check;
@@ -198,11 +198,8 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                         let res = health
                             .get(check)
                             .cloned()
-                            .unwrap_or_else(|| HealthCheckResult {
-                                result: HealthCheckResultVariant::Disabled,
-                                time: Utc::now(),
-                            });
-                        if !matches!(res.result, HealthCheckResultVariant::Success) {
+                            .unwrap_or_else(|| HealthCheckResult::Disabled);
+                        if !matches!(res, HealthCheckResult::Success) {
                             failures.insert(check.clone(), res);
                         }
                     }
@@ -329,8 +326,8 @@ impl MainStatus {
                     .await?;
                 let mut should_stop = false;
                 for (check, res) in health {
-                    match &res.result {
-                        health_check::HealthCheckResultVariant::Failure { error }
+                    match &res {
+                        health_check::HealthCheckResult::Failure { error }
                             if manifest
                                 .health_checks
                                 .0
