@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicUsize};
 use std::sync::Arc;
+use std::time::Duration;
 
 use bollard::Docker;
 use log::LevelFilter;
@@ -15,7 +16,8 @@ use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::migrate::MigrateDatabase;
-use sqlx::{Sqlite, SqlitePool};
+use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::{ConnectOptions, Sqlite, SqlitePool};
 use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
@@ -91,14 +93,13 @@ impl RpcContextConfig {
         Ok(db)
     }
     pub async fn secret_store(&self) -> Result<SqlitePool, Error> {
-        let secret_store_url = format!(
-            "sqlite://{}",
-            self.datadir().join("main").join("secrets.db").display()
-        );
-        if !Sqlite::database_exists(&secret_store_url).await? {
-            Sqlite::create_database(&secret_store_url).await?;
-        }
-        let secret_store = SqlitePool::connect(&secret_store_url).await?;
+        let secret_store = SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(self.datadir().join("main").join("secrets.db"))
+                .create_if_missing(true)
+                .busy_timeout(Duration::from_secs(30)),
+        )
+        .await?;
         sqlx::migrate!()
             .run(&secret_store)
             .await

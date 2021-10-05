@@ -99,14 +99,13 @@ impl SetupContext {
         Ok(db)
     }
     pub async fn secret_store(&self) -> Result<SqlitePool, Error> {
-        let secret_store_url = format!(
-            "sqlite://{}",
-            self.datadir.join("main").join("secrets.db").display()
-        );
-        if !Sqlite::database_exists(&secret_store_url).await? {
-            Sqlite::create_database(&secret_store_url).await?;
-        }
-        let secret_store = SqlitePool::connect(&secret_store_url).await?;
+        let secret_store = SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(self.datadir().join("main").join("secrets.db"))
+                .create_if_missing(true)
+                .busy_timeout(Duration::from_secs(30)),
+        )
+        .await?;
         sqlx::migrate!()
             .run(&secret_store)
             .await
