@@ -35,7 +35,11 @@ export class AppListPage {
       this.patch.watch$('package-data')
       .pipe(
         filter(obj => {
-          return obj && Object.keys(obj).length !== Object.keys(this.pkgs).length
+          return obj &&
+          (
+            isEmptyObject(obj) ||
+            Object.keys(obj).length !== Object.keys(this.pkgs).length
+          )
         }),
       )
       .subscribe(pkgs => {

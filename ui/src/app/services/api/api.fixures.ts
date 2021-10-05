@@ -852,6 +852,18 @@ export module Mock {
           value: 10.1,
           unit: '%',
         },
+        'Hmmmm4': {
+          value: Math.random(),
+          unit: 'mi/b',
+        },
+        'Hmmmm5': {
+          value: 50,
+          unit: '%',
+        },
+        'Hmmmm6': {
+          value: 10.1,
+          unit: '%',
+        },
       },
     }
   }
