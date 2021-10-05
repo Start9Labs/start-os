@@ -85,7 +85,8 @@ pub fn apply_dependency_configuration(
         .get(&dependency_id)
         .ok_or_else(|| anyhow!("cannot find key"))?;
     match rule_check {
-        Ok(_) => Ok(new_dep_config.as_ref().to_owned()),
+        // Ok(_) => Ok(new_dep_config.as_ref().to_owned()),
+        Ok(_) => Ok(dep_config),
         Err(e) => Err(anyhow!("{}", e)),
     }
 }
