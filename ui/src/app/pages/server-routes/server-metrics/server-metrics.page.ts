@@ -49,6 +49,9 @@ export class ServerMetricsPage {
     try {
       const metrics = await this.embassyApi.getServerMetrics({ })
       Object.entries(metrics).forEach(([groupKey, groupVal]) => {
+        if (!this.metrics[groupKey]) {
+          this.metrics[groupKey] = groupVal
+        }
         Object.entries(groupVal).forEach(([key, val]) => {
           this.metrics[groupKey][key] = val
         })

@@ -120,7 +120,7 @@ export const serverConfig: ConfigSpec = {
   'auto-check-updates': {
     type: 'boolean',
     name: 'Auto Check for Updates',
-    description: 'On launch, EmbassyOS will automatically check for updates of itself and your installed services. Updating still requires your approval and action. Updates will never be performed automatically.',
+    description: 'If enabled, EmbassyOS will automatically check for updates of itself and any installed services. Updating will still require your approval and action. Updates will never be performed automatically.',
     default: true,
   },
   // 'eos-marketplace': {
@@ -144,7 +144,7 @@ export const serverConfig: ConfigSpec = {
   'share-stats': {
     type: 'boolean',
     name: 'Report Bugs',
-    description: new IonicSafeString(`Bug reports are anonymized and transmitted over Tor. This helps us identify and fix bugs quickly. <a href="https://docs.start9.com" target="_blank" rel="noreferrer">Read more</a> `) as any, // @TODO get actual link
+    description: new IonicSafeString(`If enabled, generic error codes will be anonymously transmitted over Tor to the Start9 team. This helps us identify and fix bugs quickly. <a href="https://docs.start9.com" target="_blank" rel="noreferrer">Read more</a> `) as any, // @TODO get actual link
     default: false,
   },
   // password: {
