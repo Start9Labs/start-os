@@ -550,7 +550,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Created manager", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
-    let current_dependencies = manifest
+    let current_dependencies: BTreeMap<_, _> = manifest
         .dependencies
         .0
         .iter()
@@ -591,22 +591,21 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         status: Status {
             configured: manifest.config.is_none(),
             main: MainStatus::Stopped,
-            dependency_errors: DependencyErrors::init(
-                ctx,
-                &mut tx,
-                &manifest,
-                &current_dependencies,
-            )
-            .await?,
+            dependency_errors: DependencyErrors::default(),
         },
         manifest: manifest.clone(),
         system_pointers: Vec::new(),
         dependency_info,
         current_dependents: current_dependents.clone(),
-        current_dependencies,
+        current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
-    let mut pde = model.expect(&mut tx).await?.get_mut(&mut tx).await?;
+    let mut pde = model
+        .clone()
+        .expect(&mut tx)
+        .await?
+        .get_mut(&mut tx)
+        .await?;
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {
@@ -616,6 +615,18 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         },
     );
     pde.save(&mut tx).await?;
+    let mut dep_errs = model
+        .expect(&mut tx)
+        .await?
+        .installed()
+        .expect(&mut tx)
+        .await?
+        .status()
+        .dependency_errors()
+        .get_mut(&mut tx)
+        .await?;
+    *dep_errs = DependencyErrors::init(ctx, &mut tx, &manifest, &current_dependencies).await?;
+    dep_errs.save(&mut tx).await?;
 
     if let PackageDataEntry::Updating {
         installed: prev,

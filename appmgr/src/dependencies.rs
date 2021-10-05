@@ -493,15 +493,18 @@ impl DependencyErrors {
         current_dependencies: &BTreeMap<PackageId, CurrentDependencyInfo>,
     ) -> Result<DependencyErrors, Error> {
         let mut res = BTreeMap::new();
-        for (dep_id, info) in current_dependencies.keys().filter_map(|dep_id| {
+        for (dependency_id, info) in current_dependencies.keys().filter_map(|dependency_id| {
             manifest
                 .dependencies
                 .0
-                .get(dep_id)
-                .map(|info| (dep_id, info))
+                .get(dependency_id)
+                .map(|info| (dependency_id, info))
         }) {
-            if let Err(e) = info.satisfied(ctx, db, dep_id, None, &manifest.id).await? {
-                res.insert(dep_id.clone(), e);
+            if let Err(e) = info
+                .satisfied(ctx, db, dependency_id, None, &manifest.id)
+                .await?
+            {
+                res.insert(dependency_id.clone(), e);
             }
         }
         Ok(DependencyErrors(res))
