@@ -300,7 +300,7 @@ impl NotificationManager {
         if level == &NotificationLevel::Error {
             return true;
         }
-        self.gc();
+        self.gc().await;
         let mut guard = self.cache.lock().await;
         let k = (package_id.clone(), level.clone(), title.clone());
         let v = (*guard).get(&k);
