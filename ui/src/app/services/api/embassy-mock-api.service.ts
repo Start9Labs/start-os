@@ -452,12 +452,12 @@ export class MockApiService extends ApiService {
     return res
   }
 
-  async dryRemovePackage (params: RR.DryRemovePackageReq): Promise<RR.DryRemovePackageRes> {
+  async dryUninstallPackage (params: RR.DryUninstallPackageReq): Promise<RR.DryUninstallPackageRes> {
     await pauseFor(2000)
     return { }
   }
 
-  async removePackageRaw (params: RR.RemovePackageReq): Promise<RR.RemovePackageRes> {
+  async uninstallPackageRaw (params: RR.UninstallPackageReq): Promise<RR.UninstallPackageRes> {
     await pauseFor(2000)
     const patch = [
       {

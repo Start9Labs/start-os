@@ -10,7 +10,7 @@
     </ion-item>    
 
     <form (ngSubmit)="submit()">
-      <div style="margin-left: 16px;">
+      <div style="margin: 0 0 24px 16px;">
         <p class="input-label">{{ label }}</p>
         <ion-item lines="none" color="dark">
           <ion-input [type]="useMask && !unmasked ? 'password' : 'text'" [(ngModel)]="value" name="value" [placeholder]="placeholder" (ionChange)="error = ''"></ion-input>
@@ -19,9 +19,7 @@
           </ion-button>
         </ion-item>
         <!-- error -->
-        <p>
-          <ion-text [color]="error ? 'danger' : 'medium'">{{ error || 'placeholder' }}</ion-text>
-        </p>
+        <p *ngIf="error"><ion-text color="danger">{{ error }}</ion-text></p>
       </div>
   
       <div class="ion-text-right">

@@ -14,7 +14,7 @@
 
   <!-- not loading -->
   <div *ngIf="!loading">
-    <div *ngIf="pkgs | empty; else list" class="ion-text-center ion-padding">
+    <div *ngIf="empty; else list" class="ion-text-center ion-padding">
       <div style="display: flex; flex-direction: column; justify-content: center; height: 40vh">
         <h2>Welcome to <ion-text color="danger" style="font-family: 'Montserrat';">Embassy</ion-text></h2>
         <p class="ion-text-wrap">Get started by installing your first service.</p>
