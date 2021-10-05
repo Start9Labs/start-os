@@ -478,11 +478,11 @@ async fn get_cpu_info(last: &mut ProcStat) -> Result<MetricsCpu, Error> {
     let total_new = new.total();
     let total_diff = total_new - total_old;
     let res = MetricsCpu {
-        user_space: Percentage((new.user() - last.user()) as f64 / total_diff as f64),
-        kernel_space: Percentage((new.system() - last.system()) as f64 / total_diff as f64),
-        idle: Percentage((new.idle - last.idle) as f64 / total_diff as f64),
-        wait: Percentage((new.iowait - last.iowait) as f64 / total_diff as f64),
-        usage: Percentage((new.used() - last.used()) as f64 / total_diff as f64),
+        user_space: Percentage((new.user() - last.user()) as f64 * 100.0 / total_diff as f64),
+        kernel_space: Percentage((new.system() - last.system()) as f64 * 100.0 / total_diff as f64),
+        idle: Percentage((new.idle - last.idle) as f64 * 100.0 / total_diff as f64),
+        wait: Percentage((new.iowait - last.iowait) as f64 * 100.0 / total_diff as f64),
+        usage: Percentage((new.used() - last.used()) as f64 * 100.0 / total_diff as f64),
     };
     *last = new;
     Ok(res)
