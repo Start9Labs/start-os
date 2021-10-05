@@ -57,7 +57,7 @@ cookie_store = "0.15.0"
 digest = "0.9.0"
 divrem = "1.0.0"
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
-emver = { version = "0.1.2", features = ["serde"] }
+emver = { version = "0.1.6", features = ["serde"] }
 fd-lock-rs = "0.1.3"
 futures = "0.3.17"
 git-version = "0.3.5"

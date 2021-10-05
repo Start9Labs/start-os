@@ -24,12 +24,15 @@ use crate::db::model::{
     StaticFiles,
 };
 use crate::db::util::WithRevision;
-use crate::dependencies::{update_current_dependents, BreakageRes, DependencyError};
+use crate::dependencies::{
+    break_all_dependents_transitive, update_current_dependents, BreakageRes, DependencyError,
+    DependencyErrors,
+};
 use crate::install::cleanup::{cleanup, update_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
-use crate::status::{handle_broken_dependents, DependencyErrors, MainStatus, Status};
+use crate::status::{MainStatus, Status};
 use crate::util::io::copy_and_shutdown;
 use crate::util::{display_none, display_serializable, AsyncFileExt, Version};
 use crate::volume::asset_dir;
@@ -134,38 +137,10 @@ pub async fn uninstall_dry(
     #[parent_data] id: PackageId,
 ) -> Result<BreakageRes, Error> {
     let mut db = ctx.db.handle();
-    let deps = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&id)
-        .expect(&mut db)
-        .await?
-        .installed()
-        .expect(&mut db)
-        .await?
-        .current_dependents()
-        .get(&mut db, true)
-        .await?;
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
-    for dep_id in deps.keys() {
-        let model = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(&dep_id)
-            .expect(&mut tx)
-            .await?
-            .installed()
-            .expect(&mut tx)
-            .await?;
-        handle_broken_dependents(
-            &mut tx,
-            dep_id,
-            &id,
-            model,
-            DependencyError::NotInstalled,
-            &mut breakages,
-        )
+    break_all_dependents_transitive(&mut tx, &id, DependencyError::NotInstalled, &mut breakages)
         .await?;
-    }
 
     Ok(BreakageRes {
         breakages,
@@ -575,7 +550,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Created manager", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
-    let current_dependencies = manifest
+    let current_dependencies: BTreeMap<_, _> = manifest
         .dependencies
         .0
         .iter()
@@ -616,22 +591,21 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         status: Status {
             configured: manifest.config.is_none(),
             main: MainStatus::Stopped,
-            dependency_errors: DependencyErrors::init(
-                ctx,
-                &mut tx,
-                &manifest,
-                &current_dependencies,
-            )
-            .await?,
+            dependency_errors: DependencyErrors::default(),
         },
         manifest: manifest.clone(),
         system_pointers: Vec::new(),
         dependency_info,
         current_dependents: current_dependents.clone(),
-        current_dependencies,
+        current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
-    let mut pde = model.expect(&mut tx).await?.get_mut(&mut tx).await?;
+    let mut pde = model
+        .clone()
+        .expect(&mut tx)
+        .await?
+        .get_mut(&mut tx)
+        .await?;
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {
@@ -641,6 +615,18 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         },
     );
     pde.save(&mut tx).await?;
+    let mut dep_errs = model
+        .expect(&mut tx)
+        .await?
+        .installed()
+        .expect(&mut tx)
+        .await?
+        .status()
+        .dependency_errors()
+        .get_mut(&mut tx)
+        .await?;
+    *dep_errs = DependencyErrors::init(ctx, &mut tx, &manifest, &current_dependencies).await?;
+    dep_errs.save(&mut tx).await?;
 
     if let PackageDataEntry::Updating {
         installed: prev,
