@@ -9,15 +9,15 @@ export interface Loadable {
   cancel$: Subject<void> // will cancel load function
 }
 
-export function markAsLoadingDuring$<T> ($trigger$: Subject<boolean>, o: Observable<T>): Observable<T> {
+export function markAsLoadingDuring$<T> (trigger$: Subject<boolean>, o: Observable<T>): Observable<T> {
   let shouldBeOn = true
   const displayIfItsBeenAtLeast = 5 // ms
   return fromSync$(() => {
-    emitAfter$(displayIfItsBeenAtLeast).subscribe(() => { if (shouldBeOn) $trigger$.next(true) })
+    emitAfter$(displayIfItsBeenAtLeast).subscribe(() => { if (shouldBeOn) trigger$.next(true) })
   }).pipe(
     concatMap(() => o),
     finalize(() => {
-      $trigger$.next(false)
+      trigger$.next(false)
       shouldBeOn = false
     }),
  )
