@@ -16,6 +16,7 @@ use torut::onion::TorSecretKeyV3;
 use crate::action::docker::DockerAction;
 use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
+use crate::notifications::{NotificationLevel, NotificationSubtype};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
@@ -307,6 +308,22 @@ impl Manager {
                             .unwrap(); // recv is still in scope, cannot fail
                     }
                     Ok(Err(e)) => {
+                        let res = thread_shared.ctx.notification_manager
+                            .notify(
+                                Some(thread_shared.manifest.id.clone()),
+                                NotificationLevel::Warning,
+                                String::from("Service Crashed"),
+                                format!("The service {} has crashed with the following exit code: {}\nDetails: {}", thread_shared.manifest.id.clone(), e.0, e.1),
+                                NotificationSubtype::General,
+                            )
+                            .await;
+                        match res {
+                            Err(e) => {
+                                // TODO for code review: Do we return this error or just log it?
+                                log::error!("Failed to issue notification: {}", e);
+                            }
+                            Ok(()) => {}
+                        }
                         log::error!("service crashed: {}: {}", e.0, e.1)
                     }
                     Err(e) => {
