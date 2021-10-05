@@ -21,11 +21,12 @@ export class AppListPage {
   connectionFailure: boolean
   pkgs: { [id: string]: PkgInfo } = { }
   loading = true
+  empty = false
 
   constructor (
     private readonly config: ConfigService,
     private readonly connectionService: ConnectionService,
-    private readonly installPackageService: PackageLoadingService,
+    private readonly pkgLoading: PackageLoadingService,
     public readonly patch: PatchDbService,
   ) { }
 
@@ -34,17 +35,15 @@ export class AppListPage {
       this.patch.watch$('package-data')
       .pipe(
         filter(obj => {
-          return obj &&
-          (
-            isEmptyObject(obj) ||
-            Object.keys(obj).length !== Object.keys(this.pkgs).length
-          )
+          return obj && Object.keys(obj).length !== Object.keys(this.pkgs).length
         }),
       )
       .subscribe(pkgs => {
         this.loading = false
 
         const ids = Object.keys(pkgs)
+
+        this.empty = !ids.length
 
         Object.keys(this.pkgs).forEach(id => {
           if (!ids.includes(id)) {
@@ -59,7 +58,7 @@ export class AppListPage {
           this.pkgs[id] = {
             entry: pkgs[id],
             primaryRendering: PrimaryRendering[renderPkgStatus(pkgs[id]).primary],
-            installProgress: !isEmptyObject(pkgs[id]['install-progress']) ? this.installPackageService.transform(pkgs[id]['install-progress']) : undefined,
+            installProgress: !isEmptyObject(pkgs[id]['install-progress']) ? this.pkgLoading.transform(pkgs[id]['install-progress']) : undefined,
             error: false,
             sub: null,
           }
@@ -69,7 +68,7 @@ export class AppListPage {
             const statuses = renderPkgStatus(pkg)
             const primaryRendering = PrimaryRendering[statuses.primary]
             this.pkgs[id].entry = pkg
-            this.pkgs[id].installProgress = !isEmptyObject(pkg['install-progress']) ? this.installPackageService.transform(pkg['install-progress']) : undefined
+            this.pkgs[id].installProgress = !isEmptyObject(pkg['install-progress']) ? this.pkgLoading.transform(pkg['install-progress']) : undefined
             this.pkgs[id].primaryRendering = primaryRendering
             this.pkgs[id].error = statuses.health === HealthStatus.Failure || [DependencyStatus.Issue, DependencyStatus.Critical].includes(statuses.dependency)
           })

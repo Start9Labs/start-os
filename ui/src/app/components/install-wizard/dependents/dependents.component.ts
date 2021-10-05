@@ -49,7 +49,7 @@ export class DependentsComponent implements OnInit, Loadable {
         complete: () => {
           this.hasDependentViolation = this.dependentBreakages && !isEmptyObject(this.dependentBreakages)
           if (this.hasDependentViolation) {
-            this.longMessage = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title} will cause the following services to STOP running. Starting them again will require additional actions.`
+            this.longMessage = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title} will prohibit the following services from functioning properly and will cause them to stop if they are currently running.`
             this.color$.next('warning')
           } else if (this.params.skipConfirmationDialogue) {
             this.transitions.next()

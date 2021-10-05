@@ -13,8 +13,7 @@ import { DependencyStatus, HealthStatus, PrimaryRendering, PrimaryStatus, render
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
-import { PackageLoadingService } from 'src/app/services/package-loading.service'
-import { ProgressData } from 'src/app/pipes/install-state.pipe'
+import { PackageLoadingService, ProgressData } from 'src/app/services/package-loading.service'
 
 @Component({
   selector: 'app-show',

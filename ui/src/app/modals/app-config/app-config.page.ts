@@ -9,7 +9,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { FormGroup } from '@angular/forms'
-import { convertToNumberRecursive, FormService } from 'src/app/services/form.service'
+import { convertValuesRecursive, FormService } from 'src/app/services/form.service'
 
 @Component({
   selector: 'app-config',
@@ -87,9 +87,7 @@ export class AppConfigPage {
   }
 
   async save () {
-    convertToNumberRecursive(this.configSpec, this.configForm)
-
-    console.log('SAVING', this.configForm.value)
+    convertValuesRecursive(this.configSpec, this.configForm)
 
     if (this.configForm.invalid) {
       document.getElementsByClassName('validation-error')[0].parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })

@@ -1,6 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { IonicSafeString, LoadingController, ModalController } from '@ionic/angular'
-import { getErrorMessage } from 'src/app/services/error-toast.service'
+import { ModalController } from '@ionic/angular'
 
 @Component({
   selector: 'generic-input',
@@ -18,11 +17,10 @@ export class GenericInputComponent {
   @Input() value = ''
   @Input() submitFn: (value: string) => Promise<any>
   unmasked = false
-  error: string | IonicSafeString
+  error: string
 
   constructor (
     private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
   ) { }
 
   toggleMask () {
@@ -34,19 +32,8 @@ export class GenericInputComponent {
   }
 
   async submit () {
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      cssClass: 'loader',
-    })
-    loader.present()
-
-    try {
-      await this.submitFn(this.value)
-      this.modalCtrl.dismiss(undefined, 'success')
-    } catch (e) {
-      this.error = getErrorMessage(e)
-    } finally {
-      loader.dismiss()
-    }
+    // @TODO validate input?
+    await this.submitFn(this.value)
+    this.modalCtrl.dismiss(undefined, 'success')
   }
 }

@@ -175,11 +175,11 @@ export module RR {
   export type StopPackageReq = WithExpire<{ id: string }> // package.stop
   export type StopPackageRes = WithRevision<null>
 
-  export type DryRemovePackageReq = RemovePackageReq // package.remove.dry
-  export type DryRemovePackageRes = Breakages
+  export type DryUninstallPackageReq = UninstallPackageReq // package.uninstall.dry
+  export type DryUninstallPackageRes = Breakages
 
-  export type RemovePackageReq = WithExpire<{ id: string }> // package.remove
-  export type RemovePackageRes = WithRevision<null>
+  export type UninstallPackageReq = WithExpire<{ id: string }> // package.uninstall
+  export type UninstallPackageRes = WithRevision<null>
 
   export type DryConfigureDependencyReq = { 'dependency-id': string, 'dependent-id': string } // package.dependency.configure.dry
   export type DryConfigureDependencyRes = object

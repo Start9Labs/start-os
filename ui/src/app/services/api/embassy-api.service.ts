@@ -171,11 +171,11 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     () => this.stopPackageRaw(params),
   )()
 
-  abstract dryRemovePackage (params: RR.DryRemovePackageReq): Promise<RR.DryRemovePackageRes>
+  abstract dryUninstallPackage (params: RR.DryUninstallPackageReq): Promise<RR.DryUninstallPackageRes>
 
-  protected abstract removePackageRaw (params: RR.RemovePackageReq): Promise<RR.RemovePackageRes>
-  removePackage = (params: RR.RemovePackageReq) => this.syncResponse(
-    () => this.removePackageRaw(params),
+  protected abstract uninstallPackageRaw (params: RR.UninstallPackageReq): Promise<RR.UninstallPackageRes>
+  uninstallPackage = (params: RR.UninstallPackageReq) => this.syncResponse(
+    () => this.uninstallPackageRaw(params),
   )()
 
   abstract dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes>
