@@ -84,12 +84,14 @@ impl NginxControllerInner {
                 // get ssl certificate chain
                 let (listen_args, ssl_certificate_line, ssl_certificate_key_line) =
                     if lan_port_config.ssl {
+                        let package_path = self.nginx_root.join(format!("ssl/{}", package));
+                        tokio::fs::create_dir_all(package_path).await?;
                         let ssl_path_key = self
                             .nginx_root
-                            .join(format!("ssl/{}_{}.key.pem", package, id));
+                            .join(format!("ssl/{}/{}.key.pem", package, id));
                         let ssl_path_cert = self
                             .nginx_root
-                            .join(format!("ssl/{}_{}.cert.pem", package, id));
+                            .join(format!("ssl/{}/{}.cert.pem", package, id));
                         let (key, chain) = self.ssl_manager.certificate_for(&meta.dns_base).await?;
                         // write nginx ssl certs
                         futures::try_join!(
@@ -174,12 +176,7 @@ impl NginxControllerInner {
         if let Some(net_info) = removed {
             for (id, _meta) in net_info.interfaces {
                 // remove ssl certificates and nginx configs
-                let key_path = self
-                    .nginx_root
-                    .join(format!("ssl/{}_{}.key.pem", package, id));
-                let cert_path = self
-                    .nginx_root
-                    .join(format!("ssl/{}_{}.cert.pem", package, id));
+                let package_path = self.nginx_root.join(format!("ssl/{}", package));
                 let enabled_path = self
                     .nginx_root
                     .join(format!("sites-enabled/{}_{}.conf", package, id));
@@ -187,10 +184,8 @@ impl NginxControllerInner {
                     .nginx_root
                     .join(format!("sites-available/{}_{}.conf", package, id));
                 let _ = futures::try_join!(
-                    tokio::fs::remove_file(&key_path).map(|res| res
-                        .with_ctx(|_| (ErrorKind::Filesystem, key_path.display().to_string()))),
-                    tokio::fs::remove_file(&cert_path).map(|res| res
-                        .with_ctx(|_| (ErrorKind::Filesystem, key_path.display().to_string()))),
+                    tokio::fs::remove_dir_all(&package_path).map(|res| res
+                        .with_ctx(|_| (ErrorKind::Filesystem, package_path.display().to_string()))),
                     tokio::fs::remove_file(&enabled_path).map(|res| res
                         .with_ctx(|_| (ErrorKind::Filesystem, enabled_path.display().to_string()))),
                     tokio::fs::remove_file(&available_path).map(|res| res.with_ctx(|_| (
