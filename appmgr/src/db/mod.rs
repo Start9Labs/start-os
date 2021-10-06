@@ -13,7 +13,7 @@ use patch_db::{Dump, Revision};
 use rpc_toolkit::command;
 use rpc_toolkit::hyper::upgrade::Upgraded;
 use rpc_toolkit::hyper::{Body, Error as HyperError, Request, Response};
-use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::yajrc::{GenericRpcMethod, RpcError, RpcResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::task::JoinError;
@@ -69,13 +69,33 @@ async fn ws_handler<
                 .ok_or_else(|| {
                     Error::new(anyhow!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
                 })?;
-            crate::middleware::auth::is_authed(&ctx, &hash_token(id.get_value())).await?;
+            if let Err(e) =
+                crate::middleware::auth::is_authed(&ctx, &hash_token(id.get_value())).await
+            {
+                stream
+                    .send(Message::Text(
+                        serde_json::to_string(
+                            &RpcResponse::<GenericRpcMethod<String>>::from_result(
+                                Err::<_, RpcError>(e.into()),
+                            ),
+                        )
+                        .with_kind(crate::ErrorKind::Serialization)?,
+                    ))
+                    .await
+                    .with_kind(crate::ErrorKind::Network)?;
+            }
             break;
         }
     }
     stream
         .send(Message::Text(
-            rpc_toolkit::serde_json::to_string(&dump).with_kind(crate::ErrorKind::Serialization)?,
+            serde_json::to_string(&RpcResponse::<GenericRpcMethod<String>>::from_result(Ok::<
+                _,
+                RpcError,
+            >(
+                serde_json::to_value(&dump).with_kind(crate::ErrorKind::Serialization)?,
+            )))
+            .with_kind(crate::ErrorKind::Serialization)?,
         ))
         .await
         .with_kind(crate::ErrorKind::Network)?;
@@ -86,8 +106,12 @@ async fn ws_handler<
                 let rev = new_rev.with_kind(crate::ErrorKind::Database)?;
                 stream
                     .send(Message::Text(
-                        rpc_toolkit::serde_json::to_string(&rev)
-                            .with_kind(crate::ErrorKind::Serialization)?,
+                        serde_json::to_string(
+                            &RpcResponse::<GenericRpcMethod<String>>::from_result(Ok::<_, RpcError>(
+                                serde_json::to_value(&rev).with_kind(crate::ErrorKind::Serialization)?,
+                            )),
+                        )
+                        .with_kind(crate::ErrorKind::Serialization)?,
                     ))
                     .await
                     .with_kind(crate::ErrorKind::Network)?;
