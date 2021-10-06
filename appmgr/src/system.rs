@@ -1,6 +1,7 @@
 use std::fmt;
 
 use futures::future::try_join_all;
+use futures::FutureExt;
 use rpc_toolkit::command;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -190,6 +191,7 @@ pub struct MetricsDisk {
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Metrics {
+    #[cfg(feature = "metal")]
     #[serde(rename = "General")]
     general: MetricsGeneral,
     #[serde(rename = "Memory")]
@@ -284,6 +286,7 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     }
+    #[cfg(feature = "metal")]
     {
         // lock for writing
         let mut guard = cache.write().await;
@@ -298,6 +301,7 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
         })
     }
     // launch persistent temp task
+    #[cfg(feature = "metal")]
     let temp_task = launch_temp_task(cache, mk_shutdown());
     // launch persistent cpu task
     let cpu_task = launch_cpu_task(cache, proc_stat, mk_shutdown());
@@ -305,9 +309,19 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
     let mem_task = launch_mem_task(cache, mk_shutdown());
     // launch persistent disk task
     let disk_task = launch_disk_task(cache, mk_shutdown());
-    tokio::join!(temp_task, cpu_task, mem_task, disk_task,);
+
+    let mut task_vec = Vec::new();
+    task_vec.push(cpu_task.boxed());
+    task_vec.push(mem_task.boxed());
+    task_vec.push(disk_task.boxed());
+
+    #[cfg(feature = "metal")]
+    task_vec.push(temp_task.boxed());
+
+    futures::future::join_all(task_vec).await;
 }
 
+#[cfg(feature = "metal")]
 async fn launch_temp_task(
     cache: &RwLock<Option<Metrics>>,
     mut shutdown: Receiver<Option<Shutdown>>,
