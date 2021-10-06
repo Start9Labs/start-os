@@ -1,6 +1,7 @@
+use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use futures::FutureExt;
 use indexmap::IndexSet;
@@ -14,12 +15,19 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::{Invoke, Port};
 use crate::{Error, ErrorKind, ResultExt};
 
-pub struct NginxController(Mutex<NginxControllerInner>);
+pub struct NginxController {
+    nginx_root: PathBuf,
+    inner: Mutex<NginxControllerInner>,
+}
 impl NginxController {
     pub async fn init(nginx_root: PathBuf, db: SqlitePool) -> Result<Self, Error> {
-        Ok(NginxController(Mutex::new(
-            NginxControllerInner::init(nginx_root, db).await?,
-        )))
+        Ok(NginxController {
+            inner: Mutex::new(NginxControllerInner::init(&nginx_root, db).await?),
+            nginx_root,
+        })
+    }
+    pub fn ssl_directory_for(&self, package: &PackageId) -> PathBuf {
+        self.nginx_root.join("ssl").join(package)
     }
     pub async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &self,
@@ -27,22 +35,28 @@ impl NginxController {
         ipv4: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
-        self.0.lock().await.add(package, ipv4, interfaces).await
+        self.inner
+            .lock()
+            .await
+            .add(&self.nginx_root, package, ipv4, interfaces)
+            .await
     }
     pub async fn remove(&self, package: &PackageId) -> Result<(), Error> {
-        self.0.lock().await.remove(package).await
+        self.inner
+            .lock()
+            .await
+            .remove(&self.nginx_root, package)
+            .await
     }
 }
 
 pub struct NginxControllerInner {
-    nginx_root: PathBuf,
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
     ssl_manager: SslManager,
 }
 impl NginxControllerInner {
-    async fn init(nginx_root: PathBuf, db: SqlitePool) -> Result<Self, Error> {
+    async fn init(nginx_root: &Path, db: SqlitePool) -> Result<Self, Error> {
         let inner = NginxControllerInner {
-            nginx_root,
             interfaces: BTreeMap::new(),
             ssl_manager: SslManager::init(db).await?,
         };
@@ -50,8 +64,8 @@ impl NginxControllerInner {
             .ssl_manager
             .certificate_for(&get_hostname().await?)
             .await?;
-        let ssl_path_key = inner.nginx_root.join(format!("ssl/embassy_main.key.pem"));
-        let ssl_path_cert = inner.nginx_root.join(format!("ssl/embassy_main.cert.pem"));
+        let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
+        let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
         futures::try_join!(
             tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?),
             tokio::fs::write(
@@ -65,6 +79,7 @@ impl NginxControllerInner {
     }
     async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &mut self,
+        nginx_root: &Path,
         package: PackageId,
         ipv4: Ipv4Addr,
         interfaces: I,
@@ -84,14 +99,12 @@ impl NginxControllerInner {
                 // get ssl certificate chain
                 let (listen_args, ssl_certificate_line, ssl_certificate_key_line) =
                     if lan_port_config.ssl {
-                        let package_path = self.nginx_root.join(format!("ssl/{}", package));
+                        let package_path = nginx_root.join(format!("ssl/{}", package));
                         tokio::fs::create_dir_all(package_path).await?;
-                        let ssl_path_key = self
-                            .nginx_root
-                            .join(format!("ssl/{}/{}.key.pem", package, id));
-                        let ssl_path_cert = self
-                            .nginx_root
-                            .join(format!("ssl/{}/{}.cert.pem", package, id));
+                        let ssl_path_key =
+                            nginx_root.join(format!("ssl/{}/{}.key.pem", package, id));
+                        let ssl_path_cert =
+                            nginx_root.join(format!("ssl/{}/{}.cert.pem", package, id));
                         let (key, chain) = self.ssl_manager.certificate_for(&meta.dns_base).await?;
                         // write nginx ssl certs
                         futures::try_join!(
@@ -127,9 +140,8 @@ impl NginxControllerInner {
                         )
                     };
                 // write nginx configs
-                let nginx_conf_path = self
-                    .nginx_root
-                    .join(format!("sites-available/{}_{}.conf", package, id));
+                let nginx_conf_path =
+                    nginx_root.join(format!("sites-available/{}_{}.conf", package, id));
                 tokio::fs::write(
                     &nginx_conf_path,
                     format!(
@@ -144,9 +156,8 @@ impl NginxControllerInner {
                 )
                 .await
                 .with_ctx(|_| (ErrorKind::Filesystem, nginx_conf_path.display().to_string()))?;
-                let sites_enabled_link_path = self
-                    .nginx_root
-                    .join(format!("sites-enabled/{}_{}.conf", package, id));
+                let sites_enabled_link_path =
+                    nginx_root.join(format!("sites-enabled/{}_{}.conf", package, id));
                 if tokio::fs::metadata(&sites_enabled_link_path).await.is_ok() {
                     tokio::fs::remove_file(&sites_enabled_link_path).await?;
                 }
@@ -171,18 +182,16 @@ impl NginxControllerInner {
         self.hup().await?;
         Ok(())
     }
-    async fn remove(&mut self, package: &PackageId) -> Result<(), Error> {
+    async fn remove(&mut self, nginx_root: &Path, package: &PackageId) -> Result<(), Error> {
         let removed = self.interfaces.remove(package);
         if let Some(net_info) = removed {
             for (id, _meta) in net_info.interfaces {
                 // remove ssl certificates and nginx configs
-                let package_path = self.nginx_root.join(format!("ssl/{}", package));
-                let enabled_path = self
-                    .nginx_root
-                    .join(format!("sites-enabled/{}_{}.conf", package, id));
-                let available_path = self
-                    .nginx_root
-                    .join(format!("sites-available/{}_{}.conf", package, id));
+                let package_path = nginx_root.join(format!("ssl/{}", package));
+                let enabled_path =
+                    nginx_root.join(format!("sites-enabled/{}_{}.conf", package, id));
+                let available_path =
+                    nginx_root.join(format!("sites-available/{}_{}.conf", package, id));
                 let _ = futures::try_join!(
                     tokio::fs::remove_dir_all(&package_path).map(|res| res
                         .with_ctx(|_| (ErrorKind::Filesystem, package_path.display().to_string()))),
