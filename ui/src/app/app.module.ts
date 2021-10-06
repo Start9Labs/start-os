@@ -20,6 +20,7 @@ import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstr
 import { SharingModule } from './modules/sharing.module'
 import { FormBuilder } from '@angular/forms'
 import { GenericInputComponentModule } from './modals/generic-input/generic-input.component.module'
+import { AuthService } from './services/auth.service'
 
 @NgModule({
   declarations: [AppComponent],
@@ -46,8 +47,16 @@ import { GenericInputComponentModule } from './modals/generic-input/generic-inpu
     IonNav,
     Storage,
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
-    { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },    { provide: ApiService , useFactory: ApiServiceFactory, deps: [ConfigService, HttpService] },
-    { provide: PatchDbService, useFactory: PatchDbServiceFactory, deps: [ConfigService, LocalStorageBootstrap, ApiService] },
+    {
+      provide: ApiService,
+      useFactory: ApiServiceFactory,
+      deps: [ConfigService, HttpService],
+    },
+    {
+      provide: PatchDbService,
+      useFactory: PatchDbServiceFactory,
+      deps: [ConfigService, ApiService, LocalStorageBootstrap, AuthService],
+    },
   ],
   bootstrap: [AppComponent],
   schemas: [ CUSTOM_ELEMENTS_SCHEMA ],

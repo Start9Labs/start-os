@@ -4,11 +4,13 @@ import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
 import { catchError, debounceTime, finalize, map, tap } from 'rxjs/operators'
 import { pauseFor } from 'src/app/util/misc.util'
 import { ApiService } from '../api/embassy-api.service'
+import { AuthService } from '../auth.service'
 import { DataModel } from './data-model'
 
-export const PATCH_HTTP = new InjectionToken<Source<DataModel>>('app.config')
-export const PATCH_SOURCE = new InjectionToken<Source<DataModel>>('app.config')
-export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('app.config')
+export const PATCH_HTTP = new InjectionToken<Source<DataModel>>('')
+export const PATCH_SOURCE = new InjectionToken<Source<DataModel>>('')
+export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('')
+export const AUTH = new InjectionToken<AuthService>('')
 
 export enum PatchConnection {
   Initializing = 'initializing',
@@ -31,6 +33,7 @@ export class PatchDbService {
     @Inject(PATCH_SOURCE) private readonly source: Source<DataModel>,
     @Inject(PATCH_HTTP) private readonly http: ApiService,
     @Inject(BOOTSTRAPPER) private readonly bootstrapper: Bootstrapper<DataModel>,
+    @Inject(AUTH) private readonly auth: AuthService,
   ) { }
 
   async init (): Promise<void> {
@@ -60,8 +63,12 @@ export class PatchDbService {
       error: async e => {
         console.error('patch-db SYNC ERROR', e)
         this.patchConnection$.next(PatchConnection.Disconnected)
-        await pauseFor(4000)
-        this.start()
+        if (e.code === 34) {
+          this.auth.setUnverified()
+        } else {
+          await pauseFor(4000)
+          this.start()
+        }
       },
       complete: () => {
         console.warn('patch-db SYNC COMPLETE')

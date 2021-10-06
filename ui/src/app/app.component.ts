@@ -9,7 +9,6 @@ import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { ToastButton } from '@ionic/core'
 import { PatchDbService } from './services/patch-db/patch-db.service'
-import { HttpService } from './services/http.service'
 import { ServerStatus } from './services/patch-db/data-model'
 import { ConnectionFailure, ConnectionService } from './services/connection.service'
 import { StartupAlertsService } from './services/startup-alerts.service'
@@ -69,7 +68,6 @@ export class AppComponent {
     private readonly authService: AuthService,
     private readonly router: Router,
     private readonly embassyApi: ApiService,
-    private readonly http: HttpService,
     private readonly alertCtrl: AlertController,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
@@ -140,10 +138,6 @@ export class AppComponent {
         if (this.offlineToast) this.offlineToast.dismiss()
         this.router.navigate(['/login'], { replaceUrl: true })
       }
-    })
-
-    this.http.watchUnauth$().subscribe(() => {
-      this.authService.setUnverified()
     })
   }
 

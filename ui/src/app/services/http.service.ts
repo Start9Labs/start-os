@@ -1,27 +1,24 @@
 import { Injectable } from '@angular/core'
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http'
-import { Observable, from, interval, race, Subject } from 'rxjs'
+import { Observable, from, interval, race } from 'rxjs'
 import { map, take } from 'rxjs/operators'
 import { ConfigService } from './config.service'
 import { Revision } from 'patch-db-client'
+import { AuthService } from './auth.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class HttpService {
-  private unauthorizedApiResponse$ = new Subject()
   fullUrl: string
 
   constructor (
     private readonly http: HttpClient,
     private readonly config: ConfigService,
+    private readonly auth: AuthService,
   ) {
     const port = config.mocks.enabled ? this.config.mocks.rpcPort : window.location.port
     this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}`
-  }
-
-  watchUnauth$ (): Observable<{ }> {
-    return this.unauthorizedApiResponse$.asObservable()
   }
 
   async rpcRequest<T> (rpcOpts: RPCOptions): Promise<T> {
@@ -37,7 +34,7 @@ export class HttpService {
     const res = await this.httpRequest<RPCResponse<T>>(httpOpts)
 
     if (isRpcError(res)) {
-      if (res.error.code === 34) this.unauthorizedApiResponse$.next(true)
+      if (res.error.code === 34) this.auth.setUnverified()
       throw new RpcError(res.error)
     }
 
