@@ -46,11 +46,6 @@ impl Database {
                     selected: None,
                 },
                 unread_notification_count: 0,
-                specs: ServerSpecs {
-                    cpu: "".to_owned(),
-                    disk: "".to_owned(),
-                    memory: "".to_owned(),
-                },
                 connection_addresses: ConnectionAddresses {
                     tor: Vec::new(),
                     clearnet: Vec::new(),
@@ -82,7 +77,6 @@ pub struct ServerInfo {
     pub package_marketplace: Option<Url>,
     pub wifi: WifiInfo,
     pub unread_notification_count: u64,
-    pub specs: ServerSpecs,
     pub connection_addresses: ConnectionAddresses,
     pub share_stats: bool,
 }
