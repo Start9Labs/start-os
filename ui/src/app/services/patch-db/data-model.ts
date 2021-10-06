@@ -261,7 +261,11 @@ export enum PackageMainStatus {
   Restoring = 'restoring',
 }
 
-export type HealthCheckResult = HealthCheckResultStarting | HealthCheckResultLoading | HealthCheckResultDisabled | HealthCheckResultSuccess | HealthCheckResultFailure
+export type HealthCheckResult = HealthCheckResultStarting |
+                                HealthCheckResultLoading |
+                                HealthCheckResultDisabled |
+                                HealthCheckResultSuccess |
+                                HealthCheckResultFailure
 
 export enum HealthResult {
   Starting = 'starting',
@@ -293,7 +297,13 @@ export interface HealthCheckResultFailure {
   error: string
 }
 
-export type DependencyError = DependencyErrorNotInstalled | DependencyErrorNotRunning | DependencyErrorIncorrectVersion | DependencyErrorConfigUnsatisfied | DependencyErrorHealthChecksFailed | DependencyErrorInterfaceHealthChecksFailed
+export type DependencyError = DependencyErrorNotInstalled |
+                              DependencyErrorNotRunning |
+                              DependencyErrorIncorrectVersion |
+                              DependencyErrorConfigUnsatisfied |
+                              DependencyErrorHealthChecksFailed |
+                              DependencyErrorInterfaceHealthChecksFailed |
+                              DependencyErrorTransitive
 
 export enum DependencyErrorType {
   NotInstalled = 'not-installed',
@@ -302,6 +312,7 @@ export enum DependencyErrorType {
   ConfigUnsatisfied = 'config-unsatisfied',
   HealthChecksFailed = 'health-checks-failed',
   InterfaceHealthChecksFailed = 'interface-health-checks-failed',
+  Transitive = 'transitive',
 }
 
 export interface DependencyErrorNotInstalled {
@@ -331,6 +342,10 @@ export interface DependencyErrorHealthChecksFailed {
 export interface DependencyErrorInterfaceHealthChecksFailed {
   type: DependencyErrorType.InterfaceHealthChecksFailed
   failures: { [id: string]: HealthCheckResult }
+}
+
+export interface DependencyErrorTransitive {
+  type: DependencyErrorType.Transitive
 }
 
 export interface DependencyInfo {
