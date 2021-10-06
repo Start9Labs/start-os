@@ -21,7 +21,7 @@ mkdir -p /etc/nginx/ssl
 docker run --privileged --rm tonistiigi/binfmt --install all
 docker network create -d bridge --subnet 172.18.0.1/16 start9
 echo '{ "storage-driver": "zfs" }' > /etc/docker/daemon.json
-mkdir /etc/embassy
+mkdir -p /etc/embassy
 hostnamectl set-hostname "embassy"
 systemctl enable embassyd.service embassy-init.service
 echo 'overlayroot="tmpfs"' > /etc/overlayroot.local.conf
