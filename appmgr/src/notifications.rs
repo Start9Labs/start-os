@@ -125,7 +125,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] id: u32) -> Result<(), Er
     Ok(())
 }
 
-#[command(display(display_none))]
+#[command(rename = "delete-before", display(display_none))]
 pub async fn delete_before(#[context] ctx: RpcContext, #[arg] before: u32) -> Result<(), Error> {
     sqlx::query!("DELETE FROM notifications WHERE id < ?", before)
         .execute(&ctx.secret_store)
