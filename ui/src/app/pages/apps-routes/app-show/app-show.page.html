@@ -62,15 +62,15 @@
           <ng-container *ngIf="!connectionFailure">
             <ion-item *ngFor="let health of healthChecks | keyvalue : asIsOrder">
               <ng-container *ngIf="$any(health.value).result as result">
-                <ion-spinner class="icon-spinner" color="primary" slot="start" *ngIf="['starting', 'loading'] | includes : result"></ion-spinner>
-                <ion-icon slot="start" *ngIf="result === 'success'" name="checkmark" color="success"></ion-icon>
-                <ion-icon slot="start" *ngIf="result === 'failure'" name="warning" color="warning"></ion-icon>
-                <ion-icon slot="start" *ngIf="result === 'disabled'" name="remove" color="dark"></ion-icon>
+                <ion-spinner class="icon-spinner" color="primary" slot="start" *ngIf="[HealthResult.Starting, HealthResult.Loading] | includes : result"></ion-spinner>
+                <ion-icon slot="start" *ngIf="result === HealthResult.Success" name="checkmark" color="success"></ion-icon>
+                <ion-icon slot="start" *ngIf="result === HealthResult.Failure" name="warning" color="warning"></ion-icon>
+                <ion-icon slot="start" *ngIf="result === HealthResult.Disabled" name="remove" color="dark"></ion-icon>
                 <ion-label>
                   <h2 style="font-weight: bold;">{{ health.key }}</h2>
                   <h2>Result: {{ result | titlecase }}</h2>
-                  <p *ngIf="result === 'loading'"><ion-text color="primary">{{ $any(health.value).message }}</ion-text></p>
-                  <p *ngIf="result === 'failure'"><ion-text color="warning">{{ $any(health.value).error }}</ion-text></p>
+                  <p *ngIf="result === HealthResult.Loading"><ion-text color="primary">{{ $any(health.value).message }}</ion-text></p>
+                  <p *ngIf="result === HealthResult.Failure"><ion-text color="warning">{{ $any(health.value).error }}</ion-text></p>
                 </ion-label>
               </ng-container>
             </ion-item>

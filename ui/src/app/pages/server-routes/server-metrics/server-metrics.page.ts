@@ -14,26 +14,34 @@ export class ServerMetricsPage {
   loading = true
   going = false
   metrics: Metrics = { }
-  @ViewChild(IonContent) content: IonContent
 
   constructor (
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
   ) { }
 
-  ngOnInit () {
+  async ngOnInit () {
+    await this.getMetrics()
+    let headersCount = 0
+    let rowsCount = 0
+    Object.values(this.metrics).forEach(groupVal => {
+      headersCount++
+      Object.keys(groupVal).forEach(_ => {
+        rowsCount++
+      })
+    })
+    const height = headersCount * 54 + rowsCount * 50 + 24 // extra 24 for room at the bottom
+    const elem = document.getElementById('metricSection')
+    elem.style.height = `${height}px`
     this.startDaemon()
-  }
-
-  ngAfterViewInit () {
-    this.content.scrollToPoint(undefined, 1)
+    this.loading = false
   }
 
   ngOnDestroy () {
     this.stopDaemon()
   }
 
-  async startDaemon (): Promise<void> {
+  private async startDaemon (): Promise<void> {
     this.going = true
     while (this.going) {
       await this.getMetrics()
@@ -41,11 +49,11 @@ export class ServerMetricsPage {
     }
   }
 
-  stopDaemon () {
+  private stopDaemon () {
     this.going = false
   }
 
-  async getMetrics (): Promise<void> {
+  private async getMetrics (): Promise<void> {
     try {
       const metrics = await this.embassyApi.getServerMetrics({ })
       Object.entries(metrics).forEach(([groupKey, groupVal]) => {
@@ -59,8 +67,6 @@ export class ServerMetricsPage {
     } catch (e) {
       this.errToast.present(e)
       this.stopDaemon()
-    } finally {
-      this.loading = false
     }
   }
 

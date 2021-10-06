@@ -8,7 +8,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorType, HealthCheckResult, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyErrorConfigUnsatisfied, DependencyErrorType, HealthCheckResult, HealthResult, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { DependencyStatus, HealthStatus, PrimaryRendering, PrimaryStatus, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -24,6 +24,7 @@ export class AppShowPage {
   PackageState = PackageState
   DependencyErrorType = DependencyErrorType
   Math = Math
+  HealthResult = HealthResult
   PS = PrimaryStatus
   DS = DependencyStatus
   PR = PrimaryRendering
@@ -210,13 +211,13 @@ export class AppShowPage {
     if (error) {
       // health checks failed
       if ([DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthChecksFailed].includes(error.type)) {
-        errorText = 'Health Check Failed'
+        errorText = 'Health check failed'
       // not fully installed (same as !localDep?.installed)
       } else if (error.type === DependencyErrorType.NotInstalled) {
         if (localDep) {
           errorText = localDep.state // 'Installing' | 'Removing'
         } else {
-          errorText = 'Not Installed'
+          errorText = 'Not installed'
           actionText = 'Install'
           action = () => this.fixDep('install', id)
         }
@@ -225,19 +226,21 @@ export class AppShowPage {
         if (localDep) {
           errorText = localDep.state // 'Updating' | 'Removing'
         } else {
-          errorText = 'Incorrect Version'
+          errorText = 'Incorrect version'
           actionText = 'Update'
           action = () => this.fixDep('update', id)
         }
       // not running
       } else if (error.type === DependencyErrorType.NotRunning) {
-        errorText = 'Not Running'
+        errorText = 'Not running'
         actionText = 'Start'
       // config unsatisfied
       } else if (error.type === DependencyErrorType.ConfigUnsatisfied) {
-        errorText = 'Config Not Satisfied'
+        errorText = 'Config not satisfied'
         actionText = 'Auto Config'
         action = () => this.fixDep('configure', id)
+      } else if (error.type === DependencyErrorType.Transitive) {
+        errorText = 'Dependency has a dependency issue'
       }
 
       if (localDep && localDep.state !== PackageState.Installed) {
