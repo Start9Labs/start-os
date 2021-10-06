@@ -212,12 +212,9 @@ impl Volume {
                 } else {
                     path.as_ref()
                 }),
-            Volume::Certificate { interface_id } => ctx
-                .datadir
-                .join(PKG_VOLUME_DIR)
-                .join(pkg_id)
-                .join("certificates")
-                .join(interface_id),
+            Volume::Certificate { interface_id: _ } => {
+                ctx.net_controller.nginx.ssl_directory_for(pkg_id)
+            }
             Volume::Backup { .. } => Path::new(BACKUP_DIR).join(pkg_id),
         }
     }
