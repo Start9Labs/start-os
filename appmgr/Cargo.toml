@@ -38,7 +38,8 @@ path = "src/bin/embassy-cli.rs"
 
 [features]
 avahi = ["avahi-sys"]
-default = ["avahi", "sound"]
+default = ["avahi", "sound", "metal"]
+metal = []
 sound = []
 
 [dependencies]
