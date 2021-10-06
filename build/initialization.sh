@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Update repositories, install dependencies, do some initial configurations, set hostname, enable embassy-init, and config Tor
+set -e
 apt update
 apt install -y \
 	docker.io \
@@ -19,7 +20,7 @@ sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \
 sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
 mkdir -p /etc/nginx/ssl
 docker run --privileged --rm tonistiigi/binfmt --install all
-docker network create -d bridge --subnet 172.18.0.1/16 start9
+docker network create -d bridge --subnet 172.18.0.1/16 start9 || true
 echo '{ "storage-driver": "zfs" }' > /etc/docker/daemon.json
 mkdir -p /etc/embassy
 hostnamectl set-hostname "embassy"
