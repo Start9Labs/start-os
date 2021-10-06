@@ -39,15 +39,6 @@
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
-
-    <ion-item-divider>Hardware Specs</ion-item-divider>
-
-    <ion-item *ngFor="let spec of server.specs | keyvalue : asIsOrder">
-      <ion-label>
-        <h2>{{ spec.key }}</h2>
-        <p>{{ spec.value }}</p>
-      </ion-label>
-    </ion-item>
   </ion-item-group>
 
 </ion-content>

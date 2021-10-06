@@ -25,11 +25,6 @@ export interface ServerInfo {
     size: number
     downloaded: number
   }
-  specs: {
-    cpu: string
-    disk: string
-    memory: string
-  }
 }
 
 export enum ServerStatus {
