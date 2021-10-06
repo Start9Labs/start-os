@@ -15,7 +15,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::{display_none, display_serializable};
 use crate::{Error, ErrorKind};
 
-#[command(subcommands(list, delete, delete_before))]
+#[command(subcommands(list, delete, delete_before, create))]
 pub async fn notification() -> Result<(), Error> {
     Ok(())
 }
@@ -133,6 +133,19 @@ pub async fn delete_before(#[context] ctx: RpcContext, #[arg] before: u32) -> Re
     Ok(())
 }
 
+#[command(display(display_none))]
+pub async fn create(
+    #[context] ctx: RpcContext,
+    #[arg] package: Option<PackageId>,
+    #[arg] level: NotificationLevel,
+    #[arg] title: String,
+    #[arg] message: String,
+) -> Result<(), Error> {
+    ctx.notification_manager
+        .notify(package, level, title, message, NotificationSubtype::General)
+        .await
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum NotificationLevel {
     Success,
@@ -150,11 +163,11 @@ impl fmt::Display for NotificationLevel {
         }
     }
 }
-pub struct InvalidNotificationLevel;
+pub struct InvalidNotificationLevel(String);
 impl From<InvalidNotificationLevel> for crate::Error {
-    fn from(_val: InvalidNotificationLevel) -> Self {
+    fn from(val: InvalidNotificationLevel) -> Self {
         Error::new(
-            anyhow!("Invalid Notification Level"),
+            anyhow!("Invalid Notification Level: {}", val.0),
             ErrorKind::ParseDbField,
         )
     }
@@ -167,8 +180,13 @@ impl FromStr for NotificationLevel {
             s if s == "info" => Ok(NotificationLevel::Info),
             s if s == "warning" => Ok(NotificationLevel::Warning),
             s if s == "error" => Ok(NotificationLevel::Error),
-            _ => Err(InvalidNotificationLevel),
+            s => Err(InvalidNotificationLevel(s.to_string())),
         }
+    }
+}
+impl fmt::Display for InvalidNotificationLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Invalid Notification Level: {}", self.0)
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]
