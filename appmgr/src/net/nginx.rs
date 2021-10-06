@@ -9,6 +9,7 @@ use tokio::sync::Mutex;
 
 use super::interface::{InterfaceId, LanPortConfig};
 use super::ssl::SslManager;
+use crate::hostname::get_hostname;
 use crate::s9pk::manifest::PackageId;
 use crate::util::{Invoke, Port};
 use crate::{Error, ErrorKind, ResultExt};
@@ -40,11 +41,27 @@ pub struct NginxControllerInner {
 }
 impl NginxControllerInner {
     async fn init(nginx_root: PathBuf, db: SqlitePool) -> Result<Self, Error> {
-        Ok(NginxControllerInner {
+        let inner = NginxControllerInner {
             nginx_root,
             interfaces: BTreeMap::new(),
             ssl_manager: SslManager::init(db).await?,
-        })
+        };
+        let (key, cert) = inner
+            .ssl_manager
+            .certificate_for(&get_hostname().await?)
+            .await?;
+        let ssl_path_key = inner.nginx_root.join(format!("ssl/embassy_main.key.pem"));
+        let ssl_path_cert = inner.nginx_root.join(format!("ssl/embassy_main.cert.pem"));
+        futures::try_join!(
+            tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?),
+            tokio::fs::write(
+                &ssl_path_cert,
+                cert.into_iter()
+                    .flat_map(|c| c.to_pem().unwrap())
+                    .collect::<Vec<u8>>()
+            )
+        )?;
+        Ok(inner)
     }
     async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &mut self,
