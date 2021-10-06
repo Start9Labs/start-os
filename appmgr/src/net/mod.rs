@@ -32,7 +32,7 @@ pub struct NetController {
     pub tor: TorController,
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
-    nginx: NginxController,
+    pub nginx: NginxController,
 }
 impl NetController {
     pub async fn init(
