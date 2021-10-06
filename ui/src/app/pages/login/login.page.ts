@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
-import { LoadingController } from '@ionic/angular'
+import { LoadingController, getPlatforms } from '@ionic/angular'
 import { Subscription } from 'rxjs'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 
 @Component({
@@ -18,6 +19,7 @@ export class LoginPage {
   constructor (
     private readonly authService: AuthService,
     private readonly loadingCtrl: LoadingController,
+    private readonly api: ApiService,
   ) { }
 
   ngOnDestroy () {
@@ -45,7 +47,11 @@ export class LoginPage {
     await this.loader.present()
 
     try {
-      await this.authService.login(this.password)
+      await this.api.login({
+        password: this.password,
+        metadata: { platforms: getPlatforms() },
+      })
+      this.authService.setVerified()
       this.password = ''
     } catch (e) {
       this.error = e.code === 34 ? 'Invalid Password' : e.message

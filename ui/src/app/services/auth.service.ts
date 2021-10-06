@@ -1,9 +1,7 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject, Observable } from 'rxjs'
 import { distinctUntilChanged } from 'rxjs/operators'
-import { ApiService } from './api/embassy-api.service'
 import { Storage } from '@ionic/storage-angular'
-import { getPlatforms, isPlatform } from '@ionic/angular'
 
 export enum AuthState {
   UNVERIFIED,
@@ -18,7 +16,6 @@ export class AuthService {
   private readonly authState$: BehaviorSubject<AuthState> = new BehaviorSubject(AuthState.INITIALIZING)
 
   constructor (
-    private readonly embassyApi: ApiService,
     private readonly storage: Storage,
   ) { }
 
@@ -31,11 +28,7 @@ export class AuthService {
     return this.authState$.pipe(distinctUntilChanged())
   }
 
-  async login (password: string): Promise<void> {
-    await this.embassyApi.login({
-      password,
-      metadata: { platforms: getPlatforms() },
-    })
+  async setVerified (): Promise<void> {
     await this.storage.set(this.LOGGED_IN_KEY, true)
     this.authState$.next(AuthState.VERIFIED)
   }

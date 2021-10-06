@@ -4,11 +4,13 @@ import { DataModel } from './data-model'
 import { LocalStorageBootstrap } from './local-storage-bootstrap'
 import { PatchDbService } from './patch-db.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { AuthService } from '../auth.service'
 
 export function PatchDbServiceFactory (
   config: ConfigService,
-  bootstrapper: LocalStorageBootstrap,
   embassyApi: ApiService,
+  bootstrapper: LocalStorageBootstrap,
+  auth: AuthService,
 ): PatchDbService {
 
   const { mocks, patchDb: { poll }, supportsWebSockets } = config
@@ -31,5 +33,5 @@ export function PatchDbServiceFactory (
     }
   }
 
-  return new PatchDbService(source, embassyApi, bootstrapper)
+  return new PatchDbService(source, embassyApi, bootstrapper, auth)
 }
