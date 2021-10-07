@@ -12,7 +12,6 @@ all: eos.img
 
 clean:
 	rm -f eos.img
-	rm -f ubuntu.img
 	rm -f product_key.txt
 	sudo rm -f $(EMBASSY_BINS)
 	rm -rf ui/node_modules
@@ -23,6 +22,10 @@ clean:
 	rm -rf diagnostic-ui/www
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
+	rm -f ui/package-lock.json
+	rm -f setup-wizard/package-lock.json
+	rm -f diagnostic-ui/package-lock.json
+	rm -f patch-db/client/package-lock.json
 
 eos.img: $(EMBASSY_SRC)
 	./build/make-image.sh
