@@ -53,7 +53,7 @@
                     <h2> Embassy version: {{drive['embassy-os'].version}}</h2>
                   </ion-label>
                   <ion-icon *ngIf="(drive['embassy-os'].version.startsWith('0.2') && stateService.hasProductKey) || passwords[drive.logicalname] || prodKeys[drive.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
-                  <ion-icon *ngIf="(!drive['embassy-os'].version.startsWith('0.2') && (!passwords[drive.logicalname]) || (drive['embassy-os'].version.startsWith('0.2') && !prodKeys[drive.logicalname]))" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
+                  <ion-icon *ngIf="(drive['embassy-os'].version.startsWith('0.2') && !stateService.hasProductKey && !prodKeys[drive.logicalname]) || (!drive['embassy-os'].version.startsWith('0.2') && !passwords[drive.logicalname])" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
 
                 </ion-item>
               </ng-container>

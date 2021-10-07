@@ -16,7 +16,7 @@ export class StateService {
   embassyPassword: string
   recoveryDrive: DiskInfo;
   recoveryPassword: string
-  dataTransferProgress: { bytesTransfered: number; totalBytes: number } | null;
+  dataTransferProgress: { bytesTransferred: number; totalBytes: number } | null;
   dataProgress = 0;
   dataProgSubject = new BehaviorSubject(this.dataProgress)
 
@@ -33,23 +33,23 @@ export class StateService {
 
     if (
       this.dataTransferProgress?.totalBytes &&
-      this.dataTransferProgress.bytesTransfered === this.dataTransferProgress.totalBytes
-    ) {return }
+      this.dataTransferProgress.bytesTransferred === this.dataTransferProgress.totalBytes
+    ) return
       
 
     let progress 
     try {
-      progress =await this.apiService.getRecoveryStatus()
+      progress = await this.apiService.getRecoveryStatus()
     } catch (e) {
       this.errorToastService.present(`${e.message}: ${e.details}`)
     }
     if (progress) {
       this.dataTransferProgress = {
-        bytesTransfered: progress['bytes-transfered'],
+        bytesTransferred: progress['bytes-transferred'],
         totalBytes: progress['total-bytes']
       }
       if (this.dataTransferProgress.totalBytes) {
-        this.dataProgress = this.dataTransferProgress.bytesTransfered / this.dataTransferProgress.totalBytes
+        this.dataProgress = this.dataTransferProgress.bytesTransferred / this.dataTransferProgress.totalBytes
         this.dataProgSubject.next(this.dataProgress)
       }
     }
