@@ -93,6 +93,7 @@ pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
             .invoke(crate::ErrorKind::BlockDevice)
             .await?,
     )?
+    .trim()
     .parse()?)
 }
 
@@ -203,7 +204,8 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                 .unwrap_or_default();
             let mut used = None;
 
-            let tmp_mountpoint = Path::new(TMP_MOUNTPOINT).join(&part);
+            let tmp_mountpoint =
+                Path::new(TMP_MOUNTPOINT).join(&part.strip_prefix("/").unwrap_or(&part));
             if let Err(e) = mount(&part, &tmp_mountpoint).await {
                 log::warn!("Could not collect usage information: {}", e.source)
             } else {

@@ -133,8 +133,23 @@ impl HasModel for Volumes {
     type Model = MapModel<Self>;
 }
 
-pub fn asset_dir(ctx: &RpcContext, pkg_id: &PackageId, version: &Version) -> PathBuf {
-    ctx.datadir
+pub fn data_dir<P: AsRef<Path>>(
+    datadir: P,
+    pkg_id: &PackageId,
+    version: &Version,
+    volume_id: &VolumeId,
+) -> PathBuf {
+    datadir
+        .as_ref()
+        .join(PKG_VOLUME_DIR)
+        .join(pkg_id)
+        .join("data")
+        .join(volume_id)
+}
+
+pub fn asset_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Version) -> PathBuf {
+    datadir
+        .as_ref()
         .join(PKG_VOLUME_DIR)
         .join(pkg_id)
         .join("assets")
@@ -189,13 +204,8 @@ impl Volume {
         volume_id: &VolumeId,
     ) -> PathBuf {
         match self {
-            Volume::Data { .. } => ctx
-                .datadir
-                .join(PKG_VOLUME_DIR)
-                .join(pkg_id)
-                .join("data")
-                .join(volume_id),
-            Volume::Assets {} => asset_dir(ctx, pkg_id, version).join(volume_id),
+            Volume::Data { .. } => data_dir(&ctx.datadir, pkg_id, version, volume_id),
+            Volume::Assets {} => asset_dir(&ctx.datadir, pkg_id, version).join(volume_id),
             Volume::Pointer {
                 package_id,
                 volume_id,
