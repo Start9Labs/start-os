@@ -18,7 +18,7 @@ use futures::{FutureExt, TryFutureExt};
 use log::LevelFilter;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
-use rpc_toolkit::{rpc_server, Context};
+use rpc_toolkit::rpc_server;
 use tokio::process::Command;
 use tokio::signal::unix::signal;
 

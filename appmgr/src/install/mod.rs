@@ -507,7 +507,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Unpacking Assets", pkg_id, version);
     progress
         .track_read_during(progress_model.clone(), &ctx.db, || async {
-            let asset_dir = asset_dir(ctx, pkg_id, version);
+            let asset_dir = asset_dir(&ctx.datadir, pkg_id, version);
             if tokio::fs::metadata(&asset_dir).await.is_err() {
                 tokio::fs::create_dir_all(&asset_dir).await?;
             }
@@ -628,6 +628,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     *dep_errs = DependencyErrors::init(ctx, &mut tx, &manifest, &current_dependencies).await?;
     dep_errs.save(&mut tx).await?;
 
+    let recovered = crate::db::DatabaseModel::new()
+        .recovered_packages()
+        .idx_model(pkg_id)
+        .get(&mut tx, true)
+        .await?
+        .into_owned();
+
     if let PackageDataEntry::Updating {
         installed: prev,
         manifest: prev_manifest,
@@ -686,10 +693,51 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 &mut BTreeMap::new(),
             )
             .await?;
-            todo!("set as running if viable");
+            let mut main_status = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(pkg_id)
+                .expect(&mut tx)
+                .await?
+                .installed()
+                .expect(&mut tx)
+                .await?
+                .status()
+                .main()
+                .get_mut(&mut tx)
+                .await?;
+            *main_status = prev.status.main;
+            main_status.save(&mut tx).await?;
         }
     } else {
         update_dependents(ctx, &mut tx, pkg_id, current_dependents.keys()).await?;
+        if let Some(recovered) = recovered {
+            let configured = if let Some(res) = manifest
+                .migrations
+                .from(ctx, &recovered.version, pkg_id, version, &manifest.volumes)
+                .await?
+            {
+                res.configured
+            } else {
+                false
+            };
+            if configured {
+                crate::config::configure(
+                    ctx,
+                    &mut tx,
+                    pkg_id,
+                    None,
+                    &None,
+                    false,
+                    &mut BTreeMap::new(),
+                    &mut BTreeMap::new(),
+                )
+                .await?;
+            }
+            crate::db::DatabaseModel::new()
+                .recovered_packages()
+                .remove(&mut tx, pkg_id)
+                .await?
+        }
     }
 
     sql_tx.commit().await?;

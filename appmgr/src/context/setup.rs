@@ -7,18 +7,20 @@ use std::time::Duration;
 
 use patch_db::json_ptr::JsonPointer;
 use patch_db::PatchDb;
+use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
 use serde::Deserialize;
-use sqlx::migrate::MigrateDatabase;
 use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::{Sqlite, SqlitePool};
+use sqlx::SqlitePool;
 use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
+use tokio::sync::RwLock;
 use url::Host;
 
 use crate::db::model::Database;
-use crate::hostname::{get_hostname, get_id};
+use crate::hostname::{get_hostname, get_id, get_product_key};
 use crate::net::tor::os_key;
+use crate::setup::RecoveryStatus;
 use crate::util::io::from_toml_async_reader;
 use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
@@ -64,6 +66,9 @@ pub struct SetupContextSeed {
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
     pub zfs_pool_name: Arc<String>,
+    pub selected_v2_drive: RwLock<Option<PathBuf>>,
+    pub cached_product_key: RwLock<Option<Arc<String>>>,
+    pub recovery_status: RwLock<Option<Result<RecoveryStatus, RpcError>>>,
 }
 
 #[derive(Clone)]
@@ -79,6 +84,9 @@ impl SetupContext {
             shutdown,
             datadir,
             zfs_pool_name,
+            selected_v2_drive: RwLock::new(None),
+            cached_product_key: RwLock::new(None),
+            recovery_status: RwLock::new(None),
         })))
     }
     pub async fn db(&self, secret_store: &SqlitePool) -> Result<PatchDb, Error> {
@@ -113,6 +121,17 @@ impl SetupContext {
             .await
             .with_kind(crate::ErrorKind::Database)?;
         Ok(secret_store)
+    }
+    pub async fn product_key(&self) -> Result<Arc<String>, Error> {
+        Ok(
+            if let Some(k) = { self.cached_product_key.read().await.clone() } {
+                k
+            } else {
+                let k = Arc::new(get_product_key().await?);
+                *self.cached_product_key.write().await = Some(k.clone());
+                k
+            },
+        )
     }
 }
 
