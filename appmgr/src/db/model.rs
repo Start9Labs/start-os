@@ -23,6 +23,8 @@ pub struct Database {
     pub server_info: ServerInfo,
     #[model]
     pub package_data: AllPackageData,
+    #[model]
+    pub recovered_packages: BTreeMap<PackageId, RecoveredPackageInfo>,
     pub broken_packages: Vec<PackageId>,
     pub ui: Value,
 }
@@ -53,6 +55,7 @@ impl Database {
                 share_stats: false,
             },
             package_data: AllPackageData::default(),
+            recovered_packages: BTreeMap::new(),
             broken_packages: Vec::new(),
             ui: Value::Object(Default::default()),
         }
@@ -253,4 +256,12 @@ pub struct InterfaceAddresses {
     pub tor_address: Option<String>,
     #[model]
     pub lan_address: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+pub struct RecoveredPackageInfo {
+    pub title: String,
+    pub icon: String,
+    pub version: Version,
 }
