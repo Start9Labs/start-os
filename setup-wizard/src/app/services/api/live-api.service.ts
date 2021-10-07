@@ -3,12 +3,12 @@ import { ApiService, DiskInfo, GetStatusRes, RecoveryStatusRes, SetupEmbassyReq 
 import { HttpService } from './http.service'
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class LiveApiService extends ApiService {
 
-  constructor(
-    private readonly http: HttpService
+  constructor (
+    private readonly http: HttpService,
   ) { super() }
 
   // ** UNENCRYPTED **
@@ -16,28 +16,28 @@ export class LiveApiService extends ApiService {
   async getStatus () {
     return this.http.rpcRequest<GetStatusRes>({
       method: 'setup.status',
-      params: { }
+      params: { },
     }, false)
   }
 
   async getDrives () {
     return this.http.rpcRequest<DiskInfo[]>({
       method: 'setup.disk.list',
-      params: { }
+      params: { },
     }, false)
   }
 
   async set02XDrive (logicalname) {
     return this.http.rpcRequest<void>({
       method: 'setup.recovery.v2.set',
-      params: { logicalname }
+      params: { logicalname },
     }, false)
   }
 
   async getRecoveryStatus () {
     return this.http.rpcRequest<RecoveryStatusRes>({
       method: 'setup.recovery.status',
-      params: { }
+      params: { },
     }, false)
   }
 
@@ -46,21 +46,21 @@ export class LiveApiService extends ApiService {
   async verifyProductKey () {
     return this.http.rpcRequest<void>({
       method: 'echo',
-      params: { }
+      params: { },
     })
   }
 
   async verify03XPassword (logicalname: string, password: string) {
     return this.http.rpcRequest<boolean>({
       method: 'setup.recovery.test-password',
-      params: { logicalname, password }
+      params: { logicalname, password },
     })
   }
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
     return this.http.rpcRequest<string>({
       method: 'setup.execute',
-      params: setupInfo as any
+      params: setupInfo as any,
     })
   }
 }

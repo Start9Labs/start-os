@@ -5,11 +5,11 @@ import { ApiService, SetupEmbassyReq } from './api.service'
 let tries = 0
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class MockApiService extends ApiService {
 
-  constructor() {
+  constructor () {
     super()
   }
 
@@ -35,17 +35,17 @@ export class MockApiService extends ApiService {
             logicalname: 'sda1',
             label: 'label 1',
             capacity: 100000,
-            used: 200.1255312
+            used: 200.1255312,
           },
           {
             logicalname: 'sda2',
             label: 'label 2',
             capacity: 50000,
-            used: 200.1255312
-          }
+            used: 200.1255312,
+          },
         ],
         capacity: 150000,
-        'embassy-os': null
+        'embassy-os': null,
       },
       {
         vendor: 'Vendor',
@@ -60,7 +60,7 @@ export class MockApiService extends ApiService {
           // }
         ],
         capacity: 1600.01234,
-        'embassy-os': null
+        'embassy-os': null,
       },
       {
         vendor: 'Vendor',
@@ -71,13 +71,13 @@ export class MockApiService extends ApiService {
             logicalname: 'sdc1',
             label: 'label 1',
             capacity: null,
-            used: null
-          }
+            used: null,
+          },
         ],
         capacity: 100000,
         'embassy-os': {
           version: '0.3.3',
-        }
+        },
       },
       {
         vendor: 'Vendor',
@@ -88,8 +88,8 @@ export class MockApiService extends ApiService {
             logicalname: 'sdd1',
             label: null,
             capacity: 10000,
-            used: null
-          }
+            used: null,
+          },
         ],
         capacity: 10000,
         'embassy-os': {
@@ -108,7 +108,7 @@ export class MockApiService extends ApiService {
     tries = Math.min(tries + 1, 4)
     return {
       'bytes-transferred': tries,
-      'total-bytes': 4
+      'total-bytes': 4,
     }
   }
 
@@ -135,13 +135,13 @@ export class MockApiService extends ApiService {
       {
         logicalname: 'Name1',
         version: '0.3.3',
-        name: 'My Embassy'
+        name: 'My Embassy',
       },
       {
         logicalname: 'Name2',
         version: '0.2.7',
-        name: 'My Embassy'
-      }
+        name: 'My Embassy',
+      },
     ]
   }
 }

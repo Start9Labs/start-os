@@ -8,10 +8,10 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['loading.page.scss'],
 })
 export class LoadingPage {
-  constructor(
+  constructor (
     public stateService: StateService,
-    private navCtrl: NavController
-  ) {}
+    private navCtrl: NavController,
+  ) { }
 
   ngOnInit () {
     this.stateService.pollDataTransferProgress()

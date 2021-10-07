@@ -1,33 +1,33 @@
 import { Injectable } from '@angular/core'
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject } from 'rxjs'
 import { ApiService, DiskInfo } from './api/api.service'
-import { ErrorToastService } from './error-toast.service';
+import { ErrorToastService } from './error-toast.service'
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class StateService {
   hasProductKey: boolean
   isMigrating: boolean
-  
+
   polling = false
 
-  storageDrive: DiskInfo;
+  storageDrive: DiskInfo
   embassyPassword: string
-  recoveryDrive: DiskInfo;
+  recoveryDrive: DiskInfo
   recoveryPassword: string
-  dataTransferProgress: { bytesTransferred: number; totalBytes: number } | null;
-  dataProgress = 0;
+  dataTransferProgress: { bytesTransferred: number; totalBytes: number } | null
+  dataProgress = 0
   dataProgSubject = new BehaviorSubject(this.dataProgress)
 
   torAddress: string
 
-  constructor(
+  constructor (
     private readonly apiService: ApiService,
-    private readonly errorToastService: ErrorToastService
-  ) {}
+    private readonly errorToastService: ErrorToastService,
+  ) { }
 
-  async pollDataTransferProgress(callback?: () => void) {
+  async pollDataTransferProgress (callback?: () => void) {
     this.polling = true
     await pauseFor(1000)
 
@@ -35,9 +35,9 @@ export class StateService {
       this.dataTransferProgress?.totalBytes &&
       this.dataTransferProgress.bytesTransferred === this.dataTransferProgress.totalBytes
     ) return
-      
 
-    let progress 
+
+    let progress
     try {
       progress = await this.apiService.getRecoveryStatus()
     } catch (e) {
@@ -46,7 +46,7 @@ export class StateService {
     if (progress) {
       this.dataTransferProgress = {
         bytesTransferred: progress['bytes-transferred'],
-        totalBytes: progress['total-bytes']
+        totalBytes: progress['total-bytes'],
       }
       if (this.dataTransferProgress.totalBytes) {
         this.dataProgress = this.dataTransferProgress.bytesTransferred / this.dataTransferProgress.totalBytes
@@ -61,7 +61,7 @@ export class StateService {
       'embassy-logicalname': this.storageDrive.logicalname,
       'embassy-password': this.embassyPassword,
       'recovery-logicalname': this.recoveryDrive?.logicalname,
-      'recovery-password': this.recoveryPassword
+      'recovery-password': this.recoveryPassword,
     })
     return { torAddress: ret }
   }
@@ -70,4 +70,4 @@ export class StateService {
 export const pauseFor = (ms: number) => {
   const promise = new Promise(resolve => setTimeout(resolve, ms))
   return promise
-};
+}

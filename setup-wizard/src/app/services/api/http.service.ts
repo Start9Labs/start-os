@@ -28,7 +28,7 @@ export class HttpService {
 
     let res: RPCResponse<T>
 
-    if(encrypted) {
+    if (encrypted) {
       res = await this.encryptedHttpRequest<RPCResponse<T>>(httpOpts)
     } else {
       res = await this.httpRequest<RPCResponse<T>>(httpOpts)
@@ -58,7 +58,7 @@ export class HttpService {
 
       headers: {
         'Content-Encoding': 'aesctr256',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
     } as any
 
@@ -207,10 +207,10 @@ export const AES_CTR: AES_CTR = {
     const salt = window.crypto.getRandomValues(new Uint8Array(16))
     const counter = window.crypto.getRandomValues(new Uint8Array(16))
 
-    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256');
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256')
 
-    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
-    const encryptedBytes = aesCtr.encrypt(messageBuffer);
+    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter))
+    const encryptedBytes = aesCtr.encrypt(messageBuffer)
     return new Uint8Array([...counter, ...salt, ...encryptedBytes])
   },
   decryptPbkdf2: async (secretKey: string, arr: ArrayBuffer) => {
@@ -219,12 +219,12 @@ export const AES_CTR: AES_CTR = {
     const salt = buff.slice(16, 32)
 
     const cipher = buff.slice(32)
-    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256');
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256')
 
-    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
-    const decryptedBytes = aesCtr.decrypt(cipher);
+    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter))
+    const decryptedBytes = aesCtr.decrypt(cipher)
 
-    return aesjs.utils.utf8.fromBytes(decryptedBytes);
+    return aesjs.utils.utf8.fromBytes(decryptedBytes)
   },
 }
 
@@ -237,5 +237,5 @@ export function encodeUtf8 (str: string): Uint8Array {
 }
 
 export function decodeUtf8 (arr: Uint8Array): string {
-  return new TextDecoder().decode(arr);
+  return new TextDecoder().decode(arr)
 }

@@ -15,18 +15,18 @@ export class ProdKeyModal {
   productKey = ''
   unmasked = false
 
-  constructor(
+  constructor (
     private readonly modalController: ModalController,
     private readonly apiService: ApiService,
     private readonly loadingCtrl: LoadingController,
     private readonly httpService: HttpService,
-  ) {}
+  ) { }
 
   async verifyProductKey () {
     if (!this.productKey) return
 
     const loader = await this.loadingCtrl.create({
-      message: 'Verifying Product Key'
+      message: 'Verifying Product Key',
     })
     await loader.present()
 

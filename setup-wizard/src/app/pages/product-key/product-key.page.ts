@@ -13,27 +13,27 @@ export class ProductKeyPage {
   productKey: string
   error: string
 
-  constructor(
+  constructor (
     private readonly navCtrl: NavController,
     private readonly stateService: StateService,
     private readonly apiService: ApiService,
     private readonly loadingCtrl: LoadingController,
-    private readonly httpService: HttpService
-  ) {}
+    private readonly httpService: HttpService,
+  ) { }
 
   async submit () {
-    if(!this.productKey) return this.error = "Must enter product key"
+    if (!this.productKey) return this.error = 'Must enter product key'
 
     const loader = await this.loadingCtrl.create({
-      message: 'Verifying Product Key'
+      message: 'Verifying Product Key',
     })
     await loader.present()
 
     try {
       this.httpService.productKey = this.productKey
       await this.apiService.verifyProductKey()
-      console.log("is migrating", this.stateService.isMigrating)
-      if(this.stateService.isMigrating) {
+      console.log('is migrating', this.stateService.isMigrating)
+      if (this.stateService.isMigrating) {
         await this.navCtrl.navigateForward(`/loading`)
       } else {
         await this.navCtrl.navigateForward(`/home`)

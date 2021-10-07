@@ -12,19 +12,19 @@ import { ProdKeyModal } from '../prod-key-modal/prod-key-modal.page'
   styleUrls: ['recover.page.scss'],
 })
 export class RecoverPage {
-  passwords = {}
-  prodKeys = {}
+  passwords = { }
+  prodKeys = { }
   recoveryDrives = []
   selectedDrive: DiskInfo = null
   loading = true
 
-  constructor(
+  constructor (
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly modalController: ModalController,
     readonly stateService: StateService,
     private readonly errorToastService: ErrorToastService,
-  ) {}
+  ) { }
 
   async ngOnInit () {
     await this.getDrives()
@@ -41,7 +41,7 @@ export class RecoverPage {
     try {
       let drives = (await this.apiService.getDrives()).filter(d => !!d['embassy-os'])
 
-      if(!this.stateService.hasProductKey) {
+      if (!this.stateService.hasProductKey) {
         drives = drives.filter(d => d['embassy-os'].version.startsWith('0.2'))
       }
 
@@ -54,7 +54,7 @@ export class RecoverPage {
     }
   }
 
-  async chooseDrive(drive: DiskInfo) {
+  async chooseDrive (drive: DiskInfo) {
 
     if (this.selectedDrive?.logicalname === drive.logicalname) {
       this.selectedDrive = null
@@ -69,43 +69,43 @@ export class RecoverPage {
       const modal = await this.modalController.create({
         component: PasswordPage,
         componentProps: {
-          recoveryDrive: this.selectedDrive
+          recoveryDrive: this.selectedDrive,
         },
         cssClass: 'alertlike-modal',
       })
       modal.onDidDismiss().then(async ret => {
         if (!ret.data) {
           this.selectedDrive = null
-        } else if(ret.data.password) {
+        } else if (ret.data.password) {
           this.passwords[drive.logicalname] = ret.data.password
         }
-        
+
       })
-      await modal.present();
+      await modal.present()
     } else {
       const modal = await this.modalController.create({
         component: ProdKeyModal,
         componentProps: {
-          recoveryDrive: this.selectedDrive
+          recoveryDrive: this.selectedDrive,
         },
         cssClass: 'alertlike-modal',
       })
       modal.onDidDismiss().then(async ret => {
         if (!ret.data) {
           this.selectedDrive = null
-        } else if(ret.data.productKey) {
+        } else if (ret.data.productKey) {
           this.prodKeys[drive.logicalname] = ret.data.productKey
         }
-        
+
       })
-      await modal.present();
+      await modal.present()
     }
   }
 
-  async selectRecoveryDrive() {
+  async selectRecoveryDrive () {
     this.stateService.recoveryDrive = this.selectedDrive
     const pw = this.passwords[this.selectedDrive.logicalname]
-    if(pw) {
+    if (pw) {
       this.stateService.recoveryPassword = pw
     }
     await this.navCtrl.navigateForward(`/embassy`)

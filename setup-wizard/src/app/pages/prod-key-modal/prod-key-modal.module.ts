@@ -11,8 +11,8 @@ import { ProdKeyModalRoutingModule } from './prod-key-modal-routing.module'
     CommonModule,
     FormsModule,
     IonicModule,
-    ProdKeyModalRoutingModule
+    ProdKeyModalRoutingModule,
   ],
-  declarations: [ProdKeyModal]
+  declarations: [ProdKeyModal],
 })
-export class ProdKeyModalModule {}
+export class ProdKeyModalModule { }

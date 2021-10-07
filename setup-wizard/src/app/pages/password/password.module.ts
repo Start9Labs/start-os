@@ -12,8 +12,8 @@ import { PasswordPageRoutingModule } from './password-routing.module'
     CommonModule,
     FormsModule,
     IonicModule,
-    PasswordPageRoutingModule
+    PasswordPageRoutingModule,
   ],
-  declarations: [PasswordPage]
+  declarations: [PasswordPage],
 })
-export class PasswordPageModule {}
+export class PasswordPageModule { }

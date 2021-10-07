@@ -8,7 +8,7 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['success.page.scss'],
 })
 export class SuccessPage {
-  constructor(
+  constructor (
     private readonly toastCtrl: ToastController,
     public readonly stateService: StateService,
   ) { }

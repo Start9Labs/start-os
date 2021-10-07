@@ -9,12 +9,12 @@ import { StateService } from './services/state.service'
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],
 })
-export class AppComponent { 
-  constructor(
+export class AppComponent {
+  constructor (
     private readonly apiService: ApiService,
     private readonly errorToastService: ErrorToastService,
     private readonly navCtrl: NavController,
-    private readonly stateService: StateService
+    private readonly stateService: StateService,
   ) { }
 
   async ngOnInit () {

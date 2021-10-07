@@ -26,7 +26,7 @@ const routes: Routes = [
     path: 'success',
     loadChildren: () => import('./pages/success/success.module').then( m => m.SuccessPageModule),
   },
-];
+]
 
 @NgModule({
   imports: [
