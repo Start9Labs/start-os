@@ -67,6 +67,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<InstallProgressTracker<R>> {
 }
 impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
     pub async fn validate(&mut self) -> Result<(), Error> {
+        self.rdr.seek(SeekFrom::Start(0)).await?;
         Ok(())
     }
     pub async fn from_reader(mut rdr: R) -> Result<Self, Error> {
