@@ -26,7 +26,7 @@
     </div>
 
     <ng-template #list>
-      <ion-grid>
+      <ion-grid *ngIf="!(pkgs | empty)">
         <ion-row>
           <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="6" sizeSm="4" sizeLg="3">
             <ion-card class="installed-card warn-shadow" [routerLink]="['/services', pkg.value.entry.manifest.id]">
@@ -75,6 +75,27 @@
           </ion-col>
         </ion-row>
       </ion-grid>
+
+      <ng-container *ngIf="!(recoveredPkgs | empty)">
+        <h2>Recovered Packages</h2>
+        <ion-item-group>
+          <ion-item *ngFor="let rec of recoveredPkgs | keyvalue">
+            <ion-thumbnail slot="start">
+              <img [src]="rec.icon" />
+            </ion-thumbnail>
+            <ion-label>
+              <h2>{{ rec.title }}</h2>
+              <p>{{ rec.version | displayEmver }}</p>
+            </ion-label>
+            <ion-button slot="end" fill="outline" color="danger">
+              Delete
+            </ion-button>
+            <ion-button slot="end" fill="outline">
+              Install
+            </ion-button>
+          </ion-item>
+        </ion-item-group>
+      </ng-container>
     </ng-template>
   </div>
 </ion-content>

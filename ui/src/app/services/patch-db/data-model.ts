@@ -3,6 +3,7 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 export interface DataModel {
   'server-info': ServerInfo
   'package-data': { [id: string]: PackageDataEntry }
+  'recovered-packages': { [id: string]: RecoveredPackageDataEntry }
   ui: UIData
 }
 
@@ -43,6 +44,12 @@ export interface PackageDataEntry {
   manifest: Manifest
   installed?: InstalledPackageDataEntry, // exists when: installed, updating
   'install-progress'?: InstallProgress, // exists when: installing, updating
+}
+
+export interface RecoveredPackageDataEntry {
+  title: string,
+  icon: URL,
+  version: string,
 }
 
 export interface InstallProgress {
