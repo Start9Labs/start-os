@@ -81,11 +81,11 @@
         <ion-item-group>
           <ion-item *ngFor="let rec of recoveredPkgs | keyvalue">
             <ion-thumbnail slot="start">
-              <img [src]="rec.icon" />
+              <img [src]="rec.value.icon" />
             </ion-thumbnail>
             <ion-label>
-              <h2>{{ rec.title }}</h2>
-              <p>{{ rec.version | displayEmver }}</p>
+              <h2>{{ rec.value.title }}</h2>
+              <p>{{ rec.value.version | displayEmver }}</p>
             </ion-label>
             <ion-button slot="end" fill="outline" color="danger">
               Delete
