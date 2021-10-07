@@ -23,6 +23,10 @@ clean:
 	rm -rf diagnostic-ui/www
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
+	rm -f ui/package-lock.json
+	rm -f setup-wizard/package-lock.json
+	rm -f diagnostic-ui/package-lock.json
+	rm -f patch-db/client/package-lock.json
 
 eos.img: $(EMBASSY_SRC)
 	! test -f eos.img || rm eos.img
@@ -33,7 +37,7 @@ ubuntu.img:
 	unxz ubuntu.img.xz
 
 product_key.txt:
-	/usr/bin/echo -ne "X\c" > product_key.txt
+	$(which echo) -n "X" > product_key.txt
 	cat /dev/random | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
 	echo >> product_key.txt
 
