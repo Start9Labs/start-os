@@ -1,12 +1,10 @@
 use std::path::Path;
-use std::sync::Arc;
 
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
 use embassy::db::model::ServerStatus;
 use embassy::db::DatabaseModel;
 use embassy::disk::main::DEFAULT_PASSWORD;
-use embassy::hostname::get_product_key;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
 use embassy::middleware::encrypt::encrypt;
@@ -46,7 +44,12 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
             .invoke(embassy::ErrorKind::Nginx)
             .await?;
         let ctx = SetupContext::init(cfg_path).await?;
-        let encrypt = encrypt(Arc::new(get_product_key().await?));
+        let keysource_ctx = ctx.clone();
+        let keysource = move || {
+            let ctx = keysource_ctx.clone();
+            async move { ctx.product_key().await }
+        };
+        let encrypt = encrypt(keysource);
         MARIO_COIN.play().await?;
         rpc_server!({
             command: embassy::setup_api,

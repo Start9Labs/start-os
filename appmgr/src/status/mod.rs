@@ -3,17 +3,14 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
-use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
-use patch_db::{DbHandle, HasModel, Map, MapModel, ModelData};
+use patch_db::{DbHandle, HasModel, Map, ModelData};
 use serde::{Deserialize, Serialize};
 
 use self::health_check::HealthCheckId;
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
-use crate::dependencies::{
-    break_transitive, DependencyError, DependencyErrors, TaggedDependencyError,
-};
+use crate::dependencies::{break_transitive, DependencyError, DependencyErrors};
 use crate::manager::{Manager, Status as ManagerStatus};
 use crate::notifications::{NotificationLevel, NotificationSubtype};
 use crate::s9pk::manifest::{Manifest, PackageId};

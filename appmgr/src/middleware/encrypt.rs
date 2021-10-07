@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::Arc;
 
 use aes::cipher::{CipherKey, NewCipher, Nonce, StreamCipher};
@@ -147,17 +148,38 @@ fn encrypted(headers: &HeaderMap) -> bool {
         .unwrap_or_default()
 }
 
-pub fn encrypt<M: Metadata>(key: Arc<String>) -> DynMiddleware<M> {
+pub fn encrypt<
+    F: Fn() -> Fut + Send + Sync + Clone + 'static,
+    Fut: Future<Output = Result<Arc<String>, Error>> + Send + Sync + 'static,
+    M: Metadata,
+>(
+    keysource: F,
+) -> DynMiddleware<M> {
     Box::new(
         move |req: &mut Request<Body>,
               metadata: M|
               -> BoxFuture<Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError>> {
-            let key = key.clone();
+            let keysource = keysource.clone();
             async move {
                 let encrypted = encrypted(req.headers());
-                if encrypted {
+                let key = if encrypted {
+                    let key = match keysource().await {
+                        Ok(s) => s,
+                        Err(e) => {
+                            let (res_parts, _) = Response::new(()).into_parts();
+                            return Ok(Err(to_response(
+                                req.headers(),
+                                res_parts,
+                                Err(e.into()),
+                                |_| StatusCode::OK,
+                            )?));
+                        }
+                    };
                     let body = std::mem::take(req.body_mut());
                     *req.body_mut() = Body::wrap_stream(DecryptStream::new(key.clone(), body));
+                    Some(key)
+                } else {
+                    None
                 };
                 let res: DynMiddlewareStage2 = Box::new(move |req, rpc_req| {
                     async move {
@@ -182,7 +204,7 @@ pub fn encrypt<M: Metadata>(key: Arc<String>) -> DynMiddleware<M> {
                                 async move {
                                     let res: DynMiddlewareStage4 = Box::new(move |res| {
                                         async move {
-                                            if encrypted {
+                                            if let Some(key) = key {
                                                 res.headers_mut().insert(
                                                     "Content-Encoding",
                                                     HeaderValue::from_static("aesctr256"),
@@ -200,7 +222,7 @@ pub fn encrypt<M: Metadata>(key: Arc<String>) -> DynMiddleware<M> {
                                                 }
                                                 let body = std::mem::take(res.body_mut());
                                                 *res.body_mut() = Body::wrap_stream(
-                                                    EncryptStream::new(&*key, body),
+                                                    EncryptStream::new(key.as_ref(), body),
                                                 );
                                             }
                                             Ok(())

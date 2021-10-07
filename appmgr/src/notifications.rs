@@ -4,10 +4,10 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
-use futures::lock::Mutex;
-use patch_db::{PatchDb, Revision};
+use patch_db::PatchDb;
 use rpc_toolkit::command;
 use sqlx::SqlitePool;
+use tokio::sync::Mutex;
 
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;

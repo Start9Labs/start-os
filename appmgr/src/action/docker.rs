@@ -69,7 +69,13 @@ impl DockerAction {
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
         if log::log_enabled!(log::Level::Trace) {
-            log::trace!("{}", format!("{:?}", cmd).split(r#"" ""#).collect::<Vec<&str>>().join(" "));
+            log::trace!(
+                "{}",
+                format!("{:?}", cmd)
+                    .split(r#"" ""#)
+                    .collect::<Vec<&str>>()
+                    .join(" ")
+            );
         }
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
         if let (Some(input), Some(stdin)) = (&input_buf, &mut handle.stdin) {
