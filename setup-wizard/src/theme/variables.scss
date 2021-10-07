@@ -4,6 +4,8 @@
 /** Ionic CSS Variables **/
 :root {
   --ion-font-family: 'Benton Sans';
+  --ion-text-color: var(--ion-color-dark);
+  --ion-text-color-rgb: var(--ion-color-dark-rgb);
   /** primary **/
   --ion-color-primary: #428cff;
   --ion-color-primary-rgb: 66,140,255;

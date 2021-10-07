@@ -9,7 +9,7 @@
 
         <ion-card color="dark">
           <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
-            <ion-card-title>{{ loading ? 'Loading Recovery Drives' : 'Select Recovery Drive'}}</ion-card-title>
+            <ion-card-title>Select Recovery Drive</ion-card-title>
             <ion-card-subtitle>Select the drive containing the Embassy you want to recover.</ion-card-subtitle>
           </ion-card-header>
 
@@ -50,17 +50,17 @@
                       <span *ngIf="drive.vendor && drive.model"> - </span>
                       {{ drive.model }}
                     </h2>
-                    <h2> Embassy version: {{drive['embassy_os'].version}}</h2>
+                    <h2> Embassy version: {{drive['embassy-os'].version}}</h2>
                   </ion-label>
-                  <ion-icon *ngIf="drive['embassy_os'].version.startsWith('0.2') || passwords[drive.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
-                  <ion-icon *ngIf="!drive['embassy_os'].version.startsWith('0.2') && !passwords[drive.logicalname]" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
+                  <ion-icon *ngIf="(drive['embassy-os'].version.startsWith('0.2') && stateService.hasProductKey) || passwords[drive.logicalname] || prodKeys[drive.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
+                  <ion-icon *ngIf="(drive['embassy-os'].version.startsWith('0.2') && !stateService.hasProductKey && !prodKeys[drive.logicalname]) || (!drive['embassy-os'].version.startsWith('0.2') && !passwords[drive.logicalname])" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
 
                 </ion-item>
               </ng-container>
               <ion-button
                 (click)="selectRecoveryDrive()"
                 color="light"
-                [disabled]="!selectedDrive || (!passwords[selectedDrive.logicalname] && !selectedDrive['embassy_os'].version.startsWith('0.2'))"
+                [disabled]="!selectedDrive || (!passwords[selectedDrive.logicalname] && !selectedDrive['embassy-os'].version.startsWith('0.2'))"
                 class="claim-button"
                 *ngIf="recoveryDrives.length"
               >

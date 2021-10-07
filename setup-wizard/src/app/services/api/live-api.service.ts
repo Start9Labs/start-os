@@ -1,53 +1,66 @@
 import { Injectable } from '@angular/core'
-import { ApiService, DiskInfo, SetupEmbassyRes, TransferProgressRes, VerifyProductKeyRes } from './api.service'
+import { ApiService, DiskInfo, GetStatusRes, RecoveryStatusRes, SetupEmbassyReq } from './api.service'
 import { HttpService } from './http.service'
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class LiveApiService extends ApiService {
 
-  constructor(
-    private readonly http: HttpService
+  constructor (
+    private readonly http: HttpService,
   ) { super() }
 
-  async verifyProductKey () {
-    return this.http.rpcRequest<VerifyProductKeyRes>({
-      method: 'setup.status',
-      params: {}
-    })
-  }
+  // ** UNENCRYPTED **
 
-  async getDataTransferProgress () {
-    return this.http.rpcRequest<TransferProgressRes>({
-      method: 'setup.recovery.status',
-      params: {}
-    })
+  async getStatus () {
+    return this.http.rpcRequest<GetStatusRes>({
+      method: 'setup.status',
+      params: { },
+    }, false)
   }
 
   async getDrives () {
     return this.http.rpcRequest<DiskInfo[]>({
       method: 'setup.disk.list',
-      params: {}
+      params: { },
+    }, false)
+  }
+
+  async set02XDrive (logicalname) {
+    return this.http.rpcRequest<void>({
+      method: 'setup.recovery.v2.set',
+      params: { logicalname },
+    }, false)
+  }
+
+  async getRecoveryStatus () {
+    return this.http.rpcRequest<RecoveryStatusRes>({
+      method: 'setup.recovery.status',
+      params: { },
+    }, false)
+  }
+
+  // ** ENCRYPTED **
+
+  async verifyProductKey () {
+    return this.http.rpcRequest<void>({
+      method: 'echo',
+      params: { },
     })
   }
 
-  async verifyRecoveryPassword (logicalname: string, password: string) {
+  async verify03XPassword (logicalname: string, password: string) {
     return this.http.rpcRequest<boolean>({
       method: 'setup.recovery.test-password',
-      params: {logicalname, password}
+      params: { logicalname, password },
     })
   }
 
-  async setupEmbassy (setupInfo: {
-    'embassy-logicalname': string,
-    'embassy-password': string
-    'recovery-logicalname'?: string,
-    'recovery-password'?: string
-  }) {
-    return this.http.rpcRequest<SetupEmbassyRes>({
+  async setupEmbassy (setupInfo: SetupEmbassyReq) {
+    return this.http.rpcRequest<string>({
       method: 'setup.execute',
-      params: setupInfo
+      params: setupInfo as any,
     })
   }
 }
