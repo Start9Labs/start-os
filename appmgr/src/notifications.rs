@@ -190,6 +190,7 @@ impl fmt::Display for InvalidNotificationLevel {
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Notification {
     id: u32,
     package_id: Option<PackageId>, // TODO change for package id newtype
