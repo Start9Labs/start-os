@@ -181,7 +181,14 @@ pub async fn remove_current_dependents<'a, Db: DbHandle, I: IntoIterator<Item = 
             .check(db)
             .await?
         {
-            current_dependents.remove(db, id).await?
+            if current_dependents
+                .clone()
+                .idx_model(id)
+                .exists(db, true)
+                .await?
+            {
+                current_dependents.remove(db, id).await?
+            }
         }
     }
     Ok(())
