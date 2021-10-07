@@ -6,8 +6,7 @@ export abstract class ApiService {
   abstract getRecoveryStatus (): Promise<RecoveryStatusRes> // setup.recovery.status
 
   // encrypted
-  abstract verify02XProductKey (): Promise<void> // echo - throws error if invalid
-  abstract verify03XProductKey (): Promise<void> // echo - throws error if invalid
+  abstract verifyProductKey (): Promise<void> // echo - throws error if invalid
   abstract verify03XPassword (logicalname: string, password: string): Promise<boolean> // setup.recovery.test-password
   abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<string> // setup.execute
   abstract getTorAddress (): Promise<string> // setup.tor-address

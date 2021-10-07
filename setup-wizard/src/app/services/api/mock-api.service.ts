@@ -114,12 +114,7 @@ export class MockApiService extends ApiService {
 
   // ** ENCRYPTED **
 
-  async verify02XProductKey () {
-    await pauseFor(1000)
-    return
-  }
-
-  async verify03XProductKey () {
+  async verifyProductKey () {
     await pauseFor(1000)
     return
   }

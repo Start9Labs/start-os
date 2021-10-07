@@ -43,14 +43,7 @@ export class LiveApiService extends ApiService {
 
   // ** ENCRYPTED **
 
-  async verify02XProductKey () {
-    return this.http.rpcRequest<void>({
-      method: 'echo',
-      params: { }
-    })
-  }
-
-  async verify03XProductKey () {
+  async verifyProductKey () {
     return this.http.rpcRequest<void>({
       method: 'echo',
       params: { }

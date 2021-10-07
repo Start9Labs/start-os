@@ -16,10 +16,10 @@ export class ProdKeyModal {
   unmasked = false
 
   constructor(
-    private modalController: ModalController,
-    private apiService: ApiService,
-    private loadingCtrl: LoadingController,
-    private httpService: HttpService,
+    private readonly modalController: ModalController,
+    private readonly apiService: ApiService,
+    private readonly loadingCtrl: LoadingController,
+    private readonly httpService: HttpService,
   ) {}
 
   async verifyProductKey () {
@@ -33,7 +33,7 @@ export class ProdKeyModal {
     try {
       await this.apiService.set02XDrive(this.recoveryDrive.logicalname)
       this.httpService.productKey = this.productKey
-      await this.apiService.verify02XProductKey()
+      await this.apiService.verifyProductKey()
       this.modalController.dismiss({ productKey: this.productKey })
     } catch (e) {
       this.httpService.productKey = undefined

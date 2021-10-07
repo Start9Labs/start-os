@@ -22,7 +22,7 @@ export class RecoverPage {
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly modalController: ModalController,
-    private readonly stateService: StateService,
+    readonly stateService: StateService,
     private readonly errorToastService: ErrorToastService,
   ) {}
 

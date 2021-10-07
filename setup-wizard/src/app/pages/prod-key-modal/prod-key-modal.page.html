@@ -10,7 +10,7 @@
   <form (ngSubmit)="verifyProductKey()">
     <div style="padding: 8px 24px;">
       <div style="padding-bottom: 16px;">
-        <p *ngIf="!storageDrive">Verify the product key for the chosen recovery drive.</p>
+        <p>Verify the product key for the chosen recovery drive.</p>
       </div>
       <ion-item
         color="dark"
@@ -36,14 +36,12 @@
 
 <ion-footer>
   <ion-toolbar color="light">
-    <!-- <ion-buttons slot="end" class="ion-padding-end"> -->
-      <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" (click)="cancel()">
-        Cancel
-      </ion-button>
-      <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" strong="true" (click)="verifyProductKey()">
-        {{ !!storageDrive ? 'Finish' : 'Verify' }}
-      </ion-button>
-    <!-- </ion-buttons> -->
+    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" (click)="cancel()">
+      Cancel
+    </ion-button>
+    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" strong="true" (click)="verifyProductKey()">
+      Verify
+    </ion-button>
   </ion-toolbar>
 </ion-footer>
 
