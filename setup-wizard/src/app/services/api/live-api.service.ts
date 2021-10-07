@@ -63,11 +63,4 @@ export class LiveApiService extends ApiService {
       params: setupInfo as any
     })
   }
-
-  async getTorAddress () {
-    return this.http.rpcRequest<string>({
-      method: 'setup.tor-address',
-      params: { }
-    })
-  }
 }

@@ -129,12 +129,6 @@ export class MockApiService extends ApiService {
     return 'asdfasdfasdf.onion'
   }
 
-  async getTorAddress () {
-    await pauseFor(2000)
-    return 'asdfasdfasdf.onion'
-  }
-
-
   async getRecoveryDrives () {
     await pauseFor(2000)
     return [
