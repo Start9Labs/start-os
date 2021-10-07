@@ -8,6 +8,7 @@ import { ErrorToastService } from './error-toast.service';
 })
 export class StateService {
   hasProductKey: boolean
+  isMigrating: boolean
   
   polling = false
 

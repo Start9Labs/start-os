@@ -22,9 +22,11 @@ export class AppComponent {
       const status = await this.apiService.getStatus()
       if (status.migrating || status['product-key']) {
         this.stateService.hasProductKey = true
+        this.stateService.isMigrating = status.migrating
         await this.navCtrl.navigateForward(`/product-key`)
       } else {
         this.stateService.hasProductKey = false
+        this.stateService.isMigrating = false
         await this.navCtrl.navigateForward(`/recover`)
       }
     } catch (e) {

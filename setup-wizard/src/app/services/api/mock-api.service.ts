@@ -18,7 +18,7 @@ export class MockApiService extends ApiService {
   async getStatus () {
     await pauseFor(1000)
     return {
-      'product-key': false,
+      'product-key': true,
       migrating: false,
     }
   }

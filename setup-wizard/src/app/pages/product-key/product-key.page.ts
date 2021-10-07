@@ -31,18 +31,15 @@ export class ProductKeyPage {
 
     try {
       this.httpService.productKey = this.productKey
-      const state = await this.apiService.verifyProductKey()
-      const torAddress = state['tor-address']
-      if(state['is-recovering']) {
+      await this.apiService.verifyProductKey()
+      console.log("is migrating", this.stateService.isMigrating)
+      if(this.stateService.isMigrating) {
         await this.navCtrl.navigateForward(`/loading`)
-      } else if (!!torAddress) {
-        this.stateService.torAddress = torAddress
-        await this.navCtrl.navigateForward(`/success`)
       } else {
-        await this.navCtrl.navigateForward(`/embassy`)
+        await this.navCtrl.navigateForward(`/home`)
       }
     } catch (e) {
-      this.error = e.message
+      this.error = 'Invalid Product Key'
       this.httpService.productKey = undefined
     } finally {
       loader.dismiss()
