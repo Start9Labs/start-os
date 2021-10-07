@@ -6,7 +6,7 @@ use bollard::container::KillContainerOptions;
 use futures::future::{BoxFuture, FutureExt};
 use indexmap::IndexSet;
 use itertools::Itertools;
-use patch_db::{DbHandle, ModelData, OptionModel};
+use patch_db::DbHandle;
 use rand::SeedableRng;
 use regex::Regex;
 use rpc_toolkit::command;
@@ -14,16 +14,14 @@ use serde_json::Value;
 
 use crate::action::docker::DockerAction;
 use crate::context::RpcContext;
-use crate::db::model::{
-    CurrentDependencyInfo, InstalledPackageDataEntry, InstalledPackageDataEntryModel,
-};
+use crate::db::model::CurrentDependencyInfo;
 use crate::db::util::WithRevision;
 use crate::dependencies::{
     break_transitive, update_current_dependents, BreakageRes, DependencyError, DependencyErrors,
     TaggedDependencyError,
 };
-use crate::install::cleanup::{remove_current_dependents, update_dependents};
-use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
+use crate::install::cleanup::remove_current_dependents;
+use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{
     display_none, display_serializable, parse_duration, parse_stdin_deserializable, IoFormat,
 };

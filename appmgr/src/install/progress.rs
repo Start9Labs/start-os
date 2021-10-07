@@ -120,10 +120,10 @@ impl<RW> InstallProgressTracker<RW> {
         }
     }
     pub fn validated(&mut self) {
-        self.validating = false;
         self.progress
             .validation_complete
             .store(true, Ordering::SeqCst);
+        self.validating = false;
     }
 }
 impl<W: AsyncWrite> AsyncWrite for InstallProgressTracker<W> {

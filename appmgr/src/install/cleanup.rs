@@ -6,7 +6,6 @@ use patch_db::{DbHandle, PatchDbHandle};
 use super::PKG_DOCKER_DIR;
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry};
-use crate::dependencies::update_current_dependents;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::Error;
@@ -181,7 +180,14 @@ pub async fn remove_current_dependents<'a, Db: DbHandle, I: IntoIterator<Item = 
             .check(db)
             .await?
         {
-            current_dependents.remove(db, id).await?
+            if current_dependents
+                .clone()
+                .idx_model(id)
+                .exists(db, true)
+                .await?
+            {
+                current_dependents.remove(db, id).await?
+            }
         }
     }
     Ok(())
@@ -209,6 +215,12 @@ pub async fn uninstall(
         &mut tx,
         &entry.manifest.id,
         entry.current_dependents.keys(),
+    )
+    .await?;
+    tokio::fs::remove_dir_all(
+        ctx.datadir
+            .join(crate::volume::PKG_VOLUME_DIR)
+            .join(&entry.manifest.id),
     )
     .await?;
     tx.commit(None).await?;
