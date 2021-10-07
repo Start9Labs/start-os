@@ -1,0 +1,47 @@
+<ion-header>
+  <ion-toolbar color="light">
+    <ion-title>
+      Verify Recovery Product Key
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content color="light">
+  <form (ngSubmit)="verifyProductKey()">
+    <div style="padding: 8px 24px;">
+      <div style="padding-bottom: 16px;">
+        <p>Verify the product key for the chosen recovery drive.</p>
+      </div>
+      <ion-item
+        color="dark"
+        [class]="error ? 'error-border' : ''"
+      >
+        <ion-input
+          [(ngModel)]="productKey"
+          [ngModelOptions]="{'standalone': true}"
+          [type]="!unmasked ? 'password' : 'text'"
+          placeholder="Enter Product Key"
+          maxlength="64"
+          maxlength="12"
+        ></ion-input>
+        <ion-button fill="clear" color="light" (click)="unmasked = !unmasked">
+          <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
+        </ion-button>
+      </ion-item>
+      <p style="color: var(--ion-color-danger);">{{ error }}</p>
+    </div>
+    <input type="submit" style="display: none" />
+  </form>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar color="light">
+    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" (click)="cancel()">
+      Cancel
+    </ion-button>
+    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" strong="true" (click)="verifyProductKey()">
+      Verify
+    </ion-button>
+  </ion-toolbar>
+</ion-footer>
+
