@@ -33,7 +33,7 @@ ubuntu.img:
 
 product_key.txt:
 	echo "X\c" > product_key.txt
-	cat /dev/random | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
+	cat /dev/urandom | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
 
 $(EMBASSY_BINS): $(APPMGR_SRC)
 	cd appmgr && ./build-prod.sh
