@@ -32,7 +32,6 @@ export class ProductKeyPage {
     try {
       this.httpService.productKey = this.productKey
       await this.apiService.verifyProductKey()
-      console.log('is migrating', this.stateService.isMigrating)
       if (this.stateService.isMigrating) {
         await this.navCtrl.navigateForward(`/loading`)
       } else {
