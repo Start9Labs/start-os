@@ -41,7 +41,7 @@ export class PasswordPage {
     await loader.present()
 
     try {
-      const isCorrectPassword = await this.apiService.verifyRecoveryPassword(this.recoveryDrive.logicalname, this.password)
+      const isCorrectPassword = await this.apiService.verify03XPassword(this.recoveryDrive.logicalname, this.password)
       if(isCorrectPassword) {
         this.modalController.dismiss({ password: this.password })
       } else {

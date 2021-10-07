@@ -7,6 +7,8 @@ import { ErrorToastService } from './error-toast.service';
   providedIn: 'root'
 })
 export class StateService {
+  hasProductKey: boolean
+  
   polling = false
 
   storageDrive: DiskInfo;
@@ -36,7 +38,7 @@ export class StateService {
 
     let progress 
     try {
-      progress =await this.apiService.getDataTransferProgress()
+      progress =await this.apiService.getRecoveryStatus()
     } catch (e) {
       this.errorToastService.present(`${e.message}: ${e.details}`)
     }

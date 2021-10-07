@@ -31,7 +31,7 @@ export class ProductKeyPage {
 
     try {
       this.httpService.productKey = this.productKey
-      const state = await this.apiService.verifyProductKey()
+      const state = await this.apiService.verify03XProductKey()
       const torAddress = state['tor-address']
       if(state['is-recovering']) {
         await this.navCtrl.navigateForward(`/loading`)

@@ -3,11 +3,6 @@ import { PreloadAllModules, RouterModule, Routes } from '@angular/router'
 
 const routes: Routes = [
   {
-    path: '',
-    pathMatch: 'full',
-    redirectTo: 'product-key',
-  },
-  {
     path: 'product-key',
     loadChildren: () => import('./pages/product-key/product-key.module').then( m => m.ProductKeyPageModule),
   },

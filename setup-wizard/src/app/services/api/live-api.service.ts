@@ -17,33 +17,40 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest<GetStatusRes>({
       method: 'setup.status',
       params: { }
-    })
+    }, false)
   }
 
   async getDrives () {
     return this.http.rpcRequest<DiskInfo[]>({
       method: 'setup.disk.list',
       params: { }
-    })
+    }, false)
   }
 
-  async set02XDrive () {
+  async set02XDrive (logicalname) {
     return this.http.rpcRequest<void>({
       method: 'setup.recovery.v2.set',
-      params: { }
-    })
+      params: { logicalname }
+    }, false)
   }
 
   async getRecoveryStatus () {
     return this.http.rpcRequest<RecoveryStatusRes>({
       method: 'setup.recovery.status',
       params: { }
-    })
+    }, false)
   }
 
   // ** ENCRYPTED **
 
   async verify02XProductKey () {
+    return this.http.rpcRequest<void>({
+      method: 'echo',
+      params: { }
+    })
+  }
+
+  async verify03XProductKey () {
     return this.http.rpcRequest<void>({
       method: 'echo',
       params: { }

@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core'
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http'
-import { Observable, from, interval, race } from 'rxjs'
-import { map, take } from 'rxjs/operators'
+import { Observable } from 'rxjs'
 import * as aesjs from 'aes-js'
 import * as pbkdf2 from 'pbkdf2'
 
@@ -19,7 +18,7 @@ export class HttpService {
     this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}/rpc/v1`
   }
 
-  async rpcRequest<T> (body: RPCOptions): Promise<T> {
+  async rpcRequest<T> (body: RPCOptions, encrypted = true): Promise<T> {
 
     const httpOpts = {
       method: Method.POST,
@@ -27,14 +26,20 @@ export class HttpService {
       url: this.fullUrl,
     }
 
-    const res = await this.httpRequest<RPCResponse<T>>(httpOpts)
+    let res: RPCResponse<T>
+
+    if(encrypted) {
+      res = await this.encryptedHttpRequest<RPCResponse<T>>(httpOpts)
+    } else {
+      res = await this.httpRequest<RPCResponse<T>>(httpOpts)
+    }
 
     if (isRpcError(res)) throw new RpcError(res.error)
 
     if (isRpcSuccess(res)) return res.result
   }
 
-  async httpRequest<T> (httpOpts: {
+  async encryptedHttpRequest<T> (httpOpts: {
     body: RPCOptions;
     url: string;
   }): Promise<T> {
@@ -70,6 +75,31 @@ export class HttpService {
           throw new HttpError(e)
         }
       })
+  }
+
+  async httpRequest<T> (httpOpts: {
+    body: RPCOptions;
+    url: string;
+  }): Promise<T> {
+    const urlIsRelative = httpOpts.url.startsWith('/')
+    const url = urlIsRelative ?
+      this.fullUrl + httpOpts.url :
+      httpOpts.url
+
+    const options = {
+      responseType: 'json',
+      body: httpOpts.body,
+      observe: 'events',
+      reportProgress: false,
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+    } as any
+
+    const req: Observable<{ body: T }> = this.http.post(url, httpOpts.body, options) as any
+
+    return (req)
+      .toPromise()
+      .then(res => res.body)
+      .catch(e => { throw new HttpError(e) })
   }
 }
 
@@ -165,13 +195,6 @@ export interface HttpOptions {
   withCredentials?: boolean
   body?: any
   timeout?: number
-}
-
-function withTimeout<U> (req: Observable<U>, timeout: number): Observable<U> {
-  return race(
-    from(req.toPromise()), // this guarantees it only emits on completion, intermediary emissions are suppressed.
-    interval(timeout).pipe(take(1), map(() => { throw new Error('timeout') })),
-  )
 }
 
 type AES_CTR = {

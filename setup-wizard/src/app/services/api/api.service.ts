@@ -2,11 +2,12 @@ export abstract class ApiService {
   // unencrypted
   abstract getStatus (): Promise<GetStatusRes> // setup.status
   abstract getDrives (): Promise<DiskInfo[]> // setup.disk.list
-  abstract set02XDrive (): Promise<void> // setup.recovery.v2.set
+  abstract set02XDrive (logicalname: string): Promise<void> // setup.recovery.v2.set
   abstract getRecoveryStatus (): Promise<RecoveryStatusRes> // setup.recovery.status
 
   // encrypted
   abstract verify02XProductKey (): Promise<void> // echo - throws error if invalid
+  abstract verify03XProductKey (): Promise<void> // echo - throws error if invalid
   abstract verify03XPassword (logicalname: string, password: string): Promise<boolean> // setup.recovery.test-password
   abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<string> // setup.execute
   abstract getTorAddress (): Promise<string> // setup.tor-address

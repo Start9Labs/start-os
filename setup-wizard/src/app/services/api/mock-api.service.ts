@@ -18,7 +18,7 @@ export class MockApiService extends ApiService {
   async getStatus () {
     await pauseFor(1000)
     return {
-      'product-key': true,
+      'product-key': false,
       migrating: false,
     }
   }
@@ -115,6 +115,11 @@ export class MockApiService extends ApiService {
   // ** ENCRYPTED **
 
   async verify02XProductKey () {
+    await pauseFor(1000)
+    return
+  }
+
+  async verify03XProductKey () {
     await pauseFor(1000)
     return
   }
