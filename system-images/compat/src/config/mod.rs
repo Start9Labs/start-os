@@ -81,8 +81,11 @@ pub fn apply_dependency_configuration(
         .into_iter()
         .map(|r| r.apply(dependency_id, &mut dep_config, &mut cfgs))
         .bcollect::<Vec<_>>();
+    let new_dep_config = cfgs
+        .get(&dependency_id)
+        .ok_or_else(|| anyhow!("cannot find key"))?;
     match rule_check {
-        Ok(_) => Ok(dep_config),
+        Ok(_) => Ok(new_dep_config.as_ref().to_owned()),
         Err(e) => Err(anyhow!("{}", e)),
     }
 }
