@@ -35,7 +35,7 @@ ubuntu.img:
 	unxz ubuntu.img.xz
 
 product_key.txt:
-	echo "X\c" > product_key.txt
+	$(which echo) -n "X" > product_key.txt
 	cat /dev/urandom | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
 
 $(EMBASSY_BINS): $(APPMGR_SRC)
