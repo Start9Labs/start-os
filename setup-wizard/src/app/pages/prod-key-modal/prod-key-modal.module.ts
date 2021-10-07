@@ -2,18 +2,17 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { FormsModule } from '@angular/forms'
-import { PasswordPage } from './password.page'
+import { ProdKeyModal } from './prod-key-modal.page'
 
-import { PasswordPageRoutingModule } from './password-routing.module'
-
+import { ProdKeyModalRoutingModule } from './prod-key-modal-routing.module'
 
 @NgModule({
   imports: [
     CommonModule,
     FormsModule,
     IonicModule,
-    PasswordPageRoutingModule,
+    ProdKeyModalRoutingModule,
   ],
-  declarations: [PasswordPage],
+  declarations: [ProdKeyModal],
 })
-export class PasswordPageModule { }
+export class ProdKeyModalModule { }

@@ -8,9 +8,9 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['success.page.scss'],
 })
 export class SuccessPage {
-  constructor(
-    public stateService: StateService,
-    private toastCtrl: ToastController
+  constructor (
+    private readonly toastCtrl: ToastController,
+    public readonly stateService: StateService,
   ) { }
 
   window = window
