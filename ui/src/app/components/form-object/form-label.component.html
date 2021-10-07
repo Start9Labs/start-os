@@ -1,5 +1,8 @@
-<ion-icon *ngIf="data.spec.description" class="help-icon" name="help-circle-outline" (click)="presentAlertDescription()"></ion-icon>
-<span>&nbsp;{{ data.spec.name }}</span>
+<ion-button *ngIf="data.spec.description" class="help-button" fill="clear" size="small" (click)="presentAlertDescription()">
+  <ion-icon name="help-circle-outline"></ion-icon>
+</ion-button>
+
+<span>{{ data.spec.name }}</span>
 
 <ion-text color="success" *ngIf="data.isNew">&nbsp;(New)</ion-text>
 <ion-text color="warning" *ngIf="data.isEdited">&nbsp;(Edited)</ion-text>
