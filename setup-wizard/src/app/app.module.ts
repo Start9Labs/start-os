@@ -16,16 +16,15 @@ const useMocks = require('../../config.json').useMocks as boolean
   entryComponents: [],
   imports: [
     BrowserModule,
-    IonicModule.forRoot(),
+    IonicModule.forRoot({
+      navAnimation: iosTransitionAnimation,
+    }),
     AppRoutingModule,
     HttpClientModule,
-    IonicModule.forRoot({  
-      navAnimation: iosTransitionAnimation,
-    }), 
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
-    { 
+    {
       provide: ApiService ,
       useFactory: (http: HttpService) => {
         if (useMocks) {
@@ -34,9 +33,9 @@ const useMocks = require('../../config.json').useMocks as boolean
           return new LiveApiService(http)
         }
       },
-      deps: [HttpService]
+      deps: [HttpService],
     },
   ],
   bootstrap: [AppComponent],
 })
-export class AppModule {}
+export class AppModule { }

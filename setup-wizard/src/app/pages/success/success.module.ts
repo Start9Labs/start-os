@@ -1,11 +1,11 @@
-import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { IonicModule } from '@ionic/angular';
-import { FormsModule } from '@angular/forms';
-import { SuccessPage } from './success.page';
-import { PasswordPageModule } from '../password/password.module';
+import { NgModule } from '@angular/core'
+import { CommonModule } from '@angular/common'
+import { IonicModule } from '@ionic/angular'
+import { FormsModule } from '@angular/forms'
+import { SuccessPage } from './success.page'
+import { PasswordPageModule } from '../password/password.module'
 
-import { SuccessPageRoutingModule } from './success-routing.module';
+import { SuccessPageRoutingModule } from './success-routing.module'
 
 
 @NgModule({
@@ -16,6 +16,6 @@ import { SuccessPageRoutingModule } from './success-routing.module';
     SuccessPageRoutingModule,
     PasswordPageModule,
   ],
-  declarations: [SuccessPage]
+  declarations: [SuccessPage],
 })
-export class SuccessPageModule {}
+export class SuccessPageModule { }

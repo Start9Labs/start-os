@@ -1,10 +1,10 @@
-import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { IonicModule } from '@ionic/angular';
-import { FormsModule } from '@angular/forms';
-import { EmbassyPage } from './embassy.page';
-import { PasswordPageModule } from '../password/password.module';
-import { EmbassyPageRoutingModule } from './embassy-routing.module';
+import { NgModule } from '@angular/core'
+import { CommonModule } from '@angular/common'
+import { IonicModule } from '@ionic/angular'
+import { FormsModule } from '@angular/forms'
+import { EmbassyPage } from './embassy.page'
+import { PasswordPageModule } from '../password/password.module'
+import { EmbassyPageRoutingModule } from './embassy-routing.module'
 import { PipesModule } from 'src/app/pipes/pipe.module'
 
 @NgModule({
@@ -16,6 +16,6 @@ import { PipesModule } from 'src/app/pipes/pipe.module'
     PasswordPageModule,
     PipesModule,
   ],
-  declarations: [EmbassyPage]
+  declarations: [EmbassyPage],
 })
-export class EmbassyPageModule {}
+export class EmbassyPageModule { }

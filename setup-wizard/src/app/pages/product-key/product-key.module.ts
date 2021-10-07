@@ -1,10 +1,10 @@
-import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { IonicModule } from '@ionic/angular';
-import { FormsModule } from '@angular/forms';
-import { ProductKeyPage } from './product-key.page';
-import { PasswordPageModule } from '../password/password.module';
-import { ProductKeyPageRoutingModule } from './product-key-routing.module';
+import { NgModule } from '@angular/core'
+import { CommonModule } from '@angular/common'
+import { IonicModule } from '@ionic/angular'
+import { FormsModule } from '@angular/forms'
+import { ProductKeyPage } from './product-key.page'
+import { PasswordPageModule } from '../password/password.module'
+import { ProductKeyPageRoutingModule } from './product-key-routing.module'
 
 @NgModule({
   imports: [
@@ -14,6 +14,6 @@ import { ProductKeyPageRoutingModule } from './product-key-routing.module';
     ProductKeyPageRoutingModule,
     PasswordPageModule,
   ],
-  declarations: [ProductKeyPage]
+  declarations: [ProductKeyPage],
 })
-export class ProductKeyPageModule {}
+export class ProductKeyPageModule { }
