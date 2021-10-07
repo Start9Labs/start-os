@@ -147,6 +147,7 @@ pub async fn create(
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum NotificationLevel {
     Success,
     Info,
