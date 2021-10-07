@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core'
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http'
-import { Observable, from, interval, race } from 'rxjs'
-import { map, take } from 'rxjs/operators'
+import { Observable } from 'rxjs'
 import * as aesjs from 'aes-js'
 import * as pbkdf2 from 'pbkdf2'
 
@@ -19,7 +18,7 @@ export class HttpService {
     this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}/rpc/v1`
   }
 
-  async rpcRequest<T> (body: RPCOptions): Promise<T> {
+  async rpcRequest<T> (body: RPCOptions, encrypted = true): Promise<T> {
 
     const httpOpts = {
       method: Method.POST,
@@ -27,14 +26,20 @@ export class HttpService {
       url: this.fullUrl,
     }
 
-    const res = await this.httpRequest<RPCResponse<T>>(httpOpts)
+    let res: RPCResponse<T>
+
+    if (encrypted) {
+      res = await this.encryptedHttpRequest<RPCResponse<T>>(httpOpts)
+    } else {
+      res = await this.httpRequest<RPCResponse<T>>(httpOpts)
+    }
 
     if (isRpcError(res)) throw new RpcError(res.error)
 
     if (isRpcSuccess(res)) return res.result
   }
 
-  async httpRequest<T> (httpOpts: {
+  async encryptedHttpRequest<T> (httpOpts: {
     body: RPCOptions;
     url: string;
   }): Promise<T> {
@@ -53,7 +58,7 @@ export class HttpService {
 
       headers: {
         'Content-Encoding': 'aesctr256',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
     } as any
 
@@ -70,6 +75,31 @@ export class HttpService {
           throw new HttpError(e)
         }
       })
+  }
+
+  async httpRequest<T> (httpOpts: {
+    body: RPCOptions;
+    url: string;
+  }): Promise<T> {
+    const urlIsRelative = httpOpts.url.startsWith('/')
+    const url = urlIsRelative ?
+      this.fullUrl + httpOpts.url :
+      httpOpts.url
+
+    const options = {
+      responseType: 'json',
+      body: httpOpts.body,
+      observe: 'events',
+      reportProgress: false,
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+    } as any
+
+    const req: Observable<{ body: T }> = this.http.post(url, httpOpts.body, options) as any
+
+    return (req)
+      .toPromise()
+      .then(res => res.body)
+      .catch(e => { throw new HttpError(e) })
   }
 }
 
@@ -167,13 +197,6 @@ export interface HttpOptions {
   timeout?: number
 }
 
-function withTimeout<U> (req: Observable<U>, timeout: number): Observable<U> {
-  return race(
-    from(req.toPromise()), // this guarantees it only emits on completion, intermediary emissions are suppressed.
-    interval(timeout).pipe(take(1), map(() => { throw new Error('timeout') })),
-  )
-}
-
 type AES_CTR = {
   encryptPbkdf2: (secretKey: string, messageBuffer: Uint8Array) => Promise<Uint8Array>
   decryptPbkdf2: (secretKey, arr: ArrayBuffer) => Promise<string>
@@ -184,10 +207,10 @@ export const AES_CTR: AES_CTR = {
     const salt = window.crypto.getRandomValues(new Uint8Array(16))
     const counter = window.crypto.getRandomValues(new Uint8Array(16))
 
-    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256');
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256')
 
-    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
-    const encryptedBytes = aesCtr.encrypt(messageBuffer);
+    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter))
+    const encryptedBytes = aesCtr.encrypt(messageBuffer)
     return new Uint8Array([...counter, ...salt, ...encryptedBytes])
   },
   decryptPbkdf2: async (secretKey: string, arr: ArrayBuffer) => {
@@ -196,12 +219,12 @@ export const AES_CTR: AES_CTR = {
     const salt = buff.slice(16, 32)
 
     const cipher = buff.slice(32)
-    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256');
+    const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256')
 
-    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter));
-    const decryptedBytes = aesCtr.decrypt(cipher);
+    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter))
+    const decryptedBytes = aesCtr.decrypt(cipher)
 
-    return aesjs.utils.utf8.fromBytes(decryptedBytes);
+    return aesjs.utils.utf8.fromBytes(decryptedBytes)
   },
 }
 
@@ -214,5 +237,5 @@ export function encodeUtf8 (str: string): Uint8Array {
 }
 
 export function decodeUtf8 (arr: Uint8Array): string {
-  return new TextDecoder().decode(arr);
+  return new TextDecoder().decode(arr)
 }

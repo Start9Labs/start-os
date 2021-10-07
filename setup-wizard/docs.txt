@@ -16,7 +16,7 @@ setup.disk.list
         model        : string | null,
         partitions   : PartitionInfo[],
         capacity     : number,
-        embassy_os   : EmbassyOsDiskInfo | null,
+        embassy-os   : EmbassyOsDiskInfo | null,
       }[]
 
 setup.recovery.status

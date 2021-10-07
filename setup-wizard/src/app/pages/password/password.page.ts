@@ -21,13 +21,13 @@ export class PasswordPage {
 
   hasData: boolean
 
-  constructor(
+  constructor (
     private modalController: ModalController,
     private apiService: ApiService,
     private loadingCtrl: LoadingController,
-  ) {}
+  ) { }
 
-  ngOnInit() {
+  ngOnInit () {
     if (this.storageDrive && this.storageDrive.partitions.find(p => p.used)) {
       this.hasData = true
     }
@@ -36,16 +36,16 @@ export class PasswordPage {
   async verifyPw () {
     if (!this.recoveryDrive) this.pwError = 'No recovery drive' // unreachable
     const loader = await this.loadingCtrl.create({
-      message: 'Verifying Password'
+      message: 'Verifying Password',
     })
     await loader.present()
 
     try {
-      const isCorrectPassword = await this.apiService.verifyRecoveryPassword(this.recoveryDrive.logicalname, this.password)
-      if(isCorrectPassword) {
+      const isCorrectPassword = await this.apiService.verify03XPassword(this.recoveryDrive.logicalname, this.password)
+      if (isCorrectPassword) {
         this.modalController.dismiss({ password: this.password })
       } else {
-        this.pwError = "Incorrect password provided"
+        this.pwError = 'Incorrect password provided'
       }
     } catch (e) {
       this.pwError = 'Error connecting to Embassy'
@@ -57,29 +57,29 @@ export class PasswordPage {
   async submitPw () {
     this.validate()
     if (this.password !== this.passwordVer) {
-      this.verError="*passwords do not match"
+      this.verError = '*passwords do not match'
     }
 
-    if(this.pwError || this.verError) return
+    if (this.pwError || this.verError) return
     this.modalController.dismiss({ password: this.password })
   }
 
   validate () {
-    if(!!this.recoveryDrive) return this.pwError = ''
+    if (!!this.recoveryDrive) return this.pwError = ''
 
     if (this.passwordVer) {
       this.checkVer()
     }
 
     if (this.password.length < 12) {
-      this.pwError="*password must be 12 characters or greater"
+      this.pwError = '*password must be 12 characters or greater'
     } else {
       this.pwError = ''
     }
   }
 
   checkVer () {
-    this.verError = this.password !== this.passwordVer ? "*passwords do not match" : ''
+    this.verError = this.password !== this.passwordVer ? '*passwords do not match' : ''
   }
 
   cancel () {

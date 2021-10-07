@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { AlertController, iosTransitionAnimation, LoadingController, ModalController, NavController } from '@ionic/angular'
+import { AlertController, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
@@ -15,7 +15,7 @@ export class EmbassyPage {
   selectedDrive: DiskInfo = null
   loading = true
 
-  constructor(
+  constructor (
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly modalController: ModalController,
@@ -61,9 +61,9 @@ export class EmbassyPage {
             text: 'Continue',
             handler: () => {
               this.presentModalPassword(drive)
-            }
-          }
-        ]
+            },
+          },
+        ],
       })
       await alert.present()
     } else {
@@ -75,21 +75,21 @@ export class EmbassyPage {
     const modal = await this.modalController.create({
       component: PasswordPage,
       componentProps: {
-        storageDrive: drive
+        storageDrive: drive,
       },
     })
     modal.onDidDismiss().then(async ret => {
       if (!ret.data || !ret.data.password) return
 
       const loader = await this.loadingCtrl.create({
-        message: 'Setting up your Embassy!'
+        message: 'Setting up your Embassy!',
       })
-      
+
       await loader.present()
-  
+
       this.stateService.storageDrive = drive
       this.stateService.embassyPassword = ret.data.password
-  
+
       try {
         this.stateService.torAddress = (await this.stateService.setupEmbassy()).torAddress
       } catch (e) {
@@ -98,10 +98,10 @@ export class EmbassyPage {
         console.error(e.details)
       } finally {
         loader.dismiss()
-        if(!!this.stateService.recoveryDrive) {
-          await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward', animation: iosTransitionAnimation })
+        if (!!this.stateService.recoveryDrive) {
+          await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward' })
         } else {
-          await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward', animation: iosTransitionAnimation })
+          await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward' })
         }
       }
     })
