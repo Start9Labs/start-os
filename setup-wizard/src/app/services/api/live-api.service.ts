@@ -46,7 +46,7 @@ export class LiveApiService extends ApiService {
   async verifyProductKey () {
     return this.http.rpcRequest<void>({
       method: 'echo',
-      params: { },
+      params: { "message": "hello" },
     })
   }
 
