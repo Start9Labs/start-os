@@ -444,11 +444,14 @@ impl<'a> WpaCli<'a> {
                     loop {
                         current = self.get_current_network().await;
                         match &current {
-                            Ok(Some(_)) => {
+                            Ok(Some(ssid)) => {
+                                log::debug!("Connected to: {}", ssid);
                                 break;
                             }
                             _ => {}
                         }
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                        log::debug!("Retrying...");
                     }
                     current
                 };
@@ -470,6 +473,7 @@ impl<'a> WpaCli<'a> {
             .invoke(ErrorKind::Wifi)
             .await?;
         let output = String::from_utf8(r)?;
+        log::debug!("Current Network: {}", output);
         if output.trim().is_empty() {
             Ok(None)
         } else {
