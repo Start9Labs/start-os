@@ -74,7 +74,7 @@ pub struct ServerInfo {
     #[serde(flatten)]
     pub status: ServerStatus,
     pub eos_marketplace: Url,
-    pub package_marketplace: Option<Url>,
+    pub package_marketplace: Option<Url>, // None implies use eos_marketplace
     pub wifi: WifiInfo,
     pub unread_notification_count: u64,
     pub connection_addresses: ConnectionAddresses,
@@ -96,7 +96,7 @@ pub enum ServerStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct UpdateProgress {
-    pub size: u64,
+    pub size: Option<u64>,
     pub downloaded: u64,
 }
 
