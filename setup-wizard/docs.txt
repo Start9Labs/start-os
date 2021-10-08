@@ -38,7 +38,7 @@ setup.execute
     Request
       embassy-logicalname   : string,
       embassy-password      : string
-      recovery-logicalname? : string,
+      recovery-drive?       : DiskInfo,
       recovery-password?    : string
 
     Response
