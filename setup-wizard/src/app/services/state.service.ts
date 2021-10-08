@@ -60,7 +60,7 @@ export class StateService {
     const ret = await this.apiService.setupEmbassy({
       'embassy-logicalname': this.storageDrive.logicalname,
       'embassy-password': this.embassyPassword,
-      'recovery-logicalname': this.recoveryDrive?.logicalname,
+      'recovery-drive': this.recoveryDrive,
       'recovery-password': this.recoveryPassword,
     })
     return { torAddress: ret }
