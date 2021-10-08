@@ -254,18 +254,27 @@ pub enum NetworkAttr {
     Priority(isize),
     ScanSsid(bool),
 }
-impl std::fmt::Display for NetworkAttr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl NetworkAttr {
+    fn name(&self) -> &'static str {
         use NetworkAttr::*;
         match self {
-            Ssid(s) => write!(f, "\"{}\"", s),
-            Psk(s) => write!(f, "\"{}\"", s),
-            Priority(n) => write!(f, "{}", n),
+            Ssid(_) => "ssid",
+            Psk(_) => "psk",
+            Priority(_) => "priority",
+            ScanSsid(_) => "scan_ssid",
+        }
+    }
+    fn value(&self) -> String {
+        use NetworkAttr::*;
+        match self {
+            Ssid(s) => format!("\"{}\"", s),
+            Psk(s) => format!("\"{}\"", s),
+            Priority(n) => format!("{}", n),
             ScanSsid(b) => {
                 if *b {
-                    write!(f, "1")
+                    String::from("1")
                 } else {
-                    write!(f, "0")
+                    String::from("0")
                 }
             }
         }
@@ -289,7 +298,8 @@ impl<'a> WpaCli<'a> {
             .arg(self.interface)
             .arg("set_network")
             .arg(&id.0)
-            .arg(format!("{}", attr))
+            .arg(attr.name())
+            .arg(attr.value())
             .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
@@ -481,11 +491,17 @@ impl<'a> WpaCli<'a> {
         use NetworkAttr::*;
         let nid = match self.check_network(ssid).await? {
             None => {
+                log::debug!("1");
                 let nid = self.add_network_low().await?;
+                log::debug!("2");
                 self.set_network_low(&nid, &Ssid(ssid.to_owned())).await?;
+                log::debug!("3");
                 self.set_network_low(&nid, &Psk(psk.to_owned())).await?;
+                log::debug!("4");
                 self.set_network_low(&nid, &Priority(priority)).await?;
+                log::debug!("5");
                 self.set_network_low(&nid, &ScanSsid(true)).await?;
+                log::debug!("6");
                 Result::<NetworkId, Error>::Ok(nid)
             }
             Some(nid) => {
