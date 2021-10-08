@@ -1,3 +1,3 @@
 FROM alpine:latest
 
-RUN apk update && apk add yq jq
+RUN apk update && apk add yq jq curl
