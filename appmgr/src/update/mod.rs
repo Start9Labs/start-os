@@ -163,7 +163,6 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
     if &latest_version <= &current_version {
         return Ok(None);
     }
-    let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut info = crate::db::DatabaseModel::new()
         .server_info()
