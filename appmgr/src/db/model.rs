@@ -51,6 +51,7 @@ impl Database {
                     clearnet: Vec::new(),
                 },
                 share_stats: false,
+                update_progress: None,
             },
             package_data: AllPackageData::default(),
             broken_packages: Vec::new(),
@@ -71,7 +72,6 @@ pub struct ServerInfo {
     pub version: Version,
     pub lan_address: Url,
     pub tor_address: Url,
-    #[serde(flatten)]
     pub status: ServerStatus,
     pub eos_marketplace: Url,
     pub package_marketplace: Option<Url>, // None implies use eos_marketplace
@@ -79,18 +79,15 @@ pub struct ServerInfo {
     pub unread_notification_count: u64,
     pub connection_addresses: ConnectionAddresses,
     pub share_stats: bool,
+    pub update_progress: Option<UpdateProgress>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-#[serde(tag = "status")]
 pub enum ServerStatus {
-    Running {},
-    #[serde(rename_all = "kebab-case")]
-    Updating {
-        update_progress: UpdateProgress,
-    },
-    BackingUp {},
+    Running,
+    Updating,
+    BackingUp,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
