@@ -165,12 +165,11 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
     }
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
-    let mut status = crate::db::DatabaseModel::new()
+    let mut info = crate::db::DatabaseModel::new()
         .server_info()
-        .status()
         .get_mut(&mut tx)
         .await?;
-    match &*status {
+    match &info.status {
         ServerStatus::Updating { .. } => {
             return Err(Error::new(
                 anyhow!("Server is already updating!"),
@@ -197,13 +196,12 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
         new_label,
     )
     .await?;
-    *status = ServerStatus::Updating {
-        update_progress: UpdateProgress {
-            size,
-            downloaded: 0,
-        },
-    };
-    status.save(&mut tx).await?;
+    info.status = ServerStatus::Updating;
+    info.update_progress = Some(UpdateProgress {
+        size,
+        downloaded: 0,
+    });
+    info.save(&mut tx).await?;
     let rev = tx.commit(None).await?;
 
     tokio::spawn(async move {
@@ -211,19 +209,14 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
             Ok(()) => todo!("issue notification"),
             Err(e) => {
                 let mut db = ctx.db.handle();
-                let mut status = crate::db::DatabaseModel::new()
+                let mut info = crate::db::DatabaseModel::new()
                     .server_info()
-                    .status()
                     .get_mut(&mut db)
                     .await
                     .expect("could not access status");
-                *status = ServerStatus::Updating {
-                    update_progress: UpdateProgress {
-                        size,
-                        downloaded: 0,
-                    },
-                };
-                status.save(&mut db).await.expect("could not save status");
+                info.status = ServerStatus::Running;
+                info.update_progress = None;
+                info.save(&mut db).await.expect("could not save status");
 
                 todo!("{}, issue notification", e)
             }
