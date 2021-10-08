@@ -459,6 +459,7 @@ impl<'a> WpaCli<'a> {
                     Err(_) => None,
                     Ok(net) => net?,
                 };
+                log::debug!("{:?}", res);
                 Ok(match res {
                     None => false,
                     Some(net) => net == ssid,
@@ -473,11 +474,12 @@ impl<'a> WpaCli<'a> {
             .invoke(ErrorKind::Wifi)
             .await?;
         let output = String::from_utf8(r)?;
-        log::debug!("Current Network: {}", output);
-        if output.trim().is_empty() {
+        log::debug!("Current Network: \"{}\"", output);
+        let network = output.trim();
+        if network.is_empty() {
             Ok(None)
         } else {
-            Ok(Some(output))
+            Ok(Some(network.to_owned()))
         }
     }
     pub async fn remove_network(&self, ssid: &str) -> Result<bool, Error> {
@@ -495,17 +497,11 @@ impl<'a> WpaCli<'a> {
         use NetworkAttr::*;
         let nid = match self.check_network(ssid).await? {
             None => {
-                log::debug!("1");
                 let nid = self.add_network_low().await?;
-                log::debug!("2");
                 self.set_network_low(&nid, &Ssid(ssid.to_owned())).await?;
-                log::debug!("3");
                 self.set_network_low(&nid, &Psk(psk.to_owned())).await?;
-                log::debug!("4");
                 self.set_network_low(&nid, &Priority(priority)).await?;
-                log::debug!("5");
                 self.set_network_low(&nid, &ScanSsid(true)).await?;
-                log::debug!("6");
                 Result::<NetworkId, Error>::Ok(nid)
             }
             Some(nid) => {
