@@ -75,7 +75,8 @@ pub fn main_api() -> Result<(), RpcError> {
     system::logs,
     system::metrics,
     shutdown::shutdown,
-    shutdown::restart
+    shutdown::restart,
+    update::update_system
 ))]
 pub fn server() -> Result<(), RpcError> {
     Ok(())

@@ -214,20 +214,23 @@ impl RpcContext {
             if let Some(market) = crate::db::DatabaseModel::new()
                 .server_info()
                 .package_marketplace()
-                .get(&mut self.db.handle(), false)
+                .get(&mut self.db.handle(), true)
                 .await?
                 .to_owned()
             {
                 market
             } else {
-                crate::db::DatabaseModel::new()
-                    .server_info()
-                    .eos_marketplace()
-                    .get(&mut self.db.handle(), false)
-                    .await?
-                    .to_owned()
+                self.eos_registry_url().await?
             },
         )
+    }
+    pub async fn eos_registry_url(&self) -> Result<Url, Error> {
+        Ok(crate::db::DatabaseModel::new()
+            .server_info()
+            .eos_marketplace()
+            .get(&mut self.db.handle(), true)
+            .await?
+            .to_owned())
     }
 }
 impl Context for RpcContext {
