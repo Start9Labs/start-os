@@ -24,10 +24,10 @@ use crate::s9pk::manifest::PackageId;
 use crate::sound::BEETHOVEN;
 use crate::util::io::from_yaml_async_reader;
 use crate::util::{GeneralGuard, Invoke, Version};
-use crate::volume::{data_dir, Volume, VolumeId};
+use crate::volume::{data_dir, VolumeId};
 use crate::{Error, ResultExt};
 
-#[command(subcommands(status, disk, execute))]
+#[command(subcommands(status, disk, execute, recovery))]
 pub fn setup() -> Result<(), Error> {
     Ok(())
 }
@@ -83,14 +83,14 @@ pub async fn execute(
     #[context] ctx: SetupContext,
     #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
     #[arg(rename = "embassy-password")] embassy_password: String,
-    #[arg(rename = "recovery-diskinfo")] recovery_diskinfo: Option<DiskInfo>,
+    #[arg(rename = "recovery-drive")] recovery_drive: Option<DiskInfo>,
     #[arg(rename = "recovery-password")] recovery_password: Option<String>,
 ) -> Result<String, Error> {
     match execute_inner(
         ctx,
         embassy_logicalname,
         embassy_password,
-        recovery_diskinfo,
+        recovery_drive,
         recovery_password,
     )
     .await
@@ -118,7 +118,7 @@ pub async fn execute_inner(
     ctx: SetupContext,
     embassy_logicalname: PathBuf,
     embassy_password: String,
-    recovery_diskinfo: Option<DiskInfo>,
+    recovery_drive: Option<DiskInfo>,
     recovery_password: Option<String>,
 ) -> Result<String, Error> {
     if ctx.recovery_status.read().await.is_some() {
@@ -166,8 +166,8 @@ pub async fn execute_inner(
     .await?;
     sqlite_pool.close().await;
 
-    if let Some(recovery_diskinfo) = recovery_diskinfo {
-        if recovery_diskinfo
+    if let Some(recovery_drive) = recovery_drive {
+        if recovery_drive
             .embassy_os
             .as_ref()
             .map(|v| &*v.version < &emver::Version::new(0, 2, 8, 0))
@@ -176,7 +176,7 @@ pub async fn execute_inner(
             return Err(Error::new(anyhow!("Unsupported version of EmbassyOS. Please update to at least 0.2.8 before recovering."), crate::ErrorKind::VersionIncompatible));
         }
         tokio::spawn(async move {
-            if let Err(e) = recover(ctx.clone(), guid, recovery_diskinfo, recovery_password).await {
+            if let Err(e) = recover(ctx.clone(), guid, recovery_drive, recovery_password).await {
                 BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
                 log::error!("Error recovering drive!: {}", e);
                 *ctx.recovery_status.write().await = Some(Err(e.into()));
@@ -192,18 +192,18 @@ pub async fn execute_inner(
 async fn recover(
     ctx: SetupContext,
     guid: String,
-    recovery_diskinfo: DiskInfo,
+    recovery_drive: DiskInfo,
     recovery_password: Option<String>,
 ) -> Result<(), Error> {
-    let recovery_version = recovery_diskinfo
+    let recovery_version = recovery_drive
         .embassy_os
         .as_ref()
         .map(|i| i.version.clone())
         .unwrap_or_default();
     if recovery_version.major() == 0 && recovery_version.minor() == 2 {
-        recover_v2(&ctx, recovery_diskinfo).await?;
+        recover_v2(&ctx, recovery_drive).await?;
     } else if recovery_version.major() == 0 && recovery_version.minor() == 3 {
-        recover_v3(&ctx, recovery_diskinfo, recovery_password).await?;
+        recover_v3(&ctx, recovery_drive, recovery_password).await?;
     } else {
         return Err(Error::new(
             anyhow!("Unsupported version of EmbassyOS: {}", recovery_version),
@@ -220,7 +220,7 @@ fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
 ) -> BoxFuture<'a, Result<(), std::io::Error>> {
     async move {
         tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(path.as_ref()).await?)
-            .try_for_each_concurrent(None, |e| async move {
+            .try_for_each_concurrent(Some(8), |e| async move {
                 let m = e.metadata().await?;
                 if m.is_file() {
                     res.fetch_add(m.len(), Ordering::Relaxed);
@@ -238,34 +238,77 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
     src: P0,
     dst: P1,
     ctr: &'a AtomicU64,
-) -> BoxFuture<'a, Result<(), std::io::Error>> {
+) -> BoxFuture<'a, Result<(), Error>> {
     async move {
         let dst_path = dst.as_ref();
         tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(src.as_ref()).await?)
-            .try_for_each_concurrent(None, |e| async move {
+            .map_err(|e| Error::new(e, crate::ErrorKind::Filesystem))
+            .try_for_each_concurrent(Some(8), |e| async move {
                 let m = e.metadata().await?;
                 let src_path = e.path();
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
-                    tokio::fs::copy(src_path, dst_path).await?;
+                    tokio::fs::copy(&src_path, &dst_path).await.with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("{} -> {}", src_path.display(), dst_path.display()),
+                        )
+                    })?;
                     ctr.fetch_add(m.len(), Ordering::Relaxed);
                 } else if m.is_dir() {
+                    tokio::fs::create_dir_all(&dst_path).await.with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("mkdir {}", dst_path.display()),
+                        )
+                    })?;
+                    tokio::fs::set_permissions(&dst_path, m.permissions())
+                        .await
+                        .with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("chmod {}", dst_path.display()),
+                            )
+                        })?;
                     dir_copy(src_path, dst_path, ctr).await?;
-                } else {
-                    tokio::fs::symlink(tokio::fs::read_link(src_path).await?, &dst_path).await?;
-                    tokio::fs::set_permissions(dst_path, m.permissions()).await?;
+                } else if m.file_type().is_symlink() {
+                    tokio::fs::symlink(
+                        tokio::fs::read_link(&src_path).await.with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("readlink {}", src_path.display()),
+                            )
+                        })?,
+                        &dst_path,
+                    )
+                    .await
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("{} -> {}", src_path.display(), dst_path.display()),
+                        )
+                    })?;
+                    tokio::fs::set_permissions(&dst_path, m.permissions())
+                        .await
+                        .with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("chmod {}", dst_path.display()),
+                            )
+                        })?;
                 }
                 Ok(())
             })
-            .await
+            .await?;
+        Ok(())
     }
     .boxed()
 }
 
-async fn recover_v2(ctx: &SetupContext, recovery_diskinfo: DiskInfo) -> Result<(), Error> {
+async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), Error> {
     let tmp_mountpoint = Path::new("/mnt/recovery");
     mount(
-        &recovery_diskinfo
+        &recovery_drive
             .partitions
             .get(1)
             .ok_or_else(|| {
@@ -299,10 +342,18 @@ async fn recover_v2(ctx: &SetupContext, recovery_diskinfo: DiskInfo) -> Result<(
         })?)
         .await?;
 
-    let volume_path = tmp_mountpoint.join("root/appmgr/volumes");
+    let volume_path = tmp_mountpoint.join("root/volumes");
     let total_bytes = AtomicU64::new(0);
     for (pkg_id, _) in &packages {
-        dir_size(volume_path.join(pkg_id), &total_bytes).await?;
+        let volume_src_path = volume_path.join(&pkg_id);
+        dir_size(&volume_src_path, &total_bytes)
+            .await
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    volume_src_path.display().to_string(),
+                )
+            })?;
     }
     let total_bytes = total_bytes.load(Ordering::SeqCst);
     *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
@@ -314,17 +365,20 @@ async fn recover_v2(ctx: &SetupContext, recovery_diskinfo: DiskInfo) -> Result<(
     for (pkg_id, info) in packages {
         let volume_src_path = volume_path.join(&pkg_id);
         let volume_dst_path = data_dir(&ctx.datadir, &pkg_id, &info.version, &volume_id);
+        tokio::fs::create_dir_all(&volume_dst_path)
+            .await
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    volume_dst_path.display().to_string(),
+                )
+            })?;
         tokio::select!(
             res = dir_copy(
                 &volume_src_path,
                 &volume_dst_path,
                 &bytes_transferred
-            ) => res.with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    format!("{} -> {}", volume_src_path.display(), volume_dst_path.display()),
-                )
-            })?,
+            ) => res?,
             _ = async {
                 loop {
                     tokio::time::sleep(Duration::from_secs(1)).await;
@@ -342,6 +396,11 @@ async fn recover_v2(ctx: &SetupContext, recovery_diskinfo: DiskInfo) -> Result<(
             .join("root/agent/icons")
             .join(format!("{}.png", pkg_id));
         let icon_dst_path = ctx.datadir.join(PKG_PUBLIC_DIR).join(&icon_leaf);
+        if let Some(parent) = icon_dst_path.parent() {
+            tokio::fs::create_dir_all(&parent)
+                .await
+                .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
+        }
         tokio::fs::copy(&icon_src_path, &icon_dst_path)
             .await
             .with_ctx(|_| {
@@ -373,7 +432,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_diskinfo: DiskInfo) -> Result<(
 
 async fn recover_v3(
     ctx: &SetupContext,
-    recovery_diskinfo: DiskInfo,
+    recovery_drive: DiskInfo,
     recovery_password: Option<String>,
 ) -> Result<(), Error> {
     todo!()

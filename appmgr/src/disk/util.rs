@@ -105,7 +105,9 @@ pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
             .arg(path.as_ref())
             .invoke(crate::ErrorKind::BlockDevice)
             .await?,
-    )?;
+    )?
+    .trim()
+    .to_owned();
     Ok(if label.is_empty() { None } else { Some(label) })
 }
 
@@ -160,6 +162,9 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                     disk_path.display().to_string(),
                 )
             })?;
+            if &*disk == Path::new("/dev/mmcblk0") {
+                return Ok(disks);
+            }
             if !disks.contains_key(&disk) {
                 disks.insert(disk.clone(), IndexSet::new());
             }
