@@ -124,7 +124,12 @@ impl SetupContext {
     }
     pub async fn product_key(&self) -> Result<Arc<String>, Error> {
         Ok(
-            if let Some(k) = { self.cached_product_key.read().await.clone() } {
+            if let Some(k) = {
+                let guard = self.cached_product_key.read().await;
+                let res = guard.clone();
+                drop(guard);
+                res
+            } {
                 k
             } else {
                 let k = Arc::new(get_product_key().await?);
