@@ -19,7 +19,7 @@ export interface GetStatusRes {
 export interface SetupEmbassyReq {
   'embassy-logicalname': string
   'embassy-password': string
-  'recovery-logicalname'?: string
+  'recovery-drive'?: DiskInfo
   'recovery-password'?: string
 }
 
