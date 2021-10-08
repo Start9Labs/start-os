@@ -38,7 +38,7 @@ export class EmbassyPage {
 
   async getDrives () {
     try {
-      this.storageDrives = await this.apiService.getDrives()
+      this.storageDrives = (await this.apiService.getDrives()).filter(d => d.logicalname !== this.stateService.recoveryDrive?.logicalname)
     } catch (e) {
       this.errorToastService.present(e.message)
     } finally {
