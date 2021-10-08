@@ -530,6 +530,11 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(main_datadir: P) ->
         }
     }
     tokio::fs::symlink(&target, link).await?;
+    Command::new("systemctl")
+        .arg("restart")
+        .arg("wpa_supplicant")
+        .invoke(ErrorKind::Wifi)
+        .await?;
     Ok(())
 }
 
