@@ -188,7 +188,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
     let (new_label, _current_label) = query_mounted_label().await?;
     let (size, download) = download_file(
         &EosUrl {
-            base: ctx.eos_registry_url().await?,
+            base: info.eos_marketplace.clone(),
             version: latest_version,
         },
         ctx.datadir.join("updates/eos.img"),
