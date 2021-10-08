@@ -15,6 +15,7 @@ use rpc_toolkit::command;
 use sha2::Sha256;
 use tokio::io::AsyncWriteExt;
 use tokio::pin;
+use tokio::process::Command;
 use tokio_stream::StreamExt;
 
 use crate::context::RpcContext;
@@ -111,7 +112,7 @@ impl<X: FileType> MountedResource<X> {
     }
     async fn unmount(value: X) -> Result<(), Error> {
         let folder = value.mount_folder();
-        tokio::process::Command::new("umount")
+        Command::new("umount")
             .arg(&folder)
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
@@ -191,7 +192,6 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
             base: info.eos_marketplace.clone(),
             version: latest_version,
         },
-        ctx.datadir.join("updates/eos.img"),
         new_label,
     )
     .await?;
@@ -204,19 +204,19 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
     let rev = tx.commit(None).await?;
 
     tokio::spawn(async move {
-        match do_update(download, new_label, mounted_boot).await {
+        let res = do_update(download, new_label, mounted_boot).await;
+        let mut db = ctx.db.handle();
+        let mut info = crate::db::DatabaseModel::new()
+            .server_info()
+            .get_mut(&mut db)
+            .await
+            .expect("could not access status");
+        info.status = ServerStatus::Running;
+        info.update_progress = None;
+        info.save(&mut db).await.expect("could not save status");
+        match res {
             Ok(()) => todo!("issue notification"),
             Err(e) => {
-                let mut db = ctx.db.handle();
-                let mut info = crate::db::DatabaseModel::new()
-                    .server_info()
-                    .get_mut(&mut db)
-                    .await
-                    .expect("could not access status");
-                info.status = ServerStatus::Running;
-                info.update_progress = None;
-                info.save(&mut db).await.expect("could not save status");
-
                 todo!("{}, issue notification", e)
             }
         }
@@ -278,7 +278,6 @@ impl std::fmt::Display for EosUrl {
 
 async fn download_file<'a>(
     eos_url: &EosUrl,
-    tmp_img_path: impl AsRef<Path> + 'a,
     new_label: NewLabel,
 ) -> Result<(Option<u64>, impl Future<Output = Result<(), Error>> + 'a), Error> {
     let download_request = reqwest::get(eos_url.to_string())
@@ -300,7 +299,7 @@ async fn download_file<'a>(
                                                           // .with_kind(ErrorKind::InvalidRequest)?
                                                           // .to_owned();
             let stream_download = download_request.bytes_stream();
-            let file_sum = write_stream_to_label(stream_download, new_label, tmp_img_path).await?;
+            let file_sum = write_stream_to_label(stream_download, new_label).await?;
             check_download(&hash_from_header, file_sum).await?;
             Ok(())
         },
@@ -310,11 +309,11 @@ async fn download_file<'a>(
 async fn write_stream_to_label(
     stream_download: impl Stream<Item = Result<rpc_toolkit::hyper::body::Bytes, reqwest::Error>>,
     file: NewLabel,
-    temp_img_path: impl AsRef<Path>,
 ) -> Result<Vec<u8>, Error> {
     let block_dev = file.0.block_dev();
-    let file_path = temp_img_path.as_ref();
-    let mut file = tokio::fs::File::create(&file_path)
+    let mut file = tokio::fs::OpenOptions::new()
+        .write(true)
+        .open(&block_dev)
         .await
         .with_kind(ErrorKind::Filesystem)?;
     let mut hasher = Sha256::new();
@@ -328,11 +327,6 @@ async fn write_stream_to_label(
     file.flush().await.with_kind(ErrorKind::Filesystem)?;
     file.shutdown().await.with_kind(ErrorKind::Filesystem)?;
     drop(file);
-    tokio::process::Command::new("dd")
-        .arg(format!("if={}", file_path.display()))
-        .arg(format!("of={}", block_dev.display()))
-        .output()
-        .await?;
     Ok(hasher.finalize().to_vec())
 }
 
@@ -349,13 +343,25 @@ async fn swap_boot_label(
     new_label: NewLabel,
     mounted_boot: &MountedResource<Boot>,
 ) -> Result<(), Error> {
-    // disk/util add setLabel
-    tokio::process::Command::new("sed")
-        .arg(format!(
-            r#""r/LABEL=(blue|green)/LABEL={}/g""#,
-            new_label.0.label()
-        ))
-        .arg(mounted_boot.value.mount_folder().join("etc/fstab"))
+    let block_dev = new_label.0.block_dev();
+    Command::new("e2label")
+        .arg(block_dev)
+        .arg(new_label.0.label())
+        .invoke(crate::ErrorKind::BlockDevice)
+        .await?;
+    let mut mounted = mount_label(new_label.0).await?;
+    let sedcmd = format!("s/LABEL=\\(blue\\|green\\)/LABEL={}/g", new_label.0.label());
+    Command::new("sed")
+        .arg("-i")
+        .arg(&sedcmd)
+        .arg(mounted.value.mount_folder().join("etc/fstab"))
+        .output()
+        .await?;
+    mounted.unmount_label().await?;
+    Command::new("sed")
+        .arg("-i")
+        .arg(&sedcmd)
+        .arg(mounted_boot.value.mount_folder().join("cmdline.txt"))
         .output()
         .await?;
     Ok(())
@@ -370,7 +376,7 @@ where
     tokio::fs::create_dir_all(&folder)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, folder.display().to_string()))?;
-    tokio::process::Command::new("mount")
+    Command::new("mount")
         .arg("-L")
         .arg(label)
         .arg(folder)
