@@ -16,9 +16,6 @@
 - Node
 	`apt install nodejs`
 	https://nodejs.org/en/docs
-- NVM
-	`curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
-	https://github.com/nvm-sh/nvm
 - NPM
 	`npm install -g npm`
 	https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
