@@ -70,7 +70,7 @@ diagnostic-ui/config.json:
 patch-db/client/node_modules: patch-db/client/package.json
 	npm --prefix patch-db/client install
 
-patch-db/client/dist: $(PATCH_DB_SRC) patch-db/client/node_modules
+patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	npm --prefix patch-db/client run build
 
 ui: $(EMBASSY_UIS)
