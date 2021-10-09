@@ -213,9 +213,9 @@ pub enum NotificationSubtype {
 }
 impl NotificationSubtype {
     fn to_json(&self) -> serde_json::Value {
-        match &self {
-            &NotificationSubtype::General => serde_json::Value::Null,
-            &NotificationSubtype::BackupReport {
+        match self {
+            NotificationSubtype::General => serde_json::Value::Null,
+            NotificationSubtype::BackupReport {
                 server_attempted,
                 server_error,
                 packages,
@@ -241,9 +241,9 @@ impl NotificationSubtype {
         }
     }
     fn code(&self) -> u32 {
-        match &self {
-            &Self::General => 0,
-            &Self::BackupReport {
+        match self {
+            Self::General => 0,
+            Self::BackupReport {
                 server_attempted: _,
                 server_error: _,
                 packages: _,

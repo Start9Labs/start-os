@@ -1,8 +1,9 @@
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use clap::ArgMatches;
 use digest::Digest;
 use emver::Version;
@@ -13,21 +14,31 @@ use regex::Regex;
 use reqwest::Url;
 use rpc_toolkit::command;
 use sha2::Sha256;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::io::AsyncWriteExt;
 use tokio::pin;
 use tokio::process::Command;
+use tokio::time::Instant;
 use tokio_stream::StreamExt;
 
 use crate::context::RpcContext;
 use crate::db::model::{ServerStatus, UpdateProgress};
+use crate::notifications::{NotificationLevel, NotificationSubtype};
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
+
+lazy_static! {
+    static ref UPDATED: AtomicBool = AtomicBool::new(false);
+}
 
 /// An user/ daemon would call this to update the system to the latest version and do the updates available,
 /// and this will return something if there is an update, and in that case there will need to be a restart.
 #[command(rename = "update", display(display_properties))]
 pub async fn update_system(#[context] ctx: RpcContext) -> Result<UpdateSystem, Error> {
+    if UPDATED.load(Ordering::SeqCst) {
+        return Ok(UpdateSystem::NoUpdates);
+    }
     if let None = maybe_do_update(ctx).await? {
         return Ok(UpdateSystem::Updated);
     }
@@ -52,7 +63,7 @@ fn display_properties(status: UpdateSystem, _: &ArgMatches<'_>) {
     }
 }
 
-const HEADER_KEY: &str = "CHECKSUM";
+const HEADER_KEY: &str = "x-eos-hash";
 mod latest_information;
 
 #[derive(Debug, Clone, Copy)]
@@ -170,13 +181,16 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
         .get_mut(&mut tx)
         .await?;
     match &info.status {
-        ServerStatus::Updating { .. } => {
+        ServerStatus::Updating => {
             return Err(Error::new(
                 anyhow!("Server is already updating!"),
                 crate::ErrorKind::InvalidRequest,
             ))
         }
-        ServerStatus::BackingUp {} => {
+        ServerStatus::Updated => {
+            return Ok(None);
+        }
+        ServerStatus::BackingUp => {
             return Err(Error::new(
                 anyhow!("Server is backing up!"),
                 crate::ErrorKind::InvalidRequest,
@@ -191,7 +205,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
         ctx.db.handle(),
         &EosUrl {
             base: info.eos_marketplace.clone(),
-            version: latest_version,
+            version: latest_version.clone(),
         },
         new_label,
     )
@@ -212,13 +226,26 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
             .get_mut(&mut db)
             .await
             .expect("could not access status");
-        info.status = ServerStatus::Running;
         info.update_progress = None;
-        info.save(&mut db).await.expect("could not save status");
         match res {
-            Ok(()) => todo!("issue notification"),
+            Ok(()) => {
+                info.status = ServerStatus::Updated;
+                info.save(&mut db).await.expect("could not save status");
+            }
             Err(e) => {
-                todo!("{}, issue notification", e)
+                info.status = ServerStatus::Running;
+                info.save(&mut db).await.expect("could not save status");
+                drop(db);
+                ctx.notification_manager
+                    .notify(
+                        None,
+                        NotificationLevel::Error,
+                        "EmbassyOS Update Failed".to_owned(),
+                        format!("Update was not successful because of {}", e),
+                        NotificationSubtype::General,
+                    )
+                    .await
+                    .expect("")
             }
         }
     });
@@ -321,16 +348,20 @@ async fn write_stream_to_label<Db: DbHandle>(
     let mut hasher = Sha256::new();
     pin!(stream_download);
     let mut downloaded = 0;
+    let mut last_progress_update = Instant::now();
     while let Some(Ok(item)) = stream_download.next().await {
         file.write_all(&item)
             .await
             .with_kind(ErrorKind::Filesystem)?;
         downloaded += item.len() as u64;
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .update_progress()
-            .put(db, &UpdateProgress { size, downloaded })
-            .await?;
+        if last_progress_update.elapsed() > Duration::from_secs(1) {
+            last_progress_update = Instant::now();
+            crate::db::DatabaseModel::new()
+                .server_info()
+                .update_progress()
+                .put(db, &UpdateProgress { size, downloaded })
+                .await?;
+        }
         hasher.update(item);
     }
     file.flush().await.with_kind(ErrorKind::Filesystem)?;
@@ -373,6 +404,8 @@ async fn swap_boot_label(
         .arg(mounted_boot.value.mount_folder().join("cmdline.txt"))
         .output()
         .await?;
+
+    UPDATED.store(true, Ordering::SeqCst);
     Ok(())
 }
 
