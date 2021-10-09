@@ -79,6 +79,7 @@ pub struct ServerInfo {
     pub unread_notification_count: u64,
     pub connection_addresses: ConnectionAddresses,
     pub share_stats: bool,
+    #[model]
     pub update_progress: Option<UpdateProgress>,
 }
 
@@ -90,7 +91,7 @@ pub enum ServerStatus {
     BackingUp,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct UpdateProgress {
     pub size: Option<u64>,
