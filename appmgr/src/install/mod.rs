@@ -709,34 +709,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             .get(&mut tx, true)
             .await?
             .into_owned();
-        if let Some(recovered) = recovered {
-            let configured = if let Some(res) = manifest
-                .migrations
-                .from(ctx, &recovered.version, pkg_id, version, &manifest.volumes)
-                .await?
-            {
-                res.configured
-            } else {
-                false
-            };
-            if configured {
-                crate::config::configure(
-                    ctx,
-                    &mut tx,
-                    pkg_id,
-                    None,
-                    &None,
-                    false,
-                    &mut BTreeMap::new(),
-                    &mut BTreeMap::new(),
-                )
-                .await?;
-            }
-            crate::db::DatabaseModel::new()
-                .recovered_packages()
-                .remove(&mut tx, pkg_id)
-                .await?
-        }
+        handle_recovered_package(recovered, manifest, ctx, pkg_id, version, &mut tx).await?;
     }
 
     sql_tx.commit().await?;
@@ -745,6 +718,44 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     log::info!("Install {}@{}: Complete", pkg_id, version);
 
     Ok(())
+}
+
+async fn handle_recovered_package(
+    recovered: Option<crate::db::model::RecoveredPackageInfo>,
+    manifest: Manifest,
+    ctx: &RpcContext,
+    pkg_id: &PackageId,
+    version: &Version,
+    tx: &mut patch_db::Transaction<&mut patch_db::PatchDbHandle>,
+) -> Result<(), Error> {
+    Ok(if let Some(recovered) = recovered {
+        let configured = if let Some(res) = manifest
+            .migrations
+            .from(ctx, &recovered.version, pkg_id, version, &manifest.volumes)
+            .await?
+        {
+            res.configured
+        } else {
+            false
+        };
+        if configured {
+            crate::config::configure(
+                ctx,
+                tx,
+                pkg_id,
+                None,
+                &None,
+                false,
+                &mut BTreeMap::new(),
+                &mut BTreeMap::new(),
+            )
+            .await?;
+        }
+        crate::db::DatabaseModel::new()
+            .recovered_packages()
+            .remove(tx, pkg_id)
+            .await?
+    })
 }
 
 pub async fn load_images<P: AsRef<Path>>(datadir: P) -> Result<(), Error> {
