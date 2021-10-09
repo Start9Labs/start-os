@@ -628,13 +628,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     *dep_errs = DependencyErrors::init(ctx, &mut tx, &manifest, &current_dependencies).await?;
     dep_errs.save(&mut tx).await?;
 
-    let recovered = crate::db::DatabaseModel::new()
-        .recovered_packages()
-        .idx_model(pkg_id)
-        .get(&mut tx, true)
-        .await?
-        .into_owned();
-
     if let PackageDataEntry::Updating {
         installed: prev,
         manifest: prev_manifest,
@@ -710,6 +703,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         }
     } else {
         update_dependents(ctx, &mut tx, pkg_id, current_dependents.keys()).await?;
+        let recovered = crate::db::DatabaseModel::new()
+            .recovered_packages()
+            .idx_model(pkg_id)
+            .get(&mut tx, true)
+            .await?
+            .into_owned();
         if let Some(recovered) = recovered {
             let configured = if let Some(res) = manifest
                 .migrations
