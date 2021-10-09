@@ -6,7 +6,7 @@ APPMGR_SRC := $(shell find appmgr/src) appmgr/Cargo.toml appmgr/Cargo.lock
 UI_SRC := $(shell find ui/src)
 SETUP_WIZARD_SRC := $(shell find setup-wizard/src)
 DIAGNOSTIC_UI_SRC := $(shell find diagnostic-ui/src)
-PATCH_DB_CLIENT_SRC = $(shell find patch-db/client)
+PATCH_DB_CLIENT_SRC = $(shell find patch-db/client -not -path patch-db/client/dist)
 
 all: eos.img
 
@@ -71,6 +71,7 @@ patch-db/client/node_modules: patch-db/client/package.json
 	npm --prefix patch-db/client install
 
 patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
+	! test -d patch-db/client/dist || rm -rf patch-db/client/dist
 	npm --prefix patch-db/client run build
 
 ui: $(EMBASSY_UIS)
