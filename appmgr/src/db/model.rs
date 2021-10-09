@@ -88,6 +88,7 @@ pub struct ServerInfo {
 pub enum ServerStatus {
     Running,
     Updating,
+    Updated,
     BackingUp,
 }
 
