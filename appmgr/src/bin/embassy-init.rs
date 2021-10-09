@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
+use embassy::db::model::ServerStatus;
+use embassy::db::DatabaseModel;
 use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::hostname::get_product_key;
 use embassy::middleware::cors::cors;
@@ -11,7 +13,7 @@ use embassy::middleware::encrypt::encrypt;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::sound::MARIO_COIN;
-use embassy::util::Invoke;
+use embassy::util::{Invoke, Version};
 use embassy::{Error, ResultExt};
 use http::StatusCode;
 use rpc_toolkit::rpc_server;
@@ -143,6 +145,25 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     }
     log::info!("Enabled nginx public dir");
     embassy::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
+
+    let db = cfg.db(&secret_store).await?;
+    let mut handle = db.handle();
+    let mut info = embassy::db::DatabaseModel::new()
+        .server_info()
+        .get_mut(&mut handle)
+        .await?;
+    match info.status {
+        ServerStatus::Running | ServerStatus::Updated | ServerStatus::BackingUp => {
+            info.status = ServerStatus::Running;
+        }
+        ServerStatus::Updating => {
+            info.update_progress = None;
+            info.status = ServerStatus::Running;
+        }
+    }
+    info.version = emver::Version::new(0, 3, 0, 0).into();
+    // TODO: run migrations
+    info.save(&mut handle).await?;
 
     Ok(())
 }
