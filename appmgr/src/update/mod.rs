@@ -213,7 +213,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
                 crate::ErrorKind::InvalidRequest,
             ))
         }
-        _ => (),
+        ServerStatus::Running => (),
     }
 
     let mounted_boot = mount_label(Boot).await?;
