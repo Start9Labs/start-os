@@ -4,6 +4,7 @@ use bollard::image::ListImagesOptions;
 use patch_db::{DbHandle, PatchDbHandle};
 use tracing::instrument;
 
+use super::PKG_ARCHIVE_DIR;
 use super::PKG_DOCKER_DIR;
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry};
@@ -93,6 +94,14 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
         ctx.docker.remove_image(&image.id, None, None).await
     }))
     .await?;
+    let pkg_archive_dir = ctx
+        .datadir
+        .join(PKG_ARCHIVE_DIR)
+        .join(id)
+        .join(version.as_str());
+    if tokio::fs::metadata(&pkg_archive_dir).await.is_ok() {
+        tokio::fs::remove_dir_all(&pkg_archive_dir).await?;
+    }
     let docker_path = ctx
         .datadir
         .join(PKG_DOCKER_DIR)

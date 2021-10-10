@@ -42,7 +42,7 @@ use crate::{Error, ResultExt};
 pub mod cleanup;
 pub mod progress;
 
-pub const PKG_CACHE: &'static str = "package-data/cache";
+pub const PKG_ARCHIVE_DIR: &'static str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &'static str = "package-data/public";
 pub const PKG_DOCKER_DIR: &'static str = "package-data/docker";
 pub const PKG_WASM_DIR: &'static str = "package-data/wasm";
@@ -204,7 +204,7 @@ pub async fn download_install_s9pk(
 
     let pkg_cache_dir = ctx
         .datadir
-        .join(PKG_CACHE)
+        .join(PKG_ARCHIVE_DIR)
         .join(pkg_id)
         .join(version.as_str());
     tokio::fs::create_dir_all(&pkg_cache_dir).await?;
