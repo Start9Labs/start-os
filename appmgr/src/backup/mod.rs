@@ -1,6 +1,6 @@
 use color_eyre::eyre::eyre;
 use patch_db::HasModel;
-use regex::NoExpand;
+use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -10,6 +10,13 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::{Volume, VolumeId, Volumes};
 use crate::{Error, ResultExt};
+
+mod backup_bulk;
+
+#[command(subcommands(backup_bulk::backup_all))]
+pub fn backup() -> Result<(), Error> {
+    Ok(())
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 pub struct BackupActions {
