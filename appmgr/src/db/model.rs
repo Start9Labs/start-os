@@ -191,6 +191,26 @@ pub enum PackageDataEntry {
         installed: InstalledPackageDataEntry,
     },
 }
+impl PackageDataEntry {
+    pub fn installed(&self) -> Option<&InstalledPackageDataEntry> {
+        match self {
+            Self::Installing { .. } | Self::Removing { .. } => None,
+            Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
+        }
+    }
+    pub fn installed_mut(&mut self) -> Option<&mut InstalledPackageDataEntry> {
+        match self {
+            Self::Installing { .. } | Self::Removing { .. } => None,
+            Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
+        }
+    }
+    pub fn into_installed(self) -> Option<InstalledPackageDataEntry> {
+        match self {
+            Self::Installing { .. } | Self::Removing { .. } => None,
+            Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
+        }
+    }
+}
 impl PackageDataEntryModel {
     pub fn installed(self) -> OptionModel<InstalledPackageDataEntry> {
         self.0.child("installed").into()
