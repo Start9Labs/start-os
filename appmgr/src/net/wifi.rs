@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use clap::ArgMatches;
@@ -7,6 +7,7 @@ use isocountry::CountryCode;
 use rpc_toolkit::command;
 use tokio::process::Command;
 
+use crate::context::RpcContext;
 use crate::util::{display_none, display_serializable, Invoke, IoFormat};
 use crate::{Error, ErrorKind};
 
@@ -17,12 +18,13 @@ pub async fn wifi() -> Result<(), Error> {
 
 #[command(display(display_none))]
 pub async fn add(
+    #[context] ctx: RpcContext,
     #[arg] ssid: String,
     #[arg] password: String,
     #[arg] priority: isize,
     #[arg] connect: bool,
 ) -> Result<(), Error> {
-    let wpa_supplicant = WpaCli { interface: "wlan0" }; // TODO: pull from config
+    let wpa_supplicant = WpaCli::init("wlan0".to_string(), ctx.datadir.join("main")); // TODO: pull from config
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
@@ -35,8 +37,8 @@ pub async fn add(
             ErrorKind::Wifi,
         ));
     }
-    async fn add_procedure<'a>(
-        wpa_supplicant: WpaCli<'a>,
+    async fn add_procedure(
+        wpa_supplicant: WpaCli,
         ssid: &str,
         password: &str,
         priority: isize,
@@ -72,14 +74,14 @@ pub async fn add(
 }
 
 #[command(display(display_none))]
-pub async fn connect(#[arg] ssid: String) -> Result<(), Error> {
+pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
             ErrorKind::Wifi,
         ));
     }
-    async fn connect_procedure<'a>(wpa_supplicant: WpaCli<'a>, ssid: &String) -> Result<(), Error> {
+    async fn connect_procedure(wpa_supplicant: WpaCli, ssid: &String) -> Result<(), Error> {
         let current = wpa_supplicant.get_current_network().await?;
         let connected = wpa_supplicant.select_network(&ssid).await?;
         if connected {
@@ -97,7 +99,7 @@ pub async fn connect(#[arg] ssid: String) -> Result<(), Error> {
         }
         Ok(())
     }
-    let wpa_supplicant = WpaCli { interface: "wlan0" };
+    let wpa_supplicant = WpaCli::init("wlan0".to_string(), ctx.datadir.join("main"));
     tokio::spawn(async move {
         match connect_procedure(wpa_supplicant, &ssid).await {
             Err(e) => {
@@ -110,14 +112,14 @@ pub async fn connect(#[arg] ssid: String) -> Result<(), Error> {
 }
 
 #[command(display(display_none))]
-pub async fn delete(#[arg] ssid: String) -> Result<(), Error> {
+pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
             ErrorKind::Wifi,
         ));
     }
-    let wpa_supplicant = WpaCli { interface: "wlan0" };
+    let wpa_supplicant = WpaCli::init("wlan0".to_string(), ctx.datadir.join("main"));
     let current = wpa_supplicant.get_current_network().await?;
     match current {
         None => {
@@ -194,11 +196,12 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
 
 #[command(display(display_wifi_info))]
 pub async fn get(
+    #[context] ctx: RpcContext,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<WiFiInfo, Error> {
-    let wpa_supplicant = WpaCli { interface: "wlan0" };
+    let wpa_supplicant = WpaCli::init("wlan0".to_string(), ctx.datadir.join("main"));
     let ssids_task = async {
         Result::<Vec<String>, Error>::Ok(
             wpa_supplicant
@@ -237,14 +240,16 @@ pub async fn get(
 
 #[command(display(display_none))]
 pub async fn set_country(
+    #[context] ctx: RpcContext,
     #[arg(parse(country_code_parse))] country: CountryCode,
 ) -> Result<(), Error> {
-    let wpa_supplicant = WpaCli { interface: "wlan0" };
+    let wpa_supplicant = WpaCli::init("wlan0".to_string(), ctx.datadir.join("main"));
     wpa_supplicant.set_country_low(country.alpha2()).await
 }
 
-pub struct WpaCli<'a> {
-    interface: &'a str,
+pub struct WpaCli {
+    datadir: PathBuf,
+    interface: String,
 }
 #[derive(Clone)]
 pub struct NetworkId(String);
@@ -254,29 +259,42 @@ pub enum NetworkAttr {
     Priority(isize),
     ScanSsid(bool),
 }
-impl std::fmt::Display for NetworkAttr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl NetworkAttr {
+    fn name(&self) -> &'static str {
         use NetworkAttr::*;
         match self {
-            Ssid(s) => write!(f, "\"{}\"", s),
-            Psk(s) => write!(f, "\"{}\"", s),
-            Priority(n) => write!(f, "{}", n),
+            Ssid(_) => "ssid",
+            Psk(_) => "psk",
+            Priority(_) => "priority",
+            ScanSsid(_) => "scan_ssid",
+        }
+    }
+    fn value(&self) -> String {
+        use NetworkAttr::*;
+        match self {
+            Ssid(s) => format!("\"{}\"", s),
+            Psk(s) => format!("\"{}\"", s),
+            Priority(n) => format!("{}", n),
             ScanSsid(b) => {
                 if *b {
-                    write!(f, "1")
+                    String::from("1")
                 } else {
-                    write!(f, "0")
+                    String::from("0")
                 }
             }
         }
     }
 }
-impl<'a> WpaCli<'a> {
+impl WpaCli {
+    pub fn init(interface: String, datadir: PathBuf) -> Self {
+        WpaCli { interface, datadir }
+    }
+
     // Low Level
     pub async fn add_network_low(&self) -> Result<NetworkId, Error> {
         let r = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("add_network")
             .invoke(ErrorKind::Wifi)
             .await?;
@@ -286,10 +304,11 @@ impl<'a> WpaCli<'a> {
     pub async fn set_network_low(&self, id: &NetworkId, attr: &NetworkAttr) -> Result<(), Error> {
         let _ = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("set_network")
             .arg(&id.0)
-            .arg(format!("{}", attr))
+            .arg(attr.name())
+            .arg(attr.value())
             .invoke(ErrorKind::Wifi)
             .await?;
         Ok(())
@@ -297,7 +316,7 @@ impl<'a> WpaCli<'a> {
     pub async fn set_country_low(&self, country_code: &str) -> Result<(), Error> {
         let _ = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("set")
             .arg("country")
             .arg(country_code)
@@ -308,7 +327,7 @@ impl<'a> WpaCli<'a> {
     pub async fn get_country_low(&self) -> Result<CountryCode, Error> {
         let r = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("get")
             .arg("country")
             .invoke(ErrorKind::Wifi)
@@ -318,7 +337,7 @@ impl<'a> WpaCli<'a> {
     pub async fn enable_network_low(&self, id: &NetworkId) -> Result<(), Error> {
         let _ = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("enable_network")
             .arg(&id.0)
             .invoke(ErrorKind::Wifi)
@@ -328,7 +347,7 @@ impl<'a> WpaCli<'a> {
     pub async fn save_config_low(&self) -> Result<(), Error> {
         let _ = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("save_config")
             .invoke(ErrorKind::Wifi)
             .await?;
@@ -337,7 +356,7 @@ impl<'a> WpaCli<'a> {
     pub async fn remove_network_low(&self, id: NetworkId) -> Result<(), Error> {
         let _ = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("remove_network")
             .arg(&id.0)
             .invoke(ErrorKind::Wifi)
@@ -347,7 +366,7 @@ impl<'a> WpaCli<'a> {
     pub async fn reconfigure_low(&self) -> Result<(), Error> {
         let _ = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("reconfigure")
             .invoke(ErrorKind::Wifi)
             .await?;
@@ -356,7 +375,7 @@ impl<'a> WpaCli<'a> {
     pub async fn list_networks_low(&self) -> Result<BTreeMap<String, NetworkId>, Error> {
         let r = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("list_networks")
             .invoke(ErrorKind::Wifi)
             .await?;
@@ -374,7 +393,7 @@ impl<'a> WpaCli<'a> {
     pub async fn select_network_low(&self, id: &NetworkId) -> Result<(), Error> {
         let _ = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("select_network")
             .arg(&id.0)
             .invoke(ErrorKind::Wifi)
@@ -384,7 +403,7 @@ impl<'a> WpaCli<'a> {
     pub async fn new_password_low(&self, id: &NetworkId, pass: &str) -> Result<(), Error> {
         let _ = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("new_password")
             .arg(&id.0)
             .arg(pass)
@@ -395,7 +414,7 @@ impl<'a> WpaCli<'a> {
     pub async fn signal_poll_low(&self) -> Result<Option<isize>, Error> {
         let r = Command::new("wpa_cli")
             .arg("-i")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("signal_poll")
             .invoke(ErrorKind::Wifi)
             .await?;
@@ -416,6 +435,15 @@ impl<'a> WpaCli<'a> {
     }
 
     // High Level
+    pub async fn save_config(&self) -> Result<(), Error> {
+        self.save_config_low().await?;
+        tokio::fs::copy(
+            "/etc/wpa_supplicant.conf",
+            self.datadir.join("wpa_supplicant.conf"),
+        )
+        .await?;
+        Ok(())
+    }
     pub async fn check_network(&self, ssid: &str) -> Result<Option<NetworkId>, Error> {
         Ok(self.list_networks_low().await?.remove(ssid))
     }
@@ -428,17 +456,20 @@ impl<'a> WpaCli<'a> {
             )),
             Some(x) => {
                 self.select_network_low(&x).await?;
-                self.save_config_low().await?;
+                self.save_config().await?;
                 let connect = async {
                     let mut current;
                     loop {
                         current = self.get_current_network().await;
                         match &current {
-                            Ok(Some(_)) => {
+                            Ok(Some(ssid)) => {
+                                tracing::debug!("Connected to: {}", ssid);
                                 break;
                             }
                             _ => {}
                         }
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                        tracing::debug!("Retrying...");
                     }
                     current
                 };
@@ -446,6 +477,7 @@ impl<'a> WpaCli<'a> {
                     Err(_) => None,
                     Ok(net) => net?,
                 };
+                tracing::debug!("{:?}", res);
                 Ok(match res {
                     None => false,
                     Some(net) => net == ssid,
@@ -455,15 +487,17 @@ impl<'a> WpaCli<'a> {
     }
     pub async fn get_current_network(&self) -> Result<Option<String>, Error> {
         let r = Command::new("iwgetid")
-            .arg(self.interface)
+            .arg(&self.interface)
             .arg("--raw")
             .invoke(ErrorKind::Wifi)
             .await?;
         let output = String::from_utf8(r)?;
-        if output.trim().is_empty() {
+        let network = output.trim();
+        tracing::debug!("Current Network: \"{}\"", network);
+        if network.is_empty() {
             Ok(None)
         } else {
-            Ok(Some(output))
+            Ok(Some(network.to_owned()))
         }
     }
     pub async fn remove_network(&self, ssid: &str) -> Result<bool, Error> {
@@ -471,7 +505,7 @@ impl<'a> WpaCli<'a> {
             None => Ok(false),
             Some(x) => {
                 self.remove_network_low(x).await?;
-                self.save_config_low().await?;
+                self.save_config().await?;
                 self.reconfigure_low().await?;
                 Ok(true)
             }
@@ -494,7 +528,7 @@ impl<'a> WpaCli<'a> {
             }
         }?;
         self.enable_network_low(&nid).await?;
-        self.save_config_low().await?;
+        self.save_config().await?;
         Ok(())
     }
 }
@@ -519,30 +553,25 @@ pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<Count
 }
 
 pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(main_datadir: P) -> Result<(), Error> {
-    let target = main_datadir.as_ref().join("wpa_supplicant.conf");
-    if tokio::fs::metadata(&target).await.is_err() {
-        tokio::fs::write(&target, include_str!("wpa_supplicant.conf.base")).await?;
+    let persistent = main_datadir.as_ref().join("wpa_supplicant.conf");
+    tracing::debug!("persistent: {:?}", persistent);
+    if tokio::fs::metadata(&persistent).await.is_err() {
+        tokio::fs::write(&persistent, include_str!("wpa_supplicant.conf.base")).await?;
     }
-    let link = Path::new("/etc/wpa_supplicant.conf");
-    if let Ok(meta) = tokio::fs::symlink_metadata(&link).await {
-        if meta.file_type().is_symlink() {
-            tokio::fs::remove_file(&link).await?
-        }
+    let volatile = Path::new("/etc/wpa_supplicant.conf");
+    tracing::debug!("link: {:?}", volatile);
+    if tokio::fs::metadata(&volatile).await.is_ok() {
+        tokio::fs::remove_file(&volatile).await?
     }
-    tokio::fs::symlink(&target, link).await?;
+    tokio::fs::copy(&persistent, volatile).await?;
+    Command::new("systemctl")
+        .arg("restart")
+        .arg("wpa_supplicant")
+        .invoke(ErrorKind::Wifi)
+        .await?;
+    Command::new("ifup")
+        .arg("wlan0")
+        .invoke(ErrorKind::Wifi)
+        .await?;
     Ok(())
-}
-
-#[tokio::test]
-pub async fn test_interface_connected() {
-    println!("{}", interface_connected("wlp5s0").await.unwrap());
-    println!("{}", interface_connected("enp4s0f1").await.unwrap());
-}
-
-#[tokio::test]
-pub async fn test_signal_strength() {
-    let wpa = WpaCli {
-        interface: "wlp5s0",
-    };
-    println!("{}", wpa.signal_poll_low().await.unwrap().unwrap())
 }
