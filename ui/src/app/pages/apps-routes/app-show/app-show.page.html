@@ -23,7 +23,13 @@
     <ion-item-divider>Status</ion-item-divider>
     <ion-item>
       <ion-label style="overflow: visible;">
-        <status [disconnected]="connectionFailure" size="x-large" weight="500" [rendering]="PR[statuses.primary]"></status>
+        <status
+          [disconnected]="connectionFailure"
+          size="x-large"
+          weight="500"
+          [installProgress]="installProgress?.totalProgress"
+          [rendering]="PR[statuses.primary]"
+        ></status>
       </ion-label>
       <ng-container *ngIf="pkg.state === PackageState.Installed && !connectionFailure">
         <ion-button slot="end" class="action-button" *ngIf="pkg.manifest.interfaces | hasUi" [disabled]="!(pkg.state | isLaunchable : pkg.installed.status.main.status : pkg.manifest.interfaces)" (click)="launchUi()">
@@ -64,7 +70,7 @@
               <ng-container *ngIf="$any(health.value).result as result">
                 <ion-spinner class="icon-spinner" color="primary" slot="start" *ngIf="[HealthResult.Starting, HealthResult.Loading] | includes : result"></ion-spinner>
                 <ion-icon slot="start" *ngIf="result === HealthResult.Success" name="checkmark" color="success"></ion-icon>
-                <ion-icon slot="start" *ngIf="result === HealthResult.Failure" name="warning" color="warning"></ion-icon>
+                <ion-icon slot="start" *ngIf="result === HealthResult.Failure" name="warning-outline" color="warning"></ion-icon>
                 <ion-icon slot="start" *ngIf="result === HealthResult.Disabled" name="remove" color="dark"></ion-icon>
                 <ion-label>
                   <h2 style="font-weight: bold;">{{ health.key }}</h2>
@@ -86,7 +92,7 @@
             </ion-thumbnail>
             <ion-label>
               <h2 class="inline" style="font-family: 'Montserrat'">
-                <ion-icon *ngIf="!!dep.value.errorText" slot="start" name="warning" color="warning"></ion-icon>
+                <ion-icon *ngIf="!!dep.value.errorText" slot="start" name="warning-outline" color="warning"></ion-icon>
                 {{ dep.value.title }}
               </h2>
               <p>{{ dep.value.version | displayEmver }}</p>

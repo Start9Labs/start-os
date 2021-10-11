@@ -22,18 +22,6 @@
 
     <ion-item-divider>Country</ion-item-divider>
 
-    <!-- loading  -->
-    <!-- <ng-container *ngIf="loading">
-      <ion-item class="skeleton-parts">
-        <ion-button slot="start" fill="clear">
-          <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
-        </ion-button>
-        <ion-label>
-          <ion-skeleton-text animated style="width: 150px;"></ion-skeleton-text>
-        </ion-label>
-      </ion-item>
-    </ng-container> -->
-
     <!-- not loading -->
     <ion-item button detail="false" (click)="presentAlertCountry()" [disabled]="loading">
       <ion-icon slot="start" name="earth-outline" size="large"></ion-icon>

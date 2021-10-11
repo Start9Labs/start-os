@@ -95,6 +95,7 @@ export class WifiPage {
             handler: async (value: { ssid: string, password: string }) => {
               await this.saveAndConnect(value.ssid, value.password)
             },
+            isSubmit: true,
           },
         ],
       },

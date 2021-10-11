@@ -111,9 +111,10 @@
       <ion-icon name="save-outline"></ion-icon>
       <ion-icon name="shield-checkmark-outline"></ion-icon>
       <ion-icon name="storefront-outline"></ion-icon>
+      <ion-icon name="swap-vertical"></ion-icon>
       <ion-icon name="terminal-outline"></ion-icon>
       <ion-icon name="trash-outline"></ion-icon>
-      <ion-icon name="warning"></ion-icon>
+      <ion-icon name="warning-outline"></ion-icon>
       <ion-icon name="wifi"></ion-icon>
       
       <!-- Ionic components -->
@@ -177,9 +178,9 @@
     <ion-toolbar style="border-top: 1px solid var(--ion-color-dark);" color="light">
       <ion-list>
         <ion-list-header>
-          <ion-label>Install Progress: {{ (100 * (osUpdateProgress?.downloaded || 1) / (osUpdateProgress?.size || 1)).toFixed(0) }}%</ion-label>
+          <ion-label>Downloading EOS: {{ (100 * (osUpdateProgress?.downloaded || 1) / (osUpdateProgress?.size || 1)).toFixed(0) }}%</ion-label>
         </ion-list-header>
-        <div style="padding: 0 15px;">
+        <div style="padding: 0 16px 16px 16px;">
           <ion-progress-bar
             color="secondary"
             [value]="osUpdateProgress && osUpdateProgress.downloaded / osUpdateProgress.size"

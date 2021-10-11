@@ -1,9 +1,9 @@
-import { Component, HostListener } from '@angular/core'
+import { Component, HostListener, NgZone } from '@angular/core'
 import { Storage } from '@ionic/storage-angular'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/embassy-api.service'
 import { Router, RoutesRecognized } from '@angular/router'
-import { debounceTime, distinctUntilChanged, filter, finalize, take, takeUntil, takeWhile } from 'rxjs/operators'
+import { debounceTime, distinctUntilChanged, filter, finalize, take, takeWhile } from 'rxjs/operators'
 import { AlertController, IonicSafeString, LoadingController, ToastController } from '@ionic/angular'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
@@ -36,6 +36,8 @@ export class AppComponent {
   showMenu = false
   selectedIndex = 0
   offlineToast: HTMLIonToastElement
+  updateToast: HTMLIonToastElement
+  notificationToast: HTMLIonToastElement
   serverName: string
   unreadCount: number
   subscriptions: Subscription[] = []
@@ -69,6 +71,7 @@ export class AppComponent {
     private readonly router: Router,
     private readonly embassyApi: ApiService,
     private readonly alertCtrl: AlertController,
+    private readonly loadingCtrl: LoadingController,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
     private readonly startupAlertsService: StartupAlertsService,
@@ -76,6 +79,7 @@ export class AppComponent {
     private readonly errToast: ErrorToastService,
     private readonly patch: PatchDbService,
     private readonly config: ConfigService,
+    private readonly zone: NgZone,
     readonly splitPane: SplitPaneTracker,
   ) {
       this.init()
@@ -106,24 +110,24 @@ export class AppComponent {
           ...this.connectionService.start(),
           // watch connection to display connectivity issues
           this.watchConnection(),
-          // // watch router to highlight selected menu item
+          // watch router to highlight selected menu item
           this.watchRouter(),
-          // // watch status to display/hide maintenance page
+          // watch status to display/hide maintenance page
         ])
 
         this.patch.watch$()
         .pipe(
-          filter(data => !isEmptyObject(data as object)),
+          filter(obj => !isEmptyObject(obj)),
           take(1),
         )
         .subscribe(_ => {
           this.subscriptions = this.subscriptions.concat([
             this.watchStatus(),
-            // // watch version to refresh browser window
+            // watch version to refresh browser window
             this.watchVersion(),
-            // // watch unread notification count to display toast
+            // watch unread notification count to display toast
             this.watchNotifications(),
-            // // run startup alerts
+            // run startup alerts
             this.startupAlertsService.runChecks(),
           ])
         })
@@ -135,15 +139,19 @@ export class AppComponent {
         this.patch.stop()
         this.storage.clear()
         if (this.errToast) this.errToast.dismiss()
+        if (this.updateToast) this.updateToast.dismiss()
+        if (this.notificationToast) this.notificationToast.dismiss()
         if (this.offlineToast) this.offlineToast.dismiss()
-        this.router.navigate(['/login'], { replaceUrl: true })
+        this.zone.run(() => {
+          this.router.navigate(['/login'], { replaceUrl: true })
+        })
       }
     })
   }
 
   async goToWebsite (): Promise<void> {
     let url: string
-    if (this.config.isTor) {
+    if (this.config.isTor()) {
       url = 'http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion'
     } else {
       url = 'https://start9.com'
@@ -238,12 +246,15 @@ export class AppComponent {
         this.showMenu = true
         this.router.navigate([''], { replaceUrl: true })
       }
-      if (ServerStatus.BackingUp === status && !route.startsWith(maintenance)) {
+      if (status === ServerStatus.BackingUp && !route.startsWith(maintenance)) {
         this.showMenu = false
         this.router.navigate([maintenance], { replaceUrl: true })
       }
-      if (ServerStatus.Updating === status) {
+      if (status === ServerStatus.Updating) {
         this.watchUpdateProgress()
+      }
+      if (status === ServerStatus.Updated && !this.updateToast) {
+        this.presentToastUpdated()
       }
     })
   }
@@ -253,13 +264,14 @@ export class AppComponent {
     .pipe(
       filter(progress => !!progress),
       takeWhile(progress => progress.downloaded < progress.size),
+      // @TODO will there be a maintenance page while server is updating to new version?
       finalize(async () => {
-        const maintenance = '/maintenance'
-        const route = this.router.url
-        if (!route.startsWith(maintenance)) {
-          this.showMenu = false
-          this.router.navigate([maintenance], { replaceUrl: true })
-        }
+        // const maintenance = '/maintenance'
+        // const route = this.router.url
+        // if (!route.startsWith(maintenance)) {
+        //   this.showMenu = false
+        //   this.router.navigate([maintenance], { replaceUrl: true })
+        // }
         if (this.osUpdateProgress) this.osUpdateProgress.downloaded = this.osUpdateProgress.size
         await pauseFor(200)
         this.osUpdateProgress = undefined
@@ -307,8 +319,39 @@ export class AppComponent {
     await alert.present()
   }
 
+  private async presentToastUpdated () {
+    if (this.updateToast) return
+
+    this.updateToast = await this.toastCtrl.create({
+      header: 'EOS download complete!',
+      message: `Restart Embassy for changes to take effect.`,
+      position: 'bottom',
+      duration: 0,
+      cssClass: 'success-toast',
+      buttons: [
+        {
+          side: 'start',
+          icon: 'close',
+          handler: () => {
+            return true
+          },
+        },
+        {
+          side: 'end',
+          text: 'Restart',
+          handler: () => {
+            this.restart()
+          },
+        },
+      ],
+    })
+    await this.updateToast.present()
+  }
+
   private async presentToastNotifications () {
-    const toast = await this.toastCtrl.create({
+    if (this.notificationToast) return
+
+    this.notificationToast = await this.toastCtrl.create({
       header: 'Embassy',
       message: `New notifications`,
       position: 'bottom',
@@ -330,7 +373,7 @@ export class AppComponent {
         },
       ],
     })
-    await toast.present()
+    await this.notificationToast.present()
   }
 
   private async presentToastOffline (message: string | IonicSafeString, link?: string) {
@@ -371,6 +414,23 @@ export class AppComponent {
       buttons,
     })
     await this.offlineToast.present()
+  }
+
+  private async restart (): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Restarting...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.restartServer({ })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   splitPaneVisible (e: any) {
