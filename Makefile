@@ -25,11 +25,11 @@ clean:
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
 
-eos.img: $(EMBASSY_SRC) compat.tar
+eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar
 	! test -f eos.img || rm eos.img
 	./build/make-image.sh
 
-compat.tar: $(COMPAT_SRC)
+system-images/compat/compat.tar: $(COMPAT_SRC)
 	cd system-images/compat && ./build.sh
 	cd system-images/compat && DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/x_system/compat --platform=linux/arm64 -o type=docker,dest=compat.tar .
 

@@ -26,14 +26,13 @@ sed -i 's/#allow-interfaces=eth0/allow-interfaces=eth0,wlan0/g' /etc/avahi/avahi
 echo "auto wlan0" > /etc/network/interfaces
 echo "iface wlan0 inet dhcp" >> /etc/network/interfaces
 mkdir -p /etc/nginx/ssl
-docker load < /root/compat.tar
 docker run --privileged --rm tonistiigi/binfmt --install all
+docker load --input /root/compat.tar
 docker network create -d bridge --subnet 172.18.0.1/16 start9 || true
 echo '{ "storage-driver": "zfs" }' > /etc/docker/daemon.json
 mkdir -p /etc/embassy
 hostnamectl set-hostname "embassy"
 systemctl enable embassyd.service embassy-init.service
-echo 'overlayroot="tmpfs"' > /etc/overlayroot.local.conf
 cat << EOF > /etc/tor/torrc
 SocksPort 0.0.0.0:9050
 SocksPolicy accept 127.0.0.1
@@ -43,6 +42,7 @@ ControlPort 9051
 CookieAuthentication 1
 EOF
 
+echo 'overlayroot="tmpfs"' > /etc/overlayroot.local.conf
 systemctl disable initialization.service
 sync
 reboot
