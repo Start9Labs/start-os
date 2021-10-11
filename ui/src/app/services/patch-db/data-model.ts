@@ -3,6 +3,7 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 export interface DataModel {
   'server-info': ServerInfo
   'package-data': { [id: string]: PackageDataEntry }
+  'recovered-packages': { [id: string]: RecoveredPackageDataEntry }
   ui: UIData
 }
 
@@ -10,6 +11,7 @@ export interface UIData {
   name: string
   'welcome-ack': string
   'auto-check-updates': boolean
+  'pkg-order': string[]
 }
 
 export interface ServerInfo {
@@ -30,7 +32,13 @@ export interface ServerInfo {
 export enum ServerStatus {
   Running = 'running',
   Updating = 'updating',
+  Updated = 'updated',
   BackingUp = 'backing-up',
+}
+export interface RecoveredPackageDataEntry {
+  title: string,
+  icon: URL,
+  version: string,
 }
 
 export interface PackageDataEntry {

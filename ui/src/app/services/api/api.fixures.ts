@@ -458,7 +458,7 @@ export module Mock {
             'config': null,
             'critical': true,
         },
-        'bitcoin-proxy': {
+        'btc-rpc-proxy': {
             'version': '>=0.2.2',
             'description': 'As long as Bitcoin is pruned, LND needs Bitcoin Proxy to fetch block over the P2P network.',
             'requirement': {
@@ -472,7 +472,7 @@ export module Mock {
   }
 
   export const MockManifestBitcoinProxy: Manifest = {
-    id: 'bitcoin-proxy',
+    id: 'btc-rpc-proxy',
     title: 'Bitcoin Proxy',
     version: '0.2.2',
     description: {
@@ -661,9 +661,9 @@ export module Mock {
             title: 'Bitcoin Core',
             icon: 'assets/img/service-icons/bitcoind.png',
           },
-          'bitcoin-proxy': {
+          'btc-rpc-proxy': {
             title: 'Bitcoin Proxy',
-            icon: 'assets/img/service-icons/bitcoin-proxy.png',
+            icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           },
         },
       },
@@ -683,9 +683,9 @@ export module Mock {
             title: 'Bitcoin Core',
             icon: 'assets/img/service-icons/bitcoind.png',
           },
-          'bitcoin-proxy': {
+          'btc-rpc-proxy': {
             title: 'Bitcoin Proxy',
-            icon: 'assets/img/service-icons/bitcoin-proxy.png',
+            icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           },
         },
       },
@@ -701,16 +701,16 @@ export module Mock {
             title: 'Bitcoin Core',
             icon: 'assets/img/service-icons/bitcoind.png',
           },
-          'bitcoin-proxy': {
+          'btc-rpc-proxy': {
             title: 'Bitcoin Proxy',
-            icon: 'assets/img/service-icons/bitcoin-proxy.png',
+            icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           },
         },
       },
     },
-    'bitcoin-proxy': {
+    'btc-rpc-proxy': {
       'latest': {
-        icon: 'assets/img/service-icons/bitcoin-proxy.png',
+        icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         license: 'licenseUrl',
         instructions: 'instructionsUrl',
         manifest: Mock.MockManifestBitcoinProxy,
@@ -1565,9 +1565,9 @@ export module Mock {
   export const bitcoinProxy: PackageDataEntry = {
     state: PackageState.Installed,
     'static-files': {
-      'license': '/public/package-data/bitcoin-proxy/0.20.0/LICENSE.md',
-      'icon': '/assets/img/service-icons/bitcoin-proxy.png',
-      'instructions': '/public/package-data/bitcoin-proxy/0.20.0/INSTRUCTIONS.md',
+      'license': '/public/package-data/btc-rpc-proxy/0.20.0/LICENSE.md',
+      'icon': '/assets/img/service-icons/btc-rpc-proxy.png',
+      'instructions': '/public/package-data/btc-rpc-proxy/0.20.0/INSTRUCTIONS.md',
     },
     manifest: MockManifestBitcoinProxy,
     installed: {
@@ -1629,7 +1629,7 @@ export module Mock {
           status: PackageMainStatus.Stopped,
         },
         'dependency-errors': {
-          'bitcoin-proxy': {
+          'btc-rpc-proxy': {
             type: DependencyErrorType.NotInstalled,
           },
         },
@@ -1652,7 +1652,7 @@ export module Mock {
           pointers: [],
           'health-checks': [],
         },
-        'bitcoin-proxy': {
+        'btc-rpc-proxy': {
           pointers: [],
           'health-checks': [],
         },
@@ -1662,9 +1662,9 @@ export module Mock {
           manifest: Mock.MockManifestBitcoind,
           icon: 'assets/img/service-icons/bitcoind.png',
         },
-        'bitcoin-proxy': {
+        'btc-rpc-proxy': {
           manifest: Mock.MockManifestBitcoinProxy,
-          icon: 'assets/img/service-icons/bitcoin-proxy.png',
+          icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         },
       },
     },
@@ -1673,7 +1673,7 @@ export module Mock {
 
   export const LocalPkgs: { [key: string]: PackageDataEntry } = {
     'bitcoind': bitcoind,
-    'bitcoin-proxy': bitcoinProxy,
+    'btc-rpc-proxy': bitcoinProxy,
     'lnd': lnd,
   }
 }

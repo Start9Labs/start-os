@@ -121,9 +121,6 @@ export module RR {
   export type CreateBackupReq = WithExpire<{ logicalname: string, password: string }> // backup.create
   export type CreateBackupRes = WithRevision<null>
 
-  export type RestoreBackupReq = { logicalname: string, password: string } // backup.restore - unauthed
-  export type RestoreBackupRes = null
-
   // disk
 
   export type GetDisksReq = { } // disk.list
