@@ -1,19 +1,25 @@
 use std::collections::BTreeMap;
 
+use crate::util::display_none;
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use patch_db::{DbHandle, DiffPatch, HasModel, Map, MapModel};
+use patch_db::{DbHandle, HasModel, Map, MapModel};
+use rpc_toolkit::command;
+use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
 use crate::config::Config;
 use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
+use crate::error::ResultExt;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::{MainStatus, Status};
+use crate::util::display_serializable;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::Error;
@@ -438,6 +444,99 @@ impl DependencyConfig {
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))
     }
+}
+
+#[command(
+    subcommands(self(configure_impl(async)), configure_dry),
+    display(display_none)
+)]
+pub async fn configure(
+    #[arg(rename = "dependent-id")] dependent_id: PackageId,
+    #[arg(rename = "dependency-id")] dependency_id: PackageId,
+) -> Result<(PackageId, PackageId), Error> {
+    Ok((dependent_id, dependency_id))
+}
+
+pub async fn configure_impl(
+    ctx: RpcContext,
+    (pkg_id, dep_id): (PackageId, PackageId),
+) -> Result<(), Error> {
+    let mut db = ctx.db.handle();
+    let new_config = configure_dry(ctx.clone(), (pkg_id, dep_id.clone())).await?;
+    Ok(crate::config::configure(
+        &ctx,
+        &mut db,
+        &dep_id,
+        Some(new_config),
+        &Some(Duration::from_secs(3)),
+        false,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+    )
+    .await?)
+}
+
+#[command(rename = "dry", display(display_serializable))]
+#[instrument(skip(ctx))]
+pub async fn configure_dry(
+    #[context] ctx: RpcContext,
+    #[parent_data] (pkg_id, dep_id): (PackageId, PackageId),
+) -> Result<Config, Error> {
+    let mut db = ctx.db.handle();
+    let pkg_manifest = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&pkg_id)
+        .and_then(|p| p.installed())
+        .expect(&mut db)
+        .await
+        .with_kind(crate::ErrorKind::NotFound)?
+        .manifest()
+        .get(&mut db, true)
+        .await?
+        .to_owned();
+    let dep_manifest = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&dep_id)
+        .and_then(|p| p.installed())
+        .expect(&mut db)
+        .await
+        .with_kind(crate::ErrorKind::NotFound)?
+        .manifest()
+        .get(&mut db, true)
+        .await?
+        .to_owned();
+    let dep = pkg_manifest
+        .dependencies
+        .get(&dep_id)
+        .ok_or_else(|| {
+            Error::new(
+                eyre!(
+                    "dependency for {} not found in the manifest for {}",
+                    dep_id,
+                    pkg_id
+                ),
+                crate::ErrorKind::NotFound,
+            )
+        })?
+        .config
+        .as_ref()
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("dependency config for {} not found on {}", dep_id, pkg_id),
+                crate::ErrorKind::NotFound,
+            )
+        })?;
+    Ok(dep
+        .auto_configure
+        .sandboxed(
+            &ctx,
+            &pkg_id,
+            &pkg_manifest.version,
+            &pkg_manifest.volumes,
+            Some(dep_manifest.config),
+        )
+        .await?
+        .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?)
 }
 
 pub async fn update_current_dependents<
