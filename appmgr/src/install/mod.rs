@@ -142,10 +142,7 @@ pub async fn uninstall_dry(
     break_all_dependents_transitive(&mut tx, &id, DependencyError::NotInstalled, &mut breakages)
         .await?;
 
-    Ok(BreakageRes {
-        breakages,
-        patch: tx.abort().await?,
-    })
+    Ok(BreakageRes(breakages))
 }
 
 pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {

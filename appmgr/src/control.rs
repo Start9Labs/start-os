@@ -111,10 +111,7 @@ pub async fn stop_dry(
     let mut breakages = BTreeMap::new();
     stop_common(&mut tx, &id, &mut breakages).await?;
 
-    Ok(BreakageRes {
-        breakages,
-        patch: tx.abort().await?,
-    })
+    Ok(BreakageRes(breakages))
 }
 
 pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
