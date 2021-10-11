@@ -46,7 +46,7 @@ unsafe impl Sync for MdnsControllerInner {}
 impl MdnsControllerInner {
     fn load_services(&mut self) {
         unsafe {
-            log::debug!("Loading services for mDNS");
+            tracing::debug!("Loading services for mDNS");
             let mut res;
             let http_tcp_cstr = std::ffi::CString::new("_http._tcp")
                 .expect("Could not cast _http._tcp to c string");
@@ -70,14 +70,14 @@ impl MdnsControllerInner {
             );
             if res < avahi_sys::AVAHI_OK {
                 let e_str = avahi_strerror(res);
-                log::error!(
+                tracing::error!(
                     "Could not add service to Avahi entry group: {:?}",
                     std::ffi::CStr::from_ptr(e_str)
                 );
                 avahi_free(e_str as *mut c_void);
                 panic!("Failed to load Avahi services");
             }
-            log::info!(
+            tracing::info!(
                 "Published {:?}",
                 std::ffi::CStr::from_ptr(self.hostname_raw)
             );
@@ -87,7 +87,7 @@ impl MdnsControllerInner {
                     .get_onion_address()
                     .get_address_without_dot_onion()
                     + ".local";
-                log::debug!("Adding mdns CNAME entry for {}", &lan_address);
+                tracing::debug!("Adding mdns CNAME entry for {}", &lan_address);
                 let lan_address_ptr = std::ffi::CString::new(lan_address)
                     .expect("Could not cast lan address to c string");
                 res = avahi_sys::avahi_entry_group_add_record(
@@ -105,7 +105,7 @@ impl MdnsControllerInner {
                 );
                 if res < avahi_sys::AVAHI_OK {
                     let e_str = avahi_strerror(res);
-                    log::error!(
+                    tracing::error!(
                         "Could not add record for {:?} to Avahi entry group: {:?}",
                         lan_address_ptr,
                         std::ffi::CStr::from_ptr(e_str)
@@ -113,13 +113,13 @@ impl MdnsControllerInner {
                     avahi_free(e_str as *mut c_void);
                     panic!("Failed to load Avahi services");
                 }
-                log::info!("Published {:?}", lan_address_ptr);
+                tracing::info!("Published {:?}", lan_address_ptr);
             }
         }
     }
     fn init() -> Self {
         unsafe {
-            log::debug!("Initializing mDNS controller");
+            tracing::debug!("Initializing mDNS controller");
             let simple_poll = avahi_sys::avahi_simple_poll_new();
             let poll = avahi_sys::avahi_simple_poll_get(simple_poll);
             let mut box_err = Box::pin(0 as i32);
@@ -133,7 +133,7 @@ impl MdnsControllerInner {
             );
             if avahi_client == std::ptr::null_mut::<AvahiClient>() {
                 let e_str = avahi_strerror(*box_err);
-                log::error!(
+                tracing::error!(
                     "Could not create avahi client: {:?}",
                     std::ffi::CStr::from_ptr(e_str)
                 );
@@ -144,7 +144,7 @@ impl MdnsControllerInner {
                 avahi_sys::avahi_entry_group_new(avahi_client, Some(noop), std::ptr::null_mut());
             if group == std::ptr::null_mut() {
                 let e_str = avahi_strerror(avahi_client_errno(avahi_client));
-                log::error!(
+                tracing::error!(
                     "Could not create avahi entry group: {:?}",
                     std::ffi::CStr::from_ptr(e_str)
                 );

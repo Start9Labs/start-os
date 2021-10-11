@@ -230,7 +230,7 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
                 break;
             }
             Err(e) => {
-                log::error!("Could not get initial temperature: {}", e);
+                tracing::error!("Could not get initial temperature: {}", e);
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -247,11 +247,11 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
                     break;
                 }
                 Err(e) => {
-                    log::error!("Could not get initial cpu info: {}", e);
+                    tracing::error!("Could not get initial cpu info: {}", e);
                 }
             },
             Err(e) => {
-                log::error!("Could not get initial proc stat: {}", e);
+                tracing::error!("Could not get initial proc stat: {}", e);
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -265,7 +265,7 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
                 break;
             }
             Err(e) => {
-                log::error!("Could not get initial mem info: {}", e);
+                tracing::error!("Could not get initial mem info: {}", e);
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -279,7 +279,7 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
                 break;
             }
             Err(e) => {
-                log::error!("Could not get initial disk info: {}", e);
+                tracing::error!("Could not get initial disk info: {}", e);
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -331,7 +331,7 @@ async fn launch_temp_task(
                 (*lock).as_mut().unwrap().general.temperature = a
             }
             Err(e) => {
-                log::error!("Could not get new temperature: {}", e);
+                tracing::error!("Could not get new temperature: {}", e);
             }
         }
         tokio::select! {
@@ -354,7 +354,7 @@ async fn launch_cpu_task(
                 (*lock).as_mut().unwrap().cpu = info;
             }
             Err(e) => {
-                log::error!("Could not get new CPU Metrics: {}", e);
+                tracing::error!("Could not get new CPU Metrics: {}", e);
             }
         }
         tokio::select! {
@@ -376,7 +376,7 @@ async fn launch_mem_task(
                 (*lock).as_mut().unwrap().memory = a;
             }
             Err(e) => {
-                log::error!("Could not get new Memory Metrics: {}", e);
+                tracing::error!("Could not get new Memory Metrics: {}", e);
             }
         }
         tokio::select! {
@@ -397,7 +397,7 @@ async fn launch_disk_task(
                 (*lock).as_mut().unwrap().disk = a;
             }
             Err(e) => {
-                log::error!("Could not get new Disk Metrics: {}", e);
+                tracing::error!("Could not get new Disk Metrics: {}", e);
             }
         }
         tokio::select! {

@@ -403,7 +403,7 @@ pub fn configure<'a, Db: DbHandle>(
                 .into_iter()
                 .filter(|(dep_id, _)| {
                     if dep_id != id && !manifest.dependencies.0.contains_key(dep_id) {
-                        log::warn!("Illegal dependency specified: {}", dep_id);
+                        tracing::warn!("Illegal dependency specified: {}", dep_id);
                         false
                     } else {
                         true

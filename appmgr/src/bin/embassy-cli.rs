@@ -1,9 +1,11 @@
 use clap::Arg;
 use embassy::context::CliContext;
+use embassy::util::logger::EmbassyLogger;
 use embassy::Error;
 use rpc_toolkit::run_cli;
 use rpc_toolkit::yajrc::RpcError;
 use serde_json::Value;
+use tracing::metadata::LevelFilter;
 
 fn inner_main() -> Result<(), Error> {
     run_cli!({
@@ -25,14 +27,20 @@ fn inner_main() -> Result<(), Error> {
             .arg(Arg::with_name("host").long("host").short("h").takes_value(true))
             .arg(Arg::with_name("proxy").long("proxy").short("p").takes_value(true)),
         context: matches => {
-            simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
-                0 => log::LevelFilter::Off,
-                1 => log::LevelFilter::Error,
-                2 => log::LevelFilter::Warn,
-                3 => log::LevelFilter::Info,
-                4 => log::LevelFilter::Debug,
-                _ => log::LevelFilter::Trace,
-            });
+            EmbassyLogger::init(
+                match matches.occurrences_of("verbosity") {
+                    0 => LevelFilter::OFF,
+                    1 => LevelFilter::ERROR,
+                    2 => LevelFilter::WARN,
+                    3 => LevelFilter::INFO,
+                    4 => LevelFilter::DEBUG,
+                    _ => LevelFilter::TRACE,
+                },
+                Default::default(),
+                None,
+                false,
+                Default::default(),
+            );
             CliContext::init(matches)?
         },
         exit: |e: RpcError| {
@@ -56,7 +64,7 @@ fn main() {
         Ok(_) => (),
         Err(e) => {
             eprintln!("{}", e.source);
-            log::debug!("{:?}", e.source);
+            tracing::debug!("{:?}", e.source);
             drop(e.source);
             std::process::exit(e.kind as i32)
         }
