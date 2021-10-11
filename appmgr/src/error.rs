@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use color_eyre::eyre::eyre;
+use color_eyre::eyre::{eyre, ErrReport};
 use patch_db::Revision;
 use rpc_toolkit::yajrc::RpcError;
 
@@ -225,7 +225,7 @@ impl From<Error> for RpcError {
             match serde_json::to_value(&e.revision) {
                 Ok(a) => a,
                 Err(e) => {
-                    log::warn!("Error serializing revision for Error object: {}", e);
+                    tracing::warn!("Error serializing revision for Error object: {}", e);
                     serde_json::Value::Null
                 }
             },

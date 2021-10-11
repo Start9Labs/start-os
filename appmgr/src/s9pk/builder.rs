@@ -42,7 +42,7 @@ impl<
     pub fn pack(mut self, key: &ed25519_dalek::Keypair) -> Result<(), Error> {
         let header_pos = self.writer.stream_position()?;
         if header_pos != 0 {
-            log::warn!("Appending to non-empty file.");
+            tracing::warn!("Appending to non-empty file.");
         }
         let mut header = Header::placeholder();
         header.serialize(&mut self.writer).with_ctx(|_| {

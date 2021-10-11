@@ -127,7 +127,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
             }
         }
         _ => {
-            log::warn!("{}: Nothing to clean up!", id);
+            tracing::warn!("{}: Nothing to clean up!", id);
             false
         }
     } {

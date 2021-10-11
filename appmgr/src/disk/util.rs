@@ -188,15 +188,17 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
         let mut partitions = Vec::with_capacity(parts.len());
         let vendor = get_vendor(&disk)
             .await
-            .map_err(|e| log::warn!("Could not get vendor of {}: {}", disk.display(), e.source))
+            .map_err(|e| tracing::warn!("Could not get vendor of {}: {}", disk.display(), e.source))
             .unwrap_or_default();
         let model = get_model(&disk)
             .await
-            .map_err(|e| log::warn!("Could not get model of {}: {}", disk.display(), e.source))
+            .map_err(|e| tracing::warn!("Could not get model of {}: {}", disk.display(), e.source))
             .unwrap_or_default();
         let capacity = get_capacity(&disk)
             .await
-            .map_err(|e| log::warn!("Could not get capacity of {}: {}", disk.display(), e.source))
+            .map_err(|e| {
+                tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source)
+            })
             .unwrap_or_default();
         let mut embassy_os = None;
         for part in parts {
@@ -204,7 +206,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
             let capacity = get_capacity(&part)
                 .await
                 .map_err(|e| {
-                    log::warn!("Could not get capacity of {}: {}", part.display(), e.source)
+                    tracing::warn!("Could not get capacity of {}: {}", part.display(), e.source)
                 })
                 .unwrap_or_default();
             let mut used = None;
@@ -212,7 +214,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
             let tmp_mountpoint =
                 Path::new(TMP_MOUNTPOINT).join(&part.strip_prefix("/").unwrap_or(&part));
             if let Err(e) = mount(&part, &tmp_mountpoint).await {
-                log::warn!("Could not collect usage information: {}", e.source)
+                tracing::warn!("Could not collect usage information: {}", e.source)
             } else {
                 let mount_guard = GeneralGuard::new(|| {
                     let path = tmp_mountpoint.clone();
@@ -221,7 +223,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                 used = get_used(&tmp_mountpoint)
                     .await
                     .map_err(|e| {
-                        log::warn!("Could not get usage of {}: {}", part.display(), e.source)
+                        tracing::warn!("Could not get usage of {}: {}", part.display(), e.source)
                     })
                     .ok();
                 if label.as_deref() == Some("rootfs") {
@@ -323,7 +325,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     dst: P1,
     read_only: bool,
 ) -> Result<(), Error> {
-    log::info!(
+    tracing::info!(
         "Binding {} to {}",
         src.as_ref().display(),
         dst.as_ref().display()
@@ -362,7 +364,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
 }
 
 pub async fn unmount<P: AsRef<Path>>(mount_point: P) -> Result<(), Error> {
-    log::info!("Unmounting {}.", mount_point.as_ref().display());
+    tracing::info!("Unmounting {}.", mount_point.as_ref().display());
     let umount_output = tokio::process::Command::new("umount")
         .arg(mount_point.as_ref())
         .output()

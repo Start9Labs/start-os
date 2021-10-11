@@ -8,7 +8,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
-use log::LevelFilter;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{PatchDb, Revision};
 use reqwest::Url;
@@ -20,6 +19,8 @@ use sqlx::SqlitePool;
 use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
+use tracing::instrument;
+use tracing::metadata::LevelFilter;
 
 use crate::db::model::Database;
 use crate::hostname::{get_hostname, get_id};
@@ -92,6 +93,7 @@ impl RpcContextConfig {
         }
         Ok(db)
     }
+    #[instrument]
     pub async fn secret_store(&self) -> Result<SqlitePool, Error> {
         let secret_store = SqlitePool::connect_with(
             SqliteConnectOptions::new()

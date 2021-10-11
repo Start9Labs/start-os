@@ -891,6 +891,7 @@ dependencies = [
  "toml",
  "torut",
  "tracing",
+ "tracing-error",
  "tracing-futures",
  "tracing-subscriber",
  "typed-builder",

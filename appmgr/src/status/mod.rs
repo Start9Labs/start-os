@@ -74,7 +74,7 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
                 Ok(res)
             }
             if let Err(e) = status(ctx, id.clone()).await {
-                log::error!("Error syncronizing status of {}: {}", id, e);
+                tracing::error!("Error syncronizing status of {}: {}", id, e);
             }
         })
         .await;
@@ -162,8 +162,8 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
         async move {
             match main_status(ctx.clone(), status, manifest, ctx.db.handle()).await {
                 Err(e) => {
-                    log::error!("Error running main health check for {}: {}", id, e);
-                    log::debug!("{:?}", e);
+                    tracing::error!("Error running main health check for {}: {}", id, e);
+                    tracing::debug!("{:?}", e);
                 }
                 Ok(status) => {
                     status_sender.send((id, status)).await.expect("unreachable");
@@ -235,8 +235,8 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
                 if let Err(e) =
                     dependency_status(&id, statuses, installed, deps, ctx.db.handle()).await
                 {
-                    log::error!("Error running dependency health check for {}: {}", id, e);
-                    log::debug!("{:?}", e);
+                    tracing::error!("Error running dependency health check for {}: {}", id, e);
+                    tracing::debug!("{:?}", e);
                 }
             }
         })
