@@ -2,10 +2,9 @@ use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
-use log::{set_boxed_logger, set_max_level, LevelFilter, Metadata, Record};
-use reqwest::{Client, Url};
+use reqwest::Url;
 use sequence_trie::SequenceTrie;
-use stderrlog::{StdErrLog, Timestamp};
+use tracing_subscriber::filter::LevelFilter;
 
 #[derive(Clone, Debug)]
 pub struct ModuleMap {
@@ -68,12 +67,12 @@ impl ModuleMap {
         let module_key = k.split("::");
         match self.trie.get(module_key.clone()) {
             None => match self.trie.get_ancestor(module_key) {
-                None => &LevelFilter::Off,
+                None => &LevelFilter::OFF,
                 Some((level_filter, include_submodules)) => {
                     if *include_submodules {
                         level_filter
                     } else {
-                        &LevelFilter::Off
+                        &LevelFilter::OFF
                     }
                 }
             },
@@ -84,16 +83,15 @@ impl ModuleMap {
 
 #[derive(Clone)]
 pub struct EmbassyLogger {
-    log_level: log::LevelFilter,
+    log_level: LevelFilter,
     log_epoch: Arc<AtomicU64>,
-    logger: StdErrLog,
     sharing: Arc<AtomicBool>,
     share_dest: Url,
     module_map: ModuleMap,
 }
 impl EmbassyLogger {
     pub fn init(
-        log_level: log::LevelFilter,
+        log_level: LevelFilter,
         log_epoch: Arc<AtomicU64>,
         share_dest: Option<Url>,
         share_errors: bool,
@@ -103,26 +101,27 @@ impl EmbassyLogger {
             None => Url::parse("https://beta-registry-0-3.start9labs.com/error-logs").unwrap(), // TODO
             Some(a) => a,
         };
-        let mut logger = stderrlog::new();
-        logger.timestamp(Timestamp::Millisecond);
-        match log_level {
-            LevelFilter::Off => logger.quiet(true),
-            LevelFilter::Error => logger.verbosity(0),
-            LevelFilter::Warn => logger.verbosity(1),
-            LevelFilter::Info => logger.verbosity(2),
-            LevelFilter::Debug => logger.verbosity(3),
-            LevelFilter::Trace => logger.verbosity(4),
-        };
+        use tracing_error::ErrorLayer;
+        use tracing_subscriber::prelude::*;
+        use tracing_subscriber::{fmt, EnvFilter};
+
+        let fmt_layer = fmt::layer().with_target(false);
+        let filter_layer = EnvFilter::from_default_env().add_directive(log_level.into());
+
+        tracing_subscriber::registry()
+            .with(filter_layer)
+            .with(fmt_layer)
+            .with(ErrorLayer::default())
+            .init();
+
+        color_eyre::install().expect("Color Eyre Init");
         let embassy_logger = EmbassyLogger {
             log_level,
             log_epoch,
-            logger,
             sharing: Arc::new(AtomicBool::new(share_errors)),
             share_dest: share_dest,
             module_map: ModuleMap::new(module_map),
         };
-        set_boxed_logger(Box::new(embassy_logger.clone())).unwrap();
-        set_max_level(log_level);
         embassy_logger
     }
     pub fn set_sharing(&self, sharing: bool) {
@@ -130,45 +129,9 @@ impl EmbassyLogger {
     }
 }
 
-impl log::Log for EmbassyLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        let top = metadata.target().split("::").next().unwrap();
-        if vec!["embassy", "embassyd", "embassy-cli", "embassy-sdk"].contains(&top) {
-            metadata.level() <= self.log_level
-        } else {
-            &metadata.level() <= self.module_map.level_for(metadata.target())
-        }
-    }
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            self.logger.log(record);
-        }
-        if self.sharing.load(Ordering::SeqCst) {
-            if record.level() <= log::Level::Warn {
-                let mut body = BTreeMap::new();
-                body.insert(
-                    "log-epoch",
-                    format!("{}", self.log_epoch.load(Ordering::SeqCst)),
-                );
-                body.insert("log-message", format!("{}", record.args()));
-                // we don't care about the result and need it to be fast
-                tokio::spawn(
-                    Client::new()
-                        .post(self.share_dest.clone())
-                        .json(&body)
-                        .send(),
-                );
-            }
-        }
-    }
-    fn flush(&self) {
-        self.logger.flush()
-    }
-}
-
 #[tokio::test]
 pub async fn order_level() {
-    assert!(log::Level::Warn > log::Level::Error)
+    assert!(tracing::Level::WARN > tracing::Level::ERROR)
 }
 
 #[test]
@@ -179,7 +142,7 @@ pub fn module() {
 proptest::proptest! {
     #[test]
     fn submodules_handled_by_parent(s0 in "[a-z][a-z0-9_]+", s1 in "[a-z][a-z0-9_]+", level in filter_strategy()) {
-        proptest::prop_assume!(level > LevelFilter::Off);
+        proptest::prop_assume!(level > LevelFilter::OFF);
         let mut hm = BTreeMap::new();
         hm.insert(format!("{}::*", s0.clone()), level);
         let mod_map = ModuleMap::new(hm);
@@ -187,15 +150,15 @@ proptest::proptest! {
     }
     #[test]
     fn submodules_ignored_by_parent(s0 in "[a-z][a-z0-9_]+", s1 in "[a-z][a-z0-9_]+", level in filter_strategy()) {
-        proptest::prop_assume!(level > LevelFilter::Off);
+        proptest::prop_assume!(level > LevelFilter::OFF);
         let mut hm = BTreeMap::new();
         hm.insert(s0.clone(), level);
         let mod_map = ModuleMap::new(hm);
-        proptest::prop_assert_eq!(mod_map.level_for(&format!("{}::{}", s0, s1)), &LevelFilter::Off)
+        proptest::prop_assert_eq!(mod_map.level_for(&format!("{}::{}", s0, s1)), &LevelFilter::OFF)
     }
     #[test]
     fn duplicate_insertion_ignored(s0 in "[a-z][a-z0-9_]+", s1 in "[a-z][a-z0-9_]+", level in filter_strategy()) {
-        proptest::prop_assume!(level > LevelFilter::Off);
+        proptest::prop_assume!(level > LevelFilter::OFF);
         let mut hm = BTreeMap::new();
         hm.insert(format!("{}::*", s0.clone()), level);
         let sub = format!("{}::{}", s0, s1);
@@ -217,11 +180,11 @@ proptest::proptest! {
 fn filter_strategy() -> impl proptest::strategy::Strategy<Value = LevelFilter> {
     use proptest::strategy::Just;
     proptest::prop_oneof![
-        Just(LevelFilter::Off),
-        Just(LevelFilter::Error),
-        Just(LevelFilter::Warn),
-        Just(LevelFilter::Info),
-        Just(LevelFilter::Debug),
-        Just(LevelFilter::Trace),
+        Just(LevelFilter::OFF),
+        Just(LevelFilter::ERROR),
+        Just(LevelFilter::WARN),
+        Just(LevelFilter::INFO),
+        Just(LevelFilter::DEBUG),
+        Just(LevelFilter::TRACE),
     ]
 }

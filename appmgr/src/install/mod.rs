@@ -113,7 +113,7 @@ pub async fn install(
 
     tokio::spawn(async move {
         if let Err(e) = download_install_s9pk(&ctx, &man, s9pk).await {
-            log::error!("Install of {}@{} Failed: {}", man.id, man.version, e);
+            tracing::error!("Install of {}@{} Failed: {}", man.id, man.version, e);
         }
     });
 
@@ -180,7 +180,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
 
     tokio::spawn(async move {
         if let Err(e) = cleanup::uninstall(&ctx, &mut ctx.db.handle(), &installed).await {
-            log::error!("Uninstall of {} Failed: {}", id, e);
+            tracing::error!("Uninstall of {} Failed: {}", id, e);
         }
     });
 
@@ -267,7 +267,7 @@ pub async fn download_install_s9pk(
 
         if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id, version).await {
             let mut tx = handle.begin().await?;
-            log::error!(
+            tracing::error!(
                 "Failed to clean up {}@{}: {}: Adding to broken packages",
                 pkg_id,
                 version,
@@ -303,13 +303,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .idx_model(pkg_id);
     let progress_model = model.clone().and_then(|m| m.install_progress());
 
-    log::info!("Install {}@{}: Unpacking Manifest", pkg_id, version);
+    tracing::info!("Install {}@{}: Unpacking Manifest", pkg_id, version);
     let manifest = progress
         .track_read_during(progress_model.clone(), &ctx.db, || rdr.manifest())
         .await?;
-    log::info!("Install {}@{}: Unpacked Manifest", pkg_id, version);
+    tracing::info!("Install {}@{}: Unpacked Manifest", pkg_id, version);
 
-    log::info!("Install {}@{}: Fetching Dependency Info", pkg_id, version);
+    tracing::info!("Install {}@{}: Fetching Dependency Info", pkg_id, version);
     let mut dependency_info = BTreeMap::new();
     let reg_url = ctx.package_registry_url().await?;
     for (dep, info) in &manifest.dependencies.0 {
@@ -379,7 +379,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             );
         }
     }
-    log::info!("Install {}@{}: Fetched Dependency Info", pkg_id, version);
+    tracing::info!("Install {}@{}: Fetched Dependency Info", pkg_id, version);
 
     let public_dir_path = ctx
         .datadir
@@ -388,7 +388,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .join(version.as_str());
     tokio::fs::create_dir_all(&public_dir_path).await?;
 
-    log::info!("Install {}@{}: Unpacking LICENSE.md", pkg_id, version);
+    tracing::info!("Install {}@{}: Unpacking LICENSE.md", pkg_id, version);
     progress
         .track_read_during(progress_model.clone(), &ctx.db, || async {
             let license_path = public_dir_path.join("LICENSE.md");
@@ -398,9 +398,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             Ok(())
         })
         .await?;
-    log::info!("Install {}@{}: Unpacked LICENSE.md", pkg_id, version);
+    tracing::info!("Install {}@{}: Unpacked LICENSE.md", pkg_id, version);
 
-    log::info!("Install {}@{}: Unpacking INSTRUCTIONS.md", pkg_id, version);
+    tracing::info!("Install {}@{}: Unpacking INSTRUCTIONS.md", pkg_id, version);
     progress
         .track_read_during(progress_model.clone(), &ctx.db, || async {
             let instructions_path = public_dir_path.join("INSTRUCTIONS.md");
@@ -410,10 +410,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             Ok(())
         })
         .await?;
-    log::info!("Install {}@{}: Unpacked INSTRUCTIONS.md", pkg_id, version);
+    tracing::info!("Install {}@{}: Unpacked INSTRUCTIONS.md", pkg_id, version);
 
     let icon_path = Path::new("icon").with_extension(&manifest.assets.icon_type());
-    log::info!(
+    tracing::info!(
         "Install {}@{}: Unpacking {}",
         pkg_id,
         version,
@@ -428,14 +428,14 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             Ok(())
         })
         .await?;
-    log::info!(
+    tracing::info!(
         "Install {}@{}: Unpacked {}",
         pkg_id,
         version,
         icon_path.display()
     );
 
-    log::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
+    tracing::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
     progress
         .track_read_during(progress_model.clone(), &ctx.db, || async {
             let image_tar_dir = ctx
@@ -502,9 +502,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             }
         })
         .await?;
-    log::info!("Install {}@{}: Unpacked Docker Images", pkg_id, version,);
+    tracing::info!("Install {}@{}: Unpacked Docker Images", pkg_id, version,);
 
-    log::info!("Install {}@{}: Unpacking Assets", pkg_id, version);
+    tracing::info!("Install {}@{}: Unpacking Assets", pkg_id, version);
     progress
         .track_read_during(progress_model.clone(), &ctx.db, || async {
             let asset_dir = asset_dir(&ctx.datadir, pkg_id, version);
@@ -517,7 +517,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             Ok(())
         })
         .await?;
-    log::info!("Install {}@{}: Unpacked Assets", pkg_id, version);
+    tracing::info!("Install {}@{}: Unpacked Assets", pkg_id, version);
 
     progress.unpack_complete.store(true, Ordering::SeqCst);
 
@@ -531,15 +531,15 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .lock(&mut tx, true)
         .await;
 
-    log::info!("Install {}@{}: Creating volumes", pkg_id, version);
+    tracing::info!("Install {}@{}: Creating volumes", pkg_id, version);
     manifest.volumes.install(ctx, pkg_id, version).await?;
-    log::info!("Install {}@{}: Created volumes", pkg_id, version);
+    tracing::info!("Install {}@{}: Created volumes", pkg_id, version);
 
-    log::info!("Install {}@{}: Installing interfaces", pkg_id, version);
+    tracing::info!("Install {}@{}: Installing interfaces", pkg_id, version);
     let interface_addresses = manifest.interfaces.install(&mut sql_tx, pkg_id).await?;
-    log::info!("Install {}@{}: Installed interfaces", pkg_id, version);
+    tracing::info!("Install {}@{}: Installed interfaces", pkg_id, version);
 
-    log::info!("Install {}@{}: Creating manager", pkg_id, version);
+    tracing::info!("Install {}@{}: Creating manager", pkg_id, version);
     ctx.managers
         .add(
             ctx.clone(),
@@ -547,7 +547,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             manifest.interfaces.tor_keys(&mut sql_tx, pkg_id).await?,
         )
         .await?;
-    log::info!("Install {}@{}: Created manager", pkg_id, version);
+    tracing::info!("Install {}@{}: Created manager", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
     let current_dependencies: BTreeMap<_, _> = manifest
@@ -715,7 +715,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     sql_tx.commit().await?;
     tx.commit(None).await?;
 
-    log::info!("Install {}@{}: Complete", pkg_id, version);
+    tracing::info!("Install {}@{}: Complete", pkg_id, version);
 
     Ok(())
 }

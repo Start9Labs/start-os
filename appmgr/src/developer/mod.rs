@@ -17,9 +17,9 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
             std::fs::create_dir_all(parent)
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
         }
-        log::info!("Generating new developer key...");
+        tracing::info!("Generating new developer key...");
         let keypair = Keypair::generate(&mut rand::thread_rng());
-        log::info!("Writing key to {}", ctx.developer_key_path.display());
+        tracing::info!("Writing key to {}", ctx.developer_key_path.display());
         let mut dev_key_file = File::create(&ctx.developer_key_path)?;
         dev_key_file.write_all(&keypair.to_bytes())?;
         dev_key_file.sync_all()?;

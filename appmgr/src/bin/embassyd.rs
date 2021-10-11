@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use color_eyre::eyre::eyre;
+use color_eyre::eyre::{self, eyre};
 use embassy::context::{DiagnosticContext, RpcContext};
 use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
@@ -15,25 +15,27 @@ use embassy::status::{check_all, synchronize_all};
 use embassy::util::{daemon, Invoke};
 use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
-use log::LevelFilter;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
 use rpc_toolkit::rpc_server;
 use tokio::process::Command;
 use tokio::signal::unix::signal;
+use tracing::instrument;
+use tracing::metadata::LevelFilter;
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
 }
 
 fn err_to_500(e: Error) -> Response<Body> {
-    log::error!("{}", e);
+    tracing::error!("{}", e);
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(Body::empty())
         .unwrap()
 }
 
+#[instrument]
 async fn inner_main(
     cfg_path: Option<&str>,
     log_level: LevelFilter,
@@ -165,10 +167,10 @@ async fn inner_main(
             let ctx = status_ctx.clone();
             async move {
                 if let Err(e) = synchronize_all(&ctx).await {
-                    log::error!("Error in Status Sync daemon: {}", e);
-                    log::debug!("{:?}", e);
+                    tracing::error!("Error in Status Sync daemon: {}", e);
+                    tracing::debug!("{:?}", e);
                 } else {
-                    log::trace!("Status Sync completed successfully");
+                    tracing::trace!("Status Sync completed successfully");
                 }
             }
         },
@@ -181,10 +183,10 @@ async fn inner_main(
             let ctx = health_ctx.clone();
             async move {
                 if let Err(e) = check_all(&ctx).await {
-                    log::error!("Error in Health Check daemon: {}", e);
-                    log::debug!("{:?}", e);
+                    tracing::error!("Error in Health Check daemon: {}", e);
+                    tracing::debug!("{:?}", e);
                 } else {
-                    log::trace!("Health Check completed successfully");
+                    tracing::trace!("Health Check completed successfully");
                 }
             }
         },
@@ -270,11 +272,11 @@ fn main() {
 
     // initializes the bootstrap logger, this will be replaced with the EmbassyLogger later
     let filter = match matches.occurrences_of("verbosity") {
-        0 => log::LevelFilter::Error,
-        1 => log::LevelFilter::Warn,
-        2 => log::LevelFilter::Info,
-        3 => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Trace,
+        0 => LevelFilter::ERROR,
+        1 => LevelFilter::WARN,
+        2 => LevelFilter::INFO,
+        3 => LevelFilter::DEBUG,
+        _ => LevelFilter::TRACE,
     };
     let module_logging = matches
         .values_of("log-module")
@@ -301,8 +303,8 @@ fn main() {
                 Ok(a) => Ok(a),
                 Err(e) => {
                     (|| async {
-                        log::error!("{}", e.source);
-                        log::debug!("{}", e.source);
+                        tracing::error!("{:?}", e.source);
+                        tracing::debug!("{:?}", e.source);
                         embassy::sound::BEETHOVEN.play().await?;
                         #[cfg(feature = "avahi")]
                         let _mdns = MdnsController::init();
@@ -353,7 +355,7 @@ fn main() {
         Ok(Some(s)) => s.execute(),
         Err(e) => {
             eprintln!("{}", e.source);
-            log::debug!("{:?}", e.source);
+            tracing::debug!("{:?}", e.source);
             drop(e.source);
             std::process::exit(e.kind as i32)
         }

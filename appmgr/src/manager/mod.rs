@@ -85,7 +85,7 @@ impl ManagerMap {
     pub async fn remove(&self, id: &(PackageId, Version)) {
         if let Some(man) = self.0.write().await.remove(id) {
             if let Err(e) = man.exit().await {
-                log::error!("Error shutting down manager: {}", e);
+                tracing::error!("Error shutting down manager: {}", e);
             }
         }
     }
@@ -312,14 +312,14 @@ impl Manager {
                         match res {
                             Err(e) => {
                                 // TODO for code review: Do we return this error or just log it?
-                                log::error!("Failed to issue notification: {}", e);
+                                tracing::error!("Failed to issue notification: {}", e);
                             }
                             Ok(()) => {}
                         }
-                        log::error!("service crashed: {}: {}", e.0, e.1)
+                        tracing::error!("service crashed: {}: {}", e.0, e.1)
                     }
                     Err(e) => {
-                        log::error!("failed to start service: {}", e)
+                        tracing::error!("failed to start service: {}", e)
                     }
                 }
             }

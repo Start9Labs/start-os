@@ -23,12 +23,12 @@ fn inner_main() -> Result<(), Error> {
             ),
         context: matches => {
             simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
-                0 => log::LevelFilter::Off,
-                1 => log::LevelFilter::Error,
-                2 => log::LevelFilter::Warn,
-                3 => log::LevelFilter::Info,
-                4 => log::LevelFilter::Debug,
-                _ => log::LevelFilter::Trace,
+                0 => tracing::LevelFilter::Off,
+                1 => tracing::LevelFilter::Error,
+                2 => tracing::LevelFilter::Warn,
+                3 => tracing::LevelFilter::Info,
+                4 => tracing::LevelFilter::Debug,
+                _ => tracing::LevelFilter::Trace,
             });
             SdkContext::init(matches)?
         },
@@ -52,7 +52,7 @@ fn main() {
         Ok(_) => (),
         Err(e) => {
             eprintln!("{}", e.source);
-            log::debug!("{:?}", e.source);
+            tracing::debug!("{:?}", e.source);
             drop(e.source);
             std::process::exit(e.kind as i32)
         }

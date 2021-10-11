@@ -68,15 +68,13 @@ impl DockerAction {
         };
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
-        if log::log_enabled!(log::Level::Trace) {
-            log::trace!(
-                "{}",
-                format!("{:?}", cmd)
-                    .split(r#"" ""#)
-                    .collect::<Vec<&str>>()
-                    .join(" ")
-            );
-        }
+        tracing::trace!(
+            "{}",
+            format!("{:?}", cmd)
+                .split(r#"" ""#)
+                .collect::<Vec<&str>>()
+                .join(" ")
+        );
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
         if let (Some(input), Some(stdin)) = (&input_buf, &mut handle.stdin) {
             use tokio::io::AsyncWriteExt;
@@ -94,7 +92,7 @@ impl DockerAction {
                 match format.from_slice(&res.stdout) {
                     Ok(a) => a,
                     Err(e) => {
-                        log::warn!(
+                        tracing::warn!(
                             "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
                             format,
                             e
@@ -156,7 +154,7 @@ impl DockerAction {
                 match format.from_slice(&res.stdout) {
                     Ok(a) => a,
                     Err(e) => {
-                        log::warn!(
+                        tracing::warn!(
                             "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
                             format,
                             e

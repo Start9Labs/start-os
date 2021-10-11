@@ -126,7 +126,7 @@ async fn ws_handler<
                     }
                     Some(Message::Close(frame)) => {
                         if let Some(reason) = frame.as_ref() {
-                            log::info!("Closing WebSocket: Reason: {} {}", reason.code, reason.reason);
+                            tracing::info!("Closing WebSocket: Reason: {} {}", reason.code, reason.reason);
                         }
                         stream
                             .send(Message::Close(frame))
@@ -155,7 +155,7 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
         tokio::task::spawn(async move {
             match ws_handler(ctx, ws_fut).await {
                 Ok(()) => (),
-                Err(e) => log::error!("WebSocket Closed: {}", e),
+                Err(e) => tracing::error!("WebSocket Closed: {}", e),
             }
         });
     }

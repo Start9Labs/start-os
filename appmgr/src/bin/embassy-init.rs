@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use color_eyre::eyre::eyre;
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
 use embassy::db::model::ServerStatus;
@@ -11,17 +12,20 @@ use embassy::middleware::encrypt::encrypt;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::sound::MARIO_COIN;
+use embassy::util::logger::EmbassyLogger;
 use embassy::util::{Invoke, Version};
 use embassy::{Error, ResultExt};
 use http::StatusCode;
 use rpc_toolkit::rpc_server;
 use tokio::process::Command;
+use tracing::metadata::LevelFilter;
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
 }
 
 async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
+    // return Err(eyre!("Test failure").with_kind(embassy::ErrorKind::Unknown));
     let cfg = RpcContextConfig::load(cfg_path).await?;
     embassy::disk::util::mount("LABEL=EMBASSY", "/embassy-os").await?;
     if tokio::fs::metadata("/embassy-os/disk.guid").await.is_err() {
@@ -82,7 +86,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         DEFAULT_PASSWORD,
     )
     .await?;
-    log::info!("Loaded Disk");
+    tracing::info!("Loaded Disk");
     let secret_store = cfg.secret_store().await?;
     let log_dir = cfg.datadir().join("main").join("logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
@@ -94,7 +98,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .arg("systemd-journald")
         .invoke(embassy::ErrorKind::Journald)
         .await?;
-    log::info!("Mounted Logs");
+    tracing::info!("Mounted Logs");
     let tmp_docker = cfg.datadir().join("tmp").join("docker");
     if tokio::fs::metadata(&tmp_docker).await.is_ok() {
         tokio::fs::remove_dir_all(&tmp_docker).await?;
@@ -121,14 +125,14 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .arg("docker")
         .invoke(embassy::ErrorKind::Docker)
         .await?;
-    log::info!("Mounted Docker Data");
+    tracing::info!("Mounted Docker Data");
     embassy::install::load_images(cfg.datadir()).await?;
-    log::info!("Loaded Docker Images");
+    tracing::info!("Loaded Docker Images");
     embassy::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
-    log::info!("Synced SSH Keys");
+    tracing::info!("Synced SSH Keys");
     // todo!("sync wifi");
     embassy::hostname::sync_hostname().await?;
-    log::info!("Synced Hostname");
+    tracing::info!("Synced Hostname");
 
     if tokio::fs::metadata("/var/www/html/main/public")
         .await
@@ -146,7 +150,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         )
         .await?;
     }
-    log::info!("Enabled nginx public dir");
+    tracing::info!("Enabled nginx public dir");
     embassy::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
 
     let db = cfg.db(&secret_store).await?;
@@ -177,10 +181,10 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
         match Command::new("/bin/bash").arg(script).spawn() {
             Ok(mut c) => {
                 if let Err(e) = c.wait().await {
-                    log::error!("Error Running {}: {}", script.display(), e)
+                    tracing::error!("Error Running {}: {}", script.display(), e)
                 }
             }
-            Err(e) => log::error!("Error Running {}: {}", script.display(), e),
+            Err(e) => tracing::error!("Error Running {}: {}", script.display(), e),
         }
     }
 }
@@ -192,8 +196,8 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
 
     let res = if let Err(e) = init(cfg_path).await {
         (|| async {
-            log::error!("{}", e.source);
-            log::debug!("{}", e.source);
+            tracing::error!("{}", e.source);
+            tracing::debug!("{}", e.source);
             embassy::sound::BEETHOVEN.play().await?;
             #[cfg(feature = "avahi")]
             let _mdns = MdnsController::init();
@@ -259,14 +263,29 @@ fn main() {
         )
         .get_matches();
 
-    simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
-        0 => log::LevelFilter::Off,
-        1 => log::LevelFilter::Error,
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Trace,
-    });
+    // simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
+    //     0 => LevelFilter::OFF,
+    //     1 => LevelFilter::ERROR,
+    //     2 => LevelFilter::WARN,
+    //     3 => LevelFilter::INFO,
+    //     4 => LevelFilter::DEBUG,
+    //     _ => LevelFilter::TRACE,
+    // });
+    EmbassyLogger::init(
+        match matches.occurrences_of("verbosity") {
+            0 => LevelFilter::OFF,
+            1 => LevelFilter::ERROR,
+            2 => LevelFilter::WARN,
+            3 => LevelFilter::INFO,
+            4 => LevelFilter::DEBUG,
+            _ => LevelFilter::TRACE,
+        },
+        Default::default(),
+        None,
+        false,
+        Default::default(),
+    );
+
     let cfg_path = matches.value_of("config");
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -280,7 +299,7 @@ fn main() {
         Ok(_) => (),
         Err(e) => {
             eprintln!("{}", e.source);
-            log::debug!("{:?}", e.source);
+            tracing::debug!("{:?}", e.source);
             drop(e.source);
             std::process::exit(e.kind as i32)
         }

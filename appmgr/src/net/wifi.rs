@@ -42,13 +42,13 @@ pub async fn add(
         priority: isize,
         connect: bool,
     ) -> Result<(), Error> {
-        log::info!("Adding new WiFi network: '{}'", ssid);
+        tracing::info!("Adding new WiFi network: '{}'", ssid);
         wpa_supplicant.add_network(ssid, password, priority).await?;
         if connect {
             let current = wpa_supplicant.get_current_network().await?;
             let connected = wpa_supplicant.select_network(ssid).await?;
             if !connected {
-                log::error!("Faild to add new WiFi network: '{}'", ssid);
+                tracing::error!("Faild to add new WiFi network: '{}'", ssid);
                 wpa_supplicant.remove_network(ssid).await?;
                 match current {
                     None => {}
@@ -63,7 +63,7 @@ pub async fn add(
     tokio::spawn(async move {
         match add_procedure(wpa_supplicant, &ssid, &password, priority, connect).await {
             Err(e) => {
-                log::error!("Failed to add new WiFi network '{}': {}", ssid, e);
+                tracing::error!("Failed to add new WiFi network '{}': {}", ssid, e);
             }
             Ok(_) => {}
         }
@@ -83,12 +83,12 @@ pub async fn connect(#[arg] ssid: String) -> Result<(), Error> {
         let current = wpa_supplicant.get_current_network().await?;
         let connected = wpa_supplicant.select_network(&ssid).await?;
         if connected {
-            log::info!("Successfully connected to WiFi: '{}'", ssid);
+            tracing::info!("Successfully connected to WiFi: '{}'", ssid);
         } else {
-            log::error!("Failed to connect to WiFi: '{}'", ssid);
+            tracing::error!("Failed to connect to WiFi: '{}'", ssid);
             match current {
                 None => {
-                    log::warn!("No WiFi to revert to!");
+                    tracing::warn!("No WiFi to revert to!");
                 }
                 Some(current) => {
                     wpa_supplicant.select_network(&current).await?;
@@ -101,7 +101,7 @@ pub async fn connect(#[arg] ssid: String) -> Result<(), Error> {
     tokio::spawn(async move {
         match connect_procedure(wpa_supplicant, &ssid).await {
             Err(e) => {
-                log::error!("Failed to connect to WiFi network '{}': {}", &ssid, e);
+                tracing::error!("Failed to connect to WiFi network '{}': {}", &ssid, e);
             }
             Ok(_) => {}
         }

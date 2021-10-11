@@ -33,7 +33,7 @@ impl Shutdown {
                     .invoke(crate::ErrorKind::Journald)
                     .await
                 {
-                    log::error!("Error Stopping Journald: {}", e);
+                    tracing::error!("Error Stopping Journald: {}", e);
                 }
                 if let Err(e) = Command::new("systemctl")
                     .arg("stop")
@@ -41,13 +41,13 @@ impl Shutdown {
                     .invoke(crate::ErrorKind::Docker)
                     .await
                 {
-                    log::error!("Error Stopping Docker: {}", e);
+                    tracing::error!("Error Stopping Docker: {}", e);
                 }
                 if let Err(e) = export(&*self.zfs_pool).await {
-                    log::error!("Error Exporting ZFS Pool: {}", e);
+                    tracing::error!("Error Exporting ZFS Pool: {}", e);
                 }
                 if let Err(e) = MARIO_DEATH.play().await {
-                    log::error!("Error Playing Shutdown Song: {}", e);
+                    tracing::error!("Error Playing Shutdown Song: {}", e);
                 }
             });
         if self.restart {
