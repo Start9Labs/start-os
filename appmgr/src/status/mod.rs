@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use chrono::{DateTime, Utc};
+use color_eyre::eyre::eyre;
 use futures::{FutureExt, StreamExt};
 use patch_db::{DbHandle, HasModel, Map, ModelData};
 use serde::{Deserialize, Serialize};
@@ -60,7 +60,7 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
                             ))
                             .await
                             .ok_or_else(|| {
-                                Error::new(anyhow!("No Manager"), crate::ErrorKind::Docker)
+                                Error::new(eyre!("No Manager"), crate::ErrorKind::Docker)
                             })?,
                     )
                 } else {

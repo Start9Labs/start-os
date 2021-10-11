@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use patch_db::Revision;
 use rpc_toolkit::yajrc::RpcError;
 
@@ -128,7 +128,7 @@ impl Display for ErrorKind {
 
 #[derive(Debug)]
 pub struct Error {
-    pub source: anyhow::Error,
+    pub source: color_eyre::eyre::Error,
     pub kind: ErrorKind,
     pub revision: Option<Revision>,
 }
@@ -138,7 +138,7 @@ impl Display for Error {
     }
 }
 impl Error {
-    pub fn new<E: Into<anyhow::Error>>(source: E, kind: ErrorKind) -> Self {
+    pub fn new<E: Into<color_eyre::eyre::Error>>(source: E, kind: ErrorKind) -> Self {
         Error {
             source: source.into(),
             kind,
@@ -203,7 +203,7 @@ impl From<bollard::errors::Error> for Error {
 }
 impl From<torut::control::ConnError> for Error {
     fn from(e: torut::control::ConnError) -> Self {
-        Error::new(anyhow!("{:?}", e), ErrorKind::Tor)
+        Error::new(eyre!("{:?}", e), ErrorKind::Tor)
     }
 }
 impl From<std::net::AddrParseError> for Error {
@@ -213,7 +213,7 @@ impl From<std::net::AddrParseError> for Error {
 }
 impl From<openssl::error::ErrorStack> for Error {
     fn from(e: openssl::error::ErrorStack) -> Self {
-        Error::new(anyhow!("OpenSSL ERROR:\n{}", e), ErrorKind::OpenSsl)
+        Error::new(eyre!("OpenSSL ERROR:\n{}", e), ErrorKind::OpenSsl)
     }
 }
 impl From<Error> for RpcError {
@@ -250,7 +250,7 @@ where
 }
 impl<T, E> ResultExt<T, E> for Result<T, E>
 where
-    anyhow::Error: From<E>,
+    color_eyre::eyre::Error: From<E>,
 {
     fn with_kind(self, kind: ErrorKind) -> Result<T, Error> {
         self.map_err(|e| Error {
@@ -266,9 +266,9 @@ where
     ) -> Result<T, Error> {
         self.map_err(|e| {
             let (kind, ctx) = f(&e);
-            let source = anyhow::Error::from(e);
+            let source = color_eyre::eyre::Error::from(e);
             let ctx = format!("{}: {}", ctx, source);
-            let source = source.context(ctx);
+            let source = source.wrap_err(ctx);
             Error {
                 kind,
                 source: source.into(),
@@ -282,7 +282,7 @@ where
 macro_rules! ensure_code {
     ($x:expr, $c:expr, $fmt:expr $(, $arg:expr)*) => {
         if !($x) {
-            return Err(crate::Error::new(anyhow!($fmt, $($arg, )*), $c));
+            return Err(crate::Error::new(eyre!($fmt, $($arg, )*), $c));
         }
     };
 }

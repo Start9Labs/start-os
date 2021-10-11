@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use patch_db::HasModel;
 use regex::NoExpand;
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,7 @@ impl BackupActions {
                 false,
             )
             .await?
-            .map_err(|e| anyhow!("{}", e.1))
+            .map_err(|e| eyre!("{}", e.1))
             .with_kind(crate::ErrorKind::Backup)?;
         Ok(NoOutput)
     }
@@ -61,7 +61,7 @@ impl BackupActions {
                 false,
             )
             .await?
-            .map_err(|e| anyhow!("{}", e.1))
+            .map_err(|e| eyre!("{}", e.1))
             .with_kind(crate::ErrorKind::Restore)?;
         Ok(NoOutput)
     }

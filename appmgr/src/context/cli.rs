@@ -4,8 +4,8 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use clap::ArgMatches;
+use color_eyre::eyre::eyre;
 use cookie_store::CookieStore;
 use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
@@ -92,7 +92,7 @@ impl CliContext {
         });
         let cookie_store = Arc::new(CookieStoreMutex::new(if cookie_path.exists() {
             CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
-                .map_err(|e| anyhow!("{}", e))
+                .map_err(|e| eyre!("{}", e))
                 .with_kind(crate::ErrorKind::Deserialization)?
         } else {
             CookieStore::default()

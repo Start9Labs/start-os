@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use anyhow::anyhow;
+use color_eyre::eyre::{self, eyre};
 use futures::TryStreamExt;
 use indexmap::IndexSet;
 use regex::Regex;
@@ -54,7 +54,7 @@ pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error
         Path::new(SYS_BLOCK_PATH)
             .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
                 Error::new(
-                    anyhow!("not a canonical block device"),
+                    eyre!("not a canonical block device"),
                     crate::ErrorKind::BlockDevice,
                 )
             })?)
@@ -74,7 +74,7 @@ pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
         Path::new(SYS_BLOCK_PATH)
             .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
                 Error::new(
-                    anyhow!("not a canonical block device"),
+                    eyre!("not a canonical block device"),
                     crate::ErrorKind::BlockDevice,
                 )
             })?)
@@ -141,7 +141,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
     )
     .map_err(|e| {
         Error::new(
-            anyhow::Error::from(e).context(DISK_PATH),
+            eyre::Error::from(e).wrap_err(DISK_PATH),
             crate::ErrorKind::Filesystem,
         )
     })
@@ -312,7 +312,7 @@ pub async fn mount_encfs<P0: AsRef<Path>, P1: AsRef<Path>>(
     let mut err = String::new();
     stderr.read_to_string(&mut err).await?;
     if !encfs.wait().await?.success() {
-        Err(Error::new(anyhow!("{}", err), crate::ErrorKind::Filesystem))
+        Err(Error::new(eyre!("{}", err), crate::ErrorKind::Filesystem))
     } else {
         Ok(())
     }
@@ -350,7 +350,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
         .await
         .map_err(|e| {
             Error::new(
-                e.source.context(format!(
+                e.source.wrap_err(format!(
                     "Binding {} to {}",
                     src.as_ref().display(),
                     dst.as_ref().display(),
