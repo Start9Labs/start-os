@@ -10,6 +10,8 @@ import { isEmptyObject, exists } from 'src/app/util/misc.util'
 import { PackageLoadingService, ProgressData } from 'src/app/services/package-loading.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { AlertController } from '@ionic/angular'
+import { exec } from 'child_process'
 
 @Component({
   selector: 'app-list',
@@ -35,6 +37,7 @@ export class AppListPage {
     private readonly api: ApiService,
     private readonly patch: PatchDbService,
     private readonly errToast: ErrorToastService,
+    private readonly alertCtrl: AlertController,
   ) { }
 
   ngOnInit () {
@@ -129,15 +132,37 @@ export class AppListPage {
     }
   }
 
-  async uninstall (pkg: RecoveredInfo, index: number): Promise<void> {
-    pkg.installing = true
-    try {
-      await this.api.uninstallPackage({ id: pkg.id })
-      this.recoveredPkgs.splice(index, 1)
-    } catch (e) {
-      this.errToast.present(e)
-      pkg.installing = false
+  async deleteRecovered (pkg: RecoveredInfo, index: number): Promise<void> {
+
+    const execute = async () => {
+      pkg.installing = true
+      try {
+        await this.api.deleteRecoveredPackage({ id: pkg.id })
+        this.recoveredPkgs.splice(index, 1)
+      } catch (e) {
+        this.errToast.present(e)
+        pkg.installing = false
+      }
     }
+
+    const alert = await this.alertCtrl.create({
+      header: 'Delete Data',
+      message: `This action will permanently delete all data associated with ${pkg.title}.`,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Execute',
+          handler: () => {
+            execute()
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
   }
 
   private subscribeBoth (): Subscription {

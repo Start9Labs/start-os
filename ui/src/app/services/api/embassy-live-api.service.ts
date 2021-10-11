@@ -260,6 +260,10 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'package.uninstall.dry', params })
   }
 
+  async deleteRecoveredPackageRaw (params: RR.DeleteRecoveredPackageReq): Promise <RR.DeleteRecoveredPackageRes> {
+    return this.http.rpcRequest({ method: 'package.delete-recovered', params })
+  }
+
   async uninstallPackageRaw (params: RR.UninstallPackageReq): Promise <RR.UninstallPackageRes> {
     return this.http.rpcRequest({ method: 'package.uninstall', params })
   }
