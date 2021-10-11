@@ -264,14 +264,7 @@ export class AppComponent {
     .pipe(
       filter(progress => !!progress),
       takeWhile(progress => progress.downloaded < progress.size),
-      // @TODO will there be a maintenance page while server is updating to new version?
       finalize(async () => {
-        // const maintenance = '/maintenance'
-        // const route = this.router.url
-        // if (!route.startsWith(maintenance)) {
-        //   this.showMenu = false
-        //   this.router.navigate([maintenance], { replaceUrl: true })
-        // }
         if (this.osUpdateProgress) this.osUpdateProgress.downloaded = this.osUpdateProgress.size
         await pauseFor(200)
         this.osUpdateProgress = undefined
