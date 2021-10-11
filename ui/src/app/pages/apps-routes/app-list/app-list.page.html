@@ -1,13 +1,13 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Installed Services</ion-title>
+    <ion-title>Services</ion-title>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content style="position: relative">
+<ion-content class="ion-padding">
 
   <!-- loading -->
   <text-spinner *ngIf="loading" text="Connecting to Embassy"></text-spinner>
@@ -26,55 +26,139 @@
     </div>
 
     <ng-template #list>
-      <ion-grid>
-        <ion-row>
-          <ion-col *ngFor="let pkg of pkgs | keyvalue : asIsOrder" sizeXs="6" sizeSm="4" sizeLg="3">
-            <ion-card class="installed-card warn-shadow" [routerLink]="['/services', pkg.value.entry.manifest.id]">
-              <div
-                *ngIf="!pkg.value.error"
-                class="bulb"
-                [style.background-color]="connectionFailure ? 'var(--ion-color-dark)' : 'var(--ion-color-' + pkg.value.primaryRendering.color + ')'"
-              >
-              </div>
-              <ion-icon *ngIf="pkg.value.error" class="warning-icon" name="warning" color="warning"></ion-icon>
-              
-              <div class="launch-container" *ngIf="pkg.value.entry.manifest.interfaces | hasUi">
-                <div class="launch-button-triangle"  (click)="launchUi(pkg.value.entry, $event)" [class.launch-disabled]="!(pkg.value.entry.state | isLaunchable : pkg.value.entry.installed?.status.main.status : pkg.value.entry.manifest.interfaces)">
-                  <ion-icon name="open-outline"></ion-icon>
+      <ion-item-group *ngIf="pkgs.length">
+        <ion-item-divider>
+          {{ reordering ? 'Reorder' : 'Installed Services' }}
+          <ion-button slot="end" fill="clear" (click)="toggleReorder()">
+            <ng-container *ngIf="!reordering">
+              <ion-icon slot="start" name="swap-vertical"></ion-icon>
+              Reorder
+            </ng-container>
+            <ng-container *ngIf="reordering">
+              <ion-icon slot="start" name="checkmark"></ion-icon>
+              Done
+            </ng-container>
+          </ion-button>
+        </ion-item-divider>
+        <!-- not reordering -->
+        <ion-grid *ngIf="!reordering">
+          <ion-row>
+            <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeXl="6">
+              <ion-item button detail="false" [routerLink]="['/services', pkg.entry.manifest.id]">
+                <div
+                  *ngIf="!pkg.error"
+                  slot="start"
+                  class="bulb"
+                  [style.background-color]="connectionFailure ? 'var(--ion-color-dark)' : 'var(--ion-color-' + pkg.primaryRendering.color + ')'"
+                ></div>
+                <ion-icon
+                  *ngIf="pkg.error"
+                  slot="start"
+                  class="warning-icon"
+                  name="warning-outline"
+                  size="small"
+                  color="warning"
+                ></ion-icon>
+                <ion-thumbnail slot="start" class="ion-margin-start">
+                  <img [src]="pkg.entry['static-files'].icon" />
+                </ion-thumbnail>
+                <ion-label>
+                  <h2>{{ pkg.entry.manifest.title }}</h2>
+                  <p>{{ pkg.entry.manifest.version | displayEmver }}</p>
+                  <status
+                    [disconnected]="connectionFailure"
+                    [rendering]="pkg.primaryRendering"
+                    [installProgress]="pkg.installProgress?.totalProgress"
+                    weight="bold"
+                    size="small"
+                  ></status>
+                </ion-label>
+                <ion-button
+                  *ngIf="pkg.entry.manifest.interfaces | hasUi"
+                  slot="end"
+                  fill="clear"
+                  color="primary"
+                  (click)="launchUi(pkg.entry, $event)"
+                  [disabled]="!(pkg.entry.state | isLaunchable : pkg.entry.installed?.status.main.status : pkg.entry.manifest.interfaces)"
+                >
+                  <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+                </ion-button>
+              </ion-item>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+
+        <!-- reordering -->
+        <ion-grid *ngIf="reordering">
+          <ion-row>
+            <ion-col size="12" style="padding: 0;">
+              <ion-reorder-group disabled="false" (ionItemReorder)="reorder($event)">
+                <div *ngFor="let pkg of pkgs" style="padding: 5px;">
+                  <ion-reorder>
+                    <ion-item style="--background: var(--ion-color-medium-shade);">
+                      <div
+                        *ngIf="!pkg.error"
+                        slot="start"
+                        class="bulb"
+                        [style.background-color]="connectionFailure ? 'var(--ion-color-dark)' : 'var(--ion-color-' + pkg.primaryRendering.color + ')'"
+                      ></div>
+                      <ion-icon
+                        *ngIf="pkg.error"
+                        slot="start"
+                        class="warning-icon"
+                        name="warning-outline"
+                        size="small"
+                        color="warning"
+                      ></ion-icon>
+                      <ion-thumbnail slot="start" class="ion-margin-start">
+                        <img [src]="pkg.entry['static-files'].icon" />
+                      </ion-thumbnail>
+                      <ion-label>
+                        <h2>{{ pkg.entry.manifest.title }}</h2>
+                        <p>{{ pkg.entry.manifest.version | displayEmver }}</p>
+                        <status
+                          [disconnected]="connectionFailure"
+                          [rendering]="pkg.primaryRendering"
+                          [installProgress]="pkg.installProgress?.totalProgress"
+                          weight="bold"
+                          size="small"
+                        ></status>
+                      </ion-label>
+                      <ion-icon slot="end" name="reorder-three" color="dark"></ion-icon>
+                    </ion-item>
+                  </ion-reorder>
                 </div>
-              </div>
-              <img style="position: absolute" class="main-img" [src]="pkg.value.entry['static-files'].icon" [alt]="pkg.value.entry.manifest.title" />
-              <img class="main-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
-              <ion-card-header>
-                <ion-card-title>
-                  {{ pkg.value.entry.manifest.title }}
-                </ion-card-title>
-              </ion-card-header>
-              <ion-card-content>
-                <ion-toolbar class="status-toolbar">
-                  <ion-title>
-                    <ion-text
-                      *ngIf="!!pkg.value.installProgress"
-                      color="primary"
-                      style="font-weight: bold; font-size: calc(10px + .3vw);"
-                    >
-                      {{ pkg.value.entry.state | titlecase }} {{ pkg.value.installProgress.totalProgress }}%
-                    </ion-text>
-                    <status
-                      *ngIf="[PackageState.Installed, PackageState.Removing] | includes : pkg.value.entry.state"
-                      [disconnected]="connectionFailure"
-                      [rendering]="pkg.value.primaryRendering"
-                      weight="bold"
-                      size="calc(10px + .5vw)"
-                    >
-                    </status>
-                  </ion-title>
-                </ion-toolbar>
-              </ion-card-content>
-            </ion-card>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+              </ion-reorder-group>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+      </ion-item-group>
+
+      <ng-container *ngIf="recoveredPkgs.length && !reordering">
+        <ion-item-group>
+          <ion-item-divider>Recovered Services</ion-item-divider>
+          <ion-item *ngFor="let rec of recoveredPkgs; let i = index;">
+            <ion-thumbnail slot="start">
+              <img [src]="rec.icon" />
+            </ion-thumbnail>
+            <ion-label>
+              <h2>{{ rec.title }}</h2>
+              <p>{{ rec.version | displayEmver }}</p>
+            </ion-label>
+            <div *ngIf="!rec.installing" slot="end">
+              <ion-button fill="clear" color="danger" (click)="uninstall(rec, i)">
+                <ion-icon slot="icon-only" name="close"></ion-icon>
+                <!-- Remove -->
+              </ion-button>
+              <ion-button fill="clear" color="success" (click)="install(rec)">
+                <ion-icon slot="icon-only" name="download-outline"></ion-icon>
+                <!-- Install -->
+              </ion-button>
+            </div>
+            <ion-spinner *ngIf="rec.installing"></ion-spinner>
+          </ion-item>
+        </ion-item-group>
+      </ng-container>
     </ng-template>
   </div>
 </ion-content>

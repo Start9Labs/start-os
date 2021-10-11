@@ -6,4 +6,5 @@
 >
   {{ disconnected ? 'Unknown' : rendering.display }}
   <ion-spinner *ngIf="rendering.showDots" class="dots dots-small" name="dots"></ion-spinner>
+  <span *ngIf="installProgress">{{ installProgress }}%</span>
 </p>

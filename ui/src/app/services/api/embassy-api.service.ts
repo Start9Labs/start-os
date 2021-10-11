@@ -119,11 +119,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     () => this.createBackupRaw(params),
   )()
 
-  protected abstract restoreBackupRaw (params: RR.RestoreBackupReq): Promise<RR.RestoreBackupRes>
-  restoreBackup = (params: RR.RestoreBackupReq) => this.syncResponse(
-    () => this.restoreBackupRaw(params),
-  )()
-
   // disk
 
   abstract getDisks (params: RR.GetDisksReq): Promise<RR.GetDisksRes>

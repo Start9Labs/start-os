@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core'
+import { InstallProgress } from 'src/app/services/patch-db/data-model'
 import { StatusRendering } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
@@ -12,5 +13,6 @@ export class StatusComponent {
   @Input() style?: string = 'regular'
   @Input() weight?: string = 'normal'
   @Input() disconnected?: boolean = false
+  @Input() installProgress?: number
 }
 
