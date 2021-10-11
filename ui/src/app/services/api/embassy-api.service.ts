@@ -175,6 +175,12 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes>
 
+  protected abstract deleteRecoveredPackageRaw (params: RR.UninstallPackageReq): Promise<RR.UninstallPackageRes>
+  deleteRecoveredPackage = (params: RR.UninstallPackageReq) => this.syncResponse(
+    () => this.deleteRecoveredPackageRaw(params),
+  )()
+
+
   // Helper allowing quick decoration to sync the response patch and return the response contents.
   // Pass in a tempUpdate function which returns a UpdateTemp corresponding to a temporary
   // state change you'd like to enact prior to request and expired when request terminates.
