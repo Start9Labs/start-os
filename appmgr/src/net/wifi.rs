@@ -463,13 +463,13 @@ impl WpaCli {
                         current = self.get_current_network().await;
                         match &current {
                             Ok(Some(ssid)) => {
-                                log::debug!("Connected to: {}", ssid);
+                                tracing::debug!("Connected to: {}", ssid);
                                 break;
                             }
                             _ => {}
                         }
                         tokio::time::sleep(Duration::from_millis(500)).await;
-                        log::debug!("Retrying...");
+                        tracing::debug!("Retrying...");
                     }
                     current
                 };
@@ -477,7 +477,7 @@ impl WpaCli {
                     Err(_) => None,
                     Ok(net) => net?,
                 };
-                log::debug!("{:?}", res);
+                tracing::debug!("{:?}", res);
                 Ok(match res {
                     None => false,
                     Some(net) => net == ssid,
@@ -493,7 +493,7 @@ impl WpaCli {
             .await?;
         let output = String::from_utf8(r)?;
         let network = output.trim();
-        log::debug!("Current Network: \"{}\"", network);
+        tracing::debug!("Current Network: \"{}\"", network);
         if network.is_empty() {
             Ok(None)
         } else {
@@ -554,12 +554,12 @@ pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<Count
 
 pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(main_datadir: P) -> Result<(), Error> {
     let persistent = main_datadir.as_ref().join("wpa_supplicant.conf");
-    log::debug!("persistent: {:?}", persistent);
+    tracing::debug!("persistent: {:?}", persistent);
     if tokio::fs::metadata(&persistent).await.is_err() {
         tokio::fs::write(&persistent, include_str!("wpa_supplicant.conf.base")).await?;
     }
     let volatile = Path::new("/etc/wpa_supplicant.conf");
-    log::debug!("link: {:?}", volatile);
+    tracing::debug!("link: {:?}", volatile);
     if tokio::fs::metadata(&volatile).await.is_ok() {
         tokio::fs::remove_file(&volatile).await?
     }
