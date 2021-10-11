@@ -3,6 +3,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
 use embassy::db::subscribe;
+use embassy::hostname::get_hostname;
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
@@ -66,10 +67,17 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             .expect("send shutdown signal");
     });
 
-    tokio::fs::write(
-        "/etc/nginx/sites-available/default",
-        include_str!("../nginx/main-ui.conf"),
-    )
+    tokio::fs::write("/etc/nginx/sites-available/default", {
+        let info = embassy::db::DatabaseModel::new()
+            .server_info()
+            .get(&mut rpc_ctx.db.handle(), true)
+            .await?;
+        format!(
+            include_str!("../nginx/main-ui.conf.template"),
+            lan_hostname = info.lan_address.host_str().unwrap(),
+            tor_hostname = info.tor_address.host_str().unwrap()
+        )
+    })
     .await
     .with_ctx(|_| {
         (
