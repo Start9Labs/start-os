@@ -5,7 +5,8 @@ Requires=embassy-init.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/embassyd -vvv
+Environment=RUST_LOG=embassyd=info,embassy=info
+ExecStart=/usr/local/bin/embassyd
 Restart=always
 RestartSec=3
 

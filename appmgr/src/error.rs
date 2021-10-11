@@ -218,8 +218,9 @@ impl From<openssl::error::ErrorStack> for Error {
 }
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {
-        let mut data_object = serde_json::Map::with_capacity(2);
+        let mut data_object = serde_json::Map::with_capacity(3);
         data_object.insert("details".to_owned(), format!("{}", e.source).into());
+        data_object.insert("debug".to_owned(), format!("{:?}", e.source).into());
         data_object.insert(
             "revision".to_owned(),
             match serde_json::to_value(&e.revision) {
