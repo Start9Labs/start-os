@@ -1,10 +1,8 @@
 use std::path::Path;
 
-use color_eyre::eyre::eyre;
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
 use embassy::db::model::ServerStatus;
-use embassy::db::DatabaseModel;
 use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
@@ -13,12 +11,11 @@ use embassy::middleware::encrypt::encrypt;
 use embassy::net::mdns::MdnsController;
 use embassy::sound::MARIO_COIN;
 use embassy::util::logger::EmbassyLogger;
-use embassy::util::{Invoke, Version};
+use embassy::util::Invoke;
 use embassy::{Error, ResultExt};
 use http::StatusCode;
 use rpc_toolkit::rpc_server;
 use tokio::process::Command;
-use tracing::metadata::LevelFilter;
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
@@ -255,36 +252,9 @@ fn main() {
                 .long("config")
                 .takes_value(true),
         )
-        .arg(
-            clap::Arg::with_name("verbosity")
-                .short("v")
-                .multiple(true)
-                .takes_value(false),
-        )
         .get_matches();
 
-    // simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
-    //     0 => LevelFilter::OFF,
-    //     1 => LevelFilter::ERROR,
-    //     2 => LevelFilter::WARN,
-    //     3 => LevelFilter::INFO,
-    //     4 => LevelFilter::DEBUG,
-    //     _ => LevelFilter::TRACE,
-    // });
-    EmbassyLogger::init(
-        match matches.occurrences_of("verbosity") {
-            0 => LevelFilter::OFF,
-            1 => LevelFilter::ERROR,
-            2 => LevelFilter::WARN,
-            3 => LevelFilter::INFO,
-            4 => LevelFilter::DEBUG,
-            _ => LevelFilter::TRACE,
-        },
-        Default::default(),
-        None,
-        false,
-        Default::default(),
-    );
+    EmbassyLogger::no_sharing();
 
     let cfg_path = matches.value_of("config");
     let res = {

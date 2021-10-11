@@ -1,4 +1,5 @@
 use embassy::context::SdkContext;
+use embassy::util::logger::EmbassyLogger;
 use embassy::Error;
 use rpc_toolkit::run_cli;
 use rpc_toolkit::yajrc::RpcError;
@@ -14,29 +15,19 @@ fn inner_main() -> Result<(), Error> {
                     .short("c")
                     .long("config")
                     .takes_value(true),
-            )
-            .arg(
-                clap::Arg::with_name("verbosity")
-                    .short("v")
-                    .multiple(true)
-                    .takes_value(false),
             ),
         context: matches => {
-            simple_logging::log_to_stderr(match matches.occurrences_of("verbosity") {
-                0 => tracing::LevelFilter::Off,
-                1 => tracing::LevelFilter::Error,
-                2 => tracing::LevelFilter::Warn,
-                3 => tracing::LevelFilter::Info,
-                4 => tracing::LevelFilter::Debug,
-                _ => tracing::LevelFilter::Trace,
-            });
+            EmbassyLogger::no_sharing();
             SdkContext::init(matches)?
         },
         exit: |e: RpcError| {
             match e.data {
                 Some(Value::String(s)) => eprintln!("{}: {}", e.message, s),
                 Some(Value::Object(o)) => if let Some(Value::String(s)) = o.get("details") {
-                    eprintln!("{}: {}", e.message, s)
+                    eprintln!("{}: {}", e.message, s);
+                    if let Some(Value::String(s)) = o.get("debug") {
+                        tracing::debug!("{}", s)
+                    }
                 }
                 Some(a) => eprintln!("{}: {}", e.message, a),
                 None => eprintln!("{}", e.message),
