@@ -2,12 +2,14 @@ import { Component } from '@angular/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
-import { Subscription } from 'rxjs'
+import { DataModel, PackageDataEntry, PackageState, RecoveredPackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { combineLatest, Observable, Subscription } from 'rxjs'
 import { DependencyStatus, HealthStatus, PrimaryRendering, renderPkgStatus, StatusRendering } from 'src/app/services/pkg-status-rendering.service'
-import { filter } from 'rxjs/operators'
-import { isEmptyObject } from 'src/app/util/misc.util'
+import { filter, take, tap } from 'rxjs/operators'
+import { isEmptyObject, exists } from 'src/app/util/misc.util'
 import { PackageLoadingService, ProgressData } from 'src/app/services/package-loading.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ErrorToastService } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-list',
@@ -19,75 +21,74 @@ export class AppListPage {
 
   subs: Subscription[] = []
   connectionFailure: boolean
-  pkgs: { [id: string]: PkgInfo } = { }
+  pkgs: PkgInfo[] = []
+  recoveredPkgs: RecoveredInfo[] = []
+  order: string[] = []
   loading = true
   empty = false
+  reordering = false
 
   constructor (
     private readonly config: ConfigService,
     private readonly connectionService: ConnectionService,
     private readonly pkgLoading: PackageLoadingService,
-    public readonly patch: PatchDbService,
+    private readonly api: ApiService,
+    private readonly patch: PatchDbService,
+    private readonly errToast: ErrorToastService,
   ) { }
 
   ngOnInit () {
-    this.subs = [
-      this.patch.watch$('package-data')
-      .pipe(
-        filter(obj => {
-          return obj &&
-          (
-            isEmptyObject(obj) ||
-            Object.keys(obj).length !== Object.keys(this.pkgs).length
-          )
-        }),
-      )
-      .subscribe(pkgs => {
-        this.loading = false
+    this.patch.watch$()
+    .pipe(
+      filter(data => exists(data) && !isEmptyObject(data)),
+      take(1),
+    )
+    .subscribe(data => {
+      this.loading = false
+      const pkgs = JSON.parse(JSON.stringify(data['package-data'])) as { [id: string]: PackageDataEntry }
+      this.recoveredPkgs = Object.entries(data['recovered-packages']).map(([id, val]) => {
+        return {
+          ...val,
+          id,
+          installing: false,
+        }
+      })
+      this.order = [...data.ui['pkg-order'] || []]
 
-        const ids = Object.keys(pkgs)
+      // add known pkgs in preferential order
+      this.order.forEach(id => {
+        if (pkgs[id]) {
+          this.pkgs.push(this.buildPkg(pkgs[id]))
+          delete pkgs[id]
+        }
+      })
 
-        this.empty = !ids.length
-
-        Object.keys(this.pkgs).forEach(id => {
-          if (!ids.includes(id)) {
-            this.pkgs[id].sub.unsubscribe()
-            delete this.pkgs[id]
-          }
+      // add unknown packages to end and set order in UI DB
+      if (!isEmptyObject(pkgs)) {
+        Object.values(pkgs).forEach(pkg => {
+          this.pkgs.unshift(this.buildPkg(pkg))
+          this.order.unshift(pkg.manifest.id)
         })
+        this.setOrder()
+      }
 
-        ids.forEach(id => {
-          // if already subscribed, return
-          if (this.pkgs[id]) return
-          this.pkgs[id] = {
-            entry: pkgs[id],
-            primaryRendering: PrimaryRendering[renderPkgStatus(pkgs[id]).primary],
-            installProgress: !isEmptyObject(pkgs[id]['install-progress']) ? this.pkgLoading.transform(pkgs[id]['install-progress']) : undefined,
-            error: false,
-            sub: null,
-          }
-          // subscribe to pkg
-          this.pkgs[id].sub = this.patch.watch$('package-data', id).subscribe(pkg => {
-            if (!pkg) return
-            const statuses = renderPkgStatus(pkg)
-            const primaryRendering = PrimaryRendering[statuses.primary]
-            this.pkgs[id].entry = pkg
-            this.pkgs[id].installProgress = !isEmptyObject(pkg['install-progress']) ? this.pkgLoading.transform(pkg['install-progress']) : undefined
-            this.pkgs[id].primaryRendering = primaryRendering
-            this.pkgs[id].error = statuses.health === HealthStatus.Failure || [DependencyStatus.Issue, DependencyStatus.Critical].includes(statuses.dependency)
-          })
-        })
-      }),
+      if (!this.pkgs.length && isEmptyObject(this.recoveredPkgs)) {
+        this.empty = true
+      }
 
+      this.subs.push(this.subscribeBoth())
+    })
+
+    this.subs.push(
       this.connectionService.watchFailure$()
       .subscribe(connectionFailure => {
         this.connectionFailure = connectionFailure !== ConnectionFailure.None
       }),
-    ]
+    )
   }
 
   ngOnDestroy () {
-    Object.values(this.pkgs).forEach(pkg => pkg.sub.unsubscribe())
+    this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
@@ -97,9 +98,122 @@ export class AppListPage {
     window.open(this.config.launchableURL(pkg), '_blank', 'noreferrer')
   }
 
+  toggleReorder (): void {
+    if (this.reordering) {
+      const newPkgs = []
+      this.order.forEach(id => {
+        const pkg = this.pkgs.find(pkg => pkg.entry.manifest.id === id)
+        if (pkg) {
+          newPkgs.push(pkg)
+        }
+      })
+      this.pkgs = newPkgs
+      this.setOrder()
+    }
+    this.reordering = !this.reordering
+  }
+
+  async reorder (ev: any): Promise<void> {
+    ev.detail.complete()
+    const toMove = this.order.splice(ev.detail.from, 1)[0]
+    this.order.splice(ev.detail.to, 0, toMove)
+  }
+
+  async install (pkg: RecoveredInfo): Promise<void> {
+    pkg.installing = true
+    try {
+      await this.api.installPackage({ id: pkg.id, version: pkg.version })
+    } catch (e) {
+      this.errToast.present(e)
+      pkg.installing = false
+    }
+  }
+
+  async uninstall (pkg: RecoveredInfo, index: number): Promise<void> {
+    pkg.installing = true
+    try {
+      await this.api.uninstallPackage({ id: pkg.id })
+      this.recoveredPkgs.splice(index, 1)
+    } catch (e) {
+      this.errToast.present(e)
+      pkg.installing = false
+    }
+  }
+
+  private subscribeBoth (): Subscription {
+    return combineLatest([this.watchPkgs(), this.patch.watch$('recovered-packages')])
+    .subscribe(([pkgs, recoveredPkgs]) => {
+      Object.keys(recoveredPkgs).forEach(id => {
+        const inPkgs = !!pkgs[id]
+        const recoveredIndex = this.recoveredPkgs.findIndex(rec => rec.id === id)
+        if (inPkgs && recoveredIndex > -1) {
+          this.recoveredPkgs.splice(recoveredIndex, 1)
+        }
+      })
+    })
+  }
+
+  private watchPkgs (): Observable<DataModel['package-data']> {
+    return this.patch.watch$('package-data')
+    .pipe(
+      filter(obj => {
+        return Object.keys(obj).length !== this.pkgs.length
+      }),
+      tap(pkgs => {
+        const ids = Object.keys(pkgs)
+
+        this.pkgs.forEach((pkg, i) => {
+          const id = pkg.entry.manifest.id
+          if (!ids.includes(id)) {
+            pkg.sub.unsubscribe()
+            this.pkgs.splice(i, 1)
+          }
+        })
+
+        ids.forEach(id => {
+          // if already exists, return
+          const pkg = this.pkgs.find(p => p.entry.manifest.id === id)
+          if (pkg) return
+          // otherwise add new entry to beginning of array
+          this.pkgs.unshift(this.buildPkg(pkgs[id]))
+        })
+      }),
+    )
+  }
+
+  private setOrder (): void {
+    this.api.setDbValue({ pointer: '/pkg-order', value: this.order })
+  }
+
+  private buildPkg (pkg: PackageDataEntry): PkgInfo {
+    const pkgInfo: PkgInfo = {
+      entry: pkg,
+      primaryRendering: PrimaryRendering[renderPkgStatus(pkg).primary],
+      installProgress: !isEmptyObject(pkg['install-progress']) ? this.pkgLoading.transform(pkg['install-progress']) : undefined,
+      error: false,
+      sub: null,
+    }
+    // subscribe to pkg
+    pkgInfo.sub = this.patch.watch$('package-data', pkg.manifest.id).subscribe(update => {
+      if (!update) return
+      const statuses = renderPkgStatus(update)
+      const primaryRendering = PrimaryRendering[statuses.primary]
+      pkgInfo.entry = update
+      pkgInfo.installProgress = !isEmptyObject(pkg['install-progress']) ? this.pkgLoading.transform(pkg['install-progress']) : undefined
+      pkgInfo.primaryRendering = primaryRendering
+      pkgInfo.error = statuses.health === HealthStatus.Failure || [DependencyStatus.Issue, DependencyStatus.Critical].includes(statuses.dependency)
+    })
+    return pkgInfo
+  }
+
   asIsOrder () {
     return 0
   }
+}
+
+interface RecoveredInfo extends RecoveredPackageDataEntry {
+  id: string
+  installing: boolean
 }
 
 interface PkgInfo {

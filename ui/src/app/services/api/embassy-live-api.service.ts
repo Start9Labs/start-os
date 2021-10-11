@@ -191,10 +191,6 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'backup.create', params })
   }
 
-  async restoreBackupRaw (params: RR.RestoreBackupReq): Promise <RR.RestoreBackupRes> {
-    return this.http.rpcRequest({ method: 'backup.restore', params })
-  }
-
   // disk
 
   getDisks (params: RR.GetDisksReq): Promise <RR.GetDisksRes> {

@@ -1,85 +1,24 @@
-.installed-card {
-  margin: 4px;
-  padding: 4px;
-  background: linear-gradient(37deg, #333333, #131313);
-  border-radius: 6px 0 6px 6px;
-  text-align: center;
-
-  ion-card-header {
-    padding: 0 10px;
-
-    ion-card-title {
-      font-family: 'Montserrat';
-      font-size: calc(10px + .5vw);
-      margin-bottom: 12px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-  }
-}
-
-.main-img {
-  width: 40%;
-  margin: 12px;
+ion-item-divider {
+  margin-bottom: 16px;
 }
 
 .bulb {
-  height: calc(10px + .5vw);
-  width: calc(10px + .5vw);
-  border-radius: 100%;
-  box-shadow: 0 0 4px 4px rgba(255,213,52, 0.1);
   position: absolute !important;
-  left: 10px !important;
-  top: 10px !important;
+  left: 9px !important;
+  top: 8px !important;
+  height: 14px;
+  width: 14px;
+  border-radius: 100%;
+  box-shadow: 0 0 6px 6px rgba(255,213,52, 0.1);
 }
 
 .warning-icon {
   position: absolute !important;
-  left: 8px !important;
-  top: 8px !important;
-  font-size: 19px;
+  left: 6px !important;
+  top: 0 !important;
+  font-size: 12px;
   border-radius: 100%;
   padding: 1px;
   background-color: rgba(255,213,52, 0.1);
   box-shadow: 0 0 4px 4px rgba(255,213,52, 0.1);
-}
-
-.launch-button-triangle {
-  right: 0px;
-
-  border-style: solid;
-  border-width: 24px;
-  border-color: rgb(70 193 255 / 75%) rgb(70 193 255 / 75%) transparent transparent;
-  &:hover {
-    border-color: rgb(70 193 255) rgb(70 193 255) transparent transparent;
-  }
-  ion-icon {
-    position: absolute;
-    right: 8px;
-    top: 8px;
-    color: white;
-  }
-}
-
-.launch-disabled {
-  pointer-events: none;
-  border-color: transparent;
-  &:hover {
-    border-color: transparent;
-  }
-  ion-icon {
-    color: var(--ion-color-dark-shade);
-  }
-}
-
-.launch-container {
-  position: absolute;
-  right: 0px;
-  top: 0px;
-}
-
-.status-toolbar {
-  --min-height: 36px;
-  border-radius: 6px;
 }

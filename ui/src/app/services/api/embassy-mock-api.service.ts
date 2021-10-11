@@ -282,11 +282,6 @@ export class MockApiService extends ApiService {
     return res
   }
 
-  async restoreBackupRaw (params: RR.RestoreBackupReq): Promise<RR.RestoreBackupRes> {
-    await pauseFor(2000)
-    return null
-  }
-
   // disk
 
   async getDisks (params: RR.GetDisksReq): Promise<RR.GetDisksRes> {
@@ -482,17 +477,27 @@ export class MockApiService extends ApiService {
         value: PackageState.Removing,
       },
     ]
-
-    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    setTimeout(async () => {
+    let res: any
+    try {
+      res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+      setTimeout(async () => {
+        const patch = [
+          {
+            op: PatchOp.REMOVE,
+            path: `/package-data/${params.id}`,
+          },
+        ]
+        this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+      }, this.revertTime)
+    } catch (e) {
       const patch = [
         {
           op: PatchOp.REMOVE,
-          path: `/package-data/${params.id}`,
+          path: `/recovered-packages/${params.id}`,
         },
       ]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    }, this.revertTime)
+      res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    }
 
     return res
   }
@@ -540,14 +545,32 @@ export class MockApiService extends ApiService {
         if (i === initialProgress.size) {
           initialProgress[phase.completion] = true
         }
-        const patch = [
-          {
-            op: PatchOp.REPLACE,
-            path: `/package-data/${id}/install-progress`,
-            value: initialProgress,
-          },
-        ]
-        await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+        let patch: any
+        if (initialProgress['unpack-complete']) {
+          patch = [
+            {
+              op: PatchOp.REMOVE,
+              path: `/package-data/${id}/install-progress`,
+            },
+            {
+              op: PatchOp.REMOVE,
+              path: `/recovered-packages/${id}`,
+            },
+          ]
+        } else {
+          patch = [
+            {
+              op: PatchOp.REPLACE,
+              path: `/package-data/${id}/install-progress`,
+              value: initialProgress,
+            },
+          ]
+        }
+        try {
+          await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+        } catch (e) {
+          console.error('Insufficient Mocks, happens when installing a service that does not exist in recovered-package')
+        }
       }
     }
 
@@ -592,12 +615,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: '/server-info/status',
-          value: ServerStatus.Running,
-        },
-        {
-          op: PatchOp.REPLACE,
-          path: '/server-info/version',
-          value: '3.1.0',
+          value: ServerStatus.Updated,
         },
         {
           op: PatchOp.REMOVE,
@@ -606,16 +624,16 @@ export class MockApiService extends ApiService {
       ]
 
       await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-      // quickly revert patch to proper version to prevent infinite refresh loop
+      // quickly revert server to "running" for continued testing
       const patch2 = [
         {
           op: PatchOp.REPLACE,
-          path: '/server-info/version',
-          value: require('../../../../package.json').version,
+          path: '/server-info/status',
+          value: ServerStatus.Running,
         },
       ]
       this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch2 } })
-    }, 10000)
+    }, 1000)
 
   }
 }

@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core'
+import { BehaviorSubject, Subject } from 'rxjs'
 
 @Component({
   selector: 'alert',
@@ -11,6 +12,9 @@ export class AlertComponent {
     message: string
     titleColor: string
   }
+
+  loading$ = new BehaviorSubject(false)
+  cancel$ = new Subject<void>()
 
   load () { }
 }
