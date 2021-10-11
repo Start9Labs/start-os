@@ -230,10 +230,7 @@ pub async fn set_dry(
         .configured()
         .put(&mut tx, &true)
         .await?;
-    Ok(BreakageRes {
-        patch: tx.abort().await?,
-        breakages,
-    })
+    Ok(BreakageRes(breakages))
 }
 
 pub async fn set_impl(

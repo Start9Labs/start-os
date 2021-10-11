@@ -323,10 +323,7 @@ pub struct TaggedDependencyError {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct BreakageRes {
-    pub patch: DiffPatch,
-    pub breakages: BTreeMap<PackageId, TaggedDependencyError>,
-}
+pub struct BreakageRes(pub BTreeMap<PackageId, TaggedDependencyError>);
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
