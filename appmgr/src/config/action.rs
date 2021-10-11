@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use nix::sys::signal::Signal;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
@@ -47,7 +47,7 @@ impl ConfigActions {
             )
             .await
             .and_then(|res| {
-                res.map_err(|e| Error::new(anyhow!("{}", e.1), crate::ErrorKind::ConfigGen))
+                res.map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::ConfigGen))
             })
     }
 
@@ -74,7 +74,7 @@ impl ConfigActions {
             .await
             .and_then(|res| {
                 res.map_err(|e| {
-                    Error::new(anyhow!("{}", e.1), crate::ErrorKind::ConfigRulesViolation)
+                    Error::new(eyre!("{}", e.1), crate::ErrorKind::ConfigRulesViolation)
                 })
             })?;
         Ok(SetResult {

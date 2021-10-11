@@ -1,9 +1,9 @@
 use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
-use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
+use color_eyre::eyre::eyre;
 use futures::TryStreamExt;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
@@ -123,10 +123,12 @@ pub async fn fetch_logs(
         .args(args)
         .stdout(Stdio::piped())
         .spawn()?;
-    let out =
-        BufReader::new(child.stdout.take().ok_or_else(|| {
-            Error::new(anyhow!("No stdout available"), crate::ErrorKind::Journald)
-        })?);
+    let out = BufReader::new(
+        child
+            .stdout
+            .take()
+            .ok_or_else(|| Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald))?,
+    );
 
     let journalctl_entries = LinesStream::new(out.lines());
 

@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use indexmap::IndexMap;
 use patch_db::HasModel;
@@ -45,7 +45,7 @@ impl Migrations {
                         )
                         .await?
                         .map_err(|e| {
-                            Error::new(anyhow!("{}", e.1), crate::ErrorKind::MigrationFailed)
+                            Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
                         })?,
                 )
             } else {
@@ -78,7 +78,7 @@ impl Migrations {
                         )
                         .await?
                         .map_err(|e| {
-                            Error::new(anyhow!("{}", e.1), crate::ErrorKind::MigrationFailed)
+                            Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
                         })?,
                 )
             } else {

@@ -3,8 +3,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use clap::ArgMatches;
+use color_eyre::eyre::eyre;
 use rpc_toolkit::Context;
 use serde::Deserialize;
 
@@ -48,7 +48,7 @@ impl SdkContext {
     /// BLOCKING
     pub fn developer_key(&self) -> Result<ed25519_dalek::Keypair, Error> {
         if !self.developer_key_path.exists() {
-            return Err(Error::new(anyhow!("Developer Key does not exist! Please run `embassy-sdk init` before running this command."), crate::ErrorKind::Uninitialized));
+            return Err(Error::new(eyre!("Developer Key does not exist! Please run `embassy-sdk init` before running this command."), crate::ErrorKind::Uninitialized));
         }
         let mut keypair_buf = [0; ed25519_dalek::KEYPAIR_LENGTH];
         File::open(&self.developer_key_path)?.read_exact(&mut keypair_buf)?;

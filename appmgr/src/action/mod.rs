@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::str::FromStr;
 
-use anyhow::anyhow;
 use clap::ArgMatches;
+use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 use patch_db::HasModel;
 use rpc_toolkit::command;
@@ -131,7 +131,7 @@ impl Action {
                 true,
             )
             .await?
-            .map_err(|e| Error::new(anyhow!("{}", e.1), crate::ErrorKind::Action))
+            .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::Action))
     }
 }
 
@@ -228,7 +228,7 @@ pub async fn action(
             .await
     } else {
         Err(Error::new(
-            anyhow!("Action not found in manifest"),
+            eyre!("Action not found in manifest"),
             crate::ErrorKind::NotFound,
         ))
     }

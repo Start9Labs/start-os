@@ -7,9 +7,9 @@ use std::process::{exit, Stdio};
 use std::str::FromStr;
 use std::time::Duration;
 
-use anyhow::anyhow;
 use async_trait::async_trait;
 use clap::ArgMatches;
+use color_eyre::eyre::{self, eyre};
 use digest::Digest;
 use patch_db::{HasModel, Model};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -166,14 +166,14 @@ pub async fn daemon<F: FnMut() -> Fut, Fut: Future<Output = ()> + Send + 'static
     mut f: F,
     cooldown: std::time::Duration,
     mut shutdown: tokio::sync::broadcast::Receiver<Option<Shutdown>>,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), eyre::Error> {
     loop {
         tokio::select! {
             _ = shutdown.recv() => return Ok(()),
             _ = tokio::time::sleep(cooldown) => (),
         }
         match tokio::spawn(f()).await {
-            Err(e) if e.is_panic() => return Err(anyhow!("daemon panicked!")),
+            Err(e) if e.is_panic() => return Err(eyre!("daemon panicked!")),
             _ => (),
         }
     }
@@ -647,7 +647,7 @@ pub fn parse_stdin_deserializable<T: for<'de> Deserialize<'de>>(
 pub fn parse_duration(arg: &str, _: &ArgMatches<'_>) -> Result<Duration, Error> {
     let units_idx = arg.find(|c: char| c.is_alphabetic()).ok_or_else(|| {
         Error::new(
-            anyhow!("Must specify units for duration"),
+            eyre!("Must specify units for duration"),
             crate::ErrorKind::Deserialization,
         )
     })?;
@@ -665,7 +665,7 @@ pub fn parse_duration(arg: &str, _: &ArgMatches<'_>) -> Result<Duration, Error> 
         "us" => Ok(Duration::from_micros(num.parse()?)),
         "ns" => Ok(Duration::from_nanos(num.parse()?)),
         _ => Err(Error::new(
-            anyhow!("Invalid units for duration"),
+            eyre!("Invalid units for duration"),
             crate::ErrorKind::Deserialization,
         )),
     }

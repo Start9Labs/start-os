@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use aes::cipher::{CipherKey, NewCipher, Nonce, StreamCipher};
 use aes::Aes256Ctr;
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{FutureExt, Stream};
 use hmac::Hmac;
@@ -193,7 +193,7 @@ pub fn encrypt<
                                 &req.headers,
                                 res_parts,
                                 Err(Error::new(
-                                    anyhow!("Must be encrypted"),
+                                    eyre!("Must be encrypted"),
                                     crate::ErrorKind::Authorization,
                                 )
                                 .into()),

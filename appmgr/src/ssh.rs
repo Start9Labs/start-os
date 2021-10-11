@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use anyhow::anyhow;
 use chrono::Utc;
 use clap::ArgMatches;
+use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
 use sqlx::{Pool, Sqlite};
 
@@ -84,10 +84,7 @@ pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKe
                 created_at,
             })
         }
-        Some(_) => Err(Error::new(
-            anyhow!("Duplicate ssh key"),
-            ErrorKind::Duplicate,
-        )),
+        Some(_) => Err(Error::new(eyre!("Duplicate ssh key"), ErrorKind::Duplicate)),
     }
 }
 #[command(display(display_none))]
@@ -102,7 +99,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> R
     // if not in DB, Err404
     if n == 0 {
         Err(Error {
-            source: anyhow::anyhow!("SSH Key Not Found"),
+            source: color_eyre::eyre::eyre!("SSH Key Not Found"),
             kind: crate::error::ErrorKind::NotFound,
             revision: None,
         })
@@ -180,7 +177,7 @@ pub async fn sync_keys_from_db<P: AsRef<Path>>(pool: &Pool<Sqlite>, dest: P) -> 
         .collect();
     let ssh_dir = dest.parent().ok_or_else(|| {
         Error::new(
-            anyhow!("SSH Key File cannot be \"/\""),
+            eyre!("SSH Key File cannot be \"/\""),
             crate::ErrorKind::Filesystem,
         )
     })?;

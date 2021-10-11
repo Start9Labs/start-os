@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::FutureExt;
@@ -439,7 +439,7 @@ impl DependencyConfig {
                 Some(old),
             )
             .await?
-            .map_err(|e| Error::new(anyhow!("{}", e.1), crate::ErrorKind::AutoConfigure))
+            .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))
     }
 }
 
@@ -590,7 +590,7 @@ pub fn break_transitive<'a, Db: DbHandle>(
                     .into_owned()
                     .ok_or_else(|| {
                         Error::new(
-                            anyhow!("{} not in listed dependencies", dependency),
+                            eyre!("{} not in listed dependencies", dependency),
                             crate::ErrorKind::Database,
                         )
                     })?

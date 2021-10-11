@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use anyhow::anyhow;
 use chrono::Utc;
+use color_eyre::eyre::eyre;
 use patch_db::DbHandle;
 use rpc_toolkit::command;
 
@@ -54,9 +54,7 @@ pub async fn start(
                 .managers
                 .get(&(id.clone(), version))
                 .await
-                .ok_or_else(|| {
-                    Error::new(anyhow!("Manager not found"), crate::ErrorKind::Docker)
-                })?,
+                .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::Docker))?,
         )
         .await?;
     status.save(&mut tx).await?;

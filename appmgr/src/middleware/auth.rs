@@ -1,5 +1,5 @@
-use anyhow::anyhow;
 use basic_cookies::Cookie;
+use color_eyre::eyre::eyre;
 use digest::Digest;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt};
@@ -29,7 +29,7 @@ pub fn get_id(req: &RequestParts) -> Result<String, Error> {
         }
     }
     Err(Error::new(
-        anyhow!("UNAUTHORIZED"),
+        eyre!("UNAUTHORIZED"),
         crate::ErrorKind::Authorization,
     ))
 }
@@ -50,7 +50,7 @@ pub async fn is_authed(ctx: &RpcContext, id: &str) -> Result<(), Error> {
         .await?;
     if session.rows_affected() == 0 {
         return Err(Error::new(
-            anyhow!("UNAUTHORIZED"),
+            eyre!("UNAUTHORIZED"),
             crate::ErrorKind::Authorization,
         ));
     }

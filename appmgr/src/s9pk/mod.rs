@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
 
 use crate::context::SdkContext;
@@ -40,7 +40,7 @@ pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<
             .with_kind(crate::ErrorKind::Deserialization)?
     } else {
         return Err(Error::new(
-            anyhow!("manifest not found"),
+            eyre!("manifest not found"),
             crate::ErrorKind::Pack,
         ));
     };

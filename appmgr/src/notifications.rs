@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::str::FromStr;
 
-use anyhow::anyhow;
 use chrono::{DateTime, Utc};
+use color_eyre::eyre::eyre;
 use patch_db::PatchDb;
 use rpc_toolkit::command;
 use sqlx::SqlitePool;
@@ -58,7 +58,7 @@ pub async fn list(
                                 Ok(a) => a,
                                 Err(e) => {
                                     return Err(Error::new(
-                                        anyhow!("Invalid Notification Data: {}", e),
+                                        eyre!("Invalid Notification Data: {}", e),
                                         ErrorKind::ParseDbField,
                                     ))
                                 }
@@ -100,7 +100,7 @@ pub async fn list(
                                 Ok(a) => a,
                                 Err(e) => {
                                     return Err(Error::new(
-                                        anyhow!("Invalid Notification Data: {}", e),
+                                        eyre!("Invalid Notification Data: {}", e),
                                         ErrorKind::ParseDbField,
                                     ))
                                 }
@@ -168,7 +168,7 @@ pub struct InvalidNotificationLevel(String);
 impl From<InvalidNotificationLevel> for crate::Error {
     fn from(val: InvalidNotificationLevel) -> Self {
         Error::new(
-            anyhow!("Invalid Notification Level: {}", val.0),
+            eyre!("Invalid Notification Level: {}", val.0),
             ErrorKind::ParseDbField,
         )
     }
