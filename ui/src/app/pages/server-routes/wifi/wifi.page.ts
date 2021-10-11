@@ -104,13 +104,13 @@ export class WifiPage {
     await modal.present()
   }
 
-  async presentAction (ssid: string) {
+  async presentAction (ssid: string, i: number) {
     const buttons: ActionSheetButton[] = [
       {
         text: 'Forget',
         icon: 'trash',
         handler: () => {
-          this.delete(ssid)
+          this.delete(ssid, i)
         },
       },
     ]
@@ -258,7 +258,7 @@ export class WifiPage {
     }
   }
 
-  private async delete (ssid: string): Promise<void> {
+  private async delete (ssid: string, i: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -268,6 +268,9 @@ export class WifiPage {
 
     try {
       await this.api.deleteWifi({ ssid })
+      this.wifi.ssids = this.wifi.ssids.filter((w, index) => index !== i)
+
+      console.log(this.wifi.ssids)
     } catch (e) {
       this.errToast.present(e)
     } finally {
