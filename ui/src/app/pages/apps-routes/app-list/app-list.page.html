@@ -146,8 +146,8 @@
               <p>{{ rec.version | displayEmver }}</p>
             </ion-label>
             <div *ngIf="!rec.installing" slot="end">
-              <ion-button fill="clear" color="danger" (click)="uninstall(rec, i)">
-                <ion-icon slot="icon-only" name="close"></ion-icon>
+              <ion-button fill="clear" color="danger" (click)="deleteRecovered(rec, i)">
+                <ion-icon slot="icon-only" name="trash"></ion-icon>
                 <!-- Remove -->
               </ion-button>
               <ion-button fill="clear" color="success" (click)="install(rec)">
