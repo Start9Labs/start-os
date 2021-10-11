@@ -36,7 +36,7 @@ impl SoundInterface {
             .await
             .map_err(|e| {
                 Error::new(
-                    anyhow::anyhow!("Sound file lock panicked: {}", e),
+                    color_eyre::eyre::eyre!("Sound file lock panicked: {}", e),
                     ErrorKind::SoundError,
                 )
             })?

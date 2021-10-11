@@ -100,7 +100,7 @@ where
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
     serde_yaml::from_slice(&buffer)
-        .map_err(anyhow::Error::from)
+        .map_err(color_eyre::eyre::Error::from)
         .with_kind(crate::ErrorKind::Deserialization)
 }
 
@@ -123,7 +123,7 @@ where
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
     serde_toml::from_slice(&buffer)
-        .map_err(anyhow::Error::from)
+        .map_err(color_eyre::eyre::Error::from)
         .with_kind(crate::ErrorKind::Deserialization)
 }
 
@@ -146,7 +146,7 @@ where
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
     serde_cbor::de::from_reader(buffer.as_slice())
-        .map_err(anyhow::Error::from)
+        .map_err(color_eyre::eyre::Error::from)
         .with_kind(crate::ErrorKind::Deserialization)
 }
 
@@ -158,7 +158,7 @@ where
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
     serde_json::from_slice(&buffer)
-        .map_err(anyhow::Error::from)
+        .map_err(color_eyre::eyre::Error::from)
         .with_kind(crate::ErrorKind::Deserialization)
 }
 

@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
-use anyhow::anyhow;
 use bollard::container::KillContainerOptions;
+use color_eyre::eyre::eyre;
 use futures::future::{BoxFuture, FutureExt};
 use indexmap::IndexSet;
 use itertools::Itertools;
@@ -167,7 +167,7 @@ pub async fn get(
         .get(&mut db, true)
         .await?
         .to_owned()
-        .ok_or_else(|| Error::new(anyhow!("{} has no config", id), crate::ErrorKind::NotFound))?;
+        .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
     let version = pkg_model
         .clone()
         .manifest()
@@ -302,9 +302,7 @@ pub fn configure<'a, Db: DbHandle>(
             .get(db, true)
             .await?
             .to_owned()
-            .ok_or_else(|| {
-                Error::new(anyhow!("{} has no config", id), crate::ErrorKind::NotFound)
-            })?;
+            .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
         let version = pkg_model.clone().manifest().version().get(db, true).await?;
         let dependencies = pkg_model
             .clone()

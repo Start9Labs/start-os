@@ -1,5 +1,5 @@
-use anyhow::anyhow;
 use clap::ArgMatches;
+use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
 use serde_json::Value;
 
@@ -26,7 +26,7 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
         .get(&mut db, true)
         .await?
         .to_owned()
-        .ok_or_else(|| Error::new(anyhow!("{} is not installed", id), ErrorKind::NotFound))?;
+        .ok_or_else(|| Error::new(eyre!("{} is not installed", id), ErrorKind::NotFound))?;
     if let Some(props) = manifest.properties {
         props
             .execute::<(), Value>(
@@ -39,7 +39,7 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
                 false,
             )
             .await?
-            .map_err(|_| Error::new(anyhow!("Properties failure!"), ErrorKind::Docker))
+            .map_err(|_| Error::new(eyre!("Properties failure!"), ErrorKind::Docker))
             .and_then(|a| Ok(a))
     } else {
         Ok(Value::Null)

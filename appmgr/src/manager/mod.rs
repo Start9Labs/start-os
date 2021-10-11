@@ -4,8 +4,8 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::task::Poll;
 
-use anyhow::anyhow;
 use bollard::container::StopContainerOptions;
+use color_eyre::eyre::eyre;
 use patch_db::DbHandle;
 use sqlx::{Executor, Sqlite};
 use tokio::sync::watch::error::RecvError;
@@ -100,7 +100,7 @@ impl ManagerMap {
         res.into_iter().fold(Ok(()), |res, x| match (res, x) {
             (Ok(()), x) => x,
             (Err(e), Ok(())) => Err(e),
-            (Err(e1), Err(e2)) => Err(Error::new(anyhow!("{}, {}", e1.source, e2.source), e1.kind)),
+            (Err(e1), Err(e2)) => Err(Error::new(eyre!("{}, {}", e1.source, e2.source), e1.kind)),
         })
     }
 
@@ -182,10 +182,7 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
             Poll::Ready(res) => {
                 return res
                     .map_err(|_| {
-                        Error::new(
-                            anyhow!("Manager runtime panicked!"),
-                            crate::ErrorKind::Docker,
-                        )
+                        Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)
                     })
                     .and_then(|a| a)
             }
@@ -213,7 +210,7 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
                             .get(id)
                             .ok_or_else(|| {
                                 Error::new(
-                                    anyhow!("interface {} missing key", id),
+                                    eyre!("interface {} missing key", id),
                                     crate::ErrorKind::Tor,
                                 )
                             })?
@@ -225,12 +222,7 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
         .await?;
     let res = runtime
         .await
-        .map_err(|_| {
-            Error::new(
-                anyhow!("Manager runtime panicked!"),
-                crate::ErrorKind::Docker,
-            )
-        })
+        .map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker))
         .and_then(|a| a);
     state
         .ctx
@@ -350,7 +342,7 @@ impl Manager {
     pub async fn stop(&self) -> Result<(), Error> {
         self.shared.on_stop.send(OnStop::Sleep).map_err(|_| {
             Error::new(
-                anyhow!("Manager has already been shutdown"),
+                eyre!("Manager has already been shutdown"),
                 crate::ErrorKind::Docker,
             )
         })?;
@@ -382,7 +374,7 @@ impl Manager {
     pub async fn start(&self) -> Result<(), Error> {
         self.shared.on_stop.send(OnStop::Restart).map_err(|_| {
             Error::new(
-                anyhow!("Manager has already been shutdown"),
+                eyre!("Manager has already been shutdown"),
                 crate::ErrorKind::Docker,
             )
         })?;
@@ -442,7 +434,7 @@ impl Manager {
         if let Some(thread) = self.thread.take().await {
             thread.await.map_err(|e| {
                 Error::new(
-                    anyhow!("Manager thread panicked: {}", e),
+                    eyre!("Manager thread panicked: {}", e),
                     crate::ErrorKind::Docker,
                 )
             })?;

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryStreamExt};
 use rpc_toolkit::command;
@@ -123,7 +123,7 @@ pub async fn execute_inner(
 ) -> Result<String, Error> {
     if ctx.recovery_status.read().await.is_some() {
         return Err(Error::new(
-            anyhow!("Cannot execute setup while in recovery!"),
+            eyre!("Cannot execute setup while in recovery!"),
             crate::ErrorKind::InvalidRequest,
         ));
     }
@@ -173,7 +173,7 @@ pub async fn execute_inner(
             .map(|v| &*v.version < &emver::Version::new(0, 2, 8, 0))
             .unwrap_or(true)
         {
-            return Err(Error::new(anyhow!("Unsupported version of EmbassyOS. Please update to at least 0.2.8 before recovering."), crate::ErrorKind::VersionIncompatible));
+            return Err(Error::new(eyre!("Unsupported version of EmbassyOS. Please update to at least 0.2.8 before recovering."), crate::ErrorKind::VersionIncompatible));
         }
         tokio::spawn(async move {
             if let Err(e) = recover(ctx.clone(), guid, recovery_drive, recovery_password).await {
@@ -206,7 +206,7 @@ async fn recover(
         recover_v3(&ctx, recovery_drive, recovery_password).await?;
     } else {
         return Err(Error::new(
-            anyhow!("Unsupported version of EmbassyOS: {}", recovery_version),
+            eyre!("Unsupported version of EmbassyOS: {}", recovery_version),
             crate::ErrorKind::VersionIncompatible,
         ));
     }
@@ -313,7 +313,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), 
             .get(1)
             .ok_or_else(|| {
                 Error::new(
-                    anyhow!("missing rootfs partition"),
+                    eyre!("missing rootfs partition"),
                     crate::ErrorKind::Filesystem,
                 )
             })?

@@ -209,7 +209,7 @@ pub async fn metrics(
 ) -> Result<Metrics, Error> {
     match ctx.metrics_cache.read().await.clone() {
         None => Err(Error {
-            source: anyhow::anyhow!("No Metrics Found"),
+            source: color_eyre::eyre::eyre!("No Metrics Found"),
             kind: ErrorKind::NotFound,
             revision: None,
         }),
@@ -456,7 +456,7 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
         .map(|s| {
             s.parse::<u64>().map_err(|e| {
                 Error::new(
-                    anyhow::anyhow!("Invalid /proc/stat column value: {}", e),
+                    color_eyre::eyre::eyre!("Invalid /proc/stat column value: {}", e),
                     ErrorKind::ParseSysInfo,
                 )
             })
@@ -465,7 +465,7 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
 
     if stats.len() < 10 {
         Err(Error {
-            source: anyhow::anyhow!(
+            source: color_eyre::eyre::eyre!(
                 "Columns missing from /proc/stat. Need 10, found {}",
                 stats.len()
             ),
@@ -525,7 +525,7 @@ async fn get_mem_info() -> Result<MetricsMemory, Error> {
     };
     fn get_num_kb(l: &str) -> Result<u64, Error> {
         let e = Error::new(
-            anyhow::anyhow!("Invalid meminfo line: {}", l),
+            color_eyre::eyre::eyre!("Invalid meminfo line: {}", l),
             ErrorKind::ParseSysInfo,
         );
         match l.split_whitespace().skip(1).next() {
@@ -553,7 +553,7 @@ async fn get_mem_info() -> Result<MetricsMemory, Error> {
     }
     fn ensure_present(a: Option<u64>, field: &str) -> Result<u64, Error> {
         a.ok_or(Error::new(
-            anyhow::anyhow!("{} missing from /proc/meminfo", field),
+            color_eyre::eyre::eyre!("{} missing from /proc/meminfo", field),
             ErrorKind::ParseSysInfo,
         ))
     }
@@ -617,7 +617,7 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
         .parse::<f64>()
         .map_err(|e| {
             Error::new(
-                anyhow::anyhow!("Could not parse disk size: {}", e),
+                color_eyre::eyre::eyre!("Could not parse disk size: {}", e),
                 ErrorKind::ParseSysInfo,
             )
         })?;
@@ -626,7 +626,7 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
         .parse::<f64>()
         .map_err(|e| {
             Error::new(
-                anyhow::anyhow!("Could not parse disk alloc: {}", e),
+                color_eyre::eyre::eyre!("Could not parse disk alloc: {}", e),
                 ErrorKind::ParseSysInfo,
             )
         })?;
@@ -635,7 +635,7 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
         .parse::<f64>()
         .map_err(|e| {
             Error::new(
-                anyhow::anyhow!("Could not parse disk alloc: {}", e),
+                color_eyre::eyre::eyre!("Could not parse disk alloc: {}", e),
                 ErrorKind::ParseSysInfo,
             )
         })?;

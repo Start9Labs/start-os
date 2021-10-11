@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
 use clap::ArgMatches;
+use color_eyre::eyre::{eyre, Result};
 use digest::Digest;
 use emver::Version;
 use futures::Stream;
@@ -183,7 +183,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
     match &info.status {
         ServerStatus::Updating => {
             return Err(Error::new(
-                anyhow!("Server is already updating!"),
+                eyre!("Server is already updating!"),
                 crate::ErrorKind::InvalidRequest,
             ))
         }
@@ -192,7 +192,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
         }
         ServerStatus::BackingUp => {
             return Err(Error::new(
-                anyhow!("Server is backing up!"),
+                eyre!("Server is backing up!"),
                 crate::ErrorKind::InvalidRequest,
             ))
         }
@@ -272,7 +272,7 @@ async fn query_mounted_label() -> Result<(NewLabel, CurrentLabel), Error> {
 
     match &PARSE_COLOR.captures(&output).ok_or_else(|| {
         Error::new(
-            anyhow!("Can't find pattern in {}", output),
+            eyre!("Can't find pattern in {}", output),
             crate::ErrorKind::Filesystem,
         )
     })?[1]
@@ -287,7 +287,7 @@ async fn query_mounted_label() -> Result<(NewLabel, CurrentLabel), Error> {
         )),
         e => {
             return Err(Error::new(
-                anyhow!("Could not find a mounted resource for {}", e),
+                eyre!("Could not find a mounted resource for {}", e),
                 crate::ErrorKind::Filesystem,
             ))
         }
@@ -322,7 +322,7 @@ async fn download_file<'a, Db: DbHandle + 'a>(
         let hash_from_header: String = "".to_owned(); // download_request
                                                       // .headers()
                                                       // .get(HEADER_KEY)
-                                                      // .ok_or_else(|| Error::new(anyhow!("No {} in headers", HEADER_KEY), ErrorKind::Network))?
+                                                      // .ok_or_else(|| Error::new(eyre!("No {} in headers", HEADER_KEY), ErrorKind::Network))?
                                                       // .to_str()
                                                       // .with_kind(ErrorKind::InvalidRequest)?
                                                       // .to_owned();
@@ -373,7 +373,7 @@ async fn write_stream_to_label<Db: DbHandle>(
 async fn check_download(hash_from_header: &str, file_digest: Vec<u8>) -> Result<(), Error> {
     // if hex::decode(hash_from_header).with_kind(ErrorKind::Network)? != file_digest {
     //     return Err(Error::new(
-    //         anyhow!("Hash sum does not match source"),
+    //         eyre!("Hash sum does not match source"),
     //         ErrorKind::Network,
     //     ));
     // }

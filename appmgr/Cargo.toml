@@ -44,7 +44,6 @@ sound = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
-anyhow = "1.0.44"
 async-trait = "0.1.51"
 avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", version = "0.10.0", branch = "feature/dynamic-linking", features = [
   "dynamic",
@@ -54,6 +53,7 @@ basic-cookies = "0.1.4"
 bollard = "0.11.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "2.33"
+color-eyre = "0.5"
 cookie_store = "0.15.0"
 digest = "0.9.0"
 divrem = "1.0.0"
@@ -117,6 +117,9 @@ tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = "0.14.0"
 tokio-util = { version = "0.6.8", features = ["io"] }
 torut = "0.2.0"
+tracing = "0.1"
+tracing-subscriber = "0.2"
+tracing-futures="0.2"
 typed-builder = "0.9.1"
 url = { version = "2.2.2", features = ["serde"] }
 

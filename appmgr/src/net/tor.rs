@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
-use anyhow::anyhow;
 use clap::ArgMatches;
+use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use reqwest::Client;
@@ -66,12 +66,11 @@ where
         .tor_key;
 
     let mut buf = [0; 64];
-    buf.clone_from_slice(key.get(0..64).ok_or_else(|| {
-        Error::new(
-            anyhow!("Invalid Tor Key Length"),
-            crate::ErrorKind::Database,
-        )
-    })?);
+    buf.clone_from_slice(
+        key.get(0..64).ok_or_else(|| {
+            Error::new(eyre!("Invalid Tor Key Length"), crate::ErrorKind::Database)
+        })?,
+    );
     Ok(buf.into())
 }
 
@@ -158,10 +157,7 @@ impl TorControllerInner {
             self.connection
                 .as_mut()
                 .ok_or_else(|| {
-                    Error::new(
-                        anyhow!("Missing Tor Control Connection"),
-                        ErrorKind::Unknown,
-                    )
+                    Error::new(eyre!("Missing Tor Control Connection"), ErrorKind::Unknown)
                 })?
                 .add_onion_v3(
                     &key,
@@ -194,7 +190,7 @@ impl TorControllerInner {
                 self.connection
                     .as_mut()
                     .ok_or_else(|| {
-                        Error::new(anyhow!("Missing Tor Control Connection"), ErrorKind::Tor)
+                        Error::new(eyre!("Missing Tor Control Connection"), ErrorKind::Tor)
                     })?
                     .del_onion(
                         &key.public()
@@ -219,7 +215,7 @@ impl TorControllerInner {
             .load_protocol_info()
             .await?
             .make_auth_data()?
-            .ok_or_else(|| anyhow!("Cookie Auth Not Available"))
+            .ok_or_else(|| eyre!("Cookie Auth Not Available"))
             .with_kind(crate::ErrorKind::Tor)?;
         conn.authenticate(&auth).await?;
         let mut connection: AuthenticatedConnection = conn.into_authenticated().await;
@@ -243,7 +239,7 @@ impl TorControllerInner {
         );
         self.connection
             .as_mut()
-            .ok_or_else(|| Error::new(anyhow!("Missing Tor Control Connection"), ErrorKind::Tor))?
+            .ok_or_else(|| Error::new(eyre!("Missing Tor Control Connection"), ErrorKind::Tor))?
             .add_onion_v3(
                 &self.embassyd_tor_key,
                 false,
@@ -290,7 +286,7 @@ impl TorControllerInner {
                         .load_protocol_info()
                         .await?
                         .make_auth_data()?
-                        .ok_or_else(|| anyhow!("Cookie Auth Not Available"))
+                        .ok_or_else(|| eyre!("Cookie Auth Not Available"))
                         .with_kind(crate::ErrorKind::Tor)?;
                     new_conn.authenticate(&auth).await?;
                     new_connection = new_conn.into_authenticated().await;
@@ -339,7 +335,7 @@ impl TorControllerInner {
     async fn list_services(&mut self) -> Result<Vec<OnionAddressV3>, Error> {
         self.connection
             .as_mut()
-            .ok_or_else(|| Error::new(anyhow!("Missing Tor Control Connection"), ErrorKind::Tor))?
+            .ok_or_else(|| Error::new(eyre!("Missing Tor Control Connection"), ErrorKind::Tor))?
             .get_info("onions/current")
             .await?
             .lines()
@@ -405,7 +401,7 @@ async fn test() {
         .unwrap()
         .make_auth_data()
         .unwrap()
-        .ok_or_else(|| anyhow!("Cookie Auth Not Available"))
+        .ok_or_else(|| eyre!("Cookie Auth Not Available"))
         .with_kind(crate::ErrorKind::Tor)
         .unwrap();
     conn.authenticate(&auth).await.unwrap();

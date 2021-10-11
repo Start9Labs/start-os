@@ -25,13 +25,13 @@ pub async fn add(
     let wpa_supplicant = WpaCli { interface: "wlan0" }; // TODO: pull from config
     if !ssid.is_ascii() {
         return Err(Error::new(
-            anyhow::anyhow!("SSID may not have special characters"),
+            color_eyre::eyre::eyre!("SSID may not have special characters"),
             ErrorKind::Wifi,
         ));
     }
     if !password.is_ascii() {
         return Err(Error::new(
-            anyhow::anyhow!("WiFi Password may not have special characters"),
+            color_eyre::eyre::eyre!("WiFi Password may not have special characters"),
             ErrorKind::Wifi,
         ));
     }
@@ -75,7 +75,7 @@ pub async fn add(
 pub async fn connect(#[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
-            anyhow::anyhow!("SSID may not have special characters"),
+            color_eyre::eyre::eyre!("SSID may not have special characters"),
             ErrorKind::Wifi,
         ));
     }
@@ -113,7 +113,7 @@ pub async fn connect(#[arg] ssid: String) -> Result<(), Error> {
 pub async fn delete(#[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
-            anyhow::anyhow!("SSID may not have special characters"),
+            color_eyre::eyre::eyre!("SSID may not have special characters"),
             ErrorKind::Wifi,
         ));
     }
@@ -128,7 +128,7 @@ pub async fn delete(#[arg] ssid: String) -> Result<(), Error> {
                 if interface_connected("eth0").await? {
                     wpa_supplicant.remove_network(&ssid).await?;
                 } else {
-                    return Err(Error::new(anyhow::anyhow!("Forbidden: Deleting this Network would make your Embassy Unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
+                    return Err(Error::new(color_eyre::eyre::eyre!("Forbidden: Deleting this Network would make your Embassy Unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
                 }
             }
         }
@@ -401,7 +401,7 @@ impl<'a> WpaCli<'a> {
             .await?;
         let e = || {
             Error::new(
-                anyhow::anyhow!("Invalid output from wpa_cli signal_poll"),
+                color_eyre::eyre::eyre!("Invalid output from wpa_cli signal_poll"),
                 ErrorKind::Wifi,
             )
         };
@@ -423,7 +423,7 @@ impl<'a> WpaCli<'a> {
         let m_id = self.check_network(ssid).await?;
         match m_id {
             None => Err(Error::new(
-                anyhow::anyhow!("SSID Not Found"),
+                color_eyre::eyre::eyre!("SSID Not Found"),
                 ErrorKind::Wifi,
             )),
             Some(x) => {
@@ -513,7 +513,7 @@ pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
 
 pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<CountryCode, Error> {
     CountryCode::for_alpha2(code).or(Err(Error::new(
-        anyhow::anyhow!("Invalid Country Code: {}", code),
+        color_eyre::eyre::eyre!("Invalid Country Code: {}", code),
         ErrorKind::Wifi,
     )))
 }
