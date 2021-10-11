@@ -11,7 +11,6 @@ import { PackageLoadingService, ProgressData } from 'src/app/services/package-lo
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AlertController } from '@ionic/angular'
-import { exec } from 'child_process'
 
 @Component({
   selector: 'app-list',
