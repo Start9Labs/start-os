@@ -33,7 +33,7 @@ ubuntu.img:
 	unxz ubuntu.img.xz
 
 product_key.txt:
-	/usr/bin/echo -ne "X\c" > product_key.txt
+	$(which echo) -n "X" > product_key.txt
 	cat /dev/random | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
 	echo >> product_key.txt
 
