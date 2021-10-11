@@ -156,11 +156,12 @@ export interface RPCSuccess<T> extends RPCBase {
 
 export interface RPCError extends RPCBase {
   error: {
-    code: number,
+    code: number
     message: string
     data?: {
       details: string
       revision: Revision | null
+      debug: string | null
     } | string
   }
 }
