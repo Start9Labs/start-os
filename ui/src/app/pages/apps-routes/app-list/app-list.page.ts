@@ -63,7 +63,7 @@ export class AppListPage {
         }
       })
 
-      // add unknown packages to end and set order in UI DB
+      // unshift unknown packages and set order in UI DB
       if (!isEmptyObject(pkgs)) {
         Object.values(pkgs).forEach(pkg => {
           this.pkgs.unshift(this.buildPkg(pkg))
