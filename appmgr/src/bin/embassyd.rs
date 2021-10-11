@@ -1,7 +1,6 @@
-use std::collections::BTreeMap;
 use std::time::Duration;
 
-use color_eyre::eyre::{self, eyre};
+use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
 use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
@@ -21,7 +20,6 @@ use rpc_toolkit::rpc_server;
 use tokio::process::Command;
 use tokio::signal::unix::signal;
 use tracing::instrument;
-use tracing::metadata::LevelFilter;
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
@@ -36,12 +34,8 @@ fn err_to_500(e: Error) -> Response<Body> {
 }
 
 #[instrument]
-async fn inner_main(
-    cfg_path: Option<&str>,
-    log_level: LevelFilter,
-    module_logging: BTreeMap<String, LevelFilter>,
-) -> Result<Option<Shutdown>, Error> {
-    let rpc_ctx = RpcContext::init(cfg_path, log_level, module_logging).await?;
+async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
+    let rpc_ctx = RpcContext::init(cfg_path).await?;
     let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
     let sig_handler_ctx = rpc_ctx.clone();
@@ -256,41 +250,8 @@ fn main() {
                 .long("config")
                 .takes_value(true),
         )
-        .arg(
-            clap::Arg::with_name("verbosity")
-                .short("v")
-                .multiple(true)
-                .takes_value(false),
-        )
-        .arg(
-            clap::Arg::with_name("log-module")
-                .long("log-module")
-                .multiple(true)
-                .takes_value(true),
-        )
         .get_matches();
 
-    // initializes the bootstrap logger, this will be replaced with the EmbassyLogger later
-    let filter = match matches.occurrences_of("verbosity") {
-        0 => LevelFilter::ERROR,
-        1 => LevelFilter::WARN,
-        2 => LevelFilter::INFO,
-        3 => LevelFilter::DEBUG,
-        _ => LevelFilter::TRACE,
-    };
-    let module_logging = matches
-        .values_of("log-module")
-        .into_iter()
-        .flatten()
-        .filter_map(|s| s.split_once("="))
-        .map(|(m, l)| {
-            (
-                m.to_owned(),
-                l.parse()
-                    .expect(&format!("Invalid 'log-module' argument: {}", l)),
-            )
-        })
-        .collect::<BTreeMap<_, LevelFilter>>();
     let cfg_path = matches.value_of("config");
 
     let res = {
@@ -299,11 +260,11 @@ fn main() {
             .build()
             .expect("failed to initialize runtime");
         rt.block_on(async {
-            match inner_main(cfg_path, filter, module_logging).await {
+            match inner_main(cfg_path).await {
                 Ok(a) => Ok(a),
                 Err(e) => {
                     (|| async {
-                        tracing::error!("{:?}", e.source);
+                        tracing::error!("{}", e.source);
                         tracing::debug!("{:?}", e.source);
                         embassy::sound::BEETHOVEN.play().await?;
                         #[cfg(feature = "avahi")]

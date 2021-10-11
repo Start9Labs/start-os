@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::VecDeque;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -20,7 +20,6 @@ use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 use tracing::instrument;
-use tracing::metadata::LevelFilter;
 
 use crate::db::model::Database;
 use crate::hostname::{get_hostname, get_id};
@@ -134,20 +133,10 @@ pub struct RpcContextSeed {
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
-    pub async fn init<P: AsRef<Path>>(
-        cfg_path: Option<P>,
-        log_level: LevelFilter,
-        module_logging: BTreeMap<String, LevelFilter>,
-    ) -> Result<Self, Error> {
+    pub async fn init<P: AsRef<Path>>(cfg_path: Option<P>) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
         let log_epoch = Arc::new(AtomicU64::new(rand::random()));
-        let logger = EmbassyLogger::init(
-            log_level,
-            log_epoch.clone(),
-            base.log_server.clone(),
-            false,
-            module_logging,
-        );
+        let logger = EmbassyLogger::init(log_epoch.clone(), base.log_server.clone(), false);
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
         let db = base.db(&secret_store).await?;
