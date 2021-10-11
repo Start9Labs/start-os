@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
-use anyhow::anyhow;
 use basic_cookies::Cookie;
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
+use color_eyre::eyre::eyre;
 use http::header::COOKIE;
 use http::HeaderValue;
 use rpc_toolkit::command;
@@ -90,10 +90,7 @@ pub async fn login(
         .password;
     ensure_code!(
         argon2::verify_encoded(&pw_hash, password.as_bytes()).map_err(|_| {
-            Error::new(
-                anyhow!("Password Incorrect"),
-                crate::ErrorKind::Authorization,
-            )
+            Error::new(eyre!("Password Incorrect"), crate::ErrorKind::Authorization)
         })?,
         crate::ErrorKind::Authorization,
         "Password Incorrect"

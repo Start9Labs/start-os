@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use futures::TryStreamExt;
 use indexmap::IndexSet;
 use itertools::Either;
@@ -86,10 +86,7 @@ impl Interfaces {
             Ok(if let Either::Right(r) = qr {
                 let mut buf = [0; 64];
                 buf.clone_from_slice(r.key.get(0..64).ok_or_else(|| {
-                    Error::new(
-                        anyhow!("Invalid Tor Key Length"),
-                        crate::ErrorKind::Database,
-                    )
+                    Error::new(eyre!("Invalid Tor Key Length"), crate::ErrorKind::Database)
                 })?);
                 Some((InterfaceId::from(Id::try_from(r.interface)?), buf.into()))
             } else {

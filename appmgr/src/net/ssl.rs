@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use openssl::asn1::{Asn1Integer, Asn1Time};
 use openssl::bn::{BigNum, MsbOption};
 use openssl::ec::{EcGroup, EcKey};
@@ -115,7 +115,7 @@ impl SslStore {
         let n = sqlx::query!("UPDATE certificates SET priv_key_pem = ?, certificate_pem = ?, updated_at = datetime('now') WHERE lookup_string = ?", key_str, cert_str, lookup_string).execute(&self.secret_store).await?;
         if n.rows_affected() == 0 {
             return Err(Error::new(
-                anyhow!(
+                eyre!(
                     "Attempted to update non-existent certificate: {}",
                     lookup_string
                 ),

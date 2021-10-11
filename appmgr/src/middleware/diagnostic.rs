@@ -19,7 +19,7 @@ pub async fn diagnostic<M: Metadata>(
                     if let Err(e) = rpc_res {
                         if e.code == -32601 {
                             *e = Error::new(
-                                anyhow::anyhow!(
+                                color_eyre::eyre::eyre!(
                                     "{} is not available on the Diagnostic API",
                                     method
                                 ),

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
 use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
@@ -218,20 +218,22 @@ async fn inner_main(
     futures::try_join!(
         server.map_err(|e| Error::new(e, ErrorKind::Network)),
         revision_cache_task.map_err(|e| Error::new(
-            anyhow!("{}", e).context("Revision Cache daemon panicked!"),
+            eyre!("{}", e).wrap_err("Revision Cache daemon panicked!"),
             ErrorKind::Unknown
         )),
         ws_server.map_err(|e| Error::new(e, ErrorKind::Network)),
         status_daemon.map_err(|e| Error::new(
-            e.context("Status Sync daemon panicked!"),
+            e.wrap_err("Status Sync daemon panicked!"),
             ErrorKind::Unknown
         )),
         health_daemon.map_err(|e| Error::new(
-            e.context("Health Check daemon panicked!"),
+            e.wrap_err("Health Check daemon panicked!"),
             ErrorKind::Unknown
         )),
-        tor_health_daemon
-            .map_err(|e| Error::new(e.context("Tor Health daemon panicked!"), ErrorKind::Unknown)),
+        tor_health_daemon.map_err(|e| Error::new(
+            e.wrap_err("Tor Health daemon panicked!"),
+            ErrorKind::Unknown
+        )),
     )?;
 
     rpc_ctx.managers.empty().await?;

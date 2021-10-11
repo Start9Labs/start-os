@@ -5,7 +5,7 @@ use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use anyhow::anyhow;
+use color_eyre::eyre::{self, eyre};
 use emver::VersionRange;
 use futures::TryStreamExt;
 use http::StatusCode;
@@ -102,7 +102,7 @@ pub async fn install(
         }
         _ => {
             return Err(Error::new(
-                anyhow!("Cannot install over a package in a transient state"),
+                eyre!("Cannot install over a package in a transient state"),
                 crate::ErrorKind::InvalidRequest,
             ))
         }
@@ -165,7 +165,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
         }) => (manifest, static_files, installed),
         _ => {
             return Err(Error::new(
-                anyhow!("Package is not installed."),
+                eyre!("Package is not installed."),
                 crate::ErrorKind::NotFound,
             ));
         }
@@ -466,19 +466,19 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 .spawn()?;
             let tee_in = tee.stdin.take().ok_or_else(|| {
                 Error::new(
-                    anyhow!("Could not write to stdin of tee"),
+                    eyre!("Could not write to stdin of tee"),
                     crate::ErrorKind::Docker,
                 )
             })?;
             let mut tee_out = tee.stdout.take().ok_or_else(|| {
                 Error::new(
-                    anyhow!("Could not read from stdout of tee"),
+                    eyre!("Could not read from stdout of tee"),
                     crate::ErrorKind::Docker,
                 )
             })?;
             let load_in = load.stdin.take().ok_or_else(|| {
                 Error::new(
-                    anyhow!("Could not write to stdin of docker load"),
+                    eyre!("Could not write to stdin of docker load"),
                     crate::ErrorKind::Docker,
                 )
             })?;
@@ -490,7 +490,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             let res = load.wait_with_output().await?;
             if !res.status.success() {
                 Err(Error::new(
-                    anyhow!(
+                    eyre!(
                         "{}",
                         String::from_utf8(res.stderr)
                             .unwrap_or_else(|e| format!("Could not parse stderr: {}", e))
@@ -764,7 +764,7 @@ pub async fn load_images<P: AsRef<Path>>(datadir: P) -> Result<(), Error> {
         ReadDirStream::new(tokio::fs::read_dir(&docker_dir).await?)
             .map_err(|e| {
                 Error::new(
-                    anyhow::Error::from(e).context(format!("{:?}", &docker_dir)),
+                    eyre::Report::from(e).wrap_err(format!("{:?}", &docker_dir)),
                     crate::ErrorKind::Filesystem,
                 )
             })
@@ -772,7 +772,7 @@ pub async fn load_images<P: AsRef<Path>>(datadir: P) -> Result<(), Error> {
                 ReadDirStream::new(tokio::fs::read_dir(pkg_id.path()).await?)
                     .map_err(|e| {
                         Error::new(
-                            anyhow::Error::from(e).context(pkg_id.path().display().to_string()),
+                            eyre::Report::from(e).wrap_err(pkg_id.path().display().to_string()),
                             crate::ErrorKind::Filesystem,
                         )
                     })
@@ -784,7 +784,7 @@ pub async fn load_images<P: AsRef<Path>>(datadir: P) -> Result<(), Error> {
                             .spawn()?;
                         let load_in = load.stdin.take().ok_or_else(|| {
                             Error::new(
-                                anyhow!("Could not write to stdin of docker load"),
+                                eyre!("Could not write to stdin of docker load"),
                                 crate::ErrorKind::Docker,
                             )
                         })?;
@@ -793,7 +793,7 @@ pub async fn load_images<P: AsRef<Path>>(datadir: P) -> Result<(), Error> {
                         let res = load.wait_with_output().await?;
                         if !res.status.success() {
                             Err(Error::new(
-                                anyhow!(
+                                eyre!(
                                     "{}",
                                     String::from_utf8(res.stderr).unwrap_or_else(|e| format!(
                                         "Could not parse stderr: {}",

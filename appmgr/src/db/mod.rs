@@ -6,7 +6,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use futures::{FutureExt, SinkExt, StreamExt};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{Dump, Revision};
@@ -67,7 +67,7 @@ async fn ws_handler<
                 .into_iter()
                 .find(|c| c.get_name() == "session")
                 .ok_or_else(|| {
-                    Error::new(anyhow!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
+                    Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
                 })?;
             if let Err(e) =
                 crate::middleware::auth::is_authed(&ctx, &hash_token(id.get_value())).await
