@@ -478,26 +478,32 @@ export class MockApiService extends ApiService {
       },
     ]
     let res: any
-    try {
-      res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-      setTimeout(async () => {
-        const patch = [
-          {
-            op: PatchOp.REMOVE,
-            path: `/package-data/${params.id}`,
-          },
-        ]
-        this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-      }, this.revertTime)
-    } catch (e) {
+    res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    setTimeout(async () => {
       const patch = [
         {
           op: PatchOp.REMOVE,
-          path: `/recovered-packages/${params.id}`,
+          path: `/package-data/${params.id}`,
         },
       ]
-      res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    }
+      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    }, this.revertTime)
+
+
+    return res
+  }
+
+  async deleteRecoveredPackageRaw (params: RR.DeleteRecoveredPackageReq): Promise<RR.DeleteAllNotificationsRes> {
+    await pauseFor(2000)
+    let res: any
+
+    const patch = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/recovered-packages/${params.id}`,
+      },
+    ]
+    res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
 
     return res
   }
