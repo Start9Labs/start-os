@@ -96,7 +96,7 @@ where
         if version.semver() != previous.semver() {
             previous.migrate_from_unchecked(version, db).await?;
         }
-        log::info!(
+        tracing::info!(
             "{} -> {}",
             previous.semver().as_str(),
             self.semver().as_str()
@@ -111,7 +111,7 @@ where
         db: &mut Db,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
-        log::info!(
+        tracing::info!(
             "{} -> {}",
             self.semver().as_str(),
             previous.semver().as_str()

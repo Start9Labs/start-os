@@ -96,11 +96,11 @@ pub async fn execute(
     .await
     {
         Ok(a) => {
-            log::info!("Setup Successful! Tor Address: {}", a);
+            tracing::info!("Setup Successful! Tor Address: {}", a);
             Ok(a)
         }
         Err(e) => {
-            log::error!("Error Setting Up Embassy: {}", e);
+            tracing::error!("Error Setting Up Embassy: {}", e);
             Err(e)
         }
     }
@@ -178,7 +178,7 @@ pub async fn execute_inner(
         tokio::spawn(async move {
             if let Err(e) = recover(ctx.clone(), guid, recovery_drive, recovery_password).await {
                 BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
-                log::error!("Error recovering drive!: {}", e);
+                tracing::error!("Error recovering drive!: {}", e);
                 *ctx.recovery_status.write().await = Some(Err(e.into()));
             }
         });

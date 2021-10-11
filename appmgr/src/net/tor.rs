@@ -233,7 +233,7 @@ impl TorControllerInner {
     }
 
     async fn add_embassyd_onion(&mut self) -> Result<(), Error> {
-        log::info!(
+        tracing::info!(
             "Registering Main Tor Service: {}",
             self.embassyd_tor_key.public().get_onion_address()
         );
@@ -249,7 +249,7 @@ impl TorControllerInner {
                 &mut std::iter::once(&(self.embassyd_addr.port(), self.embassyd_addr)),
             )
             .await?;
-        log::info!(
+        tracing::info!(
             "Registered Main Tor Service: {}",
             self.embassyd_tor_key.public().get_onion_address()
         );
@@ -301,7 +301,7 @@ impl TorControllerInner {
                     }
                 }
                 Err(e) => {
-                    log::info!("Failed to reconnect to tor control socket: {}", e);
+                    tracing::info!("Failed to reconnect to tor control socket: {}", e);
                 }
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
@@ -345,7 +345,7 @@ impl TorControllerInner {
 }
 
 pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
-    log::debug!("Attempting to self-check tor address");
+    tracing::debug!("Attempting to self-check tor address");
     let onion = tor_controller.embassyd_onion().await;
     let result = client
         .post(format!("http://{}/rpc/v1", onion))
@@ -363,24 +363,24 @@ pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
     match result {
         // if success, do nothing
         Ok(_) => {
-            log::debug!(
+            tracing::debug!(
                 "Successfully verified main tor address liveness at {}",
                 onion
             )
         }
         // if failure, disconnect tor control port, and restart tor controller
         Err(e) => {
-            log::error!("Unable to reach self over tor: {}", e);
+            tracing::error!("Unable to reach self over tor: {}", e);
             loop {
                 match tor_controller.replace().await {
                     Ok(restarted) => {
                         if restarted {
-                            log::error!("Tor has been recently restarted, refusing to restart");
+                            tracing::error!("Tor has been recently restarted, refusing to restart");
                         }
                         break;
                     }
                     Err(e) => {
-                        log::error!("Unable to restart tor: {}", e);
+                        tracing::error!("Unable to restart tor: {}", e);
                     }
                 }
             }
