@@ -149,6 +149,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     }
     tracing::info!("Enabled nginx public dir");
     embassy::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
+    tracing::info!("Synchronized wpa_supplicant.conf");
 
     let db = cfg.db(&secret_store).await?;
     let mut handle = db.handle();
