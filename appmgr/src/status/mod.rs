@@ -4,7 +4,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use futures::{FutureExt, StreamExt};
-use patch_db::{DbHandle, HasModel, Map, ModelData};
+use patch_db::{DbHandle, HasModel, LockType, Map, ModelData};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -38,7 +38,7 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
                 // is likely iterating through packages in a different order.
                 crate::db::DatabaseModel::new()
                     .package_data()
-                    .lock(&mut db, true)
+                    .lock(&mut db, LockType::Write)
                     .await;
 
                 // Without the above lock, the below check operation will deadlock
