@@ -188,6 +188,7 @@ impl SslManager {
                 if expiration.compare(&window_end)? == Ordering::Less {
                     let key = generate_key()?;
                     let cert = make_leaf_cert((&self.int_key, &self.int_cert), (&key, dns_base))?;
+                    self.store.update_certificate(&key, &cert, dns_base).await?;
                     Ok((key, cert))
                 } else {
                     Ok((key, cert))
