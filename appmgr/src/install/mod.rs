@@ -116,6 +116,7 @@ pub async fn install(
     tokio::spawn(async move {
         if let Err(e) = download_install_s9pk(&ctx, &man, s9pk).await {
             tracing::error!("Install of {}@{} Failed: {}", man.id, man.version, e);
+            tracing::debug!("{:?}", e);
         }
     });
 
@@ -276,6 +277,7 @@ pub async fn download_install_s9pk(
                 version,
                 e
             );
+            tracing::debug!("{:?}", e);
             let mut broken = crate::db::DatabaseModel::new()
                 .broken_packages()
                 .get_mut(&mut tx)
