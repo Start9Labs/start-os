@@ -84,8 +84,15 @@ pub fn apply_dependency_configuration(
     let new_dep_config = cfgs
         .get(&dependency_id)
         .ok_or_else(|| anyhow!("cannot find key"))?;
+    dbg!(
+        "*****new_dep_config in apply_dependency_configuration: {}",
+        new_dep_config.as_ref().to_owned()
+    );
+    dbg!(
+        "*****dep_config in apply_dependency_configuration: {}",
+        &dep_config
+    );
     match rule_check {
-        // Ok(_) => Ok(new_dep_config.as_ref().to_owned()),
         Ok(_) => Ok(dep_config),
         Err(e) => Err(anyhow!("{}", e)),
     }
