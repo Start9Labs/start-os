@@ -15,6 +15,7 @@ use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use crate::action::docker::DockerAction;
+use crate::action::NoOutput;
 use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
 use crate::notifications::{NotificationLevel, NotificationSubtype};
@@ -143,13 +144,15 @@ pub enum OnStop {
 }
 
 #[instrument(skip(state))]
-async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, String)>, Error> {
+async fn run_main(
+    state: &Arc<ManagerSharedState>,
+) -> Result<Result<NoOutput, (i32, String)>, Error> {
     let rt_state = state.clone();
     let mut runtime = tokio::spawn(async move {
         rt_state
             .manifest
             .main
-            .execute::<(), ()>(
+            .execute::<(), NoOutput>(
                 &rt_state.ctx,
                 &rt_state.manifest.id,
                 &rt_state.manifest.version,
@@ -300,7 +303,7 @@ impl Manager {
                     }
                 }
                 match run_main(&thread_shared).await {
-                    Ok(Ok(())) => {
+                    Ok(Ok(NoOutput)) => {
                         thread_shared
                             .on_stop
                             .send(OnStop::Sleep)
