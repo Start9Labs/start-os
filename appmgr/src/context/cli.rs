@@ -13,6 +13,7 @@ use rpc_toolkit::reqwest::{Client, Url};
 use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
+use tracing::instrument;
 
 use crate::ResultExt;
 
@@ -56,6 +57,7 @@ const DEFAULT_PORT: u16 = 5959;
 pub struct CliContext(Arc<CliContextSeed>);
 impl CliContext {
     /// BLOCKING
+    #[instrument(skip(matches))]
     pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
         let cfg_path = Path::new(matches.value_of("config").unwrap_or(crate::CONFIG_PATH));
         let base = if cfg_path.exists() {

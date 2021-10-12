@@ -5,6 +5,7 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
@@ -231,6 +232,7 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
             }
             Err(e) => {
                 tracing::error!("Could not get initial temperature: {}", e);
+                tracing::debug!("{:?}", e);
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -248,10 +250,12 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
                 }
                 Err(e) => {
                     tracing::error!("Could not get initial cpu info: {}", e);
+                    tracing::debug!("{:?}", e);
                 }
             },
             Err(e) => {
                 tracing::error!("Could not get initial proc stat: {}", e);
+                tracing::debug!("{:?}", e);
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -266,6 +270,7 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
             }
             Err(e) => {
                 tracing::error!("Could not get initial mem info: {}", e);
+                tracing::debug!("{:?}", e);
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -280,6 +285,7 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
             }
             Err(e) => {
                 tracing::error!("Could not get initial disk info: {}", e);
+                tracing::debug!("{:?}", e);
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -332,6 +338,7 @@ async fn launch_temp_task(
             }
             Err(e) => {
                 tracing::error!("Could not get new temperature: {}", e);
+                tracing::debug!("{:?}", e);
             }
         }
         tokio::select! {
@@ -355,6 +362,7 @@ async fn launch_cpu_task(
             }
             Err(e) => {
                 tracing::error!("Could not get new CPU Metrics: {}", e);
+                tracing::debug!("{:?}", e);
             }
         }
         tokio::select! {
@@ -377,6 +385,7 @@ async fn launch_mem_task(
             }
             Err(e) => {
                 tracing::error!("Could not get new Memory Metrics: {}", e);
+                tracing::debug!("{:?}", e);
             }
         }
         tokio::select! {
@@ -398,6 +407,7 @@ async fn launch_disk_task(
             }
             Err(e) => {
                 tracing::error!("Could not get new Disk Metrics: {}", e);
+                tracing::debug!("{:?}", e);
             }
         }
         tokio::select! {
@@ -407,6 +417,7 @@ async fn launch_disk_task(
     }
 }
 
+#[instrument]
 async fn get_temp() -> Result<Celsius, Error> {
     let milli = tokio::fs::read_to_string("/sys/class/thermal/thermal_zone0/temp")
         .await?
@@ -444,6 +455,7 @@ impl ProcStat {
     }
 }
 
+#[instrument]
 async fn get_proc_stat() -> Result<ProcStat, Error> {
     use tokio::io::AsyncBufReadExt;
     let mut cpu_line = String::new();
@@ -485,6 +497,7 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
     }
 }
 
+#[instrument]
 async fn get_cpu_info(last: &mut ProcStat) -> Result<MetricsCpu, Error> {
     let new = get_proc_stat().await?;
     let total_old = last.total();
@@ -511,6 +524,7 @@ pub struct MemInfo {
     swap_total: Option<u64>,
     swap_free: Option<u64>,
 }
+#[instrument]
 async fn get_mem_info() -> Result<MetricsMemory, Error> {
     let contents = tokio::fs::read_to_string("/proc/meminfo").await?;
     let mut mem_info = MemInfo {
@@ -584,6 +598,7 @@ async fn get_mem_info() -> Result<MetricsMemory, Error> {
     })
 }
 
+#[instrument]
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
     use crate::util::Invoke;
     let mut size_cmd = tokio::process::Command::new("zpool");

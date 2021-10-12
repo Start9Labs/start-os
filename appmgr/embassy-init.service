@@ -7,7 +7,7 @@ Wants=avahi-daemon.service nginx.service tor.service
 [Service]
 Type=oneshot
 Environment=RUST_LOG=embassy_init=info,embassy=info
-ExecStart=/usr/local/bin/embassy-init -vvv
+ExecStart=/usr/local/bin/embassy-init
 RemainAfterExit=true
 
 [Install]

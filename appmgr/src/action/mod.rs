@@ -8,6 +8,7 @@ use indexmap::IndexSet;
 use patch_db::HasModel;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use self::docker::DockerAction;
 use crate::config::{Config, ConfigSpec};
@@ -106,6 +107,7 @@ pub struct Action {
     pub input_spec: ConfigSpec,
 }
 impl Action {
+    #[instrument(skip(ctx))]
     pub async fn execute(
         &self,
         ctx: &RpcContext,
@@ -142,6 +144,7 @@ pub enum ActionImplementation {
     Docker(DockerAction),
 }
 impl ActionImplementation {
+    #[instrument(skip(ctx, input))]
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
         ctx: &RpcContext,
@@ -160,6 +163,7 @@ impl ActionImplementation {
             }
         }
     }
+    #[instrument(skip(ctx, input))]
     pub async fn sandboxed<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
         ctx: &RpcContext,
@@ -194,6 +198,7 @@ fn display_action_result(action_result: ActionResult, matches: &ArgMatches<'_>) 
 }
 
 #[command(about = "Executes an action", display(display_action_result))]
+#[instrument(skip(ctx))]
 pub async fn action(
     #[context] ctx: RpcContext,
     #[arg(rename = "id")] pkg_id: PackageId,

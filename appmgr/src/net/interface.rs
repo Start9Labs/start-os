@@ -8,6 +8,7 @@ use itertools::Either;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Sqlite};
 use torut::onion::TorSecretKeyV3;
+use tracing::instrument;
 
 use crate::db::model::{InterfaceAddressMap, InterfaceAddresses};
 use crate::id::Id;
@@ -19,6 +20,7 @@ use crate::Error;
 #[serde(rename_all = "kebab-case")]
 pub struct Interfaces(pub BTreeMap<InterfaceId, Interface>); // TODO
 impl Interfaces {
+    #[instrument(skip(secrets))]
     pub async fn install<Ex>(
         &self,
         secrets: &mut Ex,
@@ -68,6 +70,7 @@ impl Interfaces {
         Ok(interface_addresses)
     }
 
+    #[instrument(skip(secrets))]
     pub async fn tor_keys<Ex>(
         &self,
         secrets: &mut Ex,

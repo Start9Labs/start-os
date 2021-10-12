@@ -6,6 +6,7 @@ use clap::ArgMatches;
 use isocountry::CountryCode;
 use rpc_toolkit::command;
 use tokio::process::Command;
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::util::{display_none, display_serializable, Invoke, IoFormat};
@@ -17,6 +18,7 @@ pub async fn wifi() -> Result<(), Error> {
 }
 
 #[command(display(display_none))]
+#[instrument(skip(ctx))]
 pub async fn add(
     #[context] ctx: RpcContext,
     #[arg] ssid: String,
@@ -74,6 +76,7 @@ pub async fn add(
 }
 
 #[command(display(display_none))]
+#[instrument(skip(ctx))]
 pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
@@ -112,6 +115,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
 }
 
 #[command(display(display_none))]
+#[instrument(skip(ctx))]
 pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
     if !ssid.is_ascii() {
         return Err(Error::new(
@@ -195,6 +199,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
 }
 
 #[command(display(display_wifi_info))]
+#[instrument(skip(ctx))]
 pub async fn get(
     #[context] ctx: RpcContext,
     #[allow(unused_variables)]
@@ -239,6 +244,7 @@ pub async fn get(
 }
 
 #[command(display(display_none))]
+#[instrument(skip(ctx))]
 pub async fn set_country(
     #[context] ctx: RpcContext,
     #[arg(parse(country_code_parse))] country: CountryCode,
@@ -247,6 +253,7 @@ pub async fn set_country(
     wpa_supplicant.set_country_low(country.alpha2()).await
 }
 
+#[derive(Debug)]
 pub struct WpaCli {
     datadir: PathBuf,
     interface: String,
@@ -372,6 +379,7 @@ impl WpaCli {
             .await?;
         Ok(())
     }
+    #[instrument]
     pub async fn list_networks_low(&self) -> Result<BTreeMap<String, NetworkId>, Error> {
         let r = Command::new("wpa_cli")
             .arg("-i")
@@ -411,6 +419,7 @@ impl WpaCli {
             .await?;
         Ok(())
     }
+    #[instrument]
     pub async fn signal_poll_low(&self) -> Result<Option<isize>, Error> {
         let r = Command::new("wpa_cli")
             .arg("-i")
@@ -447,6 +456,7 @@ impl WpaCli {
     pub async fn check_network(&self, ssid: &str) -> Result<Option<NetworkId>, Error> {
         Ok(self.list_networks_low().await?.remove(ssid))
     }
+    #[instrument]
     pub async fn select_network(&self, ssid: &str) -> Result<bool, Error> {
         let m_id = self.check_network(ssid).await?;
         match m_id {
@@ -485,6 +495,7 @@ impl WpaCli {
             }
         }
     }
+    #[instrument]
     pub async fn get_current_network(&self) -> Result<Option<String>, Error> {
         let r = Command::new("iwgetid")
             .arg(&self.interface)
@@ -500,6 +511,7 @@ impl WpaCli {
             Ok(Some(network.to_owned()))
         }
     }
+    #[instrument]
     pub async fn remove_network(&self, ssid: &str) -> Result<bool, Error> {
         match self.check_network(ssid).await? {
             None => Ok(false),
@@ -511,6 +523,7 @@ impl WpaCli {
             }
         }
     }
+    #[instrument]
     pub async fn add_network(&self, ssid: &str, psk: &str, priority: isize) -> Result<(), Error> {
         use NetworkAttr::*;
         let nid = match self.check_network(ssid).await? {
@@ -533,6 +546,7 @@ impl WpaCli {
     }
 }
 
+#[instrument]
 pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
     let out = Command::new("ifconfig")
         .arg(interface)
@@ -552,6 +566,7 @@ pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<Count
     )))
 }
 
+#[instrument(skip(main_datadir))]
 pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(main_datadir: P) -> Result<(), Error> {
     let persistent = main_datadir.as_ref().join("wpa_supplicant.conf");
     tracing::debug!("persistent: {:?}", persistent);

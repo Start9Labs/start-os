@@ -2,6 +2,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 
 use digest::Digest;
 use sha2::Sha512;
+use tracing::instrument;
 use typed_builder::TypedBuilder;
 
 use super::header::{FileSection, Header};
@@ -39,6 +40,7 @@ impl<
     > S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages, RAssets>
 {
     /// BLOCKING
+    #[instrument(skip(self))]
     pub fn pack(mut self, key: &ed25519_dalek::Keypair) -> Result<(), Error> {
         let header_pos = self.writer.stream_position()?;
         if header_pos != 0 {

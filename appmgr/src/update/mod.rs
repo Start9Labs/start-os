@@ -1,5 +1,6 @@
 use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,12 +15,12 @@ use regex::Regex;
 use reqwest::Url;
 use rpc_toolkit::command;
 use sha2::Sha256;
-use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::io::AsyncWriteExt;
 use tokio::pin;
 use tokio::process::Command;
 use tokio::time::Instant;
 use tokio_stream::StreamExt;
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::{ServerStatus, UpdateProgress};
@@ -35,6 +36,7 @@ lazy_static! {
 /// An user/ daemon would call this to update the system to the latest version and do the updates available,
 /// and this will return something if there is an update, and in that case there will need to be a restart.
 #[command(rename = "update", display(display_properties))]
+#[instrument(skip(ctx))]
 pub async fn update_system(#[context] ctx: RpcContext) -> Result<UpdateSystem, Error> {
     if UPDATED.load(Ordering::SeqCst) {
         return Ok(UpdateSystem::NoUpdates);
@@ -79,7 +81,7 @@ struct Boot;
 /// we need to know the labels for those types. These labels
 /// are the labels that are shipping with the embassy, blue/ green
 /// are where the os sits and will do a swap during update.
-trait FileType: Copy + Send + Sync + 'static {
+trait FileType: std::fmt::Debug + Copy + Send + Sync + 'static {
     fn mount_folder(&self) -> PathBuf {
         Path::new("/media").join(self.label())
     }
@@ -110,6 +112,7 @@ impl FileType for Boot {
 }
 
 /// Proven data that this is mounted, should be consumed in an unmount
+#[derive(Debug)]
 struct MountedResource<X: FileType> {
     value: X,
     mounted: bool,
@@ -121,6 +124,7 @@ impl<X: FileType> MountedResource<X> {
             mounted: true,
         }
     }
+    #[instrument]
     async fn unmount(value: X) -> Result<(), Error> {
         let folder = value.mount_folder();
         Command::new("umount")
@@ -132,6 +136,7 @@ impl<X: FileType> MountedResource<X> {
             .with_ctx(|_| (crate::ErrorKind::Filesystem, folder.display().to_string()))?;
         Ok(())
     }
+    #[instrument]
     async fn unmount_label(&mut self) -> Result<(), Error> {
         Self::unmount(self.value).await?;
         self.mounted = false;
@@ -148,7 +153,7 @@ impl<X: FileType> Drop for MountedResource<X> {
 }
 
 /// This will be where we are going to be putting the new update
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct NewLabel(WritableDrives);
 
 /// This is our current label where the os is running
@@ -158,6 +163,7 @@ lazy_static! {
     static ref PARSE_COLOR: Regex = Regex::new("#LABEL=(\\w+) /media/root-ro/").unwrap();
 }
 
+#[instrument(skip(ctx))]
 async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error> {
     let mut db = ctx.db.handle();
     let latest_version = reqwest::get(format!("{}/eos/latest", ctx.eos_registry_url().await?))
@@ -235,9 +241,9 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
             Err(e) => {
                 info.status = ServerStatus::Running;
                 info.save(&mut db).await.expect("could not save status");
-                drop(db);
                 ctx.notification_manager
                     .notify(
+                        &mut db,
                         None,
                         NotificationLevel::Error,
                         "EmbassyOS Update Failed".to_owned(),
@@ -252,6 +258,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
     Ok(rev)
 }
 
+#[instrument(skip(download))]
 async fn do_update(
     download: impl Future<Output = Result<(), Error>>,
     new_label: NewLabel,
@@ -265,6 +272,7 @@ async fn do_update(
     Ok(())
 }
 
+#[instrument]
 async fn query_mounted_label() -> Result<(NewLabel, CurrentLabel), Error> {
     let output = tokio::fs::read_to_string("/etc/fstab")
         .await
@@ -294,6 +302,7 @@ async fn query_mounted_label() -> Result<(NewLabel, CurrentLabel), Error> {
     }
 }
 
+#[derive(Debug)]
 struct EosUrl {
     base: Url,
     version: Version,
@@ -304,6 +313,7 @@ impl std::fmt::Display for EosUrl {
     }
 }
 
+#[instrument(skip(db))]
 async fn download_file<'a, Db: DbHandle + 'a>(
     mut db: Db,
     eos_url: &EosUrl,
@@ -333,6 +343,7 @@ async fn download_file<'a, Db: DbHandle + 'a>(
     }))
 }
 
+#[instrument(skip(db, stream_download))]
 async fn write_stream_to_label<Db: DbHandle>(
     db: &mut Db,
     size: Option<u64>,
@@ -370,6 +381,7 @@ async fn write_stream_to_label<Db: DbHandle>(
     Ok(hasher.finalize().to_vec())
 }
 
+#[instrument]
 async fn check_download(hash_from_header: &str, file_digest: Vec<u8>) -> Result<(), Error> {
     // if hex::decode(hash_from_header).with_kind(ErrorKind::Network)? != file_digest {
     //     return Err(Error::new(
@@ -379,6 +391,8 @@ async fn check_download(hash_from_header: &str, file_digest: Vec<u8>) -> Result<
     // }
     Ok(())
 }
+
+#[instrument]
 async fn swap_boot_label(
     new_label: NewLabel,
     mounted_boot: &MountedResource<Boot>,
@@ -409,6 +423,7 @@ async fn swap_boot_label(
     Ok(())
 }
 
+#[instrument]
 async fn mount_label<F>(file_type: F) -> Result<MountedResource<F>, Error>
 where
     F: FileType,

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
+use tracing::instrument;
 
 use crate::util::io::from_yaml_async_reader;
 use crate::util::{GeneralGuard, Invoke, Version};
@@ -49,6 +50,7 @@ lazy_static::lazy_static! {
     static ref PARTITION_REGEX: Regex = Regex::new("-part[0-9]+$").unwrap();
 }
 
+#[instrument(skip(path))]
 pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
     let vendor = tokio::fs::read_to_string(
         Path::new(SYS_BLOCK_PATH)
@@ -69,6 +71,7 @@ pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error
     })
 }
 
+#[instrument(skip(path))]
 pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
     let model = tokio::fs::read_to_string(
         Path::new(SYS_BLOCK_PATH)
@@ -85,6 +88,7 @@ pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
     Ok(if model.is_empty() { None } else { Some(model) })
 }
 
+#[instrument(skip(path))]
 pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     Ok(String::from_utf8(
         Command::new("blockdev")
@@ -97,6 +101,7 @@ pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     .parse()?)
 }
 
+#[instrument(skip(path))]
 pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
     let label = String::from_utf8(
         Command::new("lsblk")
@@ -111,6 +116,7 @@ pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
     Ok(if label.is_empty() { None } else { Some(label) })
 }
 
+#[instrument(skip(path))]
 pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     Ok(String::from_utf8(
         Command::new("df")
@@ -127,6 +133,7 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     .parse()?)
 }
 
+#[instrument]
 pub async fn list() -> Result<Vec<DiskInfo>, Error> {
     if tokio::fs::metadata(TMP_MOUNTPOINT).await.is_err() {
         tokio::fs::create_dir_all(TMP_MOUNTPOINT)
@@ -261,6 +268,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
     Ok(res)
 }
 
+#[instrument(skip(logicalname, mount_point))]
 pub async fn mount<P0: AsRef<Path>, P1: AsRef<Path>>(
     logicalname: P0,
     mount_point: P1,
@@ -291,6 +299,7 @@ pub async fn mount<P0: AsRef<Path>, P1: AsRef<Path>>(
     Ok(())
 }
 
+#[instrument(skip(src, dst, password))]
 pub async fn mount_encfs<P0: AsRef<Path>, P1: AsRef<Path>>(
     src: P0,
     dst: P1,
@@ -320,6 +329,7 @@ pub async fn mount_encfs<P0: AsRef<Path>, P1: AsRef<Path>>(
     }
 }
 
+#[instrument(skip(src, dst))]
 pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     src: P0,
     dst: P1,
@@ -363,6 +373,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     Ok(())
 }
 
+#[instrument(skip(mount_point))]
 pub async fn unmount<P: AsRef<Path>>(mount_point: P) -> Result<(), Error> {
     tracing::info!("Unmounting {}.", mount_point.as_ref().display());
     let umount_output = tokio::process::Command::new("umount")

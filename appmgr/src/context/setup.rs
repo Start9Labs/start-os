@@ -15,6 +15,7 @@ use sqlx::SqlitePool;
 use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
+use tracing::instrument;
 use url::Host;
 
 use crate::db::model::Database;
@@ -33,6 +34,7 @@ pub struct SetupContextConfig {
     pub datadir: Option<PathBuf>,
 }
 impl SetupContextConfig {
+    #[instrument(skip(path))]
     pub async fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
         let cfg_path = path
             .as_ref()
@@ -74,6 +76,7 @@ pub struct SetupContextSeed {
 #[derive(Clone)]
 pub struct SetupContext(Arc<SetupContextSeed>);
 impl SetupContext {
+    #[instrument(skip(path))]
     pub async fn init<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
         let cfg = SetupContextConfig::load(path).await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
@@ -89,6 +92,7 @@ impl SetupContext {
             recovery_status: RwLock::new(None),
         })))
     }
+    #[instrument(skip(self))]
     pub async fn db(&self, secret_store: &SqlitePool) -> Result<PatchDb, Error> {
         let db_path = self.datadir.join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
@@ -108,6 +112,7 @@ impl SetupContext {
         }
         Ok(db)
     }
+    #[instrument(skip(self))]
     pub async fn secret_store(&self) -> Result<SqlitePool, Error> {
         let secret_store = SqlitePool::connect_with(
             SqliteConnectOptions::new()
@@ -122,6 +127,7 @@ impl SetupContext {
             .with_kind(crate::ErrorKind::Database)?;
         Ok(secret_store)
     }
+    #[instrument(skip(self))]
     pub async fn product_key(&self) -> Result<Arc<String>, Error> {
         Ok(
             if let Some(k) = {

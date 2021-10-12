@@ -7,6 +7,7 @@ use futures::FutureExt;
 use indexmap::IndexSet;
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
+use tracing::instrument;
 
 use super::interface::{InterfaceId, LanPortConfig};
 use super::ssl::SslManager;
@@ -55,6 +56,7 @@ pub struct NginxControllerInner {
     ssl_manager: SslManager,
 }
 impl NginxControllerInner {
+    #[instrument(skip(db))]
     async fn init(nginx_root: &Path, db: SqlitePool) -> Result<Self, Error> {
         let inner = NginxControllerInner {
             interfaces: BTreeMap::new(),
@@ -77,6 +79,7 @@ impl NginxControllerInner {
         )?;
         Ok(inner)
     }
+    #[instrument(skip(self, interfaces))]
     async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &mut self,
         nginx_root: &Path,
@@ -182,6 +185,8 @@ impl NginxControllerInner {
         self.hup().await?;
         Ok(())
     }
+
+    #[instrument(skip(self))]
     async fn remove(&mut self, nginx_root: &Path, package: &PackageId) -> Result<(), Error> {
         let removed = self.interfaces.remove(package);
         if let Some(net_info) = removed {
@@ -207,6 +212,8 @@ impl NginxControllerInner {
         self.hup().await?;
         Ok(())
     }
+
+    #[instrument(skip(self))]
     async fn hup(&self) -> Result<(), Error> {
         let _ = tokio::process::Command::new("systemctl")
             .arg("reload")

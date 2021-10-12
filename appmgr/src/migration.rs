@@ -3,6 +3,7 @@ use emver::VersionRange;
 use indexmap::IndexMap;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::action::ActionImplementation;
 use crate::context::RpcContext;
@@ -18,6 +19,7 @@ pub struct Migrations {
     pub to: IndexMap<VersionRange, ActionImplementation>,
 }
 impl Migrations {
+    #[instrument(skip(ctx))]
     pub async fn from(
         &self,
         ctx: &RpcContext,
@@ -53,6 +55,7 @@ impl Migrations {
             },
         )
     }
+    #[instrument(skip(ctx))]
     pub async fn to(
         &self,
         ctx: &RpcContext,

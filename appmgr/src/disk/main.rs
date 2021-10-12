@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use tokio::process::Command;
+use tracing::instrument;
 
 use crate::util::Invoke;
 use crate::{Error, ResultExt};
@@ -10,6 +11,7 @@ pub const DEFAULT_PASSWORD: &'static str = "password";
 
 // TODO: use IncorrectDisk / DiskNotAvailable / DiskCorrupted
 
+#[instrument(skip(disks))]
 pub async fn create<I: IntoIterator<Item = P>, P: AsRef<Path>>(
     pool_name: &str,
     disks: I,
@@ -21,6 +23,7 @@ pub async fn create<I: IntoIterator<Item = P>, P: AsRef<Path>>(
     Ok(guid)
 }
 
+#[instrument(skip(datadir))]
 pub async fn load<P: AsRef<Path>>(
     guid: &str,
     pool_name: &str,
@@ -32,6 +35,7 @@ pub async fn load<P: AsRef<Path>>(
     Ok(())
 }
 
+#[instrument(skip(disks))]
 pub async fn create_pool<I: IntoIterator<Item = P>, P: AsRef<Path>>(
     pool_name: &str,
     disks: I,
@@ -56,6 +60,7 @@ pub async fn create_pool<I: IntoIterator<Item = P>, P: AsRef<Path>>(
     .to_owned())
 }
 
+#[instrument]
 pub async fn create_fs(pool_name: &str, password: &str) -> Result<(), Error> {
     tokio::fs::write(PASSWORD_PATH, password)
         .await
@@ -108,6 +113,7 @@ pub async fn create_fs(pool_name: &str, password: &str) -> Result<(), Error> {
     Ok(())
 }
 
+#[instrument]
 pub async fn create_swap(pool_name: &str) -> Result<(), Error> {
     let pagesize = String::from_utf8(
         Command::new("getconf")
@@ -138,6 +144,7 @@ pub async fn create_swap(pool_name: &str) -> Result<(), Error> {
     Ok(())
 }
 
+#[instrument]
 pub async fn use_swap(pool_name: &str) -> Result<(), Error> {
     Command::new("swapon")
         .arg(Path::new("/dev/zvol").join(pool_name).join("swap"))
@@ -146,6 +153,7 @@ pub async fn use_swap(pool_name: &str) -> Result<(), Error> {
     Ok(())
 }
 
+#[instrument]
 pub async fn export(pool_name: &str) -> Result<(), Error> {
     Command::new("zpool")
         .arg("export")
@@ -155,6 +163,7 @@ pub async fn export(pool_name: &str) -> Result<(), Error> {
     Ok(())
 }
 
+#[instrument]
 pub async fn import(guid: &str) -> Result<(), Error> {
     Command::new("zpool")
         .arg("import")
@@ -165,6 +174,7 @@ pub async fn import(guid: &str) -> Result<(), Error> {
     Ok(())
 }
 
+#[instrument(skip(datadir))]
 pub async fn mount<P: AsRef<Path>>(
     pool_name: &str,
     datadir: P,

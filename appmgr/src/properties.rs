@@ -2,6 +2,7 @@ use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
 use serde_json::Value;
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -16,6 +17,7 @@ pub async fn properties(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Res
     Ok(fetch_properties(ctx, id).await?)
 }
 
+#[instrument(skip(ctx))]
 pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, Error> {
     let mut db = ctx.db.handle();
     let manifest: Manifest = crate::db::DatabaseModel::new()

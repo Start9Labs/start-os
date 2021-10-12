@@ -16,11 +16,13 @@ use embassy::{Error, ResultExt};
 use http::StatusCode;
 use rpc_toolkit::rpc_server;
 use tokio::process::Command;
+use tracing::instrument;
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
 }
 
+#[instrument]
 async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     // return Err(eyre!("Test failure").with_kind(embassy::ErrorKind::Unknown));
     let cfg = RpcContextConfig::load(cfg_path).await?;
@@ -127,7 +129,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     tracing::info!("Loaded Docker Images");
     embassy::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
-    // todo!("sync wifi");
+
     embassy::hostname::sync_hostname().await?;
     tracing::info!("Synced Hostname");
 
@@ -187,6 +189,7 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
     }
 }
 
+#[instrument]
 async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
     embassy::sound::BEP.play().await?;
 

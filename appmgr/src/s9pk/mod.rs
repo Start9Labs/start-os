@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
+use tracing::instrument;
 
 use crate::context::SdkContext;
 use crate::s9pk::builder::S9pkPacker;
@@ -19,6 +20,7 @@ pub mod reader;
 pub const SIG_CONTEXT: &'static [u8] = b"s9pk";
 
 #[command(cli_only, display(display_none), blocking)]
+#[instrument(skip(ctx))]
 pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
     use std::fs::File;
     use std::io::Read;
