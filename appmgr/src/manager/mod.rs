@@ -91,6 +91,7 @@ impl ManagerMap {
         if let Some(man) = self.0.write().await.remove(id) {
             if let Err(e) = man.exit().await {
                 tracing::error!("Error shutting down manager: {}", e);
+                tracing::debug!("{:?}", e);
             }
         }
     }
@@ -325,13 +326,15 @@ impl Manager {
                             Err(e) => {
                                 // TODO for code review: Do we return this error or just log it?
                                 tracing::error!("Failed to issue notification: {}", e);
+                                tracing::debug!("{:?}", e);
                             }
                             Ok(()) => {}
                         }
-                        tracing::error!("service crashed: {}: {}", e.0, e.1)
+                        tracing::error!("service crashed: {}: {}", e.0, e.1);
                     }
                     Err(e) => {
-                        tracing::error!("failed to start service: {}", e)
+                        tracing::error!("failed to start service: {}", e);
+                        tracing::debug!("{:?}", e);
                     }
                 }
             }

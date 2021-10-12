@@ -181,10 +181,14 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
         match Command::new("/bin/bash").arg(script).spawn() {
             Ok(mut c) => {
                 if let Err(e) = c.wait().await {
-                    tracing::error!("Error Running {}: {}", script.display(), e)
+                    tracing::error!("Error Running {}: {}", script.display(), e);
+                    tracing::debug!("{:?}", e);
                 }
             }
-            Err(e) => tracing::error!("Error Running {}: {}", script.display(), e),
+            Err(e) => {
+                tracing::error!("Error Running {}: {}", script.display(), e);
+                tracing::debug!("{:?}", e);
+            }
         }
     }
 }

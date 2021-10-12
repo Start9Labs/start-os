@@ -138,7 +138,8 @@ impl Drop for SoundInterface {
         let guard = self.0.take();
         tokio::spawn(async move {
             if let Err(e) = tokio::fs::write(&*UNEXPORT_FILE, "0").await {
-                tracing::error!("Failed to Unexport Sound Interface: {}", e)
+                tracing::error!("Failed to Unexport Sound Interface: {}", e);
+                tracing::debug!("{:?}", e);
             }
             if let Some(mut guard) = guard {
                 if let Some(lock) = guard.take() {
