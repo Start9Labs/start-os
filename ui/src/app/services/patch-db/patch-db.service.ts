@@ -79,7 +79,6 @@ export class PatchDbService {
   stop (): void {
     console.log('stopping patch-db')
     this.patchConnection$.next(PatchConnection.Initializing)
-    this.patchDb.store.reset()
     if (this.patchSub) {
       this.patchSub.unsubscribe()
       this.patchSub = undefined
