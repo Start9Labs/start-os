@@ -84,7 +84,7 @@ impl DependencyError {
             }
         }
     }
-    #[instrument]
+    #[instrument(skip(ctx, db))]
     pub fn try_heal<'a, Db: DbHandle>(
         self,
         ctx: &'a RpcContext,
@@ -643,7 +643,7 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip(db))]
 pub fn break_transitive<'a, Db: DbHandle>(
     db: &'a mut Db,
     id: &'a PackageId,
@@ -711,7 +711,7 @@ pub fn break_transitive<'a, Db: DbHandle>(
     .boxed()
 }
 
-#[instrument]
+#[instrument(skip(ctx, db))]
 pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
@@ -732,7 +732,7 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip(ctx, db))]
 pub fn heal_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
