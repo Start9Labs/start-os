@@ -19,6 +19,7 @@ use serde_json::Value;
 use tokio::task::JoinError;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
+use tracing::instrument;
 
 pub use self::model::DatabaseModel;
 use self::util::WithRevision;
@@ -83,6 +84,7 @@ async fn ws_handler<
                     ))
                     .await
                     .with_kind(crate::ErrorKind::Network)?;
+                return Ok(());
             }
             break;
         }
@@ -218,6 +220,7 @@ pub fn put() -> Result<(), RpcError> {
 }
 
 #[command(display(display_serializable))]
+#[instrument(skip(ctx))]
 pub async fn ui(
     #[context] ctx: RpcContext,
     #[arg] pointer: JsonPointer,
@@ -225,8 +228,11 @@ pub async fn ui(
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
-) -> Result<WithRevision<()>, RpcError> {
-    let ptr = "/ui".parse::<JsonPointer>()? + &pointer;
+) -> Result<WithRevision<()>, Error> {
+    let ptr = "/ui"
+        .parse::<JsonPointer>()
+        .with_kind(crate::ErrorKind::Database)?
+        + &pointer;
     Ok(WithRevision {
         response: (),
         revision: ctx.db.put(&ptr, &value, None).await?,

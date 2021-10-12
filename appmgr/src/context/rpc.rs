@@ -133,6 +133,7 @@ pub struct RpcContextSeed {
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
+    #[instrument(skip(cfg_path))]
     pub async fn init<P: AsRef<Path>>(cfg_path: Option<P>) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
         let log_epoch = Arc::new(AtomicU64::new(rand::random()));
@@ -157,7 +158,7 @@ impl RpcContext {
         .await?;
         let managers = ManagerMap::default();
         let metrics_cache = RwLock::new(None);
-        let notification_manager = NotificationManager::new(secret_store.clone(), db.clone(), 3600);
+        let notification_manager = NotificationManager::new(secret_store.clone(), 3600);
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
@@ -199,12 +200,13 @@ impl RpcContext {
         // TODO: handle apps in bad / transient state
         Ok(res)
     }
+    #[instrument(skip(self))]
     pub async fn package_registry_url(&self) -> Result<Url, Error> {
         Ok(
             if let Some(market) = crate::db::DatabaseModel::new()
                 .server_info()
                 .package_marketplace()
-                .get(&mut self.db.handle(), true)
+                .get(&mut self.db.handle(), false)
                 .await?
                 .to_owned()
             {
@@ -214,11 +216,12 @@ impl RpcContext {
             },
         )
     }
+    #[instrument(skip(self))]
     pub async fn eos_registry_url(&self) -> Result<Url, Error> {
         Ok(crate::db::DatabaseModel::new()
             .server_info()
             .eos_marketplace()
-            .get(&mut self.db.handle(), true)
+            .get(&mut self.db.handle(), false)
             .await?
             .to_owned())
     }

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
@@ -35,6 +36,7 @@ pub struct DockerAction {
     pub shm_size_mb: Option<usize>, // TODO: use postfix sizing? like 1k vs 1m vs 1g
 }
 impl DockerAction {
+    #[instrument(skip(ctx, input))]
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
         ctx: &RpcContext,
@@ -115,6 +117,7 @@ impl DockerAction {
         })
     }
 
+    #[instrument(skip(ctx, input))]
     pub async fn sandboxed<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
         ctx: &RpcContext,

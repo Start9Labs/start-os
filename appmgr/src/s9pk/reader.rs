@@ -7,6 +7,7 @@ use digest::Output;
 use sha2::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf, Take};
+use tracing::instrument;
 
 use super::header::{FileSection, Header, TableOfContents};
 use super::manifest::Manifest;
@@ -66,10 +67,12 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<InstallProgressTracker<R>> {
     }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
+    #[instrument(skip(self))]
     pub async fn validate(&mut self) -> Result<(), Error> {
         self.rdr.seek(SeekFrom::Start(0)).await?;
         Ok(())
     }
+    #[instrument(skip(rdr))]
     pub async fn from_reader(mut rdr: R) -> Result<Self, Error> {
         let header = Header::deserialize(&mut rdr).await?;
 

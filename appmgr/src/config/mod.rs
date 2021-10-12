@@ -11,6 +11,7 @@ use rand::SeedableRng;
 use regex::Regex;
 use rpc_toolkit::command;
 use serde_json::Value;
+use tracing::instrument;
 
 use crate::action::docker::DockerAction;
 use crate::context::RpcContext;
@@ -145,6 +146,7 @@ pub fn config(#[arg] id: PackageId) -> Result<PackageId, Error> {
 }
 
 #[command(display(display_serializable))]
+#[instrument(skip(ctx))]
 pub async fn get(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
@@ -182,6 +184,7 @@ pub async fn get(
     subcommands(self(set_impl(async, context(RpcContext))), set_dry),
     display(display_none)
 )]
+#[instrument]
 pub fn set(
     #[parent_data] id: PackageId,
     #[allow(unused_variables)]
@@ -195,6 +198,7 @@ pub fn set(
 }
 
 #[command(rename = "dry", display(display_serializable))]
+#[instrument(skip(ctx))]
 pub async fn set_dry(
     #[context] ctx: RpcContext,
     #[parent_data] (id, config, timeout, _): (
@@ -233,6 +237,7 @@ pub async fn set_dry(
     Ok(BreakageRes(breakages))
 }
 
+#[instrument(skip(ctx))]
 pub async fn set_impl(
     ctx: RpcContext,
     (id, config, timeout, expire_id): (PackageId, Option<Config>, Option<Duration>, Option<String>),
@@ -269,6 +274,7 @@ pub async fn set_impl(
     })
 }
 
+#[instrument(skip(ctx, db))]
 pub fn configure<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,

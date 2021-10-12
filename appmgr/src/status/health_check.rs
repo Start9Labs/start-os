@@ -3,6 +3,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
+use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
@@ -73,6 +74,7 @@ pub struct HealthCheck {
     pub critical: bool,
 }
 impl HealthCheck {
+    #[instrument(skip(ctx))]
     pub async fn check(
         &self,
         ctx: &RpcContext,

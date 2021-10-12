@@ -4,12 +4,14 @@ use std::path::Path;
 
 use ed25519_dalek::Keypair;
 use rpc_toolkit::command;
+use tracing::instrument;
 
 use crate::context::SdkContext;
 use crate::util::display_none;
 use crate::{Error, ResultExt};
 
 #[command(cli_only, blocking, display(display_none))]
+#[instrument(skip(ctx))]
 pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
     if !ctx.developer_key_path.exists() {
         let parent = ctx.developer_key_path.parent().unwrap_or(Path::new("/"));

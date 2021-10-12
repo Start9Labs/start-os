@@ -6,6 +6,7 @@ use color_eyre::eyre::eyre;
 use futures::{FutureExt, StreamExt};
 use patch_db::{DbHandle, HasModel, Map, ModelData};
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use self::health_check::HealthCheckId;
 use crate::context::RpcContext;
@@ -20,6 +21,7 @@ use crate::Error;
 pub mod health_check;
 
 // Assume docker for now
+#[instrument(skip(ctx))]
 pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
     let pkg_ids = crate::db::DatabaseModel::new()
         .package_data()
@@ -27,6 +29,7 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
         .await?;
     futures::stream::iter(pkg_ids)
         .for_each_concurrent(None, |id| async move {
+            #[instrument(skip(ctx))]
             async fn status(ctx: &RpcContext, id: PackageId) -> Result<(), Error> {
                 let mut db = ctx.db.handle();
                 // TODO: DRAGONS!!
@@ -75,6 +78,7 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
             }
             if let Err(e) = status(ctx, id.clone()).await {
                 tracing::error!("Error syncronizing status of {}: {}", id, e);
+                tracing::debug!("{:?}", e);
             }
         })
         .await;
@@ -82,6 +86,7 @@ pub async fn synchronize_all(ctx: &RpcContext) -> Result<(), Error> {
     Ok(())
 }
 
+#[instrument(skip(ctx))]
 pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     // TODO: DRAGONS!!
@@ -133,6 +138,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
         }
     }
     drop(db);
+    #[instrument(skip(ctx, db))]
     async fn main_status<Db: DbHandle>(
         ctx: RpcContext,
         status_model: StatusModel,
@@ -141,7 +147,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
     ) -> Result<MainStatus, Error> {
         let mut status = status_model.get_mut(&mut db).await?;
 
-        status.main.check(&ctx, &*manifest).await?;
+        status.main.check(&ctx, &mut db, &*manifest).await?;
 
         let res = status.main.clone();
 
@@ -176,6 +182,7 @@ pub async fn check_all(ctx: &RpcContext) -> Result<(), Error> {
         statuses.insert(id, status);
     }
     let statuses = Arc::new(statuses);
+    #[instrument(skip(db))]
     async fn dependency_status<Db: DbHandle>(
         id: &PackageId,
         statuses: Arc<BTreeMap<PackageId, MainStatus>>,
@@ -273,6 +280,7 @@ pub enum MainStatus {
     },
 }
 impl MainStatus {
+    #[instrument(skip(manager))]
     pub async fn synchronize(&mut self, manager: &Manager) -> Result<(), Error> {
         match manager.status() {
             ManagerStatus::Stopped => match self {
@@ -308,7 +316,13 @@ impl MainStatus {
         }
         Ok(())
     }
-    pub async fn check(&mut self, ctx: &RpcContext, manifest: &Manifest) -> Result<(), Error> {
+    #[instrument(skip(ctx, db))]
+    pub async fn check<Db: DbHandle>(
+        &mut self,
+        ctx: &RpcContext,
+        db: &mut Db,
+        manifest: &Manifest,
+    ) -> Result<(), Error> {
         match self {
             MainStatus::Running { started, health } => {
                 *health = manifest
@@ -333,6 +347,7 @@ impl MainStatus {
                                 .unwrap_or_default() =>
                         {
                             ctx.notification_manager.notify(
+                                db,
                                 Some(manifest.id.clone()),
                                 NotificationLevel::Error,
                                 String::from("Critical Health Check Failed"),

@@ -5,6 +5,7 @@ use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
 use sqlx::{Pool, Sqlite};
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::util::{display_none, display_serializable, IoFormat};
@@ -12,7 +13,7 @@ use crate::{Error, ErrorKind};
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "/root/.ssh/authorized_keys";
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct PubKey(
     #[serde(serialize_with = "crate::util::serialize_display")]
     #[serde(deserialize_with = "crate::util::deserialize_from_str")]
@@ -54,6 +55,7 @@ pub fn ssh() -> Result<(), Error> {
 }
 
 #[command(display(display_none))]
+#[instrument(skip(ctx))]
 pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKeyResponse, Error> {
     let pool = &ctx.secret_store;
     // check fingerprint for duplicates
@@ -88,6 +90,7 @@ pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKe
     }
 }
 #[command(display(display_none))]
+#[instrument(skip(ctx))]
 pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> Result<(), Error> {
     let pool = &ctx.secret_store;
     // check if fingerprint is in DB
@@ -137,6 +140,7 @@ fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches<'_>) {
 }
 
 #[command(display(display_all_ssh_keys))]
+#[instrument(skip(ctx))]
 pub async fn list(
     #[context] ctx: RpcContext,
     #[allow(unused_variables)]
@@ -166,6 +170,7 @@ pub async fn list(
         .collect())
 }
 
+#[instrument(skip(pool, dest))]
 pub async fn sync_keys_from_db<P: AsRef<Path>>(pool: &Pool<Sqlite>, dest: P) -> Result<(), Error> {
     let dest = dest.as_ref();
     let keys = sqlx::query!("SELECT openssh_pubkey FROM ssh_keys")

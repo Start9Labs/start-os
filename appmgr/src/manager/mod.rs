@@ -12,6 +12,7 @@ use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::RwLock;
 use torut::onion::TorSecretKeyV3;
+use tracing::instrument;
 
 use crate::action::docker::DockerAction;
 use crate::context::RpcContext;
@@ -24,6 +25,7 @@ use crate::Error;
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
+    #[instrument(skip(self, ctx, db, secrets))]
     pub async fn init<Db: DbHandle, Ex>(
         &self,
         ctx: &RpcContext,
@@ -62,6 +64,7 @@ impl ManagerMap {
         Ok(())
     }
 
+    #[instrument(skip(self, ctx))]
     pub async fn add(
         &self,
         ctx: RpcContext,
@@ -82,6 +85,7 @@ impl ManagerMap {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn remove(&self, id: &(PackageId, Version)) {
         if let Some(man) = self.0.write().await.remove(id) {
             if let Err(e) = man.exit().await {
@@ -90,6 +94,7 @@ impl ManagerMap {
         }
     }
 
+    #[instrument(skip(self))]
     pub async fn empty(&self) -> Result<(), Error> {
         let res = futures::future::join_all(
             std::mem::take(&mut *self.0.write().await)
@@ -104,6 +109,7 @@ impl ManagerMap {
         })
     }
 
+    #[instrument(skip(self))]
     pub async fn get(&self, id: &(PackageId, Version)) -> Option<Arc<Manager>> {
         self.0.read().await.get(id).cloned()
     }
@@ -136,6 +142,7 @@ pub enum OnStop {
     Exit,
 }
 
+#[instrument(skip(state))]
 async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, String)>, Error> {
     let rt_state = state.clone();
     let mut runtime = tokio::spawn(async move {
@@ -236,6 +243,7 @@ async fn run_main(state: &Arc<ManagerSharedState>) -> Result<Result<(), (i32, St
 }
 
 impl Manager {
+    #[instrument(skip(ctx))]
     async fn create(
         ctx: RpcContext,
         manifest: Manifest,
@@ -302,6 +310,7 @@ impl Manager {
                     Ok(Err(e)) => {
                         let res = thread_shared.ctx.notification_manager
                             .notify(
+                                &mut thread_shared.ctx.db.handle(),
                                 Some(thread_shared.manifest.id.clone()),
                                 NotificationLevel::Warning,
                                 String::from("Service Crashed"),
@@ -339,6 +348,7 @@ impl Manager {
         }
     }
 
+    #[instrument(skip(self))]
     pub async fn stop(&self) -> Result<(), Error> {
         self.shared.on_stop.send(OnStop::Sleep).map_err(|_| {
             Error::new(
@@ -371,6 +381,7 @@ impl Manager {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn start(&self) -> Result<(), Error> {
         self.shared.on_stop.send(OnStop::Restart).map_err(|_| {
             Error::new(
@@ -385,6 +396,7 @@ impl Manager {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn pause(&self) -> Result<(), Error> {
         self.shared
             .ctx
@@ -397,6 +409,7 @@ impl Manager {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn resume(&self) -> Result<(), Error> {
         self.shared
             .ctx
@@ -410,6 +423,7 @@ impl Manager {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     async fn exit(&self) -> Result<(), Error> {
         let _ = self.shared.on_stop.send(OnStop::Exit);
         match self
