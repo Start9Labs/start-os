@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio_stream::wrappers::LinesStream;
+use tracing::instrument;
 
 use crate::action::docker::DockerAction;
 use crate::error::ResultExt;
@@ -59,6 +60,7 @@ impl JournalctlEntry {
     }
 }
 
+#[derive(Debug)]
 pub enum LogSource {
     Service(&'static str),
     Container(PackageId),
@@ -86,6 +88,7 @@ pub async fn logs(
     .await?)
 }
 
+#[instrument]
 pub async fn fetch_logs(
     id: LogSource,
     limit: Option<usize>,

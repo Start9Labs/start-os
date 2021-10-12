@@ -5,6 +5,7 @@ use std::time::Duration;
 use divrem::DivRem;
 use proptest_derive::Arbitrary;
 use tokio::sync::{Mutex, MutexGuard};
+use tracing::instrument;
 
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -24,6 +25,7 @@ pub const SOUND_LOCK_FILE: &'static str = "/etc/embassy/sound.lock";
 
 struct SoundInterface(Option<MutexGuard<'static, Option<fd_lock_rs::FdLock<tokio::fs::File>>>>);
 impl SoundInterface {
+    #[instrument]
     pub async fn lease() -> Result<Self, Error> {
         let mut guard = SOUND_MUTEX.lock().await;
         let sound_file = tokio::fs::File::create(SOUND_LOCK_FILE)
@@ -54,6 +56,7 @@ impl SoundInterface {
             .with_ctx(|_| (ErrorKind::SoundError, EXPORT_FILE.to_string_lossy()))?;
         Ok(SoundInterface(Some(guard)))
     }
+    #[instrument(skip(self))]
     pub async fn play(&mut self, note: &Note) -> Result<(), Error> {
         let curr_period = tokio::fs::read_to_string(&*PERIOD_FILE)
             .await
@@ -78,6 +81,7 @@ impl SoundInterface {
             .with_ctx(|_| (ErrorKind::SoundError, SWITCH_FILE.to_string_lossy()))?;
         Ok(())
     }
+    #[instrument(skip(self))]
     pub async fn play_for_time_slice(
         &mut self,
         tempo_qpm: u16,
@@ -97,6 +101,7 @@ impl SoundInterface {
             Err(e)
         })
     }
+    #[instrument(skip(self))]
     pub async fn stop(&mut self) -> Result<(), Error> {
         tokio::fs::write(&*SWITCH_FILE, "0")
             .await
@@ -112,6 +117,7 @@ impl<'a, T: 'a> Song<T>
 where
     &'a T: IntoIterator<Item = &'a (Option<Note>, TimeSlice)>,
 {
+    #[instrument(skip(self))]
     pub async fn play(&'a self) -> Result<(), Error> {
         #[cfg(feature = "sound")]
         {
@@ -213,7 +219,7 @@ impl Semitone {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Arbitrary)]
 pub struct Interval(isize);
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum TimeSlice {
     Sixteenth,
     Eighth,

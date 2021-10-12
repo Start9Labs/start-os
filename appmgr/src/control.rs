@@ -4,6 +4,7 @@ use chrono::Utc;
 use color_eyre::eyre::eyre;
 use patch_db::DbHandle;
 use rpc_toolkit::command;
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;
@@ -17,6 +18,7 @@ use crate::util::{display_none, display_serializable};
 use crate::{Error, ResultExt};
 
 #[command(display(display_none))]
+#[instrument(skip(ctx))]
 pub async fn start(
     #[context] ctx: RpcContext,
     #[arg] id: PackageId,
@@ -66,6 +68,7 @@ pub async fn start(
     })
 }
 
+#[instrument(skip(db))]
 async fn stop_common<Db: DbHandle>(
     db: &mut Db,
     id: &PackageId,
@@ -101,6 +104,7 @@ pub fn stop(#[arg] id: PackageId) -> Result<PackageId, Error> {
 }
 
 #[command(rename = "dry", display(display_serializable))]
+#[instrument(skip(ctx))]
 pub async fn stop_dry(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
@@ -114,6 +118,7 @@ pub async fn stop_dry(
     Ok(BreakageRes(breakages))
 }
 
+#[instrument(skip(ctx))]
 pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;

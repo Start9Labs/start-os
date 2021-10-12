@@ -7,6 +7,7 @@ use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use rpc_toolkit::Context;
 use serde::Deserialize;
+use tracing::instrument;
 
 use crate::{Error, ResultExt};
 
@@ -25,6 +26,7 @@ pub struct SdkContextSeed {
 pub struct SdkContext(Arc<SdkContextSeed>);
 impl SdkContext {
     /// BLOCKING
+    #[instrument(skip(matches))]
     pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
         let cfg_path = Path::new(matches.value_of("config").unwrap_or(crate::CONFIG_PATH));
         let base = if cfg_path.exists() {
@@ -46,6 +48,7 @@ impl SdkContext {
         })))
     }
     /// BLOCKING
+    #[instrument]
     pub fn developer_key(&self) -> Result<ed25519_dalek::Keypair, Error> {
         if !self.developer_key_path.exists() {
             return Err(Error::new(eyre!("Developer Key does not exist! Please run `embassy-sdk init` before running this command."), crate::ErrorKind::Uninitialized));

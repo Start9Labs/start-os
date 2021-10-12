@@ -4,6 +4,7 @@ use color_eyre::eyre::eyre;
 use nix::sys::signal::Signal;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use super::{Config, ConfigSpec};
 use crate::action::ActionImplementation;
@@ -28,6 +29,7 @@ pub struct ConfigActions {
     pub set: ActionImplementation,
 }
 impl ConfigActions {
+    #[instrument(skip(ctx))]
     pub async fn get(
         &self,
         ctx: &RpcContext,
@@ -51,6 +53,7 @@ impl ConfigActions {
             })
     }
 
+    #[instrument(skip(ctx))]
     pub async fn set(
         &self,
         ctx: &RpcContext,

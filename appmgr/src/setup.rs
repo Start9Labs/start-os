@@ -13,6 +13,7 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use torut::onion::TorSecretKeyV3;
+use tracing::instrument;
 
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
@@ -101,11 +102,13 @@ pub async fn execute(
         }
         Err(e) => {
             tracing::error!("Error Setting Up Embassy: {}", e);
+            tracing::debug!("{:?}", e);
             Err(e)
         }
     }
 }
 
+#[instrument(skip(ctx))]
 pub async fn complete_setup(ctx: SetupContext, guid: String) -> Result<(), Error> {
     let mut guid_file = File::create("/embassy-os/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
@@ -114,6 +117,7 @@ pub async fn complete_setup(ctx: SetupContext, guid: String) -> Result<(), Error
     Ok(())
 }
 
+#[instrument(skip(ctx))]
 pub async fn execute_inner(
     ctx: SetupContext,
     embassy_logicalname: PathBuf,
@@ -189,6 +193,7 @@ pub async fn execute_inner(
     Ok(tor_key.public().get_onion_address().to_string())
 }
 
+#[instrument(skip(ctx))]
 async fn recover(
     ctx: SetupContext,
     guid: String,
@@ -220,7 +225,7 @@ fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
 ) -> BoxFuture<'a, Result<(), std::io::Error>> {
     async move {
         tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(path.as_ref()).await?)
-            .try_for_each_concurrent(Some(8), |e| async move {
+            .try_for_each(|e| async move {
                 let m = e.metadata().await?;
                 if m.is_file() {
                     res.fetch_add(m.len(), Ordering::Relaxed);
@@ -243,7 +248,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
         let dst_path = dst.as_ref();
         tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(src.as_ref()).await?)
             .map_err(|e| Error::new(e, crate::ErrorKind::Filesystem))
-            .try_for_each_concurrent(Some(8), |e| async move {
+            .try_for_each(|e| async move {
                 let m = e.metadata().await?;
                 let src_path = e.path();
                 let dst_path = dst_path.join(e.file_name());
@@ -305,6 +310,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
     .boxed()
 }
 
+#[instrument(skip(ctx))]
 async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), Error> {
     let tmp_mountpoint = Path::new("/mnt/recovery");
     mount(
@@ -430,6 +436,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), 
         .with_kind(crate::ErrorKind::Unknown)?
 }
 
+#[instrument(skip(ctx))]
 async fn recover_v3(
     ctx: &SetupContext,
     recovery_drive: DiskInfo,

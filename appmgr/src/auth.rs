@@ -12,6 +12,7 @@ use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{get_id, hash_token};
@@ -42,6 +43,7 @@ fn gen_pwd() {
     )
 }
 
+#[instrument]
 async fn cli_login(
     ctx: CliContext,
     password: Option<String>,
@@ -70,6 +72,7 @@ async fn cli_login(
     display(display_none),
     metadata(authenticated = false)
 )]
+#[instrument(skip(ctx, password))]
 pub async fn login(
     #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
@@ -124,6 +127,7 @@ pub async fn login(
 }
 
 #[command(display(display_none), metadata(authenticated = false))]
+#[instrument(skip(ctx))]
 pub async fn logout(
     #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
@@ -199,6 +203,7 @@ fn display_sessions(arg: SessionList, matches: &ArgMatches<'_>) {
 }
 
 #[command(display(display_sessions))]
+#[instrument(skip(ctx))]
 pub async fn list(
     #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
@@ -231,10 +236,11 @@ pub async fn list(
 }
 
 fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<String>, RpcError> {
-    Ok(arg.split(",").map(|s| s.to_owned()).collect())
+    Ok(arg.split(",").map(|s| s.trim().to_owned()).collect())
 }
 
 #[command(display(display_none))]
+#[instrument(skip(ctx))]
 pub async fn kill(
     #[context] ctx: RpcContext,
     #[arg(parse(parse_comma_separated))] ids: Vec<String>,
