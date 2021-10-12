@@ -1,4 +1,4 @@
-import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core'
+import { NgModule, CUSTOM_ELEMENTS_SCHEMA, ErrorHandler } from '@angular/core'
 import { BrowserModule } from '@angular/platform-browser'
 import { RouteReuseStrategy } from '@angular/router'
 import { IonicModule, IonicRouteStrategy, IonNav } from '@ionic/angular'
@@ -21,6 +21,7 @@ import { SharingModule } from './modules/sharing.module'
 import { FormBuilder } from '@angular/forms'
 import { GenericInputComponentModule } from './modals/generic-input/generic-input.component.module'
 import { AuthService } from './services/auth.service'
+import { GlobalErrorHandler } from './services/global-error-handler.service'
 
 @NgModule({
   declarations: [AppComponent],
@@ -57,6 +58,7 @@ import { AuthService } from './services/auth.service'
       useFactory: PatchDbServiceFactory,
       deps: [ConfigService, ApiService, LocalStorageBootstrap, AuthService],
     },
+    { provide: ErrorHandler, useClass: GlobalErrorHandler},
   ],
   bootstrap: [AppComponent],
   schemas: [ CUSTOM_ELEMENTS_SCHEMA ],
