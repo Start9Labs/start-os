@@ -34,6 +34,7 @@ impl Shutdown {
                     .await
                 {
                     tracing::error!("Error Stopping Journald: {}", e);
+                    tracing::debug!("{:?}", e);
                 }
                 if let Err(e) = Command::new("systemctl")
                     .arg("stop")
@@ -42,12 +43,15 @@ impl Shutdown {
                     .await
                 {
                     tracing::error!("Error Stopping Docker: {}", e);
+                    tracing::debug!("{:?}", e);
                 }
                 if let Err(e) = export(&*self.zfs_pool).await {
                     tracing::error!("Error Exporting ZFS Pool: {}", e);
+                    tracing::debug!("{:?}", e);
                 }
                 if let Err(e) = MARIO_DEATH.play().await {
                     tracing::error!("Error Playing Shutdown Song: {}", e);
+                    tracing::debug!("{:?}", e);
                 }
             });
         if self.restart {

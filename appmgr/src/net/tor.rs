@@ -389,6 +389,7 @@ pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
                     }
                     Err(e) => {
                         tracing::error!("Unable to restart tor: {}", e);
+                        tracing::debug!("{:?}", e);
                     }
                 }
             }

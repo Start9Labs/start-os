@@ -157,7 +157,10 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
         tokio::task::spawn(async move {
             match ws_handler(ctx, ws_fut).await {
                 Ok(()) => (),
-                Err(e) => tracing::error!("WebSocket Closed: {}", e),
+                Err(e) => {
+                    tracing::error!("WebSocket Closed: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
             }
         });
     }

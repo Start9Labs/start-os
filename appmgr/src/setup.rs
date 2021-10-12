@@ -183,6 +183,7 @@ pub async fn execute_inner(
             if let Err(e) = recover(ctx.clone(), guid, recovery_drive, recovery_password).await {
                 BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
                 tracing::error!("Error recovering drive!: {}", e);
+                tracing::debug!("{:?}", e);
                 *ctx.recovery_status.write().await = Some(Err(e.into()));
             }
         });
