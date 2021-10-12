@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use bollard::image::ListImagesOptions;
 use patch_db::{DbHandle, PatchDbHandle};
+use tracing::instrument;
 
 use super::PKG_DOCKER_DIR;
 use crate::context::RpcContext;
@@ -10,6 +11,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::Error;
 
+#[instrument(skip(ctx, db, deps))]
 pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a PackageId>>(
     ctx: &RpcContext,
     db: &mut Db,
@@ -67,6 +69,7 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
     Ok(())
 }
 
+#[instrument(skip(ctx))]
 pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Result<(), Error> {
     ctx.managers.remove(&(id.clone(), version.clone())).await;
     // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
@@ -103,6 +106,7 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
     Ok(())
 }
 
+#[instrument(skip(ctx, db))]
 pub async fn cleanup_failed<Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
@@ -166,6 +170,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
     Ok(())
 }
 
+#[instrument(skip(db, current_dependencies))]
 pub async fn remove_current_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a PackageId>>(
     db: &mut Db,
     id: &PackageId,
@@ -193,6 +198,7 @@ pub async fn remove_current_dependents<'a, Db: DbHandle, I: IntoIterator<Item = 
     Ok(())
 }
 
+#[instrument(skip(ctx, db))]
 pub async fn uninstall(
     ctx: &RpcContext,
     db: &mut PatchDbHandle,

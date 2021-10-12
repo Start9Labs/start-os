@@ -14,6 +14,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
+use tracing::instrument;
 
 use super::interface::{InterfaceId, TorConfig};
 use crate::context::RpcContext;
@@ -56,6 +57,7 @@ pub async fn list_services(
     ctx.net_controller.tor.list_services().await
 }
 
+#[instrument(skip(secrets))]
 pub async fn os_key<Ex>(secrets: &mut Ex) -> Result<TorSecretKeyV3, Error>
 where
     for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
@@ -139,6 +141,7 @@ pub struct TorControllerInner {
     services: BTreeMap<(PackageId, InterfaceId), (TorSecretKeyV3, TorConfig, Ipv4Addr)>,
 }
 impl TorControllerInner {
+    #[instrument(skip(self, interfaces))]
     async fn add<'a, I: IntoIterator<Item = (InterfaceId, TorConfig, TorSecretKeyV3)>>(
         &mut self,
         pkg_id: &PackageId,
@@ -180,6 +183,7 @@ impl TorControllerInner {
         Ok(())
     }
 
+    #[instrument(skip(self, interfaces))]
     async fn remove<I: IntoIterator<Item = InterfaceId>>(
         &mut self,
         pkg_id: &PackageId,
@@ -203,6 +207,7 @@ impl TorControllerInner {
         Ok(())
     }
 
+    #[instrument]
     async fn init(
         embassyd_addr: SocketAddr,
         embassyd_tor_key: TorSecretKeyV3,
@@ -232,6 +237,7 @@ impl TorControllerInner {
         Ok(controller)
     }
 
+    #[instrument(skip(self))]
     async fn add_embassyd_onion(&mut self) -> Result<(), Error> {
         tracing::info!(
             "Registering Main Tor Service: {}",
@@ -256,6 +262,7 @@ impl TorControllerInner {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     async fn replace(&mut self) -> Result<bool, Error> {
         let connection = self.connection.take();
         let uptime = if let Some(mut c) = connection {
@@ -332,6 +339,7 @@ impl TorControllerInner {
         self.embassyd_tor_key.public().get_onion_address()
     }
 
+    #[instrument(skip(self))]
     async fn list_services(&mut self) -> Result<Vec<OnionAddressV3>, Error> {
         self.connection
             .as_mut()

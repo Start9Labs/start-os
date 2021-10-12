@@ -11,6 +11,7 @@ use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
+use tracing::instrument;
 
 use crate::{Error, ErrorKind};
 
@@ -30,12 +31,14 @@ impl SslStore {
     fn new(db: SqlitePool) -> Result<Self, Error> {
         Ok(SslStore { secret_store: db })
     }
+    #[instrument(skip(self))]
     async fn save_root_certificate(&self, key: &PKey<Private>, cert: &X509) -> Result<(), Error> {
         let key_str = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
         let cert_str = String::from_utf8(cert.to_pem()?)?;
         let _n = sqlx::query!("INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (0, ?, ?, NULL, datetime('now'), datetime('now'))", key_str, cert_str).execute(&self.secret_store).await?;
         Ok(())
     }
+    #[instrument(skip(self))]
     async fn load_root_certificate(&self) -> Result<Option<(PKey<Private>, X509)>, Error> {
         let m_row =
             sqlx::query!("SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 0;")
@@ -50,6 +53,7 @@ impl SslStore {
             }
         }
     }
+    #[instrument(skip(self))]
     async fn save_intermediate_certificate(
         &self,
         key: &PKey<Private>,
@@ -74,6 +78,7 @@ impl SslStore {
             }
         }
     }
+    #[instrument(skip(self))]
     async fn save_certificate(
         &self,
         key: &PKey<Private>,
@@ -104,6 +109,7 @@ impl SslStore {
             }
         }
     }
+    #[instrument(skip(self))]
     async fn update_certificate(
         &self,
         key: &PKey<Private>,
@@ -133,6 +139,7 @@ lazy_static::lazy_static! {
 }
 
 impl SslManager {
+    #[instrument(skip(db))]
     pub async fn init(db: SqlitePool) -> Result<Self, Error> {
         let store = SslStore::new(db)?;
         let (root_key, root_cert) = match store.load_root_certificate().await? {
@@ -163,6 +170,7 @@ impl SslManager {
         })
     }
 
+    #[instrument(skip(self))]
     pub async fn certificate_for(
         &self,
         dns_base: &str,
@@ -193,17 +201,20 @@ impl SslManager {
     }
 }
 
+#[instrument]
 fn rand_serial() -> Result<Asn1Integer, Error> {
     let mut bn = BigNum::new()?;
     bn.rand(64, MsbOption::MAYBE_ZERO, false)?;
     let asn1 = Asn1Integer::from_bn(&bn)?;
     Ok(asn1)
 }
+#[instrument]
 fn generate_key() -> Result<PKey<Private>, Error> {
     let new_key = EcKey::generate(EC_GROUP.as_ref())?;
     let key = PKey::from_ec_key(new_key)?;
     Ok(key)
 }
+#[instrument]
 fn make_root_cert(root_key: &PKey<Private>) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
@@ -254,6 +265,7 @@ fn make_root_cert(root_key: &PKey<Private>) -> Result<X509, Error> {
     let cert = builder.build();
     Ok(cert)
 }
+#[instrument]
 fn make_int_cert(
     signer: (&PKey<Private>, &X509),
     applicant: &PKey<Private>,
@@ -315,6 +327,7 @@ fn make_int_cert(
     Ok(cert)
 }
 
+#[instrument]
 fn make_leaf_cert(
     signer: (&PKey<Private>, &X509),
     applicant: (&PKey<Private>, &str),

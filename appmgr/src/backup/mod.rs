@@ -2,6 +2,7 @@ use color_eyre::eyre::eyre;
 use patch_db::HasModel;
 use regex::NoExpand;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
@@ -16,6 +17,7 @@ pub struct BackupActions {
     pub restore: ActionImplementation,
 }
 impl BackupActions {
+    #[instrument(skip(ctx))]
     pub async fn create(
         &self,
         ctx: &RpcContext,

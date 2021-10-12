@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use rpc_toolkit::command;
 use sqlx::SqlitePool;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
+use tracing::instrument;
 
 use self::interface::{Interface, InterfaceId};
 #[cfg(feature = "avahi")]
@@ -35,6 +36,7 @@ pub struct NetController {
     pub nginx: NginxController,
 }
 impl NetController {
+    #[instrument(skip(db))]
     pub async fn init(
         embassyd_addr: SocketAddr,
         embassyd_tor_key: TorSecretKeyV3,
@@ -49,6 +51,7 @@ impl NetController {
         })
     }
 
+    #[instrument(skip(self, interfaces))]
     pub async fn add<
         'a,
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
@@ -105,6 +108,7 @@ impl NetController {
         Ok(())
     }
 
+    #[instrument(skip(self, interfaces))]
     pub async fn remove<I: IntoIterator<Item = InterfaceId> + Clone>(
         &self,
         pkg_id: &PackageId,

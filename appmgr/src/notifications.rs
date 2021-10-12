@@ -4,10 +4,11 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
-use patch_db::PatchDb;
+use patch_db::{DbHandle, PatchDb};
 use rpc_toolkit::command;
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;
@@ -21,6 +22,7 @@ pub async fn notification() -> Result<(), Error> {
 }
 
 #[command(display(display_serializable))]
+#[instrument(skip(ctx))]
 pub async fn list(
     #[context] ctx: RpcContext,
     #[arg] before: Option<u32>,
@@ -142,11 +144,18 @@ pub async fn create(
     #[arg] message: String,
 ) -> Result<(), Error> {
     ctx.notification_manager
-        .notify(package, level, title, message, NotificationSubtype::General)
+        .notify(
+            &mut ctx.db.handle(),
+            package,
+            level,
+            title,
+            message,
+            NotificationSubtype::General,
+        )
         .await
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum NotificationLevel {
     Success,
@@ -190,7 +199,7 @@ impl fmt::Display for InvalidNotificationLevel {
         write!(f, "Invalid Notification Level: {}", self.0)
     }
 }
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Notification {
     id: u32,
@@ -203,6 +212,7 @@ pub struct Notification {
     data: serde_json::Value,
 }
 
+#[derive(Debug)]
 pub enum NotificationSubtype {
     General,
     BackupReport {
@@ -254,21 +264,21 @@ impl NotificationSubtype {
 
 pub struct NotificationManager {
     sqlite: SqlitePool,
-    patchdb: PatchDb,
     cache: Mutex<HashMap<(Option<PackageId>, NotificationLevel, String), i64>>,
     debounce_interval: u32,
 }
 impl NotificationManager {
-    pub fn new(sqlite: SqlitePool, patchdb: PatchDb, debounce_interval: u32) -> Self {
+    pub fn new(sqlite: SqlitePool, debounce_interval: u32) -> Self {
         NotificationManager {
             sqlite,
-            patchdb,
             cache: Mutex::new(HashMap::new()),
             debounce_interval,
         }
     }
-    pub async fn notify(
+    #[instrument(skip(self, db))]
+    pub async fn notify<Db: DbHandle>(
         &self,
+        db: &mut Db,
         package_id: Option<PackageId>,
         level: NotificationLevel,
         title: String,
@@ -278,11 +288,10 @@ impl NotificationManager {
         if !self.should_notify(&package_id, &level, &title).await {
             return Ok(());
         }
-        let mut handle = self.patchdb.handle();
         let mut count = crate::db::DatabaseModel::new()
             .server_info()
             .unread_notification_count()
-            .get_mut(&mut handle)
+            .get_mut(db)
             .await?;
         let sql_package_id = package_id.map::<String, _>(|p| p.into());
         let sql_code = subtype.code();
@@ -298,7 +307,7 @@ impl NotificationManager {
         sql_data
     ).execute(&self.sqlite).await?;
         *count += 1;
-        count.save(&mut handle).await?;
+        count.save(db).await?;
         Ok(())
     }
     async fn gc(&self) {

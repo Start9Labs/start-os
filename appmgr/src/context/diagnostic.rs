@@ -8,6 +8,7 @@ use rpc_toolkit::Context;
 use serde::Deserialize;
 use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
+use tracing::instrument;
 use url::Host;
 
 use crate::shutdown::Shutdown;
@@ -22,6 +23,7 @@ pub struct DiagnosticContextConfig {
     pub zfs_pool_name: Option<String>,
 }
 impl DiagnosticContextConfig {
+    #[instrument(skip(path))]
     pub async fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
         let cfg_path = path
             .as_ref()
@@ -54,6 +56,7 @@ pub struct DiagnosticContextSeed {
 #[derive(Clone)]
 pub struct DiagnosticContext(Arc<DiagnosticContextSeed>);
 impl DiagnosticContext {
+    #[instrument(skip(path))]
     pub async fn init<P: AsRef<Path>>(path: Option<P>, error: Error) -> Result<Self, Error> {
         let cfg = DiagnosticContextConfig::load(path).await?;
 

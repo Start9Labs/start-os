@@ -16,6 +16,7 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
 use tokio_stream::wrappers::ReadDirStream;
+use tracing::instrument;
 
 use self::cleanup::cleanup_failed;
 use crate::context::RpcContext;
@@ -47,6 +48,7 @@ pub const PKG_DOCKER_DIR: &'static str = "package-data/docker";
 pub const PKG_WASM_DIR: &'static str = "package-data/wasm";
 
 #[command(display(display_none))]
+#[instrument(skip(ctx))]
 pub async fn install(
     #[context] ctx: RpcContext,
     #[arg] id: String,
@@ -132,6 +134,7 @@ pub async fn uninstall(#[arg] id: PackageId) -> Result<PackageId, Error> {
 }
 
 #[command(rename = "dry", display(display_serializable))]
+#[instrument(skip(ctx))]
 pub async fn uninstall_dry(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
@@ -145,6 +148,7 @@ pub async fn uninstall_dry(
     Ok(BreakageRes(breakages))
 }
 
+#[instrument(skip(ctx))]
 pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
@@ -178,6 +182,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
     tokio::spawn(async move {
         if let Err(e) = cleanup::uninstall(&ctx, &mut ctx.db.handle(), &installed).await {
             tracing::error!("Uninstall of {} Failed: {}", id, e);
+            tracing::debug!("{:?}", e);
         }
     });
 
@@ -187,6 +192,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
     })
 }
 
+#[instrument(skip(ctx))]
 pub async fn download_install_s9pk(
     ctx: &RpcContext,
     temp_manifest: &Manifest,
@@ -286,6 +292,7 @@ pub async fn download_install_s9pk(
     }
 }
 
+#[instrument(skip(ctx, rdr))]
 pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     ctx: &RpcContext,
     pkg_id: &PackageId,
@@ -717,6 +724,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     Ok(())
 }
 
+#[instrument(skip(ctx, tx))]
 async fn handle_recovered_package(
     recovered: Option<crate::db::model::RecoveredPackageInfo>,
     manifest: Manifest,
@@ -755,6 +763,7 @@ async fn handle_recovered_package(
     })
 }
 
+#[instrument(skip(datadir))]
 pub async fn load_images<P: AsRef<Path>>(datadir: P) -> Result<(), Error> {
     let docker_dir = datadir.as_ref().join(PKG_DOCKER_DIR);
     if tokio::fs::metadata(&docker_dir).await.is_ok() {
