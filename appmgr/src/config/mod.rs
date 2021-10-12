@@ -6,7 +6,7 @@ use color_eyre::eyre::eyre;
 use futures::future::{BoxFuture, FutureExt};
 use indexmap::IndexSet;
 use itertools::Itertools;
-use patch_db::DbHandle;
+use patch_db::{DbHandle, LockType};
 use rand::SeedableRng;
 use regex::Regex;
 use rpc_toolkit::command;
@@ -288,7 +288,7 @@ pub fn configure<'a, Db: DbHandle>(
     async move {
         crate::db::DatabaseModel::new()
             .package_data()
-            .lock(db, true)
+            .lock(db, LockType::Write)
             .await;
         // fetch data from db
         let pkg_model = crate::db::DatabaseModel::new()

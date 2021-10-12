@@ -9,7 +9,7 @@ use color_eyre::eyre::{self, eyre};
 use emver::VersionRange;
 use futures::TryStreamExt;
 use http::StatusCode;
-use patch_db::DbHandle;
+use patch_db::{DbHandle, LockType};
 use reqwest::Response;
 use rpc_toolkit::command;
 use tokio::fs::{File, OpenOptions};
@@ -532,7 +532,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let mut sql_tx = ctx.secret_store.begin().await?;
     crate::db::DatabaseModel::new()
         .package_data()
-        .lock(&mut tx, true)
+        .lock(&mut tx, LockType::Write)
         .await;
 
     tracing::info!("Install {}@{}: Creating volumes", pkg_id, version);
