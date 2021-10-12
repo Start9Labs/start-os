@@ -68,6 +68,7 @@ pub async fn add(
         match add_procedure(wpa_supplicant, &ssid, &password, priority, connect).await {
             Err(e) => {
                 tracing::error!("Failed to add new WiFi network '{}': {}", ssid, e);
+                tracing::debug!("{:?}", e);
             }
             Ok(_) => {}
         }

@@ -28,6 +28,7 @@ fn status_fn(_: i32) -> StatusCode {
 
 fn err_to_500(e: Error) -> Response<Body> {
     tracing::error!("{}", e);
+    tracing::debug!("{:?}", e);
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(Body::empty())
