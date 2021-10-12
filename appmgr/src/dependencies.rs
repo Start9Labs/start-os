@@ -5,7 +5,7 @@ use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use patch_db::{DbHandle, HasModel, Map, MapModel};
+use patch_db::{DbHandle, HasModel, Map, MapModel, PatchDbHandle};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
@@ -463,7 +463,7 @@ pub async fn configure_impl(
     (pkg_id, dep_id): (PackageId, PackageId),
 ) -> Result<(), Error> {
     let mut db = ctx.db.handle();
-    let new_config = configure_dry(ctx.clone(), (pkg_id, dep_id.clone())).await?;
+    let new_config = configure_logic(ctx.clone(), &mut db, (pkg_id, dep_id.clone())).await?;
     Ok(crate::config::configure(
         &ctx,
         &mut db,
@@ -484,26 +484,34 @@ pub async fn configure_dry(
     #[parent_data] (pkg_id, dep_id): (PackageId, PackageId),
 ) -> Result<Config, Error> {
     let mut db = ctx.db.handle();
+    configure_logic(ctx, &mut db, (pkg_id, dep_id)).await
+}
+
+pub async fn configure_logic(
+    ctx: RpcContext,
+    db: &mut PatchDbHandle,
+    (pkg_id, dep_id): (PackageId, PackageId),
+) -> Result<Config, Error> {
     let pkg_manifest = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&pkg_id)
         .and_then(|p| p.installed())
-        .expect(&mut db)
+        .expect(db)
         .await
         .with_kind(crate::ErrorKind::NotFound)?
         .manifest()
-        .get(&mut db, true)
+        .get(db, true)
         .await?
         .to_owned();
     let dep_manifest = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&dep_id)
         .and_then(|p| p.installed())
-        .expect(&mut db)
+        .expect(db)
         .await
         .with_kind(crate::ErrorKind::NotFound)?
         .manifest()
-        .get(&mut db, true)
+        .get(db, true)
         .await?
         .to_owned();
     let dep = pkg_manifest
