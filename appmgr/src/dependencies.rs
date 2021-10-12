@@ -84,6 +84,7 @@ impl DependencyError {
             }
         }
     }
+    #[instrument]
     pub fn try_heal<'a, Db: DbHandle>(
         self,
         ctx: &'a RpcContext,
@@ -539,6 +540,7 @@ pub async fn configure_dry(
         .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?)
 }
 
+#[instrument(skip(db, current_dependencies))]
 pub async fn update_current_dependents<
     'a,
     Db: DbHandle,
@@ -641,6 +643,7 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
     Ok(())
 }
 
+#[instrument]
 pub fn break_transitive<'a, Db: DbHandle>(
     db: &'a mut Db,
     id: &'a PackageId,
@@ -708,6 +711,7 @@ pub fn break_transitive<'a, Db: DbHandle>(
     .boxed()
 }
 
+#[instrument]
 pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
@@ -728,6 +732,7 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     Ok(())
 }
 
+#[instrument]
 pub fn heal_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
