@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core'
+import { ErrorHandler, NgModule } from '@angular/core'
 import { BrowserModule } from '@angular/platform-browser'
 import { RouteReuseStrategy } from '@angular/router'
 import { HttpClientModule } from '@angular/common/http'
@@ -9,6 +9,8 @@ import { HttpService } from './services/api/http.service'
 import { IonicModule, IonicRouteStrategy, iosTransitionAnimation } from '@ionic/angular'
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
+import { GlobalErrorHandler } from './services/global-error-handler.service'
+
 const useMocks = require('../../config.json').useMocks as boolean
 
 @NgModule({
@@ -35,6 +37,7 @@ const useMocks = require('../../config.json').useMocks as boolean
       },
       deps: [HttpService],
     },
+    { provide: ErrorHandler, useClass: GlobalErrorHandler},
   ],
   bootstrap: [AppComponent],
 })
