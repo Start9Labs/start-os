@@ -43,7 +43,7 @@ fn gen_pwd() {
     )
 }
 
-#[instrument]
+#[instrument(skip(ctx, password))]
 async fn cli_login(
     ctx: CliContext,
     password: Option<String>,
