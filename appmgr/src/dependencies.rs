@@ -174,7 +174,7 @@ impl DependencyError {
                         Config::default()
                     };
                     if let Some(cfg_req) = &info.config {
-                        if let Err(e) = cfg_req
+                        if let Err(error) = cfg_req
                             .check(
                                 ctx,
                                 id,
@@ -182,15 +182,9 @@ impl DependencyError {
                                 &dependent_manifest.volumes,
                                 &dependency_config,
                             )
-                            .await
+                            .await?
                         {
-                            if e.kind == crate::ErrorKind::ConfigRulesViolation {
-                                return Ok(Some(DependencyError::ConfigUnsatisfied {
-                                    error: format!("{}", e),
-                                }));
-                            } else {
-                                return Err(e);
-                            }
+                            return Ok(Some(DependencyError::ConfigUnsatisfied { error }));
                         }
                     }
                     DependencyError::NotRunning
