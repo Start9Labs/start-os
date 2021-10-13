@@ -50,7 +50,7 @@
     <!-- ** installed ** -->
     <ng-container *ngIf="pkg.state === PackageState.Installed">
       <!-- ** !restoring/backing-up ** -->
-      <ng-container *ngIf="!([PS.BackingUp, PS.Restoring] | includes : statuses.primary); else maintenance">
+      <ng-container *ngIf="!([PS.BackingUp, PS.Restoring] | includes : statuses.primary)">
         <!-- ** health checks ** -->
         <ng-container *ngIf="!(healthChecks | empty)">
           <ion-item-divider>Health Checks</ion-item-divider>
@@ -117,10 +117,6 @@
           </ion-label>
         </ion-item>
       </ng-container>
-      <!-- @TODO better maintenance messaging -->
-      <!-- <ng-template #maintenance>
-        Service is undergoing maintenance.
-      </ng-template> -->
     </ng-container>
   </ion-item-group>
 
