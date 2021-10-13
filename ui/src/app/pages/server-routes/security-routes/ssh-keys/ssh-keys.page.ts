@@ -46,7 +46,8 @@ export class SSHKeysPage {
         title: name,
         message: description,
         label: name,
-        submitFn: async (pk: string) => await this.add(pk),
+        loadingText: 'Saving',
+        submitFn: (pk: string) => this.add(pk),
       },
       cssClass: 'alertlike-modal',
     })
@@ -54,21 +55,8 @@ export class SSHKeysPage {
   }
 
   async add (pubkey: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      message: 'Saving...',
-      cssClass: 'loader',
-    })
-    await loader.present()
-
-    try {
-      const key = await this.embassyApi.addSshKey({ key: pubkey })
-      this.sshKeys.push(key)
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+    const key = await this.embassyApi.addSshKey({ key: pubkey })
+    this.sshKeys.push(key)
   }
 
   async presentAlertDelete (i: number) {

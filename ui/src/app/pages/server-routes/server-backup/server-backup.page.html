@@ -38,7 +38,16 @@
     <!-- loaded -->
     <ng-container *ngIf="!loading">
 
-      <ion-item-group>
+      <!-- error -->
+      <ion-item *ngIf="loadingError">
+        <ion-label>
+          <ion-text color="danger">
+            {{ loadingError }}
+          </ion-text>
+        </ion-label>
+      </ion-item>
+
+      <ion-item-group *ngIf="!loadingError">
         <div *ngFor="let disk of disks">
           <ion-item-divider>{{ disk.logicalname }} - {{ disk.capacity | convertBytes }}</ion-item-divider>
           <p class="item-subdivider" *ngIf="disk.vendor || disk.model">
