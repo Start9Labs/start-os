@@ -10,7 +10,7 @@ version = "0.1.0"
 anyhow = { version = "1.0.40", features = ["backtrace"] }
 beau_collector = "0.2.1"
 clap = "2.33.3"
-embassy-os = { path = "../appmgr", default-features = false }
+embassy-os = { path = "../../appmgr", default-features = false }
 emver = { version = "0.1.2", features = ["serde"] }
 failure = "0.1.8"
 indexmap = { version = "1.6.2", features = ["serde"] }
