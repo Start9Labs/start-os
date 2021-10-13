@@ -24,6 +24,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::{ServerStatus, UpdateProgress};
+use crate::db::util::WithRevision;
 use crate::notifications::{NotificationLevel, NotificationSubtype};
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
@@ -35,32 +36,42 @@ lazy_static! {
 
 /// An user/ daemon would call this to update the system to the latest version and do the updates available,
 /// and this will return something if there is an update, and in that case there will need to be a restart.
-#[command(rename = "update", display(display_properties))]
+#[command(rename = "update", display(display_update_result))]
 #[instrument(skip(ctx))]
-pub async fn update_system(#[context] ctx: RpcContext) -> Result<UpdateSystem, Error> {
+pub async fn update_system(
+    #[context] ctx: RpcContext,
+) -> Result<WithRevision<UpdateResult>, Error> {
+    let noop = WithRevision {
+        response: UpdateResult::NoUpdates,
+        revision: None,
+    };
     if UPDATED.load(Ordering::SeqCst) {
-        return Ok(UpdateSystem::NoUpdates);
+        return Ok(noop);
     }
-    if let None = maybe_do_update(ctx).await? {
-        return Ok(UpdateSystem::Updated);
+    match maybe_do_update(ctx).await? {
+        None => Ok(noop),
+        Some(r) => Ok(WithRevision {
+            response: UpdateResult::Updating,
+            revision: Some(r),
+        }),
     }
-    Ok(UpdateSystem::NoUpdates)
 }
 
 /// What is the status of the updates?
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-pub enum UpdateSystem {
+#[serde(rename_all = "kebab-case")]
+pub enum UpdateResult {
     NoUpdates,
-    Updated,
+    Updating,
 }
 
-fn display_properties(status: UpdateSystem, _: &ArgMatches<'_>) {
-    match status {
-        UpdateSystem::NoUpdates => {
-            println!("Updates are ready, please reboot");
+fn display_update_result(status: WithRevision<UpdateResult>, _: &ArgMatches<'_>) {
+    match status.response {
+        UpdateResult::Updating => {
+            println!("Updating...");
         }
-        UpdateSystem::Updated => {
-            println!("No updates needed");
+        UpdateResult::NoUpdates => {
+            println!("No updates available");
         }
     }
 }
