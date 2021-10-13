@@ -13,6 +13,17 @@
   <text-spinner *ngIf="loading; else loaded" [text]="'Loading ' + title | titlecase"></text-spinner>
 
   <ng-template #loaded>
-    <div *ngIf="content" class="content-padding" [innerHTML]="content | markdown"></div>
+
+    <ion-item *ngIf="loadingError; else noError">
+      <ion-label>
+        <ion-text color="danger">
+          {{ loadingError }}
+        </ion-text>
+      </ion-label>
+    </ion-item>
+
+    <ng-template #noError>
+      <div class="content-padding" [innerHTML]="content | markdown"></div>
+    </ng-template>
   </ng-template>
 </ion-content>

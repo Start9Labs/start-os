@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
-import { ModalController } from '@ionic/angular'
+import { ModalController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { getErrorMessage } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'markdown',
@@ -13,10 +13,10 @@ export class MarkdownPage {
   @Input() title: string
   content: string
   loading = true
+  loadingError: string | IonicSafeString
 
   constructor (
     private readonly modalCtrl: ModalController,
-    private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
   ) { }
 
@@ -32,7 +32,7 @@ export class MarkdownPage {
         }
       }
     } catch (e) {
-      this.errToast.present(e)
+      this.loadingError = getErrorMessage(e)
     } finally {
       this.loading = false
     }

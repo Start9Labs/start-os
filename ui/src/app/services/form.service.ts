@@ -400,7 +400,6 @@ export function convertValuesRecursive (configSpec: ConfigSpec, group: FormGroup
       } else if (valueSpec.subtype === 'string') {
         formArr.controls.forEach(control => {
           if (!control.value) control.setValue(null)
-          control.setValue(control.value ? Number(control.value) : null)
         })
       } else if (valueSpec.subtype === 'object') {
         formArr.controls.forEach((formGroup: FormGroup) => {

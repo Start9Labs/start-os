@@ -70,6 +70,12 @@ export class AppShowPage {
       // 1
       this.patch.watch$('package-data', this.pkgId)
       .subscribe(pkg => {
+        // if package disappears, navigate to list page
+        if (!pkg) {
+          this.navCtrl.navigateRoot('/services')
+          return
+        }
+
         this.pkg = pkg
         this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
         this.statuses = renderPkgStatus(pkg)
