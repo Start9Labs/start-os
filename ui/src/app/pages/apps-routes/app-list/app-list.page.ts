@@ -180,8 +180,8 @@ export class AppListPage {
   private watchPkgs (): Observable<DataModel['package-data']> {
     return this.patch.watch$('package-data')
     .pipe(
-      filter(obj => {
-        return Object.keys(obj).length !== this.pkgs.length
+      filter(pkgs => {
+        return Object.keys(pkgs).length !== this.pkgs.length
       }),
       tap(pkgs => {
         const ids = Object.keys(pkgs)
@@ -193,6 +193,8 @@ export class AppListPage {
             this.pkgs.splice(i, 1)
           }
         })
+
+        this.empty = !this.pkgs.length
 
         ids.forEach(id => {
           // if already exists, return
@@ -223,7 +225,7 @@ export class AppListPage {
       const statuses = renderPkgStatus(update)
       const primaryRendering = PrimaryRendering[statuses.primary]
       pkgInfo.entry = update
-      pkgInfo.installProgress = !isEmptyObject(pkg['install-progress']) ? this.pkgLoading.transform(pkg['install-progress']) : undefined
+      pkgInfo.installProgress = !isEmptyObject(update['install-progress']) ? this.pkgLoading.transform(update['install-progress']) : undefined
       pkgInfo.primaryRendering = primaryRendering
       pkgInfo.error = statuses.health === HealthStatus.Failure || [DependencyStatus.Issue, DependencyStatus.Critical].includes(statuses.dependency)
     })

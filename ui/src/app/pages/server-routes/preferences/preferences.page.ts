@@ -1,6 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { IonContent, LoadingController, ModalController } from '@ionic/angular'
+import { IonContent, ModalController } from '@ionic/angular'
 import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -18,8 +18,6 @@ export class PreferencesPage {
 
   constructor (
     private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
     private readonly api: ApiService,
     public readonly patch: PatchDbService,
   ) { }
@@ -43,7 +41,8 @@ export class PreferencesPage {
         nullable: true,
         value: this.patch.data.ui.name,
         buttonText: 'Save',
-        submitFn: async (value: string) => await this.setDbValue('name', value || this.defaultName),
+        loadingText: 'Saving',
+        submitFn: (value: string) => this.setDbValue('name', value || this.defaultName),
       },
       cssClass: 'alertlike-modal',
       presentingElement: await this.modalCtrl.getTop(),
@@ -54,20 +53,7 @@ export class PreferencesPage {
   }
 
   private async setDbValue (key: string, value: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      message: 'Saving...',
-      cssClass: 'loader',
-    })
-    await loader.present()
-
-    try {
-      await this.api.setDbValue({ pointer: `/${key}`, value })
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+    await this.api.setDbValue({ pointer: `/${key}`, value })
   }
 }
 

@@ -8,8 +8,6 @@ import { PatchDbService } from '../services/patch-db/patch-db.service'
 })
 export class UnmaintenanceGuard implements CanActivate {
   serverStatus: ServerStatus
-  isFullyDownloaded: boolean = false
-
 
   constructor (
     private readonly router: Router,
@@ -18,13 +16,10 @@ export class UnmaintenanceGuard implements CanActivate {
     this.patch.watch$('server-info', 'status').subscribe(status => {
       this.serverStatus = status
     })
-    this.patch.watch$('server-info', 'update-progress').subscribe(progress => {
-      this.isFullyDownloaded = !!progress && (progress.size === progress.downloaded)
-    })
   }
 
   canActivate (): boolean {
-    if (ServerStatus.BackingUp === this.serverStatus || this.isFullyDownloaded) {
+    if (ServerStatus.BackingUp === this.serverStatus) {
       return true
     } else {
       this.router.navigate([''], { replaceUrl: true })

@@ -47,13 +47,12 @@ export class ErrorToastService {
 export function getErrorMessage (e: RequestError, link?: string): string | IonicSafeString {
   let message: string | IonicSafeString
 
-  if (e.code) message = String(e.code)
   if (e.message) message = `${message ? message + ' ' : ''}${e.message}`
   if (e.details) message = `${message ? message + ': ' : ''}${e.details}`
 
   if (!message) {
     message = 'Unknown Error.'
-    link = 'https://docs.start9.com'
+    link = 'https://docs.start9.com/support/FAQ/index.html'
   }
 
   if (link) {
