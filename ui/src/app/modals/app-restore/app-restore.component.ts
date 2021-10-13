@@ -1,10 +1,10 @@
 import { Component, Input } from '@angular/core'
-import { ModalController } from '@ionic/angular'
+import { ModalController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
 import { DiskInfo } from 'src/app/services/api/api.types'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { getErrorMessage } from 'src/app/services/error-toast.service'
 
 @Component({
   selector: 'app-restore',
@@ -15,14 +15,13 @@ export class AppRestoreComponent {
   @Input() pkgId: string
   disks: DiskInfo[]
   loading = true
-  submitting = false
   allPartitionsMounted: boolean
   modal: HTMLIonModalElement
+  loadingError: string | IonicSafeString
 
   constructor (
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
-    private readonly errToast: ErrorToastService,
     public readonly patch: PatchDbService,
   ) { }
 
@@ -40,7 +39,7 @@ export class AppRestoreComponent {
     try {
       this.disks = await this.embassyApi.getDisks({ })
     } catch (e) {
-      this.errToast.present(e)
+      this.loadingError = getErrorMessage(e)
     } finally {
       this.loading = false
     }
@@ -54,7 +53,7 @@ export class AppRestoreComponent {
         label: 'Password',
         useMask: true,
         buttonText: 'Restore',
-        submitFn: async (value: string) => await this.restore(logicalname, value),
+        submitFn: (value: string) => this.restore(logicalname, value),
       },
       cssClass: 'alertlike-modal',
       presentingElement: await this.modalCtrl.getTop(),
@@ -73,17 +72,10 @@ export class AppRestoreComponent {
   }
 
   private async restore (logicalname: string, password: string): Promise<void> {
-    this.submitting = true
-    try {
-      await this.embassyApi.restorePackage({
-        id: this.pkgId,
-        logicalname,
-        password,
-      })
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      this.submitting = false
-    }
+    await this.embassyApi.restorePackage({
+      id: this.pkgId,
+      logicalname,
+      password,
+    })
   }
 }

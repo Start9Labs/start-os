@@ -1,5 +1,5 @@
 import { Component, Input, ViewChild } from '@angular/core'
-import { AlertController, ModalController, IonContent, LoadingController } from '@ionic/angular'
+import { AlertController, ModalController, IonContent, LoadingController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { isEmptyObject, isObject, Recommendation } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
@@ -7,7 +7,7 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService, getErrorMessage } from 'src/app/services/error-toast.service'
 import { FormGroup } from '@angular/forms'
 import { convertValuesRecursive, FormService } from 'src/app/services/form.service'
 
@@ -17,6 +17,7 @@ import { convertValuesRecursive, FormService } from 'src/app/services/form.servi
   styleUrls: ['./app-config.page.scss'],
 })
 export class AppConfigPage {
+  @ViewChild(IonContent) content: IonContent
   @Input() pkgId: string
   @Input() rec: Recommendation | null = null
   pkg: PackageDataEntry
@@ -26,11 +27,9 @@ export class AppConfigPage {
   current: object
   hasConfig = false
   saving = false
-
   showRec = true
   openRec = false
-
-  @ViewChild(IonContent) content: IonContent
+  loadingError: string | IonicSafeString
 
   constructor (
     private readonly wizardBaker: WizardBaker,
@@ -59,7 +58,7 @@ export class AppConfigPage {
       }
       this.setConfig(spec, config, depConfig)
     } catch (e) {
-      this.errToast.present(e)
+      this.loadingError = getErrorMessage(e)
     } finally {
       this.loadingText = undefined
     }

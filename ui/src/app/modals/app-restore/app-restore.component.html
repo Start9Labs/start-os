@@ -13,11 +13,7 @@
 
 <ion-content class="ion-padding-top">
 
-  <!-- submitting -->
-  <text-spinner *ngIf="submitting" text="Initiating Backup"></text-spinner>
-
-  <!-- not submitting -->
-  <ion-item *ngIf="!submitting" class="ion-margin-bottom">
+  <ion-item class="ion-margin-bottom">
     <ion-label>
       <h2>
         Select the drive containing the backup you would like to restore.
@@ -47,9 +43,20 @@
     </ion-item>
   </ng-container>
 
-  <!-- not loading and not submitting -->
-  <ion-content *ngIf="!loading && !submitting">
-    <ion-item-group>
+  <!-- not loading -->
+  <ng-container *ngIf="!loading">
+
+    <!-- error -->
+    <ion-item *ngIf="loadingError">
+      <ion-label>
+        <ion-text color="danger">
+          {{ loadingError }}
+        </ion-text>
+      </ion-label>
+    </ion-item>
+
+    <!-- no error -->
+    <ion-item-group *ngIf="!loadingError">
       <div *ngFor="let disk of disks">
         <ion-item-divider>{{ disk.logicalname }} - {{ disk.capacity | convertBytes }}</ion-item-divider>
         <p class="item-subdivider" *ngIf="disk.vendor || disk.model">
@@ -66,5 +73,5 @@
         </ion-item>
       </div>
     </ion-item-group>
-  </ion-content>
+  </ng-container>
 </ion-content>
