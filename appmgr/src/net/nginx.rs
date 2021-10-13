@@ -198,8 +198,20 @@ impl NginxControllerInner {
                 let available_path =
                     nginx_root.join(format!("sites-available/{}_{}.conf", package, id));
                 let _ = futures::try_join!(
-                    tokio::fs::remove_dir_all(&package_path).map(|res| res
-                        .with_ctx(|_| (ErrorKind::Filesystem, package_path.display().to_string()))),
+                    async {
+                        if tokio::fs::metadata(&package_path).await.is_ok() {
+                            tokio::fs::remove_dir_all(&package_path)
+                                .map(|res| {
+                                    res.with_ctx(|_| {
+                                        (ErrorKind::Filesystem, package_path.display().to_string())
+                                    })
+                                })
+                                .await?;
+                            Ok(())
+                        } else {
+                            Ok(())
+                        }
+                    },
                     tokio::fs::remove_file(&enabled_path).map(|res| res
                         .with_ctx(|_| (ErrorKind::Filesystem, enabled_path.display().to_string()))),
                     tokio::fs::remove_file(&available_path).map(|res| res.with_ctx(|_| (
