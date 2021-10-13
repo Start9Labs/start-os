@@ -14,6 +14,7 @@ export class SuccessPage {
   ) { }
 
   window = window
+  lanInstructionsOpen = false
 
   async copy (): Promise<void> {
     let message = ''
@@ -53,6 +54,14 @@ export class SuccessPage {
       document.body.removeChild(el)
       return copy
     }
+  }
+
+  toggleLan () {
+    this.lanInstructionsOpen = !this.lanInstructionsOpen
+  }
+
+  installCert () {
+    document.getElementById('install-cert').click()
   }
 }
 
