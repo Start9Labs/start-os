@@ -124,7 +124,7 @@ export class AppListPage {
   async install (pkg: RecoveredInfo): Promise<void> {
     pkg.installing = true
     try {
-      await this.api.installPackage({ id: pkg.id, version: pkg.version })
+      await this.api.installPackage({ id: pkg.id, version: undefined })
     } catch (e) {
       this.errToast.present(e)
       pkg.installing = false
