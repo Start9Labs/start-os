@@ -9,30 +9,70 @@
 
         <ion-card color="dark">
           <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
-            <ion-card-title>Setup Complete!</ion-card-title>
+            <ion-card-title style="margin-bottom: 10px;">Setup Complete!</ion-card-title>
           </ion-card-header>
-          <div class="divider"></div>
-          <ion-card-content class="ion-margin">
+          <ion-icon style="font-size: 124px; color: var(--ion-color-success)" name="checkmark-circle-outline"></ion-icon>
+          <ion-card-content style="padding-top: 0px;" class="ion-margin">
+            <p style="padding-bottom: 10px;">Congratulations!  In a few minutes, you will be able to access your Embassy via TOR or LAN.</p>
             <p class="addr-label">Tor Address:</p>
-            <ion-item style="--border-radius: 8px 8px 0 0 !important;" color="light">
+            <ion-item style="--border-radius: 8px !important;" color="medium">
               <ion-label>
                 <p>{{ stateService.torAddress }}</p>
               </ion-label>
-              <ion-buttons slot="end">
+              <ion-buttons>
                 <ion-button fill="clear" (click)="copy()">
                   <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
                 </ion-button>
               </ion-buttons>
             </ion-item>
-            <ion-item style="--border-radius: 0 0 8px 8px !important;" color="medium" lines="none">
-              <ion-label class="ion-text-wrap">
-                <p>We suggest you copy and save your tor adress in a safe place.  If you happen to loose it, no worries!  You can always retrieve it by coming back to <b>{{ window.location.hostname }}</b>.</p>
-              </ion-label>
-            </ion-item>
-
+            <p style="margin-top: 8px;">We suggest you copy and save your tor adress in a safe place.</p>
+            
+            <div (click)="toggleLan()">
+              <ion-icon
+                style="float: right; font-size: 24px; margin-right: 28px;"
+                name="caret-down-outline"
+                [ngStyle]="{
+                  'transform': lanInstructionsOpen ? 'rotate(-90deg)' : 'rotate(0deg)',
+                  'transition': 'transform 0.4s ease-out'
+                }"
+              ></ion-icon>
+              <p class="addr-label" style="margin: 20px 0 10px 0;">LAN Instructions (Optional):</p>
+            </div>
+            <div
+            [ngStyle]="{
+              'overflow' : 'hidden',
+              'max-height': lanInstructionsOpen ? '355px' : '0px',
+              'transition': 'max-height 0.4s ease-out'
+            }"
+            >
+              <ion-item-group>
+                <!-- about -->
+                <ion-item color="medium" class="ion-padding-bottom ion-padding-top">
+                    <h2>
+                      Connecting to your Embassy over LAN provides a lightning fast experience and is a reliable fallback in case Tor is having problems. To connect to your Embassy's .local address, you must:
+                      <ol>
+                        <li>Be connected to the same Local Area Network (LAN) as your Embassy.</li>
+                        <li>Download and trust your Embassy's SSL Certificate Authority (below).</li>
+                      </ol>
+                      View the full <a href="https://docs.start9.com/user-manual/general/lan-setup" target="_blank" rel="noreferrer">instructions</a>.
+                    </h2>
+                </ion-item>
+            
+                <ion-item color="medium" button (click)="installCert()" [disabled]="lanDisabled">
+                  <ion-icon slot="start" name="download-outline" size="large"></ion-icon>
+                  <ion-label>
+                    <h1>Download Root CA</h1>
+                    <p>Download and trust your Embassy's Root Cert</p>
+                  </ion-label>
+                </ion-item>
+              </ion-item-group>
+            </div>
           </ion-card-content>
         </ion-card>
       </ion-col>
     </ion-row>
   </ion-grid>
+
+  <a id="install-cert" href="/public/local.crt" download="Embassy Local CA.crt"></a>
+
 </ion-content>
