@@ -2,7 +2,7 @@ EMBASSY_BINS := appmgr/target/aarch64-unknown-linux-gnu/release/embassyd appmgr/
 EMBASSY_UIS := ui/www setup-wizard/www diagnostic-ui/www
 EMBASSY_SRC := ubuntu.img product_key.txt $(EMBASSY_BINS) appmgr/embassyd.service appmgr/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 
-APPMGR_SRC := $(shell find appmgr/src) appmgr/Cargo.toml appmgr/Cargo.lock
+APPMGR_SRC := $(shell find appmgr/src) $(shell find patch-db/*/src) $(shell find rpc-toolkit/*/src) appmgr/Cargo.toml appmgr/Cargo.lock
 UI_SRC := $(shell find ui/src)
 SETUP_WIZARD_SRC := $(shell find setup-wizard/src)
 DIAGNOSTIC_UI_SRC := $(shell find diagnostic-ui/src)
