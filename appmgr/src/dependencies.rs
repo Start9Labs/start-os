@@ -491,30 +491,36 @@ pub async fn configure_logic(
     db: &mut PatchDbHandle,
     (pkg_id, dep_id): (PackageId, PackageId),
 ) -> Result<Config, Error> {
-    let pkg_manifest = crate::db::DatabaseModel::new()
+    let pkg_model = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&pkg_id)
-        .and_then(|p| p.installed())
+        .and_then(|m| m.installed())
         .expect(db)
         .await
-        .with_kind(crate::ErrorKind::NotFound)?
+        .with_kind(crate::ErrorKind::NotFound)?;
+    let pkg_config_action = pkg_model
+        .clone()
         .manifest()
+        .config()
         .get(db, true)
         .await?
-        .to_owned();
-    let dep_manifest = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&dep_id)
-        .and_then(|p| p.installed())
-        .expect(db)
-        .await
-        .with_kind(crate::ErrorKind::NotFound)?
+        .to_owned()
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("{} has no config", pkg_id),
+                crate::ErrorKind::NotFound,
+            )
+        })?;
+    let version = pkg_model.clone().manifest().version().get(db, true).await?;
+    let volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
+    let dependencies = pkg_model
+        .clone()
         .manifest()
+        .dependencies()
         .get(db, true)
-        .await?
-        .to_owned();
-    let dep = pkg_manifest
-        .dependencies
+        .await?;
+
+    let dep = dependencies
         .get(&dep_id)
         .ok_or_else(|| {
             Error::new(
@@ -534,15 +540,20 @@ pub async fn configure_logic(
                 crate::ErrorKind::NotFound,
             )
         })?;
+    // get current package config
+    let config: Config = pkg_config_action
+        .get(&ctx, &pkg_id, &*version, &*volumes)
+        .await?
+        .config
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("no config get action found for {}", pkg_id),
+                crate::ErrorKind::NotFound,
+            )
+        })?;
     Ok(dep
         .auto_configure
-        .sandboxed(
-            &ctx,
-            &pkg_id,
-            &pkg_manifest.version,
-            &pkg_manifest.volumes,
-            Some(dep_manifest.config),
-        )
+        .sandboxed(&ctx, &pkg_id, &version, &volumes, Some(config))
         .await?
         .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?)
 }
