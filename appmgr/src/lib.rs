@@ -96,6 +96,11 @@ pub fn package() -> Result<(), RpcError> {
     Ok(())
 }
 
+#[command(subcommands(dependencies::dependency))]
+pub fn dependency_api() -> Result<(), RpcError> {
+    Ok(())
+}
+
 #[command(subcommands(
     version::git_info,
     s9pk::pack,

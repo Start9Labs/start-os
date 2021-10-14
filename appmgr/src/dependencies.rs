@@ -8,7 +8,6 @@ use futures::future::BoxFuture;
 use futures::FutureExt;
 use patch_db::{DbHandle, HasModel, Map, MapModel, PatchDbHandle};
 use rpc_toolkit::command;
-use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -24,6 +23,11 @@ use crate::util::display_serializable;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::Error;
+
+#[command(subcommands(configure))]
+pub fn dependency() -> Result<(), Error> {
+    Ok(())
+}
 
 #[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
