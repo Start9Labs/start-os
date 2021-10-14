@@ -26,6 +26,10 @@ sed -i 's/#allow-interfaces=eth0/allow-interfaces=eth0,wlan0/g' /etc/avahi/avahi
 echo "auto wlan0" > /etc/network/interfaces
 echo "iface wlan0 inet dhcp" >> /etc/network/interfaces
 mkdir -p /etc/nginx/ssl
+
+# docker stuff
+mkdir /root/.docker
+touch /root/.docker/config.json
 docker run --privileged --rm tonistiigi/binfmt --install all
 docker load --input /root/compat.tar
 docker images > /root/images.out
