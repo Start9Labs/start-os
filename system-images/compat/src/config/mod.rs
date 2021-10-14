@@ -77,12 +77,12 @@ pub fn apply_dependency_configuration(
     let mut cfgs = LinearMap::new();
     cfgs.insert(dependency_id, Cow::Owned(dep_config.clone()));
     cfgs.insert(package_id, Cow::Owned(config.clone()));
-    let rule_check = dbg!(rules
+    let rule_check = rules
         .into_iter()
         .map(|r| r.apply(dependency_id, &mut dep_config, &mut cfgs))
-        .bcollect::<Vec<_>>());
+        .bcollect::<Vec<_>>();
     match rule_check {
-        Ok(_) => Ok(dbg!(dep_config)),
+        Ok(_) => Ok(dep_config),
         Err(e) => Err(anyhow!("{}", e)),
     }
 }

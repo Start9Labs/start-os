@@ -480,16 +480,16 @@ pub async fn configure_impl(
 #[instrument(skip(ctx))]
 pub async fn configure_dry(
     #[context] ctx: RpcContext,
-    #[parent_data] (pkg_id, dep_id): (PackageId, PackageId),
+    #[parent_data] (pkg_id, dependency_id): (PackageId, PackageId),
 ) -> Result<Config, Error> {
     let mut db = ctx.db.handle();
-    configure_logic(ctx, &mut db, (pkg_id, dep_id)).await
+    configure_logic(ctx, &mut db, (pkg_id, dependency_id)).await
 }
 
 pub async fn configure_logic(
     ctx: RpcContext,
     db: &mut PatchDbHandle,
-    (pkg_id, dep_id): (PackageId, PackageId),
+    (pkg_id, dependency_id): (PackageId, PackageId),
 ) -> Result<Config, Error> {
     let pkg_model = crate::db::DatabaseModel::new()
         .package_data()
@@ -498,27 +498,16 @@ pub async fn configure_logic(
         .expect(db)
         .await
         .with_kind(crate::ErrorKind::NotFound)?;
-    let pkg_config_action = pkg_model
-        .clone()
-        .manifest()
-        .config()
-        .get(db, true)
-        .await?
-        .to_owned()
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("{} has no config", pkg_id),
-                crate::ErrorKind::NotFound,
-            )
-        })?;
-    let dep_model = crate::db::DatabaseModel::new()
+    let pkg_version = pkg_model.clone().manifest().version().get(db, true).await?;
+    let pkg_volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
+    let dependency_model = crate::db::DatabaseModel::new()
         .package_data()
-        .idx_model(&dep_id)
+        .idx_model(&dependency_id)
         .and_then(|m| m.installed())
         .expect(db)
         .await
         .with_kind(crate::ErrorKind::NotFound)?;
-    let dep_config_action = dep_model
+    let dependency_config_action = dependency_model
         .clone()
         .manifest()
         .config()
@@ -527,14 +516,22 @@ pub async fn configure_logic(
         .to_owned()
         .ok_or_else(|| {
             Error::new(
-                eyre!("{} has no config", dep_id),
+                eyre!("{} has no config", dependency_id),
                 crate::ErrorKind::NotFound,
             )
         })?;
-    let dep_version = dep_model.clone().manifest().version().get(db, true).await?;
-    let dep_volumes = dep_model.clone().manifest().volumes().get(db, true).await?;
-    let pkg_version = pkg_model.clone().manifest().version().get(db, true).await?;
-    let pkg_volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
+    let dependency_version = dependency_model
+        .clone()
+        .manifest()
+        .version()
+        .get(db, true)
+        .await?;
+    let dependency_volumes = dependency_model
+        .clone()
+        .manifest()
+        .volumes()
+        .get(db, true)
+        .await?;
     let dependencies = pkg_model
         .clone()
         .manifest()
@@ -542,13 +539,13 @@ pub async fn configure_logic(
         .get(db, true)
         .await?;
 
-    let dep = dependencies
-        .get(&dep_id)
+    let dependency = dependencies
+        .get(&dependency_id)
         .ok_or_else(|| {
             Error::new(
                 eyre!(
                     "dependency for {} not found in the manifest for {}",
-                    dep_id,
+                    dependency_id,
                     pkg_id
                 ),
                 crate::ErrorKind::NotFound,
@@ -558,32 +555,30 @@ pub async fn configure_logic(
         .as_ref()
         .ok_or_else(|| {
             Error::new(
-                eyre!("dependency config for {} not found on {}", dep_id, pkg_id),
+                eyre!(
+                    "dependency config for {} not found on {}",
+                    dependency_id,
+                    pkg_id
+                ),
                 crate::ErrorKind::NotFound,
             )
         })?;
-    // get current package config
-    // let pkg_config: Config = pkg_config_action
-    //     .get(&ctx, &pkg_id, &*pkg_version, &*pkg_volumes)
-    //     .await?
-    //     .config
-    //     .ok_or_else(|| {
-    //         Error::new(
-    //             eyre!("no config get action found for {}", pkg_id),
-    //             crate::ErrorKind::NotFound,
-    //         )
-    //     })?;
-    let config: Config = dep_config_action
-        .get(&ctx, &dep_id, &*dep_version, &*dep_volumes)
+    let config: Config = dependency_config_action
+        .get(
+            &ctx,
+            &dependency_id,
+            &*dependency_version,
+            &*dependency_volumes,
+        )
         .await?
         .config
         .ok_or_else(|| {
             Error::new(
-                eyre!("no config get action found for {}", dep_id),
+                eyre!("no config get action found for {}", dependency_id),
                 crate::ErrorKind::NotFound,
             )
         })?;
-    Ok(dep
+    Ok(dependency
         .auto_configure
         .sandboxed(&ctx, &pkg_id, &pkg_version, &pkg_volumes, Some(config))
         .await?
