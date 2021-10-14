@@ -13,7 +13,10 @@
       <ion-item-divider><ion-text color="dark">{{ cat.key }}</ion-text></ion-item-divider>
       <ion-item [detail]="button.detail" button *ngFor="let button of cat.value" (click)="button.action()">
         <ion-icon slot="start" [name]="button.icon"></ion-icon>
-        <ion-label>{{ button.title }}</ion-label>
+        <ion-label>
+          <h2>{{ button.title }}</h2>
+          <p *ngIf="button.description">{{ button.description }}</p>
+        </ion-label>
       </ion-item>
     </div>
   </ion-item-group>

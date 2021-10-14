@@ -34,7 +34,7 @@ export module RR {
   export type GetServerMetricsRes = Metrics
 
   export type UpdateServerReq = WithExpire<{ }> // server.update
-  export type UpdateServerRes = WithRevision<null>
+  export type UpdateServerRes = WithRevision<'updating' | 'no-updates'>
 
   export type RestartServerReq = { } // server.restart
   export type RestartServerRes = null

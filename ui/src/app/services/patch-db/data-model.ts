@@ -334,7 +334,7 @@ export interface DependencyErrorIncorrectVersion {
 
 export interface DependencyErrorConfigUnsatisfied {
   type: DependencyErrorType.ConfigUnsatisfied
-  errors: string[]
+  error: string
 }
 
 export interface DependencyErrorHealthChecksFailed {
