@@ -2,7 +2,7 @@ import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
-import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
+import { exists, isEmptyObject, Recommendation } from 'src/app/util/misc.util'
 import { Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
@@ -33,8 +33,7 @@ export class AppShowPage {
   pkg: PackageDataEntry
   hideLAN: boolean
   buttons: Button[] = []
-  // currentDependencies: { [id: string]: CurrentDependencyInfo }
-  dependencies: { [id: string]: DependencyInfo } = { }
+  dependencies: DependencyInfo[] = []
   statuses: {
     primary: PrimaryStatus
     dependency: DependencyStatus
@@ -65,6 +64,7 @@ export class AppShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.pkg = this.patch.data['package-data'][this.pkgId]
 
     this.subs = [
       // 1
@@ -77,41 +77,44 @@ export class AppShowPage {
         }
 
         this.pkg = pkg
-        this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
         this.statuses = renderPkgStatus(pkg)
+        this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
+      }),
 
-        const installed = pkg.installed
+      // 2
+      this.patch.watch$('package-data', this.pkgId, 'installed', 'current-dependencies')
+      .subscribe(currentDeps => {
+          // unsubscribe to deleted
+          this.dependencies.forEach(dep => {
+            if (!currentDeps[dep.id]) {
+              dep.sub.unsubscribe()
+            }
+          })
 
-        if (!!installed) {
-          // health
-          if (installed.status.main.status === PackageMainStatus.Running) {
-            this.healthChecks = { ...installed.status.main.health }
-          } else {
-            this.healthChecks = { }
-          }
-          // dependencies
-          const currentDeps = installed['current-dependencies']
-          Object.keys(currentDeps).forEach(key => {
-            const manifestDep = pkg.manifest.dependencies[key]
-            if (!this.dependencies[key] && manifestDep) {
-              this.dependencies[key] = { } as any
-              this.dependencies[key].sub = this.patch.watch$('package-data', key)
+          this.dependencies = Object.keys(currentDeps).map(id => {
+            const version = this.pkg.manifest.dependencies[id]?.version
+            if (version) {
+              const dep = { id, version } as DependencyInfo
+              dep.sub = this.patch.watch$('package-data', id)
               .subscribe(localDep => {
-                this.setDepValues(key, manifestDep.version, localDep)
+                this.setDepValues(dep, localDep)
               })
+              return dep
             }
-          })
+          }).filter(exists)
+      }),
 
-          // unsub to deleted
-          Object.keys(this.dependencies).forEach(key => {
-            if (!currentDeps[key]) {
-              this.dependencies[key].sub.unsubscribe()
-              delete this.dependencies[key]
-            }
-          })
+      // 3
+      this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main')
+      .subscribe(main => {
+        if (main.status === PackageMainStatus.Running) {
+          this.healthChecks = { ...main.health }
+        } else {
+          this.healthChecks = { }
         }
       }),
-      // 2
+
+      // 4
       this.connectionService.watchFailure$()
       .subscribe(connectionFailure => {
         this.connectionFailure = connectionFailure !== ConnectionFailure.None
@@ -126,7 +129,7 @@ export class AppShowPage {
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
-    Object.values(this.dependencies).forEach(dep => {
+    this.dependencies.forEach(dep => {
       dep.sub.unsubscribe()
     })
   }
@@ -205,13 +208,13 @@ export class AppShowPage {
     await modal.present()
   }
 
-  private setDepValues (id: string, version: string, localDep: PackageDataEntry | undefined): void {
+  private setDepValues (dep: DependencyInfo, localDep: PackageDataEntry | undefined): void {
     let errorText = ''
     let spinnerColor = ''
     let actionText = 'View'
-    let action: () => any = () => this.navCtrl.navigateForward(`/services/${id}`)
+    let action: () => any = () => this.navCtrl.navigateForward(`/services/${dep.id}`)
 
-    const error = this.pkg.installed.status['dependency-errors'][id]
+    const error = this.pkg.installed.status['dependency-errors'][dep.id]
 
     if (error) {
       // health checks failed
@@ -224,7 +227,7 @@ export class AppShowPage {
         } else {
           errorText = 'Not installed'
           actionText = 'Install'
-          action = () => this.fixDep('install', id)
+          action = () => this.fixDep('install', dep.id)
         }
       // incorrect version
       } else if (error.type === DependencyErrorType.IncorrectVersion) {
@@ -233,7 +236,7 @@ export class AppShowPage {
         } else {
           errorText = 'Incorrect version'
           actionText = 'Update'
-          action = () => this.fixDep('update', id)
+          action = () => this.fixDep('update', dep.id)
         }
       // not running
       } else if (error.type === DependencyErrorType.NotRunning) {
@@ -243,7 +246,7 @@ export class AppShowPage {
       } else if (error.type === DependencyErrorType.ConfigUnsatisfied) {
         errorText = 'Config not satisfied'
         actionText = 'Auto config'
-        action = () => this.fixDep('configure', id)
+        action = () => this.fixDep('configure', dep.id)
       } else if (error.type === DependencyErrorType.Transitive) {
         errorText = 'Dependency has a dependency issue'
       }
@@ -253,15 +256,16 @@ export class AppShowPage {
       }
     }
 
-    const depInfo = this.pkg.installed['dependency-info'][id]
+    const depInfo = this.pkg.installed['dependency-info'][dep.id]
 
-    this.dependencies[id].title = depInfo.manifest.title
-    this.dependencies[id].icon = depInfo.icon
-    this.dependencies[id].version = version
-    this.dependencies[id].errorText = errorText
-    this.dependencies[id].actionText = actionText
-    this.dependencies[id].spinnerColor = spinnerColor
-    this.dependencies[id].action = action
+    Object.assign(dep, {
+      title: depInfo.manifest.title,
+      icon: depInfo.icon,
+      errorText,
+      actionText,
+      spinnerColor,
+      action,
+    })
   }
 
   private async installDep (depId: string): Promise<void> {
@@ -412,6 +416,7 @@ export class AppShowPage {
 }
 
 interface DependencyInfo {
+  id: string
   title: string
   icon: string
   version: string

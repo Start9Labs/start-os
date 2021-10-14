@@ -83,26 +83,26 @@
           </ng-container>
         </ng-container>
         <!-- ** dependencies ** -->
-        <ng-container *ngIf="!(dependencies | empty)">
+        <ng-container *ngIf="dependencies.length">
           <ion-item-divider>Dependencies</ion-item-divider>
           <!-- dependencies are a subset of the pkg.manifest.dependencies that are currently required as determined by the service config -->
-          <ion-item button *ngFor="let dep of dependencies | keyvalue" (click)="dep.value.action()">
+          <ion-item button *ngFor="let dep of dependencies" (click)="dep.action()">
             <ion-thumbnail slot="start">
-              <img [src]="dep.value.icon" />
+              <img [src]="dep.icon" />
             </ion-thumbnail>
             <ion-label>
               <h2 class="inline" style="font-family: 'Montserrat'">
-                <ion-icon *ngIf="!!dep.value.errorText" slot="start" name="warning-outline" color="warning"></ion-icon>
-                {{ dep.value.title }}
+                <ion-icon *ngIf="!!dep.errorText" slot="start" name="warning-outline" color="warning"></ion-icon>
+                {{ dep.title }}
               </h2>
-              <p>{{ dep.value.version | displayEmver }}</p>
+              <p>{{ dep.version | displayEmver }}</p>
               <p>
-                <ion-text [color]="!!dep.value.errorText ? 'warning' : 'success'">{{ dep.value.errorText || 'satisfied' }}</ion-text>
+                <ion-text [color]="!!dep.errorText ? 'warning' : 'success'">{{ dep.errorText || 'satisfied' }}</ion-text>
               </p>
             </ion-label>
-            <ion-spinner *ngIf="dep.value.spinnerColor" slot="end" [color]="dep.value.spinnerColor" style="height: 3vh; width: 3vh"></ion-spinner>
-            <ion-button *ngIf="dep.value.actionText" slot="end" fill="clear">
-              {{ dep.value.actionText }}
+            <ion-spinner *ngIf="dep.spinnerColor" slot="end" [color]="dep.spinnerColor" style="height: 3vh; width: 3vh"></ion-spinner>
+            <ion-button *ngIf="dep.actionText" slot="end" fill="clear">
+              {{ dep.actionText }}
               <ion-icon slot="end" name="arrow-forward"></ion-icon>
             </ion-button>
           </ion-item>
