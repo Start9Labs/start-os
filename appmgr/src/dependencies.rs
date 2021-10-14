@@ -1,22 +1,33 @@
 use std::collections::BTreeMap;
+use std::time::Duration;
 
+use crate::util::display_none;
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use patch_db::{DbHandle, DiffPatch, HasModel, Map, MapModel};
+use patch_db::{DbHandle, HasModel, Map, MapModel, PatchDbHandle};
+use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
 use crate::config::Config;
 use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
+use crate::error::ResultExt;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::{MainStatus, Status};
+use crate::util::display_serializable;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::Error;
+
+#[command(subcommands(configure))]
+pub fn dependency() -> Result<(), Error> {
+    Ok(())
+}
 
 #[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -78,6 +89,7 @@ impl DependencyError {
             }
         }
     }
+    #[instrument(skip(ctx, db))]
     pub fn try_heal<'a, Db: DbHandle>(
         self,
         ctx: &'a RpcContext,
@@ -166,7 +178,7 @@ impl DependencyError {
                         Config::default()
                     };
                     if let Some(cfg_req) = &info.config {
-                        if let Err(e) = cfg_req
+                        if let Err(error) = cfg_req
                             .check(
                                 ctx,
                                 id,
@@ -174,15 +186,9 @@ impl DependencyError {
                                 &dependent_manifest.volumes,
                                 &dependency_config,
                             )
-                            .await
+                            .await?
                         {
-                            if e.kind == crate::ErrorKind::ConfigRulesViolation {
-                                return Ok(Some(DependencyError::ConfigUnsatisfied {
-                                    error: format!("{}", e),
-                                }));
-                            } else {
-                                return Err(e);
-                            }
+                            return Ok(Some(DependencyError::ConfigUnsatisfied { error }));
                         }
                     }
                     DependencyError::NotRunning
@@ -440,6 +446,146 @@ impl DependencyConfig {
     }
 }
 
+#[command(
+    subcommands(self(configure_impl(async)), configure_dry),
+    display(display_none)
+)]
+pub async fn configure(
+    #[arg(rename = "dependent-id")] dependent_id: PackageId,
+    #[arg(rename = "dependency-id")] dependency_id: PackageId,
+) -> Result<(PackageId, PackageId), Error> {
+    Ok((dependent_id, dependency_id))
+}
+
+pub async fn configure_impl(
+    ctx: RpcContext,
+    (pkg_id, dep_id): (PackageId, PackageId),
+) -> Result<(), Error> {
+    let mut db = ctx.db.handle();
+    let new_config = configure_logic(ctx.clone(), &mut db, (pkg_id, dep_id.clone())).await?;
+    Ok(crate::config::configure(
+        &ctx,
+        &mut db,
+        &dep_id,
+        Some(new_config),
+        &Some(Duration::from_secs(3)),
+        false,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+    )
+    .await?)
+}
+
+#[command(rename = "dry", display(display_serializable))]
+#[instrument(skip(ctx))]
+pub async fn configure_dry(
+    #[context] ctx: RpcContext,
+    #[parent_data] (pkg_id, dependency_id): (PackageId, PackageId),
+) -> Result<Config, Error> {
+    let mut db = ctx.db.handle();
+    configure_logic(ctx, &mut db, (pkg_id, dependency_id)).await
+}
+
+pub async fn configure_logic(
+    ctx: RpcContext,
+    db: &mut PatchDbHandle,
+    (pkg_id, dependency_id): (PackageId, PackageId),
+) -> Result<Config, Error> {
+    let pkg_model = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&pkg_id)
+        .and_then(|m| m.installed())
+        .expect(db)
+        .await
+        .with_kind(crate::ErrorKind::NotFound)?;
+    let pkg_version = pkg_model.clone().manifest().version().get(db, true).await?;
+    let pkg_volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
+    let dependency_model = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&dependency_id)
+        .and_then(|m| m.installed())
+        .expect(db)
+        .await
+        .with_kind(crate::ErrorKind::NotFound)?;
+    let dependency_config_action = dependency_model
+        .clone()
+        .manifest()
+        .config()
+        .get(db, true)
+        .await?
+        .to_owned()
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("{} has no config", dependency_id),
+                crate::ErrorKind::NotFound,
+            )
+        })?;
+    let dependency_version = dependency_model
+        .clone()
+        .manifest()
+        .version()
+        .get(db, true)
+        .await?;
+    let dependency_volumes = dependency_model
+        .clone()
+        .manifest()
+        .volumes()
+        .get(db, true)
+        .await?;
+    let dependencies = pkg_model
+        .clone()
+        .manifest()
+        .dependencies()
+        .get(db, true)
+        .await?;
+
+    let dependency = dependencies
+        .get(&dependency_id)
+        .ok_or_else(|| {
+            Error::new(
+                eyre!(
+                    "dependency for {} not found in the manifest for {}",
+                    dependency_id,
+                    pkg_id
+                ),
+                crate::ErrorKind::NotFound,
+            )
+        })?
+        .config
+        .as_ref()
+        .ok_or_else(|| {
+            Error::new(
+                eyre!(
+                    "dependency config for {} not found on {}",
+                    dependency_id,
+                    pkg_id
+                ),
+                crate::ErrorKind::NotFound,
+            )
+        })?;
+    let config: Config = dependency_config_action
+        .get(
+            &ctx,
+            &dependency_id,
+            &*dependency_version,
+            &*dependency_volumes,
+        )
+        .await?
+        .config
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("no config get action found for {}", dependency_id),
+                crate::ErrorKind::NotFound,
+            )
+        })?;
+    Ok(dependency
+        .auto_configure
+        .sandboxed(&ctx, &pkg_id, &pkg_version, &pkg_volumes, Some(config))
+        .await?
+        .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?)
+}
+
+#[instrument(skip(db, current_dependencies))]
 pub async fn update_current_dependents<
     'a,
     Db: DbHandle,
@@ -542,6 +688,7 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
     Ok(())
 }
 
+#[instrument(skip(db))]
 pub fn break_transitive<'a, Db: DbHandle>(
     db: &'a mut Db,
     id: &'a PackageId,
@@ -609,6 +756,7 @@ pub fn break_transitive<'a, Db: DbHandle>(
     .boxed()
 }
 
+#[instrument(skip(ctx, db))]
 pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
@@ -629,6 +777,7 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     Ok(())
 }
 
+#[instrument(skip(ctx, db))]
 pub fn heal_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,

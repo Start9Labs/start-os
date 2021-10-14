@@ -7,8 +7,8 @@ use pest::Parser;
 use rand::SeedableRng;
 use serde_json::Value;
 
-use embassy::config::Config;
 use embassy::config::util::STATIC_NULL;
+use embassy::config::Config;
 
 #[derive(Parser)]
 #[grammar = "config/rule_parser.pest"]
@@ -114,7 +114,7 @@ impl ConfigRuleEntry {
         cfgs: &LinearMap<&str, Cow<Config>>,
     ) -> Result<(), anyhow::Error> {
         if !(self.rule.compiled)(cfg, cfgs) {
-            return Err(anyhow::anyhow!("{}", self.description))
+            return Err(anyhow::anyhow!("{}", self.description));
         }
         Ok(())
     }
@@ -514,9 +514,8 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                     Rule::sub_ident_regular_expr => {
                         let idx = compile_str_expr(idx.into_inner().next().unwrap().into_inner());
                         Box::new(move |v, dep_cfg| match v {
-                            Value::Object(o) => idx(&Config::default(), dep_cfg).map(|idx| {
-                                idx.and_then(|idx| o.get(&idx)).unwrap_or(&STATIC_NULL)
-                            }),
+                            Value::Object(o) => idx(&Config::default(), dep_cfg)
+                                .map(|idx| idx.and_then(|idx| o.get(&idx)).unwrap_or(&STATIC_NULL)),
                             _ => VarRes::Exactly(&STATIC_NULL),
                         })
                     }
@@ -605,16 +604,15 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                                     predicate(&cfg, cfgs)
                                 })
                                 .next(),
-                            Value::Object(o) => {
-                                o.iter_mut()
-                                    .map(|(_, item)| item)
-                                    .filter(|item| {
-                                        let mut cfg = Config::default();
-                                        cfg.insert(item_var.clone(), (*item).clone());
-                                        predicate(&cfg, cfgs)
-                                    })
-                                    .next()
-                            }
+                            Value::Object(o) => o
+                                .iter_mut()
+                                .map(|(_, item)| item)
+                                .filter(|item| {
+                                    let mut cfg = Config::default();
+                                    cfg.insert(item_var.clone(), (*item).clone());
+                                    predicate(&cfg, cfgs)
+                                })
+                                .next(),
                             _ => None,
                         })
                     }
@@ -631,16 +629,15 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                                     predicate(&cfg, cfgs)
                                 })
                                 .next_back(),
-                            Value::Object(o) => {
-                                o.iter_mut()
-                                    .map(|(_, item)| item)
-                                    .filter(|item| {
-                                        let mut cfg = Config::default();
-                                        cfg.insert(item_var.clone(), (*item).clone());
-                                        predicate(&cfg, cfgs)
-                                    })
-                                    .next_back()
-                            }
+                            Value::Object(o) => o
+                                .iter_mut()
+                                .map(|(_, item)| item)
+                                .filter(|item| {
+                                    let mut cfg = Config::default();
+                                    cfg.insert(item_var.clone(), (*item).clone());
+                                    predicate(&cfg, cfgs)
+                                })
+                                .next_back(),
                             _ => None,
                         })
                     }
@@ -780,7 +777,7 @@ fn compile_num_var(var: Pairs<Rule>) -> CompiledExpr<VarRes<f64>> {
             Value::Number(n) => n.as_f64().unwrap(),
             Value::String(s) => match s.parse() {
                 Ok(n) => n,
-                Err(_) => panic!("string cannot be parsed as an f64")
+                Err(_) => panic!("string cannot be parsed as an f64"),
             },
             Value::Bool(b) => {
                 if b {
@@ -1045,11 +1042,12 @@ fn compile_value_expr(mut pairs: Pairs<Rule>) -> CompiledExpr<VarRes<Value>> {
         }
         Rule::num_expr => {
             let expr = compile_num_expr(expr.into_inner());
-            Box::new(move |cfg, cfgs| expr(cfg, cfgs).map(|n| match
-                serde_json::Number::from_f64(n) {
+            Box::new(move |cfg, cfgs| {
+                expr(cfg, cfgs).map(|n| match serde_json::Number::from_f64(n) {
                     Some(a) => Value::Number(a),
-                    None => panic!("cannot coerce f64 into numberc type")
-            }))
+                    None => panic!("cannot coerce f64 into numberc type"),
+                })
+            })
         }
         Rule::bool_expr => {
             let expr = compile_bool_expr(expr.into_inner());
@@ -1244,10 +1242,8 @@ mod test {
         let mut dependent_cfg = Config::default();
         let mut dependency_cfg = Config::default();
         let mut cfgs = LinearMap::new();
-        dependent_cfg
-            .insert("foo".to_owned(), Value::String("bar".to_owned()));
-        dependency_cfg
-            .insert("foo".to_owned(), Value::String("bar!".to_owned()));
+        dependent_cfg.insert("foo".to_owned(), Value::String("bar".to_owned()));
+        dependency_cfg.insert("foo".to_owned(), Value::String("bar!".to_owned()));
         cfgs.insert("my-dependent", Cow::Borrowed(&dependent_cfg));
         cfgs.insert("my-dependency", Cow::Borrowed(&dependency_cfg));
         assert!((compile("'foo = '[my-dependent].foo + \"!\"")
