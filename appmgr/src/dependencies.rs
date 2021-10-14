@@ -511,6 +511,26 @@ pub async fn configure_logic(
                 crate::ErrorKind::NotFound,
             )
         })?;
+    let dep_model = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&dep_id)
+        .and_then(|m| m.installed())
+        .expect(db)
+        .await
+        .with_kind(crate::ErrorKind::NotFound)?;
+    let dep_config_action = dep_model
+        .clone()
+        .manifest()
+        .config()
+        .get(db, true)
+        .await?
+        .to_owned()
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("{} has no config", dep_id),
+                crate::ErrorKind::NotFound,
+            )
+        })?;
     let version = pkg_model.clone().manifest().version().get(db, true).await?;
     let volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
     let dependencies = pkg_model
@@ -541,7 +561,17 @@ pub async fn configure_logic(
             )
         })?;
     // get current package config
-    let config: Config = pkg_config_action
+    let pkg_config: Config = pkg_config_action
+        .get(&ctx, &pkg_id, &*version, &*volumes)
+        .await?
+        .config
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("no config get action found for {}", pkg_id),
+                crate::ErrorKind::NotFound,
+            )
+        })?;
+    let config: Config = dep_config_action
         .get(&ctx, &pkg_id, &*version, &*volumes)
         .await?
         .config
