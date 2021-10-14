@@ -238,7 +238,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 }
             }
             ("auto-configure", Some(sub_m)) => {
-                let parent_config = serde_yaml::from_reader(stdin())?;
+                let dep_config = serde_yaml::from_reader(stdin())?;
                 let config = serde_yaml::from_reader(
                     File::open(
                         Path::new(sub_m.value_of("mountpoint").unwrap()).join("start9/config.yaml"),
@@ -246,13 +246,13 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     .unwrap(),
                 )?;
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
-                let name = sub_m.value_of("dependent_package_id").unwrap();
-                let parent_name = sub_m.value_of("dependency_package_id").unwrap();
+                let package_id = sub_m.value_of("dependent_package_id").unwrap();
+                let dependency_id = sub_m.value_of("dependency_package_id").unwrap();
                 match apply_dependency_configuration(
-                    name,
+                    package_id,
                     config,
-                    parent_name,
-                    parent_config,
+                    dependency_id,
+                    dep_config,
                     rules_path,
                 ) {
                     Ok(a) => {

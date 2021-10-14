@@ -91,6 +91,7 @@ pub fn server() -> Result<(), RpcError> {
     control::stop,
     logs::logs,
     properties::properties,
+    dependencies::dependency
 ))]
 pub fn package() -> Result<(), RpcError> {
     Ok(())
