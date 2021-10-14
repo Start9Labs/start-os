@@ -2,7 +2,15 @@
 
 ## Development Environment Setup
 
-**Make sure you have git, node, npm, and rust installed**
+**Make sure you have git, nvm (node, npm), and rust installed**
+
+```
+node --version
+v16.11.0
+
+npm --version
+v8.0.0
+```
 
 ### Building The Mock Development Server
 
@@ -16,9 +24,7 @@
 
 ### Building Embassy UI
 
-**In a new terminal window:**
-
-`npm i -g @ionic/cli`
+**In a new terminal window, from `embassy-os/ui` run:**
 
 `git clone https://github.com/Start9Labs/embassy-os.git`
 
@@ -28,9 +34,11 @@
 
 `cd ui/`
 
-`npm run build-deps`
+`npm --prefix . install @ionic/cli`
 
-`npm i`
+`npm --prefix . run build-deps`
+
+`npm --prefix . install`
 
 Copy `config-sample.json` to new file `config.json`
 In `config.json`, edit the "mocks" section to look like the following:
