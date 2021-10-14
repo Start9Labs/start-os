@@ -106,7 +106,7 @@ export class AppConfigPage {
       const config = this.configForm.value
 
       const breakages = await this.embassyApi.drySetPackageConfig({
-        id: this.pkg.manifest.id,
+        id: this.pkgId,
         config,
       })
 
@@ -122,7 +122,7 @@ export class AppConfigPage {
       }
 
       await this.embassyApi.setPackageConfig({
-        id: this.pkg.manifest.id,
+        id: this.pkgId,
         config,
       })
       this.modalCtrl.dismiss()
