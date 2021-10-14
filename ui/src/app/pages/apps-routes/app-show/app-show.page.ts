@@ -42,7 +42,7 @@ export class AppShowPage {
   } = { } as any
   connectionFailure: boolean
   loading = true
-  healthChecks: { [id: string]: HealthCheckResult }
+  healthChecks: { [id: string]: HealthCheckResult } = { }
   installProgress: ProgressData
 
   @ViewChild(IonContent) content: IonContent
@@ -80,18 +80,17 @@ export class AppShowPage {
         this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
         this.statuses = renderPkgStatus(pkg)
 
-        // health
-        if (this.pkg.installed?.status.main.status === PackageMainStatus.Running) {
-          this.healthChecks = { ...this.pkg.installed.status.main.health }
-        } else {
-          this.healthChecks = { }
-        }
+        const installed = pkg.installed
 
-        // dependencies
-        if (!pkg.installed) {
-          this.dependencies = { }
-        } else {
-          const currentDeps = pkg.installed['current-dependencies']
+        if (!!installed) {
+          // health
+          if (installed.status.main.status === PackageMainStatus.Running) {
+            this.healthChecks = { ...installed.status.main.health }
+          } else {
+            this.healthChecks = { }
+          }
+          // dependencies
+          const currentDeps = installed['current-dependencies']
           Object.keys(currentDeps).forEach(key => {
             const manifestDep = pkg.manifest.dependencies[key]
             if (!this.dependencies[key] && manifestDep) {
@@ -243,7 +242,7 @@ export class AppShowPage {
       // config unsatisfied
       } else if (error.type === DependencyErrorType.ConfigUnsatisfied) {
         errorText = 'Config not satisfied'
-        actionText = 'Auto Config'
+        actionText = 'Auto config'
         action = () => this.fixDep('configure', id)
       } else if (error.type === DependencyErrorType.Transitive) {
         errorText = 'Dependency has a dependency issue'
@@ -253,8 +252,6 @@ export class AppShowPage {
         spinnerColor = localDep.state === PackageState.Removing ? 'danger' : 'primary'
       }
     }
-
-    if (!this.dependencies[id]) this.dependencies[id] = { } as any
 
     const depInfo = this.pkg.installed['dependency-info'][id]
 
@@ -287,16 +284,11 @@ export class AppShowPage {
   }
 
   private async configureDep (depId: string): Promise<void> {
-    const configErrors = (this.pkg.installed.status['dependency-errors'][depId] as DependencyErrorConfigUnsatisfied).errors
-
-    const description = `<ul>${configErrors.map(d => `<li>${d}</li>`).join('\n')}</ul>`
-    const dependentTitle = this.pkg.manifest.title
-
     const configRecommendation: Recommendation = {
       dependentId: this.pkgId,
-      dependentTitle,
+      dependentTitle: this.pkg.manifest.title,
       dependentIcon: this.pkg['static-files'].icon,
-      description,
+      description: (this.pkg.installed.status['dependency-errors'][depId] as DependencyErrorConfigUnsatisfied).error,
     }
     const params = {
       pkgId: depId,
@@ -352,7 +344,7 @@ export class AppShowPage {
       {
         action: () => this.navCtrl.navigateForward(['instructions'], { relativeTo: this.route }),
         title: 'Instructions',
-        description: '',
+        description: `Understand how to use ${pkgTitle}`,
         icon: 'list-outline',
         color: 'danger',
       },
@@ -400,7 +392,7 @@ export class AppShowPage {
       {
         action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         title: 'Logs',
-        description: '',
+        description: 'Raw, unfiltered service logs',
         icon: 'receipt-outline',
         color: 'danger',
       },

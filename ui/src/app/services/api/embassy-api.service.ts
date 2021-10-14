@@ -54,8 +54,15 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   protected abstract updateServerRaw (params: RR.UpdateServerReq): Promise<RR.UpdateServerRes>
   updateServer = (params: RR.UpdateServerReq) => this.syncResponse(
-    () => this.updateServerRaw(params),
+    () => this.updateServerWrapper(params),
   )()
+  async updateServerWrapper (params: RR.UpdateServerReq) {
+    const res = await this.updateServerRaw(params)
+    if (res.response === 'no-updates') {
+      throw new Error('Could ont find a newer version of EmbassyOS')
+    }
+    return res
+  }
 
   abstract restartServer (params: RR.UpdateServerReq): Promise<RR.RestartServerRes>
 
