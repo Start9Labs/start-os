@@ -531,8 +531,10 @@ pub async fn configure_logic(
                 crate::ErrorKind::NotFound,
             )
         })?;
-    let version = dep_model.clone().manifest().version().get(db, true).await?;
-    let volumes = dep_model.clone().manifest().volumes().get(db, true).await?;
+    let dep_version = dep_model.clone().manifest().version().get(db, true).await?;
+    let dep_volumes = dep_model.clone().manifest().volumes().get(db, true).await?;
+    let pkg_version = pkg_model.clone().manifest().version().get(db, true).await?;
+    let pkg_volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
     let dependencies = pkg_model
         .clone()
         .manifest()
@@ -561,29 +563,29 @@ pub async fn configure_logic(
             )
         })?;
     // get current package config
-    let pkg_config: Config = pkg_config_action
-        .get(&ctx, &pkg_id, &*version, &*volumes)
-        .await?
-        .config
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("no config get action found for {}", pkg_id),
-                crate::ErrorKind::NotFound,
-            )
-        })?;
+    // let pkg_config: Config = pkg_config_action
+    //     .get(&ctx, &pkg_id, &*pkg_version, &*pkg_volumes)
+    //     .await?
+    //     .config
+    //     .ok_or_else(|| {
+    //         Error::new(
+    //             eyre!("no config get action found for {}", pkg_id),
+    //             crate::ErrorKind::NotFound,
+    //         )
+    //     })?;
     let config: Config = dep_config_action
-        .get(&ctx, &dep_id, &*version, &*volumes)
+        .get(&ctx, &dep_id, &*dep_version, &*dep_volumes)
         .await?
         .config
         .ok_or_else(|| {
             Error::new(
-                eyre!("no config get action found for {}", pkg_id),
+                eyre!("no config get action found for {}", dep_id),
                 crate::ErrorKind::NotFound,
             )
         })?;
     Ok(dep
         .auto_configure
-        .sandboxed(&ctx, &pkg_id, &version, &volumes, Some(config))
+        .sandboxed(&ctx, &pkg_id, &pkg_version, &pkg_volumes, Some(config))
         .await?
         .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?)
 }
