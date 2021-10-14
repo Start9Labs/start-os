@@ -18,8 +18,6 @@ export class AppComponent {
   ) { }
 
   async ngOnInit () {
-    await this.navCtrl.navigateForward(`/success`)
-    return
     try {
       const status = await this.apiService.getStatus()
       if (status.migrating || status['product-key']) {
