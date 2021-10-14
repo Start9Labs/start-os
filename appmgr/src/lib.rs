@@ -91,13 +91,9 @@ pub fn server() -> Result<(), RpcError> {
     control::stop,
     logs::logs,
     properties::properties,
+    dependencies::dependency
 ))]
 pub fn package() -> Result<(), RpcError> {
-    Ok(())
-}
-
-#[command(subcommands(dependencies::dependency))]
-pub fn dependency_api() -> Result<(), RpcError> {
     Ok(())
 }
 
