@@ -11,32 +11,36 @@ const routes: Routes = [
     loadChildren: () => import('./server-backup/server-backup.module').then(m => m.ServerBackupPageModule),
   },
   {
-    path: 'specs',
-    loadChildren: () => import('./server-specs/server-specs.module').then(m => m.ServerSpecsPageModule),
-  },
-  {
-    path: 'metrics',
-    loadChildren: () => import('./server-metrics/server-metrics.module').then(m => m.ServerMetricsPageModule),
+    path: 'lan',
+    loadChildren: () => import('./lan/lan.module').then(m => m.LANPageModule),
   },
   {
     path: 'logs',
     loadChildren: () => import('./server-logs/server-logs.module').then(m => m.ServerLogsPageModule),
   },
   {
-    path: 'wifi',
-    loadChildren: () => import('./wifi/wifi.module').then(m => m.WifiPageModule),
-  },
-  {
-    path: 'lan',
-    loadChildren: () => import('./lan/lan.module').then(m => m.LANPageModule),
-  },
-  {
-    path: 'security',
-    loadChildren: () => import('./security-routes/security-routing.module').then( m => m.SecurityRoutingModule),
+    path: 'metrics',
+    loadChildren: () => import('./server-metrics/server-metrics.module').then(m => m.ServerMetricsPageModule),
   },
   {
     path: 'preferences',
     loadChildren: () => import('./preferences/preferences.module').then( m => m.PreferencesPageModule),
+  },
+  {
+    path: 'sessions',
+    loadChildren: () => import('./sessions/sessions.module').then( m => m.SessionsPageModule),
+  },
+  {
+    path: 'specs',
+    loadChildren: () => import('./server-specs/server-specs.module').then(m => m.ServerSpecsPageModule),
+  },
+  {
+    path: 'ssh',
+    loadChildren: () => import('./ssh-keys/ssh-keys.module').then( m => m.SSHKeysPageModule),
+  },
+  {
+    path: 'wifi',
+    loadChildren: () => import('./wifi/wifi.module').then(m => m.WifiPageModule),
   },
 ]
 

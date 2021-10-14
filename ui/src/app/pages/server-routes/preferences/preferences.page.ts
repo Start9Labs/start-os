@@ -4,7 +4,7 @@ import { IonContent, ModalController } from '@ionic/angular'
 import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ServerConfigService } from 'src/app/services/server-config.service'
 
 @Component({
   selector: 'preferences',
@@ -19,6 +19,7 @@ export class PreferencesPage {
   constructor (
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
+    public readonly serverConfig: ServerConfigService,
     public readonly patch: PatchDbService,
   ) { }
 
