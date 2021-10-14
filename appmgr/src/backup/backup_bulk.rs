@@ -1,70 +1,159 @@
-use anyhow::anyhow;
-use patch_db::{DbHandle, ModelDataMut, PatchDbHandle, Revision};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+use color_eyre::eyre::eyre;
+use patch_db::{DbHandle, LockType, ModelDataMut, PatchDbHandle, Revision};
+use rpc_toolkit::command;
 use tokio::process::Command;
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::{Database, PackageDataEntry, ServerStatus};
+use crate::db::util::WithRevision;
 use crate::disk::util::{mount, unmount};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::status::MainStatus;
-use crate::util::Invoke;
-use crate::util::{display_none, GeneralGuard};
+use crate::util::{display_none, GeneralGuard, Invoke};
 use crate::volume::BACKUP_MNT;
 use crate::{Error, ErrorKind, ResultExt, BACKUP_DIR};
-use rpc_toolkit::command;
 
 #[command(rename = "create", display(display_none))]
 pub async fn backup_all(
     #[context] ctx: RpcContext,
-    #[arg(rename = "logicalname")] logical_name: PathBuf,
+    #[arg] logicalname: PathBuf,
     #[arg] password: String,
-) -> Result<(), Error> {
+) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
-    assure_backing_up(&mut db).await?;
+    let revision = assure_backing_up(&mut db).await?;
+    tokio::task::spawn(async move {
+        match perform_backup(ctx, db, logicalname).await {
+            Ok(()) => todo!(),
+            Err(e) => todo!(),
+        }
+    });
+    Ok(WithRevision {
+        response: (),
+        revision,
+    })
+}
+
+#[instrument(skip(db))]
+async fn assure_backing_up(db: &mut PatchDbHandle) -> Result<Option<Arc<Revision>>, Error> {
     let mut tx = db.begin().await?;
-    let mut db_model = crate::db::DatabaseModel::new().get_mut(&mut tx).await?;
+    let mut info = crate::db::DatabaseModel::new()
+        .server_info()
+        .get_mut(&mut tx)
+        .await?;
+    match &info.status {
+        ServerStatus::Updating => {
+            return Err(Error::new(
+                eyre!("Server is updating!"),
+                crate::ErrorKind::InvalidRequest,
+            ))
+        }
+        ServerStatus::Updated => {
+            return Err(Error::new(
+                eyre!("Server is updated and needs to be reset"),
+                crate::ErrorKind::InvalidRequest,
+            ))
+        }
+        ServerStatus::BackingUp => {
+            return Err(Error::new(
+                eyre!("Server is already backing up!"),
+                crate::ErrorKind::InvalidRequest,
+            ))
+        }
+        ServerStatus::Running => (),
+    }
+    info.status = ServerStatus::BackingUp;
+    info.save(&mut tx).await?;
+    Ok(tx.commit(None).await?)
+}
+
+#[instrument(skip(ctx, db))]
+async fn perform_backup<Db: DbHandle>(
+    ctx: RpcContext,
+    mut db: Db,
+    logical_name: PathBuf,
+) -> Result<(), Error> {
     mount(logical_name, BACKUP_MNT).await?;
     let mounted = GeneralGuard::new(|| tokio::spawn(unmount(BACKUP_MNT)));
 
-    // TODO Fetch from db instead of pulling all of model and doing the settings.
-    for (package_id, mut installed) in db_model
-        .package_data
-        .0
-        .iter_mut()
-        .filter_map(|(id, pde)| pde.installed_mut().map(|i| (id, i)))
+    let mut backup_report = BTreeMap::new();
+
+    for package_id in crate::db::DatabaseModel::new()
+        .package_data()
+        .keys(&mut db, true)
+        .await?
     {
-        // todo!("Backup state preferences");
-        let (started, health) = match &installed.status.main {
+        let installed_model = if let Some(installed_model) = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(&package_id)
+            .and_then(|m| m.installed())
+            .check(&mut db)
+            .await?
+        {
+            installed_model
+        } else {
+            continue;
+        };
+        installed_model.lock(&mut db, LockType::Write).await;
+        let manifest = installed_model
+            .clone()
+            .manifest()
+            .get(&mut db, true)
+            .await?;
+        let main_status_model = installed_model.clone().status().main();
+        let (started, health) = match main_status_model.get(&mut db, true).await?.into_owned() {
             MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
             MainStatus::Stopped | MainStatus::Stopping => (None, Default::default()),
             MainStatus::Restoring { .. } => {
-                todo!("Can't do backup because one of the services is in a restoring state");
+                backup_report.insert(
+                    package_id,
+                    Err(Error::new(
+                        eyre!("Can't do backup because service is in a restoring state"),
+                        crate::ErrorKind::InvalidRequest,
+                    )),
+                );
+                continue;
             }
             MainStatus::BackingUp { .. } => {
-                todo!("Can't do backup because one of the services is in a backing up state");
+                backup_report.insert(
+                    package_id,
+                    Err(Error::new(
+                        eyre!("Can't do backup because service is in a backing up state"),
+                        crate::ErrorKind::InvalidRequest,
+                    )),
+                );
+                continue;
             }
         };
-        installed.status.main = MainStatus::BackingUp {
-            started: started.clone(),
-            health: health.clone(),
-        };
-        // todo!("Backup application");
-        installed
-            .manifest
-            .backup
-            .create(
-                &ctx,
-                package_id,
-                &installed.manifest.version,
-                &installed.manifest.volumes,
+        main_status_model
+            .put(
+                &mut db,
+                &MainStatus::BackingUp {
+                    started: started.clone(),
+                    health: health.clone(),
+                },
             )
             .await?;
-        installed.status.main = match started {
-            Some(started) => MainStatus::Running { started, health },
-            None => MainStatus::Stopped,
-        };
+
+        let res = manifest
+            .backup
+            .create(&ctx, &package_id, &manifest.version, &manifest.volumes)
+            .await;
+        backup_report.insert(package_id, res);
+
+        main_status_model
+            .put(
+                &mut db,
+                &match started {
+                    Some(started) => MainStatus::Running { started, health },
+                    None => MainStatus::Stopped,
+                },
+            )
+            .await?;
     }
     let secrets = ctx.datadir.join("main/secrets.db");
     tokio::fs::copy(secrets, Path::new(BACKUP_DIR).join("secrets.db")).await?;
@@ -82,37 +171,4 @@ pub async fn backup_all(
 
     mounted.drop().await.with_kind(ErrorKind::Unknown)??;
     Ok(())
-}
-
-async fn assure_backing_up(db: &mut PatchDbHandle) -> Result<Option<Arc<Revision>>, Error> {
-    let begin = db.begin().await?;
-    let mut tx = begin;
-    let mut info = crate::db::DatabaseModel::new()
-        .server_info()
-        .get_mut(&mut tx)
-        .await?;
-    match &info.status {
-        ServerStatus::Updating => {
-            return Err(Error::new(
-                anyhow!("Server is already updating!"),
-                crate::ErrorKind::InvalidRequest,
-            ))
-        }
-        ServerStatus::Updated => {
-            return Err(Error::new(
-                anyhow!("Server is backed up and needs to be reset"),
-                crate::ErrorKind::InvalidRequest,
-            ))
-        }
-        ServerStatus::BackingUp => {
-            return Err(Error::new(
-                anyhow!("Server is backing up!"),
-                crate::ErrorKind::InvalidRequest,
-            ))
-        }
-        ServerStatus::Running => (),
-    }
-    info.status = ServerStatus::BackingUp;
-    info.save(&mut tx).await?;
-    Ok(tx.commit(None).await?)
 }
