@@ -531,8 +531,8 @@ pub async fn configure_logic(
                 crate::ErrorKind::NotFound,
             )
         })?;
-    let version = pkg_model.clone().manifest().version().get(db, true).await?;
-    let volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
+    let version = dep_model.clone().manifest().version().get(db, true).await?;
+    let volumes = dep_model.clone().manifest().volumes().get(db, true).await?;
     let dependencies = pkg_model
         .clone()
         .manifest()
@@ -572,7 +572,7 @@ pub async fn configure_logic(
             )
         })?;
     let config: Config = dep_config_action
-        .get(&ctx, &pkg_id, &*version, &*volumes)
+        .get(&ctx, &dep_id, &*version, &*volumes)
         .await?
         .config
         .ok_or_else(|| {
