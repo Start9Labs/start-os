@@ -314,8 +314,6 @@ impl ConfigRuleEntryWithSuggestions {
             for suggestion in &self.suggestions {
                 suggestion.apply(id, cfg, cfgs);
             }
-            dbg!("*****cfg in apply: {}", &cfg);
-            dbg!("*****cfgs in apply: {}", &cfgs);
             self.entry.check(cfg, cfgs)
         } else {
             Ok(())

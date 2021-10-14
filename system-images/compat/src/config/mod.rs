@@ -77,23 +77,12 @@ pub fn apply_dependency_configuration(
     let mut cfgs = LinearMap::new();
     cfgs.insert(dependency_id, Cow::Owned(dep_config.clone()));
     cfgs.insert(package_id, Cow::Owned(config.clone()));
-    let rule_check = rules
+    let rule_check = dbg!(rules
         .into_iter()
         .map(|r| r.apply(dependency_id, &mut dep_config, &mut cfgs))
-        .bcollect::<Vec<_>>();
-    let new_dep_config = cfgs
-        .get(&dependency_id)
-        .ok_or_else(|| anyhow!("cannot find key"))?;
-    dbg!(
-        "*****new_dep_config in apply_dependency_configuration: {}",
-        new_dep_config.as_ref().to_owned()
-    );
-    dbg!(
-        "*****dep_config in apply_dependency_configuration: {}",
-        &dep_config
-    );
+        .bcollect::<Vec<_>>());
     match rule_check {
-        Ok(_) => Ok(dep_config),
+        Ok(_) => Ok(dbg!(dep_config)),
         Err(e) => Err(anyhow!("{}", e)),
     }
 }
