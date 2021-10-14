@@ -108,66 +108,83 @@ export class ServerShowPage {
       'Backups': [
         {
           title: 'Create Backup',
+          description: 'Back up your Embassy and all its services',
           icon: 'save-outline',
           action: () => this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
-          detail: true,
-        },
-      ],
-      'Settings': [
-        {
-          title: 'Preferences',
-          icon: 'options-outline',
-          action: () => this.navCtrl.navigateForward(['preferences'], { relativeTo: this.route }),
-          detail: true,
-        },
-        {
-          title: 'Privacy and Security',
-          icon: 'shield-checkmark-outline',
-          action: () => this.navCtrl.navigateForward(['security'], { relativeTo: this.route }),
-          detail: true,
-        },
-        {
-          title: 'LAN',
-          icon: 'home-outline',
-          action: () => this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
-          detail: true,
-        },
-        {
-          title: 'WiFi',
-          icon: 'wifi',
-          action: () => this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
           detail: true,
         },
       ],
       'Insights': [
         {
           title: 'About',
+          description: 'Basic information about your Embassy',
           icon: 'information-circle-outline',
           action: () => this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
           detail: true,
         },
         {
           title: 'Monitor',
+          description: 'CPU, disk, memory, and other useful metrics',
           icon: 'pulse',
           action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
           detail: true,
         },
         {
           title: 'Logs',
+          description: 'Raw, unfiltered device logs',
           icon: 'newspaper-outline',
           action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
+          detail: true,
+        },
+      ],
+      'Settings': [
+        {
+          title: 'Preferences',
+          description: 'Device name, background tasks',
+          icon: 'options-outline',
+          action: () => this.navCtrl.navigateForward(['preferences'], { relativeTo: this.route }),
+          detail: true,
+        },
+        {
+          title: 'LAN',
+          description: 'Access your Embassy on the Local Area Network',
+          icon: 'home-outline',
+          action: () => this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
+          detail: true,
+        },
+        {
+          title: 'SSH',
+          description: 'Access your Embassy from the command line',
+          icon: 'terminal-outline',
+          action: () => this.navCtrl.navigateForward(['ssh'], { relativeTo: this.route }),
+          detail: true,
+        },
+        {
+          title: 'WiFi',
+          description: 'Add or remove WiFi networks',
+          icon: 'wifi',
+          action: () => this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
+          detail: true,
+        },
+        {
+          title: 'Active Sessions',
+          description: 'View and manage device access',
+          icon: 'desktop-outline',
+          action: () => this.navCtrl.navigateForward(['sessions'], { relativeTo: this.route }),
           detail: true,
         },
       ],
       'Power': [
         {
           title: 'Restart',
+          description: '',
           icon: 'reload',
           action: () => this.presentAlertRestart(),
           detail: false,
         },
         {
           title: 'Shutdown',
+          description: '',
           icon: 'power',
           action: () => this.presentAlertShutdown(),
           detail: false,
@@ -184,6 +201,7 @@ export class ServerShowPage {
 interface ServerSettings {
   [key: string]: {
     title: string
+    description: string
     icon: string
     action: Function
     detail: boolean

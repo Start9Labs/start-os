@@ -118,9 +118,11 @@ export class MockApiService extends ApiService {
         value: initialProgress,
       },
     ]
-    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    const res = await this.http.rpcRequest<RR.UpdateServerRes>({ method: 'db.patch', params: { patch } })
+    res.response = 'updating'
 
     this.updateOSProgress(initialProgress.size)
+
     return res
   }
 
