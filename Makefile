@@ -34,7 +34,7 @@ ubuntu.img:
 
 product_key.txt:
 	$(shell which echo) -n "X" > product_key.txt
-	cat /dev/random | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
+	cat /dev/urandom | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
 	echo >> product_key.txt
 
 $(EMBASSY_BINS): $(APPMGR_SRC)
