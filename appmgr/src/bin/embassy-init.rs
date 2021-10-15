@@ -76,7 +76,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     }
 
     embassy::disk::main::load(
-        tokio::fs::read_to_string("/embassy-os/disk.guid")
+        tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for zfs pool - keeps track of the disk that goes with your embassy
             .await?
             .trim(),
         cfg.zfs_pool_name(),

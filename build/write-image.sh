@@ -62,4 +62,8 @@ sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
 sudo ln -s  /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
 
+# load system images script
+sudo cp ./build/load-system-images.sh /tmp/eos-mnt/usr/local/bin
+sudo chmod+x /tmp/eos-mnt/usr/local/bin/load-system-images.sh
+
 sudo umount /tmp/eos-mnt
