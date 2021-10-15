@@ -40,10 +40,11 @@ mkdir /root/tmp_docker
 cp -r /var/lib/docker /root/tmp_docker
 
 # Unmount
+systemctl stop docker
 umount /var/lib/docker
 
 # Destroy pool, which also exports
-zpool destroy docker_pool
+zpool destroy docker-pool
 
 # Clear old data
 rm -rf /var/lib/docker
