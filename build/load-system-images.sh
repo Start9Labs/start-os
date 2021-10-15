@@ -56,4 +56,5 @@ mv /root/tmp_docker /var/lib/docker
 rm /dev/docker_lib_file
 
 # Start Docker again
+echo '{ "storage-driver": "overlay2" }' > /etc/docker/daemon.json
 systemctl start docker
