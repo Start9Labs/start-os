@@ -1,8 +1,4 @@
 pub const CONFIG_PATH: &'static str = "/etc/embassy/config.toml";
-pub const SERVICES_YAML: &'static str = "tor/services.yaml";
-pub const VOLUMES: &'static str = "/root/volumes";
-pub const BACKUP_MOUNT_POINT: &'static str = "/mnt/backup_drive";
-pub const BACKUP_DIR: &'static str = "Embassy Backups";
 pub const BUFFER_SIZE: usize = 1024;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 
