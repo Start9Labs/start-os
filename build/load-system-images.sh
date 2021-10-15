@@ -1,50 +1,55 @@
 #!/bin/bash
 
 # get size of /var/lib/docker and add space to it
-SIZE_DOCKER_LIB=$(du -s /var/lib/docker)
-SIZE=$(($SIZE_DOCKER_LIB + 5000000))
+SIZE_DOCKER_LIB=$(du -s /var/lib/docker | cut -d/ -f1)
+SIZE_SYS_IMG=$()
+
+# make size in mb - 64M is min needed for zfs
+SIZE=$((($SIZE_DOCKER_LIB + 512 / 1024) + 64 + 200))
 
 # Allocate a file to be used as a block device
-sudo truncate -size=$SIZE docker_lib_file
+truncate --size ${SIZE}MB /dev/docker_lib_file
 
 # Create a pool with that file as a storage backend
-sudo zpool create docker-pool docker_lib_file
+zpool create docker-pool /dev/docker_lib_file
 
 # Create a zfs fs on that pool
-sudo zfs create docker-pool/main
+zfs create docker-pool/main
 
 # Copy /var/lib/docker onto that fs
-sudo cp -r /var/lib/docker /docker-pool/main
+cp -r /var/lib/docker /docker-pool/main
 
 # Mount /var/lib/docker to that fs
-sudo mount --bind /docker-pool/main/docker /var/lib/docker
+mount --bind /docker-pool/main/docker /var/lib/docker
 
 # Write docker.json file
-sudo echo '{ "storage-driver": "zfs" }' > /etc/docker/daemon.json
+echo '{ "storage-driver": "zfs" }' > /etc/docker/daemon.json
 
 # Restart docker
-sudo systemctl restart docker
+systemctl restart docker
 
 # Load images
-sudo docker load --input /root/compat.tar
+docker load --input /root/compat.tar
 
 # persisit load response for temporary debugging
-sudo docker images > /root/images.out
+docker images > /root/images.out
 
 # Copy all /var/lib/docker onto actual ext4 fs:
 # First, copy to tmp place that is not /var/lib/docker
-sudo mkdir /root/tmp_docker
-sudo cp -r /var/lib/docker /root/tmp_docker
+mkdir /root/tmp_docker
+cp -r /var/lib/docker /root/tmp_docker
 
-# Unmount (full pool export) or pool destroy
-sudo zpool destroy docker_pool
+# Unmount
+umount /var/lib/docker
+
+# Destroy pool, which also exports
+zpool destroy docker_pool
 
 # Clear old data
-sudo rm -rf /var/lib/docker
+rm -rf /var/lib/docker
 
 # Move to actual /var/lib/docker 
-sudo mv /root/tmp_docker /var/lib/docker
+mv /root/tmp_docker /var/lib/docker
 
 # Delete file used as block device
-sudo rm docker_lib_file
-
+rm /dev/docker_lib_file
