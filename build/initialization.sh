@@ -30,7 +30,7 @@ mkdir -p /etc/nginx/ssl
 # docker stuff
 mkdir /root/.docker
 touch /root/.docker/config.json
-./load-system-images.sh
+/usr/local/bin/load-system-images.sh
 docker run --privileged --rm tonistiigi/binfmt --install all
 docker network create -d bridge --subnet 172.18.0.1/16 start9 || true
 echo '{ "storage-driver": "zfs" }' > /etc/docker/daemon.json
