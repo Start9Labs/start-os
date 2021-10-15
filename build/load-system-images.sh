@@ -36,7 +36,6 @@ docker images > /root/images.out
 
 # Copy all /var/lib/docker onto actual ext4 fs:
 # First, copy to tmp place that is not /var/lib/docker
-mkdir /root/tmp_docker
 cp -r /var/lib/docker /root/tmp_docker
 
 # Unmount
