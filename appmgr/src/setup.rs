@@ -412,6 +412,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), 
         let icon_src_path = tmp_mountpoint
             .join("root/agent/icons")
             .join(format!("{}.png", pkg_id));
+        // TODO: tor address
         let icon_dst_path = ctx.datadir.join(PKG_PUBLIC_DIR).join(&icon_leaf);
         if let Some(parent) = icon_dst_path.parent() {
             tokio::fs::create_dir_all(&parent)

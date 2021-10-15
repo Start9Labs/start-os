@@ -13,7 +13,7 @@ use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
 use crate::dependencies::{break_transitive, DependencyError, DependencyErrors};
 use crate::manager::{Manager, Status as ManagerStatus};
-use crate::notifications::{NotificationLevel, NotificationSubtype};
+use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::HealthCheckResult;
 use crate::Error;
@@ -352,8 +352,8 @@ impl MainStatus {
                                 NotificationLevel::Error,
                                 String::from("Critical Health Check Failed"),
                                 format!("{} was shut down because a health check required for its operation failed\n{}", manifest.title, error),
-                                NotificationSubtype::General,
-                                None
+                                (),
+                                None,
                             )
                             .await?;
                             should_stop = true;

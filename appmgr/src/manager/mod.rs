@@ -18,7 +18,7 @@ use crate::action::docker::DockerAction;
 use crate::action::NoOutput;
 use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
-use crate::notifications::{NotificationLevel, NotificationSubtype};
+use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
@@ -319,7 +319,7 @@ impl Manager {
                                 NotificationLevel::Warning,
                                 String::from("Service Crashed"),
                                 format!("The service {} has crashed with the following exit code: {}\nDetails: {}", thread_shared.manifest.id.clone(), e.0, e.1),
-                                NotificationSubtype::General,
+                                (),
                                 Some(900) // 15 minutes
                             )
                             .await;
