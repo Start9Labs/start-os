@@ -11,17 +11,13 @@ truncate -size=$SIZE docker_lib_file
 zpool create docker-pool docker_lib_file
 
 # Create a zfs fs on that pool
-zpool create docker-pool/main
+zfs create docker-pool/main
 
 # Copy /var/lib/docker onto that fs
-zpool add docker_pool/main /var/lib/docker
+sudo cp -r /var/lib/docker /docker-pool/main
 
 # Mount /var/lib/docker to that fs
-zfs get -H -ovalue mountpoint docker-pool
-
-zfs set mountpoint=/var/lib/docker docker_pool
-
-zfs mount docker_poool/main
+mount --bind /docker-pool/main/docker /var/lib/docker
 
 # Write docker.json file
 echo '{ "storage-driver": "zfs" }' > /etc/docker/daemon.json
@@ -44,13 +40,10 @@ sudo cp -r /var/lib/docker /root/tmp_docker
 zpool destroy docker_pool
 
 # Clear old data
-rm -rf /var/lib/docker/*
+rm -rf /var/lib/docker
 
 # Move to actual /var/lib/docker 
-mv /root/tmp_docker/* /var/lib/docker/*
-
-# Clean up
-rm -rf /root/tmp_docker
+mv /root/tmp_docker /var/lib/docker
 
 # Delete file used as block device
 rm docker_lib_file
