@@ -54,3 +54,6 @@ mv /root/tmp_docker /var/lib/docker
 
 # Delete file used as block device
 rm /dev/docker_lib_file
+
+# Start Docker again
+systemctl start docker
