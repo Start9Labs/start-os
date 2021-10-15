@@ -25,6 +25,12 @@ server {{
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "Upgrade";
         }}
+        
+        location /public/ {{
+                proxy_pass http://127.0.0.1:5961/;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "Upgrade";
+        }}
 
         location /marketplace/ {{
                 proxy_pass https://beta-registry-0-3.start9labs.com/; # TODO
