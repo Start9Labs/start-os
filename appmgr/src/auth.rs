@@ -13,9 +13,7 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
-use crate::middleware::auth::{
-    AsLogoutSessionId, AuthenticatedSession, HashToken, LoggedOutSessions,
-};
+use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::{ensure_code, Error, ResultExt};
 
@@ -99,7 +97,7 @@ pub async fn login(
         "Password Incorrect"
     );
 
-    let hash_token = HashToken::new();
+    let hash_token = HashSessionToken::new();
     let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());
     let metadata = serde_json::to_string(&metadata).with_kind(crate::ErrorKind::Database)?;
     let hash_token_hashed = hash_token.hashed();
@@ -124,12 +122,12 @@ pub async fn login(
 pub async fn logout(
     #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
-) -> Result<Option<LoggedOutSessions>, Error> {
-    let auth = match AuthenticatedSession::from_request_parts(req) {
+) -> Result<Option<HasLoggedOutSessions>, Error> {
+    let auth = match HashSessionToken::from_request_parts(req) {
         Err(_) => return Ok(None),
         Ok(a) => a,
     };
-    Ok(Some(LoggedOutSessions::new(vec![auth], &ctx).await?))
+    Ok(Some(HasLoggedOutSessions::new(vec![auth], &ctx).await?))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -196,7 +194,7 @@ pub async fn list(
     format: Option<IoFormat>,
 ) -> Result<SessionList, Error> {
     Ok(SessionList {
-        current: AuthenticatedSession::from_request_parts(req)?.as_hash(),
+        current: HashSessionToken::from_request_parts(req)?.as_hash(),
         sessions: sqlx::query!(
             "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
         )
@@ -238,6 +236,6 @@ pub async fn kill(
     #[context] ctx: RpcContext,
     #[arg(parse(parse_comma_separated))] ids: Vec<String>,
 ) -> Result<(), Error> {
-    LoggedOutSessions::new(ids.into_iter().map(KillSessionId), &ctx).await?;
+    HasLoggedOutSessions::new(ids.into_iter().map(KillSessionId), &ctx).await?;
     Ok(())
 }

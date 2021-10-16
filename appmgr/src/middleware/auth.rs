@@ -20,10 +20,11 @@ pub trait AsLogoutSessionId {
     fn as_logout_session_id(self) -> String;
 }
 
+/// Will need to know when we have logged out from a route
 #[derive(Serialize, Deserialize)]
-pub struct LoggedOutSessions(());
+pub struct HasLoggedOutSessions(());
 
-impl LoggedOutSessions {
+impl HasLoggedOutSessions {
     pub async fn new(
         logged_out_sessions: impl IntoIterator<Item = impl AsLogoutSessionId>,
         ctx: &RpcContext,
@@ -43,26 +44,20 @@ impl LoggedOutSessions {
     }
 }
 
+/// Used when we need to know that we have logged in with a valid user
 #[derive(Clone, Copy)]
-pub struct ValidSession(());
+pub struct HasValidSession(());
 
-impl ValidSession {
+impl HasValidSession {
     pub async fn from_request_parts(
         request_parts: &RequestParts,
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
-        Self::from_session(
-            &AuthenticatedSession::from_request_parts(request_parts)?,
-            ctx,
-        )
-        .await
+        Self::from_session(&HashSessionToken::from_request_parts(request_parts)?, ctx).await
     }
 
-    pub async fn from_session(
-        session: &AuthenticatedSession,
-        ctx: &RpcContext,
-    ) -> Result<Self, Error> {
-        let session_hash = session.hash();
+    pub async fn from_session(session: &HashSessionToken, ctx: &RpcContext) -> Result<Self, Error> {
+        let session_hash = session.hashed();
         let session = sqlx::query!("UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = ? AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP", session_hash)
             .execute(&mut ctx.secret_store.acquire().await?)
             .await?;
@@ -76,11 +71,29 @@ impl ValidSession {
     }
 }
 
-pub struct AuthenticatedSession {
-    hash: HashToken,
+/// When we have a need to create a new session,
+/// Or when we are using internal valid authenticated service.
+#[derive(Debug, Clone)]
+pub struct HashSessionToken {
+    hashed: String,
+    token: String,
 }
+impl HashSessionToken {
+    pub fn new() -> Self {
+        let token = base32::encode(
+            base32::Alphabet::RFC4648 { padding: false },
+            &rand::random::<[u8; 16]>(),
+        )
+        .to_lowercase();
+        let hashed = Self::hash(&token);
+        Self { hashed, token }
+    }
+    pub fn from_cookie(cookie: &Cookie) -> Self {
+        let token = cookie.get_value().to_owned();
+        let hashed = Self::hash(&token);
+        Self { hashed, token }
+    }
 
-impl AuthenticatedSession {
     pub fn from_request_parts(request_parts: &RequestParts) -> Result<Self, Error> {
         if let Some(cookie_header) = request_parts.headers.get(COOKIE) {
             let cookies = Cookie::parse(
@@ -98,44 +111,6 @@ impl AuthenticatedSession {
             crate::ErrorKind::Authorization,
         ))
     }
-    pub fn from_cookie(cookie: &Cookie) -> Self {
-        return Self {
-            hash: HashToken::from_cookie(cookie),
-        };
-    }
-    pub fn as_hash(self) -> String {
-        self.hash.hashed
-    }
-    pub fn hash(&self) -> &str {
-        &self.hash.hashed
-    }
-}
-impl AsLogoutSessionId for AuthenticatedSession {
-    fn as_logout_session_id(self) -> String {
-        self.hash.hashed
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct HashToken {
-    hashed: String,
-    token: String,
-}
-impl HashToken {
-    pub fn new() -> Self {
-        let token = base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
-            &rand::random::<[u8; 16]>(),
-        )
-        .to_lowercase();
-        let hashed = Self::hash(&token);
-        Self { hashed, token }
-    }
-    pub fn from_cookie(cookie: &Cookie) -> Self {
-        let token = cookie.get_value().to_owned();
-        let hashed = Self::hash(&token);
-        Self { hashed, token }
-    }
 
     pub fn header_value(&self) -> Result<http::HeaderValue, Error> {
         http::HeaderValue::from_str(&format!(
@@ -143,6 +118,14 @@ impl HashToken {
             self.token
         ))
         .with_kind(crate::ErrorKind::Unknown)
+    }
+
+    pub fn hashed(&self) -> &str {
+        self.hashed.as_str()
+    }
+
+    pub fn as_hash(self) -> String {
+        self.hashed
     }
     fn hash(token: &str) -> String {
         let mut hasher = Sha256::new();
@@ -153,11 +136,13 @@ impl HashToken {
         )
         .to_lowercase()
     }
-
-    pub fn hashed(&self) -> &str {
-        self.hashed.as_str()
+}
+impl AsLogoutSessionId for HashSessionToken {
+    fn as_logout_session_id(self) -> String {
+        self.hashed
     }
 }
+
 pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
     Box::new(
         move |req: &mut Request<Body>,
@@ -173,7 +158,7 @@ pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                             .get(rpc_req.method.as_str(), "authenticated")
                             .unwrap_or(true)
                         {
-                            if let Err(e) = ValidSession::from_request_parts(req, &ctx).await {
+                            if let Err(e) = HasValidSession::from_request_parts(req, &ctx).await {
                                 let (res_parts, _) = Response::new(()).into_parts();
                                 return Ok(Err(to_response(
                                     &req.headers,

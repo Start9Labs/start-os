@@ -24,7 +24,7 @@ use tracing::instrument;
 pub use self::model::DatabaseModel;
 use self::util::WithRevision;
 use crate::context::RpcContext;
-use crate::middleware::auth::{AuthenticatedSession, ValidSession};
+use crate::middleware::auth::{HasValidSession, HashSessionToken};
 use crate::util::{display_serializable, GeneralGuard, IoFormat};
 use crate::{Error, ResultExt};
 
@@ -71,8 +71,8 @@ async fn ws_handler<
                 .ok_or_else(|| {
                     Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
                 })?;
-            let authenticated_session = AuthenticatedSession::from_cookie(&id);
-            if let Err(e) = ValidSession::from_session(&authenticated_session, &ctx).await {
+            let authenticated_session = HashSessionToken::from_cookie(&id);
+            if let Err(e) = HasValidSession::from_session(&authenticated_session, &ctx).await {
                 stream
                     .send(Message::Text(
                         serde_json::to_string(

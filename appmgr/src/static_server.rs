@@ -1,6 +1,6 @@
 use crate::context::RpcContext;
 use crate::install::PKG_PUBLIC_DIR;
-use crate::middleware::auth::ValidSession;
+use crate::middleware::auth::HasValidSession;
 use crate::{Error, ErrorKind, ResultExt};
 use digest::Digest;
 use http::response::Builder;
@@ -47,7 +47,7 @@ pub fn init(
 async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
     println!("Request = {:?}", req);
     let (request_parts, _body) = req.into_parts();
-    let valid_session = ValidSession::from_request_parts(&request_parts, &ctx).await;
+    let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
     match (
         valid_session,
         request_parts.method,
@@ -87,7 +87,7 @@ fn server_error() -> Response<Body> {
         .unwrap()
 }
 async fn file_send(
-    _valid_session: ValidSession,
+    _valid_session: HasValidSession,
     ctx: &RpcContext,
     filename: PathBuf,
 ) -> Result<Response<Body>, Error> {
