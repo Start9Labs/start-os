@@ -24,7 +24,7 @@ use tracing::instrument;
 pub use self::model::DatabaseModel;
 use self::util::WithRevision;
 use crate::context::RpcContext;
-use crate::middleware::auth::hash_token;
+use crate::middleware::auth::{AuthenticatedSession, ValidSession};
 use crate::util::{display_serializable, GeneralGuard, IoFormat};
 use crate::{Error, ResultExt};
 
@@ -63,6 +63,7 @@ async fn ws_handler<
         {
             let cookie_str = serde_json::from_str::<Cow<str>>(&cookie)
                 .with_kind(crate::ErrorKind::Deserialization)?;
+
             let id = basic_cookies::Cookie::parse(&cookie_str)
                 .with_kind(crate::ErrorKind::Authorization)?
                 .into_iter()
@@ -70,9 +71,8 @@ async fn ws_handler<
                 .ok_or_else(|| {
                     Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
                 })?;
-            if let Err(e) =
-                crate::middleware::auth::is_authed(&ctx, &hash_token(id.get_value())).await
-            {
+            let authenticated_session = AuthenticatedSession::from_cookie(&id);
+            if let Err(e) = ValidSession::from_session(&authenticated_session, &ctx).await {
                 stream
                     .send(Message::Text(
                         serde_json::to_string(
