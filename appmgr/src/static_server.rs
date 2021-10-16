@@ -1,6 +1,6 @@
 use crate::context::RpcContext;
 use crate::install::PKG_PUBLIC_DIR;
-use crate::middleware::auth::{get_id, is_authed};
+use crate::middleware::auth::HasValidSession;
 use crate::{Error, ErrorKind, ResultExt};
 use digest::Digest;
 use http::response::Builder;
@@ -47,23 +47,26 @@ pub fn init(
 async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
     println!("Request = {:?}", req);
     let (request_parts, _body) = req.into_parts();
-    let id = get_id(&request_parts)?;
-    if let Err(error) = is_authed(&ctx, &id).await {
-        tracing::warn!(
-            "unauthorized for {:?} @{:?}",
-            error,
-            request_parts.uri.path()
-        );
-        return Ok(Response::builder()
-            .status(StatusCode::UNAUTHORIZED)
-            .body(NOT_AUTHORIZED.into())
-            .unwrap());
-    }
+    let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
     match (
+        valid_session,
         request_parts.method,
         request_parts.uri.path().strip_prefix("/"),
     ) {
-        (Method::GET, Some(path)) => authenticated_file_send(&ctx, PathBuf::from(path)).await,
+        (Err(error), _, _) => {
+            tracing::warn!(
+                "unauthorized for {:?} @{:?}",
+                error,
+                request_parts.uri.path()
+            );
+            return Ok(Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .body(NOT_AUTHORIZED.into())
+                .unwrap());
+        }
+        (Ok(valid_session), Method::GET, Some(path)) => {
+            file_send(valid_session, &ctx, PathBuf::from(path)).await
+        }
         _ => Ok(not_found()),
     }
 }
@@ -83,7 +86,8 @@ fn server_error() -> Response<Body> {
         .body("".into())
         .unwrap()
 }
-async fn authenticated_file_send(
+async fn file_send(
+    _valid_session: HasValidSession,
     ctx: &RpcContext,
     filename: PathBuf,
 ) -> Result<Response<Body>, Error> {
