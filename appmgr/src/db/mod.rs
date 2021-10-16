@@ -34,7 +34,7 @@ async fn ws_handler<
     ctx: RpcContext,
     ws_fut: WSFut,
 ) -> Result<(), Error> {
-    let (dump, mut sub) = ctx.db.dump_and_sub().await;
+    let (dump, sub) = ctx.db.dump_and_sub().await;
     let mut stream = ws_fut
         .await
         .with_kind(crate::ErrorKind::Network)?
@@ -54,7 +54,7 @@ async fn ws_handler<
         ()
     });
 
-    loop {
+    let has_valid_session = loop {
         if let Some(Message::Text(cookie)) = stream
             .next()
             .await
@@ -72,36 +72,39 @@ async fn ws_handler<
                     Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
                 })?;
             let authenticated_session = HashSessionToken::from_cookie(&id);
-            if let Err(e) = HasValidSession::from_session(&authenticated_session, &ctx).await {
-                stream
-                    .send(Message::Text(
-                        serde_json::to_string(
-                            &RpcResponse::<GenericRpcMethod<String>>::from_result(
-                                Err::<_, RpcError>(e.into()),
-                            ),
-                        )
-                        .with_kind(crate::ErrorKind::Serialization)?,
-                    ))
-                    .await
-                    .with_kind(crate::ErrorKind::Network)?;
-                return Ok(());
+            match HasValidSession::from_session(&authenticated_session, &ctx).await {
+                Err(e) => {
+                    stream
+                        .send(Message::Text(
+                            serde_json::to_string(
+                                &RpcResponse::<GenericRpcMethod<String>>::from_result(Err::<
+                                    _,
+                                    RpcError,
+                                >(
+                                    e.into()
+                                )),
+                            )
+                            .with_kind(crate::ErrorKind::Serialization)?,
+                        ))
+                        .await
+                        .with_kind(crate::ErrorKind::Network)?;
+                    return Ok(());
+                }
+                Ok(has_validation) => break has_validation,
             }
-            break;
         }
-    }
-    stream
-        .send(Message::Text(
-            serde_json::to_string(&RpcResponse::<GenericRpcMethod<String>>::from_result(Ok::<
-                _,
-                RpcError,
-            >(
-                serde_json::to_value(&dump).with_kind(crate::ErrorKind::Serialization)?,
-            )))
-            .with_kind(crate::ErrorKind::Serialization)?,
-        ))
-        .await
-        .with_kind(crate::ErrorKind::Network)?;
+    };
+    send_dump(has_valid_session, &mut stream, dump).await?;
 
+    deal_with_messages(has_valid_session, sub, stream).await?;
+    Ok(())
+}
+
+async fn deal_with_messages(
+    _has_valid_authentication: HasValidSession,
+    mut sub: tokio::sync::broadcast::Receiver<Arc<Revision>>,
+    mut stream: WebSocketStream<Upgraded>,
+) -> Result<(), Error> {
     loop {
         futures::select! {
             new_rev = sub.recv().fuse() => {
@@ -147,6 +150,26 @@ async fn ws_handler<
             }
         }
     }
+}
+
+async fn send_dump(
+    _has_valid_authentication: HasValidSession,
+    stream: &mut WebSocketStream<Upgraded>,
+    dump: Dump,
+) -> Result<(), Error> {
+    stream
+        .send(Message::Text(
+            serde_json::to_string(&RpcResponse::<GenericRpcMethod<String>>::from_result(Ok::<
+                _,
+                RpcError,
+            >(
+                serde_json::to_value(&dump).with_kind(crate::ErrorKind::Serialization)?,
+            )))
+            .with_kind(crate::ErrorKind::Serialization)?,
+        ))
+        .await
+        .with_kind(crate::ErrorKind::Network)?;
+    Ok(())
 }
 
 pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<Body>, Error> {
