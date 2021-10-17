@@ -1823,7 +1823,6 @@ impl Hash for ConfigSelector {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[serde(tag = "target")]
 pub struct TorKeyPointer {
     package_id: PackageId,
     interface: InterfaceId,
