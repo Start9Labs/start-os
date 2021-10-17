@@ -6,6 +6,12 @@
         <h1>{{ title }}</h1>
         <br />
         <p>{{ message }}</p>
+        <ng-container *ngIf="warning">
+          <br />
+          <p>
+            <ion-text color="warning">{{ warning }}</ion-text>
+          </p>
+        </ng-container>
       </ion-label>
     </ion-item>    
 
