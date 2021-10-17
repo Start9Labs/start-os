@@ -1,3 +1,7 @@
+import { OperatorFunction } from 'rxjs'
+import { map } from 'rxjs/operators'
+import { BackupInfo, DiskInfo, PartitionInfo } from '../services/api/api.types'
+
 export type Omit<ObjectType, KeysType extends keyof ObjectType> = Pick<ObjectType, Exclude<keyof ObjectType, KeysType>>
 export type PromiseRes<T> = { result: 'resolve', value: T } | { result: 'reject', value: Error }
 
@@ -8,9 +12,6 @@ export type Recommendation = {
   description: string
   version?: string
 }
-
-import { OperatorFunction } from 'rxjs'
-import { map } from 'rxjs/operators'
 
 export function trace<T> (t: T): T {
   console.log(`TRACE`, t)
@@ -190,4 +191,13 @@ export function debounce (delay: number = 300): MethodDecorator {
 
     return descriptor
   }
+}
+
+export interface MappedDiskInfo extends DiskInfo {
+  partitions: MappedPartitionInfo[]
+}
+
+export interface MappedPartitionInfo extends PartitionInfo {
+  hasBackup: boolean
+  backupInfo: BackupInfo | null
 }

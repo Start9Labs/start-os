@@ -137,27 +137,6 @@ export class WifiPage {
     await action.present()
   }
 
-  getWifiIcon (): string {
-    const strength = this.wifi['signal-strength']
-    if (!strength) return
-
-    let path = 'assets/img/icons/wifi-'
-
-    switch (true) {
-      case strength > 66:
-        path = path + '3'
-        break
-      case strength > 33 || strength <= 66:
-        path = path + '2'
-        break
-      case strength < 33:
-        path = path + '1'
-        break
-    }
-
-    return path + '.png'
-  }
-
   private async setCountry (country: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',

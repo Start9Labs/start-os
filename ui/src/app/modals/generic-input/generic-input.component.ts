@@ -10,6 +10,7 @@ import { getErrorMessage } from 'src/app/services/error-toast.service'
 export class GenericInputComponent {
   @Input() title: string
   @Input() message: string
+  @Input() warning: string
   @Input() label: string
   @Input() buttonText = 'Submit'
   @Input() placeholder = 'Enter Value'
@@ -17,7 +18,7 @@ export class GenericInputComponent {
   @Input() useMask = false
   @Input() value = ''
   @Input() loadingText = ''
-  @Input() submitFn: (value: string) => Promise<any>
+  @Input() submitFn: (value: string, loader?: HTMLIonLoadingElement) => Promise<any>
   unmasked = false
   error: string | IonicSafeString
 
@@ -45,7 +46,7 @@ export class GenericInputComponent {
     await loader.present()
 
     try {
-      await this.submitFn(this.value)
+      await this.submitFn(this.value, loader)
       this.modalCtrl.dismiss(undefined, 'success')
     } catch (e) {
       this.error = getErrorMessage(e)

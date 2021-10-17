@@ -9,8 +9,8 @@ export class Emver {
   constructor () { }
 
   compare (lhs: string, rhs: string): number {
-    const compare = emver.compare(lhs, rhs)
-    return compare
+    if (!lhs || !rhs) return null
+    return emver.compare(lhs, rhs)
   }
 
   satisfies (version: string, range: string): boolean {

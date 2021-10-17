@@ -985,12 +985,10 @@ export module Mock {
           label: 'Matt Stuff',
           capacity: 1000000000000,
           used: 0,
+          'embassy-os': null,
         },
       ],
       capacity: 1000000000000,
-      'embassy-os': {
-        version: '0.3.0',
-      },
     },
     {
       logicalname: '/dev/sdb',
@@ -1002,20 +1000,34 @@ export module Mock {
           label: 'Partition 1',
           capacity: 1000000000,
           used: 1000000000,
+          'embassy-os': {
+            version: '0.3.0',
+            full: true,
+          },
         },
         {
           logicalname: 'sdba2',
           label: 'Partition 2',
           capacity: 900000000,
           used: 300000000,
+          'embassy-os': null,
         },
       ],
       capacity: 10000000000,
-      'embassy-os': {
-        version: '0.3.0',
-      },
     },
   ]
+
+  export const BackupInfo: RR.GetBackupInfoRes = {
+    version: '0.3.0',
+    timestamp: new Date().toISOString(),
+    'package-backups': {
+      bitcoind: {
+        version: '0.21.0',
+        'os-version': '0.3.0',
+        timestamp: new Date().toISOString(),
+      },
+    },
+  }
 
   export const PackageProperties: RR.GetPackagePropertiesRes<2> = {
     version: 2,
@@ -1534,6 +1546,7 @@ export module Mock {
     manifest: MockManifestBitcoind,
     installed: {
       manifest: MockManifestBitcoind,
+      'last-backup': null,
       status: {
         configured: true,
         main: {
@@ -1571,6 +1584,7 @@ export module Mock {
     },
     manifest: MockManifestBitcoinProxy,
     installed: {
+      'last-backup': null,
       status: {
         configured: true,
         main: {
@@ -1623,6 +1637,7 @@ export module Mock {
     },
     manifest: MockManifestLnd,
     installed: {
+      'last-backup': null,
       status: {
         configured: true,
         main: {

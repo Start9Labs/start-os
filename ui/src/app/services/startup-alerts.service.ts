@@ -14,6 +14,7 @@ import { filter, take } from 'rxjs/operators'
 import { isEmptyObject } from '../util/misc.util'
 import { ApiService } from './api/embassy-api.service'
 import { Subscription } from 'rxjs'
+import { ServerConfigService } from './server-config.service'
 
 @Injectable({
   providedIn: 'root',
@@ -32,12 +33,19 @@ export class StartupAlertsService {
     private readonly emver: Emver,
     private readonly wizardBaker: WizardBaker,
     private readonly patch: PatchDbService,
+    private readonly serverConfig: ServerConfigService,
   ) {
     const osWelcome: Check<boolean> = {
       name: 'osWelcome',
       shouldRun: () => this.shouldRunOsWelcome(),
       check: async () => true,
       display: () => this.displayOsWelcome(),
+    }
+    const shareStats: Check<boolean> = {
+      name: 'shareStats',
+      shouldRun: () => this.shouldRunShareStats(),
+      check: async () => true,
+      display: () => this.displayShareStats(),
     }
     const osUpdate: Check<RR.GetMarketplaceEOSRes | undefined> = {
       name: 'osUpdate',
@@ -51,7 +59,7 @@ export class StartupAlertsService {
       check: () => this.appsCheck(),
       display: () => this.displayAppsCheck(),
     }
-    this.checks = [osWelcome, osUpdate, pkgsUpdate]
+    this.checks = [osWelcome, shareStats, osUpdate, pkgsUpdate]
   }
 
   // This takes our three checks and filters down to those that should run.
@@ -87,8 +95,13 @@ export class StartupAlertsService {
     })
   }
 
+  // ** should run **
+
   private shouldRunOsWelcome (): boolean {
-    return this.data.ui['welcome-ack'] !== this.config.version
+    return this.data.ui['ack-welcome'] !== this.config.version
+  }
+  private shouldRunShareStats (): boolean {
+    return !this.data.ui['ack-share-stats']
   }
 
   private shouldRunOsUpdateCheck (): boolean {
@@ -98,6 +111,8 @@ export class StartupAlertsService {
   private shouldRunAppsCheck (): boolean {
     return this.data.ui['auto-check-updates']
   }
+
+  // ** check **
 
   private async osUpdateCheck (): Promise<RR.GetMarketplaceEOSRes | undefined> {
     const res = await this.api.getEos({ })
@@ -114,6 +129,8 @@ export class StartupAlertsService {
     return !!updates.length
   }
 
+  // ** display **
+
   private async displayOsWelcome (): Promise<boolean> {
     return new Promise(async resolve => {
       const modal = await this.modalCtrl.create({
@@ -124,11 +141,23 @@ export class StartupAlertsService {
         },
       })
       modal.onWillDismiss().then(() => {
-        this.api.setDbValue({ pointer: '/welcome-ack', value: this.config.version })
+        this.api.setDbValue({ pointer: '/ack-welcome', value: this.config.version })
         .catch()
         return resolve(true)
       })
       await modal.present()
+    })
+  }
+
+  private async displayShareStats (): Promise<boolean> {
+    return new Promise(async resolve => {
+      const alert = await this.serverConfig.presentAlert('share-stats', this.data['server-info']['share-stats'])
+
+      alert.onDidDismiss().then(() => {
+        this.api.setDbValue({ pointer: '/ack-share-stats', value: this.config.version })
+          .catch()
+        return resolve(true)
+      })
     })
   }
 
@@ -179,6 +208,8 @@ export class StartupAlertsService {
       await alert.present()
     })
   }
+
+  // more
 
   private async presentAlertNewOS (versionLatest: string): Promise<{ cancel?: true, update?: true }> {
     return new Promise(async resolve => {

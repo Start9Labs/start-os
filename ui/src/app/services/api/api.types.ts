@@ -46,7 +46,7 @@ export module RR {
 
   export type GetSessionsReq = { } // sessions.list
   export type GetSessionsRes = {
-    current: string,
+    current: string
     sessions: { [hash: string]: Session }
   }
 
@@ -126,8 +126,8 @@ export module RR {
   export type GetDisksReq = { } // disk.list
   export type GetDisksRes = DiskInfo[]
 
-  export type EjectDisksReq = { logicalname: string } // disk.eject
-  export type EjectDisksRes = null
+  export type GetBackupInfoReq = { logicalname: string, password: string } // disk.backup-info
+  export type GetBackupInfoRes = BackupInfo
 
   // package
 
@@ -214,7 +214,7 @@ export type WithExpire<T> = { 'expire-id'?: string } & T
 export type WithRevision<T> = { response: T, revision?: Revision }
 
 export interface MarketplaceData {
-  categories: string[],
+  categories: string[]
 }
 
 export interface MarketplaceEOS {
@@ -243,8 +243,8 @@ export interface Breakages {
 }
 
 export interface TaggedDependencyError {
-  dependency: string,
-  error: DependencyError,
+  dependency: string
+  error: DependencyError
 }
 
 export interface Log {
@@ -289,22 +289,35 @@ export type PlatformType = 'cli' | 'ios' | 'ipad' | 'iphone' | 'android' | 'phab
 
 export interface DiskInfo {
   logicalname: string
-  vendor: string | null,
-  model: string | null,
-  partitions: PartitionInfo[],
+  vendor: string | null
+  model: string | null
+  partitions: PartitionInfo[]
   capacity: number
-  'embassy-os': EmbassyOsDiskInfo | null
 }
 
 export interface PartitionInfo {
-  logicalname: string,
-  label: string | null,
-  capacity: number,
-  used: number | null,
+  logicalname: string
+  label: string | null
+  capacity: number
+  used: number | null
+  'embassy-os': EmbassyOsDiskInfo | null
 }
 
 export interface EmbassyOsDiskInfo {
+  version: string
+  full: boolean
+}
+
+export interface BackupInfo {
   version: string,
+  timestamp: string,
+  'package-backups': {
+    [id: string]: {
+      version: string
+      'os-version': string
+      timestamp: string
+    }
+  }
 }
 
 export interface ServerSpecs {
