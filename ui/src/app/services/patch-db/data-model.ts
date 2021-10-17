@@ -9,19 +9,22 @@ export interface DataModel {
 
 export interface UIData {
   name: string
-  'welcome-ack': string
   'auto-check-updates': boolean
   'pkg-order': string[]
+  'ack-welcome': string // EOS version
+  'ack-share-stats': boolean
 }
 
 export interface ServerInfo {
   id: string
   version: string
+  'last-backup': string | null
   'lan-address': URL
   'tor-address': URL
   status: ServerStatus
   'eos-marketplace': URL
   'package-marketplace': URL | null // uses EOS marketplace if null
+  'share-stats': boolean
   'unread-notification-count': number
   'update-progress'?: {
     size: number
@@ -66,6 +69,7 @@ export interface InstallProgress {
 export interface InstalledPackageDataEntry {
   status: Status
   manifest: Manifest,
+  'last-backup': string | null
   'system-pointers': any[]
   'current-dependents': { [id: string]: CurrentDependencyInfo }
   'current-dependencies': { [id: string]: CurrentDependencyInfo }

@@ -197,8 +197,8 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'disk.list', params })
   }
 
-  ejectDisk (params: RR.EjectDisksReq): Promise <RR.EjectDisksRes> {
-    return this.http.rpcRequest({ method: 'disk.eject', params })
+  getBackupInfo (params: RR.GetBackupInfoReq): Promise <RR.GetBackupInfoRes> {
+    return this.http.rpcRequest({ method: 'disk.backup-info', params })
   }
 
   // package

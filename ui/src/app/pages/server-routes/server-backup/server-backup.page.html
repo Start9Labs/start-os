@@ -4,6 +4,12 @@
       <pwa-back-button></pwa-back-button>
     </ion-buttons>
     <ion-title>Create Backup</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="refresh()">
+        Refresh
+        <ion-icon slot="end" name="refresh"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -47,23 +53,36 @@
         </ion-label>
       </ion-item>
 
-      <ion-item-group *ngIf="!loadingError">
-        <div *ngFor="let disk of disks">
-          <ion-item-divider>{{ disk.logicalname }} - {{ disk.capacity | convertBytes }}</ion-item-divider>
-          <p class="item-subdivider" *ngIf="disk.vendor || disk.model">
-            {{ disk.vendor }}
-            <span *ngIf="disk.vendor && disk.model"> - </span>
-            {{ disk.model }}
-          </p>
-          <ion-item button *ngFor="let partition of disk.partitions" (click)="presentModal(partition.logicalname)">
-            <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
-            <ion-label>
-              <h1>{{ partition.label || partition.logicalname }}</h1>
-              <h2>{{ partition.capacity | convertBytes }}</h2>
-            </ion-label>
-          </ion-item>
-        </div>
-      </ion-item-group>
+      <ng-container *ngIf="!loadingError">
+
+        <ion-item *ngIf="!disks.length">
+          <ion-label>
+            <ion-text color="warning">
+              No drives found. Insert a backup drive into your Embassy and click "Refresh" above.
+            </ion-text>
+          </ion-label>
+        </ion-item>
+
+        <ion-item-group *ngIf="disks.length">
+          <div *ngFor="let disk of disks">
+            <ion-item-divider>
+              {{ disk.vendor || 'Unknown Vendor' }} - {{ disk.model || 'Unknown Model' }} - {{ disk.capacity | convertBytes }}
+            </ion-item-divider>
+            <ion-item button *ngFor="let partition of disk.partitions" (click)="presentModal(partition.logicalname)">
+              <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
+              <ion-label>
+                <h1>{{ partition.label || partition.logicalname }}</h1>
+                <h2>{{ partition.capacity | convertBytes }}</h2>
+                <p *ngIf="partition.hasBackup">
+                  <ion-text color="success">
+                    Embassy backups detected
+                  </ion-text>
+                </p>
+              </ion-label>
+            </ion-item>
+          </div>
+        </ion-item-group>
+      </ng-container>
     </ng-container>
   </ion-item-group>
 </ion-content>

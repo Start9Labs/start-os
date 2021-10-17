@@ -10,7 +10,7 @@
 
 
 <ion-content class="ion-padding-top">
-  <ion-item-group *ngIf="patch.data['package-data'][pkgId] as pkg">
+  <ion-item-group *ngIf="pkg">
 
     <!-- ** standard actions ** -->
     <ion-item-divider>Standard Actions</ion-item-divider>
@@ -28,7 +28,7 @@
         description: 'This will uninstall the service from your Embassy and delete all data permanently.',
         icon: 'trash-outline'
       }"
-      (click)="uninstall(pkg.manifest)">
+      (click)="uninstall()">
     </app-actions-item>
 
     <!-- ** specific actions ** -->
@@ -40,7 +40,7 @@
         description: action.value.description,
         icon: 'play-circle-outline'
       }"
-      (click)="handleAction(pkg, action)">
+      (click)="handleAction(action)">
     </app-actions-item>
   </ion-item-group>
 </ion-content>

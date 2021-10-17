@@ -19,10 +19,10 @@ import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.
   styleUrls: ['./app-actions.page.scss'],
 })
 export class AppActionsPage {
-  subs: Subscription[] = []
   @ViewChild(IonContent) content: IonContent
-
   pkgId: string
+  pkg: PackageDataEntry
+  subs: Subscription[]
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -33,11 +33,17 @@ export class AppActionsPage {
     private readonly loadingCtrl: LoadingController,
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
-    public readonly patch: PatchDbService,
+    private readonly patch: PatchDbService,
   ) { }
 
   ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    this.subs = [
+      this.patch.watch$('package-data', this.pkgId)
+      .subscribe(pkg => {
+        this.pkg = pkg
+      }),
+    ]
   }
 
   ngAfterViewInit () {
@@ -48,8 +54,9 @@ export class AppActionsPage {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async handleAction (pkg: PackageDataEntry, action: { key: string, value: Action }) {
-    if (!pkg.installed.status.configured) {
+  async handleAction (action: { key: string, value: Action }) {
+    const status = this.pkg.installed.status
+    if (!status.configured) {
       const alert = await this.alertCtrl.create({
         header: 'Forbidden',
         message: `Service must be properly configured in order to run "${action.value.name}"`,
@@ -57,7 +64,7 @@ export class AppActionsPage {
         cssClass: 'alert-error-message enter-click',
       })
       await alert.present()
-    } else if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(pkg.installed.status.main.status)) {
+    } else if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(status.main.status)) {
       if (!isEmptyObject(action.value['input-spec'])) {
         const modal = await this.modalCtrl.create({
           component: GenericFormPage,
@@ -68,7 +75,7 @@ export class AppActionsPage {
               {
                 text: 'Execute',
                 handler: (value: any) => {
-                  return this.executeAction(pkg.manifest.id, action.key, value)
+                  return this.executeAction(action.key, value)
                 },
                 isSubmit: true,
               },
@@ -88,7 +95,7 @@ export class AppActionsPage {
             {
               text: 'Execute',
               handler: () => {
-                this.executeAction(pkg.manifest.id, action.key)
+                this.executeAction(action.key)
               },
               cssClass: 'enter-click',
             },
@@ -124,7 +131,7 @@ export class AppActionsPage {
   async restore (): Promise<void> {
     const modal = await this.modalCtrl.create({
       componentProps: {
-        pkgId: this.pkgId,
+        pkg: this.pkg,
       },
       component: AppRestoreComponent,
     })
@@ -136,8 +143,8 @@ export class AppActionsPage {
     await modal.present()
   }
 
-  async uninstall (manifest: Manifest) {
-    const { id, title, version, alerts } = manifest
+  async uninstall () {
+    const { id, title, version, alerts } = this.pkg.manifest
     const data = await wizardModal(
       this.modalCtrl,
       this.wizardBaker.uninstall({
@@ -152,7 +159,7 @@ export class AppActionsPage {
     return this.navCtrl.navigateRoot('/services')
   }
 
-  private async executeAction (pkgId: string, actionId: string, input?: object): Promise<boolean> {
+  private async executeAction (actionId: string, input?: object): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Executing action...',
@@ -162,7 +169,7 @@ export class AppActionsPage {
 
     try {
       const res = await this.embassyApi.executePackageAction({
-        id: pkgId,
+        id: this.pkgId,
         'action-id': actionId,
         input,
       })

@@ -130,7 +130,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract getDisks (params: RR.GetDisksReq): Promise<RR.GetDisksRes>
 
-  abstract ejectDisk (params: RR.EjectDisksReq): Promise<RR.EjectDisksRes>
+  abstract getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes>
 
   // package
 

@@ -5,9 +5,13 @@
         <ion-icon name="arrow-back"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title>
-      Restore From Backup
-    </ion-title>
+    <ion-title>Restore From Backup</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="refresh()">
+        Refresh
+        <ion-icon slot="end" name="refresh"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -17,11 +21,6 @@
     <ion-label>
       <h2>
         Select the drive containing the backup you would like to restore.
-        <br />
-        <br />
-        <ion-text color="warning">
-          Warning! All current data for {{ patch.data['package-data'][pkgId].manifest.title }} will be overwritten by the backup.
-        </ion-text>
       </h2>
     </ion-label>
   </ion-item>
@@ -56,22 +55,41 @@
     </ion-item>
 
     <!-- no error -->
-    <ion-item-group *ngIf="!loadingError">
-      <div *ngFor="let disk of disks">
-        <ion-item-divider>{{ disk.logicalname }} - {{ disk.capacity | convertBytes }}</ion-item-divider>
-        <p class="item-subdivider" *ngIf="disk.vendor || disk.model">
-          {{ disk.vendor }}
-          <span *ngIf="disk.vendor && disk.model"> - </span>
-          {{ disk.model }}
-        </p>
-        <ion-item button *ngFor="let partition of disk.partitions" (click)="presentModal(partition.logicalname)">
-          <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
-          <ion-label>
-            <h1>{{ partition.label || partition.logicalname }}</h1>
-            <h2>{{ partition.capacity | convertBytes }}</h2>
-          </ion-label>
-        </ion-item>
-      </div>
-    </ion-item-group>
+
+    <ng-container *ngIf="!loadingError">
+
+      <ion-item *ngIf="!disks.length">
+        <ion-label>
+          <ion-text color="warning">
+            No drives found. Insert a backup drive into your Embassy and click "Refresh" above.
+          </ion-text>
+        </ion-label>
+      </ion-item>
+
+      <ion-item-group *ngIf="disks.length">
+        <div *ngFor="let disk of disks">
+          <ion-item-divider>
+            {{ disk.vendor || 'Unknown Vendor' }} - {{ disk.model || 'Unknown Model' }} - {{ disk.capacity | convertBytes }}
+          </ion-item-divider>
+          <ion-item button *ngFor="let partition of disk.partitions" [disabled]="!partition.hasBackup" (click)="presentModal(partition.logicalname)">
+            <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
+            <ion-label>
+              <h1>{{ partition.label || partition.logicalname }}</h1>
+              <h2>{{ partition.capacity | convertBytes }}</h2>
+              <p *ngIf="partition.hasBackup">
+                <ion-text color="success">
+                  Embassy backups detected
+                </ion-text>
+              </p>
+            </ion-label>
+            <ng-container *ngIf="partition.hasBackup">
+              <ion-icon *ngIf="!partition.backupInfo" slot="end" color="danger" name="lock-closed-outline"></ion-icon>
+              <ion-icon *ngIf="partition.backupInfo" slot="end" color="success" name="lock-open-outline"></ion-icon>
+            </ng-container>
+          </ion-item>
+        </div>
+      </ion-item-group>
+
+    </ng-container>
   </ng-container>
 </ion-content>

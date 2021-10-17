@@ -16,6 +16,11 @@
         <ion-label>
           <h2>{{ button.title }}</h2>
           <p *ngIf="button.description">{{ button.description }}</p>
+          <p *ngIf="button.title === 'Create Backup'">
+            <ion-text color="warning">
+              Last Backup: {{ patch.data['server-info']['last-backup'] ? (patch.data['server-info']['last-backup'] | date: 'short') : 'never' }}
+            </ion-text>
+          </p>
         </ion-label>
       </ion-item>
     </div>

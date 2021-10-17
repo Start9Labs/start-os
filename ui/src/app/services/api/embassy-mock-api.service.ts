@@ -291,9 +291,9 @@ export class MockApiService extends ApiService {
     return Mock.Disks
   }
 
-  async ejectDisk (params: RR.EjectDisksReq): Promise<RR.EjectDisksRes> {
+  async getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes> {
     await pauseFor(2000)
-    return null
+    return Mock.BackupInfo
   }
 
   // package
@@ -415,12 +415,13 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path,
-        value: {
-          status: PackageMainStatus.Running,
-          started: new Date().toISOString(), // UTC date string
-          health: { },
-        },
+        path: path + '/status',
+        value: PackageMainStatus.Running,
+      },
+      {
+        op: PatchOp.REPLACE,
+        path: path + '/started',
+        value: new Date().toISOString(),
       },
     ]
     return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
@@ -440,14 +441,12 @@ export class MockApiService extends ApiService {
 
   async stopPackageRaw (params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
-    const path = `/package-data/${params.id}/installed/status/main`
+    const path = `/package-data/${params.id}/installed/status/main/status`
     const patch = [
       {
         op: PatchOp.REPLACE,
         path,
-        value: {
-          status: PackageMainStatus.Stopping,
-        },
+        value: PackageMainStatus.Stopping,
       },
     ]
     const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
@@ -455,7 +454,7 @@ export class MockApiService extends ApiService {
       const patch = [
         {
           op: PatchOp.REPLACE,
-          path: path + '/status',
+          path,
           value: PackageMainStatus.Stopped,
         },
       ]
