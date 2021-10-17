@@ -17,7 +17,7 @@ export class ServerConfigService {
     private readonly embassyApi: ApiService,
   ) { }
 
-  async presentAlert (key: string, current?: any): Promise<void> {
+  async presentAlert (key: string, current?: any): Promise<HTMLIonAlertElement> {
     const spec = serverConfig[key]
 
     let inputs: AlertInput[]
@@ -78,6 +78,7 @@ export class ServerConfigService {
       buttons,
     })
     await alert.present()
+    return alert
   }
 
   // async presentModalForm (key: string) {
