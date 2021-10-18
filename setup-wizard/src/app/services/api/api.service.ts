@@ -8,7 +8,7 @@ export abstract class ApiService {
   // encrypted
   abstract verifyProductKey (): Promise<void> // echo - throws error if invalid
   abstract verify03XPassword (logicalname: string, password: string): Promise<boolean> // setup.recovery.test-password
-  abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<string> // setup.execute
+  abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
 }
 
 export interface GetStatusRes {
@@ -21,6 +21,11 @@ export interface SetupEmbassyReq {
   'embassy-password': string
   'recovery-drive'?: DiskInfo
   'recovery-password'?: string
+}
+
+export interface SetupEmbassyRes {
+  'tor-address': string
+  'lan-address': string
 }
 
 export interface DiskInfo {

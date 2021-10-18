@@ -126,7 +126,10 @@ export class MockApiService extends ApiService {
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
     await pauseFor(3000)
-    return 'asdfasdfasdf.onion'
+    return {
+      'tor-address': 'asdfasdfasdf.onion',
+      'lan-address': 'embassy-dfasdf.local',
+    }
   }
 
   async getRecoveryDrives () {
