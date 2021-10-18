@@ -18,7 +18,7 @@ use tracing::instrument;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
-use crate::disk::util::{mount, unmount, DiskInfo};
+use crate::disk::util::{mount, unmount, DiskInfo, PartitionInfo};
 use crate::id::Id;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::s9pk::manifest::PackageId;
@@ -91,7 +91,7 @@ pub async fn execute(
     #[context] ctx: SetupContext,
     #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
     #[arg(rename = "embassy-password")] embassy_password: String,
-    #[arg(rename = "recovery-drive")] recovery_drive: Option<DiskInfo>,
+    #[arg(rename = "recovery-drive")] recovery_drive: Option<PartitionInfo>,
     #[arg(rename = "recovery-password")] recovery_password: Option<String>,
 ) -> Result<SetupResult, Error> {
     match execute_inner(
@@ -132,7 +132,7 @@ pub async fn execute_inner(
     ctx: SetupContext,
     embassy_logicalname: PathBuf,
     embassy_password: String,
-    recovery_drive: Option<DiskInfo>,
+    recovery_drive: Option<PartitionInfo>,
     recovery_password: Option<String>,
 ) -> Result<String, Error> {
     if ctx.recovery_status.read().await.is_some() {
@@ -208,7 +208,7 @@ pub async fn execute_inner(
 async fn recover(
     ctx: SetupContext,
     guid: String,
-    recovery_drive: DiskInfo,
+    recovery_drive: PartitionInfo,
     recovery_password: Option<String>,
 ) -> Result<(), Error> {
     let recovery_version = recovery_drive
@@ -322,22 +322,9 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
 }
 
 #[instrument(skip(ctx))]
-async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), Error> {
+async fn recover_v2(ctx: &SetupContext, recovery_drive: PartitionInfo) -> Result<(), Error> {
     let tmp_mountpoint = Path::new("/mnt/recovery");
-    mount(
-        &recovery_drive
-            .partitions
-            .get(1)
-            .ok_or_else(|| {
-                Error::new(
-                    eyre!("missing rootfs partition"),
-                    crate::ErrorKind::Filesystem,
-                )
-            })?
-            .logicalname,
-        tmp_mountpoint,
-    )
-    .await?;
+    mount(&recovery_drive.logicalname, tmp_mountpoint).await?;
     let mount_guard = GeneralGuard::new(|| tokio::spawn(unmount(tmp_mountpoint)));
 
     let secret_store = ctx.secret_store().await?;
@@ -451,7 +438,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), 
 #[instrument(skip(ctx))]
 async fn recover_v3(
     ctx: &SetupContext,
-    recovery_drive: DiskInfo,
+    recovery_drive: PartitionInfo,
     recovery_password: Option<String>,
 ) -> Result<(), Error> {
     todo!()

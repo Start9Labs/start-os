@@ -15,6 +15,7 @@ use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
 use crate::util::Version;
+use crate::version::{Current, VersionT};
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -34,7 +35,7 @@ impl Database {
         Database {
             server_info: ServerInfo {
                 id,
-                version: emver::Version::new(0, 3, 0, 0).into(),
+                version: Current::new().semver().into(),
                 lan_address: format!("https://{}.local", hostname).parse().unwrap(),
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()

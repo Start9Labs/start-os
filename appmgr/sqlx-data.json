@@ -134,6 +134,16 @@
       "nullable": []
     }
   },
+  "5b114c450073f77f466c980a2541293f30087b57301c379630326e5e5c2fb792": {
+    "query": "REPLACE INTO tor (package, interface, key) VALUES (?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
   "5c47da44b9c84468e95a13fc47301989900f130b3b5899d1ee6664df3ed812ac": {
     "query": "INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (0, ?, ?, NULL, datetime('now'), datetime('now'))",
     "describe": {
