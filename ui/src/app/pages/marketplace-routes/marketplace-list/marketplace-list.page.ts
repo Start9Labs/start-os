@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { MarketplacePkg } from 'src/app/services/api/api.types'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
-import { IonContent, ModalController } from '@ionic/angular'
+import { AlertController, IonContent, ModalController } from '@ionic/angular'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
@@ -9,6 +9,8 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import Fuse from 'fuse.js/dist/fuse.min.js'
+import { isEmptyObject } from 'src/app/util/misc.util'
+import { Router } from '@angular/router'
 
 const defaultOps = {
   isCaseSensitive: false,
@@ -42,6 +44,7 @@ export class MarketplaceListPage {
   @ViewChild(IonContent) content: IonContent
 
   pkgs: MarketplacePkg[] = []
+  hasRecoveredPackage: boolean
   categories: string[]
   localPkgs: { [id: string]: PackageDataEntry } = { }
   category = 'featured'
@@ -55,6 +58,8 @@ export class MarketplaceListPage {
     private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
     private readonly patch: PatchDbService,
+    private readonly alertCtrl: AlertController,
+    private readonly router: Router,
     public readonly marketplaceService: MarketplaceService,
   ) { }
 
@@ -65,6 +70,9 @@ export class MarketplaceListPage {
         Object.values(this.localPkgs).forEach(pkg => {
           pkg['install-progress'] = { ...pkg['install-progress'] }
         })
+      }),
+      this.patch.watch$('recovered-packages').subscribe(rps => {
+        this.hasRecoveredPackage = !isEmptyObject(rps)
       }),
     ]
 
@@ -109,6 +117,28 @@ export class MarketplaceListPage {
   }
 
   async updateEos (): Promise<void> {
+    if (this.hasRecoveredPackage) {
+      const alert = await this.alertCtrl.create({
+        header: 'Cannot Update',
+        message: 'You cannot update EmbassyOS when you have unresolved recovered services.',
+        buttons: [
+          {
+            text: 'OK',
+            role: 'cancel',
+          },
+          {
+            text: 'Resolve',
+            handler: () => {
+              this.router.navigate(['/services/list'], { replaceUrl: true })
+            },
+            cssClass: 'enter-click',
+          },
+        ],
+      })
+      await alert.present()
+      return
+    }
+
     const { version, headline, 'release-notes': releaseNotes } = this.marketplaceService.eos
 
     await wizardModal(
