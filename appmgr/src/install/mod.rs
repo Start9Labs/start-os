@@ -32,6 +32,7 @@ use crate::dependencies::{
 };
 use crate::install::cleanup::{cleanup, update_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
+use crate::notifications::{NotificationLevel, NotificationSubtype};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
@@ -135,9 +136,26 @@ pub async fn install(
     drop(db_handle);
 
     tokio::spawn(async move {
+        let mut db_handle = ctx.db.handle();
         if let Err(e) = download_install_s9pk(&ctx, &man, s9pk).await {
-            tracing::error!("Install of {}@{} Failed: {}", man.id, man.version, e);
+            let err_str = format!("Install of {}@{} Failed: {}", man.id, man.version, e);
+            tracing::error!("{}", err_str);
             tracing::debug!("{:?}", e);
+            if let Err(e) = ctx
+                .notification_manager
+                .notify(
+                    &mut db_handle,
+                    Some(man.id),
+                    NotificationLevel::Error,
+                    String::from("Install Failed"),
+                    err_str,
+                    NotificationSubtype::General,
+                )
+                .await
+            {
+                tracing::error!("Failed to issue Notification: {}", e);
+                tracing::debug!("{:?}", e);
+            }
         }
     });
 
