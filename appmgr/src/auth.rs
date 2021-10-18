@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{Executor, Sqlite};
 use tracing::instrument;
+use url::quirks::password;
 
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
@@ -66,16 +67,9 @@ async fn cli_login(
     Ok(())
 }
 
-pub async fn check_password<Ex>(secrets: &mut Ex, password: &str) -> Result<(), Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
-{
-    let pw_hash = sqlx::query!("SELECT password FROM account")
-        .fetch_one(secrets)
-        .await?
-        .password;
+pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
     ensure_code!(
-        argon2::verify_encoded(&pw_hash, password.as_bytes()).map_err(|_| {
+        argon2::verify_encoded(&hash, password.as_bytes()).map_err(|_| {
             Error::new(
                 eyre!("Password Incorrect"),
                 crate::ErrorKind::IncorrectPassword,
@@ -84,6 +78,18 @@ where
         crate::ErrorKind::IncorrectPassword,
         "Password Incorrect"
     );
+    Ok(())
+}
+
+pub async fn check_password_against_db<Ex>(secrets: &mut Ex, password: &str) -> Result<(), Error>
+where
+    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+{
+    let pw_hash = sqlx::query!("SELECT password FROM account")
+        .fetch_one(secrets)
+        .await?
+        .password;
+    check_password(&pw_hash, password)?;
     Ok(())
 }
 
@@ -107,7 +113,7 @@ pub async fn login(
 ) -> Result<(), Error> {
     let password = password.unwrap_or_default();
     let mut handle = ctx.secret_store.acquire().await?;
-    check_password(&mut handle, &password).await?;
+    check_password_against_db(&mut handle, &password).await?;
 
     let hash_token = HashSessionToken::new();
     let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());

@@ -35,15 +35,16 @@ pub struct PartitionInfo {
     pub label: Option<String>,
     pub capacity: usize,
     pub used: Option<usize>,
-    pub embassy_os: Option<EmbassyOsDiskInfo>,
+    pub embassy_os: Option<EmbassyOsRecoveryInfo>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct EmbassyOsDiskInfo {
+pub struct EmbassyOsRecoveryInfo {
     pub version: Version,
     pub full: bool,
     pub password_hash: Option<String>,
+    pub wrapped_key: Option<String>,
 }
 
 const DISK_PATH: &'static str = "/dev/disk/by-path";
@@ -236,9 +237,8 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                         tracing::warn!("Could not get usage of {}: {}", part.display(), e.source)
                     })
                     .ok();
-                let backup_unencrypted_metadata_path = tmp_mountpoint
-                    .join("EmbassyBackups")
-                    .join("unencrypted-metadata.cbor");
+                let backup_unencrypted_metadata_path =
+                    tmp_mountpoint.join("EmbassyBackups/unencrypted-metadata.cbor");
                 if tokio::fs::metadata(&backup_unencrypted_metadata_path)
                     .await
                     .is_ok()
@@ -266,11 +266,12 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                 } else if label.as_deref() == Some("rootfs") {
                     let version_path = tmp_mountpoint.join("root").join("appmgr").join("version");
                     if tokio::fs::metadata(&version_path).await.is_ok() {
-                        embassy_os = Some(EmbassyOsDiskInfo {
+                        embassy_os = Some(EmbassyOsRecoveryInfo {
                             version: from_yaml_async_reader(File::open(&version_path).await?)
                                 .await?,
                             full: true,
                             password_hash: None,
+                            wrapped_key: None,
                         });
                     }
                 }

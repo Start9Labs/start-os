@@ -14,7 +14,7 @@ use embassy::shutdown::Shutdown;
 use embassy::sound::MARIO_COIN;
 use embassy::util::logger::EmbassyLogger;
 use embassy::util::Invoke;
-use embassy::{init, Error, ResultExt};
+use embassy::{Error, ResultExt};
 use http::StatusCode;
 use nix::sys::socket::shutdown;
 use rpc_toolkit::rpc_server;
@@ -159,7 +159,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     }
     info.save(&mut handle).await?;
 
-    init(&mut handle).await?;
+    embassy::version::init(&mut handle).await?;
 
     Ok(())
 }

@@ -13,9 +13,11 @@ use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
+use crate::disk::PackageBackupInfo;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
 use crate::util::{IoFormat, Version};
+use crate::version::{Current, VersionT};
 use crate::volume::{Volume, VolumeId, Volumes, BACKUP_DIR};
 use crate::{Error, ResultExt};
 
@@ -49,14 +51,6 @@ struct BackupMetadata {
     pub tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct PackageBackupMetadata {
-    pub version: Version,
-    pub os_version: Version,
-    pub timestamp: DateTime<Utc>,
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 pub struct BackupActions {
     pub create: ActionImplementation,
@@ -71,7 +65,7 @@ impl BackupActions {
         pkg_version: &Version,
         interfaces: &Interfaces,
         volumes: &Volumes,
-    ) -> Result<DateTime<Utc>, Error> {
+    ) -> Result<PackageBackupInfo, Error> {
         let mut volumes = volumes.to_readonly();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
         self.create
@@ -107,7 +101,11 @@ impl BackupActions {
             Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor"),
         )
         .await?;
-        Ok(timestamp)
+        Ok(PackageBackupInfo {
+            os_version: Current::new().semver().into(),
+            version: pkg_version.clone(),
+            timestamp,
+        })
     }
 
     pub async fn restore(
