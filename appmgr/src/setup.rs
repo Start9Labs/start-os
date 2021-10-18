@@ -79,6 +79,13 @@ pub async fn recovery_status(
     ctx.recovery_status.read().await.clone().transpose()
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SetupResult {
+    tor_address: String,
+    lan_address: String,
+}
+
 #[command(rpc_only)]
 pub async fn execute(
     #[context] ctx: SetupContext,
@@ -86,7 +93,7 @@ pub async fn execute(
     #[arg(rename = "embassy-password")] embassy_password: String,
     #[arg(rename = "recovery-drive")] recovery_drive: Option<DiskInfo>,
     #[arg(rename = "recovery-password")] recovery_password: Option<String>,
-) -> Result<String, Error> {
+) -> Result<SetupResult, Error> {
     match execute_inner(
         ctx,
         embassy_logicalname,
@@ -98,7 +105,10 @@ pub async fn execute(
     {
         Ok(a) => {
             tracing::info!("Setup Successful! Tor Address: {}", a);
-            Ok(a)
+            Ok(SetupResult {
+                tor_address: format!("http://{}", a),
+                lan_address: format!("https://embassy-{}.local", crate::hostname::get_id().await?),
+            })
         }
         Err(e) => {
             tracing::error!("Error Setting Up Embassy: {}", e);
