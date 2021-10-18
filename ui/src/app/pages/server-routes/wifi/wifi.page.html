@@ -54,15 +54,10 @@
         <ion-icon *ngIf="ssid === wifi.connected" slot="start" size="large" name="checkmark" color="success"></ion-icon>
         <ion-label>{{ ssid }}</ion-label>
         <ng-container *ngIf="ssid === wifi.connected && wifi['signal-strength'] as strength">
-          <ng-container *ngIf="strength < 33">
-            <img slot="end" src="assets/img/icons/wifi-1.png" style="max-width: 32px;" />
-          </ng-container>
-          <ng-container *ngIf="strength > 33 && strength <= 66">
-            <img slot="end" src="assets/img/icons/wifi-2.png" style="max-width: 32px;" />
-          </ng-container>
-          <ng-container *ngIf="strength > 66">
-            <img slot="end" src="assets/img/icons/wifi-3.png" style="max-width: 32px;" />
-          </ng-container>
+          <img *ngIf="strength < 5" slot="end" src="assets/img/icons/wifi-1.png" style="max-width: 32px;" />
+          <img *ngIf="strength >= 5 && strength < 50" slot="end" src="assets/img/icons/wifi-1.png" style="max-width: 32px;" />
+          <img *ngIf="strength >= 50 && strength < 90" slot="end" src="assets/img/icons/wifi-2.png" style="max-width: 32px;" />
+          <img *ngIf="strength >= 90" slot="end" src="assets/img/icons/wifi-3.png" style="max-width: 32px;" />
         </ng-container>
       </ion-item>
     </ng-container>
