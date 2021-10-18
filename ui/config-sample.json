@@ -1,4 +1,5 @@
 {
+  "gitHash": "",
   "patchDb": {
     "poll": {
       "cooldown": 10000
