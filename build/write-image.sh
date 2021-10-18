@@ -47,7 +47,7 @@ sudo cp *.service /tmp/eos-mnt/etc/systemd/system/
 cd ..
 
 # Copy system images
-mkdir -p /var/lib/embassy/system-images
+sudo mkdir -p /var/lib/embassy/system-images
 sudo cp system-images/**/*.tar /var/lib/embassy/system-images
 
 # after performing npm run build
