@@ -132,24 +132,6 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
 
     embassy::hostname::sync_hostname().await?;
     tracing::info!("Synced Hostname");
-
-    if tokio::fs::metadata("/var/www/html/main/public")
-        .await
-        .is_err()
-    {
-        tokio::fs::create_dir_all("/var/www/html/main/public").await?
-    }
-    if tokio::fs::symlink_metadata("/var/www/html/main/public/package-data")
-        .await
-        .is_err()
-    {
-        tokio::fs::symlink(
-            cfg.datadir().join("package-data").join("public"),
-            "/var/www/html/main/public/package-data",
-        )
-        .await?;
-    }
-    tracing::info!("Enabled nginx public dir");
     embassy::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
     tracing::info!("Synchronized wpa_supplicant.conf");
 

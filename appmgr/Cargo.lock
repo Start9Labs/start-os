@@ -845,6 +845,7 @@ dependencies = [
  "hex",
  "hmac",
  "http",
+ "hyper",
  "hyper-ws-listener",
  "indexmap",
  "isocountry",

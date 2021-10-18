@@ -13,7 +13,7 @@ use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::status::{check_all, synchronize_all};
 use embassy::util::{daemon, Invoke};
-use embassy::{Error, ErrorKind, ResultExt};
+use embassy::{static_server, Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
 use reqwest::{Client, Proxy};
 use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
@@ -164,6 +164,16 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         }
     });
 
+    let file_server_ctx = rpc_ctx.clone();
+    let file_server = {
+        static_server::init(file_server_ctx, {
+            let mut shutdown = rpc_ctx.shutdown.subscribe();
+            async move {
+                shutdown.recv().await.expect("context dropped");
+            }
+        })
+    };
+
     let status_ctx = rpc_ctx.clone();
     let status_daemon = daemon(
         move || {
@@ -227,6 +237,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             ErrorKind::Unknown
         )),
         ws_server.map_err(|e| Error::new(e, ErrorKind::Network)),
+        file_server.map_err(|e| Error::new(e, ErrorKind::Network)),
         status_daemon.map_err(|e| Error::new(
             e.wrap_err("Status Sync daemon panicked!"),
             ErrorKind::Unknown

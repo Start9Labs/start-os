@@ -66,6 +66,7 @@ hex = "0.4.3"
 hmac = "0.11.0"
 http = "0.2.5"
 hyper-ws-listener = { git = "https://github.com/Start9Labs/hyper-ws-listener.git", branch = "main" }
+hyper = "0.14.13"
 indexmap = { version = "1.7.0", features = ["serde"] }
 isocountry = "0.3.2"
 itertools = "0.10.1"
