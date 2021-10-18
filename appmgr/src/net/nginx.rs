@@ -4,8 +4,6 @@ use std::path::{Path, PathBuf};
 
 use futures::FutureExt;
 use indexmap::IndexSet;
-use openssl::pkey::{PKey, Private};
-use openssl::x509::X509;
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 use tracing::instrument;
@@ -32,17 +30,6 @@ impl NginxController {
     }
     pub fn ssl_directory_for(&self, package: &PackageId) -> PathBuf {
         self.nginx_root.join("ssl").join(package)
-    }
-    pub async fn certificate_for(
-        &self,
-        dns_base: &str,
-    ) -> Result<(PKey<Private>, Vec<X509>), Error> {
-        self.inner
-            .lock()
-            .await
-            .ssl_manager
-            .certificate_for(dns_base)
-            .await
     }
     pub async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &self,

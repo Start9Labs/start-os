@@ -42,7 +42,7 @@ pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
-pub use version::{init, self_update};
+pub use version::init;
 
 #[command(metadata(authenticated = false))]
 pub fn echo(#[arg] message: String) -> Result<String, RpcError> {

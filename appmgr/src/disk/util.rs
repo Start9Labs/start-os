@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use chrono::{DateTime, Utc};
 use color_eyre::eyre::{self, eyre};
 use futures::TryStreamExt;
 use indexmap::IndexSet;
@@ -12,7 +13,7 @@ use tokio::process::Command;
 use tracing::instrument;
 
 use crate::util::io::from_yaml_async_reader;
-use crate::util::{GeneralGuard, Invoke, Version};
+use crate::util::{GeneralGuard, Invoke, IoFormat, Version};
 use crate::{Error, ResultExt as _};
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/embassy-os";
@@ -25,7 +26,6 @@ pub struct DiskInfo {
     pub model: Option<String>,
     pub partitions: Vec<PartitionInfo>,
     pub capacity: usize,
-    pub embassy_os: Option<EmbassyOsDiskInfo>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -35,12 +35,22 @@ pub struct PartitionInfo {
     pub label: Option<String>,
     pub capacity: usize,
     pub used: Option<usize>,
+    pub embassy_os: Option<EmbassyOsDiskInfo>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct EmbassyOsDiskInfo {
     pub version: Version,
+    pub full: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PackageBackupMetadata {
+    version: Version,
+    os_version: Version,
+    timestamp: DateTime<Utc>,
 }
 
 const DISK_PATH: &'static str = "/dev/disk/by-path";
@@ -207,8 +217,8 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                 tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source)
             })
             .unwrap_or_default();
-        let mut embassy_os = None;
         for part in parts {
+            let mut embassy_os = None;
             let label = get_label(&part).await?;
             let capacity = get_capacity(&part)
                 .await
@@ -233,13 +243,41 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                         tracing::warn!("Could not get usage of {}: {}", part.display(), e.source)
                     })
                     .ok();
-                if label.as_deref() == Some("rootfs") {
+                let backup_unencrypted_metadata_path = tmp_mountpoint
+                    .join("EmbassyBackups")
+                    .join("unencrypted-metadata.cbor");
+                if tokio::fs::metadata(&backup_unencrypted_metadata_path)
+                    .await
+                    .is_ok()
+                {
+                    embassy_os = match (|| async {
+                        IoFormat::Cbor.from_slice(
+                            &tokio::fs::read(&backup_unencrypted_metadata_path)
+                                .await
+                                .with_ctx(|_| {
+                                    (
+                                        crate::ErrorKind::Filesystem,
+                                        backup_unencrypted_metadata_path.display().to_string(),
+                                    )
+                                })?,
+                        )
+                    })()
+                    .await
+                    {
+                        Ok(a) => Some(a),
+                        Err(e) => {
+                            tracing::error!("Error fetching unencrypted backup metadata: {}", e);
+                            None
+                        }
+                    };
+                } else if label.as_deref() == Some("rootfs") {
                     let version_path = tmp_mountpoint.join("root").join("appmgr").join("version");
                     if tokio::fs::metadata(&version_path).await.is_ok() {
                         embassy_os = Some(EmbassyOsDiskInfo {
                             version: from_yaml_async_reader(File::open(&version_path).await?)
                                 .await?,
-                        })
+                            full: true,
+                        });
                     }
                 }
                 mount_guard
@@ -253,6 +291,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                 label,
                 capacity,
                 used,
+                embassy_os,
             });
         }
         res.push(DiskInfo {
@@ -261,7 +300,6 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
             model,
             partitions,
             capacity,
-            embassy_os,
         })
     }
 
@@ -300,29 +338,30 @@ pub async fn mount<P0: AsRef<Path>, P1: AsRef<Path>>(
 }
 
 #[instrument(skip(src, dst, password))]
-pub async fn mount_encfs<P0: AsRef<Path>, P1: AsRef<Path>>(
+pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
     src: P0,
     dst: P1,
     password: &str,
 ) -> Result<(), Error> {
-    let mut encfs = tokio::process::Command::new("encfs")
-        .arg("--standard")
-        .arg("--public")
-        .arg("-S")
+    let mut ecryptfs = tokio::process::Command::new("mount")
+        .arg("-t")
+        .arg("ecryptfs")
         .arg(src.as_ref())
         .arg(dst.as_ref())
+        .arg("-o")
+        .arg(format!("key=passphrase,passwd={},ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y", password))
         .stdin(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
-    let mut stdin = encfs.stdin.take().unwrap();
-    let mut stderr = encfs.stderr.take().unwrap();
-    stdin.write_all(password.as_bytes()).await?;
+    let mut stdin = ecryptfs.stdin.take().unwrap();
+    let mut stderr = ecryptfs.stderr.take().unwrap();
+    stdin.write_all(b"\nyes\nno").await?;
     stdin.flush().await?;
     stdin.shutdown().await?;
     drop(stdin);
     let mut err = String::new();
     stderr.read_to_string(&mut err).await?;
-    if !encfs.wait().await?.success() {
+    if !ecryptfs.wait().await?.success() {
         Err(Error::new(eyre!("{}", err), crate::ErrorKind::Filesystem))
     } else {
         Ok(())

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -195,7 +195,7 @@ impl fmt::Display for InvalidNotificationLevel {
 }
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
-struct Notification {
+pub struct Notification {
     id: u32,
     package_id: Option<PackageId>, // TODO change for package id newtype
     created_at: DateTime<Utc>,
