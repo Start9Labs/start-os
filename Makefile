@@ -15,7 +15,7 @@ clean:
 	rm -f eos.img
 	rm -f ubuntu.img
 	rm -f product_key.txt
-	rm -f system-images/compat/compat.tar
+	rm -f system-images/**/*.tar
 	sudo rm -f $(EMBASSY_BINS)
 	rm -rf ui/node_modules
 	rm -rf ui/www

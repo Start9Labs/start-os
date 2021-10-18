@@ -87,7 +87,6 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     tracing::info!("Loaded Disk");
     let secret_store = cfg.secret_store().await?;
     let log_dir = cfg.datadir().join("main").join("logs");
-    let system_images = cfg.datadir().join("main").join("logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
     }
@@ -130,7 +129,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     // Loading system images
     embassy::install::load_images("/var/lib/embassy/system-images").await?;
     tracing::info!("Loaded System Docker Images");
-    
+
     embassy::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
 
