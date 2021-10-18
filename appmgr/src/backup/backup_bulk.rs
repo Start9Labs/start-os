@@ -253,6 +253,8 @@ async fn perform_backup<Db: DbHandle>(
         unencrypted_metadata.password_hash.as_ref(),
         unencrypted_metadata.wrapped_key.as_ref(),
     ) {
+        let wrapped_key = base32::decode(base32::Alphabet::RFC4648 { padding: false }, wrapped_key)
+            .ok_or_else(|| Error::new(eyre!("failed to decode wrapped key"), ErrorKind::Backup))?;
         if let Some(old_password) = old_password {
             check_password(hash, old_password)?;
             String::from_utf8(decrypt_slice(wrapped_key, old_password))?
@@ -278,7 +280,7 @@ async fn perform_backup<Db: DbHandle>(
     );
     unencrypted_metadata.wrapped_key = Some(base32::encode(
         base32::Alphabet::RFC4648 { padding: false },
-        &encrypt_slice(enc_key, password),
+        &encrypt_slice(&enc_key, password),
     ));
 
     mount_ecryptfs(BACKUP_DIR_CRYPT, BACKUP_DIR, &enc_key).await?;
@@ -377,15 +379,13 @@ async fn perform_backup<Db: DbHandle>(
             )
             .await;
         backup_report.insert(
-            package_id,
+            package_id.clone(),
             PackageBackupReport {
                 error: res.as_ref().err().map(|e| e.to_string()),
             },
         );
         if let Ok(pkg_meta) = res {
-            metadata
-                .package_backups
-                .insert(package_id.clone(), pkg_meta);
+            metadata.package_backups.insert(package_id, pkg_meta);
         }
 
         main_status_model
@@ -401,11 +401,17 @@ async fn perform_backup<Db: DbHandle>(
     let backup_tmp_path = Path::new(BACKUP_DIR).join("os-backup.cbor.tmp");
     let backup_path = Path::new(BACKUP_DIR).join("os-backup.cbor");
 
+    let (root_ca_key, root_ca_cert) = ctx
+        .net_controller
+        .nginx
+        .ssl_manager
+        .export_root_ca()
+        .await?;
     write_cbor_file(
         &OsBackup {
             tor_key: ctx.net_controller.tor.embassyd_tor_key().await,
-            root_ca_key: ctx.net_controller.nginx.ssl.root_ca_key().await?,
-            root_ca_cert: ctx.net_controller.nginx.ssl.root_ca_cert().await?,
+            root_ca_key,
+            root_ca_cert,
             ui: crate::db::DatabaseModel::new()
                 .ui()
                 .get(&mut db, true)
