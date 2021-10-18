@@ -2,7 +2,7 @@ EMBASSY_BINS := appmgr/target/aarch64-unknown-linux-gnu/release/embassyd appmgr/
 EMBASSY_UIS := ui/www setup-wizard/www diagnostic-ui/www
 EMBASSY_SRC := ubuntu.img product_key.txt $(EMBASSY_BINS) appmgr/embassyd.service appmgr/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/src)
-UTILS_SRC := $(shell find system-images/utils)
+UTILS_SRC := $(shell find system-images/utils/Dockerfile)
 APPMGR_SRC := $(shell find appmgr/src) $(shell find patch-db/*/src) $(shell find rpc-toolkit/*/src) appmgr/Cargo.toml appmgr/Cargo.lock
 UI_SRC := $(shell find ui/src)
 SETUP_WIZARD_SRC := $(shell find setup-wizard/src)
@@ -35,7 +35,7 @@ system-images/compat/compat.tar: $(COMPAT_SRC)
 	cd system-images/compat && DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/x_system/compat --platform=linux/arm64 -o type=docker,dest=compat.tar .
 
 system-images/utils/utils.tar: $(UTILS_SRC)
-	cd system-images/utils && 	DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/x_system/utils --platform=linux/arm64 -o type=docker,dest=utils.tar .
+	cd system-images/utils && DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/x_system/utils --platform=linux/arm64 -o type=docker,dest=utils.tar .
 
 ubuntu.img:
 	wget -O ubuntu.img.xz https://cdimage.ubuntu.com/releases/21.04/release/ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz

@@ -126,7 +126,7 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .await?;
     tracing::info!("Mounted Docker Data");
 
-    embassy::install::load_images(cfg.datadir().as_ref().join(PKG_DOCKER_DIR)).await?;
+    embassy::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
     tracing::info!("Loaded Docker Images");
     // Loading system images
     embassy::install::load_images("/var/lib/embassy/system-images").await?;
