@@ -79,56 +79,16 @@ impl SslStore {
         }
     }
     #[instrument(skip(self))]
-    async fn import_certificate_authorities(
+    async fn import_root_certificate(
         &self,
         root_key: &PKey<Private>,
         root_cert: &X509,
-        int_key: &PKey<Private>,
-        int_cert: &X509,
     ) -> Result<(), Error> {
-        match self.load_root_certificate().await? {
-            None => self.save_root_certificate(&root_key, &root_cert).await?,
-            Some(_) => {
-                let key_str = String::from_utf8(root_key.private_key_to_pem_pkcs8()?)?;
-                let cert_str = String::from_utf8(root_cert.to_pem()?)?;
-                let res = sqlx::query!(
-                    "UPDATE certificates SET priv_key_pem = ?, certificate_pem = ? WHERE id = 0;",
-                    key_str,
-                    cert_str
-                )
-                .execute(&self.secret_store)
-                .await?;
-                if res.rows_affected() == 0 {
-                    return Err(Error::new(
-                        eyre!("Root Certificate import failed with no rows updated"),
-                        ErrorKind::OpenSsl,
-                    ));
-                }
-            }
-        }
-        match self.load_intermediate_certificate().await? {
-            None => {
-                self.save_intermediate_certificate(&int_key, &int_cert)
-                    .await?
-            }
-            Some(_) => {
-                let key_str = String::from_utf8(int_key.private_key_to_pem_pkcs8()?)?;
-                let cert_str = String::from_utf8(int_cert.to_pem()?)?;
-                let res = sqlx::query!(
-                    "UPDATE certificates SET priv_key_pem = ?, certificate_pem = ? WHERE id = 1;",
-                    key_str,
-                    cert_str
-                )
-                .execute(&self.secret_store)
-                .await?;
-                if res.rows_affected() == 0 {
-                    return Err(Error::new(
-                        eyre!("Intermediate Certificate import failed with no rows updated"),
-                        ErrorKind::OpenSsl,
-                    ));
-                }
-            }
-        }
+        // remove records for both root and intermediate CA
+        sqlx::query!("DELETE FROM certificates WHERE id = 0 OR id = 1;")
+            .execute(&self.secret_store)
+            .await?;
+        self.save_root_certificate(root_key, root_cert).await?;
         Ok(())
     }
     #[instrument(skip(self))]
@@ -222,26 +182,26 @@ impl SslManager {
             int_cert,
         })
     }
+
     // TODO: currently the burden of proof is on the caller to ensure that all of the arguments to this function are
     // consistent. The following properties are assumed and not verified:
     // 1. `root_cert` is self-signed and contains the public key that matches the private key `root_key`
-    // 2. `int_cert` is for the public key that matches the private key `int_key`
-    // 3. `int_cert` is signed by `root_key`
-    // 4. both certificates are not past their expiration date
+    // 2. certificate is not past its expiration date
     // Warning: If this function ever fails, you must either call it again or regenerate your certificates from scratch
     // since it is possible for it to fail after successfully saving the root certificate but before successfully saving
     // the intermediate certificate
     #[instrument(skip(db))]
-    pub async fn from(
+    pub async fn import(
         db: SqlitePool,
         root_key: PKey<Private>,
         root_cert: X509,
-        int_key: PKey<Private>,
-        int_cert: X509,
     ) -> Result<Self, Error> {
         let store = SslStore::new(db)?;
+        store.import_root_certificate(&root_key, &root_cert).await?;
+        let int_key = generate_key()?;
+        let int_cert = make_int_cert((&root_key, &root_cert), &int_key)?;
         store
-            .import_certificate_authorities(&root_key, &root_cert, &int_key, &int_cert)
+            .save_intermediate_certificate(&int_key, &int_cert)
             .await?;
         Ok(SslManager {
             store,
