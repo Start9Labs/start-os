@@ -935,6 +935,10 @@ impl<F: FnOnce() -> T, T> GeneralGuard<F, T> {
     pub fn drop(mut self) -> T {
         self.0.take().unwrap()()
     }
+
+    pub fn drop_without_action(mut self) {
+        self.0 = None;
+    }
 }
 
 impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {

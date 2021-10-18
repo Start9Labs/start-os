@@ -8,7 +8,6 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, Stream};
 use hmac::Hmac;
 use http::{HeaderMap, HeaderValue};
-use pbkdf2::pbkdf2;
 use rpc_toolkit::hyper::http::Error as HttpError;
 use rpc_toolkit::hyper::{self, Body, Request, Response, StatusCode};
 use rpc_toolkit::rpc_server_helpers::{
@@ -20,6 +19,42 @@ use sha2::Sha256;
 
 use crate::util::Apply;
 use crate::Error;
+
+pub fn pbkdf2(password: impl AsRef<[u8]>, salt: impl AsRef<[u8]>) -> CipherKey<Aes256Ctr> {
+    let mut aeskey = CipherKey::<Aes256Ctr>::default();
+    pbkdf2::pbkdf2::<Hmac<Sha256>>(
+        password.as_ref(),
+        salt.as_ref(),
+        1000,
+        aeskey.as_mut_slice(),
+    );
+    aeskey
+}
+
+pub fn encrypt_slice(input: impl AsRef<[u8]>, password: impl AsRef<[u8]>) -> Vec<u8> {
+    let prefix: [u8; 32] = rand::random();
+    let aeskey = pbkdf2(password.as_ref(), &prefix[16..]);
+    let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
+    let mut aes = Aes256Ctr::new(&aeskey, &ctr);
+    let mut res = Vec::with_capacity(32 + input.as_ref().len());
+    res.extend_from_slice(&prefix[..]);
+    res.extend_from_slice(input.as_ref());
+    aes.apply_keystream(&mut res[32..]);
+    res
+}
+
+pub fn decrypt_slice(input: impl AsRef<[u8]>, password: impl AsRef<[u8]>) -> Vec<u8> {
+    if input.as_ref().len() < 32 {
+        return Vec::new();
+    }
+    let (prefix, rest) = input.as_ref().split_at(32);
+    let aeskey = pbkdf2(password.as_ref(), &prefix[16..]);
+    let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
+    let mut aes = Aes256Ctr::new(&aeskey, &ctr);
+    let mut res = rest.to_vec();
+    aes.apply_keystream(&mut res);
+    res
+}
 
 #[pin_project::pin_project]
 pub struct DecryptStream {
@@ -68,13 +103,7 @@ impl Stream for DecryptStream {
                         buf = &buf[to_read..];
                     }
                     if this.ctr.len() == 16 && this.salt.len() == 16 {
-                        let mut aeskey = CipherKey::<Aes256Ctr>::default();
-                        pbkdf2::<Hmac<Sha256>>(
-                            this.key.as_bytes(),
-                            &this.salt,
-                            1000,
-                            aeskey.as_mut_slice(),
-                        );
+                        let aeskey = pbkdf2(this.key.as_bytes(), &this.salt);
                         let ctr = Nonce::<Aes256Ctr>::from_slice(&this.ctr);
                         let mut aes = Aes256Ctr::new(&aeskey, &ctr);
                         let mut res = buf.to_vec();
@@ -101,8 +130,7 @@ pub struct EncryptStream {
 impl EncryptStream {
     pub fn new(key: &str, body: Body) -> Self {
         let prefix: [u8; 32] = rand::random();
-        let mut aeskey = CipherKey::<Aes256Ctr>::default();
-        pbkdf2::<Hmac<Sha256>>(key.as_bytes(), &prefix[16..], 1000, aeskey.as_mut_slice());
+        let aeskey = pbkdf2(key.as_bytes(), &prefix[16..]);
         let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
         let aes = Aes256Ctr::new(&aeskey, &ctr);
         EncryptStream {
