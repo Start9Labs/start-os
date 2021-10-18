@@ -24,7 +24,9 @@ fn status_fn(_: i32) -> StatusCode {
 
 #[instrument]
 async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
-    // return Err(eyre!("Test failure").with_kind(embassy::ErrorKind::Unknown));
+    embassy::hostname::sync_hostname().await?;
+    tracing::info!("Synced Hostname");
+
     let cfg = RpcContextConfig::load(cfg_path).await?;
     embassy::disk::util::mount("LABEL=EMBASSY", "/embassy-os").await?;
     if tokio::fs::metadata("/embassy-os/disk.guid").await.is_err() {
@@ -130,8 +132,6 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
     embassy::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
 
-    embassy::hostname::sync_hostname().await?;
-    tracing::info!("Synced Hostname");
     embassy::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
     tracing::info!("Synchronized wpa_supplicant.conf");
 
