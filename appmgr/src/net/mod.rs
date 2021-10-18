@@ -1,6 +1,8 @@
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
+use openssl::pkey::{PKey, Private};
+use openssl::x509::X509;
 use rpc_toolkit::command;
 use sqlx::SqlitePool;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
@@ -10,6 +12,7 @@ use self::interface::{Interface, InterfaceId};
 #[cfg(feature = "avahi")]
 use self::mdns::MdnsController;
 use self::nginx::NginxController;
+use self::ssl::SslManager;
 use self::tor::TorController;
 use crate::net::interface::TorConfig;
 use crate::net::nginx::InterfaceMetadata;
@@ -42,12 +45,17 @@ impl NetController {
         embassyd_tor_key: TorSecretKeyV3,
         tor_control: SocketAddr,
         db: SqlitePool,
+        import_root_ca: Option<(PKey<Private>, X509)>,
     ) -> Result<Self, Error> {
+        let ssl_manager = match import_root_ca {
+            None => SslManager::init(db).await,
+            Some(a) => SslManager::import_root_ca(db, a.0, a.1).await,
+        }?;
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
-            nginx: NginxController::init(PathBuf::from("/etc/nginx"), db).await?,
+            nginx: NginxController::init(PathBuf::from("/etc/nginx"), ssl_manager).await?,
         })
     }
 
@@ -128,5 +136,9 @@ impl NetController {
         tor_res?;
         nginx_res?;
         Ok(())
+    }
+
+    pub async fn export_root_ca(&self) -> Result<(PKey<Private>, X509), Error> {
+        self.nginx.ssl_manager.export_root_ca().await
     }
 }

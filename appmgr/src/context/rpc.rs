@@ -156,6 +156,7 @@ impl RpcContext {
             base.tor_control
                 .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
             secret_store.clone(),
+            None,
         )
         .await?;
         let managers = ManagerMap::default();
