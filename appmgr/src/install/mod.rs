@@ -221,8 +221,24 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
 
     tokio::spawn(async move {
         if let Err(e) = cleanup::uninstall(&ctx, &mut ctx.db.handle(), &installed).await {
-            tracing::error!("Uninstall of {} Failed: {}", id, e);
+            let err_str = format!("Uninstall of {} Failed: {}", id, e);
+            tracing::error!("{}", err_str);
             tracing::debug!("{:?}", e);
+            if let Err(e) = ctx
+                .notification_manager
+                .notify(
+                    &mut ctx.db.handle(), // allocating separate handle here because the lifetime of the previous one is the expression
+                    Some(id),
+                    NotificationLevel::Error,
+                    String::from("Uninstall Failed"),
+                    err_str,
+                    NotificationSubtype::General,
+                )
+                .await
+            {
+                tracing::error!("Failed to issue Notification: {}", e);
+                tracing::debug!("{:?}", e);
+            }
         }
     });
 
