@@ -107,7 +107,7 @@ pub async fn execute(
             tracing::info!("Setup Successful! Tor Address: {}", a);
             Ok(SetupResult {
                 tor_address: format!("http://{}", a),
-                lan_address: format!("https://{}.local", crate::hostname::get_hostname().await?),
+                lan_address: format!("https://embassy-{}.local", crate::hostname::get_id().await?),
             })
         }
         Err(e) => {
