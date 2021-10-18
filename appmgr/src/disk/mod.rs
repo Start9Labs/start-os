@@ -90,11 +90,11 @@ pub async fn list(
 #[serde(rename_all = "kebab-case")]
 pub struct BackupInfo {
     pub version: Version,
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: Option<DateTime<Utc>>,
     pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct PackageBackupInfo {
     pub version: Version,
@@ -120,7 +120,11 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches<'_>) {
         "EMBASSY OS",
         info.version.as_str(),
         info.version.as_str(),
-        &info.timestamp.to_string()
+        &if let Some(ts) = &info.timestamp {
+            ts.to_string()
+        } else {
+            "N/A".to_owned()
+        },
     ]);
     for (id, info) in info.package_backups {
         let row = row![
