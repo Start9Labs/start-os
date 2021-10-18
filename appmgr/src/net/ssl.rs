@@ -17,6 +17,7 @@ use crate::{Error, ErrorKind};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 
+#[derive(Debug)]
 pub struct SslManager {
     store: SslStore,
     root_cert: X509,
@@ -24,6 +25,7 @@ pub struct SslManager {
     int_cert: X509,
 }
 
+#[derive(Debug)]
 struct SslStore {
     secret_store: SqlitePool,
 }
@@ -191,7 +193,7 @@ impl SslManager {
     // since it is possible for it to fail after successfully saving the root certificate but before successfully saving
     // the intermediate certificate
     #[instrument(skip(db))]
-    pub async fn import(
+    pub async fn import_root_ca(
         db: SqlitePool,
         root_key: PKey<Private>,
         root_cert: X509,
@@ -209,6 +211,17 @@ impl SslManager {
             int_key,
             int_cert,
         })
+    }
+
+    #[instrument(skip(self))]
+    pub async fn export_root_ca(&self) -> Result<(PKey<Private>, X509), Error> {
+        match self.store.load_root_certificate().await? {
+            None => Err(Error::new(
+                eyre!("Failed to export root certificate: root certificate has not been generated"),
+                ErrorKind::OpenSsl,
+            )),
+            Some(a) => Ok(a),
+        }
     }
 
     #[instrument(skip(self))]
