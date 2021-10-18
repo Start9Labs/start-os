@@ -17,6 +17,7 @@ use crate::{Error, ErrorKind};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 
+#[derive(Debug)]
 pub struct SslManager {
     store: SslStore,
     root_cert: X509,
@@ -24,6 +25,7 @@ pub struct SslManager {
     int_cert: X509,
 }
 
+#[derive(Debug)]
 struct SslStore {
     secret_store: SqlitePool,
 }
@@ -77,6 +79,19 @@ impl SslStore {
                 Ok(Some((priv_key, certificate)))
             }
         }
+    }
+    #[instrument(skip(self))]
+    async fn import_root_certificate(
+        &self,
+        root_key: &PKey<Private>,
+        root_cert: &X509,
+    ) -> Result<(), Error> {
+        // remove records for both root and intermediate CA
+        sqlx::query!("DELETE FROM certificates WHERE id = 0 OR id = 1;")
+            .execute(&self.secret_store)
+            .await?;
+        self.save_root_certificate(root_key, root_cert).await?;
+        Ok(())
     }
     #[instrument(skip(self))]
     async fn save_certificate(
@@ -168,6 +183,45 @@ impl SslManager {
             int_key,
             int_cert,
         })
+    }
+
+    // TODO: currently the burden of proof is on the caller to ensure that all of the arguments to this function are
+    // consistent. The following properties are assumed and not verified:
+    // 1. `root_cert` is self-signed and contains the public key that matches the private key `root_key`
+    // 2. certificate is not past its expiration date
+    // Warning: If this function ever fails, you must either call it again or regenerate your certificates from scratch
+    // since it is possible for it to fail after successfully saving the root certificate but before successfully saving
+    // the intermediate certificate
+    #[instrument(skip(db))]
+    pub async fn import_root_ca(
+        db: SqlitePool,
+        root_key: PKey<Private>,
+        root_cert: X509,
+    ) -> Result<Self, Error> {
+        let store = SslStore::new(db)?;
+        store.import_root_certificate(&root_key, &root_cert).await?;
+        let int_key = generate_key()?;
+        let int_cert = make_int_cert((&root_key, &root_cert), &int_key)?;
+        store
+            .save_intermediate_certificate(&int_key, &int_cert)
+            .await?;
+        Ok(SslManager {
+            store,
+            root_cert,
+            int_key,
+            int_cert,
+        })
+    }
+
+    #[instrument(skip(self))]
+    pub async fn export_root_ca(&self) -> Result<(PKey<Private>, X509), Error> {
+        match self.store.load_root_certificate().await? {
+            None => Err(Error::new(
+                eyre!("Failed to export root certificate: root certificate has not been generated"),
+                ErrorKind::OpenSsl,
+            )),
+            Some(a) => Ok(a),
+        }
     }
 
     #[instrument(skip(self))]

@@ -18,12 +18,14 @@ use crate::{Error, ErrorKind, ResultExt};
 
 pub struct NginxController {
     nginx_root: PathBuf,
+    pub ssl_manager: SslManager,
     inner: Mutex<NginxControllerInner>,
 }
 impl NginxController {
-    pub async fn init(nginx_root: PathBuf, db: SqlitePool) -> Result<Self, Error> {
+    pub async fn init(nginx_root: PathBuf, ssl_manager: SslManager) -> Result<Self, Error> {
         Ok(NginxController {
-            inner: Mutex::new(NginxControllerInner::init(&nginx_root, db).await?),
+            inner: Mutex::new(NginxControllerInner::init(&nginx_root, &ssl_manager).await?),
+            ssl_manager,
             nginx_root,
         })
     }
@@ -39,7 +41,13 @@ impl NginxController {
         self.inner
             .lock()
             .await
-            .add(&self.nginx_root, package, ipv4, interfaces)
+            .add(
+                &self.nginx_root,
+                &self.ssl_manager,
+                package,
+                ipv4,
+                interfaces,
+            )
             .await
     }
     pub async fn remove(&self, package: &PackageId) -> Result<(), Error> {
@@ -53,22 +61,17 @@ impl NginxController {
 
 pub struct NginxControllerInner {
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
-    ssl_manager: SslManager,
 }
 impl NginxControllerInner {
-    #[instrument(skip(db))]
-    async fn init(nginx_root: &Path, db: SqlitePool) -> Result<Self, Error> {
+    #[instrument]
+    async fn init(nginx_root: &Path, ssl_manager: &SslManager) -> Result<Self, Error> {
         let inner = NginxControllerInner {
             interfaces: BTreeMap::new(),
-            ssl_manager: SslManager::init(db).await?,
         };
-        let (key, cert) = inner
-            .ssl_manager
-            .certificate_for(&get_hostname().await?)
-            .await?;
+        let (key, cert) = ssl_manager.certificate_for(&get_hostname().await?).await?;
         let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
         let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
-        futures::try_join!(
+        tokio::try_join!(
             tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?),
             tokio::fs::write(
                 &ssl_path_cert,
@@ -83,6 +86,7 @@ impl NginxControllerInner {
     async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &mut self,
         nginx_root: &Path,
+        ssl_manager: &SslManager,
         package: PackageId,
         ipv4: Ipv4Addr,
         interfaces: I,
@@ -108,9 +112,9 @@ impl NginxControllerInner {
                             nginx_root.join(format!("ssl/{}/{}.key.pem", package, id));
                         let ssl_path_cert =
                             nginx_root.join(format!("ssl/{}/{}.cert.pem", package, id));
-                        let (key, chain) = self.ssl_manager.certificate_for(&meta.dns_base).await?;
+                        let (key, chain) = ssl_manager.certificate_for(&meta.dns_base).await?;
                         // write nginx ssl certs
-                        futures::try_join!(
+                        tokio::try_join!(
                             tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?).map(
                                 |res| res.with_ctx(|_| (
                                     ErrorKind::Filesystem,
@@ -197,7 +201,7 @@ impl NginxControllerInner {
                     nginx_root.join(format!("sites-enabled/{}_{}.conf", package, id));
                 let available_path =
                     nginx_root.join(format!("sites-available/{}_{}.conf", package, id));
-                let _ = futures::try_join!(
+                let _ = tokio::try_join!(
                     async {
                         if tokio::fs::metadata(&package_path).await.is_ok() {
                             tokio::fs::remove_dir_all(&package_path)
