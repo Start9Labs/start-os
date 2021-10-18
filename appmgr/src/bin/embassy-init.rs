@@ -24,7 +24,6 @@ fn status_fn(_: i32) -> StatusCode {
 
 #[instrument]
 async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
-    // return Err(eyre!("Test failure").with_kind(embassy::ErrorKind::Unknown));
     let cfg = RpcContextConfig::load(cfg_path).await?;
     embassy::disk::util::mount("LABEL=EMBASSY", "/embassy-os").await?;
     if tokio::fs::metadata("/embassy-os/disk.guid").await.is_err() {
