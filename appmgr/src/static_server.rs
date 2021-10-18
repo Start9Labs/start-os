@@ -1,17 +1,19 @@
-use crate::context::RpcContext;
-use crate::install::PKG_PUBLIC_DIR;
-use crate::middleware::auth::HasValidSession;
-use crate::{Error, ErrorKind, ResultExt};
-use digest::Digest;
-use http::response::Builder;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Error as HyperError, Method, Request, Response, Server, StatusCode};
 use std::fs::Metadata;
 use std::future::Future;
 use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
+
+use digest::Digest;
+use http::response::Builder;
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Error as HyperError, Method, Request, Response, Server, StatusCode};
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
+
+use crate::context::RpcContext;
+use crate::install::PKG_PUBLIC_DIR;
+use crate::middleware::auth::HasValidSession;
+use crate::{Error, ErrorKind, ResultExt};
 
 static NOT_FOUND: &[u8] = b"Not Found";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
@@ -51,7 +53,12 @@ async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Respo
     match (
         valid_session,
         request_parts.method,
-        request_parts.uri.path().strip_prefix("/"),
+        request_parts
+            .uri
+            .path()
+            .strip_prefix("/")
+            .unwrap_or(request_parts.uri.path())
+            .split_once("/"),
     ) {
         (Err(error), _, _) => {
             tracing::warn!("unauthorized for {} @{:?}", error, request_parts.uri.path());
@@ -61,7 +68,7 @@ async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Respo
                 .body(NOT_AUTHORIZED.into())
                 .unwrap());
         }
-        (Ok(valid_session), Method::GET, Some(path)) => {
+        (Ok(valid_session), Method::GET, Some(("package-data", path))) => {
             file_send(valid_session, &ctx, PathBuf::from(path)).await
         }
         _ => Ok(not_found()),
