@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core'
 import { InterfaceDef, PackageDataEntry, PackageMainStatus, PackageState } from './patch-db/data-model'
 
-const { patchDb, api, mocks } = require('../../../config.json') as UiConfig
+const { gitHash, patchDb, api, mocks } = require('../../../config.json') as UiConfig
 
 type UiConfig = {
+  gitHash: string
   patchDb: {
     poll: {
       cooldown: number /* in ms */
@@ -30,6 +31,7 @@ export class ConfigService {
   origin = removePort(removeProtocol(window.origin))
   version = require('../../../package.json').version
 
+  gitHash = gitHash
   patchDb = patchDb
   api = api
   mocks = mocks

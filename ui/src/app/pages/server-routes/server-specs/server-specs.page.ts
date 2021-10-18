@@ -2,6 +2,7 @@ import { Component, ViewChild } from '@angular/core'
 import { IonContent, ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'server-specs',
@@ -14,6 +15,7 @@ export class ServerSpecsPage {
   constructor (
     private readonly toastCtrl: ToastController,
     public readonly patch: PatchDbService,
+    public readonly config: ConfigService,
   ) { }
 
   ngAfterViewInit () {
