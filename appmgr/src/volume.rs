@@ -15,7 +15,7 @@ use crate::Error;
 
 pub const PKG_VOLUME_DIR: &'static str = "package-data/volumes";
 pub const BACKUP_MNT: &'static str = "/mnt/embassy-os-backups-crypt";
-pub const BACKUP_DIR_CRYPT: &'static str = "/mnt/embassy-os-backups-crypt/EmbassyBackups";
+pub const BACKUP_DIR_CRYPT: &'static str = "/mnt/embassy-os-backups-crypt/EmbassyBackups/crypt";
 pub const BACKUP_DIR: &'static str = "/mnt/embassy-os-backups";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

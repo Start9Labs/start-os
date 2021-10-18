@@ -3,9 +3,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
+use openssl::pkey::{PKey, Private};
+use openssl::x509::X509;
 use patch_db::{DbHandle, LockType, PatchDbHandle, Revision};
 use rpc_toolkit::command;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::process::Command;
+use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use super::PackageBackupReport;
@@ -14,14 +19,100 @@ use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::model::ServerStatus;
 use crate::db::util::WithRevision;
-use crate::disk::util::{mount, mount_encfs, unmount};
+use crate::disk::util::{mount, mount_ecryptfs, unmount};
+use crate::disk::BackupInfo;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
-use crate::util::{display_none, GeneralGuard, Invoke};
+use crate::util::{display_none, GeneralGuard, Invoke, IoFormat};
+use crate::version::VersionT;
 use crate::volume::{BACKUP_DIR, BACKUP_DIR_CRYPT, BACKUP_MNT};
 use crate::{Error, ErrorKind, ResultExt};
+
+#[derive(Debug)]
+pub struct OsBackup {
+    pub tor_key: TorSecretKeyV3,
+    pub root_ca_key: PKey<Private>,
+    pub root_ca_cert: X509,
+    pub int_ca_key: PKey<Private>,
+    pub int_ca_cert: X509,
+    pub ui: Value,
+}
+impl<'de> Deserialize<'de> for OsBackup {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct OsBackupDe {
+            tor_key: TorSecretKeyV3,
+            root_ca_key: String,
+            root_ca_cert: String,
+            int_ca_key: String,
+            int_ca_cert: String,
+            ui: Value,
+        }
+        let int = OsBackupDe::deserialize(deserializer)?;
+        Ok(OsBackup {
+            tor_key: int.tor_key,
+            root_ca_key: PKey::<Private>::private_key_from_pem(int.root_ca_key.as_bytes())
+                .map_err(serde::de::Error::custom)?,
+            root_ca_cert: X509::from_pem(int.root_ca_cert.as_bytes())
+                .map_err(serde::de::Error::custom)?,
+            int_ca_key: PKey::<Private>::private_key_from_pem(int.int_ca_key.as_bytes())
+                .map_err(serde::de::Error::custom)?,
+            int_ca_cert: X509::from_pem(int.int_ca_cert.as_bytes())
+                .map_err(serde::de::Error::custom)?,
+            ui: int.ui,
+        })
+    }
+}
+impl Serialize for OsBackup {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        #[derive(Serialize)]
+        struct OsBackupSer<'a> {
+            tor_key: &'a TorSecretKeyV3,
+            root_ca_key: String,
+            root_ca_cert: String,
+            int_ca_key: String,
+            int_ca_cert: String,
+            ui: &'a Value,
+        }
+        OsBackupSer {
+            tor_key: &self.tor_key,
+            root_ca_key: String::from_utf8(
+                self.root_ca_key
+                    .private_key_to_pem_pkcs8()
+                    .map_err(serde::ser::Error::custom)?,
+            )
+            .map_err(serde::ser::Error::custom)?,
+            root_ca_cert: String::from_utf8(
+                self.root_ca_cert
+                    .to_pem()
+                    .map_err(serde::ser::Error::custom)?,
+            )
+            .map_err(serde::ser::Error::custom)?,
+            int_ca_key: String::from_utf8(
+                self.int_ca_key
+                    .private_key_to_pem_pkcs8()
+                    .map_err(serde::ser::Error::custom)?,
+            )
+            .map_err(serde::ser::Error::custom)?,
+            int_ca_cert: String::from_utf8(
+                self.int_ca_cert
+                    .to_pem()
+                    .map_err(serde::ser::Error::custom)?,
+            )
+            .map_err(serde::ser::Error::custom)?,
+            ui: &self.ui,
+        }
+        .serialize(serializer)
+    }
+}
 
 #[command(rename = "create", display(display_none))]
 pub async fn backup_all(
@@ -119,7 +210,7 @@ async fn perform_backup<Db: DbHandle>(
     password: &str,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
     mount(logical_name, BACKUP_MNT).await?;
-    mount_encfs(BACKUP_DIR_CRYPT, BACKUP_DIR, password).await?;
+    mount_ecryptfs(BACKUP_DIR_CRYPT, BACKUP_DIR, password).await?;
 
     let mounted = GeneralGuard::new(|| {
         tokio::spawn(async move {
@@ -127,6 +218,20 @@ async fn perform_backup<Db: DbHandle>(
             unmount(BACKUP_MNT).await
         })
     });
+
+    let metadata_path = Path::new(BACKUP_DIR).join("metadata.cbor");
+    let metadata_tmp_path = Path::new(BACKUP_DIR).join(".metadata.cbor.tmp");
+    let mut metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {
+        IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                metadata_path.display().to_string(),
+            )
+        })?)?
+    } else {
+        Default::default()
+    };
+    metadata.version = crate::version::Current::new().semver().into();
 
     let mut backup_report = BTreeMap::new();
 
@@ -216,11 +321,10 @@ async fn perform_backup<Db: DbHandle>(
             )
             .await?;
     }
-    let secrets = ctx.datadir.join("main/secrets.cbor");
-    // let secrets
+    let backup_tmp_path = Path::new(BACKUP_DIR).join("os-backup.cbor.tmp");
+    let backup_path = Path::new(BACKUP_DIR).join("os-backup.cbor");
 
-    let embassy = ctx.datadir.join("main/embassy.cbor");
-    tokio::fs::copy(embassy, Path::new(BACKUP_DIR).join("embassy.db")).await?;
+    // let secrets
 
     let s9pk = ctx.datadir.join(PKG_ARCHIVE_DIR);
     Command::new("cp")

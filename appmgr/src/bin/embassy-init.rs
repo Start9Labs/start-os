@@ -12,7 +12,7 @@ use embassy::net::mdns::MdnsController;
 use embassy::sound::MARIO_COIN;
 use embassy::util::logger::EmbassyLogger;
 use embassy::util::Invoke;
-use embassy::{Error, ResultExt};
+use embassy::{init, Error, ResultExt};
 use http::StatusCode;
 use rpc_toolkit::rpc_server;
 use tokio::process::Command;
@@ -149,9 +149,9 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
             info.status = ServerStatus::Running;
         }
     }
-    info.version = emver::Version::new(0, 3, 0, 0).into();
-    // TODO: run migrations
     info.save(&mut handle).await?;
+
+    init(&mut handle).await?;
 
     Ok(())
 }

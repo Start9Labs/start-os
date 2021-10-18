@@ -1,59 +1,21 @@
 use std::cmp::Ordering;
 
 use async_trait::async_trait;
-use lazy_static::lazy_static;
-use patch_db::DbHandle;
+use color_eyre::eyre::eyre;
+use patch_db::json_ptr::JsonPointer;
+use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 
-use crate::Error;
+use crate::{Error, ResultExt};
 
-// mod v0_1_0;
-// mod v0_1_1;
-// mod v0_1_2;
-// mod v0_1_3;
-// mod v0_1_4;
-// mod v0_1_5;
-// mod v0_2_0;
-// mod v0_2_1;
-// mod v0_2_2;
-// mod v0_2_3;
-// mod v0_2_4;
-// mod v0_2_5;
-// mod v0_2_6;
-// mod v0_2_7;
-// mod v0_2_8;
-// mod v0_2_9;
+mod v0_3_0;
 
-// mod v0_2_10;
-// mod v0_2_11;
-// mod v0_2_12;
-
-// pub use v0_2_12::Version as Current;
-pub type Current = ();
+pub type Current = v0_3_0::Version;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum Version {
-    V0_0_0(Wrapper<()>),
-    // V0_1_0(Wrapper<v0_1_0::Version>),
-    // V0_1_1(Wrapper<v0_1_1::Version>),
-    // V0_1_2(Wrapper<v0_1_2::Version>),
-    // V0_1_3(Wrapper<v0_1_3::Version>),
-    // V0_1_4(Wrapper<v0_1_4::Version>),
-    // V0_1_5(Wrapper<v0_1_5::Version>),
-    // V0_2_0(Wrapper<v0_2_0::Version>),
-    // V0_2_1(Wrapper<v0_2_1::Version>),
-    // V0_2_2(Wrapper<v0_2_2::Version>),
-    // V0_2_3(Wrapper<v0_2_3::Version>),
-    // V0_2_4(Wrapper<v0_2_4::Version>),
-    // V0_2_5(Wrapper<v0_2_5::Version>),
-    // V0_2_6(Wrapper<v0_2_6::Version>),
-    // V0_2_7(Wrapper<v0_2_7::Version>),
-    // V0_2_8(Wrapper<v0_2_8::Version>),
-    // V0_2_9(Wrapper<v0_2_9::Version>),
-    // V0_2_10(Wrapper<v0_2_10::Version>),
-    // V0_2_11(Wrapper<v0_2_11::Version>),
-    // V0_2_12(Wrapper<v0_2_12::Version>),
+    V0_3_0(Wrapper<v0_3_0::Version>),
     Other(emver::Version),
 }
 
@@ -64,14 +26,14 @@ where
 {
     type Previous: VersionT;
     fn new() -> Self;
-    fn semver(&self) -> &'static crate::util::Version;
+    fn semver(&self) -> emver::Version;
     async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error>;
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error>;
     async fn commit<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
         crate::db::DatabaseModel::new()
             .server_info()
             .version()
-            .put(db, self.semver())
+            .put(db, &self.semver().into())
             .await?;
 
         Ok(())
@@ -81,7 +43,7 @@ where
         version: &V,
         db: &mut Db,
     ) -> Result<(), Error> {
-        match self.semver().cmp(version.semver()) {
+        match self.semver().cmp(&version.semver()) {
             Ordering::Greater => self.rollback_to_unchecked(version, db).await,
             Ordering::Less => version.migrate_from_unchecked(self, db).await,
             Ordering::Equal => Ok(()),
@@ -96,11 +58,7 @@ where
         if version.semver() != previous.semver() {
             previous.migrate_from_unchecked(version, db).await?;
         }
-        tracing::info!(
-            "{} -> {}",
-            previous.semver().as_str(),
-            self.semver().as_str()
-        );
+        tracing::info!("{} -> {}", previous.semver(), self.semver(),);
         self.up(db).await?;
         self.commit(db).await?;
         Ok(())
@@ -111,11 +69,7 @@ where
         db: &mut Db,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
-        tracing::info!(
-            "{} -> {}",
-            self.semver().as_str(),
-            previous.semver().as_str()
-        );
+        tracing::info!("{} -> {}", self.semver(), previous.semver(),);
         self.down(db).await?;
         previous.commit(db).await?;
         if version.semver() != previous.semver() {
@@ -140,39 +94,30 @@ where
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let v = crate::util::Version::deserialize(deserializer)?;
         let version = T::new();
-        if &v == version.semver() {
+        if &*v == &version.semver() {
             Ok(Wrapper(version))
         } else {
             Err(serde::de::Error::custom("Mismatched Version"))
         }
     }
 }
-lazy_static! {
-    static ref V0_0_0: crate::util::Version = emver::Version::new(0, 0, 0, 0).into();
-}
-#[async_trait]
-impl VersionT for () {
-    type Previous = ();
-    fn new() -> Self {
-        ()
-    }
-    fn semver(&self) -> &'static crate::util::Version {
-        &*V0_0_0
-    }
-    async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
-        Ok(())
-    }
-    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
-        Ok(())
-    }
-}
 
-pub async fn init() -> Result<(), Error> {
-    todo!()
-}
-
-pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> {
-    todo!()
+pub async fn init<Db: DbHandle>(db: &mut Db) -> Result<(), Error> {
+    let ptr: JsonPointer = "/server-info/version"
+        .parse()
+        .with_kind(crate::ErrorKind::Database)?;
+    db.lock(ptr.clone(), LockType::Write).await;
+    let version: Version = db.get(&ptr).await?;
+    match version {
+        Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db).await?,
+        Version::Other(_) => {
+            return Err(Error::new(
+                eyre!("Cannot downgrade"),
+                crate::ErrorKind::InvalidRequest,
+            ))
+        }
+    }
+    Ok(())
 }
 
 pub const COMMIT_HASH: &'static str =
