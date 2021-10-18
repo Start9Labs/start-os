@@ -46,8 +46,9 @@ sudo cp *.service /tmp/eos-mnt/etc/systemd/system/
 
 cd ..
 
-# copy compatibility image
-sudo cp system-images/compat/compat.tar /tmp/eos-mnt/root/compat.tar
+# Copy system images
+mkdir -p /var/lib/embassy/system-images
+sudo cp system-images/**/*.tar /var/lib/embassy/system-images
 
 # after performing npm run build
 sudo mkdir -p /tmp/eos-mnt/var/www/html
