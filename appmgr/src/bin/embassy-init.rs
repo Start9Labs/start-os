@@ -4,6 +4,7 @@ use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
 use embassy::db::model::ServerStatus;
 use embassy::disk::main::DEFAULT_PASSWORD;
+use embassy::install::PKG_DOCKER_DIR;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
 use embassy::middleware::encrypt::encrypt;
@@ -124,7 +125,8 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .invoke(embassy::ErrorKind::Docker)
         .await?;
     tracing::info!("Mounted Docker Data");
-    embassy::install::load_images(cfg.datadir()).await?;
+
+    embassy::install::load_images(cfg.datadir().as_ref().join(PKG_DOCKER_DIR)).await?;
     tracing::info!("Loaded Docker Images");
     // Loading system images
     embassy::install::load_images("/var/lib/embassy/system-images").await?;

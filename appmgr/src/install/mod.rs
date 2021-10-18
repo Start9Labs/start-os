@@ -767,7 +767,7 @@ async fn handle_recovered_package(
 
 #[instrument(skip(datadir))]
 pub async fn load_images<P: AsRef<Path>>(datadir: P) -> Result<(), Error> {
-    let docker_dir = datadir.as_ref().join(PKG_DOCKER_DIR);
+    let docker_dir = datadir.as_ref();
     if tokio::fs::metadata(&docker_dir).await.is_ok() {
         ReadDirStream::new(tokio::fs::read_dir(&docker_dir).await?)
             .map_err(|e| {
