@@ -21,6 +21,7 @@ export class StateService {
   dataProgSubject = new BehaviorSubject(this.dataProgress)
 
   torAddress: string
+  lanAddress: string
 
   constructor (
     private readonly apiService: ApiService,
@@ -56,14 +57,15 @@ export class StateService {
     this.pollDataTransferProgress(callback)
   }
 
-  async setupEmbassy () : Promise<{ torAddress: string }> {
+  async setupEmbassy () : Promise<void> {
     const ret = await this.apiService.setupEmbassy({
       'embassy-logicalname': this.storageDrive.logicalname,
       'embassy-password': this.embassyPassword,
       'recovery-drive': this.recoveryDrive,
       'recovery-password': this.recoveryPassword,
     })
-    return { torAddress: ret }
+    this.torAddress = ret['tor-address']
+    this.lanAddress = ret['lan-address']
   }
 }
 

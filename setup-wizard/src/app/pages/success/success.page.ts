@@ -16,9 +16,9 @@ export class SuccessPage {
   window = window
   lanInstructionsOpen = false
 
-  async copy (): Promise<void> {
+  async copy (address: string): Promise<void> {
     let message = ''
-    await this.copyToClipboard(this.stateService.torAddress)
+    await this.copyToClipboard(address)
       .then(success => message = success ? 'copied to clipboard!' : 'failed to copy')
 
     const toast = await this.toastCtrl.create({
