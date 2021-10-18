@@ -91,7 +91,7 @@ export class EmbassyPage {
       this.stateService.embassyPassword = ret.data.password
 
       try {
-        this.stateService.torAddress = (await this.stateService.setupEmbassy()).torAddress
+        await this.stateService.setupEmbassy()
       } catch (e) {
         this.errorToastService.present(`${e.message}: ${e.details}`)
         console.error(e.message)

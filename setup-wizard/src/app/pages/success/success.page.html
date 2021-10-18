@@ -20,7 +20,7 @@
                 <p>{{ stateService.torAddress }}</p>
               </ion-label>
               <ion-buttons>
-                <ion-button fill="clear" (click)="copy()">
+                <ion-button fill="clear" (click)="copy(stateService.torAddress)">
                   <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
                 </ion-button>
               </ion-buttons>
@@ -41,7 +41,7 @@
             <div
             [ngStyle]="{
               'overflow' : 'hidden',
-              'max-height': lanInstructionsOpen ? '355px' : '0px',
+              'max-height': lanInstructionsOpen ? '455px' : '0px',
               'transition': 'max-height 0.4s ease-out'
             }"
             >
@@ -64,6 +64,19 @@
                     <h1>Download Root CA</h1>
                     <p>Download and trust your Embassy's Root Cert</p>
                   </ion-label>
+                </ion-item>
+
+                <p style="padding-top: 10px;" class="addr-label">LAN Address:</p>
+
+                <ion-item style="--border-radius: 8px !important;" color="medium">
+                  <ion-label>
+                    <p>{{ stateService.lanAddress }}</p>
+                  </ion-label>
+                  <ion-buttons>
+                    <ion-button fill="clear" (click)="copy(stateService.lanAddress)">
+                      <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
+                    </ion-button>
+                  </ion-buttons>
                 </ion-item>
               </ion-item-group>
             </div>

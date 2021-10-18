@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { ApiService, DiskInfo, GetStatusRes, RecoveryStatusRes, SetupEmbassyReq } from './api.service'
+import { ApiService, DiskInfo, GetStatusRes, RecoveryStatusRes, SetupEmbassyReq, SetupEmbassyRes } from './api.service'
 import { HttpService } from './http.service'
 
 @Injectable({
@@ -46,7 +46,7 @@ export class LiveApiService extends ApiService {
   async verifyProductKey () {
     return this.http.rpcRequest<void>({
       method: 'echo',
-      params: { "message": "hello" },
+      params: { 'message': 'hello' },
     })
   }
 
@@ -58,7 +58,7 @@ export class LiveApiService extends ApiService {
   }
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
-    return this.http.rpcRequest<string>({
+    return this.http.rpcRequest<SetupEmbassyRes>({
       method: 'setup.execute',
       params: setupInfo as any,
     })
