@@ -49,6 +49,14 @@ struct BackupMetadata {
     pub tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PackageBackupMetadata {
+    pub version: Version,
+    pub os_version: Version,
+    pub timestamp: DateTime<Utc>,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 pub struct BackupActions {
     pub create: ActionImplementation,

@@ -43,14 +43,7 @@ pub struct PartitionInfo {
 pub struct EmbassyOsDiskInfo {
     pub version: Version,
     pub full: bool,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct PackageBackupMetadata {
-    version: Version,
-    os_version: Version,
-    timestamp: DateTime<Utc>,
+    pub password_hash: Option<String>,
 }
 
 const DISK_PATH: &'static str = "/dev/disk/by-path";
@@ -277,6 +270,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                             version: from_yaml_async_reader(File::open(&version_path).await?)
                                 .await?,
                             full: true,
+                            password_hash: None,
                         });
                     }
                 }
