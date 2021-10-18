@@ -39,6 +39,7 @@ use crate::{Error, ResultExt};
 pub struct RpcContextConfig {
     pub bind_rpc: Option<SocketAddr>,
     pub bind_ws: Option<SocketAddr>,
+    pub bind_static: Option<SocketAddr>,
     pub tor_control: Option<SocketAddr>,
     pub tor_socks: Option<SocketAddr>,
     pub revision_cache_size: Option<usize>,
@@ -112,6 +113,7 @@ impl RpcContextConfig {
 pub struct RpcContextSeed {
     pub bind_rpc: SocketAddr,
     pub bind_ws: SocketAddr,
+    pub bind_static: SocketAddr,
     pub datadir: PathBuf,
     pub zfs_pool_name: Arc<String>,
     pub db: PatchDb,
@@ -162,6 +164,7 @@ impl RpcContext {
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
+            bind_static: base.bind_static.unwrap_or(([127, 0, 0, 1], 5961).into()),
             datadir: base.datadir().to_path_buf(),
             zfs_pool_name: Arc::new(base.zfs_pool_name().to_owned()),
             db,

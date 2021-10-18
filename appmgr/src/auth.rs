@@ -1,11 +1,9 @@
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
-use basic_cookies::Cookie;
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use http::header::COOKIE;
 use http::HeaderValue;
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
@@ -15,7 +13,7 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
-use crate::middleware::auth::{get_id, hash_token};
+use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::{ensure_code, Error, ResultExt};
 
@@ -98,17 +96,14 @@ pub async fn login(
         crate::ErrorKind::Authorization,
         "Password Incorrect"
     );
-    let token = base32::encode(
-        base32::Alphabet::RFC4648 { padding: false },
-        &rand::random::<[u8; 16]>(),
-    )
-    .to_lowercase();
-    let id = hash_token(&token);
+
+    let hash_token = HashSessionToken::new();
     let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());
     let metadata = serde_json::to_string(&metadata).with_kind(crate::ErrorKind::Database)?;
+    let hash_token_hashed = hash_token.hashed();
     sqlx::query!(
         "INSERT INTO session (id, user_agent, metadata) VALUES (?, ?, ?)",
-        id,
+        hash_token_hashed,
         user_agent,
         metadata,
     )
@@ -116,11 +111,7 @@ pub async fn login(
     .await?;
     res.headers.insert(
         "set-cookie",
-        HeaderValue::from_str(&format!(
-            "session={}; Path=/; SameSite=Lax; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
-            token
-        ))
-        .with_kind(crate::ErrorKind::Unknown)?, // Should be impossible, but don't want to panic
+        hash_token.header_value()?, // Should be impossible, but don't want to panic
     );
 
     Ok(())
@@ -131,21 +122,12 @@ pub async fn login(
 pub async fn logout(
     #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
-) -> Result<(), Error> {
-    if let Some(cookie_header) = req.headers.get(COOKIE) {
-        let cookies = Cookie::parse(
-            cookie_header
-                .to_str()
-                .with_kind(crate::ErrorKind::Authorization)?,
-        )
-        .with_kind(crate::ErrorKind::Authorization)?;
-        if let Some(session) = cookies.iter().find(|c| c.get_name() == "session") {
-            let token = session.get_value();
-            let id = hash_token(token);
-            kill(ctx, vec![id]).await?;
-        }
-    }
-    Ok(())
+) -> Result<Option<HasLoggedOutSessions>, Error> {
+    let auth = match HashSessionToken::from_request_parts(req) {
+        Err(_) => return Ok(None),
+        Ok(a) => a,
+    };
+    Ok(Some(HasLoggedOutSessions::new(vec![auth], &ctx).await?))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -212,7 +194,7 @@ pub async fn list(
     format: Option<IoFormat>,
 ) -> Result<SessionList, Error> {
     Ok(SessionList {
-        current: get_id(req)?,
+        current: HashSessionToken::from_request_parts(req)?.as_hash(),
         sessions: sqlx::query!(
             "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
         )
@@ -239,17 +221,21 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<String>, R
     Ok(arg.split(",").map(|s| s.trim().to_owned()).collect())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct KillSessionId(String);
+
+impl AsLogoutSessionId for KillSessionId {
+    fn as_logout_session_id(self) -> String {
+        self.0
+    }
+}
+
 #[command(display(display_none))]
 #[instrument(skip(ctx))]
 pub async fn kill(
     #[context] ctx: RpcContext,
     #[arg(parse(parse_comma_separated))] ids: Vec<String>,
 ) -> Result<(), Error> {
-    sqlx::query(&format!(
-        "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id IN ('{}')",
-        ids.join("','")
-    ))
-    .execute(&mut ctx.secret_store.acquire().await?)
-    .await?;
+    HasLoggedOutSessions::new(ids.into_iter().map(KillSessionId), &ctx).await?;
     Ok(())
 }
