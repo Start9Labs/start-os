@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsStr;
 use std::io::SeekFrom;
 use std::path::Path;
 use std::process::Stdio;
@@ -7,12 +8,13 @@ use std::sync::Arc;
 
 use color_eyre::eyre::{self, eyre};
 use emver::VersionRange;
-use futures::TryStreamExt;
+use futures::future::BoxFuture;
+use futures::{FutureExt, TryStreamExt};
 use http::StatusCode;
 use patch_db::{DbHandle, LockType};
 use reqwest::Response;
 use rpc_toolkit::command;
-use tokio::fs::{File, OpenOptions};
+use tokio::fs::{DirEntry, File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
 use tokio_stream::wrappers::ReadDirStream;
@@ -766,58 +768,81 @@ async fn handle_recovered_package(
 }
 
 #[instrument(skip(datadir))]
-pub async fn load_images<P: AsRef<Path>>(datadir: P) -> Result<(), Error> {
-    let docker_dir = datadir.as_ref();
-    if tokio::fs::metadata(&docker_dir).await.is_ok() {
-        ReadDirStream::new(tokio::fs::read_dir(&docker_dir).await?)
-            .map_err(|e| {
-                Error::new(
-                    eyre::Report::from(e).wrap_err(format!("{:?}", &docker_dir)),
-                    crate::ErrorKind::Filesystem,
-                )
-            })
-            .try_for_each_concurrent(None, |pkg_id| async move {
-                ReadDirStream::new(tokio::fs::read_dir(pkg_id.path()).await?)
-                    .map_err(|e| {
-                        Error::new(
-                            eyre::Report::from(e).wrap_err(pkg_id.path().display().to_string()),
-                            crate::ErrorKind::Filesystem,
-                        )
-                    })
-                    .try_for_each_concurrent(None, |version| async move {
-                        let mut load = Command::new("docker")
-                            .arg("load")
-                            .stdin(Stdio::piped())
-                            .stderr(Stdio::piped())
-                            .spawn()?;
-                        let load_in = load.stdin.take().ok_or_else(|| {
-                            Error::new(
-                                eyre!("Could not write to stdin of docker load"),
-                                crate::ErrorKind::Docker,
-                            )
-                        })?;
-                        let mut docker_rdr = File::open(version.path().join("image.tar")).await?;
-                        copy_and_shutdown(&mut docker_rdr, load_in).await?;
-                        let res = load.wait_with_output().await?;
-                        if !res.status.success() {
-                            Err(Error::new(
-                                eyre!(
-                                    "{}",
-                                    String::from_utf8(res.stderr).unwrap_or_else(|e| format!(
-                                        "Could not parse stderr: {}",
-                                        e
-                                    ))
-                                ),
-                                crate::ErrorKind::Docker,
-                            ))
+pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
+    datadir: P,
+) -> BoxFuture<'a, Result<(), Error>> {
+    async move {
+        let docker_dir = datadir.as_ref();
+        if tokio::fs::metadata(&docker_dir).await.is_ok() {
+            ReadDirStream::new(tokio::fs::read_dir(&docker_dir).await?)
+                .map_err(|e| {
+                    Error::new(
+                        eyre::Report::from(e).wrap_err(format!("{:?}", &docker_dir)),
+                        crate::ErrorKind::Filesystem,
+                    )
+                })
+                .try_for_each(|entry| async move {
+                    let m = entry.metadata().await?;
+                    if m.is_file() {
+                        let path = entry.path();
+                        let extension = path
+                            .extension()
+                            .ok_or_else(|| {
+                                Error::new(
+                                    eyre!("Could not read file extension"),
+                                    crate::ErrorKind::Docker,
+                                )
+                            })?
+                            .to_str()
+                            .ok_or_else(|| {
+                                Error::new(
+                                    eyre!("Could not read file extension as str"),
+                                    crate::ErrorKind::Docker,
+                                )
+                            })?;
+                        if extension == "tar" {
+                            let mut load = Command::new("docker")
+                                .arg("load")
+                                .stdin(Stdio::piped())
+                                .stderr(Stdio::piped())
+                                .spawn()?;
+                            let load_in = load.stdin.take().ok_or_else(|| {
+                                Error::new(
+                                    eyre!("Could not write to stdin of docker load"),
+                                    crate::ErrorKind::Docker,
+                                )
+                            })?;
+                            let mut docker_rdr = File::open(&entry.path()).await?;
+                            copy_and_shutdown(&mut docker_rdr, load_in).await?;
+                            let res = load.wait_with_output().await?;
+                            if !res.status.success() {
+                                Err(Error::new(
+                                    eyre!(
+                                        "{}",
+                                        String::from_utf8(res.stderr).unwrap_or_else(|e| format!(
+                                            "Could not parse stderr: {}",
+                                            e
+                                        ))
+                                    ),
+                                    crate::ErrorKind::Docker,
+                                ))
+                            } else {
+                                Ok(())
+                            }
                         } else {
                             Ok(())
                         }
-                    })
-                    .await
-            })
-            .await
-    } else {
-        Ok(())
+                    } else if m.is_dir() {
+                        load_images(entry.path()).await?;
+                        Ok(())
+                    } else {
+                        Ok(())
+                    }
+                })
+                .await
+        } else {
+            Ok(())
+        }
     }
+    .boxed()
 }

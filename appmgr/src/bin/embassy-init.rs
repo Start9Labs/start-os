@@ -10,11 +10,13 @@ use embassy::middleware::diagnostic::diagnostic;
 use embassy::middleware::encrypt::encrypt;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
+use embassy::shutdown::Shutdown;
 use embassy::sound::MARIO_COIN;
 use embassy::util::logger::EmbassyLogger;
 use embassy::util::Invoke;
 use embassy::{Error, ResultExt};
 use http::StatusCode;
+use nix::sys::socket::shutdown;
 use rpc_toolkit::rpc_server;
 use tokio::process::Command;
 use tracing::instrument;
@@ -181,7 +183,7 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 }
 
 #[instrument]
-async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
+async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
     embassy::sound::BEP.play().await?;
 
     run_script_if_exists("/embassy-os/preinit.sh").await;
@@ -210,6 +212,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
                 .invoke(embassy::ErrorKind::Nginx)
                 .await?;
             let ctx = DiagnosticContext::init(cfg_path, e).await?;
+            let shutdown_recv = ctx.shutdown.subscribe();
             rpc_server!({
                 command: embassy::diagnostic_api,
                 context: ctx.clone(),
@@ -227,11 +230,17 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<(), Error> {
             })
             .await
             .with_kind(embassy::ErrorKind::Network)?;
-            Ok::<_, Error>(())
+
+            Ok::<_, Error>(
+                &shutdown_recv
+                    .recv()
+                    .await
+                    .with_kind(embassy::ErrorKind::Network)?,
+            )
         })()
         .await
     } else {
-        Ok(())
+        Ok(None)
     };
 
     run_script_if_exists("/embassy-os/postinit.sh").await;
@@ -261,7 +270,8 @@ fn main() {
     };
 
     match res {
-        Ok(_) => (),
+        Ok(Some(shutdown)) => shutdown.execute(),
+        Ok(None) => (),
         Err(e) => {
             eprintln!("{}", e.source);
             tracing::debug!("{:?}", e.source);
