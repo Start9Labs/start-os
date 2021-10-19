@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
-import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
+import { ApiService, PartitionInfo } from 'src/app/services/api/api.service'
 import { HttpService } from 'src/app/services/api/http.service'
 
 @Component({
@@ -9,7 +9,7 @@ import { HttpService } from 'src/app/services/api/http.service'
   styleUrls: ['prod-key-modal.page.scss'],
 })
 export class ProdKeyModal {
-  @Input() recoveryDrive: DiskInfo
+  @Input() recoveryPartition: PartitionInfo
 
   error = ''
   productKey = ''
@@ -31,7 +31,7 @@ export class ProdKeyModal {
     await loader.present()
 
     try {
-      await this.apiService.set02XDrive(this.recoveryDrive.logicalname)
+      await this.apiService.set02XDrive(this.recoveryPartition.logicalname)
       this.httpService.productKey = this.productKey
       await this.apiService.verifyProductKey()
       this.modalController.dismiss({ productKey: this.productKey })
