@@ -20,6 +20,16 @@
       "nullable": []
     }
   },
+  "165daa7d6a60cb42122373b2c5ac7d39399bcc99992f0002ee7bfef50a8daceb": {
+    "query": "DELETE FROM certificates WHERE id = 0 OR id = 1;",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": []
+    }
+  },
   "177c4b9cc7901a3b906e5969b86b1c11e6acbfb8e86e98f197d7333030b17964": {
     "query": "DELETE FROM notifications WHERE id = ?",
     "describe": {
