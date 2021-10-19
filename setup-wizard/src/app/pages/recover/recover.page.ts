@@ -14,7 +14,7 @@ import { ProdKeyModal } from '../prod-key-modal/prod-key-modal.page'
 export class RecoverPage {
   passwords = { }
   prodKeys = { }
-  recoveryPartitions: PartitionInfo[] = []
+  recoveryPartitions: { partition: PartitionInfo, model: string, vendor: string }[] = []
   selectedPartition: PartitionInfo = null
   loading = true
 
@@ -41,11 +41,10 @@ export class RecoverPage {
     try {
       let drives = (await this.apiService.getDrives())
 
-      this.recoveryPartitions = drives.map(d => d.partitions.filter(p => p['embassy-os']?.full)).flat()
-
+      this.recoveryPartitions = drives.map(d => d.partitions.map(p => ({ partition: p, vendor: d.vendor, model: d.model})).filter(p => p.partition['embassy-os']?.full)).flat()
       // if theres no product key, only show 0.2s
       if (!this.stateService.hasProductKey) {
-        this.recoveryPartitions = this.recoveryPartitions.filter(p => p['embassy-os']?.version.startsWith('0.2'))
+        this.recoveryPartitions = this.recoveryPartitions.filter(p => p.partition['embassy-os']?.version.startsWith('0.2'))
       }
     } catch (e) {
       this.errorToastService.present(`${e.message}: ${e.data}`)
