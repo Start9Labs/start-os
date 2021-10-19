@@ -41,19 +41,19 @@
                 </ion-item>
               </ng-container>
               <ng-container *ngIf="recoveryPartitions.length">
-                <ion-item (click)="choosePartition(partition)" class="ion-margin-bottom" button color="light" lines="none" *ngFor="let partition of recoveryPartitions" [ngClass]="partition.logicalname === selectedPartition?.logicalname ? 'selected' : null">
+                <ion-item (click)="choosePartition(p.partition)" class="ion-margin-bottom" button color="light" lines="none" *ngFor="let p of recoveryPartitions" [ngClass]="p.partition.logicalname === selectedPartition?.logicalname ? 'selected' : null">
                   <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label class="ion-text-wrap">
-                    <h1>{{ partition.logicalname }} <span *ngIf="!!partition.label">-</span> {{ partition.label }}</h1>
-                    <h2 *ngIf="partition.vendor || partition.model">
-                      {{ partition.vendor }}
-                      <span *ngIf="partition.vendor && partition.model"> - </span>
-                      {{ partition.model }}
+                    <h1>{{ p.partition.logicalname }} <span *ngIf="!!p.partition.label">-</span> {{ p.partition.label }}</h1>
+                    <h2 *ngIf="p.vendor || p.model">
+                      {{ p.vendor }}
+                      <span *ngIf="p.vendor && p.model"> - </span>
+                      {{ p.model }}
                     </h2>
-                    <h2> Embassy version: {{partition['embassy-os'].version}}</h2>
+                    <h2> Embassy version: {{p.partition['embassy-os'].version}}</h2>
                   </ion-label>
-                  <ion-icon *ngIf="(partition['embassy-os'].version.startsWith('0.2') && stateService.hasProductKey) || passwords[partition.logicalname] || prodKeys[partition.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
-                  <ion-icon *ngIf="(partition['embassy-os'].version.startsWith('0.2') && !stateService.hasProductKey && !prodKeys[partition.logicalname]) || (!partition['embassy-os'].version.startsWith('0.2') && !passwords[partition.logicalname])" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
+                  <ion-icon *ngIf="(p.partition['embassy-os'].version.startsWith('0.2') && stateService.hasProductKey) || passwords[p.partition.logicalname] || prodKeys[p.partition.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
+                  <ion-icon *ngIf="(p.partition['embassy-os'].version.startsWith('0.2') && !stateService.hasProductKey && !prodKeys[p.partition.logicalname]) || (!p.partition['embassy-os'].version.startsWith('0.2') && !passwords[p.partition.logicalname])" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
 
                 </ion-item>
               </ng-container>
