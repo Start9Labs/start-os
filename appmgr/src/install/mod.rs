@@ -6,20 +6,6 @@ use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use color_eyre::eyre::{self, eyre};
-use emver::VersionRange;
-use futures::future::BoxFuture;
-use futures::{FutureExt, TryStreamExt};
-use http::StatusCode;
-use patch_db::{DbHandle, LockType};
-use reqwest::Response;
-use rpc_toolkit::command;
-use tokio::fs::{DirEntry, File, OpenOptions};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
-use tokio::process::Command;
-use tokio_stream::wrappers::ReadDirStream;
-use tracing::instrument;
-
 use self::cleanup::cleanup_failed;
 use crate::context::RpcContext;
 use crate::db::model::{
@@ -40,6 +26,20 @@ use crate::util::io::copy_and_shutdown;
 use crate::util::{display_none, display_serializable, AsyncFileExt, Version};
 use crate::volume::asset_dir;
 use crate::{Error, ResultExt};
+use color_eyre::eyre::{self, eyre};
+use emver::VersionRange;
+use futures::future::BoxFuture;
+use futures::{FutureExt, StreamExt};
+use futures::{FutureExt, TryStreamExt};
+use http::StatusCode;
+use patch_db::{DbHandle, LockType};
+use reqwest::Response;
+use rpc_toolkit::command;
+use tokio::fs::{DirEntry, File, OpenOptions};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
+use tokio::process::Command;
+use tokio_stream::wrappers::ReadDirStream;
+use tracing::instrument;
 
 pub mod cleanup;
 pub mod progress;
@@ -775,32 +775,13 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
         let docker_dir = datadir.as_ref();
         if tokio::fs::metadata(&docker_dir).await.is_ok() {
             ReadDirStream::new(tokio::fs::read_dir(&docker_dir).await?)
-                .map_err(|e| {
-                    Error::new(
-                        eyre::Report::from(e).wrap_err(format!("{:?}", &docker_dir)),
-                        crate::ErrorKind::Filesystem,
-                    )
+                .map(|r| {
+                    r.with_ctx(|_| (crate::ErrorKind::Filesystem, format!("{:?}", &docker_dir)))
                 })
                 .try_for_each(|entry| async move {
                     let m = entry.metadata().await?;
                     if m.is_file() {
-                        let path = entry.path();
-                        let extension = path
-                            .extension()
-                            .ok_or_else(|| {
-                                Error::new(
-                                    eyre!("Could not read file extension"),
-                                    crate::ErrorKind::Docker,
-                                )
-                            })?
-                            .to_str()
-                            .ok_or_else(|| {
-                                Error::new(
-                                    eyre!("Could not read file extension as str"),
-                                    crate::ErrorKind::Docker,
-                                )
-                            })?;
-                        if extension == "tar" {
+                        if entry.path().extension().and_then(|ext| ext.to_str()) == Some("tar") {
                             let mut load = Command::new("docker")
                                 .arg("load")
                                 .stdin(Stdio::piped())
