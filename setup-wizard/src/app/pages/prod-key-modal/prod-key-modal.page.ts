@@ -36,7 +36,6 @@ export class ProdKeyModal {
       await this.apiService.verifyProductKey()
       this.modalController.dismiss({ productKey: this.productKey })
     } catch (e) {
-      console.log(e)
       this.httpService.productKey = undefined
       this.error = 'Invalid Product Key'
     } finally {
