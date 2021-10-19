@@ -41,7 +41,7 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
                 false,
             )
             .await?
-            .map_err(|_| Error::new(eyre!("Properties failure!"), ErrorKind::Docker))
+            .map_err(|(_, e)| Error::new(eyre!("{}", e), ErrorKind::Docker))
             .and_then(|a| Ok(a))
     } else {
         Ok(Value::Null)
