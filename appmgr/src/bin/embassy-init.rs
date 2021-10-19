@@ -212,7 +212,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .invoke(embassy::ErrorKind::Nginx)
                 .await?;
             let ctx = DiagnosticContext::init(cfg_path, e).await?;
-            let shutdown_recv = ctx.shutdown.subscribe();
+            let mut shutdown_recv = ctx.shutdown.subscribe();
             rpc_server!({
                 command: embassy::diagnostic_api,
                 context: ctx.clone(),
@@ -232,7 +232,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             .with_kind(embassy::ErrorKind::Network)?;
 
             Ok::<_, Error>(
-                &shutdown_recv
+                shutdown_recv
                     .recv()
                     .await
                     .with_kind(embassy::ErrorKind::Network)?,
