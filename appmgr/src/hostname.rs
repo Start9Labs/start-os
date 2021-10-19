@@ -43,10 +43,10 @@ pub async fn get_id() -> Result<String, Error> {
     Ok(hex::encode(&res[0..4]))
 }
 
-// cat /embassy-os/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "start9-"$1}' | xargs hostnamectl set-hostname && systemctl restart avahi-daemon
+// cat /embassy-os/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "embassy-"$1}' | xargs hostnamectl set-hostname && systemctl restart avahi-daemon
 #[instrument]
 pub async fn sync_hostname() -> Result<(), Error> {
-    set_hostname(&format!("start9-{}", get_id().await?)).await?;
+    set_hostname(&format!("embassy-{}", get_id().await?)).await?;
     Command::new("systemctl")
         .arg("restart")
         .arg("avahi-daemon")
