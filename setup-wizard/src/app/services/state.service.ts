@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs'
-import { ApiService, DiskInfo } from './api/api.service'
+import { ApiService, DiskInfo, PartitionInfo } from './api/api.service'
 import { ErrorToastService } from './error-toast.service'
 
 @Injectable({
@@ -14,7 +14,7 @@ export class StateService {
 
   storageDrive: DiskInfo
   embassyPassword: string
-  recoveryDrive: DiskInfo
+  recoveryPartition: PartitionInfo
   recoveryPassword: string
   dataTransferProgress: { bytesTransferred: number; totalBytes: number } | null
   dataProgress = 0
@@ -61,7 +61,7 @@ export class StateService {
     const ret = await this.apiService.setupEmbassy({
       'embassy-logicalname': this.storageDrive.logicalname,
       'embassy-password': this.embassyPassword,
-      'recovery-drive': this.recoveryDrive,
+      'recovery-partition': this.recoveryPartition,
       'recovery-password': this.recoveryPassword,
     })
     this.torAddress = ret['tor-address']

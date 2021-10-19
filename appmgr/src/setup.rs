@@ -91,14 +91,14 @@ pub async fn execute(
     #[context] ctx: SetupContext,
     #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
     #[arg(rename = "embassy-password")] embassy_password: String,
-    #[arg(rename = "recovery-drive")] recovery_drive: Option<PartitionInfo>,
+    #[arg(rename = "recovery-partition")] recovery_partition: Option<PartitionInfo>,
     #[arg(rename = "recovery-password")] recovery_password: Option<String>,
 ) -> Result<SetupResult, Error> {
     match execute_inner(
         ctx,
         embassy_logicalname,
         embassy_password,
-        recovery_drive,
+        recovery_partition,
         recovery_password,
     )
     .await
@@ -132,7 +132,7 @@ pub async fn execute_inner(
     ctx: SetupContext,
     embassy_logicalname: PathBuf,
     embassy_password: String,
-    recovery_drive: Option<PartitionInfo>,
+    recovery_partition: Option<PartitionInfo>,
     recovery_password: Option<String>,
 ) -> Result<String, Error> {
     if ctx.recovery_status.read().await.is_some() {
@@ -180,8 +180,8 @@ pub async fn execute_inner(
     .await?;
     sqlite_pool.close().await;
 
-    if let Some(recovery_drive) = recovery_drive {
-        if recovery_drive
+    if let Some(recovery_partition) = recovery_partition {
+        if recovery_partition
             .embassy_os
             .as_ref()
             .map(|v| &*v.version < &emver::Version::new(0, 2, 8, 0))
@@ -190,7 +190,8 @@ pub async fn execute_inner(
             return Err(Error::new(eyre!("Unsupported version of EmbassyOS. Please update to at least 0.2.8 before recovering."), crate::ErrorKind::VersionIncompatible));
         }
         tokio::spawn(async move {
-            if let Err(e) = recover(ctx.clone(), guid, recovery_drive, recovery_password).await {
+            if let Err(e) = recover(ctx.clone(), guid, recovery_partition, recovery_password).await
+            {
                 BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
                 tracing::error!("Error recovering drive!: {}", e);
                 tracing::debug!("{:?}", e);
@@ -208,18 +209,18 @@ pub async fn execute_inner(
 async fn recover(
     ctx: SetupContext,
     guid: String,
-    recovery_drive: PartitionInfo,
+    recovery_partition: PartitionInfo,
     recovery_password: Option<String>,
 ) -> Result<(), Error> {
-    let recovery_version = recovery_drive
+    let recovery_version = recovery_partition
         .embassy_os
         .as_ref()
         .map(|i| i.version.clone())
         .unwrap_or_default();
     if recovery_version.major() == 0 && recovery_version.minor() == 2 {
-        recover_v2(&ctx, recovery_drive).await?;
+        recover_v2(&ctx, recovery_partition).await?;
     } else if recovery_version.major() == 0 && recovery_version.minor() == 3 {
-        recover_v3(&ctx, recovery_drive, recovery_password).await?;
+        recover_v3(&ctx, recovery_partition, recovery_password).await?;
     } else {
         return Err(Error::new(
             eyre!("Unsupported version of EmbassyOS: {}", recovery_version),
@@ -322,9 +323,9 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
 }
 
 #[instrument(skip(ctx))]
-async fn recover_v2(ctx: &SetupContext, recovery_drive: PartitionInfo) -> Result<(), Error> {
+async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Result<(), Error> {
     let tmp_mountpoint = Path::new("/mnt/recovery");
-    mount(&recovery_drive.logicalname, tmp_mountpoint).await?;
+    mount(&recovery_partition.logicalname, tmp_mountpoint).await?;
     let mount_guard = GeneralGuard::new(|| tokio::spawn(unmount(tmp_mountpoint)));
 
     let secret_store = ctx.secret_store().await?;
@@ -438,7 +439,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_drive: PartitionInfo) -> Result
 #[instrument(skip(ctx))]
 async fn recover_v3(
     ctx: &SetupContext,
-    recovery_drive: PartitionInfo,
+    recovery_partition: PartitionInfo,
     recovery_password: Option<String>,
 ) -> Result<(), Error> {
     todo!()

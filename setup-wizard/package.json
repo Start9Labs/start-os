@@ -19,6 +19,7 @@
     "@angular/platform-browser-dynamic": "^12.2.1",
     "@angular/router": "^12.2.1",
     "@ionic/angular": "^5.7.0",
+    "@start9labs/argon2": "^0.1.0",
     "@types/aes-js": "^3.1.1",
     "@types/pbkdf2": "^3.1.0",
     "aes-js": "^3.1.2",
