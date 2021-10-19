@@ -41,7 +41,7 @@ export interface RecoveryStatusRes {
   'total-bytes': number
 }
 
-interface PartitionInfo {
+export interface PartitionInfo {
   logicalname: string,
   label: string | null,
   capacity: number,
@@ -49,7 +49,7 @@ interface PartitionInfo {
   'embassy-os': EmbassyOsRecoveryInfo | null,
 }
 
-interface EmbassyOsRecoveryInfo {
+export interface EmbassyOsRecoveryInfo {
   version: string,
   full: boolean, // contains full embassy backup
   'password-hash': string | null, // null for 0.2.x

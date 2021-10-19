@@ -38,7 +38,7 @@ export class EmbassyPage {
 
   async getDrives () {
     try {
-      this.storageDrives = (await this.apiService.getDrives()).filter(d => d.logicalname !== this.stateService.recoveryDrive?.logicalname)
+      this.storageDrives = (await this.apiService.getDrives()).filter(d => !d.partitions.map(p => p.logicalname).includes(this.stateService.recoveryPartition?.logicalname))
     } catch (e) {
       this.errorToastService.present(e.message)
     } finally {
@@ -98,7 +98,7 @@ export class EmbassyPage {
         console.error(e.details)
       } finally {
         loader.dismiss()
-        if (!!this.stateService.recoveryDrive) {
+        if (!!this.stateService.recoveryPartition) {
           await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward' })
         } else {
           await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward' })
