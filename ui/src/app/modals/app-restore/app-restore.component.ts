@@ -1,9 +1,8 @@
 import { Component, Input } from '@angular/core'
-import { ModalController, IonicSafeString, AlertController } from '@ionic/angular'
+import { ModalController, AlertController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
-import { getErrorMessage } from 'src/app/services/error-toast.service'
-import { MappedDiskInfo, MappedPartitionInfo } from 'src/app/util/misc.util'
+import { MappedPartitionInfo } from 'src/app/util/misc.util'
 import { Emver } from 'src/app/services/emver.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
@@ -15,10 +14,7 @@ import { ConfigService } from 'src/app/services/config.service'
 })
 export class AppRestoreComponent {
   @Input() pkg: PackageDataEntry
-  disks: MappedDiskInfo[]
-  loading = true
   modal: HTMLIonModalElement
-  loadingError: string | IonicSafeString
 
   constructor (
     private readonly modalCtrl: ModalController,
@@ -28,40 +24,13 @@ export class AppRestoreComponent {
     private readonly emver: Emver,
   ) { }
 
-  async ngOnInit () {
-    this.getExternalDisks()
+  dismiss () {
+    this.modalCtrl.dismiss()
+  }
+
+  async presentModal (partition: MappedPartitionInfo): Promise<void> {
     this.modal = await this.modalCtrl.getTop()
-  }
 
-  async refresh () {
-    this.loading = true
-    await this.getExternalDisks()
-  }
-
-  async getExternalDisks (): Promise<void> {
-    try {
-      const disks = await this.embassyApi.getDisks({ })
-      this.disks = disks.map(d => {
-        const partionInfo: MappedPartitionInfo[] = d.partitions.map(p => {
-          return {
-            ...p,
-            hasBackup: [0, 1].includes(this.emver.compare(p['embassy-os']?.version, '0.3.0')),
-            backupInfo: null,
-          }
-        })
-        return {
-          ...d,
-          partitions: partionInfo,
-        }
-      })
-    } catch (e) {
-      this.loadingError = getErrorMessage(e)
-    } finally {
-      this.loading = false
-    }
-  }
-
-  async presentModal (logicalname: string): Promise<void> {
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Decryption Required',
@@ -72,7 +41,7 @@ export class AppRestoreComponent {
         useMask: true,
         buttonText: 'Restore',
         loadingText: 'Decrypting drive...',
-        submitFn: (value: string, loader: HTMLIonLoadingElement) => this.restore(logicalname, value, loader),
+        submitFn: (value: string, loader: HTMLIonLoadingElement) => this.restore(partition.logicalname, value, loader),
       },
       cssClass: 'alertlike-modal',
       presentingElement: await this.modalCtrl.getTop(),
@@ -86,10 +55,6 @@ export class AppRestoreComponent {
     await modal.present()
   }
 
-  dismiss () {
-    this.modalCtrl.dismiss()
-  }
-
   private async restore (logicalname: string, password: string, loader: HTMLIonLoadingElement): Promise<void> {
     const { id, title } = this.pkg.manifest
 
@@ -100,7 +65,7 @@ export class AppRestoreComponent {
     const pkgBackupInfo = backupInfo['package-backups'][id]
 
     if (!pkgBackupInfo) {
-      throw new Error(`Disk does not contain a backup of ${title}`)
+      throw new Error(`Drive does not contain a backup of ${title}`)
     }
 
     if (this.emver.compare(pkgBackupInfo['os-version'], this.config.version) === 1) {

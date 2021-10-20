@@ -240,16 +240,6 @@ export class AppComponent {
   private watchStatus (): Subscription {
     return this.patch.watch$('server-info', 'status')
     .subscribe(status => {
-      const maintenance = '/maintenance'
-      const route = this.router.url
-      if (status === ServerStatus.Running && route.startsWith(maintenance)) {
-        this.showMenu = true
-        this.router.navigate([''], { replaceUrl: true })
-      }
-      if (status === ServerStatus.BackingUp && !route.startsWith(maintenance)) {
-        this.showMenu = false
-        this.router.navigate([maintenance], { replaceUrl: true })
-      }
       if (status === ServerStatus.Updating) {
         this.watchUpdateProgress()
       }

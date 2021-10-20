@@ -263,7 +263,7 @@ export class MockApiService extends ApiService {
   async createBackupRaw (params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
     const path = '/server-info/status'
-    const patch = [
+    let patch = [
       {
         op: PatchOp.REPLACE,
         path,
@@ -271,8 +271,37 @@ export class MockApiService extends ApiService {
       },
     ]
     const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    setTimeout(() => {
-      const patch = [
+
+    const ids = ['bitcoind', 'lnd']
+
+    setTimeout(async () => {
+      for (let i = 0; i < ids.length; i++) {
+        const appPath = `/package-data/${ids[i]}/installed/status/main/status`
+        let appPatch = [
+          {
+            op: PatchOp.REPLACE,
+            path: appPath,
+            value: PackageMainStatus.BackingUp,
+          },
+        ]
+        this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: appPatch } })
+
+        await pauseFor(8000)
+
+        appPatch = [
+          {
+            op: PatchOp.REPLACE,
+            path: appPath,
+            value: PackageMainStatus.Stopped,
+          },
+        ]
+        this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: appPatch } })
+      }
+
+      await pauseFor(1000)
+
+      // set server back to running
+      patch = [
         {
           op: PatchOp.REPLACE,
           path,
@@ -280,15 +309,16 @@ export class MockApiService extends ApiService {
         },
       ]
       this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    }, this.revertTime)
+    }, 200)
+
     return res
   }
 
-  // disk
+  // drives
 
-  async getDisks (params: RR.GetDisksReq): Promise<RR.GetDisksRes> {
+  async getDrives (params: RR.GetDrivesReq): Promise<RR.GetDrivesRes> {
     await pauseFor(2000)
-    return Mock.Disks
+    return Mock.Drives
   }
 
   async getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes> {

@@ -974,7 +974,7 @@ export module Mock {
     'signal-strength': 50,
   }
 
-  export const Disks: RR.GetDisksRes = [
+  export const Drives: RR.GetDrivesRes = [
     {
       logicalname: '/dev/sda',
       model: null,
