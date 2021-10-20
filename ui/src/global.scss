@@ -120,6 +120,13 @@ ion-toast {
   white-space: normal !important;
 }
 
+.inline {
+  * {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
 img {
   border-radius: 100%;
 }
@@ -130,13 +137,6 @@ ion-card-title {
 
 ion-title {
   font-family: 'Montserrat';
-}
-
-ion-note {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 ion-badge {

@@ -191,9 +191,9 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'backup.create', params })
   }
 
-  // disk
+  // drives
 
-  getDisks (params: RR.GetDisksReq): Promise <RR.GetDisksRes> {
+  getDrives (params: RR.GetDrivesReq): Promise <RR.GetDrivesRes> {
     return this.http.rpcRequest({ method: 'disk.list', params })
   }
 

@@ -14,6 +14,7 @@ import { ConnectionFailure, ConnectionService } from 'src/app/services/connectio
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 import { PackageLoadingService, ProgressData } from 'src/app/services/package-loading.service'
+import { filter } from 'rxjs/operators'
 
 @Component({
   selector: 'app-show',
@@ -83,29 +84,41 @@ export class AppShowPage {
 
       // 2
       this.patch.watch$('package-data', this.pkgId, 'installed', 'current-dependencies')
+      .pipe(
+        filter(obj => exists(obj)),
+      )
       .subscribe(currentDeps => {
-          // unsubscribe to deleted
-          this.dependencies.forEach(dep => {
-            if (!currentDeps[dep.id]) {
-              dep.sub.unsubscribe()
-            }
-          })
+        // remove deleted
+        this.dependencies.forEach((dep, i) => {
+          if (!currentDeps[dep.id]) {
+            dep.sub.unsubscribe()
+            this.dependencies.splice(i, 1)
+          }
+        })
 
-          this.dependencies = Object.keys(currentDeps).map(id => {
-            const version = this.pkg.manifest.dependencies[id]?.version
-            if (version) {
-              const dep = { id, version } as DependencyInfo
-              dep.sub = this.patch.watch$('package-data', id)
-              .subscribe(localDep => {
-                this.setDepValues(dep, localDep)
-              })
-              return dep
-            }
-          }).filter(exists)
+        // subscribe
+        Object.keys(currentDeps)
+        .filter(id => {
+          const inManifest = !!this.pkg.manifest.dependencies[id]
+          const exists = this.dependencies.find(d => d.id === id)
+          return inManifest && !exists
+        })
+        .forEach(id => {
+          const version = this.pkg.manifest.dependencies[id].version
+          const dep = { id, version } as DependencyInfo
+          dep.sub = this.patch.watch$('package-data', id)
+          .subscribe(localDep => {
+            this.setDepValues(dep, localDep)
+          })
+          this.dependencies.push(dep)
+        })
       }),
 
       // 3
       this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main')
+      .pipe(
+        filter(obj => exists(obj)),
+      )
       .subscribe(main => {
         if (main.status === PackageMainStatus.Running) {
           this.healthChecks = { ...main.health }

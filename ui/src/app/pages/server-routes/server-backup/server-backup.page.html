@@ -1,88 +1,56 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <pwa-back-button></pwa-back-button>
-    </ion-buttons>
-    <ion-title>Create Backup</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="refresh()">
-        Refresh
-        <ion-icon slot="end" name="refresh"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<!-- not backing up -->
+<ng-container *ngIf="!backingUp">
+  <backup-drives-header type="backup" (onClose)="back()"></backup-drives-header>
+  <ion-content class="ion-padding-top">
+    <backup-drives type="backup" (onSelect)="presentModal($event)"></backup-drives>
+  </ion-content>
+</ng-container>
 
-<ion-content class="ion-padding-top">
-  <ion-item-group>
-    <!-- always -->
-    <ion-item class="ion-margin-bottom">
-      <ion-label>
-        <h2>
-          Select the drive where you want to create a backup of your Embassy.
-        </h2>
-      </ion-label>
-    </ion-item>
+<!-- currently backing up -->
+<ng-container *ngIf="backingUp">
 
-    <!-- loading -->
-    <ng-container *ngIf="loading">
-      <ion-item-divider>
-        <ion-skeleton-text animated style="width: 120px; height: 16px;"></ion-skeleton-text>
-      </ion-item-divider>
-      <ion-item>
-        <ion-avatar slot="start" style="margin-right: 24px;">
-          <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
-        </ion-avatar>
-        <ion-label>
-          <ion-skeleton-text animated style="width: 100px; height: 20px; margin-bottom: 12px;"></ion-skeleton-text>
-          <ion-skeleton-text animated style="width: 50px; height: 16px; margin-bottom: 16px;"></ion-skeleton-text>
-          <ion-skeleton-text animated style="width: 100px;"></ion-skeleton-text>
-        </ion-label>
-      </ion-item>
-    </ng-container>
+  <ion-header>
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <pwa-back-button></pwa-back-button>
+      </ion-buttons>
+      <ion-title>Backup Progress</ion-title>
+    </ion-toolbar>
+  </ion-header>
 
-    <!-- loaded -->
-    <ng-container *ngIf="!loading">
-
-      <!-- error -->
-      <ion-item *ngIf="loadingError">
-        <ion-label>
-          <ion-text color="danger">
-            {{ loadingError }}
-          </ion-text>
-        </ion-label>
-      </ion-item>
-
-      <ng-container *ngIf="!loadingError">
-
-        <ion-item *ngIf="!disks.length">
-          <ion-label>
-            <ion-text color="warning">
-              No drives found. Insert a backup drive into your Embassy and click "Refresh" above.
-            </ion-text>
-          </ion-label>
-        </ion-item>
-
-        <ion-item-group *ngIf="disks.length">
-          <div *ngFor="let disk of disks">
-            <ion-item-divider>
-              {{ disk.vendor || 'Unknown Vendor' }} - {{ disk.model || 'Unknown Model' }} - {{ disk.capacity | convertBytes }}
-            </ion-item-divider>
-            <ion-item button *ngFor="let partition of disk.partitions" (click)="presentModal(partition.logicalname)">
-              <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
+  <ion-content class="ion-padding">
+    <ion-grid>
+      <ion-row>
+        <ion-col>
+          <ion-item-group>
+            <ion-item *ngFor="let pkg of pkgs">
+              <ion-avatar slot="start">
+                <img [src]="pkg.entry['static-files'].icon" />
+              </ion-avatar>
               <ion-label>
-                <h1>{{ partition.label || partition.logicalname }}</h1>
-                <h2>{{ partition.capacity | convertBytes }}</h2>
-                <p *ngIf="partition.hasBackup">
-                  <ion-text color="success">
-                    Embassy backups detected
-                  </ion-text>
-                </p>
+                {{ pkg.entry.manifest.title }}
               </ion-label>
+              <!-- complete -->
+              <ion-note *ngIf="pkg.complete" class="inline" slot="end">
+                <ion-icon name="checkmark" color="success"></ion-icon>
+                &nbsp;
+                <ion-text color="success">Complete</ion-text>
+              </ion-note>
+              <!-- active -->
+              <ion-note *ngIf="pkg.active" class="inline" slot="end">
+                <ion-text color="dark">Backing up</ion-text>
+                &nbsp;
+                <ion-spinner color="dark" style="height: 12px; width: 12px;"></ion-spinner>
+              </ion-note>
+              <!-- queued -->
+              <ion-note *ngIf="!pkg.complete && !pkg.active" slot="end">
+                Waiting...
+              </ion-note>
             </ion-item>
-          </div>
-        </ion-item-group>
-      </ng-container>
-    </ng-container>
-  </ion-item-group>
-</ion-content>
+          </ion-item-group>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </ion-content>
+
+</ng-container>

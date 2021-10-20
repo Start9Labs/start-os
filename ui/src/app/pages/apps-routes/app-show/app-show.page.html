@@ -92,7 +92,7 @@
             </ion-thumbnail>
             <ion-label>
               <h2 class="inline" style="font-family: 'Montserrat'">
-                <ion-icon *ngIf="!!dep.errorText" slot="start" name="warning-outline" color="warning"></ion-icon>
+                <ion-icon style="padding-right: 4px;" *ngIf="!!dep.errorText" slot="start" name="warning-outline" color="warning"></ion-icon>
                 {{ dep.title }}
               </h2>
               <p>{{ dep.version | displayEmver }}</p>
@@ -121,7 +121,7 @@
   </ion-item-group>
 
   <!-- ** installing or updating ** -->
-  <div *ngIf="[PackageState.Installing, PackageState.Updating] | includes : pkg.state" style="padding: 16px;">
+  <div *ngIf="([PackageState.Installing, PackageState.Updating] | includes : pkg.state) && installProgress" style="padding: 16px;">
     <p>Downloading: {{ installProgress.downloadProgress }}%</p>
     <ion-progress-bar
       [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'"

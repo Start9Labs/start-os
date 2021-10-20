@@ -126,9 +126,9 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     () => this.createBackupRaw(params),
   )()
 
-  // disk
+  // drive
 
-  abstract getDisks (params: RR.GetDisksReq): Promise<RR.GetDisksRes>
+  abstract getDrives (params: RR.GetDrivesReq): Promise<RR.GetDrivesRes>
 
   abstract getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes>
 

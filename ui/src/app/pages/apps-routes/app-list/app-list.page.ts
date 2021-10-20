@@ -48,7 +48,9 @@ export class AppListPage {
     .subscribe(data => {
       this.loading = false
       const pkgs = JSON.parse(JSON.stringify(data['package-data'])) as { [id: string]: PackageDataEntry }
-      this.recoveredPkgs = Object.entries(data['recovered-packages']).map(([id, val]) => {
+      this.recoveredPkgs = Object.entries(data['recovered-packages'])
+      .filter(([id, _]) => !pkgs[id])
+      .map(([id, val]) => {
         return {
           ...val,
           id,
@@ -60,7 +62,7 @@ export class AppListPage {
       // add known pkgs in preferential order
       this.order.forEach(id => {
         if (pkgs[id]) {
-          this.pkgs.push(this.buildPkg(pkgs[id]))
+          this.pkgs.push(this.subscribeToPkg(pkgs[id]))
           delete pkgs[id]
         }
       })
@@ -68,7 +70,7 @@ export class AppListPage {
       // unshift unknown packages and set order in UI DB
       if (!isEmptyObject(pkgs)) {
         Object.values(pkgs).forEach(pkg => {
-          this.pkgs.unshift(this.buildPkg(pkg))
+          this.pkgs.unshift(this.subscribeToPkg(pkg))
           this.order.unshift(pkg.manifest.id)
         })
         this.setOrder()
@@ -78,7 +80,7 @@ export class AppListPage {
         this.empty = true
       }
 
-      this.subs.push(this.subscribeBoth())
+      this.subs.push(this.watchNewlyRecovered())
     })
 
     this.subs.push(
@@ -164,7 +166,7 @@ export class AppListPage {
     await alert.present()
   }
 
-  private subscribeBoth (): Subscription {
+  private watchNewlyRecovered (): Subscription {
     return combineLatest([this.watchPkgs(), this.patch.watch$('recovered-packages')])
     .subscribe(([pkgs, recoveredPkgs]) => {
       Object.keys(recoveredPkgs).forEach(id => {
@@ -186,6 +188,7 @@ export class AppListPage {
       tap(pkgs => {
         const ids = Object.keys(pkgs)
 
+        // remove uninstalled
         this.pkgs.forEach((pkg, i) => {
           const id = pkg.entry.manifest.id
           if (!ids.includes(id)) {
@@ -201,7 +204,7 @@ export class AppListPage {
           const pkg = this.pkgs.find(p => p.entry.manifest.id === id)
           if (pkg) return
           // otherwise add new entry to beginning of array
-          this.pkgs.unshift(this.buildPkg(pkgs[id]))
+          this.pkgs.unshift(this.subscribeToPkg(pkgs[id]))
         })
       }),
     )
@@ -211,7 +214,7 @@ export class AppListPage {
     this.api.setDbValue({ pointer: '/pkg-order', value: this.order })
   }
 
-  private buildPkg (pkg: PackageDataEntry): PkgInfo {
+  private subscribeToPkg (pkg: PackageDataEntry): PkgInfo {
     const pkgInfo: PkgInfo = {
       entry: pkg,
       primaryRendering: PrimaryRendering[renderPkgStatus(pkg).primary],
