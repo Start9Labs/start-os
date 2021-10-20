@@ -121,10 +121,10 @@ export module RR {
   export type CreateBackupReq = WithExpire<{ logicalname: string, password: string }> // backup.create
   export type CreateBackupRes = WithRevision<null>
 
-  // disk
+  // drive
 
-  export type GetDisksReq = { } // disk.list
-  export type GetDisksRes = DiskInfo[]
+  export type GetDrivesReq = { } // disk.list
+  export type GetDrivesRes = DriveInfo[]
 
   export type GetBackupInfoReq = { logicalname: string, password: string } // disk.backup-info
   export type GetBackupInfoRes = BackupInfo
@@ -287,7 +287,7 @@ export interface SessionMetadata {
 
 export type PlatformType = 'cli' | 'ios' | 'ipad' | 'iphone' | 'android' | 'phablet' | 'tablet' | 'cordova' | 'capacitor' | 'electron' | 'pwa' | 'mobile' | 'mobileweb' | 'desktop' | 'hybrid'
 
-export interface DiskInfo {
+export interface DriveInfo {
   logicalname: string
   vendor: string | null
   model: string | null
@@ -300,10 +300,10 @@ export interface PartitionInfo {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': EmbassyOsDiskInfo | null
+  'embassy-os': EmbassyOsDriveInfo | null
 }
 
-export interface EmbassyOsDiskInfo {
+export interface EmbassyOsDriveInfo {
   version: string
   full: boolean
 }

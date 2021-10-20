@@ -1,6 +1,6 @@
 import { OperatorFunction } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { BackupInfo, DiskInfo, PartitionInfo } from '../services/api/api.types'
+import { DriveInfo, PartitionInfo } from '../services/api/api.types'
 
 export type Omit<ObjectType, KeysType extends keyof ObjectType> = Pick<ObjectType, Exclude<keyof ObjectType, KeysType>>
 export type PromiseRes<T> = { result: 'resolve', value: T } | { result: 'reject', value: Error }
@@ -193,11 +193,10 @@ export function debounce (delay: number = 300): MethodDecorator {
   }
 }
 
-export interface MappedDiskInfo extends DiskInfo {
+export interface MappedDriveInfo extends DriveInfo {
   partitions: MappedPartitionInfo[]
 }
 
 export interface MappedPartitionInfo extends PartitionInfo {
   hasBackup: boolean
-  backupInfo: BackupInfo | null
 }

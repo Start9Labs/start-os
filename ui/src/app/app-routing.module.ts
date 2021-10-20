@@ -2,8 +2,6 @@ import { NgModule } from '@angular/core'
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router'
 import { AuthGuard } from './guards/auth.guard'
 import { UnauthGuard } from './guards/unauth.guard'
-import { MaintenanceGuard } from './guards/maintenance.guard'
-import { UnmaintenanceGuard } from './guards/unmaintenance.guard'
 
 const routes: Routes = [
   {
@@ -18,30 +16,25 @@ const routes: Routes = [
   },
   {
     path: 'embassy',
-    canActivate: [AuthGuard, MaintenanceGuard],
-    canActivateChild: [AuthGuard, MaintenanceGuard],
+    canActivate: [AuthGuard],
+    canActivateChild: [AuthGuard],
     loadChildren: () => import('./pages/server-routes/server-routing.module').then(m => m.ServerRoutingModule),
   },
   {
-    path: 'maintenance',
-    canActivate: [AuthGuard, UnmaintenanceGuard],
-    loadChildren: () => import('./pages/maintenance/maintenance.module').then(m => m.MaintenancePageModule),
-  },
-  {
     path: 'marketplace',
-    canActivate: [AuthGuard, MaintenanceGuard],
-    canActivateChild: [AuthGuard, MaintenanceGuard],
+    canActivate: [AuthGuard],
+    canActivateChild: [AuthGuard],
     loadChildren: () => import('./pages/marketplace-routes/marketplace-routing.module').then(m => m.MarketplaceRoutingModule),
   },
   {
     path: 'notifications',
-    canActivate: [AuthGuard, MaintenanceGuard],
+    canActivate: [AuthGuard],
     loadChildren: () => import('./pages/notifications/notifications.module').then(m => m.NotificationsPageModule),
   },
   {
     path: 'services',
-    canActivate: [AuthGuard, MaintenanceGuard],
-    canActivateChild: [AuthGuard, MaintenanceGuard],
+    canActivate: [AuthGuard],
+    canActivateChild: [AuthGuard],
     loadChildren: () => import('./pages/apps-routes/apps-routing.module').then(m => m.AppsRoutingModule),
   },
 ]

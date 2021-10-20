@@ -1,5 +1,5 @@
-import { Component, Input } from '@angular/core'
-import { ModalController, IonicSafeString, LoadingController } from '@ionic/angular'
+import { Component, Input, ViewChild } from '@angular/core'
+import { ModalController, IonicSafeString, LoadingController, IonInput } from '@ionic/angular'
 import { getErrorMessage } from 'src/app/services/error-toast.service'
 
 @Component({
@@ -8,6 +8,7 @@ import { getErrorMessage } from 'src/app/services/error-toast.service'
   styleUrls: ['./generic-input.component.scss'],
 })
 export class GenericInputComponent {
+  @ViewChild('mainInput', { static: false }) elem: IonInput
   @Input() title: string
   @Input() message: string
   @Input() warning: string
@@ -26,6 +27,10 @@ export class GenericInputComponent {
     private readonly modalCtrl: ModalController,
     private readonly loadingCtrl: LoadingController,
   ) { }
+
+  ngAfterViewInit () {
+    setTimeout(() => this.elem.setFocus(), 400)
+  }
 
   toggleMask () {
     this.unmasked = !this.unmasked
