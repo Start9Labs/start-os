@@ -54,7 +54,7 @@ $(EMBASSY_BINS): $(APPMGR_SRC)
 ui/node_modules: ui/package.json
 	npm --prefix ui install
 
-ui/www: $(UI_SRC) ui/node_modules patch-db/client patch-db/client/dist ui/config.json config-git-hash
+ui/www: $(UI_SRC) ui/node_modules patch-db/client patch-db/client/dist ui/config.json
 	npm --prefix ui run build-prod
 
 ui/config.json: .git/HEAD $(GIT_REFS)
