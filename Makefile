@@ -52,11 +52,15 @@ $(EMBASSY_BINS): $(APPMGR_SRC)
 ui/node_modules: ui/package.json
 	npm --prefix ui install
 
-ui/www: $(UI_SRC) ui/node_modules patch-db/client patch-db/client/dist ui/config.json
+ui/www: $(UI_SRC) ui/node_modules patch-db/client patch-db/client/dist ui/config.json config-git-hash
 	npm --prefix ui run build-prod
 
 ui/config.json:
 	jq '.mocks.enabled = false' ui/config-sample.json > ui/config.json
+
+config-git-hash: ui/config.json
+	tmp=$(mktemp)
+	jq '.gitHash = "$(shell git rev-parse HEAD)"' ui/config.json > "$tmp" && mv "$tmp" ui/config.json
 
 setup-wizard/node_modules: setup-wizard/package.json
 	npm --prefix setup-wizard install
