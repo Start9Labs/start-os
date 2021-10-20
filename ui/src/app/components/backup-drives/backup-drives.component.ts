@@ -8,7 +8,7 @@ import { MappedPartitionInfo } from 'src/app/util/misc.util'
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesComponent {
-  @Input() type: 'backup' | 'recover'
+  @Input() type: 'backup' | 'restore'
   @Output() onSelect: EventEmitter<MappedPartitionInfo> = new EventEmitter()
   message: string
 
@@ -37,7 +37,7 @@ export class BackupDrivesComponent {
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesHeaderComponent {
-  @Input() type: 'backup' | 'recover'
+  @Input() type: 'backup' | 'restore'
   @Output() onClose: EventEmitter<void> = new EventEmitter()
   title: string
 
