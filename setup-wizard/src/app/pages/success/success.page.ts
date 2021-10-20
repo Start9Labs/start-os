@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ToastController } from '@ionic/angular'
+import { AlertController, ToastController } from '@ionic/angular'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -10,6 +10,7 @@ import { StateService } from 'src/app/services/state.service'
 export class SuccessPage {
   constructor (
     private readonly toastCtrl: ToastController,
+    private readonly alertCtrl: AlertController,
     public readonly stateService: StateService,
   ) { }
 
@@ -34,6 +35,18 @@ export class SuccessPage {
   }
 
   async copyToClipboard (str: string): Promise<boolean> {
+    const alert = await this.alertCtrl.create({
+      header: 'Please Save',
+      message: 'Make sure you save the address to your Embassy in a safe place.',
+      buttons: [
+        {
+          text: 'OK',
+          role: 'cancel',
+        },
+      ],
+    })
+
+    await alert.present()
     if (window.isSecureContext) {
       return navigator.clipboard.writeText(str)
         .then(() => {
