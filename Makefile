@@ -13,6 +13,9 @@ TMP_FILE := $(shell mktemp)
 
 all: eos.img
 
+gzip: eos.img
+	gzip -k eos.img
+
 clean:
 	rm -f eos.img
 	rm -f ubuntu.img
