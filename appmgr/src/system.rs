@@ -8,6 +8,7 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::db::util::WithRevision;
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::util::{display_none, display_serializable, IoFormat};
@@ -668,14 +669,20 @@ pub async fn config() -> Result<(), Error> {
 }
 
 #[command(rename = "share-stats", display(display_none))]
-async fn share_stats(#[context] ctx: RpcContext, #[arg] value: bool) -> Result<(), Error> {
-    crate::db::DatabaseModel::new()
+async fn share_stats(
+    #[context] ctx: RpcContext,
+    #[arg] value: bool,
+) -> Result<WithRevision<()>, Error> {
+    let revision = crate::db::DatabaseModel::new()
         .server_info()
         .share_stats()
         .put(&mut ctx.db.handle(), &value)
         .await?;
     ctx.logger.set_sharing(value);
-    Ok(())
+    Ok(WithRevision {
+        response: (),
+        revision,
+    })
 }
 
 #[tokio::test]
