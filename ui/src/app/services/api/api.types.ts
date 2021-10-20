@@ -182,7 +182,11 @@ export module RR {
   export type DeleteRecoveredPackageRes = WithRevision<null>
 
   export type DryConfigureDependencyReq = { 'dependency-id': string, 'dependent-id': string } // package.dependency.configure.dry
-  export type DryConfigureDependencyRes = object
+  export type DryConfigureDependencyRes = {
+    'old-config': object
+    'new-config': object
+    spec: ConfigSpec
+  }
 
   // marketplace
 
