@@ -542,28 +542,32 @@ export class MockApiService extends ApiService {
   async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes> {
     await pauseFor(2000)
     return {
-      testnet: true,
-      // objectList: [],
-      // unionList: [],
-      randomEnum: 'option2',
-      favoriteNumber: 9,
-      secondaryNumbers: [2, 3, 5, 6],
-      rpcsettings: {
-        laws: {
-          law1: 'The 1st law',
-          law2: 'The 2nd law',
+      'old-config': Mock.PackageConfig.config,
+      spec: Mock.PackageConfig.spec,
+      'new-config': {
+        testnet: true,
+        // objectList: [],
+        // unionList: [],
+        randomEnum: 'option2',
+        favoriteNumber: 9,
+        secondaryNumbers: [2, 3, 5, 6],
+        rpcsettings: {
+          laws: {
+            law1: 'The 1st law',
+            law2: 'The 2nd law',
+          },
+          rpcpass: null,
+          rpcuser: '123',
+          rulemakers: [],
         },
-        rpcpass: null,
-        rpcuser: '123',
-        rulemakers: [],
+        advanced: {
+          notifications: ['call', 'text'],
+        },
+        // bitcoinNode: undefined,
+        port: 22,
+        // rpcallowip: undefined,
+        // rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
       },
-      advanced: {
-        notifications: ['call', 'text'],
-      },
-      // bitcoinNode: undefined,
-      port: 22,
-      // rpcallowip: undefined,
-      // rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
     }
   }
 
