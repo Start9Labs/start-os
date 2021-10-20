@@ -58,7 +58,7 @@ ui/www: $(UI_SRC) ui/node_modules patch-db/client patch-db/client/dist ui/config
 ui/config.json:
 	jq '.mocks.enabled = false' ui/config-sample.json > ui/config.json
 
-config-git-hash: ui/config.json
+config-git-hash: ui/config.json .git
 	tmp=$(mktemp)
 	jq '.gitHash = "$(shell git rev-parse HEAD)"' ui/config.json > "$tmp" && mv "$tmp" ui/config.json
 
