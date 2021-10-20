@@ -8,7 +8,8 @@ UI_SRC := $(shell find ui/src)
 SETUP_WIZARD_SRC := $(shell find setup-wizard/src)
 DIAGNOSTIC_UI_SRC := $(shell find diagnostic-ui/src)
 PATCH_DB_CLIENT_SRC = $(shell find patch-db/client -not -path patch-db/client/dist)
-TMP_FILE := $(mktemp)
+GIT_REFS := $(shell find .git/refs/heads)
+TMP_FILE := $(shell mktemp)
 
 all: eos.img
 
@@ -56,7 +57,7 @@ ui/node_modules: ui/package.json
 ui/www: $(UI_SRC) ui/node_modules patch-db/client patch-db/client/dist ui/config.json config-git-hash
 	npm --prefix ui run build-prod
 
-ui/config.json: .git/packed-refs .git/HEAD
+ui/config.json: .git/HEAD $(GIT_REFS)
 	jq '.mocks.enabled = false' ui/config-sample.json > ui/config.json
 	jq '.gitHash = "$(shell git rev-parse HEAD)"' ui/config.json > $(TMP_FILE) && mv $(TMP_FILE) ui/config.json
 
