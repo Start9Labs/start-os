@@ -49,14 +49,23 @@ export class AppConfigPage {
     if (!this.hasConfig) return
 
     try {
-      this.loadingText = 'Loading Config'
-      const { spec, config } = await this.embassyApi.getPackageConfig({ id: this.pkgId })
-      let depConfig: object
+
+      let oldConfig: object
+      let newConfig: object
+      let spec: ConfigSpec
       if (this.rec) {
         this.loadingText = `Setting properties to accommodate ${this.rec.dependentTitle}`
-        depConfig = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': this.rec.dependentId })
+        const { 'old-config': oc, 'new-config': nc, spec: s } = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': this.rec.dependentId })
+        oldConfig = oc
+        newConfig = nc
+        spec = s
+      } else {
+        this.loadingText = 'Loading Config'
+        const { config: oc, spec: s } = await this.embassyApi.getPackageConfig({ id: this.pkgId })
+        oldConfig = oc
+        spec = s
       }
-      this.setConfig(spec, config, depConfig)
+      this.setConfig(spec, oldConfig, newConfig)
     } catch (e) {
       this.loadingError = getErrorMessage(e)
     } finally {
