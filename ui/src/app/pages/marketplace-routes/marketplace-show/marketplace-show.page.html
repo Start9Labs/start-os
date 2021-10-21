@@ -72,23 +72,21 @@
       </ion-row>
     </ion-grid>
 
-    <!-- recommendation -->
-    <ion-item *ngIf="rec && showRec" class="rec-item">
+    <!-- auto-config -->
+    <ion-item lines="none" *ngIf="dependentInfo" class="rec-item">
       <ion-label>
         <h2 style="display: flex; align-items: center;">
-          <ion-thumbnail style="height: 3vh; width: 3vh; margin: 5px" slot="start">
-            <img [src]="rec.dependentIcon" [alt]="rec.dependentTitle"/>
-          </ion-thumbnail>
-          <ion-text style="margin: 5px; font-family: 'Montserrat'; font-size: smaller;">{{ rec.dependentTitle }}</ion-text>
+          <ion-text style="margin: 5px; font-family: 'Montserrat'; font-size: 18px;">{{ pkg.manifest.title }}</ion-text>
         </h2>
-        <div style="margin: 7px 5px;">
-          <p style="color: var(--ion-color-dark); font-size: small">{{ rec.description }}</p>
-          <p *ngIf="pkg.manifest.version | satisfiesEmver: rec.version" class="recommendation-text">{{ pkg.manifest.title }} version {{ pkg.manifest.version | displayEmver }} is compatible.</p>
-          <p *ngIf="!(pkg.manifest.version | satisfiesEmver: rec.version)" class="recommendation-text recommendation-error">{{ pkg.manifest.title }} version {{ pkg.manifest.version | displayEmver }} is NOT compatible.</p>
-          <ion-button style="position: absolute; right: 0; top: 0" fill="clear" (click)="dismissRec()">
-            <ion-icon name="close"></ion-icon>
-          </ion-button>
-        </div>
+        <p>
+          <ion-text color="dark">
+            {{ dependentInfo.title }} requires an install of {{ pkg.manifest.title }} satisfying {{ dependentInfo.version }}.
+            <br />
+            <br />
+            <span *ngIf="pkg.manifest.version | satisfiesEmver: dependentInfo.version" class="recommendation-text">{{ pkg.manifest.title }} version {{ pkg.manifest.version | displayEmver }} is compatible.</span>
+            <span *ngIf="!(pkg.manifest.version | satisfiesEmver: dependentInfo.version)" class="recommendation-text recommendation-error">{{ pkg.manifest.title }} version {{ pkg.manifest.version | displayEmver }} is NOT compatible.</span>
+          </ion-text>
+        </p>
       </ion-label>
     </ion-item>
 

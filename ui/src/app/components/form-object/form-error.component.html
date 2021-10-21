@@ -30,5 +30,8 @@
     <p *ngIf="control.hasError('listNotUnique')">
       {{ control.errors.listNotUnique.value }}
     </p>
+    <p *ngIf="control.hasError('listItemIssue')">
+      {{ control.errors.listItemIssue.value }}
+    </p>
   </ng-container>
 </div>

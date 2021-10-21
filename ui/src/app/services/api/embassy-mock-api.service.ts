@@ -3,7 +3,7 @@ import { pauseFor } from '../../util/misc.util'
 import { ApiService } from './embassy-api.service'
 import { PatchOp } from 'patch-db-client'
 import { DependencyErrorType, InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
-import { RR, WithRevision } from './api.types'
+import { Log, RR, WithRevision } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import { HttpService } from '../http.service'
@@ -75,7 +75,7 @@ export class MockApiService extends ApiService {
 
   async getServerLogs (params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
     await pauseFor(2000)
-    let entries
+    let entries: Log[]
     if (Math.random() < .2) {
       entries = Mock.ServerLogs
     } else {
@@ -390,7 +390,10 @@ export class MockApiService extends ApiService {
 
   async getPackageConfig (params: RR.GetPackageConfigReq): Promise<RR.GetPackageConfigRes> {
     await pauseFor(2000)
-    return Mock.PackageConfig
+    return {
+      config: Mock.MockConfig,
+      spec: Mock.ConfigSpec,
+    }
   }
 
   async drySetPackageConfig (params: RR.DrySetPackageConfigReq): Promise<RR.DrySetPackageConfigRes> {
@@ -542,32 +545,9 @@ export class MockApiService extends ApiService {
   async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes> {
     await pauseFor(2000)
     return {
-      'old-config': Mock.PackageConfig.config,
-      spec: Mock.PackageConfig.spec,
-      'new-config': {
-        testnet: true,
-        // objectList: [],
-        // unionList: [],
-        randomEnum: 'option2',
-        favoriteNumber: 9,
-        secondaryNumbers: [2, 3, 5, 6],
-        rpcsettings: {
-          laws: {
-            law1: 'The 1st law',
-            law2: 'The 2nd law',
-          },
-          rpcpass: null,
-          rpcuser: '123',
-          rulemakers: [],
-        },
-        advanced: {
-          notifications: ['call', 'text'],
-        },
-        // bitcoinNode: undefined,
-        port: 22,
-        // rpcallowip: undefined,
-        // rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
-      },
+      'old-config': Mock.MockConfig,
+      'new-config': Mock.MockDependencyConfig,
+      spec: Mock.ConfigSpec,
     }
   }
 
