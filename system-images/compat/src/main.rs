@@ -271,7 +271,6 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 let res = create_backup(
                     sub_m.value_of("mountpoint").unwrap(),
                     sub_m.value_of("datapath").unwrap(),
-                    sub_m.value_of("package-id").unwrap(),
                 );
                 match res {
                     Ok(r) => {
@@ -283,9 +282,8 @@ fn inner_main() -> Result<(), anyhow::Error> {
             }
             ("restore", Some(sub_m)) => {
                 let res = restore_backup(
-                    sub_m.value_of("package-id").unwrap(),
-                    sub_m.value_of("datapath").unwrap(),
                     sub_m.value_of("mountpoint").unwrap(),
+                    sub_m.value_of("datapath").unwrap(),
                 );
                 match res {
                     Ok(r) => {

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
+use futures::task::Spawn;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use patch_db::{DbHandle, LockType, PatchDbHandle, Revision};
@@ -134,25 +135,34 @@ pub async fn backup_all(
                 )
                 .await
                 .expect("failed to send notification"),
-            Err(e) => ctx
-                .notification_manager
-                .notify(
-                    &mut db,
-                    None,
-                    NotificationLevel::Error,
-                    "Backup Failed".to_owned(),
-                    "Your backup failed to complete.".to_owned(),
-                    BackupReport {
-                        server: ServerBackupReport {
-                            attempted: true,
-                            error: Some(e.to_string()),
+            Err(e) => {
+                tracing::error!("Backup Failed: {}", e);
+                tracing::debug!("{:?}", e);
+                ctx.notification_manager
+                    .notify(
+                        &mut db,
+                        None,
+                        NotificationLevel::Error,
+                        "Backup Failed".to_owned(),
+                        "Your backup failed to complete.".to_owned(),
+                        BackupReport {
+                            server: ServerBackupReport {
+                                attempted: true,
+                                error: Some(e.to_string()),
+                            },
+                            packages: BTreeMap::new(),
                         },
-                        packages: BTreeMap::new(),
-                    },
-                )
-                .await
-                .expect("failed to send notification"),
+                    )
+                    .await
+                    .expect("failed to send notification");
+            }
         }
+        crate::db::DatabaseModel::new()
+            .server_info()
+            .status()
+            .put(&mut db, &ServerStatus::Running)
+            .await
+            .expect("failed to change server status");
     });
     Ok(WithRevision {
         response: (),
@@ -283,6 +293,11 @@ async fn perform_backup<Db: DbHandle>(
         &encrypt_slice(&enc_key, password),
     ));
 
+    if tokio::fs::metadata(BACKUP_DIR_CRYPT).await.is_err() {
+        tokio::fs::create_dir_all(BACKUP_DIR_CRYPT)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, BACKUP_DIR_CRYPT))?;
+    }
     mount_ecryptfs(BACKUP_DIR_CRYPT, BACKUP_DIR, &enc_key).await?;
 
     tmp_guard.drop_without_action();

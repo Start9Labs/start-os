@@ -65,8 +65,8 @@ git-version = "0.3.5"
 hex = "0.4.3"
 hmac = "0.11.0"
 http = "0.2.5"
-hyper-ws-listener = { git = "https://github.com/Start9Labs/hyper-ws-listener.git", branch = "main" }
 hyper = "0.14.13"
+hyper-ws-listener = { git = "https://github.com/Start9Labs/hyper-ws-listener.git", branch = "main" }
 indexmap = { version = "1.7.0", features = ["serde"] }
 isocountry = "0.3.2"
 itertools = "0.10.1"
@@ -74,12 +74,12 @@ jsonpath_lib = "0.3.0"
 lazy_static = "1.4"
 libc = "0.2.103"
 log = "0.4.14"
-nix = "0.22.1"
+nix = "0.23.0"
 num = "0.4.0"
 openssh-keys = "0.5.0"
 openssl = { version = "0.10.36", features = ["vendored"] }
 patch-db = { version = "*", path = "../patch-db/patch-db", features = [
-  "debug",
+  "trace",
 ] }
 pbkdf2 = "0.9.0"
 pin-project = "1.0.8"
@@ -120,14 +120,14 @@ tokio-util = { version = "0.6.8", features = ["io"] }
 torut = "0.2.0"
 tracing = "0.1"
 tracing-error = "0.1"
+tracing-futures = "0.2"
 tracing-subscriber = "0.2"
-tracing-futures="0.2"
 typed-builder = "0.9.1"
 url = { version = "2.2.2", features = ["serde"] }
 
 [dependencies.serde_with]
+features = ["macros", "json"]
 version = "1.10.0"
-features = [ "macros", "json" ]
 
 [profile.dev.package.backtrace]
 opt-level = 3
