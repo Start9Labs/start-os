@@ -56,7 +56,7 @@ export class AppConfigPage {
       let patch: Operation[]
       if (this.rec) {
         this.loadingText = `Setting properties to accommodate ${this.rec.dependentTitle}`
-        const { 'old-config': oc, 'new-config': nc, spec: s } = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': 'hello' })
+        const { 'old-config': oc, 'new-config': nc, spec: s } = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': this.rec.dependentId })
         oldConfig = oc
         newConfig = nc
         spec = s
