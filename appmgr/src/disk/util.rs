@@ -315,7 +315,7 @@ pub async fn mount<P0: AsRef<Path>, P1: AsRef<Path>>(
     if is_mountpoint.success() {
         unmount(mount_point.as_ref()).await?;
     }
-    tokio::fs::create_dir_all(&mount_point).await?;
+    tokio::fs::create_dir_all(mount_point.as_ref()).await?;
     let mount_output = tokio::process::Command::new("mount")
         .arg(logicalname.as_ref())
         .arg(mount_point.as_ref())
@@ -338,13 +338,23 @@ pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
     dst: P1,
     password: &str,
 ) -> Result<(), Error> {
-    let mut ecryptfs = tokio::process::Command::new("mount")
+    let is_mountpoint = tokio::process::Command::new("mountpoint")
+        .arg(dst.as_ref())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .await?;
+    if is_mountpoint.success() {
+        unmount(dst.as_ref()).await?;
+    }
+    tokio::fs::create_dir_all(dst.as_ref()).await?;
+    let mut ecryptfs = dbg!(tokio::process::Command::new("mount")
         .arg("-t")
         .arg("ecryptfs")
         .arg(src.as_ref())
         .arg(dst.as_ref())
         .arg("-o")
-        .arg(format!("key=passphrase,passwd={},ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y", password))
+        .arg(format!("key=passphrase,passwd={},ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y", password)))
         .stdin(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;

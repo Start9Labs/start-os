@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use crate::config::action::ConfigRes;
-use crate::util::display_none;
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
@@ -14,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
+use crate::config::action::ConfigRes;
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
@@ -21,8 +20,7 @@ use crate::error::ResultExt;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::{MainStatus, Status};
-use crate::util::display_serializable;
-use crate::util::Version;
+use crate::util::{display_none, display_serializable, Version};
 use crate::volume::Volumes;
 use crate::Error;
 
@@ -723,13 +721,14 @@ pub fn break_transitive<'a, Db: DbHandle>(
     breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
+        let mut tx = db.begin().await?;
         let model = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(id)
             .and_then(|m| m.installed())
-            .expect(db)
+            .expect(&mut tx)
             .await?;
-        let mut status = model.clone().status().get_mut(db).await?;
+        let mut status = model.clone().status().get_mut(&mut tx).await?;
 
         let old = status.dependency_errors.0.remove(dependency);
         let newly_broken = old.is_none();
@@ -755,7 +754,7 @@ pub fn break_transitive<'a, Db: DbHandle>(
                     .manifest()
                     .dependencies()
                     .idx_model(dependency)
-                    .get(db, true)
+                    .get(&mut tx, true)
                     .await?
                     .into_owned()
                     .ok_or_else(|| {
@@ -771,11 +770,20 @@ pub fn break_transitive<'a, Db: DbHandle>(
                 } else {
                     DependencyError::Transitive
                 };
-                break_all_dependents_transitive(db, id, transitive_error, breakages).await?;
-            }
-        }
+                status.save(&mut tx).await?;
 
-        status.save(db).await?;
+                tx.save().await?;
+                break_all_dependents_transitive(db, id, transitive_error, breakages).await?;
+            } else {
+                status.save(&mut tx).await?;
+
+                tx.save().await?;
+            }
+        } else {
+            status.save(&mut tx).await?;
+
+            tx.save().await?;
+        }
 
         Ok(())
     }
@@ -811,13 +819,14 @@ pub fn heal_transitive<'a, Db: DbHandle>(
     dependency: &'a PackageId,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
+        let mut tx = db.begin().await?;
         let model = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(id)
             .and_then(|m| m.installed())
-            .expect(db)
+            .expect(&mut tx)
             .await?;
-        let mut status = model.clone().status().get_mut(db).await?;
+        let mut status = model.clone().status().get_mut(&mut tx).await?;
 
         let old = status.dependency_errors.0.remove(dependency);
 
@@ -826,18 +835,23 @@ pub fn heal_transitive<'a, Db: DbHandle>(
                 .manifest()
                 .dependencies()
                 .idx_model(dependency)
-                .expect(db)
+                .expect(&mut tx)
                 .await?
-                .get(db, true)
+                .get(&mut tx, true)
                 .await?;
-            if let Some(new) = old.try_heal(ctx, db, id, dependency, None, &*info).await? {
+            if let Some(new) = old
+                .try_heal(ctx, &mut tx, id, dependency, None, &*info)
+                .await?
+            {
                 status.dependency_errors.0.insert(dependency.clone(), new);
+                status.save(&mut tx).await?;
+                tx.save().await?;
             } else {
+                status.save(&mut tx).await?;
+                tx.save().await?;
                 heal_all_dependents_transitive(ctx, db, id).await?;
             }
         }
-
-        status.save(db).await?;
 
         Ok(())
     }
