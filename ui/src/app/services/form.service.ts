@@ -60,12 +60,12 @@ export class FormService {
     let group = { }
     Object.entries(config).map(([key, spec]) => {
       if (spec.type === 'pointer') return
-      group[key] = this.getFormEntry(key, spec, current ? current[key] : { })
+      group[key] = this.getFormEntry(spec, current ? current[key] : undefined)
     })
     return this.formBuilder.group(group, { validators } )
   }
 
-  private getFormEntry (key: string, spec: ValueSpec, currentValue: any): FormGroup | FormArray | FormControl {
+  private getFormEntry (spec: ValueSpec, currentValue?: any): FormGroup | FormArray | FormControl {
     let validators: ValidatorFn[]
     let value: any
     switch (spec.type) {
