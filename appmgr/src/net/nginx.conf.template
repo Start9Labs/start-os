@@ -1,6 +1,7 @@
 server {{
     listen {listen_args};
-    server_name {hostname}.local;
+    listen [::]:{listen_args_ipv6};
+    server_name .{hostname}.local;
     {ssl_certificate_line}
     {ssl_certificate_key_line}
     location / {{

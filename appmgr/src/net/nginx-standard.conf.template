@@ -7,7 +7,7 @@ map $http_x_forwarded_proto $real_proto {{
 }}
 server {{
     listen 443 ssl;
-    server_name {hostname}.local;
+    server_name .{hostname}.local;
     ssl_certificate /root/appmgr/apps/{app_id}/cert-local.fullchain.crt.pem;
     ssl_certificate_key /root/appmgr/apps/{app_id}/cert-local.key.pem;
     location / {{
@@ -23,6 +23,6 @@ server {{
 }}
 server {{
     listen 80;
-    server_name {hostname}.local;
+    server_name .{hostname}.local;
     return 301 https://$host$request_uri;
 }}

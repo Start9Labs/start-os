@@ -154,6 +154,7 @@ impl NginxControllerInner {
                     format!(
                         include_str!("nginx.conf.template"),
                         listen_args = listen_args,
+                        listen_args_ipv6 = listen_args,
                         hostname = meta.dns_base,
                         ssl_certificate_line = ssl_certificate_line,
                         ssl_certificate_key_line = ssl_certificate_key_line,
