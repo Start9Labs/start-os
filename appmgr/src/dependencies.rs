@@ -464,7 +464,11 @@ pub async fn configure_impl(
     (pkg_id, dep_id): (PackageId, PackageId),
 ) -> Result<(), Error> {
     let mut db = ctx.db.handle();
-    let new_config = configure_logic(ctx.clone(), &mut db, (pkg_id, dep_id.clone())).await?;
+    let ConfigDryRes {
+        old_config: _,
+        new_config,
+        spec: _,
+    } = configure_logic(ctx.clone(), &mut db, (pkg_id, dep_id.clone())).await?;
     Ok(crate::config::configure(
         &ctx,
         &mut db,
