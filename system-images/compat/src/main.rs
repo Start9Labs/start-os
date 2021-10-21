@@ -126,11 +126,6 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 .subcommand(
                     SubCommand::with_name("create")
                         .arg(
-                            Arg::with_name("package-id")
-                                .help("The `id` field from the manifest file")
-                                .required(true),
-                        )
-                        .arg(
                             Arg::with_name("mountpoint")
                                 .help("The backups mount point")
                                 .required(true),
@@ -143,11 +138,6 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 )
                 .subcommand(
                     SubCommand::with_name("restore")
-                        .arg(
-                            Arg::with_name("package-id")
-                                .help("The `id` field from the manifest file")
-                                .required(true),
-                        )
                         .arg(
                             Arg::with_name("mountpoint")
                                 .help("The backups mount point")
