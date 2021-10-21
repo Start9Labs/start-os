@@ -1,5 +1,6 @@
 import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { Log, MarketplacePkg, Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
+import { Operation } from 'fast-json-patch'
 
 export module Mock {
 
@@ -1081,405 +1082,21 @@ export module Mock {
     },
   } as any // @TODO why is this necessary?
 
-  export const PackageConfig: RR.GetPackageConfigRes = {
-    // config spec
-    spec: {
-      'testnet': {
-        'name': 'Testnet',
-        'type': 'boolean',
-        'description': 'determines whether your node is running on testnet or mainnet',
-        'warning': 'Chain will have to resync!',
-        'default': true,
-      },
-      'object-list': {
-        'name': 'Object List',
-        'type': 'list',
-        'subtype': 'object',
-        'description': 'This is a list of objects, like users or something',
-        'range': '[0,4]',
-        'default': [
-          {
-            'first-name': 'Admin',
-            'last-name': 'User',
-            'age': 40,
-          },
-          {
-            'first-name': 'Admin2',
-            'last-name': 'User',
-            'age': 40,
-          },
-        ],
-        // the outer spec here, at the list level, says that what's inside (the inner spec) pertains to its inner elements.
-        // it just so happens that ValueSpecObject's have the field { spec: ConfigSpec }
-        // see 'union-list' below for a different example.
-        'spec': {
-          'unique-by': 'last-name',
-          'display-as': `I'm {{last-name}}, {{first-name}} {{last-name}}`,
-          'spec': {
-            'first-name': {
-              'name': 'First Name',
-              'type': 'string',
-              'description': 'User first name',
-              'nullable': true,
-              'default': null,
-              'masked': false,
-              'copyable': false,
-            },
-            'last-name': {
-              'name': 'Last Name',
-              'type': 'string',
-              'description': 'User first name',
-              'nullable': true,
-              'default': {
-                'charset': 'a-g,2-9',
-                'len': 12,
-              },
-              'pattern': '^[a-zA-Z]+$',
-              'pattern-description': 'must contain only letters.',
-              'masked': false,
-              'copyable': true,
-            },
-            'age': {
-              'name': 'Age',
-              'type': 'number',
-              'description': 'The age of the user',
-              'nullable': true,
-              'default': null,
-              'integral': false,
-              'warning': 'User must be at least 18.',
-              'range': '[18,*)',
-            },
-          },
-        },
-      },
-      'union-list': {
-        'name': 'Union List',
-        'type': 'list',
-        'subtype': 'union',
-        'description': 'This is a sample list of unions',
-        'warning': 'If you change this, things may work.',
-        // a list of union selections. e.g. 'summer', 'winter',...
-        'default': [
-          'summer',
-        ],
-        'range': '[0, 2]',
-        'spec': {
-          'tag': {
-            'id': 'preference',
-            'name': 'Preferences',
-            'variant-names': {
-              'summer': 'Summer',
-              'winter': 'Winter',
-              'other': 'Other',
-            },
-          },
-          // this default is used to make a union selection when a new list element is first created
-          'default': 'summer',
-          'variants': {
-            'summer': {
-              'favorite-tree': {
-                'name': 'Favorite Tree',
-                'type': 'string',
-                'nullable': false,
-                'description': 'What is your favorite tree?',
-                'default': 'Maple',
-                'masked': false,
-                'copyable': false,
-              },
-              'favorite-flower': {
-                'name': 'Favorite Flower',
-                'type': 'enum',
-                'description': 'Select your favorite flower',
-                'value-names': {
-                  'none': 'Hate Flowers',
-                  'red': 'Red',
-                  'blue': 'Blue',
-                  'purple': 'Purple',
-                },
-                'values': [
-                  'none',
-                  'red',
-                  'blue',
-                  'purple',
-                ],
-                'default': 'none',
-              },
-            },
-            'winter': {
-              'like-snow': {
-                'name': 'Like Snow?',
-                'type': 'boolean',
-                'description': 'Do you like snow or not?',
-                'default': true,
-              },
-            },
-          },
-          'unique-by': 'preference',
-        },
-      },
-      'random-enum': {
-        'name': 'Random Enum',
-        'type': 'enum',
-        'value-names': {
-          'null': 'Null',
-          'option1': 'One 1',
-          'option2': 'Two 2',
-          'option3': 'Three 3',
-        },
-        'default': 'null',
-        'description': 'This is not even real.',
-        'warning': 'Be careful changing this!',
-        'values': [
-          'null',
-          'option1',
-          'option2',
-          'option3',
-        ],
-      },
-      'favorite-number': {
-        'name': 'Favorite Number',
-        'type': 'number',
-        'integral': false,
-        'description': 'Your favorite number of all time',
-        'warning': 'Once you set this number, it can never be changed without severe consequences.',
-        'nullable': true,
-        'default': 7,
-        'range': '(-100,100]',
-        'units': 'BTC',
-      },
-      'unlucky-numbers': {
-        'name': 'Unlucky Numbers',
-        'type': 'list',
-        'subtype': 'number',
-        'description': 'Numbers that you like but are not your top favorite.',
-        'spec': {
-          'integral': false,
-          'range': '[-100,200)',
-        },
-        'range': '[0,10]',
-        'default': [
-          2,
-          3,
-        ],
-      },
-      'rpcsettings': {
-        'name': 'RPC Settings',
-        'type': 'object',
-        'unique-by': null,
-        'description': 'rpc username and password',
-        'warning': 'Adding RPC users gives them special permissions on your node.',
-        'spec': {
-          'laws': {
-            'name': 'Laws',
-            'type': 'object',
-            'unique-by': 'law1',
-            'description': 'the law of the realm',
-            'spec': {
-              'law1': {
-                'name': 'First Law',
-                'type': 'string',
-                'description': 'the first law',
-                'nullable': true,
-                'masked': false,
-                'copyable': true,
-              },
-              'law2': {
-                'name': 'Second Law',
-                'type': 'string',
-                'description': 'the second law',
-                'nullable': true,
-                'masked': false,
-                'copyable': true,
-              },
-            },
-          },
-          'rulemakers': {
-            'name': 'Rule Makers',
-            'type': 'list',
-            'subtype': 'object',
-            'description': 'the people who make the rules',
-            'range': '[0,2]',
-            'default': [],
-            'spec': {
-              'unique-by': null,
-              'spec': {
-                'rulemakername': {
-                  'name': 'Rulemaker Name',
-                  'type': 'string',
-                  'description': 'the name of the rule maker',
-                  'nullable': false,
-                  'default': {
-                    'charset': 'a-g,2-9',
-                    'len': 12,
-                  },
-                  'masked': false,
-                  'copyable': false,
-                },
-                'rulemakerip': {
-                  'name': 'Rulemaker IP',
-                  'type': 'string',
-                  'description': 'the ip of the rule maker',
-                  'nullable': false,
-                  'default': '192.168.1.0',
-                  'pattern': '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
-                  'pattern-description': 'may only contain numbers and periods',
-                  'masked': false,
-                  'copyable': true,
-                },
-              },
-            },
-          },
-          'rpcuser': {
-            'name': 'RPC Username',
-            'type': 'string',
-            'description': 'rpc username',
-            'nullable': false,
-            'default': 'defaultrpcusername',
-            'pattern': '^[a-zA-Z]+$',
-            'pattern-description': 'must contain only letters.',
-            'masked': false,
-            'copyable': true,
-          },
-          'rpcpass': {
-            'name': 'RPC User Password',
-            'type': 'string',
-            'description': 'rpc password',
-            'nullable': false,
-            'default': {
-              'charset': 'a-z,A-Z,2-9',
-              'len': 20,
-            },
-            'masked': true,
-            'copyable': true,
-          },
-        },
-      },
-      'advanced': {
-        'name': 'Advanced',
-        'type': 'object',
-        'unique-by': null,
-        'description': 'Advanced settings',
-        'spec': {
-          'notifications': {
-            'name': 'Notification Preferences',
-            'type': 'list',
-            'subtype': 'enum',
-            'description': 'how you want to be notified',
-            'range': '[1,3]',
-            'default': [
-              'email',
-            ],
-            'spec': {
-              'value-names': {
-                'email': 'EEEEmail',
-                'text': 'Texxxt',
-                'call': 'Ccccall',
-                'push': 'PuuuusH',
-                'webhook': 'WebHooookkeee',
-              },
-              'values': [
-                'email',
-                'text',
-                'call',
-                'push',
-                'webhook',
-              ],
-            },
-          },
-        },
-      },
-      'bitcoin-node': {
-        'name': 'Bitcoin Node Settings',
-        'type': 'union',
-        'unique-by': null,
-        'description': 'The node settings',
-        'default': 'internal',
-        'warning': 'Careful changing this',
-        'tag': {
-          'id': 'type',
-          'name': 'Type',
-          'variant-names': {
-            'internal': 'Internal',
-            'external': 'External',
-          },
-        },
-        'variants': {
-          'internal': {
-            'lan-address': {
-              'name': 'LAN Address',
-              'type': 'pointer',
-              'subtype': 'app',
-              'target': 'lan-address',
-              'app-id': 'bitcoind',
-              'description': 'the lan address',
-            },
-          },
-          'external': {
-            'public-domain': {
-              'name': 'Public Domain',
-              'type': 'string',
-              'description': 'the public address of the node',
-              'nullable': false,
-              'default': 'bitcoinnode.com',
-              'pattern': '.*',
-              'pattern-description': 'anything',
-              'masked': false,
-              'copyable': true,
-            },
-          },
-        },
-      },
-      'port': {
-        'name': 'Port',
-        'type': 'number',
-        'integral': true,
-        'description': 'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
-        'nullable': false,
-        'default': 8333,
-        'range': '(0, 9998]',
-      },
-      'favorite-slogan': {
-        'name': 'Favorite Slogan',
-        'type': 'string',
-        'description': 'You most favorite slogan in the whole world, used for paying you.',
-        'nullable': true,
-        'masked': true,
-        'copyable': true,
-      },
-      'rpcallowip': {
-        'name': 'RPC Allowed IPs',
-        'type': 'list',
-        'subtype': 'string',
-        'description': 'external ip addresses that are authorized to access your Bitcoin node',
-        'warning': 'Any IP you allow here will have RPC access to your Bitcoin node.',
-        'range': '[1,10]',
-        'default': [
-          '192.168.1.1',
-        ],
-        'spec': {
-          'masked': false,
-          'copyable': false,
-          'pattern': '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))',
-          'pattern-description': 'must be a valid ipv4, ipv6, or domain name',
-        },
-      },
-      'rpcauth': {
-        'name': 'RPC Auth',
-        'type': 'list',
-        'subtype': 'string',
-        'description': 'api keys that are authorized to access your Bitcoin node.',
-        'range': '[0,*)',
-        'default': [],
-        'spec': {
-          'masked': false,
-          'copyable': false,
-        },
-      },
+  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = {
+    'testnet': {
+      'name': 'Testnet',
+      'type': 'boolean',
+      'description': 'determines whether your node is running on testnet or mainnet',
+      'warning': 'Chain will have to resync!',
+      'default': true,
     },
-    // actual config
-    config: {
-      testnet: false,
-      'object-list': [
+    'object-list': {
+      'name': 'Object List',
+      'type': 'list',
+      'subtype': 'object',
+      'description': 'This is a list of objects, like users or something',
+      'range': '[0,4]',
+      'default': [
         {
           'first-name': 'Admin',
           'last-name': 'User',
@@ -1491,50 +1108,461 @@ export module Mock {
           'age': 40,
         },
       ],
-      'union-list': undefined,
-      'random-enum': 'option1',
-      'favorite-number': null,
-      'secondary-numbers': undefined,
-      rpcsettings: {
-        laws: {
-          law1: 'The first law',
-          law2: 'The second law',
+      // the outer spec here, at the list level, says that what's inside (the inner spec) pertains to its inner elements.
+      // it just so happens that ValueSpecObject's have the field { spec: ConfigSpec }
+      // see 'union-list' below for a different example.
+      'spec': {
+        'unique-by': 'last-name',
+        'display-as': `I'm {{last-name}}, {{first-name}} {{last-name}}`,
+        'spec': {
+          'first-name': {
+            'name': 'First Name',
+            'type': 'string',
+            'description': 'User first name',
+            'nullable': true,
+            'default': null,
+            'masked': false,
+            'copyable': false,
+          },
+          'last-name': {
+            'name': 'Last Name',
+            'type': 'string',
+            'description': 'User first name',
+            'nullable': true,
+            'default': {
+              'charset': 'a-g,2-9',
+              'len': 12,
+            },
+            'pattern': '^[a-zA-Z]+$',
+            'pattern-description': 'must contain only letters.',
+            'masked': false,
+            'copyable': true,
+          },
+          'age': {
+            'name': 'Age',
+            'type': 'number',
+            'description': 'The age of the user',
+            'nullable': true,
+            'default': null,
+            'integral': false,
+            'warning': 'User must be at least 18.',
+            'range': '[18,*)',
+          },
         },
-        rpcpass: null,
-        rpcuser: '123',
-        rulemakers: [],
       },
-      advanced: {
-        notifications: ['email'],
+    },
+    'union-list': {
+      'name': 'Union List',
+      'type': 'list',
+      'subtype': 'union',
+      'description': 'This is a sample list of unions',
+      'warning': 'If you change this, things may work.',
+      // a list of union selections. e.g. 'summer', 'winter',...
+      'default': [
+        'summer',
+      ],
+      'range': '[0, 2]',
+      'spec': {
+        'tag': {
+          'id': 'preference',
+          'name': 'Preferences',
+          'variant-names': {
+            'summer': 'Summer',
+            'winter': 'Winter',
+            'other': 'Other',
+          },
+        },
+        // this default is used to make a union selection when a new list element is first created
+        'default': 'summer',
+        'variants': {
+          'summer': {
+            'favorite-tree': {
+              'name': 'Favorite Tree',
+              'type': 'string',
+              'nullable': false,
+              'description': 'What is your favorite tree?',
+              'default': 'Maple',
+              'masked': false,
+              'copyable': false,
+            },
+            'favorite-flower': {
+              'name': 'Favorite Flower',
+              'type': 'enum',
+              'description': 'Select your favorite flower',
+              'value-names': {
+                'none': 'Hate Flowers',
+                'red': 'Red',
+                'blue': 'Blue',
+                'purple': 'Purple',
+              },
+              'values': [
+                'none',
+                'red',
+                'blue',
+                'purple',
+              ],
+              'default': 'none',
+            },
+          },
+          'winter': {
+            'like-snow': {
+              'name': 'Like Snow?',
+              'type': 'boolean',
+              'description': 'Do you like snow or not?',
+              'default': true,
+            },
+          },
+        },
+        'unique-by': 'preference',
       },
-      'bitcoin-node': undefined,
-      port: 5959,
-      rpcallowip: undefined,
-      rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
+    },
+    'random-enum': {
+      'name': 'Random Enum',
+      'type': 'enum',
+      'value-names': {
+        'null': 'Null',
+        'option1': 'One 1',
+        'option2': 'Two 2',
+        'option3': 'Three 3',
+      },
+      'default': 'null',
+      'description': 'This is not even real.',
+      'warning': 'Be careful changing this!',
+      'values': [
+        'null',
+        'option1',
+        'option2',
+        'option3',
+      ],
+    },
+    'favorite-number': {
+      'name': 'Favorite Number',
+      'type': 'number',
+      'integral': false,
+      'description': 'Your favorite number of all time',
+      'warning': 'Once you set this number, it can never be changed without severe consequences.',
+      'nullable': true,
+      'default': 7,
+      'range': '(-100,100]',
+      'units': 'BTC',
+    },
+    'unlucky-numbers': {
+      'name': 'Unlucky Numbers',
+      'type': 'list',
+      'subtype': 'number',
+      'description': 'Numbers that you like but are not your top favorite.',
+      'spec': {
+        'integral': false,
+        'range': '[-100,200)',
+      },
+      'range': '[0,10]',
+      'default': [
+        2,
+        3,
+      ],
+    },
+    'rpcsettings': {
+      'name': 'RPC Settings',
+      'type': 'object',
+      'unique-by': null,
+      'description': 'rpc username and password',
+      'warning': 'Adding RPC users gives them special permissions on your node.',
+      'spec': {
+        'laws': {
+          'name': 'Laws',
+          'type': 'object',
+          'unique-by': 'law1',
+          'description': 'the law of the realm',
+          'spec': {
+            'law1': {
+              'name': 'First Law',
+              'type': 'string',
+              'description': 'the first law',
+              'nullable': true,
+              'masked': false,
+              'copyable': true,
+            },
+            'law2': {
+              'name': 'Second Law',
+              'type': 'string',
+              'description': 'the second law',
+              'nullable': true,
+              'masked': false,
+              'copyable': true,
+            },
+          },
+        },
+        'rulemakers': {
+          'name': 'Rule Makers',
+          'type': 'list',
+          'subtype': 'object',
+          'description': 'the people who make the rules',
+          'range': '[0,2]',
+          'default': [],
+          'spec': {
+            'unique-by': null,
+            'spec': {
+              'rulemakername': {
+                'name': 'Rulemaker Name',
+                'type': 'string',
+                'description': 'the name of the rule maker',
+                'nullable': false,
+                'default': {
+                  'charset': 'a-g,2-9',
+                  'len': 12,
+                },
+                'masked': false,
+                'copyable': false,
+              },
+              'rulemakerip': {
+                'name': 'Rulemaker IP',
+                'type': 'string',
+                'description': 'the ip of the rule maker',
+                'nullable': false,
+                'default': '192.168.1.0',
+                'pattern': '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
+                'pattern-description': 'may only contain numbers and periods',
+                'masked': false,
+                'copyable': true,
+              },
+            },
+          },
+        },
+        'rpcuser': {
+          'name': 'RPC Username',
+          'type': 'string',
+          'description': 'rpc username',
+          'nullable': false,
+          'default': 'defaultrpcusername',
+          'pattern': '^[a-zA-Z]+$',
+          'pattern-description': 'must contain only letters.',
+          'masked': false,
+          'copyable': true,
+        },
+        'rpcpass': {
+          'name': 'RPC User Password',
+          'type': 'string',
+          'description': 'rpc password',
+          'nullable': false,
+          'default': {
+            'charset': 'a-z,A-Z,2-9',
+            'len': 20,
+          },
+          'masked': true,
+          'copyable': true,
+        },
+      },
+    },
+    'advanced': {
+      'name': 'Advanced',
+      'type': 'object',
+      'unique-by': null,
+      'description': 'Advanced settings',
+      'spec': {
+        'notifications': {
+          'name': 'Notification Preferences',
+          'type': 'list',
+          'subtype': 'enum',
+          'description': 'how you want to be notified',
+          'range': '[1,3]',
+          'default': [
+            'email',
+          ],
+          'spec': {
+            'value-names': {
+              'email': 'EEEEmail',
+              'text': 'Texxxt',
+              'call': 'Ccccall',
+              'push': 'PuuuusH',
+              'webhook': 'WebHooookkeee',
+            },
+            'values': [
+              'email',
+              'text',
+              'call',
+              'push',
+              'webhook',
+            ],
+          },
+        },
+      },
+    },
+    'bitcoin-node': {
+      'name': 'Bitcoin Node Settings',
+      'type': 'union',
+      'unique-by': null,
+      'description': 'The node settings',
+      'default': 'internal',
+      'warning': 'Careful changing this',
+      'tag': {
+        'id': 'type',
+        'name': 'Type',
+        'variant-names': {
+          'internal': 'Internal',
+          'external': 'External',
+        },
+      },
+      'variants': {
+        'internal': {
+          'lan-address': {
+            'name': 'LAN Address',
+            'type': 'pointer',
+            'subtype': 'app',
+            'target': 'lan-address',
+            'app-id': 'bitcoind',
+            'description': 'the lan address',
+          },
+        },
+        'external': {
+          'public-domain': {
+            'name': 'Public Domain',
+            'type': 'string',
+            'description': 'the public address of the node',
+            'nullable': false,
+            'default': 'bitcoinnode.com',
+            'pattern': '.*',
+            'pattern-description': 'anything',
+            'masked': false,
+            'copyable': true,
+          },
+        },
+      },
+    },
+    'port': {
+      'name': 'Port',
+      'type': 'number',
+      'integral': true,
+      'description': 'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
+      'nullable': false,
+      'default': 8333,
+      'range': '(0, 9998]',
+    },
+    'favorite-slogan': {
+      'name': 'Favorite Slogan',
+      'type': 'string',
+      'description': 'You most favorite slogan in the whole world, used for paying you.',
+      'nullable': true,
+      'masked': true,
+      'copyable': true,
+    },
+    'rpcallowip': {
+      'name': 'RPC Allowed IPs',
+      'type': 'list',
+      'subtype': 'string',
+      'description': 'external ip addresses that are authorized to access your Bitcoin node',
+      'warning': 'Any IP you allow here will have RPC access to your Bitcoin node.',
+      'range': '[1,10]',
+      'default': [
+        '192.168.1.1',
+      ],
+      'spec': {
+        'masked': false,
+        'copyable': false,
+        'pattern': '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))',
+        'pattern-description': 'must be a valid ipv4, ipv6, or domain name',
+      },
+    },
+    'rpcauth': {
+      'name': 'RPC Auth',
+      'type': 'list',
+      'subtype': 'string',
+      'description': 'api keys that are authorized to access your Bitcoin node.',
+      'range': '[0,*)',
+      'default': [],
+      'spec': {
+        'masked': false,
+        'copyable': false,
+      },
     },
   }
 
-  export const mockCupsDependentConfig = {
-    'random-enum': 'option1',
+  export const MockConfig = {
     testnet: false,
-    'favorite-number': 8,
-    'secondary-numbers': [13, 58, 20],
-    'object-list': [],
-    'union-list': [],
+    'object-list': [
+      {
+        'first-name': 'First',
+        'last-name': 'Last',
+        'age': 30,
+      },
+      {
+        'first-name': 'First2',
+        'last-name': 'Last2',
+        'age': 40,
+      },
+    ],
+    'union-list': undefined,
+    'random-enum': 'option1',
+    'favorite-number': null,
     rpcsettings: {
-      laws: null,
+      laws: {
+        law1: 'The first law',
+        law2: 'The second law',
+      },
       rpcpass: null,
       rpcuser: '123',
       rulemakers: [],
     },
     advanced: {
-      notifications: [],
+      notifications: ['email', 'text'],
     },
-    'bitcoin-Node': { type: 'internal' },
+    'bitcoin-node': undefined,
     port: 5959,
-    rpcallowip: [],
+    rpcallowip: undefined,
     rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
   }
+
+  export const MockDependencyConfig = {
+    testnet: true,
+    'object-list': [
+      {
+        'first-name': 'First',
+        'last-name': 'Last',
+        'age': 30,
+      },
+      {
+        'first-name': 'First2',
+        'last-name': 'Last2',
+        'age': 40,
+      },
+      {
+        'first-name': 'First3',
+        'last-name': 'Last3',
+        'age': 60,
+      },
+    ],
+    'union-list': undefined,
+    'random-enum': 'option2',
+    'favorite-number': null,
+    rpcsettings: {
+      laws: {
+        law1: 'The first law Amended',
+        law2: 'The second law',
+      },
+      rpcpass: null,
+      rpcuser: '123',
+      rulemakers: [],
+    },
+    advanced: {
+      notifications: ['email', 'text', 'push'],
+    },
+    'bitcoin-node': undefined,
+    port: 20,
+    rpcallowip: undefined,
+    rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
+  }
+
+  export const Patch: Operation[] = [
+    {
+      op: 'replace',
+      path: '/testnet',
+      value: true,
+    },
+    {
+      op: 'add',
+      path: '/advanced/notifications/1',
+      value: 'text',
+    },
+  ]
 
   export const bitcoind: PackageDataEntry = {
     state: PackageState.Installed,

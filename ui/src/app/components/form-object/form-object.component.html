@@ -26,8 +26,8 @@
         <h4 class="input-label">
           <form-label [data]="{
             spec: spec,
-            isNew: current && current[entry.key] === undefined,
-            isEdited: entry.value.dirty
+            new: current && current[entry.key] === undefined,
+            edited: entry.value.dirty
           }"></form-label>
         </h4>
         <!-- string or number -->
@@ -73,8 +73,8 @@
         <ion-item-divider>
           <form-label [data]="{
             spec: spec,
-            isNew: current && current[entry.key] === undefined,
-            isEdited: entry.value.dirty
+            new: current && current[entry.key] === undefined,
+            edited: entry.value.dirty
           }"></form-label>
         </ion-item-divider>
         <!-- body -->
@@ -97,8 +97,8 @@
           <ion-item-divider>
             <form-label [data]="{
               spec: spec,
-              isNew: current && current[entry.key] === undefined,
-              isEdited: entry.value.dirty
+              new: current && current[entry.key] === undefined,
+              edited: entry.value.dirty
             }"></form-label>
             <ion-button fill="clear" color="primary" slot="end" (click)="addListItemWrapper(entry.key, spec)">
               <ion-icon slot="start" name="add"></ion-icon>
@@ -117,8 +117,9 @@
                 <ion-item button (click)="toggleExpand(entry.key, i)">
                   <form-label [data]="{
                     spec: $any({ name: objectListInfo[entry.key][i].displayAs || 'Entry ' + (i + 1) }),
-                    isNew: false,
-                    isEdited: abstractControl.dirty
+                    new: false,
+                    edited: abstractControl.dirty,
+                    invalid: abstractControl.invalid
                   }"></form-label>
                   <ion-icon
                     slot="end"
@@ -192,13 +193,13 @@
           <p class="input-label">
             <form-label [data]="{
               spec: spec,
-              isNew: current && current[entry.key] === undefined,
-              isEdited: entry.value.dirty
+              new: current && current[entry.key] === undefined,
+              edited: entry.value.dirty
             }"></form-label>
           </p>
           <!-- list -->
           <ion-item button detail="false" color="dark" (click)="presentModalEnumList(entry.key, $any(spec), formArr.value)">
-            <ion-label>
+            <ion-label style="white-space: nowrap !important;">
               <h2>{{ getEnumListDisplay(formArr.value, $any(spec.spec)) }}</h2>
             </ion-label>
             <ion-button slot="end" fill="clear" color="light">
@@ -211,7 +212,7 @@
         *ngIf="formGroup.get(entry.key).errors"
         [control]="$any(formGroup.get(entry.key))"
         [spec]="spec"
-        >
+      >
       </form-error>
     </ng-container>
   </div>

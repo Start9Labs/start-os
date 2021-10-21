@@ -9,7 +9,7 @@ import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import * as JsonPointer from 'json-pointer'
+import { getValueByPointer } from 'fast-json-patch'
 
 @Component({
   selector: 'app-properties',
@@ -49,7 +49,7 @@ export class AppPropertiesPage {
       .subscribe(queryParams => {
         if (queryParams['pointer'] === this.pointer) return
         this.pointer = queryParams['pointer']
-        this.node = JsonPointer.get(this.properties, this.pointer || '')
+        this.node = getValueByPointer(this.properties, this.pointer || '')
       }),
       this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'main', 'status')
       .subscribe(status => {
@@ -119,7 +119,7 @@ export class AppPropertiesPage {
     this.loading = true
     try {
       this.properties = await this.embassyApi.getPackageProperties({ id: this.pkgId })
-      this.node = JsonPointer.get(this.properties, this.pointer || '')
+      this.node = getValueByPointer(this.properties, this.pointer || '')
     } catch (e) {
       this.errToast.present(e)
     } finally {
