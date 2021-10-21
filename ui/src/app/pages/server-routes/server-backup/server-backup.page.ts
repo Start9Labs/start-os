@@ -84,7 +84,7 @@ export class ServerBackupPage {
       take(1),
     )
     .subscribe(pkgs => {
-      const pkgArr = Object.values(pkgs)
+      const pkgArr = Object.keys(pkgs).sort().map(key => pkgs[key])
       const activeIndex = pkgArr.findIndex(pkg => pkg.installed.status.main.status === PackageMainStatus.BackingUp)
 
       this.pkgs = pkgArr.map((pkg, i) => {
