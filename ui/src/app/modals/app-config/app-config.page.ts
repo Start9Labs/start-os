@@ -1,7 +1,7 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { AlertController, ModalController, IonContent, LoadingController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { isEmptyObject, Recommendation } from 'src/app/util/misc.util'
+import { DependentInfo, isEmptyObject } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
@@ -20,7 +20,7 @@ import { compare, Operation } from 'fast-json-patch'
 export class AppConfigPage {
   @ViewChild(IonContent) content: IonContent
   @Input() pkgId: string
-  @Input() rec: Recommendation | null = null
+  @Input() dependentInfo?: DependentInfo
   pkg: PackageDataEntry
   loadingText: string | undefined
   configSpec: ConfigSpec
@@ -28,8 +28,6 @@ export class AppConfigPage {
   original: object
   hasConfig = false
   saving = false
-  showRec = true
-  openRec = false
   loadingError: string | IonicSafeString
 
   constructor (
@@ -54,9 +52,9 @@ export class AppConfigPage {
       let newConfig: object
       let spec: ConfigSpec
       let patch: Operation[]
-      if (this.rec) {
-        this.loadingText = `Setting properties to accommodate ${this.rec.dependentTitle}`
-        const { 'old-config': oc, 'new-config': nc, spec: s } = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': this.rec.dependentId })
+      if (this.dependentInfo) {
+        this.loadingText = `Setting properties to accommodate ${this.dependentInfo.title}`
+        const { 'old-config': oc, 'new-config': nc, spec: s } = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': this.dependentInfo.id })
         oldConfig = oc
         newConfig = nc
         spec = s
@@ -91,10 +89,6 @@ export class AppConfigPage {
     this.configForm = this.formService.createForm(this.configSpec)
     const patch = compare(this.original, this.configForm.value)
     this.markDirty(patch)
-  }
-
-  dismissRec () {
-    this.showRec = false
   }
 
   async dismiss () {

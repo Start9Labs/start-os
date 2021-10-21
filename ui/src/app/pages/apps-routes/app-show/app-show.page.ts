@@ -2,13 +2,13 @@ import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
-import { exists, isEmptyObject, Recommendation } from 'src/app/util/misc.util'
+import { DependentInfo, exists, isEmptyObject } from 'src/app/util/misc.util'
 import { Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorType, HealthCheckResult, HealthResult, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyErrorType, HealthCheckResult, HealthResult, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { DependencyStatus, HealthStatus, PrimaryRendering, PrimaryStatus, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -121,7 +121,7 @@ export class AppShowPage {
       )
       .subscribe(main => {
         if (main.status === PackageMainStatus.Running) {
-          this.healthChecks = { ...main.health }
+          this.healthChecks = main.health
         } else {
           this.healthChecks = { }
         }
@@ -213,7 +213,7 @@ export class AppShowPage {
     }
   }
 
-  async presentModalConfig (props: { pkgId: string, rec?: Recommendation }): Promise<void> {
+  async presentModalConfig (props: { pkgId: string, dependent?: DependentInfo }): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: AppConfigPage,
       componentProps: props,
@@ -282,37 +282,30 @@ export class AppShowPage {
   }
 
   private async installDep (depId: string): Promise<void> {
-    const title = this.pkg.installed['dependency-info'][depId].manifest.title
     const version = this.pkg.manifest.dependencies[depId].version
-    const dependentTitle = this.pkg.manifest.title
 
-    const installRec: Recommendation = {
-      dependentId: this.pkgId,
-      dependentTitle,
-      dependentIcon: this.pkg['static-files'].icon,
+    const dependentInfo: DependentInfo = {
+      id: this.pkgId,
+      title: this.pkg.manifest.title,
       version,
-      description: `${dependentTitle} requires an install of ${title} satisfying ${version}.`,
     }
     const navigationExtras: NavigationExtras = {
-      state: { installRec },
+      state: { dependentInfo },
     }
 
     await this.navCtrl.navigateForward(`/marketplace/${depId}`, navigationExtras)
   }
 
-  private async configureDep (depId: string): Promise<void> {
-    const configRecommendation: Recommendation = {
-      dependentId: this.pkgId,
-      dependentTitle: this.pkg.manifest.title,
-      dependentIcon: this.pkg['static-files'].icon,
-      description: (this.pkg.installed.status['dependency-errors'][depId] as DependencyErrorConfigUnsatisfied).error,
-    }
-    const params = {
-      pkgId: depId,
-      rec: configRecommendation,
+  private async configureDep (dependencyId: string): Promise<void> {
+    const dependent = {
+      id: this.pkgId,
+      title: this.pkg.manifest.title,
     }
 
-    await this.presentModalConfig(params)
+    await this.presentModalConfig({
+      pkgId: dependencyId,
+      dependent,
+    })
   }
 
   private async presentAlertStart (message: string): Promise<void> {

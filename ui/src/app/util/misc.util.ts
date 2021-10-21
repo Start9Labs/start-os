@@ -5,11 +5,9 @@ import { DriveInfo, PartitionInfo } from '../services/api/api.types'
 export type Omit<ObjectType, KeysType extends keyof ObjectType> = Pick<ObjectType, Exclude<keyof ObjectType, KeysType>>
 export type PromiseRes<T> = { result: 'resolve', value: T } | { result: 'reject', value: Error }
 
-export type Recommendation = {
-  dependentId: string
-  dependentTitle: string
-  dependentIcon: string,
-  description: string
+export interface DependentInfo {
+  id: string
+  title: string
   version?: string
 }
 
