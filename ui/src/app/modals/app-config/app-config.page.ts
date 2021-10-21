@@ -1,7 +1,7 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { AlertController, ModalController, IonContent, LoadingController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { isEmptyObject, isObject, Recommendation } from 'src/app/util/misc.util'
+import { DependentInfo, isEmptyObject } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
@@ -10,6 +10,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService, getErrorMessage } from 'src/app/services/error-toast.service'
 import { FormGroup } from '@angular/forms'
 import { convertValuesRecursive, FormService } from 'src/app/services/form.service'
+import { compare, Operation } from 'fast-json-patch'
 
 @Component({
   selector: 'app-config',
@@ -19,16 +20,14 @@ import { convertValuesRecursive, FormService } from 'src/app/services/form.servi
 export class AppConfigPage {
   @ViewChild(IonContent) content: IonContent
   @Input() pkgId: string
-  @Input() rec: Recommendation | null = null
+  @Input() dependentInfo?: DependentInfo
   pkg: PackageDataEntry
   loadingText: string | undefined
   configSpec: ConfigSpec
   configForm: FormGroup
-  current: object
+  original: object
   hasConfig = false
   saving = false
-  showRec = true
-  openRec = false
   loadingError: string | IonicSafeString
 
   constructor (
@@ -49,23 +48,32 @@ export class AppConfigPage {
     if (!this.hasConfig) return
 
     try {
-
       let oldConfig: object
       let newConfig: object
       let spec: ConfigSpec
-      if (this.rec) {
-        this.loadingText = `Setting properties to accommodate ${this.rec.dependentTitle}`
-        const { 'old-config': oc, 'new-config': nc, spec: s } = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': this.rec.dependentId })
+      let patch: Operation[]
+      if (this.dependentInfo) {
+        this.loadingText = `Setting properties to accommodate ${this.dependentInfo.title}`
+        const { 'old-config': oc, 'new-config': nc, spec: s } = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': this.dependentInfo.id })
         oldConfig = oc
         newConfig = nc
         spec = s
+        patch = compare(oldConfig, newConfig)
       } else {
         this.loadingText = 'Loading Config'
-        const { config: oc, spec: s } = await this.embassyApi.getPackageConfig({ id: this.pkgId })
-        oldConfig = oc
+        const { config: c, spec: s } = await this.embassyApi.getPackageConfig({ id: this.pkgId })
+        oldConfig = c
         spec = s
       }
-      this.setConfig(spec, oldConfig, newConfig)
+
+      this.original = oldConfig
+      this.configSpec = spec
+      this.configForm = this.formService.createForm(spec, newConfig || oldConfig)
+      this.configForm.markAllAsTouched()
+
+      if (patch) {
+        this.markDirty(patch)
+      }
     } catch (e) {
       this.loadingError = getErrorMessage(e)
     } finally {
@@ -79,11 +87,8 @@ export class AppConfigPage {
 
   resetDefaults () {
     this.configForm = this.formService.createForm(this.configSpec)
-    this.alterConfigRecursive(this.configForm, this.current)
-  }
-
-  dismissRec () {
-    this.showRec = false
+    const patch = compare(this.original, this.configForm.value)
+    this.markDirty(patch)
   }
 
   async dismiss () {
@@ -143,33 +148,20 @@ export class AppConfigPage {
     }
   }
 
-  private setConfig (spec: ConfigSpec, config: object, depConfig?: object) {
-    this.configSpec = spec
-    this.current = config
-    this.configForm = this.formService.createForm(spec, { ...config, ...depConfig })
-    this.configForm.markAllAsTouched()
+  private markDirty (patch: Operation[]) {
+    patch.forEach(op => {
+      const arrPath = op.path.substring(1)
+      .split('/')
+      .map(node => {
+        const num = Number(node)
+        return isNaN(num) ? node : num
+      })
 
-    if (depConfig) {
-      this.alterConfigRecursive(this.configForm, depConfig)
-    }
-  }
+      if (op.op !== 'remove') this.configForm.get(arrPath).markAsDirty()
 
-  private alterConfigRecursive (group: FormGroup, config: object) {
-    Object.keys(config).forEach(key => {
-      const next = group.get(key)
-      if (!next) throw new Error('Dependency config not compatible with service version. Please contact support')
-      const newVal = config[key]
-      // check if val is an object
-      if (isObject(newVal)) {
-        this.alterConfigRecursive(next as FormGroup, newVal)
-      } else {
-        let val1 = group.get(key).value
-        let val2 = config[key]
-        if (Array.isArray(newVal)) {
-          val1 = JSON.stringify(val1)
-          val2 = JSON.stringify(val2)
-        }
-        if (val1 != val2) next.markAsDirty()
+      if (typeof arrPath[arrPath.length - 1] === 'number') {
+        const prevPath = arrPath.slice(0, arrPath.length - 1)
+        this.configForm.get(prevPath).markAsDirty()
       }
     })
   }

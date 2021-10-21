@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
-import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecListOf, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
+import { ConfigSpec, isValueSpecListOf, ListValueSpecNumber, ListValueSpecObject, ListValueSpecOf, ListValueSpecString, ListValueSpecUnion, UniqueBy, ValueSpec, ValueSpecEnum, ValueSpecList, ValueSpecNumber, ValueSpecObject, ValueSpecString, ValueSpecUnion } from '../pkg-config/config-types'
 import { getDefaultString, Range } from '../pkg-config/config-utilities'
 const Mustache = require('mustache')
 
@@ -13,8 +13,8 @@ export class FormService {
     private readonly formBuilder: FormBuilder,
   ) { }
 
-  createForm (config: ConfigSpec, current: { [key: string]: any } = { }): FormGroup {
-    return this.getFormGroup(config, [], current)
+  createForm (spec: ConfigSpec, current: { [key: string]: any } = { }): FormGroup {
+    return this.getFormGroup(spec, [], current)
   }
 
   getUnionObject (spec: ValueSpecUnion | ListValueSpecUnion, selection: string, current?: { [key: string]: any }): FormGroup {
@@ -60,12 +60,12 @@ export class FormService {
     let group = { }
     Object.entries(config).map(([key, spec]) => {
       if (spec.type === 'pointer') return
-      group[key] = this.getFormEntry(key, spec, current ? current[key] : { })
+      group[key] = this.getFormEntry(spec, current ? current[key] : undefined)
     })
     return this.formBuilder.group(group, { validators } )
   }
 
-  private getFormEntry (key: string, spec: ValueSpec, currentValue: any): FormGroup | FormArray | FormControl {
+  private getFormEntry (spec: ValueSpec, currentValue?: any): FormGroup | FormArray | FormControl {
     let validators: ValidatorFn[]
     let value: any
     switch (spec.type) {
@@ -89,7 +89,7 @@ export class FormService {
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
         validators = this.listValidators(spec)
-        const mapped = (Array.isArray(currentValue) ? currentValue : spec.default as any[]).map((entry: any, index) => {
+        const mapped = (Array.isArray(currentValue) ? currentValue : spec.default as any[]).map(entry => {
           return this.getListItem(spec, entry)
         })
         return this.formBuilder.array(mapped, validators)
@@ -139,6 +139,8 @@ export class FormService {
 
     validators.push(listInRange(spec.range))
 
+    validators.push(listItemIssue())
+
     if (!isValueSpecListOf(spec, 'enum')) {
       validators.push(listUnique(spec))
     }
@@ -181,29 +183,40 @@ export function isInteger (): ValidatorFn {
 }
 
 export function listInRange (stringRange: string): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
+  return (control: FormArray): ValidationErrors | null => {
     try {
       Range.from(stringRange).checkIncludes(control.value.length)
       return null
     } catch (e) {
-      return { numberNotInRange: { value: `List must be ${e.message}` } }
+      return { listNotInRange: { value: `List must be ${e.message}` } }
+    }
+  }
+}
+
+export function listItemIssue (): ValidatorFn {
+  return (parentControl: FormArray): ValidationErrors | null => {
+    const problemChild = parentControl.controls.find(c => c.invalid)
+    if (problemChild) {
+      return { listItemIssue: { value: 'Invalid entries' } }
+    } else {
+      return null
     }
   }
 }
 
 export function listUnique (spec: ValueSpecList): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    for (let idx = 0; idx < control.value.length; idx++) {
-      for (let idx2 = idx + 1; idx2 < control.value.length; idx2++) {
-        if (listItemEquals(spec, control.value[idx], control.value[idx2])) {
+  return (control: FormArray): ValidationErrors | null => {
+    const list = control.value
+    for (let idx = 0; idx < list.length; idx++) {
+      for (let idx2 = idx + 1; idx2 < list.length; idx2++) {
+        if (listItemEquals(spec, list[idx], list[idx2])) {
           let display1: string
           let display2: string
-          let uniqueMessage = isObjectOrUnion(spec.spec) ? uniqueByMessageWrapper(spec.spec['unique-by'], spec.spec, control.value[idx]) : ''
-
+          let uniqueMessage = isObjectOrUnion(spec.spec) ? uniqueByMessageWrapper(spec.spec['unique-by'], spec.spec, list[idx]) : ''
 
           if (isObjectOrUnion(spec.spec) && spec.spec['display-as']) {
-            display1 = `"${(Mustache as any).render(spec.spec['display-as'], control.value[idx])}"`
-            display2 = `"${(Mustache as any).render(spec.spec['display-as'], control.value[idx2])}"`
+            display1 = `"${(Mustache as any).render(spec.spec['display-as'], list[idx])}"`
+            display2 = `"${(Mustache as any).render(spec.spec['display-as'], list[idx2])}"`
           } else {
             display1 = `Entry ${idx + 1}`
             display2 = `Entry ${idx2 + 1}`
@@ -367,7 +380,7 @@ function uniqueByMessage (uniqueBy: UniqueBy, configSpec: ConfigSpec, outermost 
   return outermost || subSpecs.filter(ss => ss).length === 1 ? ret : '(' + ret + ')'
 }
 
-function isObjectOrUnion (spec: any): spec is ListValueSpecObject | ListValueSpecUnion {
+function isObjectOrUnion (spec: ListValueSpecOf<any>): spec is ListValueSpecObject | ListValueSpecUnion {
   // only lists of objects and unions have unique-by
   return spec['unique-by'] !== undefined
 }

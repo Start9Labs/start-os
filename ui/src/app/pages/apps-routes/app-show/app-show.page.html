@@ -100,7 +100,6 @@
                 <ion-text [color]="!!dep.errorText ? 'warning' : 'success'">{{ dep.errorText || 'satisfied' }}</ion-text>
               </p>
             </ion-label>
-            <ion-spinner *ngIf="dep.spinnerColor" slot="end" [color]="dep.spinnerColor" style="height: 3vh; width: 3vh"></ion-spinner>
             <ion-button *ngIf="dep.actionText" slot="end" fill="clear">
               {{ dep.actionText }}
               <ion-icon slot="end" name="arrow-forward"></ion-icon>

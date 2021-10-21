@@ -38,33 +38,23 @@
         </ion-label>
       </ion-item>
   
-      <ng-container *ngIf="rec && showRec">
-        <ion-item class="rec-item">
-          <ion-label>
-            <h2 style="display: flex; align-items: center;">
-              <ion-icon size="small" style="margin: 4px" slot="start" color="primary" slot="start" name="ellipse"></ion-icon>
-              <ion-thumbnail style="width: 3vh; height: 3vh; margin: 0px 2px 0px 5px;" slot="start">
-                <img [src]="rec.dependentIcon" [alt]="rec.dependentTitle"/>
-              </ion-thumbnail>
-              <ion-text style="margin: 5px; font-family: 'Montserrat'; font-size: smaller;">{{ rec.dependentTitle }}</ion-text>
-            </h2>
-            <div style="margin: 7px 5px;">
-              <p style="font-size: small; color: var(--ion-color-medium)"> {{ pkg.manifest.title }} config has been modified to satisfy {{ rec.dependentTitle }}.
-                <ion-text color="dark">To accept the changes, click “Save” above.</ion-text>
-              </p>
-              <a style="font-size: small" *ngIf="!openRec" (click)="openRec = true">More Info</a>
-              <ng-container *ngIf="openRec">
-                <p style="margin-top: 10px; color: var(--ion-color-medium); font-size: small" [innerHTML]="rec.description"></p>
-                <a style="font-size: x-small; font-style: italic;" (click)="openRec = false">hide</a>
-              </ng-container>
-              <ion-button style="position: absolute; right: 0; top: 0" color="primary" fill="clear" (click)="dismissRec()">
-                <ion-icon name="close"></ion-icon>
-              </ion-button>
-            </div>
-          </ion-label>
-        </ion-item>
-        <ion-item-divider></ion-item-divider>
-      </ng-container>
+      <!-- auto-config -->
+      <ion-item lines="none" *ngIf="dependentInfo" class="rec-item" style="margin-bottom: 48px;">
+        <ion-label>
+          <h2 style="display: flex; align-items: center;">
+            <img style="width: 18px; margin: 4px;" [src]="pkg['static-files'].icon" [alt]="pkg.manifest.title"/>
+            <ion-text style="margin: 5px; font-family: 'Montserrat'; font-size: 18px;">{{ pkg.manifest.title }}</ion-text>
+          </h2>
+          <p>
+            <ion-text color="dark">
+              {{ pkg.manifest.title }} has been modified to satisfy {{ dependentInfo.title }}.
+              <br />
+              <br />
+              To accept the modifications, click "Save".
+            </ion-text>
+          </p>
+        </ion-label>
+      </ion-item>
   
       <!-- no config -->
       <ion-item *ngIf="!hasConfig">
@@ -78,7 +68,7 @@
         <form-object
           [objectSpec]="configSpec"
           [formGroup]="configForm"
-          [current]="current"
+          [current]="configForm.value"
           [showEdited]="true"
         ></form-object>
       </form>
