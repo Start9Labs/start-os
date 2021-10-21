@@ -105,7 +105,7 @@ export class AppShowPage {
       )
       .subscribe(main => {
         if (main.status === PackageMainStatus.Running) {
-          this.healthChecks = main.health
+          this.healthChecks = { ...main.health }
         } else {
           this.healthChecks = { }
         }
