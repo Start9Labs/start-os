@@ -213,7 +213,7 @@ export class AppShowPage {
     }
   }
 
-  async presentModalConfig (props: { pkgId: string, dependent?: DependentInfo }): Promise<void> {
+  async presentModalConfig (props: { pkgId: string, dependentInfo?: DependentInfo }): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: AppConfigPage,
       componentProps: props,
@@ -297,14 +297,14 @@ export class AppShowPage {
   }
 
   private async configureDep (dependencyId: string): Promise<void> {
-    const dependent = {
+    const dependentInfo: DependentInfo = {
       id: this.pkgId,
       title: this.pkg.manifest.title,
     }
 
     await this.presentModalConfig({
       pkgId: dependencyId,
-      dependent,
+      dependentInfo,
     })
   }
 
