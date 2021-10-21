@@ -5,7 +5,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Emver } from 'src/app/services/emver.service'
 import { displayEmver } from 'src/app/pipes/emver.pipe'
-import { pauseFor, Recommendation } from 'src/app/util/misc.util'
+import { DependentInfo, pauseFor } from 'src/app/util/misc.util'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
@@ -27,8 +27,7 @@ export class MarketplaceShowPage {
   pkg: MarketplacePkg
   localPkg: PackageDataEntry
   PackageState = PackageState
-  rec: Recommendation | null = null
-  showRec = true
+  dependentInfo: DependentInfo
   subs: Subscription[] = []
 
   constructor (
@@ -47,7 +46,7 @@ export class MarketplaceShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.rec = history.state && history.state.installRec as Recommendation
+    this.dependentInfo = history.state && history.state.dependentInfo as DependentInfo
 
     this.subs = [
       this.patch.watch$('package-data', this.pkgId)
@@ -169,10 +168,6 @@ export class MarketplaceShowPage {
     if (cancelled) return
     await pauseFor(250)
     this.navCtrl.back()
-  }
-
-  dismissRec () {
-    this.showRec = false
   }
 
   private async getPkg (version?: string): Promise<void> {

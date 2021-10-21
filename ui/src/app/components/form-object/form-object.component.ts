@@ -1,12 +1,12 @@
 import { Component, Input, Output, SimpleChange, EventEmitter } from '@angular/core'
-import { AbstractControl, AbstractFormGroupDirective, FormArray, FormGroup } from '@angular/forms'
+import { AbstractFormGroupDirective, FormArray, FormGroup } from '@angular/forms'
 import { AlertButton, AlertController, IonicSafeString, ModalController } from '@ionic/angular'
-import { ConfigSpec, ListValueSpecOf, ListValueSpecString, ValueSpec, ValueSpecBoolean, ValueSpecEnum, ValueSpecList, ValueSpecListOf, ValueSpecNumber, ValueSpecString, ValueSpecUnion } from 'src/app/pkg-config/config-types'
+import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecBoolean, ValueSpecList, ValueSpecListOf, ValueSpecUnion } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
 import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
-const Mustache = require('mustache')
 import { pauseFor } from 'src/app/util/misc.util'
+const Mustache = require('mustache')
 
 @Component({
   selector: 'form-object',
@@ -76,6 +76,7 @@ export class FormObjectComponent {
   addListItem (key: string, markDirty = true, val?: string): void {
     const arr = this.formGroup.get(key) as FormArray
     if (markDirty) arr.markAsDirty()
+    // @TODO why are these commented out?
     // const validators = this.formService.getListItemValidators(this.objectSpec[key] as ValueSpecList, key, arr.length)
     // arr.push(new FormControl(value, validators))
     const listSpec = this.objectSpec[key] as ValueSpecList
@@ -225,8 +226,9 @@ export class FormObjectComponent {
 
 interface HeaderData {
   spec: ValueSpec
-  isEdited: boolean
-  isNew: boolean
+  edited: boolean
+  new: boolean
+  invalid?: boolean
 }
 
 @Component({

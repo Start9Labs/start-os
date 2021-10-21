@@ -2,13 +2,13 @@ import { Component, ViewChild } from '@angular/core'
 import { AlertController, NavController, ModalController, IonContent, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
-import { exists, isEmptyObject, Recommendation } from 'src/app/util/misc.util'
-import { Subscription } from 'rxjs'
+import { DependentInfo, exists, isEmptyObject } from 'src/app/util/misc.util'
+import { combineLatest, Subscription } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { DependencyErrorConfigUnsatisfied, DependencyErrorType, HealthCheckResult, HealthResult, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyError, DependencyErrorType, HealthCheckResult, HealthResult, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { DependencyStatus, HealthStatus, PrimaryRendering, PrimaryStatus, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -83,34 +83,18 @@ export class AppShowPage {
       }),
 
       // 2
-      this.patch.watch$('package-data', this.pkgId, 'installed', 'current-dependencies')
+      combineLatest([
+        this.patch.watch$('package-data', this.pkgId, 'installed', 'current-dependencies'),
+        this.patch.watch$('package-data', this.pkgId, 'installed', 'status', 'dependency-errors'),
+      ])
       .pipe(
-        filter(obj => exists(obj)),
+        filter(([currentDeps, depErrors]) => exists(currentDeps) && exists(depErrors)),
       )
-      .subscribe(currentDeps => {
-        // remove deleted
-        this.dependencies.forEach((dep, i) => {
-          if (!currentDeps[dep.id]) {
-            dep.sub.unsubscribe()
-            this.dependencies.splice(i, 1)
-          }
-        })
-
-        // subscribe
-        Object.keys(currentDeps)
-        .filter(id => {
-          const inManifest = !!this.pkg.manifest.dependencies[id]
-          const exists = this.dependencies.find(d => d.id === id)
-          return inManifest && !exists
-        })
-        .forEach(id => {
-          const version = this.pkg.manifest.dependencies[id].version
-          const dep = { id, version } as DependencyInfo
-          dep.sub = this.patch.watch$('package-data', id)
-          .subscribe(localDep => {
-            this.setDepValues(dep, localDep)
-          })
-          this.dependencies.push(dep)
+      .subscribe(([currentDeps, depErrors]) => {
+        this.dependencies = Object.keys(currentDeps)
+        .filter(id => !!this.pkg.manifest.dependencies[id])
+        .map(id => {
+          return this.setDepValues(id, depErrors)
         })
       }),
 
@@ -142,9 +126,6 @@ export class AppShowPage {
 
   ngOnDestroy () {
     this.subs.forEach(sub => sub.unsubscribe())
-    this.dependencies.forEach(dep => {
-      dep.sub.unsubscribe()
-    })
   }
 
   launchUi (): void {
@@ -213,7 +194,7 @@ export class AppShowPage {
     }
   }
 
-  async presentModalConfig (props: { pkgId: string, rec?: Recommendation }): Promise<void> {
+  async presentModalConfig (props: { pkgId: string, dependentInfo?: DependentInfo }): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: AppConfigPage,
       componentProps: props,
@@ -221,36 +202,27 @@ export class AppShowPage {
     await modal.present()
   }
 
-  private setDepValues (dep: DependencyInfo, localDep: PackageDataEntry | undefined): void {
+  private setDepValues (id: string, errors: { [id: string]: DependencyError }): DependencyInfo {
     let errorText = ''
-    let spinnerColor = ''
     let actionText = 'View'
-    let action: () => any = () => this.navCtrl.navigateForward(`/services/${dep.id}`)
+    let action: () => any = () => this.navCtrl.navigateForward(`/services/${id}`)
 
-    const error = this.pkg.installed.status['dependency-errors'][dep.id]
+    const error = errors[id]
 
     if (error) {
       // health checks failed
       if ([DependencyErrorType.InterfaceHealthChecksFailed, DependencyErrorType.HealthChecksFailed].includes(error.type)) {
         errorText = 'Health check failed'
-      // not fully installed (same as !localDep?.installed)
+      // not installed
       } else if (error.type === DependencyErrorType.NotInstalled) {
-        if (localDep) {
-          errorText = localDep.state // 'Installing' | 'Removing'
-        } else {
-          errorText = 'Not installed'
-          actionText = 'Install'
-          action = () => this.fixDep('install', dep.id)
-        }
+        errorText = 'Not installed'
+        actionText = 'Install'
+        action = () => this.fixDep('install', id)
       // incorrect version
       } else if (error.type === DependencyErrorType.IncorrectVersion) {
-        if (localDep) {
-          errorText = localDep.state // 'Updating' | 'Removing'
-        } else {
-          errorText = 'Incorrect version'
-          actionText = 'Update'
-          action = () => this.fixDep('update', dep.id)
-        }
+        errorText = 'Incorrect version'
+        actionText = 'Update'
+        action = () => this.fixDep('update', id)
       // not running
       } else if (error.type === DependencyErrorType.NotRunning) {
         errorText = 'Not running'
@@ -259,60 +231,50 @@ export class AppShowPage {
       } else if (error.type === DependencyErrorType.ConfigUnsatisfied) {
         errorText = 'Config not satisfied'
         actionText = 'Auto config'
-        action = () => this.fixDep('configure', dep.id)
+        action = () => this.fixDep('configure', id)
       } else if (error.type === DependencyErrorType.Transitive) {
         errorText = 'Dependency has a dependency issue'
       }
-
-      if (localDep && localDep.state !== PackageState.Installed) {
-        spinnerColor = localDep.state === PackageState.Removing ? 'danger' : 'primary'
-      }
     }
 
-    const depInfo = this.pkg.installed['dependency-info'][dep.id]
+    const depInfo = this.pkg.installed['dependency-info'][id]
 
-    Object.assign(dep, {
+    return {
+      id,
+      version: this.pkg.manifest.dependencies[id].version,
       title: depInfo.manifest.title,
       icon: depInfo.icon,
       errorText,
       actionText,
-      spinnerColor,
       action,
-    })
+    }
   }
 
   private async installDep (depId: string): Promise<void> {
-    const title = this.pkg.installed['dependency-info'][depId].manifest.title
     const version = this.pkg.manifest.dependencies[depId].version
-    const dependentTitle = this.pkg.manifest.title
 
-    const installRec: Recommendation = {
-      dependentId: this.pkgId,
-      dependentTitle,
-      dependentIcon: this.pkg['static-files'].icon,
+    const dependentInfo: DependentInfo = {
+      id: this.pkgId,
+      title: this.pkg.manifest.title,
       version,
-      description: `${dependentTitle} requires an install of ${title} satisfying ${version}.`,
     }
     const navigationExtras: NavigationExtras = {
-      state: { installRec },
+      state: { dependentInfo },
     }
 
     await this.navCtrl.navigateForward(`/marketplace/${depId}`, navigationExtras)
   }
 
-  private async configureDep (depId: string): Promise<void> {
-    const configRecommendation: Recommendation = {
-      dependentId: this.pkgId,
-      dependentTitle: this.pkg.manifest.title,
-      dependentIcon: this.pkg['static-files'].icon,
-      description: (this.pkg.installed.status['dependency-errors'][depId] as DependencyErrorConfigUnsatisfied).error,
-    }
-    const params = {
-      pkgId: depId,
-      rec: configRecommendation,
+  private async configureDep (dependencyId: string): Promise<void> {
+    const dependentInfo: DependentInfo = {
+      id: this.pkgId,
+      title: this.pkg.manifest.title,
     }
 
-    await this.presentModalConfig(params)
+    await this.presentModalConfig({
+      pkgId: dependencyId,
+      dependentInfo,
+    })
   }
 
   private async presentAlertStart (message: string): Promise<void> {
@@ -434,10 +396,8 @@ interface DependencyInfo {
   icon: string
   version: string
   errorText: string
-  spinnerColor: string
   actionText: string
   action: () => any
-  sub: Subscription
 }
 
 interface Button {

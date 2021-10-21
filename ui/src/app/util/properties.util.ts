@@ -1,5 +1,5 @@
 import * as Ajv from 'ajv'
-import { JsonPointer } from 'jsonpointerx'
+import { applyOperation } from 'fast-json-patch'
 
 const ajv = new Ajv({ jsonPointers: true, allErrors: true, nullable: true })
 const ajvWithDefaults = new Ajv({ jsonPointers: true, allErrors: true, useDefaults: true, nullable: true, removeAdditional: 'failing' })
@@ -88,7 +88,7 @@ function parsePropertiesV2Permissive (properties: PackagePropertiesV2, errorCall
       for (let err of schemaV2Compiled.errors) {
         errorCallback(new Error(`/data/${idx}${err.dataPath}: ${err.message}`))
         if (err.dataPath) {
-          JsonPointer.set(value, err.dataPath, undefined)
+          applyOperation(value, { op: 'replace', path: err.dataPath, value: undefined })
         }
       }
       if (!schemaV2CompiledWithDefaults(value)) {
