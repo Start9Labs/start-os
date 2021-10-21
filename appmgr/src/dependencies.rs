@@ -1,18 +1,20 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use crate::config::action::ConfigRes;
 use crate::util::display_none;
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use patch_db::{DbHandle, HasModel, Map, MapModel, PatchDbHandle};
+use rand::SeedableRng;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
-use crate::config::Config;
+use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
 use crate::error::ResultExt;
@@ -462,7 +464,11 @@ pub async fn configure_impl(
     (pkg_id, dep_id): (PackageId, PackageId),
 ) -> Result<(), Error> {
     let mut db = ctx.db.handle();
-    let new_config = configure_logic(ctx.clone(), &mut db, (pkg_id, dep_id.clone())).await?;
+    let ConfigDryRes {
+        old_config: _,
+        new_config,
+        spec: _,
+    } = configure_logic(ctx.clone(), &mut db, (pkg_id, dep_id.clone())).await?;
     Ok(crate::config::configure(
         &ctx,
         &mut db,
@@ -476,12 +482,20 @@ pub async fn configure_impl(
     .await?)
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ConfigDryRes {
+    pub old_config: Config,
+    pub new_config: Config,
+    pub spec: ConfigSpec,
+}
+
 #[command(rename = "dry", display(display_serializable))]
 #[instrument(skip(ctx))]
 pub async fn configure_dry(
     #[context] ctx: RpcContext,
     #[parent_data] (pkg_id, dependency_id): (PackageId, PackageId),
-) -> Result<Config, Error> {
+) -> Result<ConfigDryRes, Error> {
     let mut db = ctx.db.handle();
     configure_logic(ctx, &mut db, (pkg_id, dependency_id)).await
 }
@@ -490,7 +504,7 @@ pub async fn configure_logic(
     ctx: RpcContext,
     db: &mut PatchDbHandle,
     (pkg_id, dependency_id): (PackageId, PackageId),
-) -> Result<Config, Error> {
+) -> Result<ConfigDryRes, Error> {
     let pkg_model = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&pkg_id)
@@ -563,26 +577,38 @@ pub async fn configure_logic(
                 crate::ErrorKind::NotFound,
             )
         })?;
-    let config: Config = dependency_config_action
+    let ConfigRes {
+        config: maybe_config,
+        spec,
+    } = dependency_config_action
         .get(
             &ctx,
             &dependency_id,
             &*dependency_version,
             &*dependency_volumes,
         )
-        .await?
-        .config
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("no config get action found for {}", dependency_id),
-                crate::ErrorKind::NotFound,
-            )
-        })?;
-    Ok(dependency
+        .await?;
+
+    let old_config = if let Some(config) = maybe_config {
+        config
+    } else {
+        spec.gen(
+            &mut rand::rngs::StdRng::from_entropy(),
+            &Some(Duration::new(10, 0)),
+        )?
+    };
+
+    let new_config = dependency
         .auto_configure
-        .sandboxed(&ctx, &pkg_id, &pkg_version, &pkg_volumes, Some(config))
+        .sandboxed(&ctx, &pkg_id, &pkg_version, &pkg_volumes, Some(&old_config))
         .await?
-        .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?)
+        .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?;
+
+    Ok(ConfigDryRes {
+        old_config,
+        new_config,
+        spec,
+    })
 }
 
 #[instrument(skip(db, current_dependencies))]
