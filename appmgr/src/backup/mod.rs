@@ -18,7 +18,7 @@ use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
 use crate::util::{IoFormat, Version};
 use crate::version::{Current, VersionT};
-use crate::volume::{Volume, VolumeId, Volumes, BACKUP_DIR};
+use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
 use crate::{Error, ResultExt};
 
 mod backup_bulk;
@@ -68,6 +68,10 @@ impl BackupActions {
     ) -> Result<PackageBackupInfo, Error> {
         let mut volumes = volumes.to_readonly();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
+        let backup_dir = backup_dir(pkg_id);
+        if tokio::fs::metadata(&backup_dir).await.is_err() {
+            tokio::fs::create_dir_all(&backup_dir).await?
+        }
         self.create
             .execute::<(), NoOutput>(
                 ctx,

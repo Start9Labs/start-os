@@ -158,6 +158,10 @@ pub fn asset_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Versi
         .join(version.as_str())
 }
 
+pub fn backup_dir(pkg_id: &PackageId) -> PathBuf {
+    Path::new(BACKUP_DIR).join(pkg_id).join("data")
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
@@ -227,7 +231,7 @@ impl Volume {
             Volume::Certificate { interface_id: _ } => {
                 ctx.net_controller.nginx.ssl_directory_for(pkg_id)
             }
-            Volume::Backup { .. } => Path::new(BACKUP_DIR).join(pkg_id).join("data"),
+            Volume::Backup { .. } => backup_dir(pkg_id),
         }
     }
     pub fn set_readonly(&mut self) {
