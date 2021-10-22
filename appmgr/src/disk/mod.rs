@@ -97,6 +97,7 @@ pub struct BackupInfo {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct PackageBackupInfo {
+    pub title: String,
     pub version: Version,
     pub os_version: Version,
     pub timestamp: DateTime<Utc>,
