@@ -4,6 +4,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { Emver } from 'src/app/services/emver.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Injectable({
   providedIn: 'root',
@@ -19,14 +20,14 @@ export class MarketplaceService {
   constructor (
     private readonly api: ApiService,
     private readonly emver: Emver,
-    private readonly config: ConfigService,
+    private readonly patch: PatchDbService,
   ) { }
 
   async load (): Promise<void> {
     const [data, eos, pkgs] = await Promise.all([
       this.api.getMarketplaceData({ }),
       this.api.getEos({
-        'eos-version': this.config.version,
+        'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
       }),
       this.getPkgs(1, 100),
     ])
@@ -39,7 +40,7 @@ export class MarketplaceService {
     const idAndCurrentVersions =  Object.keys(localPkgs).map(key => ({ id: key, version: localPkgs[key].manifest.version }))
     const latestPkgs = await this.api.getMarketplacePkgs({
       ids: idAndCurrentVersions,
-      'eos-version': this.config.version,
+      'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
     })
 
     return latestPkgs.filter(latestPkg => {
@@ -52,7 +53,7 @@ export class MarketplaceService {
   async getPkg (id: string, version?: string): Promise<MarketplacePkg> {
     const pkgs = await this.api.getMarketplacePkgs({
       ids: [{ id, version: version || '*' }],
-      'eos-version': this.config.version,
+      'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
     })
     const pkg = pkgs.find(pkg => pkg.manifest.id == id)
 
@@ -71,7 +72,7 @@ export class MarketplaceService {
     const pkgs = await this.api.getMarketplacePkgs({
       page: String(page),
       'per-page': String(perPage),
-      'eos-version': this.config.version,
+      'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
     })
 
     return pkgs
