@@ -445,7 +445,7 @@ export class MockApiService extends ApiService {
   async startPackageRaw (params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
     await pauseFor(2000)
     const path = `/package-data/${params.id}/installed/status/main`
-    const patch = [
+    const patch1 = [
       {
         op: PatchOp.REPLACE,
         path: path + '/status',
@@ -457,7 +457,58 @@ export class MockApiService extends ApiService {
         value: new Date().toISOString(),
       },
     ]
-    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch1 } })
+
+    setTimeout(async () => {
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: path + '/health',
+          value: {
+            'ephemeral-health-check': {
+              result: 'starting',
+            },
+            'unnecessary-health-check': {
+              result: 'disabled',
+            },
+          },
+        },
+      ]
+
+      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch2 } })
+
+      await pauseFor(2000)
+
+      const patch3 = [
+        {
+          op: PatchOp.REPLACE,
+          path: path + '/health',
+          value: {
+            'ephemeral-health-check': {
+              result: 'starting',
+            },
+            'unnecessary-health-check': {
+              result: 'disabled',
+            },
+            'chain-state': {
+              result: 'loading',
+              message: 'Bitcoin is syncing from genesis',
+            },
+            'p2p-interface': {
+                result: 'success',
+            },
+            'rpc-interface': {
+                result: 'failure',
+                error: 'RPC interface unreachable.',
+            },
+          },
+        },
+      ]
+
+      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch3 } })
+    }, 4000)
+
+    return res
   }
 
   async dryStopPackage (params: RR.DryStopPackageReq): Promise<RR.DryStopPackageRes> {
@@ -474,12 +525,17 @@ export class MockApiService extends ApiService {
 
   async stopPackageRaw (params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
-    const path = `/package-data/${params.id}/installed/status/main/status`
+    const path = `/package-data/${params.id}/installed/status/main`
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path,
+        path: path + '/status',
         value: PackageMainStatus.Stopping,
+      },
+      {
+        op: PatchOp.REPLACE,
+        path: path + '/health',
+        value: { },
       },
     ]
     const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
@@ -487,7 +543,7 @@ export class MockApiService extends ApiService {
       const patch = [
         {
           op: PatchOp.REPLACE,
-          path,
+          path: path + '/status',
           value: PackageMainStatus.Stopped,
         },
       ]

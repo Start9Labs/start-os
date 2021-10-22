@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerNotification, ServerNotifications } from 'src/app/services/api/api.types'
-import { AlertController, LoadingController } from '@ionic/angular'
+import { AlertController, LoadingController, AlertButton } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 
@@ -93,7 +93,7 @@ export class NotificationsPage {
     const data = notification.data
 
     const embassyFailed = !!data.server.error
-    const packagesFailed = Object.entries(data.packages).some(([_, val]) => val.error)
+    const packagesFailed = Object.values(data.packages).some(val => val.error)
 
     let message: string
 
@@ -103,7 +103,7 @@ export class NotificationsPage {
       message = 'All items were successfully backed up'
     }
 
-    const buttons: any[] = [ // why can't I import AlertButton?
+    const buttons: AlertButton[] = [
       {
         text: 'Dismiss',
         role: 'cancel',
