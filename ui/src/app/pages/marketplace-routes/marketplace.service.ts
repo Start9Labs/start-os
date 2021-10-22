@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
 import { MarketplaceData, MarketplaceEOS, MarketplacePkg } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConfigService } from 'src/app/services/config.service'
 import { Emver } from 'src/app/services/emver.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
@@ -18,12 +19,15 @@ export class MarketplaceService {
   constructor (
     private readonly api: ApiService,
     private readonly emver: Emver,
+    private readonly config: ConfigService,
   ) { }
 
   async load (): Promise<void> {
     const [data, eos, pkgs] = await Promise.all([
       this.api.getMarketplaceData({ }),
-      this.api.getEos({ }),
+      this.api.getEos({
+        'eos-version': this.config.version,
+      }),
       this.getPkgs(1, 100),
     ])
     this.data = data
@@ -35,6 +39,7 @@ export class MarketplaceService {
     const idAndCurrentVersions =  Object.keys(localPkgs).map(key => ({ id: key, version: localPkgs[key].manifest.version }))
     const latestPkgs = await this.api.getMarketplacePkgs({
       ids: idAndCurrentVersions,
+      'eos-version': this.config.version,
     })
 
     return latestPkgs.filter(latestPkg => {
@@ -47,6 +52,7 @@ export class MarketplaceService {
   async getPkg (id: string, version?: string): Promise<MarketplacePkg> {
     const pkgs = await this.api.getMarketplacePkgs({
       ids: [{ id, version: version || '*' }],
+      'eos-version': this.config.version,
     })
     const pkg = pkgs.find(pkg => pkg.manifest.id == id)
 
@@ -65,6 +71,7 @@ export class MarketplaceService {
     const pkgs = await this.api.getMarketplacePkgs({
       page: String(page),
       'per-page': String(perPage),
+      'eos-version': this.config.version,
     })
 
     return pkgs
