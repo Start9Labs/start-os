@@ -46,7 +46,7 @@ fi
 
 if [[ "$(uname)" == "Darwin" ]]; then
 	export TARGET_PARTITION="disk$(diskutil list | grep EMBASSY | head -1 | rev | cut -b 3)s3"
-	if test -e $TARGET_PARTITION; then
+	if ! test -e $TARGET_PARTITION; then
 		>&2 echo '`green` partition not found'
                 exit 1
 	fi
@@ -92,10 +92,18 @@ else
 	export FS_SIZE=$[$BLOCK_COUNT*$BLOCK_SIZE]
 fi
 echo "Flashing $FS_SIZE bytes to $TARGET_PARTITION"
-if which pv > /dev/null; then
-	sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct 2>/dev/null
+if [[ "$(uname)" == "Darwin" ]]; then
+	if which pv > /dev/null; then
+		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1m 2>/dev/null
+	else
+		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct
+	fi
 else
-	sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct
+	if which pv > /dev/null; then
+		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct 2>/dev/null
+	else
+		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct
+	fi
 fi
 echo Verifying...
 export INPUT_HASH=$(mktemp)
