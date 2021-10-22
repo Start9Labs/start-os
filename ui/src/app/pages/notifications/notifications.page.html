@@ -65,7 +65,7 @@
             </h2>
             <h2 class="notification-message">
               {{ not.message }}
-              <a *ngIf="not.code === 1" style="text-decoration: none;" (click)="viewBackupReport(not)">
+              <a *ngIf="not.code === 1" style="text-decoration: none; cursor: pointer;" (click)="viewBackupReport(not)">
                 View Report
               </a>
             </h2>
