@@ -30,6 +30,7 @@ export interface ServerInfo {
     size: number
     downloaded: number
   }
+  'eos-version-compat': string
 }
 
 export enum ServerStatus {
