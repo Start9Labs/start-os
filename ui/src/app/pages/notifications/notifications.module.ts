@@ -5,6 +5,7 @@ import { RouterModule, Routes } from '@angular/router'
 import { NotificationsPage } from './notifications.page'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
+import { BackupReportPageModule } from 'src/app/modals/backup-report/backup-report.module'
 
 const routes: Routes = [
   {
@@ -20,6 +21,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     BadgeMenuComponentModule,
     SharingModule,
+    BackupReportPageModule,
   ],
   declarations: [NotificationsPage],
 })

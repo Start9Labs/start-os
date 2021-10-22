@@ -15,6 +15,7 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 import { PackageLoadingService, ProgressData } from 'src/app/services/package-loading.service'
 import { filter } from 'rxjs/operators'
+import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
 
 @Component({
   selector: 'app-show',
@@ -211,6 +212,18 @@ export class AppShowPage {
     await modal.present()
   }
 
+  async presentModalInstructions () {
+    const modal = await this.modalCtrl.create({
+      componentProps: {
+        title: 'Instructions',
+        contentUrl: this.pkg['static-files']['instructions'],
+      },
+      component: MarkdownPage,
+    })
+
+    await modal.present()
+  }
+
   private setDepValues (id: string, errors: { [id: string]: DependencyError }): DependencyInfo {
     let errorText = ''
     let actionText = 'View'
@@ -330,7 +343,7 @@ export class AppShowPage {
     this.buttons = [
       // instructions
       {
-        action: () => this.navCtrl.navigateForward(['instructions'], { relativeTo: this.route }),
+        action: () => this.presentModalInstructions(),
         title: 'Instructions',
         description: `Understand how to use ${pkgTitle}`,
         icon: 'list-outline',

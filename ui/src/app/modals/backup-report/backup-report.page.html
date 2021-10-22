@@ -1,0 +1,30 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Backup Report</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-item-group>
+    <ion-item-divider>Completed: {{ timestamp | date : 'short' }}</ion-item-divider>
+    <ion-item>
+      <ion-label>
+        <h2>System data</h2>
+        <p><ion-text [color]="system.color">{{ system.result }}</ion-text></p>
+      </ion-label>
+      <ion-icon slot="end" [name]="system.icon" [color]="system.color"></ion-icon>
+    </ion-item>
+    <ion-item *ngFor="let pkg of report.packages | keyvalue">
+      <ion-label>
+        <h2>{{ pkg.key }}</h2>
+        <p><ion-text [color]="pkg.value.error ? 'danger' : 'success'">{{ pkg.value.error ? 'Failed: ' + pkg.value.error : 'Succeeded' }}</ion-text></p>
+      </ion-label>
+      <ion-icon slot="end" [name]="pkg.value.error ? 'remove-circle-outline' : 'checkmark'" [color]="pkg.value.error ? 'danger' : 'success'"></ion-icon>
+    </ion-item>
+  </ion-item-group>
+</ion-content>
