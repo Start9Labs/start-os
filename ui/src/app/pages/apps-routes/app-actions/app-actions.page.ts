@@ -56,15 +56,7 @@ export class AppActionsPage {
 
   async handleAction (action: { key: string, value: Action }) {
     const status = this.pkg.installed.status
-    if (!status.configured) {
-      const alert = await this.alertCtrl.create({
-        header: 'Forbidden',
-        message: `Service must be properly configured in order to run "${action.value.name}"`,
-        buttons: ['OK'],
-        cssClass: 'alert-error-message enter-click',
-      })
-      await alert.present()
-    } else if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(status.main.status)) {
+    if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(status.main.status)) {
       if (!isEmptyObject(action.value['input-spec'])) {
         const modal = await this.modalCtrl.create({
           component: GenericFormPage,
