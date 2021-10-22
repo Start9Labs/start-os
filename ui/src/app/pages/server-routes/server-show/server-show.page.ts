@@ -30,7 +30,7 @@ export class ServerShowPage {
   async presentAlertRestart () {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
-      message: `Are you sure you want to restart your Embassy?`,
+      message: 'Are you sure you want to restart your Embassy? It can take several minutes to come back online.',
       buttons: [
         {
           text: 'Cancel',
@@ -51,7 +51,7 @@ export class ServerShowPage {
   async presentAlertShutdown () {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
-      message: `Embassy will remain off. To power back on, you will need to unplug the device and plug it back in.`,
+      message: 'Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in.',
       buttons: [
         {
           text: 'Cancel',

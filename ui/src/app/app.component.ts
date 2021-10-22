@@ -307,7 +307,7 @@ export class AppComponent {
 
     this.updateToast = await this.toastCtrl.create({
       header: 'EOS download complete!',
-      message: `Restart Embassy for changes to take effect.`,
+      message: 'Restart your Embassy for these updates to take effect. It can take several minutes to come back online.',
       position: 'bottom',
       duration: 0,
       cssClass: 'success-toast',
