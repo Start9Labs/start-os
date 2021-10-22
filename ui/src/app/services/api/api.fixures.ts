@@ -740,12 +740,12 @@ export module Mock {
       message: 'Embassy and services have been successfully backed up.',
       data: {
         server: {
-          attempted: true,
+          attempted: false,
           error: null,
         },
         packages: {
           'bitcoind': {
-            error: null,
+            error: 'An error ocurred while backing up',
           },
         },
       },

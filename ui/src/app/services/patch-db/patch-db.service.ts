@@ -27,8 +27,6 @@ export class PatchDbService {
   private patchSub: Subscription
   data: DataModel
 
-  getData () { return this.patchDb.store.cache.data }
-
   constructor (
     @Inject(PATCH_SOURCE) private readonly source: Source<DataModel>,
     @Inject(PATCH_HTTP) private readonly http: ApiService,

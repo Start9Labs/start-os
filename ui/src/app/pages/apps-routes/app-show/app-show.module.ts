@@ -7,6 +7,7 @@ import { StatusComponentModule } from 'src/app/components/status/status.componen
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
 import { AppConfigPageModule } from 'src/app/modals/app-config/app-config.module'
+import { MarkdownPageModule } from 'src/app/modals/markdown/markdown.module'
 
 const routes: Routes = [
   {
@@ -24,6 +25,7 @@ const routes: Routes = [
     InstallWizardComponentModule,
     AppConfigPageModule,
     SharingModule,
+    MarkdownPageModule,
   ],
   declarations: [AppShowPage],
 })

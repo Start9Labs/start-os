@@ -20,10 +20,6 @@ const routes: Routes = [
     loadChildren: () => import('./app-actions/app-actions.module').then(m => m.AppActionsPageModule),
   },
   {
-    path: ':pkgId/instructions',
-    loadChildren: () => import('./app-instructions/app-instructions.module').then(m => m.AppInstructionsPageModule),
-  },
-  {
     path: ':pkgId/interfaces',
     loadChildren: () => import('./app-interfaces/app-interfaces.module').then(m => m.AppInterfacesPageModule),
   },
