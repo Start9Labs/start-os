@@ -116,7 +116,7 @@ export class StartupAlertsService {
 
   private async osUpdateCheck (): Promise<RR.GetMarketplaceEOSRes | undefined> {
     const res = await this.api.getEos({
-      'eos-version': this.config.version,
+      'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
     })
 
     if (this.emver.compare(this.config.version, res.version) === -1) {
