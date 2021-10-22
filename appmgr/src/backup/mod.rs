@@ -14,6 +14,7 @@ use tracing::instrument;
 use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::disk::PackageBackupInfo;
+use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
 use crate::util::{IoFormat, Version};
@@ -62,6 +63,7 @@ impl BackupActions {
         &self,
         ctx: &RpcContext,
         pkg_id: &PackageId,
+        pkg_title: &str,
         pkg_version: &Version,
         interfaces: &Interfaces,
         volumes: &Volumes,
@@ -88,8 +90,43 @@ impl BackupActions {
         let tor_keys = interfaces
             .tor_keys(&mut ctx.secret_store.acquire().await?, pkg_id)
             .await?;
+        let tmp_path = Path::new(BACKUP_DIR)
+            .join(pkg_id)
+            .join(format!("{}.s9pk", pkg_id));
+        let real_path = Path::new(BACKUP_DIR)
+            .join(pkg_id)
+            .join(format!(".{}.s9pk.tmp", pkg_id));
+        let s9pk_path = ctx
+            .datadir
+            .join(PKG_ARCHIVE_DIR)
+            .join(pkg_id)
+            .join(pkg_version.as_str());
+        let mut infile = File::open(&s9pk_path).await?;
+        let mut outfile = File::create(&tmp_path).await?;
+        tokio::io::copy(&mut infile, &mut outfile)
+            .await
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    format!("cp {} -> {}", s9pk_path.display(), tmp_path.display()),
+                )
+            })?;
+        outfile.flush().await?;
+        outfile.shutdown().await?;
+        outfile.sync_all().await?;
+        tokio::fs::rename(&tmp_path, &real_path)
+            .await
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    format!("mv {} -> {}", tmp_path.display(), real_path.display()),
+                )
+            })?;
         let timestamp = Utc::now();
-        let tmp_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor.tmp");
+        let tmp_path = Path::new(BACKUP_DIR)
+            .join(pkg_id)
+            .join(".metadata.cbor.tmp");
+        let real_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
         let mut outfile = File::create(&tmp_path).await?;
         outfile
             .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
@@ -100,13 +137,17 @@ impl BackupActions {
         outfile.flush().await?;
         outfile.shutdown().await?;
         outfile.sync_all().await?;
-        tokio::fs::rename(
-            &tmp_path,
-            Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor"),
-        )
-        .await?;
+        tokio::fs::rename(&tmp_path, &real_path)
+            .await
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    format!("mv {} -> {}", tmp_path.display(), real_path.display()),
+                )
+            })?;
         Ok(PackageBackupInfo {
             os_version: Current::new().semver().into(),
+            title: pkg_title.to_owned(),
             version: pkg_version.clone(),
             timestamp,
         })

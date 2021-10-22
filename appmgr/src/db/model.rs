@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use emver::VersionRange;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
@@ -36,6 +37,13 @@ impl Database {
             server_info: ServerInfo {
                 id,
                 version: Current::new().semver().into(),
+                eos_version_compat: VersionRange::Conj(
+                    Box::new(VersionRange::Anchor(
+                        emver::GTE,
+                        emver::Version::new(0, 3, 0, 0),
+                    )),
+                    Box::new(VersionRange::Anchor(emver::LTE, Current::new().semver())),
+                ),
                 lan_address: format!("https://{}.local", hostname).parse().unwrap(),
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()
@@ -74,6 +82,7 @@ impl DatabaseModel {
 pub struct ServerInfo {
     pub id: String,
     pub version: Version,
+    pub eos_version_compat: VersionRange,
     pub lan_address: Url,
     pub tor_address: Url,
     pub status: ServerStatus,
