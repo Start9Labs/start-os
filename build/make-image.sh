@@ -16,4 +16,11 @@ export OUTPUT_DEVICE=$(sudo losetup --show -fP eos.img)
 export LOOPDEV=$(sudo losetup --show -fP ubuntu.img)
 ./build/partitioning.sh
 ./build/write-image.sh
+sudo e2fsck -f ${OUTPUT_DEVICE}p3
+sudo resize2fs -M ${OUTPUT_DEVICE}p3
+BLOCK_INFO=$(sudo dumpe2fs ${OUTPUT_DEVICE}p3)
+BLOCK_COUNT=$(echo "$BLOCK_INFO" | grep "Block count:" | sed 's/Block count:\s\+//g')
+BLOCK_SIZE=$(echo "$BLOCK_INFO" | grep "Block size:" | sed 's/Block size:\s\+//g')
+echo "YOUR GREEN FILESYSTEM is '$[$BLOCK_COUNT*$BLOCK_SIZE]' BYTES"
+echo "IF YOU ARE QUICK-FLASHING FROM MAC-OS, NOTE THIS NUMBER FOR LATER"
 sudo losetup -d $OUTPUT_DEVICE
