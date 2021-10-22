@@ -45,8 +45,8 @@ if ! which pv > /dev/null; then
 fi
 
 if [[ "$(uname)" == "Darwin" ]]; then
-	export TARGET_PARTITION="disk$(diskutil list | grep EMBASSY | sed -E 's/.*EMBASSY.disk(.+)s2$/\1/g')s3"
-	if ! test -e $TARGET_PARTITION; then
+	export TARGET_PARTITION="disk$(diskutil list | grep EMBASSY | head -1 | rev | cut -b 3)s3"
+	if test -e $TARGET_PARTITION; then
 		>&2 echo '`green` partition not found'
                 exit 1
 	fi
@@ -93,9 +93,9 @@ else
 fi
 echo "Flashing $FS_SIZE bytes to $TARGET_PARTITION"
 if which pv > /dev/null; then
-	sudo cat ${SOURCE_DEVICE}p3 | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct 2>/dev/null
+	sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct 2>/dev/null
 else
-	sudo cat ${SOURCE_DEVICE}p3 | head -c $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct
+	sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct
 fi
 echo Verifying...
 export INPUT_HASH=$(mktemp)
@@ -103,7 +103,7 @@ export OUTPUT_HASH=$(mktemp)
 if which pv > /dev/null; then
 	export PV_IN=$(mktmpfifo)
 fi
-sudo cat ${SOURCE_DEVICE}p3 | head -c $FS_SIZE | tee -a $PV_IN | sha256sum > $INPUT_HASH &
+sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | tee -a $PV_IN | sha256sum > $INPUT_HASH &
 export INPUT_CHILD=$!
 sudo cat ${TARGET_PARTITION} | head -c $FS_SIZE | tee -a $PV_IN | sha256sum > $OUTPUT_HASH &
 export OUTPUT_CHILD=$!
