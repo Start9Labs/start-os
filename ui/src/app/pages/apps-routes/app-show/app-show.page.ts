@@ -42,7 +42,7 @@ export class AppShowPage {
   } = { } as any
   connectionFailure: boolean
   loading = true
-  healthChecks: { [id: string]: HealthCheckResult } = { }
+  healthChecks: { [id: string]: HealthCheckResult | null }
   installProgress: ProgressData
 
   @ViewChild(IonContent) content: IonContent
@@ -66,6 +66,11 @@ export class AppShowPage {
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.pkg = this.patch.data['package-data'][this.pkgId]
+    this.statuses = renderPkgStatus(this.pkg)
+    this.healthChecks = Object.keys(this.pkg.manifest['health-checks']).reduce((obj, key) => {
+      obj[key] = null
+      return obj
+    }, { })
 
     this.subs = [
       // 1
@@ -105,9 +110,13 @@ export class AppShowPage {
       )
       .subscribe(main => {
         if (main.status === PackageMainStatus.Running) {
-          this.healthChecks = { ...main.health }
+          Object.keys(this.healthChecks).forEach(key => {
+            this.healthChecks[key] = main.health[key]
+          })
         } else {
-          this.healthChecks = { }
+          Object.keys(this.healthChecks).forEach(key => {
+            this.healthChecks[key] = null
+          })
         }
       }),
 
