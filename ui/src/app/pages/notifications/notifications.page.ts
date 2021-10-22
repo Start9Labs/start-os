@@ -1,9 +1,10 @@
 import { Component } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerNotification, ServerNotifications } from 'src/app/services/api/api.types'
-import { AlertController, LoadingController, AlertButton } from '@ionic/angular'
+import { LoadingController, ModalController } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
 
 @Component({
   selector: 'notifications',
@@ -21,8 +22,8 @@ export class NotificationsPage {
   constructor (
     private readonly embassyApi: ApiService,
     private readonly loadingCtrl: LoadingController,
+    private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
-    private readonly alertCtrl: AlertController,
     private readonly route: ActivatedRoute,
   ) { }
 
@@ -90,40 +91,14 @@ export class NotificationsPage {
   }
 
   async viewBackupReport (notification: ServerNotification<1>) {
-    const data = notification.data
-
-    const embassyFailed = !!data.server.error
-    const packagesFailed = Object.values(data.packages).some(val => val.error)
-
-    let message: string
-
-    if (embassyFailed || packagesFailed) {
-      message = 'There was an issue backing up one or more items. Click "Retry" to retry ONLY the items that failed.'
-    } else {
-      message = 'All items were successfully backed up'
-    }
-
-    const buttons: AlertButton[] = [
-      {
-        text: 'Dismiss',
-        role: 'cancel',
+    const modal = await this.modalCtrl.create({
+      component: BackupReportPage,
+      componentProps: {
+        report: notification.data,
+        timestamp: notification['created-at'],
       },
-    ]
-
-    if (embassyFailed || packagesFailed) {
-      buttons.push({
-        text: 'Retry',
-      })
-    }
-
-
-    const alert = await this.alertCtrl.create({
-      header: 'Backup Report',
-      message,
-      buttons,
     })
-
-    await alert.present()
+    await modal.present()
   }
 }
 
