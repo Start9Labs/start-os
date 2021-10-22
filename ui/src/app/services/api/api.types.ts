@@ -194,14 +194,14 @@ export module RR {
   export type GetMarketplaceDataRes = MarketplaceData
 
   export type GetMarketplaceEOSReq = {
-    'eos-version': string
+    'eos-version-compat': string
   }
   export type GetMarketplaceEOSRes = MarketplaceEOS
 
   export type GetMarketplacePackagesReq = {
     ids?: { id: string, version: string }[]
     // iff !id
-    'eos-version': string
+    'eos-version-compat': string
     category?: string
     query?: string
     page?: string
