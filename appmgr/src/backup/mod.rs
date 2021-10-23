@@ -100,7 +100,8 @@ impl BackupActions {
             .datadir
             .join(PKG_ARCHIVE_DIR)
             .join(pkg_id)
-            .join(pkg_version.as_str());
+            .join(pkg_version.as_str())
+            .join(format!("{}.s9pk", pkg_id));
         let mut infile = File::open(&s9pk_path).await?;
         let mut outfile = File::create(&tmp_path).await?;
         tokio::io::copy(&mut infile, &mut outfile)
