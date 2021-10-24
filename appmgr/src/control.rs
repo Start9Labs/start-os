@@ -74,11 +74,12 @@ async fn stop_common<Db: DbHandle>(
     id: &PackageId,
     breakages: &mut BTreeMap<PackageId, TaggedDependencyError>,
 ) -> Result<(), Error> {
+    let mut tx = db.begin().await?;
     let mut status = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
         .and_then(|pkg| pkg.installed())
-        .expect(db)
+        .expect(&mut tx)
         .await
         .with_ctx(|_| {
             (
@@ -88,11 +89,12 @@ async fn stop_common<Db: DbHandle>(
         })?
         .status()
         .main()
-        .get_mut(db)
+        .get_mut(&mut tx)
         .await?;
 
     *status = MainStatus::Stopping;
-    status.save(db).await?;
+    status.save(&mut tx).await?;
+    tx.save().await?;
     break_all_dependents_transitive(db, &id, DependencyError::NotRunning, breakages).await?;
 
     Ok(())

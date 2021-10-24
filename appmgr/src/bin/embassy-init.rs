@@ -157,9 +157,9 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
             info.status = ServerStatus::Running;
         }
     }
-    info.version = emver::Version::new(0, 3, 0, 0).into();
-    // TODO: run migrations
     info.save(&mut handle).await?;
+
+    embassy::version::init(&mut handle).await?;
 
     Ok(())
 }

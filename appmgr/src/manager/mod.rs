@@ -3,6 +3,7 @@ use std::future::Future;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::task::Poll;
+use std::time::Duration;
 
 use bollard::container::StopContainerOptions;
 use color_eyre::eyre::eyre;
@@ -18,10 +19,12 @@ use crate::action::docker::DockerAction;
 use crate::action::NoOutput;
 use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
-use crate::notifications::{NotificationLevel, NotificationSubtype};
+use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
+
+pub mod health;
 
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
@@ -98,12 +101,15 @@ impl ManagerMap {
 
     #[instrument(skip(self))]
     pub async fn empty(&self) -> Result<(), Error> {
-        let res = futures::future::join_all(
-            std::mem::take(&mut *self.0.write().await)
-                .into_iter()
-                .map(|(_, man)| async move { man.exit().await }),
-        )
-        .await;
+        let res =
+            futures::future::join_all(std::mem::take(&mut *self.0.write().await).into_iter().map(
+                |((id, version), man)| async move {
+                    man.exit().await?;
+                    tracing::debug!("Manager for {}@{} shutdown", id, version);
+                    Ok::<_, Error>(())
+                },
+            ))
+            .await;
         res.into_iter().fold(Ok(()), |res, x| match (res, x) {
             (Ok(()), x) => x,
             (Err(e), Ok(())) => Err(e),
@@ -231,10 +237,24 @@ async fn run_main(
                 .collect::<Result<Vec<_>, Error>>()?,
         )
         .await?;
-    let res = runtime
-        .await
-        .map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker))
-        .and_then(|a| a);
+    let health = async {
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            let mut db = state.ctx.db.handle();
+            if let Err(e) = health::check(&state.ctx, &mut db, &state.manifest.id).await {
+                tracing::error!(
+                    "Failed to run health check for {}: {}",
+                    &state.manifest.id,
+                    e
+                );
+                tracing::debug!("{:?}", e);
+            }
+        }
+    };
+    let res = tokio::select! {
+        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
+        _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
+    };
     state
         .ctx
         .net_controller
@@ -319,7 +339,7 @@ impl Manager {
                                 NotificationLevel::Warning,
                                 String::from("Service Crashed"),
                                 format!("The service {} has crashed with the following exit code: {}\nDetails: {}", thread_shared.manifest.id.clone(), e.0, e.1),
-                                NotificationSubtype::General,
+                                (),
                                 Some(900) // 15 minutes
                             )
                             .await;

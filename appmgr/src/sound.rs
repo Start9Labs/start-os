@@ -4,9 +4,9 @@ use std::time::Duration;
 
 use divrem::DivRem;
 use proptest_derive::Arbitrary;
-use tokio::sync::{Mutex, MutexGuard};
 use tracing::instrument;
 
+use crate::util::FileLock;
 use crate::{Error, ErrorKind, ResultExt};
 
 lazy_static::lazy_static! {
@@ -18,32 +18,15 @@ lazy_static::lazy_static! {
     static ref PERIOD_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/period");
     static ref DUTY_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/duty_cycle");
     static ref SWITCH_FILE: &'static Path = Path::new("/sys/class/pwm/pwmchip0/pwm0/enable");
-    static ref SOUND_MUTEX: Mutex<Option<fd_lock_rs::FdLock<tokio::fs::File>>> = Mutex::new(None);
 }
 
 pub const SOUND_LOCK_FILE: &'static str = "/etc/embassy/sound.lock";
 
-struct SoundInterface(Option<MutexGuard<'static, Option<fd_lock_rs::FdLock<tokio::fs::File>>>>);
+struct SoundInterface(Option<FileLock>);
 impl SoundInterface {
     #[instrument]
     pub async fn lease() -> Result<Self, Error> {
-        let mut guard = SOUND_MUTEX.lock().await;
-        let sound_file = tokio::fs::File::create(SOUND_LOCK_FILE)
-            .await
-            .with_ctx(|_| (ErrorKind::Filesystem, SOUND_LOCK_FILE))?;
-        *guard = Some(
-            tokio::task::spawn_blocking(move || {
-                fd_lock_rs::FdLock::lock(sound_file, fd_lock_rs::LockType::Exclusive, true)
-            })
-            .await
-            .map_err(|e| {
-                Error::new(
-                    color_eyre::eyre::eyre!("Sound file lock panicked: {}", e),
-                    ErrorKind::SoundError,
-                )
-            })?
-            .with_kind(ErrorKind::SoundError)?,
-        );
+        let guard = FileLock::new(SOUND_LOCK_FILE).await?;
         tokio::fs::write(&*EXPORT_FILE, "0")
             .await
             .or_else(|e| {
@@ -88,18 +71,21 @@ impl SoundInterface {
         note: &Note,
         time_slice: &TimeSlice,
     ) -> Result<(), Error> {
-        {
+        if let Err(e) = async {
             self.play(note).await?;
             tokio::time::sleep(time_slice.to_duration(tempo_qpm) * 19 / 20).await;
             self.stop().await?;
             tokio::time::sleep(time_slice.to_duration(tempo_qpm) / 20).await;
+            Ok::<_, Error>(())
+        }
+        .await
+        {
+            // we could catch this error and propagate but I'd much prefer the original error bubble up
+            let _mute = self.stop().await;
+            Err(e)
+        } else {
             Ok(())
         }
-        .or_else(|e: Error| {
-            // we could catch this error and propagate but I'd much prefer the original error bubble up
-            let _mute = self.stop();
-            Err(e)
-        })
     }
     #[instrument(skip(self))]
     pub async fn stop(&mut self) -> Result<(), Error> {
@@ -141,14 +127,10 @@ impl Drop for SoundInterface {
                 tracing::error!("Failed to Unexport Sound Interface: {}", e);
                 tracing::debug!("{:?}", e);
             }
-            if let Some(mut guard) = guard {
-                if let Some(lock) = guard.take() {
-                    if let Err(e) = tokio::task::spawn_blocking(|| lock.unlock(true))
-                        .await
-                        .unwrap()
-                    {
-                        tracing::error!("Failed to drop Sound Interface File Lock: {}", e.1)
-                    }
+            if let Some(guard) = guard {
+                if let Err(e) = guard.unlock().await {
+                    tracing::error!("Failed to drop Sound Interface File Lock: {}", e);
+                    tracing::debug!("{:?}", e);
                 }
             }
         });

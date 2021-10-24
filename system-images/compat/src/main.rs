@@ -126,11 +126,6 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 .subcommand(
                     SubCommand::with_name("create")
                         .arg(
-                            Arg::with_name("package-id")
-                                .help("The `id` field from the manifest file")
-                                .required(true),
-                        )
-                        .arg(
                             Arg::with_name("mountpoint")
                                 .help("The backups mount point")
                                 .required(true),
@@ -143,11 +138,6 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 )
                 .subcommand(
                     SubCommand::with_name("restore")
-                        .arg(
-                            Arg::with_name("package-id")
-                                .help("The `id` field from the manifest file")
-                                .required(true),
-                        )
                         .arg(
                             Arg::with_name("mountpoint")
                                 .help("The backups mount point")
@@ -271,7 +261,6 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 let res = create_backup(
                     sub_m.value_of("mountpoint").unwrap(),
                     sub_m.value_of("datapath").unwrap(),
-                    sub_m.value_of("package-id").unwrap(),
                 );
                 match res {
                     Ok(r) => {
@@ -283,9 +272,8 @@ fn inner_main() -> Result<(), anyhow::Error> {
             }
             ("restore", Some(sub_m)) => {
                 let res = restore_backup(
-                    sub_m.value_of("package-id").unwrap(),
-                    sub_m.value_of("datapath").unwrap(),
                     sub_m.value_of("mountpoint").unwrap(),
+                    sub_m.value_of("datapath").unwrap(),
                 );
                 match res {
                     Ok(r) => {

@@ -1,8 +1,4 @@
 pub const CONFIG_PATH: &'static str = "/etc/embassy/config.toml";
-pub const SERVICES_YAML: &'static str = "tor/services.yaml";
-pub const VOLUMES: &'static str = "/root/volumes";
-pub const BACKUP_MOUNT_POINT: &'static str = "/mnt/backup_drive";
-pub const BACKUP_DIR: &'static str = "Embassy Backups";
 pub const BUFFER_SIZE: usize = 1024;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 
@@ -46,7 +42,7 @@ pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
-pub use version::{init, self_update};
+pub use version::init;
 
 #[command(metadata(authenticated = false))]
 pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
@@ -66,6 +62,7 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     net::wifi::wifi,
     disk::disk,
     notifications::notification,
+    backup::backup,
 ))]
 pub fn main_api() -> Result<(), RpcError> {
     Ok(())

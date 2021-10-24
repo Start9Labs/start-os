@@ -15,7 +15,7 @@
 
 
           <ion-card-content class="ion-margin">
-            <ng-container *ngIf="!loading && !recoveryDrives.length">
+            <ng-container *ngIf="!loading && !recoveryPartitions.length">
               <h2 color="light">No recovery drives found</h2>
               <p color="light">Please connect a recovery drive to your Embassy and refresh the page.</p>
               <ion-button 
@@ -40,29 +40,29 @@
                   </ion-label>
                 </ion-item>
               </ng-container>
-              <ng-container *ngIf="recoveryDrives.length">
-                <ion-item (click)="chooseDrive(drive)" class="ion-margin-bottom" button color="light" lines="none" *ngFor="let drive of recoveryDrives" [ngClass]="drive.logicalname === selectedDrive?.logicalname ? 'selected' : null">
+              <ng-container *ngIf="recoveryPartitions.length">
+                <ion-item (click)="choosePartition(p.partition)" class="ion-margin-bottom" button color="light" lines="none" *ngFor="let p of recoveryPartitions" [ngClass]="p.partition.logicalname === selectedPartition?.logicalname ? 'selected' : null">
                   <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label class="ion-text-wrap">
-                    <h1>{{ drive.logicalname }} - {{ drive.capacity | convertBytes }}</h1>
-                    <h2 *ngIf="drive.vendor || drive.model">
-                      {{ drive.vendor }}
-                      <span *ngIf="drive.vendor && drive.model"> - </span>
-                      {{ drive.model }}
+                    <h1>{{ p.partition.logicalname }} <span *ngIf="!!p.partition.label">-</span> {{ p.partition.label }}</h1>
+                    <h2 *ngIf="p.vendor || p.model">
+                      {{ p.vendor }}
+                      <span *ngIf="p.vendor && p.model"> - </span>
+                      {{ p.model }}
                     </h2>
-                    <h2> Embassy version: {{drive['embassy-os'].version}}</h2>
+                    <h2> Embassy version: {{p.partition['embassy-os'].version}}</h2>
                   </ion-label>
-                  <ion-icon *ngIf="(drive['embassy-os'].version.startsWith('0.2') && stateService.hasProductKey) || passwords[drive.logicalname] || prodKeys[drive.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
-                  <ion-icon *ngIf="(drive['embassy-os'].version.startsWith('0.2') && !stateService.hasProductKey && !prodKeys[drive.logicalname]) || (!drive['embassy-os'].version.startsWith('0.2') && !passwords[drive.logicalname])" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
+                  <ion-icon *ngIf="(p.partition['embassy-os'].version.startsWith('0.2') && stateService.hasProductKey) || passwords[p.partition.logicalname] || prodKeys[p.partition.logicalname]" color="success" slot="end" name="lock-open-outline"></ion-icon>
+                  <ion-icon *ngIf="(p.partition['embassy-os'].version.startsWith('0.2') && !stateService.hasProductKey && !prodKeys[p.partition.logicalname]) || (!p.partition['embassy-os'].version.startsWith('0.2') && !passwords[p.partition.logicalname])" color="danger" slot="end" name="lock-closed-outline"></ion-icon>
 
                 </ion-item>
               </ng-container>
               <ion-button
-                (click)="selectRecoveryDrive()"
+                (click)="selectRecoveryPartition()"
                 color="light"
-                [disabled]="!selectedDrive || (!passwords[selectedDrive.logicalname] && !selectedDrive['embassy-os'].version.startsWith('0.2'))"
+                [disabled]="!selectedPartition || (!passwords[selectedPartition.logicalname] && !selectedPartition['embassy-os'].version.startsWith('0.2'))"
                 class="claim-button"
-                *ngIf="recoveryDrives.length"
+                *ngIf="recoveryPartitions.length"
               >
                 Next
               </ion-button>

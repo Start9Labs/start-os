@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
-import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
+import { ApiService, DiskInfo, PartitionInfo } from 'src/app/services/api/api.service'
+import * as argon2 from '@start9labs/argon2'
 
 @Component({
   selector: 'app-password',
@@ -8,7 +9,7 @@ import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
   styleUrls: ['password.page.scss'],
 })
 export class PasswordPage {
-  @Input() recoveryDrive: DiskInfo
+  @Input() recoveryPartition: PartitionInfo
   @Input() storageDrive: DiskInfo
 
   pwError = ''
@@ -34,23 +35,13 @@ export class PasswordPage {
   }
 
   async verifyPw () {
-    if (!this.recoveryDrive) this.pwError = 'No recovery drive' // unreachable
-    const loader = await this.loadingCtrl.create({
-      message: 'Verifying Password',
-    })
-    await loader.present()
+    if (!this.recoveryPartition || !this.recoveryPartition['embassy-os']) this.pwError = 'No recovery drive' // unreachable
 
     try {
-      const isCorrectPassword = await this.apiService.verify03XPassword(this.recoveryDrive.logicalname, this.password)
-      if (isCorrectPassword) {
-        this.modalController.dismiss({ password: this.password })
-      } else {
-        this.pwError = 'Incorrect password provided'
-      }
+      argon2.verify( this.recoveryPartition['embassy-os']['password-hash'], this.password)
+      this.modalController.dismiss({ password: this.password })
     } catch (e) {
-      this.pwError = 'Error connecting to Embassy'
-    } finally {
-      loader.dismiss()
+      this.pwError = 'Incorrect password provided'
     }
   }
 
@@ -65,7 +56,7 @@ export class PasswordPage {
   }
 
   validate () {
-    if (!!this.recoveryDrive) return this.pwError = ''
+    if (!!this.recoveryPartition) return this.pwError = ''
 
     if (this.passwordVer) {
       this.checkVer()

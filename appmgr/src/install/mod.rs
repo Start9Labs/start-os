@@ -1,12 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsStr;
 use std::io::SeekFrom;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use color_eyre::eyre::{self, eyre};
+use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt, TryStreamExt};
@@ -14,7 +13,7 @@ use http::StatusCode;
 use patch_db::{DbHandle, LockType};
 use reqwest::Response;
 use rpc_toolkit::command;
-use tokio::fs::{DirEntry, File, OpenOptions};
+use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
 use tokio_stream::wrappers::ReadDirStream;
@@ -44,7 +43,7 @@ use crate::{Error, ResultExt};
 pub mod cleanup;
 pub mod progress;
 
-pub const PKG_CACHE: &'static str = "package-data/cache";
+pub const PKG_ARCHIVE_DIR: &'static str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &'static str = "package-data/public";
 pub const PKG_DOCKER_DIR: &'static str = "package-data/docker";
 pub const PKG_WASM_DIR: &'static str = "package-data/wasm";
@@ -226,7 +225,7 @@ pub async fn download_install_s9pk(
 
     let pkg_cache_dir = ctx
         .datadir
-        .join(PKG_CACHE)
+        .join(PKG_ARCHIVE_DIR)
         .join(pkg_id)
         .join(version.as_str());
     tokio::fs::create_dir_all(&pkg_cache_dir).await?;
@@ -615,6 +614,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         }
         deps
     };
+    let mut pde = model
+        .clone()
+        .expect(&mut tx)
+        .await?
+        .get_mut(&mut tx)
+        .await?;
     let installed = InstalledPackageDataEntry {
         status: Status {
             configured: manifest.config.is_none(),
@@ -622,18 +627,23 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             dependency_errors: DependencyErrors::default(),
         },
         manifest: manifest.clone(),
+        last_backup: match &*pde {
+            PackageDataEntry::Updating {
+                installed:
+                    InstalledPackageDataEntry {
+                        last_backup: Some(time),
+                        ..
+                    },
+                ..
+            } => Some(*time),
+            _ => None,
+        },
         system_pointers: Vec::new(),
         dependency_info,
         current_dependents: current_dependents.clone(),
         current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
-    let mut pde = model
-        .clone()
-        .expect(&mut tx)
-        .await?
-        .get_mut(&mut tx)
-        .await?;
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {
