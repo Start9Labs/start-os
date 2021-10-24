@@ -801,7 +801,11 @@ impl PackageBackupMountGuard {
 }
 impl AsRef<Path> for PackageBackupMountGuard {
     fn as_ref(&self) -> &Path {
-        &self.mountpoint
+        if let Some(mountpoint) = &self.mountpoint {
+            mountpoint
+        } else {
+            unreachable!()
+        }
     }
 }
 impl Drop for PackageBackupMountGuard {
