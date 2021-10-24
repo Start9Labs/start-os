@@ -12,7 +12,7 @@ use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use crate::Error;
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct InstallProgress {
     pub size: Option<u64>,

@@ -14,7 +14,7 @@ use crate::util::Version;
 use crate::Error;
 
 pub const PKG_VOLUME_DIR: &'static str = "package-data/volumes";
-pub const BACKUP_DIR: &'static str = "/mnt/embassy-os-backups/EmbassyBackups";
+pub const BACKUP_DIR: &'static str = "/media/embassy-os/backups";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VolumeId<S: AsRef<str> = String> {
@@ -156,6 +156,10 @@ pub fn asset_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Versi
         .join(version.as_str())
 }
 
+pub fn backup_dir(pkg_id: &PackageId) -> PathBuf {
+    Path::new(BACKUP_DIR).join(pkg_id).join("data")
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
@@ -225,7 +229,7 @@ impl Volume {
             Volume::Certificate { interface_id: _ } => {
                 ctx.net_controller.nginx.ssl_directory_for(pkg_id)
             }
-            Volume::Backup { .. } => Path::new(BACKUP_DIR).join(pkg_id),
+            Volume::Backup { .. } => backup_dir(pkg_id),
         }
     }
     pub fn set_readonly(&mut self) {

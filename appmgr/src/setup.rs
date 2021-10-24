@@ -18,13 +18,13 @@ use tracing::instrument;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
-use crate::disk::util::{mount, unmount, DiskInfo};
+use crate::disk::util::{DiskInfo, PartitionInfo, TmpMountGuard};
 use crate::id::Id;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::s9pk::manifest::PackageId;
 use crate::sound::BEETHOVEN;
 use crate::util::io::from_yaml_async_reader;
-use crate::util::{GeneralGuard, Invoke, Version};
+use crate::util::{Invoke, Version};
 use crate::volume::{data_dir, VolumeId};
 use crate::{Error, ResultExt};
 
@@ -91,14 +91,14 @@ pub async fn execute(
     #[context] ctx: SetupContext,
     #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
     #[arg(rename = "embassy-password")] embassy_password: String,
-    #[arg(rename = "recovery-drive")] recovery_drive: Option<DiskInfo>,
+    #[arg(rename = "recovery-partition")] recovery_partition: Option<PartitionInfo>,
     #[arg(rename = "recovery-password")] recovery_password: Option<String>,
 ) -> Result<SetupResult, Error> {
     match execute_inner(
         ctx,
         embassy_logicalname,
         embassy_password,
-        recovery_drive,
+        recovery_partition,
         recovery_password,
     )
     .await
@@ -132,7 +132,7 @@ pub async fn execute_inner(
     ctx: SetupContext,
     embassy_logicalname: PathBuf,
     embassy_password: String,
-    recovery_drive: Option<DiskInfo>,
+    recovery_partition: Option<PartitionInfo>,
     recovery_password: Option<String>,
 ) -> Result<String, Error> {
     if ctx.recovery_status.read().await.is_some() {
@@ -180,8 +180,8 @@ pub async fn execute_inner(
     .await?;
     sqlite_pool.close().await;
 
-    if let Some(recovery_drive) = recovery_drive {
-        if recovery_drive
+    if let Some(recovery_partition) = recovery_partition {
+        if recovery_partition
             .embassy_os
             .as_ref()
             .map(|v| &*v.version < &emver::Version::new(0, 2, 8, 0))
@@ -190,7 +190,8 @@ pub async fn execute_inner(
             return Err(Error::new(eyre!("Unsupported version of EmbassyOS. Please update to at least 0.2.8 before recovering."), crate::ErrorKind::VersionIncompatible));
         }
         tokio::spawn(async move {
-            if let Err(e) = recover(ctx.clone(), guid, recovery_drive, recovery_password).await {
+            if let Err(e) = recover(ctx.clone(), guid, recovery_partition, recovery_password).await
+            {
                 BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
                 tracing::error!("Error recovering drive!: {}", e);
                 tracing::debug!("{:?}", e);
@@ -208,18 +209,18 @@ pub async fn execute_inner(
 async fn recover(
     ctx: SetupContext,
     guid: String,
-    recovery_drive: DiskInfo,
+    recovery_partition: PartitionInfo,
     recovery_password: Option<String>,
 ) -> Result<(), Error> {
-    let recovery_version = recovery_drive
+    let recovery_version = recovery_partition
         .embassy_os
         .as_ref()
         .map(|i| i.version.clone())
         .unwrap_or_default();
     if recovery_version.major() == 0 && recovery_version.minor() == 2 {
-        recover_v2(&ctx, recovery_drive).await?;
+        recover_v2(&ctx, recovery_partition).await?;
     } else if recovery_version.major() == 0 && recovery_version.minor() == 3 {
-        recover_v3(&ctx, recovery_drive, recovery_password).await?;
+        recover_v3(&ctx, recovery_partition, recovery_password).await?;
     } else {
         return Err(Error::new(
             eyre!("Unsupported version of EmbassyOS: {}", recovery_version),
@@ -267,7 +268,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                     tokio::fs::copy(&src_path, &dst_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
-                            format!("{} -> {}", src_path.display(), dst_path.display()),
+                            format!("cp {} -> {}", src_path.display(), dst_path.display()),
                         )
                     })?;
                     ctr.fetch_add(m.len(), Ordering::Relaxed);
@@ -301,7 +302,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                     .with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
-                            format!("{} -> {}", src_path.display(), dst_path.display()),
+                            format!("cp -P {} -> {}", src_path.display(), dst_path.display()),
                         )
                     })?;
                     tokio::fs::set_permissions(&dst_path, m.permissions())
@@ -322,29 +323,18 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
 }
 
 #[instrument(skip(ctx))]
-async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), Error> {
-    let tmp_mountpoint = Path::new("/mnt/recovery");
-    mount(
-        &recovery_drive
-            .partitions
-            .get(1)
-            .ok_or_else(|| {
-                Error::new(
-                    eyre!("missing rootfs partition"),
-                    crate::ErrorKind::Filesystem,
-                )
-            })?
-            .logicalname,
-        tmp_mountpoint,
-    )
-    .await?;
-    let mount_guard = GeneralGuard::new(|| tokio::spawn(unmount(tmp_mountpoint)));
+async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Result<(), Error> {
+    let recovery = TmpMountGuard::mount(&recovery_partition.logicalname).await?;
 
     let secret_store = ctx.secret_store().await?;
     let db = ctx.db(&secret_store).await?;
     let mut handle = db.handle();
 
-    let apps_yaml_path = tmp_mountpoint.join("root").join("appmgr").join("apps.yaml");
+    let apps_yaml_path = recovery
+        .as_ref()
+        .join("root")
+        .join("appmgr")
+        .join("apps.yaml");
     #[derive(Deserialize)]
     struct LegacyAppInfo {
         title: String,
@@ -359,7 +349,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), 
         })?)
         .await?;
 
-    let volume_path = tmp_mountpoint.join("root/volumes");
+    let volume_path = recovery.as_ref().join("root/volumes");
     let total_bytes = AtomicU64::new(0);
     for (pkg_id, _) in &packages {
         let volume_src_path = volume_path.join(&pkg_id);
@@ -409,9 +399,11 @@ async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), 
         let icon_leaf = AsRef::<Path>::as_ref(&pkg_id)
             .join(info.version.as_str())
             .join("icon.png");
-        let icon_src_path = tmp_mountpoint
+        let icon_src_path = recovery
+            .as_ref()
             .join("root/agent/icons")
             .join(format!("{}.png", pkg_id));
+        // TODO: tor address
         let icon_dst_path = ctx.datadir.join(PKG_PUBLIC_DIR).join(&icon_leaf);
         if let Some(parent) = icon_dst_path.parent() {
             tokio::fs::create_dir_all(&parent)
@@ -423,7 +415,11 @@ async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), 
             .with_ctx(|_| {
                 (
                     crate::ErrorKind::Filesystem,
-                    format!("{} -> {}", icon_src_path.display(), icon_dst_path.display()),
+                    format!(
+                        "cp {} -> {}",
+                        icon_src_path.display(),
+                        icon_dst_path.display()
+                    ),
                 )
             })?;
         let icon_url = Path::new("/public/package-data").join(&icon_leaf);
@@ -441,16 +437,14 @@ async fn recover_v2(ctx: &SetupContext, recovery_drive: DiskInfo) -> Result<(), 
             .await?;
     }
 
-    mount_guard
-        .drop()
-        .await
-        .with_kind(crate::ErrorKind::Unknown)?
+    recovery.unmount().await?;
+    Ok(())
 }
 
 #[instrument(skip(ctx))]
 async fn recover_v3(
     ctx: &SetupContext,
-    recovery_drive: DiskInfo,
+    recovery_partition: PartitionInfo,
     recovery_password: Option<String>,
 ) -> Result<(), Error> {
     todo!()

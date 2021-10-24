@@ -11,7 +11,7 @@ use embassy::middleware::diagnostic::diagnostic;
 use embassy::net::mdns::MdnsController;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
-use embassy::status::{check_all, synchronize_all};
+use embassy::status::synchronize_all;
 use embassy::util::{daemon, Invoke};
 use embassy::{static_server, Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
@@ -190,22 +190,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         Duration::from_millis(500),
         rpc_ctx.shutdown.subscribe(),
     );
-    let health_ctx = rpc_ctx.clone();
-    let health_daemon = daemon(
-        move || {
-            let ctx = health_ctx.clone();
-            async move {
-                if let Err(e) = check_all(&ctx).await {
-                    tracing::error!("Error in Health Check daemon: {}", e);
-                    tracing::debug!("{:?}", e);
-                } else {
-                    tracing::trace!("Health Check completed successfully");
-                }
-            }
-        },
-        Duration::from_millis(500),
-        rpc_ctx.shutdown.subscribe(),
-    );
     let tor_health_ctx = rpc_ctx.clone();
     let tor_client = Client::builder()
         .proxy(
@@ -231,35 +215,49 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
     embassy::sound::MARIO_COIN.play().await?;
 
     futures::try_join!(
-        server.map_err(|e| Error::new(e, ErrorKind::Network)),
-        revision_cache_task.map_err(|e| Error::new(
-            eyre!("{}", e).wrap_err("Revision Cache daemon panicked!"),
-            ErrorKind::Unknown
-        )),
-        ws_server.map_err(|e| Error::new(e, ErrorKind::Network)),
-        file_server.map_err(|e| Error::new(e, ErrorKind::Network)),
-        status_daemon.map_err(|e| Error::new(
-            e.wrap_err("Status Sync daemon panicked!"),
-            ErrorKind::Unknown
-        )),
-        health_daemon.map_err(|e| Error::new(
-            e.wrap_err("Health Check daemon panicked!"),
-            ErrorKind::Unknown
-        )),
-        tor_health_daemon.map_err(|e| Error::new(
-            e.wrap_err("Tor Health daemon panicked!"),
-            ErrorKind::Unknown
-        )),
+        server
+            .map_err(|e| Error::new(e, ErrorKind::Network))
+            .map_ok(|_| tracing::debug!("RPC Server Shutdown")),
+        revision_cache_task
+            .map_err(|e| Error::new(
+                eyre!("{}", e).wrap_err("Revision Cache daemon panicked!"),
+                ErrorKind::Unknown
+            ))
+            .map_ok(|_| tracing::debug!("Revision Cache Shutdown")),
+        ws_server
+            .map_err(|e| Error::new(e, ErrorKind::Network))
+            .map_ok(|_| tracing::debug!("WebSocket Server Shutdown")),
+        file_server
+            .map_err(|e| Error::new(e, ErrorKind::Network))
+            .map_ok(|_| tracing::debug!("Static File Server Shutdown")),
+        status_daemon
+            .map_err(|e| Error::new(
+                e.wrap_err("Status Sync Daemon panicked!"),
+                ErrorKind::Unknown
+            ))
+            .map_ok(|_| tracing::debug!("Status Sync Daemon Shutdown")),
+        tor_health_daemon
+            .map_err(|e| Error::new(
+                e.wrap_err("Tor Health Daemon panicked!"),
+                ErrorKind::Unknown
+            ))
+            .map_ok(|_| tracing::debug!("Tor Health Daemon Shutdown")),
     )?;
+
+    let mut shutdown = shutdown_recv
+        .recv()
+        .await
+        .with_kind(crate::ErrorKind::Unknown)?;
+
+    if let Some(shutdown) = &mut shutdown {
+        drop(shutdown.db_handle.take());
+    }
 
     rpc_ctx.managers.empty().await?;
 
     sig_handler.abort();
 
-    Ok(shutdown_recv
-        .recv()
-        .await
-        .with_kind(crate::ErrorKind::Unknown)?)
+    Ok(shutdown)
 }
 
 fn main() {

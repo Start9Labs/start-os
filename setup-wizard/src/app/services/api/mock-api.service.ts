@@ -18,7 +18,7 @@ export class MockApiService extends ApiService {
   async getStatus () {
     await pauseFor(1000)
     return {
-      'product-key': true,
+      'product-key': false,
       migrating: false,
     }
   }
@@ -36,31 +36,24 @@ export class MockApiService extends ApiService {
             label: 'label 1',
             capacity: 100000,
             used: 200.1255312,
+            'embassy-os': null,
           },
           {
             logicalname: 'sda2',
             label: 'label 2',
             capacity: 50000,
             used: 200.1255312,
+            'embassy-os': null,
           },
         ],
         capacity: 150000,
-        'embassy-os': null,
       },
       {
         vendor: 'Vendor',
         model: 'Model',
         logicalname: 'dev/sdb',
-        partitions: [
-          // {
-          //   logicalname: 'sdb1',
-          //   label: null,
-          //   capacity: 1600.01234,
-          //   used: 0.00,
-          // }
-        ],
+        partitions: [],
         capacity: 1600.01234,
-        'embassy-os': null,
       },
       {
         vendor: 'Vendor',
@@ -72,12 +65,36 @@ export class MockApiService extends ApiService {
             label: 'label 1',
             capacity: null,
             used: null,
+            'embassy-os': {
+              version: '0.3.3',
+              full: true,
+              'password-hash': 'asdfasdfasdf',
+            },
+          },
+          {
+            logicalname: 'sdc1MOCKTESTER',
+            label: 'label 1',
+            capacity: null,
+            used: null,
+            'embassy-os': {
+              version: '0.3.6',
+              full: true,
+              'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+            },
+          },
+          {
+            logicalname: 'sdc1',
+            label: 'label 1',
+            capacity: null,
+            used: null,
+            'embassy-os': {
+              version: '0.3.3',
+              full: false,
+              'password-hash': 'asdfasdfasdf',
+            },
           },
         ],
         capacity: 100000,
-        'embassy-os': {
-          version: '0.3.3',
-        },
       },
       {
         vendor: 'Vendor',
@@ -89,12 +106,14 @@ export class MockApiService extends ApiService {
             label: null,
             capacity: 10000,
             used: null,
+            'embassy-os': {
+              version: '0.2.7',
+              full: true,
+              'password-hash': 'asdfasdfasdf',
+            },
           },
         ],
         capacity: 10000,
-        'embassy-os': {
-          version: '0.2.7',
-        },
       },
     ]
   }

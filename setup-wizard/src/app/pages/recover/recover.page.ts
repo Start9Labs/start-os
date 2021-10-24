@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { ModalController, NavController } from '@ionic/angular'
-import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
+import { ApiService, PartitionInfo } from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
@@ -14,8 +14,8 @@ import { ProdKeyModal } from '../prod-key-modal/prod-key-modal.page'
 export class RecoverPage {
   passwords = { }
   prodKeys = { }
-  recoveryDrives = []
-  selectedDrive: DiskInfo = null
+  recoveryPartitions: { partition: PartitionInfo, model: string, vendor: string }[] = []
+  selectedPartition: PartitionInfo = null
   loading = true
 
   constructor (
@@ -27,26 +27,25 @@ export class RecoverPage {
   ) { }
 
   async ngOnInit () {
-    await this.getDrives()
+    await this.getPartitions()
   }
 
   async refresh () {
-    this.recoveryDrives = []
-    this.selectedDrive = null
+    this.recoveryPartitions = []
+    this.selectedPartition = null
     this.loading = true
-    await this.getDrives()
+    await this.getPartitions()
   }
 
-  async getDrives () {
+  async getPartitions () {
     try {
-      let drives = (await this.apiService.getDrives()).filter(d => !!d['embassy-os'])
+      let drives = (await this.apiService.getDrives())
 
+      this.recoveryPartitions = drives.map(d => d.partitions.map(p => ({ partition: p, vendor: d.vendor, model: d.model})).filter(p => p.partition['embassy-os']?.full)).flat()
+      // if theres no product key, only show 0.2s
       if (!this.stateService.hasProductKey) {
-        drives = drives.filter(d => d['embassy-os'].version.startsWith('0.2'))
+        this.recoveryPartitions = this.recoveryPartitions.filter(p => p.partition['embassy-os']?.version.startsWith('0.2'))
       }
-
-      this.recoveryDrives = drives
-
     } catch (e) {
       this.errorToastService.present(`${e.message}: ${e.data}`)
     } finally {
@@ -54,30 +53,29 @@ export class RecoverPage {
     }
   }
 
-  async chooseDrive (drive: DiskInfo) {
-
-    if (this.selectedDrive?.logicalname === drive.logicalname) {
-      this.selectedDrive = null
+  async choosePartition (partition: PartitionInfo) {
+    if (this.selectedPartition?.logicalname === partition.logicalname) {
+      this.selectedPartition = null
       return
     } else {
-      this.selectedDrive = drive
+      this.selectedPartition = partition
     }
 
-    if ((drive['embassy-os'].version.startsWith('0.2') && this.stateService.hasProductKey) || this.passwords[drive.logicalname] || this.prodKeys[drive.logicalname]) return
+    if ((partition['embassy-os'].version.startsWith('0.2') && this.stateService.hasProductKey) || this.passwords[partition.logicalname] || this.prodKeys[partition.logicalname]) return
 
     if (this.stateService.hasProductKey) {
       const modal = await this.modalController.create({
         component: PasswordPage,
         componentProps: {
-          recoveryDrive: this.selectedDrive,
+          recoveryPartition: this.selectedPartition,
         },
         cssClass: 'alertlike-modal',
       })
       modal.onDidDismiss().then(async ret => {
         if (!ret.data) {
-          this.selectedDrive = null
+          this.selectedPartition = null
         } else if (ret.data.password) {
-          this.passwords[drive.logicalname] = ret.data.password
+          this.passwords[partition.logicalname] = ret.data.password
         }
 
       })
@@ -86,15 +84,15 @@ export class RecoverPage {
       const modal = await this.modalController.create({
         component: ProdKeyModal,
         componentProps: {
-          recoveryDrive: this.selectedDrive,
+          recoveryPartition: this.selectedPartition,
         },
         cssClass: 'alertlike-modal',
       })
       modal.onDidDismiss().then(async ret => {
         if (!ret.data) {
-          this.selectedDrive = null
+          this.selectedPartition = null
         } else if (ret.data.productKey) {
-          this.prodKeys[drive.logicalname] = ret.data.productKey
+          this.prodKeys[partition.logicalname] = ret.data.productKey
         }
 
       })
@@ -102,9 +100,9 @@ export class RecoverPage {
     }
   }
 
-  async selectRecoveryDrive () {
-    this.stateService.recoveryDrive = this.selectedDrive
-    const pw = this.passwords[this.selectedDrive.logicalname]
+  async selectRecoveryPartition () {
+    this.stateService.recoveryPartition = this.selectedPartition
+    const pw = this.passwords[this.selectedPartition.logicalname]
     if (pw) {
       this.stateService.recoveryPassword = pw
     }

@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
+use emver::VersionRange;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
@@ -15,6 +17,7 @@ use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
 use crate::util::Version;
+use crate::version::{Current, VersionT};
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -34,7 +37,15 @@ impl Database {
         Database {
             server_info: ServerInfo {
                 id,
-                version: emver::Version::new(0, 3, 0, 0).into(),
+                version: Current::new().semver().into(),
+                last_backup: None,
+                eos_version_compat: VersionRange::Conj(
+                    Box::new(VersionRange::Anchor(
+                        emver::GTE,
+                        emver::Version::new(0, 3, 0, 0),
+                    )),
+                    Box::new(VersionRange::Anchor(emver::LTE, Current::new().semver())),
+                ),
                 lan_address: format!("https://{}.local", hostname).parse().unwrap(),
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()
@@ -73,6 +84,8 @@ impl DatabaseModel {
 pub struct ServerInfo {
     pub id: String,
     pub version: Version,
+    pub last_backup: Option<DateTime<Utc>>,
+    pub eos_version_compat: VersionRange,
     pub lan_address: Url,
     pub tor_address: Url,
     pub status: ServerStatus,
@@ -191,6 +204,26 @@ pub enum PackageDataEntry {
         installed: InstalledPackageDataEntry,
     },
 }
+impl PackageDataEntry {
+    pub fn installed(&self) -> Option<&InstalledPackageDataEntry> {
+        match self {
+            Self::Installing { .. } | Self::Removing { .. } => None,
+            Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
+        }
+    }
+    pub fn installed_mut(&mut self) -> Option<&mut InstalledPackageDataEntry> {
+        match self {
+            Self::Installing { .. } | Self::Removing { .. } => None,
+            Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
+        }
+    }
+    pub fn into_installed(self) -> Option<InstalledPackageDataEntry> {
+        match self {
+            Self::Installing { .. } | Self::Removing { .. } => None,
+            Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
+        }
+    }
+}
 impl PackageDataEntryModel {
     pub fn installed(self) -> OptionModel<InstalledPackageDataEntry> {
         self.0.child("installed").into()
@@ -210,6 +243,7 @@ pub struct InstalledPackageDataEntry {
     pub status: Status,
     #[model]
     pub manifest: Manifest,
+    pub last_backup: Option<DateTime<Utc>>,
     pub system_pointers: Vec<SystemPointerSpec>,
     #[model]
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,

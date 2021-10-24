@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -10,11 +10,12 @@ use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
+use crate::backup::BackupReport;
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;
 use crate::s9pk::manifest::PackageId;
 use crate::util::{display_none, display_serializable};
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, ResultExt};
 
 #[command(subcommands(list, delete, delete_before, create))]
 pub async fn notification() -> Result<(), Error> {
@@ -150,7 +151,7 @@ pub async fn create(
             level,
             title,
             message,
-            NotificationSubtype::General,
+            (),
             None,
         )
         .await
@@ -213,54 +214,17 @@ pub struct Notification {
     data: serde_json::Value,
 }
 
-#[derive(Debug)]
-pub enum NotificationSubtype {
-    General,
-    BackupReport {
-        server_attempted: bool,
-        server_error: Option<String>,
-        packages: BTreeMap<String, Option<String>>,
-    },
+pub trait NotificationType:
+    serde::Serialize + for<'de> serde::Deserialize<'de> + std::fmt::Debug
+{
+    const CODE: u32;
 }
-impl NotificationSubtype {
-    fn to_json(&self) -> serde_json::Value {
-        match self {
-            NotificationSubtype::General => serde_json::Value::Null,
-            NotificationSubtype::BackupReport {
-                server_attempted,
-                server_error,
-                packages,
-            } => {
-                let mut pkgs_map = serde_json::Map::new();
-                for (k, v) in packages.iter() {
-                    pkgs_map.insert(
-                        k.clone(),
-                        match v {
-                            None => serde_json::json!({ "error": serde_json::Value::Null }),
-                            Some(x) => serde_json::json!({ "error": x }),
-                        },
-                    );
-                }
-                serde_json::json!({
-                    "server": {
-                        "attempted": server_attempted,
-                        "error": server_error,
-                    },
-                    "packages": serde_json::Value::Object(pkgs_map)
-                })
-            }
-        }
-    }
-    fn code(&self) -> u32 {
-        match self {
-            Self::General => 0,
-            Self::BackupReport {
-                server_attempted: _,
-                server_error: _,
-                packages: _,
-            } => 1,
-        }
-    }
+
+impl NotificationType for () {
+    const CODE: u32 = 0;
+}
+impl NotificationType for BackupReport {
+    const CODE: u32 = 1;
 }
 
 pub struct NotificationManager {
@@ -275,14 +239,14 @@ impl NotificationManager {
         }
     }
     #[instrument(skip(self, db))]
-    pub async fn notify<Db: DbHandle>(
+    pub async fn notify<Db: DbHandle, T: NotificationType>(
         &self,
         db: &mut Db,
         package_id: Option<PackageId>,
         level: NotificationLevel,
         title: String,
         message: String,
-        subtype: NotificationSubtype,
+        subtype: T,
         debounce_interval: Option<u32>,
     ) -> Result<(), Error> {
         if !self
@@ -297,9 +261,10 @@ impl NotificationManager {
             .get_mut(db)
             .await?;
         let sql_package_id = package_id.map::<String, _>(|p| p.into());
-        let sql_code = subtype.code();
+        let sql_code = T::CODE;
         let sql_level = format!("{}", level);
-        let sql_data = format!("{}", subtype.to_json());
+        let sql_data =
+            serde_json::to_string(&subtype).with_kind(crate::ErrorKind::Serialization)?;
         sqlx::query!(
         "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES (?, ?, ?, ?, ?, ?)",
         sql_package_id,

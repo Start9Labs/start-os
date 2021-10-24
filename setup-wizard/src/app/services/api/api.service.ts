@@ -19,7 +19,7 @@ export interface GetStatusRes {
 export interface SetupEmbassyReq {
   'embassy-logicalname': string
   'embassy-password': string
-  'recovery-drive'?: DiskInfo
+  'recovery-partition'?: PartitionInfo
   'recovery-password'?: string
 }
 
@@ -34,7 +34,6 @@ export interface DiskInfo {
   model: string | null,
   partitions: PartitionInfo[],
   capacity: number,
-  'embassy-os': EmbassyOsDiskInfo | null,
 }
 
 export interface RecoveryStatusRes {
@@ -42,13 +41,16 @@ export interface RecoveryStatusRes {
   'total-bytes': number
 }
 
-interface PartitionInfo {
+export interface PartitionInfo {
   logicalname: string,
   label: string | null,
   capacity: number,
   used: number | null,
+  'embassy-os': EmbassyOsRecoveryInfo | null,
 }
 
-interface EmbassyOsDiskInfo {
+export interface EmbassyOsRecoveryInfo {
   version: string,
+  full: boolean, // contains full embassy backup
+  'password-hash': string | null, // null for 0.2.x
 }

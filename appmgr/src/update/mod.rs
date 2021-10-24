@@ -25,7 +25,7 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::db::model::{ServerStatus, UpdateProgress};
 use crate::db::util::WithRevision;
-use crate::notifications::{NotificationLevel, NotificationSubtype};
+use crate::notifications::NotificationLevel;
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
@@ -213,7 +213,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
                 crate::ErrorKind::InvalidRequest,
             ))
         }
-        _ => (),
+        ServerStatus::Running => (),
     }
 
     let mounted_boot = mount_label(Boot).await?;
@@ -259,7 +259,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
                         NotificationLevel::Error,
                         "EmbassyOS Update Failed".to_owned(),
                         format!("Update was not successful because of {}", e),
-                        NotificationSubtype::General,
+                        (),
                         None,
                     )
                     .await
