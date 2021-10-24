@@ -320,6 +320,7 @@ impl Manager {
                                 String::from("Service Crashed"),
                                 format!("The service {} has crashed with the following exit code: {}\nDetails: {}", thread_shared.manifest.id.clone(), e.0, e.1),
                                 NotificationSubtype::General,
+                                Some(900) // 15 minutes
                             )
                             .await;
                         match res {
