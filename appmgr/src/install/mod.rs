@@ -6,6 +6,20 @@ use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use color_eyre::eyre::{self, eyre};
+use emver::VersionRange;
+use futures::future::BoxFuture;
+use futures::{FutureExt, StreamExt, TryStreamExt};
+use http::StatusCode;
+use patch_db::{DbHandle, LockType};
+use reqwest::Response;
+use rpc_toolkit::command;
+use tokio::fs::{DirEntry, File, OpenOptions};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
+use tokio::process::Command;
+use tokio_stream::wrappers::ReadDirStream;
+use tracing::instrument;
+
 use self::cleanup::cleanup_failed;
 use crate::context::RpcContext;
 use crate::db::model::{
@@ -26,19 +40,6 @@ use crate::util::io::copy_and_shutdown;
 use crate::util::{display_none, display_serializable, AsyncFileExt, Version};
 use crate::volume::asset_dir;
 use crate::{Error, ResultExt};
-use color_eyre::eyre::{self, eyre};
-use emver::VersionRange;
-use futures::future::BoxFuture;
-use futures::{FutureExt, StreamExt, TryStreamExt};
-use http::StatusCode;
-use patch_db::{DbHandle, LockType};
-use reqwest::Response;
-use rpc_toolkit::command;
-use tokio::fs::{DirEntry, File, OpenOptions};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
-use tokio::process::Command;
-use tokio_stream::wrappers::ReadDirStream;
-use tracing::instrument;
 
 pub mod cleanup;
 pub mod progress;
@@ -47,6 +48,26 @@ pub const PKG_CACHE: &'static str = "package-data/cache";
 pub const PKG_PUBLIC_DIR: &'static str = "package-data/public";
 pub const PKG_DOCKER_DIR: &'static str = "package-data/docker";
 pub const PKG_WASM_DIR: &'static str = "package-data/wasm";
+
+#[command(display(display_serializable))]
+pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)>, Error> {
+    let mut hdl = ctx.db.handle();
+    let package_data = crate::db::DatabaseModel::new()
+        .package_data()
+        .get(&mut hdl, true)
+        .await?;
+
+    Ok(package_data
+        .0
+        .iter()
+        .filter_map(|(id, pde)| match pde {
+            PackageDataEntry::Installed { installed, .. } => {
+                Some((id.clone(), installed.manifest.version.clone()))
+            }
+            _ => None,
+        })
+        .collect())
+}
 
 #[command(display(display_none))]
 #[instrument(skip(ctx))]
