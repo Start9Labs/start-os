@@ -990,6 +990,7 @@ export module Mock {
         },
       ],
       capacity: 1000000000000,
+      internal: true,
     },
     {
       logicalname: '/dev/sdb',
@@ -1015,6 +1016,7 @@ export module Mock {
         },
       ],
       capacity: 10000000000,
+      internal: false,
     },
   ]
 
@@ -1023,7 +1025,14 @@ export module Mock {
     timestamp: new Date().toISOString(),
     'package-backups': {
       bitcoind: {
+        title: 'Bitcoin Core',
         version: '0.21.0',
+        'os-version': '0.3.0',
+        timestamp: new Date().toISOString(),
+      },
+      'btc-rpc-proxy': {
+        title: 'Bitcoin Proxy',
+        version: '0.2.2',
         'os-version': '0.3.0',
         timestamp: new Date().toISOString(),
       },
@@ -1614,11 +1623,9 @@ export module Mock {
     installed: {
       'last-backup': null,
       status: {
-        configured: true,
+        configured: false,
         main: {
-          status: PackageMainStatus.Running,
-          started: new Date().toISOString(),
-          health: { },
+          status: PackageMainStatus.Stopped,
         },
         'dependency-errors': { },
       },

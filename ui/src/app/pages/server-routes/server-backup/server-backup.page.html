@@ -1,8 +1,8 @@
 <!-- not backing up -->
 <ng-container *ngIf="!backingUp">
-  <backup-drives-header type="backup" (onClose)="back()"></backup-drives-header>
+  <backup-drives-header title="Create Backup"></backup-drives-header>
   <ion-content class="ion-padding-top">
-    <backup-drives type="backup" (onSelect)="presentModal($event)"></backup-drives>
+    <backup-drives type="backup" (onSelect)="presentModalPassword($event)"></backup-drives>
   </ion-content>
 </ng-container>
 

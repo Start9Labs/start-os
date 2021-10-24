@@ -49,8 +49,8 @@
     </ion-item>
     <!-- ** installed ** -->
     <ng-container *ngIf="pkg.state === PackageState.Installed">
-      <!-- ** !restoring/backing-up ** -->
-      <ng-container *ngIf="!([PS.BackingUp, PS.Restoring] | includes : statuses.primary)">
+      <!-- ** !backing-up ** -->
+      <ng-container *ngIf="statuses.primary !== PS.BackingUp">
         <!-- ** health checks ** -->
         <ng-container *ngIf="statuses.primary === PS.Running && !(healthChecks | empty)">
           <ion-item-divider>Health Checks</ion-item-divider>
@@ -126,8 +126,8 @@
     </ng-container>
   </ion-item-group>
 
-  <!-- ** installing or updating ** -->
-  <div *ngIf="([PackageState.Installing, PackageState.Updating] | includes : pkg.state) && installProgress" style="padding: 16px;">
+  <!-- ** installing, updating, restoring ** -->
+  <div *ngIf="([PackageState.Installing, PackageState.Updating, PackageState.Restoring] | includes : pkg.state) && installProgress" style="padding: 16px;">
     <p>Downloading: {{ installProgress.downloadProgress }}%</p>
     <ion-progress-bar
       [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'"

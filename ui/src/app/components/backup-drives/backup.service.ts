@@ -23,7 +23,9 @@ export class BackupService {
 
     try {
       const drives = await this.embassyApi.getDrives({ })
-      this.drives = drives.map(d => {
+      this.drives = drives
+      .filter(d => !d.internal)
+      .map(d => {
         const partionInfo: MappedPartitionInfo[] = d.partitions.map(p => {
           return {
             ...p,

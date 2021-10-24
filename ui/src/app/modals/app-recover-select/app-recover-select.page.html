@@ -1,0 +1,42 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Select Services to Recover</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-item-group>
+    <ion-item *ngFor="let option of options">
+      <ion-label>
+        <h2>{{ option.title }}</h2>
+        <p>Version {{ option.version }}</p>
+        <p>Backup made: {{ option.timestamp | date : 'short' }}</p>
+        <p *ngIf="!option.installed && !option['newer-eos']">
+          <ion-text color="success">Ready to recover</ion-text>
+        </p>
+        <p *ngIf="option.installed">
+          <ion-text color="warning">Unavailable. {{ option.title }} is already installed.</ion-text>
+        </p>
+        <p *ngIf="option['newer-eos']">
+          <ion-text color="danger">Unavailable. Backup was made on a newer version of EmbassyOS.</ion-text>
+        </p>
+      </ion-label>
+      <ion-checkbox slot="end" [(ngModel)]="option.checked" [disabled]="option.installed || option['newer-eos']" (ionChange)="handleChange()"></ion-checkbox>
+    </ion-item>
+  </ion-item-group>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button [disabled]="!hasSelection" fill="outline" (click)="recover()" class="enter-click">
+        Recover Selected
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>

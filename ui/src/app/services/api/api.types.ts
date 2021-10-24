@@ -157,8 +157,8 @@ export module RR {
   export type SetPackageConfigReq = WithExpire<DrySetPackageConfigReq> // package.config.set
   export type SetPackageConfigRes = WithRevision<null>
 
-  export type RestorePackageReq = WithExpire<{ id: string, logicalname: string, password: string }> // package.backup.restore
-  export type RestorePackageRes = WithRevision<null>
+  export type RestorePackagesReq = WithExpire<{ ids: string[], logicalname: string, password: string }> // package.backup.restore
+  export type RestorePackagesRes = WithRevision<null>
 
   export type ExecutePackageActionReq = { id: string, 'action-id': string, input?: object } // package.action
   export type ExecutePackageActionRes = ActionResponse
@@ -300,6 +300,7 @@ export interface DriveInfo {
   model: string | null
   partitions: PartitionInfo[]
   capacity: number
+  internal: boolean
 }
 
 export interface PartitionInfo {
@@ -319,12 +320,15 @@ export interface BackupInfo {
   version: string,
   timestamp: string,
   'package-backups': {
-    [id: string]: {
-      version: string
-      'os-version': string
-      timestamp: string
-    }
+    [id: string]: PackageBackupInfo
   }
+}
+
+export interface PackageBackupInfo {
+  title: string
+  version: string
+  'os-version': string
+  timestamp: string
 }
 
 export interface ServerSpecs {

@@ -369,7 +369,7 @@ export class AppShowPage {
       {
         action: () => this.navCtrl.navigateForward(['actions'], { relativeTo: this.route }),
         title: 'Actions',
-        description: `Uninstall, recover from backup, and other commands specific to ${pkgTitle}`,
+        description: `Uninstall and other commands specific to ${pkgTitle}`,
         icon: 'flash-outline',
         color: 'danger',
       },

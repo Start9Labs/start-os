@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ModalController, NavController } from '@ionic/angular'
+import { ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
 import { MappedPartitionInfo } from 'src/app/util/misc.util'
@@ -19,7 +19,6 @@ export class ServerBackupPage {
   subs: Subscription[]
 
   constructor (
-    private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly patch: PatchDbService,
@@ -44,11 +43,7 @@ export class ServerBackupPage {
     this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
   }
 
-  back () {
-    this.navCtrl.back()
-  }
-
-  async presentModal (partition: MappedPartitionInfo): Promise<void> {
+  async presentModalPassword (partition: MappedPartitionInfo): Promise<void> {
     let message: string
     if (partition.hasBackup) {
       message = 'Enter your master password to decrypt this drive and update its backup. Depending on how much data was added or changed, this could be very fast, or it could take a while.'
@@ -65,7 +60,7 @@ export class ServerBackupPage {
         useMask: true,
         buttonText: 'Create Backup',
         loadingText: 'Beginning backup...',
-        submitFn: async (password: string) => await this.create(partition.logicalname, password),
+        submitFn: (password: string) => this.create(partition.logicalname, password),
       },
       cssClass: 'alertlike-modal',
       component: GenericInputComponent,
