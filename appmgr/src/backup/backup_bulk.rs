@@ -134,6 +134,7 @@ pub async fn backup_all(
                         },
                         packages: report,
                     },
+                    None,
                 )
                 .await
                 .expect("failed to send notification"),
@@ -154,6 +155,7 @@ pub async fn backup_all(
                             },
                             packages: BTreeMap::new(),
                         },
+                        None,
                     )
                     .await
                     .expect("failed to send notification");
