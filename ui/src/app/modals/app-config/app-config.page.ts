@@ -42,7 +42,7 @@ export class AppConfigPage {
   ) { }
 
   async ngOnInit () {
-    this.pkg = this.patch.data['package-data'][this.pkgId]
+    this.pkg = this.patch.getData()['package-data'][this.pkgId]
     this.hasConfig = !!this.pkg.manifest.config
 
     if (!this.hasConfig) return

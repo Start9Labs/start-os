@@ -21,7 +21,6 @@ import { ServerConfigService } from './server-config.service'
 })
 export class StartupAlertsService {
   private checks: Check<any>[]
-  data: DataModel
 
   constructor (
     private readonly alertCtrl: AlertController,
@@ -72,8 +71,7 @@ export class StartupAlertsService {
       filter(data => !isEmptyObject(data)),
       take(1),
     )
-    .subscribe(async data => {
-      this.data = data
+    .subscribe(async () => {
       await this.checks
       .filter(c => !this.config.skipStartupAlerts && c.shouldRun())
       // returning true in the below block means to continue to next modal
@@ -98,25 +96,25 @@ export class StartupAlertsService {
   // ** should run **
 
   private shouldRunOsWelcome (): boolean {
-    return this.data.ui['ack-welcome'] !== this.config.version
+    return this.patch.getData().ui['ack-welcome'] !== this.config.version
   }
   private shouldRunShareStats (): boolean {
-    return !this.data.ui['ack-share-stats']
+    return !this.patch.getData().ui['ack-share-stats']
   }
 
   private shouldRunOsUpdateCheck (): boolean {
-    return this.data.ui['auto-check-updates']
+    return this.patch.getData().ui['auto-check-updates']
   }
 
   private shouldRunAppsCheck (): boolean {
-    return this.data.ui['auto-check-updates']
+    return this.patch.getData().ui['auto-check-updates']
   }
 
   // ** check **
 
   private async osUpdateCheck (): Promise<RR.GetMarketplaceEOSRes | undefined> {
     const res = await this.api.getEos({
-      'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
+      'eos-version-compat': this.patch.getData()['server-info']['eos-version-compat'],
     })
 
     if (this.emver.compare(this.config.version, res.version) === -1) {
@@ -127,7 +125,7 @@ export class StartupAlertsService {
   }
 
   private async appsCheck (): Promise<boolean> {
-    const updates = await this.marketplaceService.getUpdates(this.data['package-data'])
+    const updates = await this.marketplaceService.getUpdates(this.patch.getData()['package-data'])
     return !!updates.length
   }
 
@@ -153,7 +151,7 @@ export class StartupAlertsService {
 
   private async displayShareStats (): Promise<boolean> {
     return new Promise(async resolve => {
-      const alert = await this.serverConfig.presentAlert('share-stats', this.data['server-info']['share-stats'])
+      const alert = await this.serverConfig.presentAlert('share-stats', this.patch.getData()['server-info']['share-stats'])
 
       alert.onDidDismiss().then(() => {
         this.api.setDbValue({ pointer: '/ack-share-stats', value: this.config.version })

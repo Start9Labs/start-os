@@ -27,7 +27,7 @@ export class MarketplaceService {
     const [data, eos, pkgs] = await Promise.all([
       this.api.getMarketplaceData({ }),
       this.api.getEos({
-        'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
+        'eos-version-compat': this.patch.getData()['server-info']['eos-version-compat'],
       }),
       this.getPkgs(1, 100),
     ])
@@ -40,7 +40,7 @@ export class MarketplaceService {
     const idAndCurrentVersions =  Object.keys(localPkgs).map(key => ({ id: key, version: localPkgs[key].manifest.version }))
     const latestPkgs = await this.api.getMarketplacePkgs({
       ids: idAndCurrentVersions,
-      'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
+      'eos-version-compat': this.patch.getData()['server-info']['eos-version-compat'],
     })
 
     return latestPkgs.filter(latestPkg => {
@@ -53,7 +53,7 @@ export class MarketplaceService {
   async getPkg (id: string, version?: string): Promise<MarketplacePkg> {
     const pkgs = await this.api.getMarketplacePkgs({
       ids: [{ id, version: version || '*' }],
-      'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
+      'eos-version-compat': this.patch.getData()['server-info']['eos-version-compat'],
     })
     const pkg = pkgs.find(pkg => pkg.manifest.id == id)
 
@@ -72,7 +72,7 @@ export class MarketplaceService {
     const pkgs = await this.api.getMarketplacePkgs({
       page: String(page),
       'per-page': String(perPage),
-      'eos-version-compat': this.patch.data['server-info']['eos-version-compat'],
+      'eos-version-compat': this.patch.getData()['server-info']['eos-version-compat'],
     })
 
     return pkgs

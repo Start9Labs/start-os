@@ -40,7 +40,7 @@ export class AppRecoverSelectPage {
         ...this.backupInfo['package-backups'][id],
         id,
         checked: false,
-        installed: !!this.patch.data['package-data'][id],
+        installed: !!this.patch.getData()['package-data'][id],
         'newer-eos': this.emver.compare(this.backupInfo['package-backups'][id]['os-version'], this.config.version) === 1,
       }
     })

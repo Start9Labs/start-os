@@ -12,13 +12,13 @@ npm --version
 v8.0.0
 ```
 
-### Building The Mock Development Server
+### Running The Mock Development Server
 
 `git clone https://github.com/Start9Labs/ws-example.git`
 
 `cd ws-example`
 
-**Start the server**
+`git submodule update --init --recursive`
 
 `cargo run -- -vvv -c example-config.toml`
 
@@ -36,9 +36,9 @@ v8.0.0
 
 `npm --prefix . install @ionic/cli`
 
-`npm --prefix . run build-deps`
-
 `npm --prefix . install`
+
+`npm --prefix . run build-deps`
 
 Copy `config-sample.json` to new file `config.json`
 In `config.json`, edit the "mocks" section to look like the following:
@@ -69,7 +69,7 @@ You can also enable or disable startup alerts.
 If you want to update mock data inside ws-example, you must do the following:
 
 1. Stop the ws-example server
-1. Run `rm embassy.db`
+1. In es-example, run `rm embassy.db`
 1. Delete `patch-db-cache` from your browser's Local Storage
 1. Restart ws-example
 1. Refresh the browser window
