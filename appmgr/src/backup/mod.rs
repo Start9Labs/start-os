@@ -17,12 +17,13 @@ use crate::disk::PackageBackupInfo;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{IoFormat, Version};
+use crate::util::{AtomicFile, IoFormat, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
 use crate::{Error, ResultExt};
 
 mod backup_bulk;
+mod restore;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BackupReport {
@@ -43,6 +44,11 @@ pub struct PackageBackupReport {
 
 #[command(subcommands(backup_bulk::backup_all))]
 pub fn backup() -> Result<(), Error> {
+    Ok(())
+}
+
+#[command(rename = "backup", subcommands(restore::restore_packages))]
+pub fn package_backup() -> Result<(), Error> {
     Ok(())
 }
 
@@ -124,28 +130,15 @@ impl BackupActions {
                 )
             })?;
         let timestamp = Utc::now();
-        let tmp_path = Path::new(BACKUP_DIR)
-            .join(pkg_id)
-            .join(".metadata.cbor.tmp");
-        let real_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
-        let mut outfile = File::create(&tmp_path).await?;
+        let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
+        let mut outfile = AtomicFile::new(&metadata_path).await?;
         outfile
             .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
                 timestamp,
                 tor_keys,
             })?)
             .await?;
-        outfile.flush().await?;
-        outfile.shutdown().await?;
-        outfile.sync_all().await?;
-        tokio::fs::rename(&tmp_path, &real_path)
-            .await
-            .with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    format!("mv {} -> {}", tmp_path.display(), real_path.display()),
-                )
-            })?;
+        outfile.save().await?;
         Ok(PackageBackupInfo {
             os_version: Current::new().semver().into(),
             title: pkg_title.to_owned(),

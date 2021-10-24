@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use itertools::Itertools;
 use patch_db::DbHandle;
 use tracing::instrument;
 

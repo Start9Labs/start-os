@@ -3,7 +3,6 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
 use embassy::db::subscribe;
-use embassy::hostname::get_hostname;
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;

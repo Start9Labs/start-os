@@ -12,10 +12,10 @@ impl VersionT for Version {
     fn semver(&self) -> emver::Version {
         V0_3_0
     }
-    async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn up<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn down<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {
         Ok(())
     }
 }

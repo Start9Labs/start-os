@@ -305,14 +305,15 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                             format!("cp -P {} -> {}", src_path.display(), dst_path.display()),
                         )
                     })?;
-                    tokio::fs::set_permissions(&dst_path, m.permissions())
-                        .await
-                        .with_ctx(|_| {
-                            (
-                                crate::ErrorKind::Filesystem,
-                                format!("chmod {}", dst_path.display()),
-                            )
-                        })?;
+                    // Removed (see https://unix.stackexchange.com/questions/87200/change-permissions-for-a-symbolic-link):
+                    // tokio::fs::set_permissions(&dst_path, m.permissions())
+                    //     .await
+                    //     .with_ctx(|_| {
+                    //         (
+                    //             crate::ErrorKind::Filesystem,
+                    //             format!("chmod {}", dst_path.display()),
+                    //         )
+                    //     })?;
                 }
                 Ok(())
             })
@@ -324,7 +325,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
 
 #[instrument(skip(ctx))]
 async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Result<(), Error> {
-    let recovery = TmpMountGuard::mount(&recovery_partition.logicalname).await?;
+    let recovery = TmpMountGuard::mount(&recovery_partition.logicalname, None).await?;
 
     let secret_store = ctx.secret_store().await?;
     let db = ctx.db(&secret_store).await?;
@@ -371,7 +372,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Re
     let volume_id = VolumeId::Custom(Id::try_from("main".to_owned())?);
     for (pkg_id, info) in packages {
         let volume_src_path = volume_path.join(&pkg_id);
-        let volume_dst_path = data_dir(&ctx.datadir, &pkg_id, &info.version, &volume_id);
+        let volume_dst_path = data_dir(&ctx.datadir, &pkg_id, &volume_id);
         tokio::fs::create_dir_all(&volume_dst_path)
             .await
             .with_ctx(|_| {
