@@ -155,7 +155,7 @@ export class AppListPage {
           role: 'cancel',
         },
         {
-          text: 'Execute',
+          text: 'Delete',
           handler: () => {
             execute()
           },

@@ -3,13 +3,12 @@ import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AlertController, IonContent, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { Action, Manifest, PackageDataEntry, PackageMainStatus } from 'src/app/services/patch-db/data-model'
+import { Action, PackageDataEntry, PackageMainStatus } from 'src/app/services/patch-db/data-model'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { AppRestoreComponent } from 'src/app/modals/app-restore/app-restore.component'
 import { isEmptyObject } from 'src/app/util/misc.util'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 
@@ -118,21 +117,6 @@ export class AppActionsPage {
       })
       await alert.present()
     }
-  }
-
-  async restore (): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      componentProps: {
-        pkg: this.pkg,
-      },
-      component: AppRestoreComponent,
-    })
-
-    modal.onWillDismiss().then(res => {
-      if (res.role === 'success') this.navCtrl.back()
-    })
-
-    await modal.present()
   }
 
   async uninstall () {

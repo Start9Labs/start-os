@@ -105,6 +105,22 @@ export class ServerShowPage {
 
   private setButtons (): void {
     this.settings = {
+      'Backups': [
+        {
+          title: 'Create Backup',
+          description: 'Back up your Embassy and all its services',
+          icon: 'save-outline',
+          action: () => this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
+          detail: true,
+        },
+        {
+          title: 'Restore From Backup',
+          description: 'Restore one or more services from a prior backup',
+          icon: 'color-wand-outline',
+          action: () => this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
+          detail: true,
+        },
+      ],
       'Insights': [
         {
           title: 'About',

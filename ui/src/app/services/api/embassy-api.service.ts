@@ -154,9 +154,9 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     () => this.setPackageConfigRaw(params),
   )()
 
-  protected abstract restorePackageRaw (params: RR.RestorePackageReq): Promise<RR.RestorePackageRes>
-  restorePackage = (params: RR.RestorePackageReq) => this.syncResponse(
-    () => this.restorePackageRaw(params),
+  protected abstract restorePackagesRaw (params: RR.RestorePackagesReq): Promise<RR.RestorePackagesRes>
+  restorePackages = (params: RR.RestorePackagesReq) => this.syncResponse(
+    () => this.restorePackagesRaw(params),
   )()
 
   abstract executePackageAction (params: RR.ExecutePackageActionReq): Promise<RR.ExecutePackageActionRes>

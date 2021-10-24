@@ -8,6 +8,7 @@ import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import { HttpService } from '../http.service'
 import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
+import { Operation } from 'fast-json-patch'
 
 @Injectable()
 export class MockApiService extends ApiService {
@@ -413,28 +414,38 @@ export class MockApiService extends ApiService {
     return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   }
 
-  async restorePackageRaw (params: RR.RestorePackageReq): Promise<RR.RestorePackageRes> {
+  async restorePackagesRaw (params: RR.RestorePackagesReq): Promise<RR.RestorePackagesRes> {
     await pauseFor(2000)
-    const path = `/package-data/${params.id}/installed/status/main/status`
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path,
-        value: PackageMainStatus.Restoring,
-      },
-    ]
-    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    setTimeout(() => {
-      const patch = [
-        {
-          op: PatchOp.REPLACE,
-          path,
-          value: PackageMainStatus.Stopped,
-        },
-      ]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    }, this.revertTime)
-    return res
+    const patch: Operation[] = params.ids.map(id => {
+
+      const initialProgress: InstallProgress = {
+        size: 120,
+        downloaded: 120,
+        'download-complete': true,
+        validated: 0,
+        'validation-complete': false,
+        unpacked: 0,
+        'unpack-complete': false,
+      }
+
+      const pkg: PackageDataEntry = {
+        ...Mock.LocalPkgs[id],
+        state: PackageState.Restoring,
+        'install-progress': initialProgress,
+        installed: undefined,
+      }
+
+      setTimeout(async () => {
+        this.updateProgress(id, initialProgress)
+      }, 2000)
+
+      return {
+        op: 'add',
+        path: `/package-data/${id}`,
+        value: pkg,
+      }
+    })
+    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
   }
 
   async executePackageAction (params: RR.ExecutePackageActionReq): Promise<RR.ExecutePackageActionRes> {

@@ -95,6 +95,7 @@ export enum PackageState {
   Installed = 'installed',
   Updating = 'updating',
   Removing = 'removing',
+  Restoring = 'restoring',
 }
 
 export interface Manifest {
@@ -235,7 +236,7 @@ export interface Status {
   'dependency-errors': { [id: string]: DependencyError | null }
 }
 
-export type MainStatus = MainStatusStopped | MainStatusStopping | MainStatusRunning | MainStatusBackingUp | MainStatusRestoring
+export type MainStatus = MainStatusStopped | MainStatusStopping | MainStatusRunning | MainStatusBackingUp
 
 export interface MainStatusStopped {
   status: PackageMainStatus.Stopped
@@ -256,17 +257,11 @@ export interface MainStatusBackingUp {
   started: string | null // UTC date string
 }
 
-export interface MainStatusRestoring {
-  status: PackageMainStatus.Restoring
-  running: boolean
-}
-
 export enum PackageMainStatus {
   Running = 'running',
   Stopping = 'stopping',
   Stopped = 'stopped',
   BackingUp = 'backing-up',
-  Restoring = 'restoring',
 }
 
 export type HealthCheckResult = HealthCheckResultStarting |

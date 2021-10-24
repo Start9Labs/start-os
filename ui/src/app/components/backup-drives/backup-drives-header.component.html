@@ -1,9 +1,7 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-button (click)="close()">
-        <ion-icon [name]="type === 'backup' ? 'arrow-back' : 'close'"></ion-icon>
-      </ion-button>
+      <pwa-back-button></pwa-back-button>
     </ion-buttons>
     <ion-title>{{ title }}</ion-title>
     <ion-buttons slot="end">

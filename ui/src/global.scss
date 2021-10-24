@@ -289,18 +289,9 @@ ion-loading {
 }
 
 .dots {
-  vertical-align: middle;
-  margin-left: 8px;
-}
-
-.dots-small {
-  width: 12px !important;
-  height: 12px !important;
-}
-
-.dots-medium {
-  width: 16px !important;
-  height: 16px !important;
+  vertical-align: top;
+  margin-left: 2px;
+  margin-right: 2px;
 }
 
 h2 {

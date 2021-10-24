@@ -236,8 +236,8 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'package.config.set', params })
   }
 
-  async restorePackageRaw (params: RR.RestorePackageReq): Promise <RR.RestorePackageRes> {
-    return this.http.rpcRequest({ method: 'package.restore', params })
+  async restorePackagesRaw (params: RR.RestorePackagesReq): Promise <RR.RestorePackagesRes> {
+    return this.http.rpcRequest({ method: 'package.backup.restore', params })
   }
 
   async executePackageAction (params: RR.ExecutePackageActionReq): Promise <RR.ExecutePackageActionRes> {

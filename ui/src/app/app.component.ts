@@ -28,7 +28,7 @@ export class AppComponent {
   handleKeyboardEvent () {
     const elems = document.getElementsByClassName('enter-click')
     const elem = elems[elems.length - 1] as HTMLButtonElement
-    if (!elem || elem.classList.contains('no-click')) return
+    if (!elem || elem.classList.contains('no-click') || elem.disabled) return
     if (elem) elem.click()
   }
 

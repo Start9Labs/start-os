@@ -19,7 +19,7 @@ export class GenericInputComponent {
   @Input() useMask = false
   @Input() value = ''
   @Input() loadingText = ''
-  @Input() submitFn: (value: string, loader?: HTMLIonLoadingElement) => Promise<any>
+  @Input() submitFn: (value: string) => Promise<any>
   unmasked = false
   error: string | IonicSafeString
 
@@ -41,7 +41,11 @@ export class GenericInputComponent {
   }
 
   async submit () {
-    // @TODO validate input?
+    const value = this.value.trim()
+
+    if (!value && !this.nullable) {
+      return
+    }
 
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
@@ -51,7 +55,7 @@ export class GenericInputComponent {
     await loader.present()
 
     try {
-      await this.submitFn(this.value, loader)
+      await this.submitFn(value)
       this.modalCtrl.dismiss(undefined, 'success')
     } catch (e) {
       this.error = getErrorMessage(e)
