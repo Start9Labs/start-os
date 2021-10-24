@@ -6,6 +6,20 @@ use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use color_eyre::eyre::{self, eyre};
+use emver::VersionRange;
+use futures::future::BoxFuture;
+use futures::{FutureExt, StreamExt, TryStreamExt};
+use http::StatusCode;
+use patch_db::{DbHandle, LockType};
+use reqwest::Response;
+use rpc_toolkit::command;
+use tokio::fs::{DirEntry, File, OpenOptions};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
+use tokio::process::Command;
+use tokio_stream::wrappers::ReadDirStream;
+use tracing::instrument;
+
 use self::cleanup::cleanup_failed;
 use crate::context::RpcContext;
 use crate::db::model::{
@@ -26,19 +40,6 @@ use crate::util::io::copy_and_shutdown;
 use crate::util::{display_none, display_serializable, AsyncFileExt, Version};
 use crate::volume::asset_dir;
 use crate::{Error, ResultExt};
-use color_eyre::eyre::{self, eyre};
-use emver::VersionRange;
-use futures::future::BoxFuture;
-use futures::{FutureExt, StreamExt, TryStreamExt};
-use http::StatusCode;
-use patch_db::{DbHandle, LockType};
-use reqwest::Response;
-use rpc_toolkit::command;
-use tokio::fs::{DirEntry, File, OpenOptions};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
-use tokio::process::Command;
-use tokio_stream::wrappers::ReadDirStream;
-use tracing::instrument;
 
 pub mod cleanup;
 pub mod progress;
@@ -594,6 +595,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         }
         deps
     };
+    let mut pde = model
+        .clone()
+        .expect(&mut tx)
+        .await?
+        .get_mut(&mut tx)
+        .await?;
     let installed = InstalledPackageDataEntry {
         status: Status {
             configured: manifest.config.is_none(),
@@ -601,18 +608,23 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             dependency_errors: DependencyErrors::default(),
         },
         manifest: manifest.clone(),
+        last_backup: match &*pde {
+            PackageDataEntry::Updating {
+                installed:
+                    InstalledPackageDataEntry {
+                        last_backup: Some(time),
+                        ..
+                    },
+                ..
+            } => Some(*time),
+            _ => None,
+        },
         system_pointers: Vec::new(),
         dependency_info,
         current_dependents: current_dependents.clone(),
         current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
-    let mut pde = model
-        .clone()
-        .expect(&mut tx)
-        .await?
-        .get_mut(&mut tx)
-        .await?;
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {
