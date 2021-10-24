@@ -260,6 +260,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
                         "EmbassyOS Update Failed".to_owned(),
                         format!("Update was not successful because of {}", e),
                         NotificationSubtype::General,
+                        None,
                     )
                     .await
                     .expect("")
