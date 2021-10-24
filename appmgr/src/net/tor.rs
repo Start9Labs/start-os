@@ -113,6 +113,10 @@ impl TorController {
         self.0.lock().await.replace().await
     }
 
+    pub async fn embassyd_tor_key(&self) -> TorSecretKeyV3 {
+        self.0.lock().await.embassyd_tor_key.clone()
+    }
+
     pub async fn embassyd_onion(&self) -> OnionAddressV3 {
         self.0.lock().await.embassyd_onion()
     }

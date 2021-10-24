@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use color_eyre::eyre::{eyre, ErrReport};
+use color_eyre::eyre::eyre;
 use patch_db::Revision;
 use rpc_toolkit::yajrc::RpcError;
 
@@ -12,7 +12,7 @@ pub enum ErrorKind {
     ConfigSpecViolation = 4,
     ConfigRulesViolation = 5,
     NotFound = 6,
-    InvalidPassword = 7, // REMOVE
+    IncorrectPassword = 7,
     VersionIncompatible = 8,
     Network = 9,
     Registry = 10,
@@ -70,7 +70,7 @@ impl ErrorKind {
             ConfigSpecViolation => "Config Spec Violation",
             ConfigRulesViolation => "Config Rules Violation",
             NotFound => "Not Found",
-            InvalidPassword => "Invalid Password",
+            IncorrectPassword => "Incorrect Password",
             VersionIncompatible => "Version Incompatible",
             Network => "Network Error",
             Registry => "Registry Error",

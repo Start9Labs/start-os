@@ -4,12 +4,12 @@ use std::marker::PhantomData;
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use http::HeaderValue;
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sqlx::{Executor, Sqlite};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
@@ -65,6 +65,32 @@ async fn cli_login(
     Ok(())
 }
 
+pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
+    ensure_code!(
+        argon2::verify_encoded(&hash, password.as_bytes()).map_err(|_| {
+            Error::new(
+                eyre!("Password Incorrect"),
+                crate::ErrorKind::IncorrectPassword,
+            )
+        })?,
+        crate::ErrorKind::IncorrectPassword,
+        "Password Incorrect"
+    );
+    Ok(())
+}
+
+pub async fn check_password_against_db<Ex>(secrets: &mut Ex, password: &str) -> Result<(), Error>
+where
+    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+{
+    let pw_hash = sqlx::query!("SELECT password FROM account")
+        .fetch_one(secrets)
+        .await?
+        .password;
+    check_password(&pw_hash, password)?;
+    Ok(())
+}
+
 #[command(
     custom_cli(cli_login(async, context(CliContext))),
     display(display_none),
@@ -85,17 +111,7 @@ pub async fn login(
 ) -> Result<(), Error> {
     let password = password.unwrap_or_default();
     let mut handle = ctx.secret_store.acquire().await?;
-    let pw_hash = sqlx::query!("SELECT password FROM account")
-        .fetch_one(&mut handle)
-        .await?
-        .password;
-    ensure_code!(
-        argon2::verify_encoded(&pw_hash, password.as_bytes()).map_err(|_| {
-            Error::new(eyre!("Password Incorrect"), crate::ErrorKind::Authorization)
-        })?,
-        crate::ErrorKind::Authorization,
-        "Password Incorrect"
-    );
+    check_password_against_db(&mut handle, &password).await?;
 
     let hash_token = HashSessionToken::new();
     let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());

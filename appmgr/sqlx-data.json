@@ -30,6 +30,16 @@
       "nullable": []
     }
   },
+  "165daa7d6a60cb42122373b2c5ac7d39399bcc99992f0002ee7bfef50a8daceb": {
+    "query": "DELETE FROM certificates WHERE id = 0 OR id = 1;",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": []
+    }
+  },
   "177c4b9cc7901a3b906e5969b86b1c11e6acbfb8e86e98f197d7333030b17964": {
     "query": "DELETE FROM notifications WHERE id = ?",
     "describe": {
@@ -126,6 +136,16 @@
   },
   "530192a2a530ee6b92e5b98e1eb1bf6d1426c7b0cb2578593a367cb0bf2c3ca8": {
     "query": "UPDATE certificates SET priv_key_pem = ?, certificate_pem = ?, updated_at = datetime('now') WHERE lookup_string = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
+  "5b114c450073f77f466c980a2541293f30087b57301c379630326e5e5c2fb792": {
+    "query": "REPLACE INTO tor (package, interface, key) VALUES (?, ?, ?)",
     "describe": {
       "columns": [],
       "parameters": {

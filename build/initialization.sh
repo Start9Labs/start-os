@@ -2,6 +2,9 @@
 
 # Update repositories, install dependencies, do some initial configurations, set hostname, enable embassy-init, and config Tor
 set -e
+
+! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
+
 apt update
 apt install -y \
 	docker.io \
@@ -16,7 +19,8 @@ apt install -y \
 	sqlite3 \
 	wireless-tools \
 	net-tools \
-	ifupdown
+	ifupdown \
+	ecryptfs-utils
 sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
@@ -28,7 +32,7 @@ echo "iface wlan0 inet dhcp" >> /etc/network/interfaces
 mkdir -p /etc/nginx/ssl
 
 # fix to suppress docker warning, fixed in 21.xx release of docker cli: https://github.com/docker/cli/pull/2934
-mkdir /root/.docker
+mkdir -p /root/.docker
 touch /root/.docker/config.json
 
 docker run --privileged --rm tonistiigi/binfmt --install all
