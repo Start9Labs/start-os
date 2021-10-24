@@ -66,7 +66,7 @@ export class AppShowPage {
 
   async ngOnInit () {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.pkg = this.patch.data['package-data'][this.pkgId]
+    this.pkg = this.patch.getData()['package-data'][this.pkgId]
     this.statuses = renderPkgStatus(this.pkg)
     this.healthChecks = Object.keys(this.pkg.manifest['health-checks']).reduce((obj, key) => {
       obj[key] = null
