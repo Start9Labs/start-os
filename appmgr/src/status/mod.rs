@@ -353,7 +353,7 @@ impl MainStatus {
                                 String::from("Critical Health Check Failed"),
                                 format!("{} was shut down because a health check required for its operation failed\n{}", manifest.title, error),
                                 NotificationSubtype::General,
-                                Some(900)
+                                None
                             )
                             .await?;
                             should_stop = true;
