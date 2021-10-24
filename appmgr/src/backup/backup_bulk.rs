@@ -23,16 +23,18 @@ use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::model::ServerStatus;
 use crate::db::util::WithRevision;
-use crate::disk::util::{mount, mount_ecryptfs, unmount, EmbassyOsRecoveryInfo};
+use crate::disk::util::{
+    mount, mount_ecryptfs, unmount, BackupMountGuard, EmbassyOsRecoveryInfo, TmpMountGuard,
+};
 use crate::disk::BackupInfo;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::encrypt::{decrypt_slice, encrypt_slice};
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
-use crate::util::{display_none, GeneralGuard, Invoke, IoFormat};
+use crate::util::{display_none, AtomicFile, GeneralGuard, Invoke, IoFormat};
 use crate::version::VersionT;
-use crate::volume::{BACKUP_DIR, BACKUP_DIR_CRYPT, BACKUP_MNT};
+use crate::volume::BACKUP_DIR;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug)]
@@ -230,97 +232,18 @@ async fn write_cbor_file<T: Serialize>(
 async fn perform_backup<Db: DbHandle>(
     ctx: &RpcContext,
     mut db: Db,
-    logical_name: PathBuf,
+    logicalname: PathBuf,
     old_password: Option<&str>,
     password: &str,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
-    mount(logical_name, BACKUP_MNT).await?;
-    let tmp_guard = GeneralGuard::new(|| tokio::spawn(unmount(BACKUP_MNT)));
-
-    let unencrypted_metadata_path =
-        Path::new(BACKUP_MNT).join("EmbassyBackups/unencrypted-metadata.cbor");
-    let unencrypted_metadata_tmp_path =
-        Path::new(BACKUP_MNT).join("EmbassyBackups/.unencrypted-metadata.cbor.tmp");
-    let mut unencrypted_metadata: EmbassyOsRecoveryInfo =
-        if tokio::fs::metadata(&unencrypted_metadata_path)
-            .await
-            .is_ok()
-        {
-            IoFormat::Cbor.from_slice(
-                &tokio::fs::read(&unencrypted_metadata_path)
-                    .await
-                    .with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            unencrypted_metadata_path.display().to_string(),
-                        )
-                    })?,
-            )?
-        } else {
-            Default::default()
-        };
-    let enc_key = if let (Some(hash), Some(wrapped_key)) = (
-        unencrypted_metadata.password_hash.as_ref(),
-        unencrypted_metadata.wrapped_key.as_ref(),
-    ) {
-        let wrapped_key = base32::decode(base32::Alphabet::RFC4648 { padding: false }, wrapped_key)
-            .ok_or_else(|| Error::new(eyre!("failed to decode wrapped key"), ErrorKind::Backup))?;
-        if let Some(old_password) = old_password {
-            check_password(hash, old_password)?;
-            String::from_utf8(decrypt_slice(wrapped_key, old_password))?
-        } else {
-            check_password(hash, password)?;
-            String::from_utf8(decrypt_slice(wrapped_key, password))?
-        }
-    } else {
-        base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
-            &rand::random::<[u8; 32]>()[..],
-        )
-    };
-    unencrypted_metadata.version = crate::version::Current::new().semver().into();
-    unencrypted_metadata.full = true;
-    unencrypted_metadata.password_hash = Some(
-        argon2::hash_encoded(
-            password.as_bytes(),
-            &rand::random::<[u8; 16]>()[..],
-            &argon2::Config::default(),
-        )
-        .with_kind(crate::ErrorKind::PasswordHashGeneration)?,
-    );
-    unencrypted_metadata.wrapped_key = Some(base32::encode(
-        base32::Alphabet::RFC4648 { padding: false },
-        &encrypt_slice(&enc_key, password),
-    ));
-
-    if tokio::fs::metadata(BACKUP_DIR_CRYPT).await.is_err() {
-        tokio::fs::create_dir_all(BACKUP_DIR_CRYPT)
-            .await
-            .with_ctx(|_| (ErrorKind::Filesystem, BACKUP_DIR_CRYPT))?;
+    let mut backup_guard = BackupMountGuard::mount(
+        TmpMountGuard::mount(&logicalname).await?,
+        old_password.unwrap_or(password),
+    )
+    .await?;
+    if old_password.is_some() {
+        backup_guard.change_password(password)?;
     }
-    mount_ecryptfs(BACKUP_DIR_CRYPT, BACKUP_DIR, &enc_key).await?;
-
-    tmp_guard.drop_without_action();
-    let mounted = GeneralGuard::new(|| {
-        tokio::spawn(async move {
-            unmount(BACKUP_DIR).await?;
-            unmount(BACKUP_MNT).await
-        })
-    });
-
-    let metadata_path = Path::new(BACKUP_DIR).join("metadata.cbor");
-    let metadata_tmp_path = Path::new(BACKUP_DIR).join(".metadata.cbor.tmp");
-    let mut metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {
-        IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                metadata_path.display().to_string(),
-            )
-        })?)?
-    } else {
-        Default::default()
-    };
-    metadata.version = crate::version::Current::new().semver().into();
 
     let mut backup_report = BTreeMap::new();
 
@@ -383,6 +306,7 @@ async fn perform_backup<Db: DbHandle>(
             )
             .await?;
 
+        let guard = backup_guard.mount_package_backup(&package_id).await?;
         let res = manifest
             .backup
             .create(
@@ -394,28 +318,37 @@ async fn perform_backup<Db: DbHandle>(
                 &manifest.volumes,
             )
             .await;
+        drop(guard);
         backup_report.insert(
             package_id.clone(),
             PackageBackupReport {
                 error: res.as_ref().err().map(|e| e.to_string()),
             },
         );
+
+        let mut tx = db.begin().await?;
         if let Ok(pkg_meta) = res {
-            metadata.package_backups.insert(package_id, pkg_meta);
+            installed_model
+                .last_backup()
+                .put(&mut tx, &Some(pkg_meta.timestamp))
+                .await?;
+            backup_guard
+                .metadata
+                .package_backups
+                .insert(package_id, pkg_meta);
         }
 
         main_status_model
             .put(
-                &mut db,
+                &mut tx,
                 &match started {
                     Some(started) => MainStatus::Running { started, health },
                     None => MainStatus::Stopped,
                 },
             )
             .await?;
+        tx.save().await?;
     }
-    let backup_tmp_path = Path::new(BACKUP_DIR).join("os-backup.cbor.tmp");
-    let backup_path = Path::new(BACKUP_DIR).join("os-backup.cbor");
 
     let (root_ca_key, root_ca_cert) = ctx
         .net_controller
@@ -423,33 +356,37 @@ async fn perform_backup<Db: DbHandle>(
         .ssl_manager
         .export_root_ca()
         .await?;
-    write_cbor_file(
-        &OsBackup {
-            tor_key: ctx.net_controller.tor.embassyd_tor_key().await,
-            root_ca_key,
-            root_ca_cert,
-            ui: crate::db::DatabaseModel::new()
-                .ui()
-                .get(&mut db, true)
-                .await?
-                .into_owned(),
-        },
-        backup_tmp_path,
-        backup_path,
-    )
-    .await?;
+    let mut os_backup_file = AtomicFile::new(backup_guard.as_ref().join("os-backup.cbor")).await?;
+    os_backup_file
+        .write_all(
+            &IoFormat::Cbor.to_vec(&OsBackup {
+                tor_key: ctx.net_controller.tor.embassyd_tor_key().await,
+                root_ca_key,
+                root_ca_cert,
+                ui: crate::db::DatabaseModel::new()
+                    .ui()
+                    .get(&mut db, true)
+                    .await?
+                    .into_owned(),
+            })?,
+        )
+        .await?;
+    os_backup_file.save().await?;
 
-    metadata.timestamp = Some(Utc::now());
+    let timestamp = Some(Utc::now());
 
-    write_cbor_file(&metadata, metadata_tmp_path, metadata_path).await?;
+    backup_guard.unencrypted_metadata.version = crate::version::Current::new().semver().into();
+    backup_guard.unencrypted_metadata.full = true;
+    backup_guard.metadata.version = crate::version::Current::new().semver().into();
+    backup_guard.metadata.timestamp = timestamp;
 
-    write_cbor_file(
-        &unencrypted_metadata,
-        unencrypted_metadata_tmp_path,
-        unencrypted_metadata_path,
-    )
-    .await?;
+    backup_guard.save_and_unmount().await?;
 
-    mounted.drop().await.with_kind(ErrorKind::Unknown)??;
+    crate::db::DatabaseModel::new()
+        .server_info()
+        .last_backup()
+        .put(&mut db, &timestamp)
+        .await?;
+
     Ok(backup_report)
 }

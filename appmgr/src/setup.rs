@@ -18,7 +18,7 @@ use tracing::instrument;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
-use crate::disk::util::{mount, unmount, DiskInfo, PartitionInfo};
+use crate::disk::util::{mount, unmount, DiskInfo, PartitionInfo, TmpMountGuard};
 use crate::id::Id;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::s9pk::manifest::PackageId;
@@ -268,7 +268,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                     tokio::fs::copy(&src_path, &dst_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
-                            format!("{} -> {}", src_path.display(), dst_path.display()),
+                            format!("cp {} -> {}", src_path.display(), dst_path.display()),
                         )
                     })?;
                     ctr.fetch_add(m.len(), Ordering::Relaxed);
@@ -302,7 +302,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                     .with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
-                            format!("{} -> {}", src_path.display(), dst_path.display()),
+                            format!("cp -P {} -> {}", src_path.display(), dst_path.display()),
                         )
                     })?;
                     tokio::fs::set_permissions(&dst_path, m.permissions())
@@ -324,15 +324,17 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
 
 #[instrument(skip(ctx))]
 async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Result<(), Error> {
-    let tmp_mountpoint = Path::new("/mnt/recovery");
-    mount(&recovery_partition.logicalname, tmp_mountpoint).await?;
-    let mount_guard = GeneralGuard::new(|| tokio::spawn(unmount(tmp_mountpoint)));
+    let recovery = TmpMountGuard::mount(&recovery_partition.logicalname).await?;
 
     let secret_store = ctx.secret_store().await?;
     let db = ctx.db(&secret_store).await?;
     let mut handle = db.handle();
 
-    let apps_yaml_path = tmp_mountpoint.join("root").join("appmgr").join("apps.yaml");
+    let apps_yaml_path = recovery
+        .as_ref()
+        .join("root")
+        .join("appmgr")
+        .join("apps.yaml");
     #[derive(Deserialize)]
     struct LegacyAppInfo {
         title: String,
@@ -347,7 +349,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Re
         })?)
         .await?;
 
-    let volume_path = tmp_mountpoint.join("root/volumes");
+    let volume_path = recovery.as_ref().join("root/volumes");
     let total_bytes = AtomicU64::new(0);
     for (pkg_id, _) in &packages {
         let volume_src_path = volume_path.join(&pkg_id);
@@ -397,7 +399,8 @@ async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Re
         let icon_leaf = AsRef::<Path>::as_ref(&pkg_id)
             .join(info.version.as_str())
             .join("icon.png");
-        let icon_src_path = tmp_mountpoint
+        let icon_src_path = recovery
+            .as_ref()
             .join("root/agent/icons")
             .join(format!("{}.png", pkg_id));
         // TODO: tor address
@@ -412,7 +415,11 @@ async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Re
             .with_ctx(|_| {
                 (
                     crate::ErrorKind::Filesystem,
-                    format!("{} -> {}", icon_src_path.display(), icon_dst_path.display()),
+                    format!(
+                        "cp {} -> {}",
+                        icon_src_path.display(),
+                        icon_dst_path.display()
+                    ),
                 )
             })?;
         let icon_url = Path::new("/public/package-data").join(&icon_leaf);
@@ -430,10 +437,8 @@ async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Re
             .await?;
     }
 
-    mount_guard
-        .drop()
-        .await
-        .with_kind(crate::ErrorKind::Unknown)?
+    recovery.unmount().await?;
+    Ok(())
 }
 
 #[instrument(skip(ctx))]

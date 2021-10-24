@@ -9,10 +9,10 @@ use tracing::instrument;
 
 use self::util::{mount, mount_ecryptfs, unmount, DiskInfo};
 use crate::context::RpcContext;
-use crate::disk::util::TMP_MOUNTPOINT;
+use crate::disk::util::{BackupMountGuard, TmpMountGuard, TMP_MOUNTPOINT};
 use crate::s9pk::manifest::PackageId;
 use crate::util::{display_serializable, GeneralGuard, IoFormat, Version};
-use crate::volume::{BACKUP_DIR, BACKUP_DIR_CRYPT, BACKUP_MNT};
+use crate::volume::BACKUP_DIR;
 use crate::{Error, ResultExt};
 
 pub mod main;
@@ -86,7 +86,7 @@ pub async fn list(
     crate::disk::util::list().await
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct BackupInfo {
     pub version: Version,
@@ -94,7 +94,7 @@ pub struct BackupInfo {
     pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct PackageBackupInfo {
     pub title: String,
@@ -146,18 +146,12 @@ pub async fn backup_info(
     #[arg] logicalname: PathBuf,
     #[arg] password: String,
 ) -> Result<BackupInfo, Error> {
-    mount(logicalname, BACKUP_MNT).await?;
-    mount_ecryptfs(BACKUP_DIR_CRYPT, BACKUP_DIR, &password).await?;
-    let mounted = GeneralGuard::new(|| {
-        tokio::spawn(async move {
-            unmount(BACKUP_DIR).await?;
-            unmount(BACKUP_MNT).await
-        })
-    });
+    let guard =
+        BackupMountGuard::mount(TmpMountGuard::mount(logicalname).await?, &password).await?;
 
-    mounted
-        .drop()
-        .await
-        .with_kind(crate::ErrorKind::Unknown)??;
-    Ok(todo!())
+    let res = guard.metadata.clone();
+
+    guard.unmount().await?;
+
+    Ok(res)
 }

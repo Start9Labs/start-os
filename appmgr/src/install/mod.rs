@@ -615,6 +615,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         }
         deps
     };
+    let mut pde = model
+        .clone()
+        .expect(&mut tx)
+        .await?
+        .get_mut(&mut tx)
+        .await?;
     let installed = InstalledPackageDataEntry {
         status: Status {
             configured: manifest.config.is_none(),
@@ -622,18 +628,23 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             dependency_errors: DependencyErrors::default(),
         },
         manifest: manifest.clone(),
+        last_backup: match &*pde {
+            PackageDataEntry::Updating {
+                installed:
+                    InstalledPackageDataEntry {
+                        last_backup: Some(time),
+                        ..
+                    },
+                ..
+            } => Some(*time),
+            _ => None,
+        },
         system_pointers: Vec::new(),
         dependency_info,
         current_dependents: current_dependents.clone(),
         current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
-    let mut pde = model
-        .clone()
-        .expect(&mut tx)
-        .await?
-        .get_mut(&mut tx)
-        .await?;
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {

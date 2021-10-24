@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Map, MapModel, OptionModel};
@@ -37,6 +38,7 @@ impl Database {
             server_info: ServerInfo {
                 id,
                 version: Current::new().semver().into(),
+                last_backup: None,
                 eos_version_compat: VersionRange::Conj(
                     Box::new(VersionRange::Anchor(
                         emver::GTE,
@@ -82,6 +84,7 @@ impl DatabaseModel {
 pub struct ServerInfo {
     pub id: String,
     pub version: Version,
+    pub last_backup: Option<DateTime<Utc>>,
     pub eos_version_compat: VersionRange,
     pub lan_address: Url,
     pub tor_address: Url,
@@ -240,6 +243,7 @@ pub struct InstalledPackageDataEntry {
     pub status: Status,
     #[model]
     pub manifest: Manifest,
+    pub last_backup: Option<DateTime<Utc>>,
     pub system_pointers: Vec<SystemPointerSpec>,
     #[model]
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,

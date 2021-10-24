@@ -2,6 +2,9 @@
 
 # Update repositories, install dependencies, do some initial configurations, set hostname, enable embassy-init, and config Tor
 set -e
+
+! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
+
 apt update
 apt install -y \
 	docker.io \
@@ -29,7 +32,7 @@ echo "iface wlan0 inet dhcp" >> /etc/network/interfaces
 mkdir -p /etc/nginx/ssl
 
 # fix to suppress docker warning, fixed in 21.xx release of docker cli: https://github.com/docker/cli/pull/2934
-mkdir /root/.docker
+mkdir -p /root/.docker
 touch /root/.docker/config.json
 
 docker run --privileged --rm tonistiigi/binfmt --install all
