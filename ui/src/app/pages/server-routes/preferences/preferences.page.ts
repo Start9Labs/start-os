@@ -24,7 +24,7 @@ export class PreferencesPage {
   ) { }
 
   ngOnInit () {
-    this.defaultName = `Embassy-${this.patch.data['server-info'].id}`
+    this.defaultName = `Embassy-${this.patch.getData()['server-info'].id}`
   }
 
   ngAfterViewInit () {
@@ -40,7 +40,7 @@ export class PreferencesPage {
         useMask: false,
         placeholder: this.defaultName,
         nullable: true,
-        value: this.patch.data.ui.name,
+        value: this.patch.getData().ui.name,
         buttonText: 'Save',
         loadingText: 'Saving',
         submitFn: (value: string) => this.setDbValue('name', value || this.defaultName),

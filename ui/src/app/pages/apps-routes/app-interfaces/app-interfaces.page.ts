@@ -28,7 +28,7 @@ export class AppInterfacesPage {
 
   ngOnInit () {
     const pkgId = this.route.snapshot.paramMap.get('pkgId')
-    const pkg = this.patch.data['package-data'][pkgId]
+    const pkg = this.patch.getData()['package-data'][pkgId]
     const interfaces = pkg.manifest.interfaces
     const uiKey = getUiInterfaceKey(interfaces)
 
