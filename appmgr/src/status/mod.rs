@@ -1,20 +1,18 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
+use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use futures::{FutureExt, StreamExt};
-use patch_db::{DbHandle, HasModel, LockType, Map, ModelData};
+use patch_db::{DbHandle, HasModel, Map};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use self::health_check::HealthCheckId;
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntryModel};
-use crate::dependencies::{break_transitive, DependencyError, DependencyErrors};
+use crate::dependencies::DependencyErrors;
 use crate::manager::{Manager, Status as ManagerStatus};
 use crate::notifications::NotificationLevel;
-use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::s9pk::manifest::Manifest;
 use crate::status::health_check::HealthCheckResult;
 use crate::Error;
 

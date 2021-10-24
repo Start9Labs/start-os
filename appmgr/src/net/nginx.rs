@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 
 use futures::FutureExt;
 use indexmap::IndexSet;
-use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 use tracing::instrument;
 

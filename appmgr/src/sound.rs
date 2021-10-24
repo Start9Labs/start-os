@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use divrem::DivRem;
 use proptest_derive::Arbitrary;
-use tokio::sync::{Mutex, MutexGuard};
 use tracing::instrument;
 
 use crate::util::FileLock;

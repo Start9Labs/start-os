@@ -4,7 +4,6 @@ use std::marker::PhantomData;
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use http::HeaderValue;
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
@@ -12,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{Executor, Sqlite};
 use tracing::instrument;
-use url::quirks::password;
 
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};

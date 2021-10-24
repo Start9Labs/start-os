@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use color_eyre::eyre::eyre;
 use futures::task::Spawn;
 use openssl::pkey::{PKey, Private};
@@ -13,28 +13,21 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use super::PackageBackupReport;
-use crate::auth::{check_password, check_password_against_db};
+use crate::auth::check_password_against_db;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::model::ServerStatus;
 use crate::db::util::WithRevision;
-use crate::disk::util::{
-    mount, mount_ecryptfs, unmount, BackupMountGuard, EmbassyOsRecoveryInfo, TmpMountGuard,
-};
-use crate::disk::BackupInfo;
-use crate::install::PKG_ARCHIVE_DIR;
-use crate::middleware::encrypt::{decrypt_slice, encrypt_slice};
+use crate::disk::util::{BackupMountGuard, TmpMountGuard};
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
-use crate::util::{display_none, AtomicFile, GeneralGuard, Invoke, IoFormat};
+use crate::util::{display_none, AtomicFile, IoFormat};
 use crate::version::VersionT;
-use crate::volume::BACKUP_DIR;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug)]
