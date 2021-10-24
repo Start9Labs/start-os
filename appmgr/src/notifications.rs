@@ -151,6 +151,7 @@ pub async fn create(
             title,
             message,
             NotificationSubtype::General,
+            None,
         )
         .await
 }
@@ -265,14 +266,12 @@ impl NotificationSubtype {
 pub struct NotificationManager {
     sqlite: SqlitePool,
     cache: Mutex<HashMap<(Option<PackageId>, NotificationLevel, String), i64>>,
-    debounce_interval: u32,
 }
 impl NotificationManager {
-    pub fn new(sqlite: SqlitePool, debounce_interval: u32) -> Self {
+    pub fn new(sqlite: SqlitePool) -> Self {
         NotificationManager {
             sqlite,
             cache: Mutex::new(HashMap::new()),
-            debounce_interval,
         }
     }
     #[instrument(skip(self, db))]
@@ -284,8 +283,12 @@ impl NotificationManager {
         title: String,
         message: String,
         subtype: NotificationSubtype,
+        debounce_interval: Option<u32>,
     ) -> Result<(), Error> {
-        if !self.should_notify(&package_id, &level, &title).await {
+        if !self
+            .should_notify(&package_id, &level, &title, debounce_interval)
+            .await
+        {
             return Ok(());
         }
         let mut count = crate::db::DatabaseModel::new()
@@ -310,26 +313,13 @@ impl NotificationManager {
         count.save(db).await?;
         Ok(())
     }
-    async fn gc(&self) {
-        let mut guard = self.cache.lock().await;
-        let mut temp = HashMap::new();
-        for (k, v) in (*guard).drain() {
-            if v + self.debounce_interval as i64 > Utc::now().timestamp() {
-                temp.insert(k, v);
-            }
-        }
-        *guard = temp
-    }
     async fn should_notify(
         &self,
         package_id: &Option<PackageId>,
         level: &NotificationLevel,
         title: &String,
+        debounce_interval: Option<u32>,
     ) -> bool {
-        if level == &NotificationLevel::Error {
-            return true;
-        }
-        self.gc().await;
         let mut guard = self.cache.lock().await;
         let k = (package_id.clone(), level.clone(), title.clone());
         let v = (*guard).get(&k);
@@ -338,15 +328,20 @@ impl NotificationManager {
                 (*guard).insert(k, Utc::now().timestamp());
                 true
             }
-            Some(t) => {
-                if t + self.debounce_interval as i64 > Utc::now().timestamp() {
-                    false
-                } else {
-                    // this path should be very rare due to gc above
-                    (*guard).remove(&k);
+            Some(last_issued) => match debounce_interval {
+                None => {
+                    (*guard).insert(k, Utc::now().timestamp());
                     true
                 }
-            }
+                Some(interval) => {
+                    if last_issued + interval as i64 > Utc::now().timestamp() {
+                        false
+                    } else {
+                        (*guard).insert(k, Utc::now().timestamp());
+                        true
+                    }
+                }
+            },
         }
     }
 }

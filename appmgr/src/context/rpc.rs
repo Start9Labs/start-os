@@ -161,7 +161,7 @@ impl RpcContext {
         .await?;
         let managers = ManagerMap::default();
         let metrics_cache = RwLock::new(None);
-        let notification_manager = NotificationManager::new(secret_store.clone(), 3600);
+        let notification_manager = NotificationManager::new(secret_store.clone());
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
