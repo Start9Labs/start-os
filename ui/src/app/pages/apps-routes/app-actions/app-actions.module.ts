@@ -6,7 +6,6 @@ import { AppActionsPage, AppActionsItemComponent } from './app-actions.page'
 import { QRComponentModule } from 'src/app/components/qr/qr.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.module'
-import { AppRestoreComponentModule } from 'src/app/modals/app-restore/app-restore.component.module'
 import { ActionSuccessPageModule } from 'src/app/modals/action-success/action-success.module'
 
 const routes: Routes = [
@@ -24,7 +23,6 @@ const routes: Routes = [
     QRComponentModule,
     SharingModule,
     GenericFormPageModule,
-    AppRestoreComponentModule,
     ActionSuccessPageModule,
   ],
   declarations: [

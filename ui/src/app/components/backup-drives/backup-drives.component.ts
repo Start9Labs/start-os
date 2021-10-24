@@ -20,7 +20,7 @@ export class BackupDrivesComponent {
     if (this.type === 'backup') {
       this.message = 'Select the drive where you want to create a backup of your Embassy.'
     } else {
-      this.message = 'Select the drive containing the backup you would like to restore.'
+      this.message = 'Select the drive containing backups you would like to restore.'
     }
     this.backupService.getExternalDrives()
   }
@@ -37,25 +37,12 @@ export class BackupDrivesComponent {
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesHeaderComponent {
-  @Input() type: 'backup' | 'restore'
+  @Input() title: string
   @Output() onClose: EventEmitter<void> = new EventEmitter()
-  title: string
 
   constructor (
     public readonly backupService: BackupService,
   ) { }
-
-  ngOnInit () {
-    if (this.type === 'backup') {
-      this.title = 'Create Backup'
-    } else {
-      this.title = 'Restore From Backup'
-    }
-  }
-
-  close (): void {
-    this.onClose.emit()
-  }
 
   refresh () {
     this.backupService.getExternalDrives()

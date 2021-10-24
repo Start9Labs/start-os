@@ -27,6 +27,10 @@ const routes: Routes = [
     loadChildren: () => import('./preferences/preferences.module').then( m => m.PreferencesPageModule),
   },
   {
+    path: 'restore',
+    loadChildren: () => import('./restore/restore.component.module').then( m => m.RestorePageModule),
+  },
+  {
     path: 'sessions',
     loadChildren: () => import('./sessions/sessions.module').then( m => m.SessionsPageModule),
   },

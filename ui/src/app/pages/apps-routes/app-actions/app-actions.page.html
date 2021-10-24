@@ -7,21 +7,11 @@
   </ion-toolbar>
 </ion-header>
 
-
-
 <ion-content class="ion-padding-top">
   <ion-item-group *ngIf="pkg">
 
     <!-- ** standard actions ** -->
     <ion-item-divider>Standard Actions</ion-item-divider>
-    <app-actions-item
-      [action]="{
-        name: 'Restore From Backup',
-        description: 'All changes since backup will be lost.',
-        icon: 'color-wand-outline'
-      }"
-      (click)="restore()">
-    </app-actions-item>
     <app-actions-item
       [action]="{
         name: 'Uninstall',

@@ -9,20 +9,6 @@
 
 <ion-content class="ion-padding">
   <ion-item-group>
-    <ion-item-divider><ion-text color="dark">Backups</ion-text></ion-item-divider>
-    <ion-item button routerLink="backup">
-      <ion-icon slot="start" name="save-outline"></ion-icon>
-      <ion-label>
-        <h2>Create Backup</h2>
-        <p>Back up your Embassy and all its services</p>
-        <p>
-          <ion-text color="warning">
-            Last Backup: {{ patch.data['server-info']['last-backup'] ? (patch.data['server-info']['last-backup'] | date: 'short') : 'never' }}
-          </ion-text>
-        </p>
-      </ion-label>
-    </ion-item>
-
     <div *ngFor="let cat of settings | keyvalue : asIsOrder">
       <ion-item-divider><ion-text color="dark">{{ cat.key }}</ion-text></ion-item-divider>
       <ion-item [detail]="button.detail" button *ngFor="let button of cat.value" (click)="button.action()">

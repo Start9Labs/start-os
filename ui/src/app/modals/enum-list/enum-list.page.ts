@@ -37,7 +37,7 @@ export class EnumListPage {
     this.selectAll = !this.selectAll
   }
 
-  async toggleSelected (key: string) {
+  toggleSelected (key: string) {
     this.options[key] = !this.options[key]
   }
 
