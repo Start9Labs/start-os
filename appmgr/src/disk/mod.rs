@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
@@ -7,13 +7,12 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use self::util::{mount, mount_ecryptfs, unmount, DiskInfo};
+use self::util::DiskInfo;
 use crate::context::RpcContext;
-use crate::disk::util::{BackupMountGuard, TmpMountGuard, TMP_MOUNTPOINT};
+use crate::disk::util::{BackupMountGuard, TmpMountGuard};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{display_serializable, GeneralGuard, IoFormat, Version};
-use crate::volume::BACKUP_DIR;
-use crate::{Error, ResultExt};
+use crate::util::{display_serializable, IoFormat, Version};
+use crate::Error;
 
 pub mod main;
 pub mod util;

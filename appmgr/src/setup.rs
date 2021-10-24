@@ -18,13 +18,13 @@ use tracing::instrument;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
-use crate::disk::util::{mount, unmount, DiskInfo, PartitionInfo, TmpMountGuard};
+use crate::disk::util::{DiskInfo, PartitionInfo, TmpMountGuard};
 use crate::id::Id;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::s9pk::manifest::PackageId;
 use crate::sound::BEETHOVEN;
 use crate::util::io::from_yaml_async_reader;
-use crate::util::{GeneralGuard, Invoke, Version};
+use crate::util::{Invoke, Version};
 use crate::volume::{data_dir, VolumeId};
 use crate::{Error, ResultExt};
 

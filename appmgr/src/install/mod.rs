@@ -1,12 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsStr;
 use std::io::SeekFrom;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use color_eyre::eyre::{self, eyre};
+use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt, TryStreamExt};
@@ -14,7 +13,7 @@ use http::StatusCode;
 use patch_db::{DbHandle, LockType};
 use reqwest::Response;
 use rpc_toolkit::command;
-use tokio::fs::{DirEntry, File, OpenOptions};
+use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
 use tokio_stream::wrappers::ReadDirStream;
