@@ -3,12 +3,12 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
-use patch_db::HasModel;
+use patch_db::{DbHandle, HasModel};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
+use sqlx::{Executor, Sqlite};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
@@ -55,7 +55,7 @@ pub fn package_backup() -> Result<(), Error> {
 #[derive(Deserialize, Serialize)]
 struct BackupMetadata {
     pub timestamp: DateTime<Utc>,
-    pub tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
+    pub tor_keys: BTreeMap<InterfaceId, String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
@@ -95,13 +95,18 @@ impl BackupActions {
             .with_kind(crate::ErrorKind::Backup)?;
         let tor_keys = interfaces
             .tor_keys(&mut ctx.secret_store.acquire().await?, pkg_id)
-            .await?;
+            .await?
+            .into_iter()
+            .map(|(id, key)| {
+                (
+                    id,
+                    base32::encode(base32::Alphabet::RFC4648 { padding: true }, &key.as_bytes()),
+                )
+            })
+            .collect();
         let tmp_path = Path::new(BACKUP_DIR)
             .join(pkg_id)
             .join(format!("{}.s9pk", pkg_id));
-        let real_path = Path::new(BACKUP_DIR)
-            .join(pkg_id)
-            .join(format!(".{}.s9pk.tmp", pkg_id));
         let s9pk_path = ctx
             .datadir
             .join(PKG_ARCHIVE_DIR)
@@ -109,8 +114,8 @@ impl BackupActions {
             .join(pkg_version.as_str())
             .join(format!("{}.s9pk", pkg_id));
         let mut infile = File::open(&s9pk_path).await?;
-        let mut outfile = File::create(&tmp_path).await?;
-        tokio::io::copy(&mut infile, &mut outfile)
+        let mut outfile = AtomicFile::new(&tmp_path).await?;
+        tokio::io::copy(&mut infile, &mut *outfile)
             .await
             .with_ctx(|_| {
                 (
@@ -118,17 +123,7 @@ impl BackupActions {
                     format!("cp {} -> {}", s9pk_path.display(), tmp_path.display()),
                 )
             })?;
-        outfile.flush().await?;
-        outfile.shutdown().await?;
-        outfile.sync_all().await?;
-        tokio::fs::rename(&tmp_path, &real_path)
-            .await
-            .with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    format!("mv {} -> {}", tmp_path.display(), real_path.display()),
-                )
-            })?;
+        outfile.save().await?;
         let timestamp = Utc::now();
         let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
         let mut outfile = AtomicFile::new(&metadata_path).await?;
@@ -147,13 +142,20 @@ impl BackupActions {
         })
     }
 
-    pub async fn restore(
+    #[instrument(skip(ctx, db, secrets))]
+    pub async fn restore<Ex, Db: DbHandle>(
         &self,
         ctx: &RpcContext,
+        db: &mut Db,
+        secrets: &mut Ex,
         pkg_id: &PackageId,
         pkg_version: &Version,
+        interfaces: &Interfaces,
         volumes: &Volumes,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    {
         let mut volumes = volumes.clone();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
         self.restore
@@ -178,18 +180,34 @@ impl BackupActions {
                 )
             })?,
         )?;
-        let mut sql_handle = ctx.secret_store.acquire().await?;
         for (iface, key) in metadata.tor_keys {
-            let key_vec = key.as_bytes().to_vec();
+            let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, &key)
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("invalid base32 string"),
+                        crate::ErrorKind::Deserialization,
+                    )
+                })?;
             sqlx::query!(
                 "REPLACE INTO tor (package, interface, key) VALUES (?, ?, ?)",
                 **pkg_id,
                 *iface,
                 key_vec,
             )
-            .execute(&mut sql_handle)
+            .execute(&mut *secrets)
             .await?;
         }
+        crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(pkg_id)
+            .expect(db)
+            .await?
+            .installed()
+            .expect(db)
+            .await?
+            .interface_addresses()
+            .put(db, &interfaces.install(&mut *secrets, pkg_id).await?)
+            .await?;
         Ok(())
     }
 }

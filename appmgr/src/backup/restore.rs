@@ -156,6 +156,7 @@ async fn assure_restoring(
     Ok((tx.commit(None).await?, guards))
 }
 
+#[instrument(skip(ctx, guard))]
 async fn restore_package(
     ctx: &RpcContext,
     id: &PackageId,

@@ -214,7 +214,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
     })
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip(ctx, temp_manifest))]
 pub async fn download_install_s9pk(
     ctx: &RpcContext,
     temp_manifest: &Manifest,
@@ -749,10 +749,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     } else if let PackageDataEntry::Restoring { .. } = prev {
         manifest
             .backup
-            .create(
+            .restore(
                 ctx,
+                &mut tx,
+                &mut sql_tx,
                 pkg_id,
-                &manifest.title,
                 version,
                 &manifest.interfaces,
                 &manifest.volumes,

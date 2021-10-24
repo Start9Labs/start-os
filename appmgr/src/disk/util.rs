@@ -424,6 +424,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     if is_mountpoint.success() {
         unmount(dst.as_ref()).await?;
     }
+    tokio::fs::create_dir_all(&src).await?;
     tokio::fs::create_dir_all(&dst).await?;
     let mut mount_cmd = tokio::process::Command::new("mount");
     mount_cmd.arg("--bind");
@@ -434,17 +435,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
         .arg(src.as_ref())
         .arg(dst.as_ref())
         .invoke(crate::ErrorKind::Filesystem)
-        .await
-        .map_err(|e| {
-            Error::new(
-                e.source.wrap_err(format!(
-                    "Binding {} to {}",
-                    src.as_ref().display(),
-                    dst.as_ref().display(),
-                )),
-                e.kind,
-            )
-        })?;
+        .await?;
     Ok(())
 }
 
@@ -452,6 +443,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
 pub async fn unmount<P: AsRef<Path>>(mountpoint: P) -> Result<(), Error> {
     tracing::debug!("Unmounting {}.", mountpoint.as_ref().display());
     let umount_output = tokio::process::Command::new("umount")
+        .arg("-l")
         .arg(mountpoint.as_ref())
         .output()
         .await?;
@@ -615,7 +607,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         let backup_disk_path = backup_disk_mount_guard.as_ref();
         let unencrypted_metadata_path =
             backup_disk_path.join("EmbassyBackups/unencrypted-metadata.cbor");
-        let unencrypted_metadata: EmbassyOsRecoveryInfo =
+        let mut unencrypted_metadata: EmbassyOsRecoveryInfo =
             if tokio::fs::metadata(&unencrypted_metadata_path)
                 .await
                 .is_ok()
@@ -638,7 +630,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             unencrypted_metadata.wrapped_key.as_ref(),
         ) {
             let wrapped_key =
-                base32::decode(base32::Alphabet::RFC4648 { padding: false }, wrapped_key)
+                base32::decode(base32::Alphabet::RFC4648 { padding: true }, wrapped_key)
                     .ok_or_else(|| {
                         Error::new(
                             eyre!("failed to decode wrapped key"),
@@ -653,6 +645,23 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                 &rand::random::<[u8; 32]>()[..],
             )
         };
+
+        if unencrypted_metadata.password_hash.is_none() {
+            unencrypted_metadata.password_hash = Some(
+                argon2::hash_encoded(
+                    password.as_bytes(),
+                    &rand::random::<[u8; 16]>()[..],
+                    &argon2::Config::default(),
+                )
+                .with_kind(crate::ErrorKind::PasswordHashGeneration)?,
+            );
+        }
+        if unencrypted_metadata.wrapped_key.is_none() {
+            unencrypted_metadata.wrapped_key = Some(base32::encode(
+                base32::Alphabet::RFC4648 { padding: true },
+                &encrypt_slice(&enc_key, password),
+            ));
+        }
 
         let crypt_path = backup_disk_path.join("EmbassyBackups/crypt");
         if tokio::fs::metadata(&crypt_path).await.is_err() {
@@ -711,9 +720,8 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         let mountpoint = Path::new(BACKUP_DIR).join(id);
         bind(self.as_ref().join(id), &mountpoint, false).await?;
         Ok(PackageBackupMountGuard {
-            mountpoint,
-            lock,
-            mounted: true,
+            mountpoint: Some(mountpoint),
+            lock: Some(lock),
         })
     }
 
@@ -777,15 +785,16 @@ impl<G: GenericMountGuard> Drop for BackupMountGuard<G> {
 }
 
 pub struct PackageBackupMountGuard {
-    mountpoint: PathBuf,
-    lock: FileLock,
-    mounted: bool,
+    mountpoint: Option<PathBuf>,
+    lock: Option<FileLock>,
 }
 impl PackageBackupMountGuard {
     pub async fn unmount(mut self) -> Result<(), Error> {
-        if self.mounted {
-            unmount(&self.mountpoint).await?;
-            self.mounted = false;
+        if let Some(mountpoint) = self.mountpoint.take() {
+            unmount(&mountpoint).await?;
+        }
+        if let Some(lock) = self.lock.take() {
+            lock.unlock().await?;
         }
         Ok(())
     }
@@ -797,9 +806,15 @@ impl AsRef<Path> for PackageBackupMountGuard {
 }
 impl Drop for PackageBackupMountGuard {
     fn drop(&mut self) {
-        if self.mounted {
-            let mountpoint = std::mem::take(&mut self.mountpoint);
-            tokio::spawn(async move { unmount(mountpoint).await.unwrap() });
-        }
+        let mountpoint = self.mountpoint.take();
+        let lock = self.lock.take();
+        tokio::spawn(async move {
+            if let Some(mountpoint) = mountpoint {
+                unmount(&mountpoint).await.unwrap();
+            }
+            if let Some(lock) = lock {
+                lock.unlock().await.unwrap();
+            }
+        });
     }
 }
