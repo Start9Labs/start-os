@@ -17,7 +17,7 @@
 	`apt install nodejs`
 	https://nodejs.org/en/docs
 - NPM
-	`npm install -g npm`
+	`apt install npm`
 	https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
 - jq
 	`apt install jq`
