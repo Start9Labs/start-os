@@ -32,7 +32,7 @@ use crate::dependencies::{
 };
 use crate::install::cleanup::{cleanup, update_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
-use crate::notifications::{NotificationLevel, NotificationSubtype};
+use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
@@ -149,7 +149,8 @@ pub async fn install(
                     NotificationLevel::Error,
                     String::from("Install Failed"),
                     err_str,
-                    NotificationSubtype::General,
+                    (),
+                    None,
                 )
                 .await
             {
@@ -232,7 +233,8 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
                     NotificationLevel::Error,
                     String::from("Uninstall Failed"),
                     err_str,
-                    NotificationSubtype::General,
+                    (),
+                    None,
                 )
                 .await
             {
