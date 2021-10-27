@@ -16,7 +16,6 @@ use embassy::util::logger::EmbassyLogger;
 use embassy::util::Invoke;
 use embassy::{Error, ResultExt};
 use http::StatusCode;
-use nix::sys::socket::shutdown;
 use rpc_toolkit::rpc_server;
 use tokio::process::Command;
 use tracing::instrument;

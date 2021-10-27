@@ -90,7 +90,8 @@ pub fn server() -> Result<(), RpcError> {
     control::stop,
     logs::logs,
     properties::properties,
-    dependencies::dependency
+    dependencies::dependency,
+    backup::package_backup,
 ))]
 pub fn package() -> Result<(), RpcError> {
     Ok(())

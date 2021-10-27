@@ -1,17 +1,15 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use chrono::Utc;
 use color_eyre::eyre::eyre;
-use futures::task::Spawn;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use patch_db::{DbHandle, LockType, PatchDbHandle, Revision};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
@@ -28,7 +26,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::util::{display_none, AtomicFile, IoFormat};
 use crate::version::VersionT;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::Error;
 
 #[derive(Debug)]
 pub struct OsBackup {
@@ -93,6 +91,7 @@ impl Serialize for OsBackup {
 }
 
 #[command(rename = "create", display(display_none))]
+#[instrument(skip(ctx, old_password, password))]
 pub async fn backup_all(
     #[context] ctx: RpcContext,
     #[arg] logicalname: PathBuf,
@@ -101,17 +100,17 @@ pub async fn backup_all(
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
+    let mut backup_guard = BackupMountGuard::mount(
+        TmpMountGuard::mount(&logicalname, None).await?,
+        old_password.as_ref().unwrap_or(&password),
+    )
+    .await?;
+    if old_password.is_some() {
+        backup_guard.change_password(&password)?;
+    }
     let revision = assure_backing_up(&mut db).await?;
     tokio::task::spawn(async move {
-        match perform_backup(
-            &ctx,
-            &mut db,
-            logicalname,
-            old_password.as_deref(),
-            &password,
-        )
-        .await
-        {
+        match perform_backup(&ctx, &mut db, backup_guard).await {
             Ok(report) => ctx
                 .notification_manager
                 .notify(
@@ -200,46 +199,12 @@ async fn assure_backing_up(db: &mut PatchDbHandle) -> Result<Option<Arc<Revision
     Ok(tx.commit(None).await?)
 }
 
-async fn write_cbor_file<T: Serialize>(
-    value: &T,
-    tmp_path: impl AsRef<Path>,
-    path: impl AsRef<Path>,
-) -> Result<(), Error> {
-    let tmp_path = tmp_path.as_ref();
-    let path = path.as_ref();
-    let mut file = File::create(tmp_path)
-        .await
-        .with_ctx(|_| (ErrorKind::Filesystem, tmp_path.display().to_string()))?;
-    file.write_all(&IoFormat::Cbor.to_vec(value)?).await?;
-    file.flush().await?;
-    file.shutdown().await?;
-    file.sync_all().await?;
-    drop(file);
-    tokio::fs::rename(tmp_path, path).await.with_ctx(|_| {
-        (
-            ErrorKind::Filesystem,
-            format!("mv {} -> {}", tmp_path.display(), path.display()),
-        )
-    })
-}
-
-#[instrument(skip(ctx, db, password))]
+#[instrument(skip(ctx, db, backup_guard))]
 async fn perform_backup<Db: DbHandle>(
     ctx: &RpcContext,
     mut db: Db,
-    logicalname: PathBuf,
-    old_password: Option<&str>,
-    password: &str,
+    mut backup_guard: BackupMountGuard<TmpMountGuard>,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
-    let mut backup_guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(&logicalname).await?,
-        old_password.unwrap_or(password),
-    )
-    .await?;
-    if old_password.is_some() {
-        backup_guard.change_password(password)?;
-    }
-
     let mut backup_report = BTreeMap::new();
 
     for package_id in crate::db::DatabaseModel::new()
