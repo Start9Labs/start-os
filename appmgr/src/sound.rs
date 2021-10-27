@@ -26,7 +26,7 @@ struct SoundInterface(Option<FileLock>);
 impl SoundInterface {
     #[instrument]
     pub async fn lease() -> Result<Self, Error> {
-        let guard = FileLock::new(SOUND_LOCK_FILE).await?;
+        let guard = FileLock::new(SOUND_LOCK_FILE, true).await?;
         tokio::fs::write(&*EXPORT_FILE, "0")
             .await
             .or_else(|e| {

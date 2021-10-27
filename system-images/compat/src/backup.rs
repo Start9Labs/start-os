@@ -1,5 +1,7 @@
 use std::{path::Path, process::Stdio};
 
+use embassy::disk::main::DEFAULT_PASSWORD;
+
 pub fn create_backup(
     mountpoint: impl AsRef<Path>,
     data_path: impl AsRef<Path>,
@@ -30,11 +32,18 @@ pub fn create_backup(
             ));
         }
     }
-    let data_res = data_cmd
+    let data_output = data_cmd
+        .env("PASSPHRASE", DEFAULT_PASSWORD)
         .arg(data_path)
         .arg(format!("file://{}", mountpoint.display().to_string()))
-        .output();
-    data_res?;
+        .stderr(Stdio::piped())
+        .output()?;
+    if !data_output.status.success() {
+        return Err(anyhow::anyhow!(
+            "duplicity error: {}",
+            String::from_utf8(data_output.stderr).unwrap()
+        ));
+    }
 
     Ok(())
 }
@@ -47,6 +56,7 @@ pub fn restore_backup(
     let data_path = std::fs::canonicalize(data_path)?;
 
     let data_output = std::process::Command::new("duplicity")
+        .env("PASSPHRASE", DEFAULT_PASSWORD)
         .arg("--force")
         .arg(format!("file://{}", mountpoint.display().to_string()))
         .arg(&data_path)
