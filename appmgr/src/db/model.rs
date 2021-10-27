@@ -184,12 +184,18 @@ pub enum PackageDataEntry {
         static_files: StaticFiles,
         manifest: Manifest,
         install_progress: Arc<InstallProgress>,
-    }, // { state: "installing", 'install-progress': InstallProgress }
+    },
     #[serde(rename_all = "kebab-case")]
     Updating {
         static_files: StaticFiles,
         manifest: Manifest,
         installed: InstalledPackageDataEntry,
+        install_progress: Arc<InstallProgress>,
+    },
+    #[serde(rename_all = "kebab-case")]
+    Restoring {
+        static_files: StaticFiles,
+        manifest: Manifest,
         install_progress: Arc<InstallProgress>,
     },
     #[serde(rename_all = "kebab-case")]
@@ -207,19 +213,19 @@ pub enum PackageDataEntry {
 impl PackageDataEntry {
     pub fn installed(&self) -> Option<&InstalledPackageDataEntry> {
         match self {
-            Self::Installing { .. } | Self::Removing { .. } => None,
+            Self::Installing { .. } | Self::Restoring { .. } | Self::Removing { .. } => None,
             Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
         }
     }
     pub fn installed_mut(&mut self) -> Option<&mut InstalledPackageDataEntry> {
         match self {
-            Self::Installing { .. } | Self::Removing { .. } => None,
+            Self::Installing { .. } | Self::Restoring { .. } | Self::Removing { .. } => None,
             Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
         }
     }
     pub fn into_installed(self) -> Option<InstalledPackageDataEntry> {
         match self {
-            Self::Installing { .. } | Self::Removing { .. } => None,
+            Self::Installing { .. } | Self::Restoring { .. } | Self::Removing { .. } => None,
             Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
         }
     }

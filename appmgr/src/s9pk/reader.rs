@@ -45,20 +45,20 @@ impl<'a, R: AsyncRead + AsyncSeek + Unpin> AsyncRead for ReadHandle<'a, R> {
 }
 
 pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin = File> {
-    hash: Output<Sha512>,
-    hash_string: String,
+    hash: Option<Output<Sha512>>,
+    hash_string: Option<String>,
     toc: TableOfContents,
     pos: u64,
     rdr: R,
 }
 impl S9pkReader {
-    pub async fn open<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub async fn open<P: AsRef<Path>>(path: P, check_sig: bool) -> Result<Self, Error> {
         let p = path.as_ref();
         let rdr = File::open(p)
             .await
             .with_ctx(|_| (crate::error::ErrorKind::Filesystem, p.display().to_string()))?;
 
-        Self::from_reader(rdr).await
+        Self::from_reader(rdr, check_sig).await
     }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<InstallProgressTracker<R>> {
@@ -69,33 +69,41 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<InstallProgressTracker<R>> {
 impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
     #[instrument(skip(self))]
     pub async fn validate(&mut self) -> Result<(), Error> {
-        self.rdr.seek(SeekFrom::Start(0)).await?;
         Ok(())
     }
     #[instrument(skip(rdr))]
-    pub async fn from_reader(mut rdr: R) -> Result<Self, Error> {
+    pub async fn from_reader(mut rdr: R, check_sig: bool) -> Result<Self, Error> {
         let header = Header::deserialize(&mut rdr).await?;
 
-        let mut hasher = Sha512::new();
-        let mut buf = [0; 1024];
-        let mut read;
-        while {
-            read = rdr.read(&mut buf).await?;
-            read != 0
-        } {
-            hasher.update(&buf[0..read]);
-        }
-        let hash = hasher.clone().finalize();
-        header
-            .pubkey
-            .verify_prehashed(hasher, Some(SIG_CONTEXT), &header.signature)?;
+        let (hash, hash_string) = if check_sig {
+            let mut hasher = Sha512::new();
+            let mut buf = [0; 1024];
+            let mut read;
+            while {
+                read = rdr.read(&mut buf).await?;
+                read != 0
+            } {
+                hasher.update(&buf[0..read]);
+            }
+            let hash = hasher.clone().finalize();
+            header
+                .pubkey
+                .verify_prehashed(hasher, Some(SIG_CONTEXT), &header.signature)?;
+            (
+                Some(hash),
+                Some(base32::encode(
+                    base32::Alphabet::RFC4648 { padding: false },
+                    hash.as_slice(),
+                )),
+            )
+        } else {
+            (None, None)
+        };
+
         let pos = rdr.stream_position().await?;
 
         Ok(S9pkReader {
-            hash_string: base32::encode(
-                base32::Alphabet::RFC4648 { padding: false },
-                hash.as_slice(),
-            ),
+            hash_string,
             hash,
             toc: header.table_of_contents,
             pos,
@@ -103,12 +111,17 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
         })
     }
 
-    pub fn hash(&self) -> &Output<Sha512> {
-        &self.hash
+    pub fn hash(&self) -> Option<&Output<Sha512>> {
+        self.hash.as_ref()
     }
 
-    pub fn hash_str(&self) -> &str {
-        self.hash_string.as_str()
+    pub fn hash_str(&self) -> Option<&str> {
+        self.hash_string.as_ref().map(|s| s.as_str())
+    }
+
+    pub async fn reset(&mut self) -> Result<(), Error> {
+        self.rdr.seek(SeekFrom::Start(0)).await?;
+        Ok(())
     }
 
     async fn read_handle<'a>(

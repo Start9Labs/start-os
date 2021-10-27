@@ -2,8 +2,7 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
-use futures::{FutureExt, StreamExt};
-use patch_db::{DbHandle, HasModel, Map};
+use patch_db::{DbHandle, HasModel};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 

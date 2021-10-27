@@ -23,6 +23,7 @@ use serde_json::Value;
 use tokio::fs::File;
 use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 use tokio::task::{JoinError, JoinHandle};
+use tracing::instrument;
 
 use crate::shutdown::Shutdown;
 use crate::{Error, ResultExt as _};
@@ -733,8 +734,6 @@ pub fn deserialize_number_permissive<
 >(
     deserializer: D,
 ) -> std::result::Result<T, D::Error> {
-    use num::cast::FromPrimitive;
-
     struct Visitor<T: FromStr<Err = E> + num::cast::FromPrimitive, E>(std::marker::PhantomData<T>);
     impl<'de, T: FromStr<Err = Err> + num::cast::FromPrimitive, Err: std::fmt::Display>
         serde::de::Visitor<'de> for Visitor<T, Err>
@@ -998,7 +997,8 @@ impl Drop for FileLock {
     }
 }
 impl FileLock {
-    pub async fn new(path: impl AsRef<Path> + Send + Sync) -> Result<Self, Error> {
+    #[instrument(skip(path))]
+    pub async fn new(path: impl AsRef<Path> + Send + Sync, blocking: bool) -> Result<Self, Error> {
         lazy_static! {
             static ref INTERNAL_LOCKS: Mutex<BTreeMap<PathBuf, Arc<Mutex<()>>>> =
                 Mutex::new(BTreeMap::new());
@@ -1010,7 +1010,12 @@ impl FileLock {
         }
         let tex = internal_locks.get(&path).unwrap().clone();
         drop(internal_locks);
-        let tex_guard = tex.lock_owned().await;
+        let tex_guard = if blocking {
+            tex.lock_owned().await
+        } else {
+            tex.try_lock_owned()
+                .with_kind(crate::ErrorKind::Filesystem)?
+        };
         let parent = path.parent().unwrap_or(Path::new("/"));
         if tokio::fs::metadata(parent).await.is_err() {
             tokio::fs::create_dir_all(parent)
@@ -1020,8 +1025,8 @@ impl FileLock {
         let f = File::create(&path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, path.display().to_string()))?;
-        let file_guard = tokio::task::spawn_blocking(|| {
-            fd_lock_rs::FdLock::lock(f, fd_lock_rs::LockType::Exclusive, true)
+        let file_guard = tokio::task::spawn_blocking(move || {
+            fd_lock_rs::FdLock::lock(f, fd_lock_rs::LockType::Exclusive, blocking)
         })
         .await
         .with_kind(crate::ErrorKind::Unknown)?

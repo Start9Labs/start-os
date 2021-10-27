@@ -4,8 +4,7 @@ use bollard::image::ListImagesOptions;
 use patch_db::{DbHandle, PatchDbHandle};
 use tracing::instrument;
 
-use super::PKG_ARCHIVE_DIR;
-use super::PKG_DOCKER_DIR;
+use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry};
 use crate::s9pk::manifest::PackageId;
@@ -131,7 +130,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
         .await?
         .into_owned();
     if match &pde {
-        PackageDataEntry::Installing { .. } => true,
+        PackageDataEntry::Installing { .. } | PackageDataEntry::Restoring { .. } => true,
         PackageDataEntry::Updating { manifest, .. } => {
             if &manifest.version != version {
                 true
@@ -148,7 +147,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
     }
 
     match pde {
-        PackageDataEntry::Installing { .. } => {
+        PackageDataEntry::Installing { .. } | PackageDataEntry::Restoring { .. } => {
             crate::db::DatabaseModel::new()
                 .package_data()
                 .remove(db, id)

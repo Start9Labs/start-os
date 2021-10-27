@@ -133,12 +133,7 @@ impl HasModel for Volumes {
     type Model = MapModel<Self>;
 }
 
-pub fn data_dir<P: AsRef<Path>>(
-    datadir: P,
-    pkg_id: &PackageId,
-    version: &Version,
-    volume_id: &VolumeId,
-) -> PathBuf {
+pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {
     datadir
         .as_ref()
         .join(PKG_VOLUME_DIR)
@@ -208,7 +203,7 @@ impl Volume {
         volume_id: &VolumeId,
     ) -> PathBuf {
         match self {
-            Volume::Data { .. } => data_dir(&ctx.datadir, pkg_id, version, volume_id),
+            Volume::Data { .. } => data_dir(&ctx.datadir, pkg_id, volume_id),
             Volume::Assets {} => asset_dir(&ctx.datadir, pkg_id, version).join(volume_id),
             Volume::Pointer {
                 package_id,
