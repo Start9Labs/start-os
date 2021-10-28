@@ -30,17 +30,17 @@
 
 2. Clone the repo, move into it, and bring in required submodules
 
-```
-git clone --recursive https://github.com/Start9Labs/embassy-os.git
-cd embassy-os
-git submodule update --init --recursive
-```
+	```
+	git clone --recursive https://github.com/Start9Labs/embassy-os.git
+	cd embassy-os
+	git submodule update --init --recursive
+	```
 
 ## Build
 
-```
-make
-```
+	```
+	make
+	```
 
 ## Flash
 
@@ -52,4 +52,4 @@ We recommend [Balena Etcher](https://www.balena.io/etcher/)
 
 Visit http://embassy.local from any web browser
 
-We recommend [Firefox](https://www.mozilla.org/en-US/firefox/browsers
+We recommend [Firefox](https://www.mozilla.org/en-US/firefox/browsers)
