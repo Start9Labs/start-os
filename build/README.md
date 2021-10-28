@@ -7,26 +7,26 @@
 1. Install dependences
 
 - Avahi
-	`apt install avahi`
-	Installed by default on most Debian systems - https://avahi.org
+	- `apt install avahi`
+	- Installed by default on most Debian systems - https://avahi.org
 - Docker
-	`apt install docker.io`
-	https://docs.docker.com/get-docker
-	Add your user to the docker group: `sudo usermod -a -G docker {USER}`
-	If you have issues here, try to logout or reboot your system
+	- `apt install docker.io`
+	- https://docs.docker.com/get-docker
+	- Add your user to the docker group: `sudo usermod -a -G docker {USER}`
+	- If you have issues here, try to logout or reboot your system
 - Prepare Docker environment
-	Setup buildx (https://docs.docker.com/buildx/working-with-buildx/)
-	Create a builder: `docker buildx create --use`
-	Add multi-arch build ability: `docker run --rm --privileged linuxkit/binfmt:v0.8`
+	- Setup buildx (https://docs.docker.com/buildx/working-with-buildx/)
+	- Create a builder: `docker buildx create --use`
+	- Add multi-arch build ability: `docker run --rm --privileged linuxkit/binfmt:v0.8`
 - Node
-	`apt install nodejs`
-	https://nodejs.org/en/docs
+	- `apt install nodejs`
+	- https://nodejs.org/en/docs
 - NPM
-	`apt install npm`
-	https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
+	- `apt install npm`
+	- https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
 - jq
-	`apt install jq`
-	https://stedolan.github.io/jq
+	- `apt install jq`
+	- https://stedolan.github.io/jq
 
 2. Clone the repo, move into it, and bring in required submodules
 
