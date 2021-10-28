@@ -131,8 +131,7 @@ impl MdnsControllerInner {
                 if res < avahi_sys::AVAHI_OK {
                     let e_str = avahi_strerror(res);
                     tracing::error!(
-                        "Could not add record for {:?} to Avahi entry group: {:?}",
-                        lan_address_ptr,
+                        "Could not add CNAME record to Avahi entry group: {:?}",
                         std::ffi::CStr::from_ptr(e_str)
                     );
                     avahi_free(e_str as *mut c_void);
