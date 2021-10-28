@@ -38,9 +38,9 @@
 
 ## Build
 
-	```
-	make
-	```
+```
+make
+```
 
 ## Flash
 
