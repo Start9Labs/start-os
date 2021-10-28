@@ -16,6 +16,9 @@ EmbassyOS is an open-source operating system designed to empower anyone at any t
 ## Running EmbassyOS
 There are multiple ways to obtain and begin using EmbassyOS.
 
+## :heart: Contributing
+To contribute to the development of EmbassyOS, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
+
 ### :moneybag: Buy an Embassy
 This is the most convenient option. Simply [buy an Embassy](https://start9labs.com) from Start9 Labs and plug it in. Depending on where you live, shipping costs and import duties may vary.
 
@@ -32,9 +35,6 @@ To pursue this option, follow this [guide](https://docs.start9labs.com/getting-s
 
 EmbassyOS can be built from source, for personal use, for free.
 A detailed guide for doing so can be found [here](https://github.com/Start9Labs/embassy-os/blob/master/BuildGuide.md).
-
-## :heart: Contributing
-To contribute to the development of EmbassyOS, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
 
 ## UI Screenshots
 <img src="assets/EmbassyOS.png" alt="Embassy Services" width="100%">
