@@ -9,9 +9,9 @@
 [![mastodon](https://img.shields.io/mastodon/follow/000000001?domain=https%3A%2F%2Fmastodon.start9labs.com&label=Follow&style=social)](http://mastodon.start9labs.com)
 [![twitter](https://img.shields.io/twitter/follow/start9labs?label=Follow)](https://twitter.com/start9labs)
 
-### _Anyone can do it. No one can stop it._ ###
+### _A personal server for everyone._ ###
 
-EmbassyOS is a mass-market, graphical operating system designed to facilitate the discovery, installation, configuration, private self-hosting, and reliable operation of open-source software services and applications. It aims to eliminate trust and custodianship from personal computing.
+EmbassyOS is an open-source operating system designed to enable private self-hosting for those with no technical knowledge. It aims to eliminate trust and custodianship from personal computing.
 
 <img src="assets/eos.png" width="100%">
 
@@ -42,6 +42,4 @@ A detailed guide for doing so can be found [here](https://github.com/Start9Labs/
 To contribute to the development of EmbassyOS, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
 
 ## UI Screenshots
-<img src="assets/ServicesRunning.png" alt="Embassy Services" width="100%"> | <img src="assets/ServiceDetails.png" alt="Service Details" width="100%">
---- | ---
-<img src="assets/Embassy.png" alt="EmbassyOS" width="100%"> | <img src="assets/Marketplace.png" alt="Marketplace" width="100%">
+<img src="assets/EmbassyOS.png" alt="Embassy Services" width="100%">
