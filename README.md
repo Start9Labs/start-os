@@ -11,9 +11,9 @@
 
 ### _A personal server for everyone._ ###
 
-EmbassyOS is an open-source operating system designed to enable private self-hosting for those with no technical knowledge. It aims to eliminate trust and custodianship from personal computing.
+EmbassyOS is an open-source operating system designed to empower anyone at any technical skill level to self-host.
 
-<img src="assets/eos.png" width="100%">
+<img src="assets/EmbassyOS.png" width="100%">
 
 ## :warning: Caution
 Some technologies supported by this software, such as [Lightning](https://lightning.network/), are considered in active development and might experience issues. Do not commit any funds you are not willing to lose. Be #reckless at your own risk. 
