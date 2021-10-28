@@ -1,18 +1,20 @@
+use std::net::IpAddr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use lazy_static::lazy_static;
-use reqwest::{Client, Url};
+use reqwest::{Client, Proxy, Url};
 use serde::Serialize;
 use tracing::Subscriber;
 use tracing_subscriber::Layer;
 
 use crate::version::COMMIT_HASH;
+use crate::{Error, ResultExt};
 
 pub struct SharingLayer {
     log_epoch: Arc<AtomicU64>,
     sharing: Arc<AtomicBool>,
     share_dest: String,
+    tor_proxy: Client,
 }
 impl<S: Subscriber> Layer<S> for SharingLayer {
     fn on_event(
@@ -71,7 +73,7 @@ impl<S: Subscriber> Layer<S> for SharingLayer {
                     log_message: message.0,
                 };
                 // we don't care about the result and need it to be fast
-                tokio::spawn(Client::new().post(&self.share_dest).json(&body).send());
+                tokio::spawn(self.tor_proxy.post(&self.share_dest).json(&body).send());
             }
         }
     }
@@ -101,9 +103,14 @@ impl EmbassyLogger {
             .with(ErrorLayer::default())
     }
     pub fn no_sharing() {
-        Self::init(None, false);
+        Self::init(None, false, IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9050);
     }
-    pub fn init(share_dest: Option<Url>, share_errors: bool) -> Self {
+    pub fn init(
+        share_dest: Option<Url>,
+        share_errors: bool,
+        tor_proxy_ip: IpAddr,
+        tor_proxy_port: u16,
+    ) -> Self {
         use tracing_subscriber::prelude::*;
 
         let mut guard = LOGGER.lock().unwrap();
@@ -117,10 +124,18 @@ impl EmbassyLogger {
                 None => "https://beta-registry-0-3.start9labs.com/error-logs".to_owned(), // TODO
                 Some(a) => a.to_string(),
             };
+            let tor_proxy = Client::builder()
+                .proxy(
+                    Proxy::http(format!("socks5h://{}:{}", tor_proxy_ip, tor_proxy_port))
+                        .with_kind(crate::ErrorKind::Network)?,
+                )
+                .build()
+                .with_kind(crate::ErrorKind::Network)?;
             let sharing_layer = SharingLayer {
                 log_epoch: log_epoch.clone(),
                 share_dest,
                 sharing: sharing.clone(),
+                tor_proxy,
             };
 
             Self::base_subscriber().with(sharing_layer).init();
@@ -129,7 +144,7 @@ impl EmbassyLogger {
         };
         *guard = Some((log_epoch.clone(), sharing.clone()));
 
-        EmbassyLogger { log_epoch, sharing }
+        Ok(EmbassyLogger { log_epoch, sharing })
     }
     pub fn epoch(&self) -> Arc<AtomicU64> {
         self.log_epoch.clone()

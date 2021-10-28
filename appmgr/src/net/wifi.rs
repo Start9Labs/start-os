@@ -59,7 +59,7 @@ pub async fn add(
             let mut wpa_supplicant = wifi_manager.write().await;
             let connected = wpa_supplicant.select_network(ssid).await?;
             if !connected {
-                tracing::error!("Faild to add new WiFi network: '{}'", ssid);
+                tracing::info!("Failed to add new WiFi network: '{}'", ssid);
                 wpa_supplicant.remove_network(ssid).await?;
                 match current {
                     None => {}
@@ -82,7 +82,7 @@ pub async fn add(
         .await
         {
             Err(e) => {
-                tracing::error!("Failed to add new WiFi network '{}': {}", ssid, e);
+                tracing::info!("Failed to add new WiFi network '{}': {}", ssid, e);
                 tracing::debug!("{:?}", e);
             }
             Ok(_) => {}
@@ -112,10 +112,10 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         if connected {
             tracing::info!("Successfully connected to WiFi: '{}'", ssid);
         } else {
-            tracing::error!("Failed to connect to WiFi: '{}'", ssid);
+            tracing::info!("Failed to connect to WiFi: '{}'", ssid);
             match current {
                 None => {
-                    tracing::warn!("No WiFi to revert to!");
+                    tracing::info!("No WiFi to revert to!");
                 }
                 Some(current) => {
                     wpa_supplicant.select_network(&current).await?;
@@ -127,7 +127,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
     tokio::spawn(async move {
         match connect_procedure(ctx.wifi_manager.clone(), &ssid).await {
             Err(e) => {
-                tracing::error!("Failed to connect to WiFi network '{}': {}", &ssid, e);
+                tracing::info!("Failed to connect to WiFi network '{}': {}", &ssid, e);
             }
             Ok(_) => {}
         }
