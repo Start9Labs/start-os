@@ -13,11 +13,6 @@
 
 EmbassyOS is an open-source operating system designed to empower anyone at any technical skill level to self-host.
 
-<img src="assets/EmbassyOS.png" width="100%">
-
-## :warning: Caution
-Some technologies supported by this software, such as [Lightning](https://lightning.network/), are considered in active development and might experience issues. Do not commit any funds you are not willing to lose. Be #reckless at your own risk. 
-
 ## Running EmbassyOS
 There are multiple ways to obtain and begin using EmbassyOS.
 
