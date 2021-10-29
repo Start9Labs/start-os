@@ -1,31 +1,31 @@
 # Building Embassy OS
 
- The commands given assume a Debian or Ubuntu-based environment.  Variables that *MUST* be changed are denoted by `{THING}`. Replace this in its entirety; in other words, there will not be any `{}`s remaining after you enter your variable.
+ The commands given assume a Debian or Ubuntu-based environment.
 
 ## Prerequisites
 
 1. Install dependences
 
 - Avahi
-	- `apt install avahi`
+	- `sudo apt install -y avahi-daemon`
 	- Installed by default on most Debian systems - https://avahi.org
 - Docker
-	- `apt install docker.io`
+	- `sudo apt install -y docker.io`
 	- https://docs.docker.com/get-docker
-	- Add your user to the docker group: `sudo usermod -a -G docker {USER}`
+	- Add your user to the docker group: `sudo usermod -a -G docker $USER`
 	- If you have issues here, try to logout or reboot your system
 - Prepare Docker environment
 	- Setup buildx (https://docs.docker.com/buildx/working-with-buildx/)
 	- Create a builder: `docker buildx create --use`
 	- Add multi-arch build ability: `docker run --rm --privileged linuxkit/binfmt:v0.8`
 - Node
-	- `apt install nodejs`
+	- `sudo apt install -y nodejs`
 	- https://nodejs.org/en/docs
 - NPM
-	- `apt install npm`
+	- `sudo apt install -y npm`
 	- https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
 - jq
-	- `apt install jq`
+	- `sudo apt install -y jq`
 	- https://stedolan.github.io/jq
 
 2. Clone the repo, move into it, and bring in required submodules
@@ -52,4 +52,4 @@ We recommend [Balena Etcher](https://www.balena.io/etcher/)
 
 Visit http://embassy.local from any web browser
 
-We recommend [Firefox](https://www.mozilla.org/en-US/firefox/browsers)
+We recommend [Firefox](https://www.mozilla.org/firefox/browsers)
