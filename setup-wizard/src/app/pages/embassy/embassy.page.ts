@@ -82,7 +82,7 @@ export class EmbassyPage {
       if (!ret.data || !ret.data.password) return
 
       const loader = await this.loadingCtrl.create({
-        message: 'Setting up your Embassy!',
+        message: 'Transferring encrypted data',
       })
 
       await loader.present()
@@ -99,9 +99,9 @@ export class EmbassyPage {
       } finally {
         loader.dismiss()
         if (!!this.stateService.recoveryPartition) {
-          await this.navCtrl.navigateForward(`/loading`, { animationDirection: 'forward' })
+          await this.navCtrl.navigateForward(`/loading`)
         } else {
-          await this.navCtrl.navigateForward(`/success`, { animationDirection: 'forward' })
+          await this.navCtrl.navigateForward(`/init`)
         }
       }
     })

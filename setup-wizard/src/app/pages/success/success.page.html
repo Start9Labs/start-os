@@ -1,91 +1,171 @@
-<ion-content color="light">
+<ion-content>
   <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
     <ion-row style="height: 100%;">
-      <ion-col class="ion-text-center">
+      <ion-col>
 
-        <div style="padding-bottom: 32px;">
+        <div style="padding-bottom: 32px; text-align: center;">
           <img src="assets/png/logo.png" style="max-width: 240px;" />
         </div>
 
         <ion-card color="dark">
-          <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
-            <ion-card-title style="margin-bottom: 10px;">Setup Complete!</ion-card-title>
+          <ion-card-header class="ion-text-center" color="success">
+            <ion-icon style="font-size: 80px;" name="checkmark-circle-outline"></ion-icon>
+            <ion-card-title>Setup Complete!</ion-card-title>
           </ion-card-header>
-          <ion-icon style="font-size: 124px; color: var(--ion-color-success)" name="checkmark-circle-outline"></ion-icon>
-          <ion-card-content style="padding-top: 0px;" class="ion-margin">
-            <p style="padding-bottom: 10px;">Congratulations!  In a few minutes, you will be able to access your Embassy via TOR or LAN.</p>
-            <p class="addr-label">Tor Address:</p>
-            <ion-item style="--border-radius: 8px !important;" color="medium">
-              <ion-label>
-                <p>{{ stateService.torAddress }}</p>
-              </ion-label>
-              <ion-buttons>
-                <ion-button fill="clear" (click)="copy(stateService.torAddress)">
-                  <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
-                </ion-button>
-              </ion-buttons>
-            </ion-item>
-            <p style="margin-top: 8px;">We suggest you copy and save your tor adress in a safe place.  This page will no longer be available once you access your Embassy.</p>
-            
-            <div (click)="toggleLan()">
+          <ion-card-content>
+            <br />
+            <!-- Tor Instructions -->
+            <div (click)="toggleTor()" class="toggle-label">
+              <h2>Tor Instructions:</h2>
               <ion-icon
-                style="float: right; font-size: 24px; margin-right: 28px;"
-                name="caret-down-outline"
+                name="chevron-down-outline"
                 [ngStyle]="{
-                  'transform': lanInstructionsOpen ? 'rotate(-90deg)' : 'rotate(0deg)',
+                  'transform': torOpen ? 'rotate(-90deg)' : 'rotate(0deg)',
                   'transition': 'transform 0.4s ease-out'
                 }"
               ></ion-icon>
-              <p class="addr-label" style="margin: 20px 0 10px 0;">LAN Instructions (Optional):</p>
             </div>
+
             <div
-            [ngStyle]="{
-              'overflow' : 'hidden',
-              'max-height': lanInstructionsOpen ? '455px' : '0px',
-              'transition': 'max-height 0.4s ease-out'
-            }"
+              [ngStyle]="{
+                'overflow' : 'hidden',
+                'max-height': torOpen ? '500px' : '0px',
+                'transition': 'max-height 0.4s ease-out'
+              }"
             >
-              <ion-item-group>
-                <!-- about -->
-                <ion-item color="medium" class="ion-padding-bottom ion-padding-top">
-                    <h2>
-                      Connecting to your Embassy over LAN provides a lightning fast experience and is a reliable fallback in case Tor is having problems. To connect to your Embassy's .local address, you must:
-                      <ol>
-                        <li>Be connected to the same Local Area Network (LAN) as your Embassy.</li>
-                        <li>Download and trust your Embassy's SSL Certificate Authority (below).</li>
-                      </ol>
-                      View the full <a href="https://docs.start9.com/user-manual/general/lan-setup" target="_blank" rel="noreferrer">instructions</a>.
-                    </h2>
-                </ion-item>
-            
-                <ion-item color="medium" button (click)="installCert()">
-                  <ion-icon slot="start" name="download-outline" size="large"></ion-icon>
-                  <ion-label>
-                    <h1>Download Root CA</h1>
-                    <p>Download and trust your Embassy's Root Cert</p>
+              <div class="ion-padding">
+                <p>
+                  To use your Embassy over Tor, visit its unique Tor address from any Tor-enabled browser.
+                  For a list of recommended browsers, click <a href="https://docs.start9.com/user-manual/connecting.html" target="_blank" rel="noreferrer"><b>here</b></a>.
+                </p>
+                <br />
+                <p class="input-label">Tor Address</p>
+                <ion-item lines="none" color="dark">
+                  <ion-label class="ion-text-wrap">
+                    <code><ion-text color="light">{{ stateService.torAddress }}</ion-text></code>
                   </ion-label>
+                  <ion-button color="light" fill="clear" (click)="copy(stateService.torAddress)">
+                    <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+                  </ion-button>
                 </ion-item>
-
-                <p style="padding-top: 10px;" class="addr-label">LAN Address:</p>
-
-                <ion-item style="--border-radius: 8px !important;" color="medium">
-                  <ion-label>
-                    <p>{{ stateService.lanAddress }}</p>
-                  </ion-label>
-                  <ion-buttons>
-                    <ion-button fill="clear" (click)="copy(stateService.lanAddress)">
-                      <ion-icon size="small" slot="icon-only" name="copy-outline"></ion-icon>
-                    </ion-button>
-                  </ion-buttons>
-                </ion-item>
-              </ion-item-group>
+              </div>
+              <div style="padding-bottom: 24px; border-bottom: solid 1px;"></div>
+              <br />
             </div>
+            
+            <!-- LAN Instructions -->
+            <div (click)="toggleLan()" class="toggle-label">
+              <h2>LAN Instructions (Slightly Advanced):</h2>
+              <ion-icon
+                name="chevron-down-outline"
+                [ngStyle]="{
+                  'transform': lanOpen ? 'rotate(-90deg)' : 'rotate(0deg)',
+                  'transition': 'transform 0.4s ease-out'
+                }"
+              ></ion-icon>
+            </div>
+
+            <div
+              [ngStyle]="{
+                'overflow' : 'hidden',
+                'max-height': lanOpen ? '500px' : '0px',
+                'transition': 'max-height 0.4s ease-out'
+              }"
+            >
+              <div class="ion-padding">
+                <p>To use your Embassy locally, you must:</p>
+                <ol>
+                  <li>Currently be connected to the same Local Area Network (LAN) as your Embassy.</li>
+                  <li>Download your Embassy's Root Certificate Authority.</li>
+                  <li>Trust your Embassy's Root CA on <i>both</i> your computer/phone and in your browser settings.</li>
+                </ol>
+                <p>
+                  For step-by-step instructions, click
+                  <a href="https://docs.start9.com/user-manual/general/lan-setup.html" target="_blank" rel="noreferrer"><b>here</b></a>.
+                </p>
+  
+                <ion-button style="margin-top: 24px; margin-bottom: 24px;" color="light" (click)="installCert()">
+                  Download Root CA
+                  <ion-icon slot="end" name="download-outline"></ion-icon>
+                </ion-button>
+  
+                <p class="input-label">LAN Address</p>
+                <ion-item lines="none" color="dark">
+                  <ion-label class="ion-text-wrap">
+                    <code><ion-text color="light">{{ stateService.lanAddress }}</ion-text></code>
+                  </ion-label>
+                  <ion-button color="light" fill="clear" (click)="copy(stateService.lanAddress)">
+                    <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+                  </ion-button>
+                </ion-item>
+              </div>
+              <div style="padding-bottom: 24px; border-bottom: solid 1px;"></div>
+              <br />
+            </div>
+            <div class="ion-text-center ion-padding-top">
+              <ion-button color="light" fill="clear" color="primary" strong (click)="download()">
+                Download this page
+                <ion-icon slot="end" name="download-outline"></ion-icon>
+              </ion-button>
+            </div>
+            <br />
           </ion-card-content>
         </ion-card>
       </ion-col>
     </ion-row>
   </ion-grid>
-
-  <a id="install-cert" href="/public/local.crt" download="Embassy Local CA.crt"></a>
-
 </ion-content>
+
+<!-- cert elem -->
+<a hidden id="install-cert" href="/public/local.crt" download="embassy.crt"></a>
+
+<!-- download elem -->
+<div hidden id="downloadable">
+  <div style="padding: 0 24px; font-family: Courier;">
+    <h1>Embassy Info</h1>
+
+    <section style="padding: 16px; border: solid 1px;">
+      <h2>Tor Info</h2>
+      <p>
+        To use your Embassy over Tor, visit its unique Tor address from any Tor-enabled browser.
+      </p>
+      <p>
+        For a list of recommended browsers, click <a href="https://docs.start9.com/user-manual/connecting.html" target="_blank" rel="noreferrer"><b>here</b></a>.
+      </p>
+      <p><b>Tor Address: </b><code id="tor-addr"></code></p>
+    </section>
+  
+    <section style="padding: 16px; border: solid 1px; border-top: none;">
+      <h2>LAN Info</h2>
+      <p>To use your Embassy locally, you must:</p>
+      <ol>
+        <li>Currently be connected to the same Local Area Network (LAN) as your Embassy.</li>
+        <li>Download your Embassy's Root Certificate Authority.</li>
+        <li>Trust your Embassy's Root CA on <i>both</i> your computer/phone and in your browser settings.</li>
+      </ol>
+      <p>
+        For step-by-step instructions, click
+        <a href="https://docs.start9.com/user-manual/general/lan-setup.html" target="_blank" rel="noreferrer"><b>here</b></a>.
+      </p>
+  
+      <div style="margin: 42px 0;">
+        <a
+          id="cert"
+          download="embassy.crt"
+          style="
+            background: #25272b;
+            padding: 10px;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 4px;
+            color: white;
+          "
+        >
+          Download Root CA
+        </a>
+      </div>
+  
+      <p><b>LAN Address: </b><code id="lan-addr"></code></p>
+    </section>
+  </div>
+</div>
