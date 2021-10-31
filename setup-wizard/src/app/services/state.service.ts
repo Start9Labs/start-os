@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs'
 import { ApiService, DiskInfo, PartitionInfo } from './api/api.service'
 import { ErrorToastService } from './error-toast.service'
+import { pauseFor } from '../util/misc.util'
 
 @Injectable({
   providedIn: 'root',
@@ -22,13 +23,14 @@ export class StateService {
 
   torAddress: string
   lanAddress: string
+  cert: string
 
   constructor (
     private readonly apiService: ApiService,
     private readonly errorToastService: ErrorToastService,
   ) { }
 
-  async pollDataTransferProgress (callback?: () => void) {
+  async pollDataTransferProgress () {
     this.polling = true
     await pauseFor(1000)
 
@@ -54,7 +56,7 @@ export class StateService {
         this.dataProgSubject.next(this.dataProgress)
       }
     }
-    this.pollDataTransferProgress(callback)
+    this.pollDataTransferProgress()
   }
 
   async setupEmbassy () : Promise<void> {
@@ -64,12 +66,8 @@ export class StateService {
       'recovery-partition': this.recoveryPartition,
       'recovery-password': this.recoveryPassword,
     })
-    this.torAddress = ret['tor-address']
-    this.lanAddress = ret['lan-address']
+    this.torAddress = 'http://' + ret['tor-address']
+    this.lanAddress = 'https://' + ret['lan-address']
+    this.cert = ret['root-ca']
   }
-}
-
-export const pauseFor = (ms: number) => {
-  const promise = new Promise(resolve => setTimeout(resolve, ms))
-  return promise
 }
