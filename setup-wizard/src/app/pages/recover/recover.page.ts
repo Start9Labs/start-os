@@ -39,7 +39,7 @@ export class RecoverPage {
 
   async getPartitions () {
     try {
-      let drives = (await this.apiService.getDrives())
+      let drives = await this.apiService.getDrives()
 
       this.recoveryPartitions = drives.map(d => d.partitions.map(p => ({ partition: p, vendor: d.vendor, model: d.model})).filter(p => p.partition['embassy-os']?.full)).flat()
       // if theres no product key, only show 0.2s

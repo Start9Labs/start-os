@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { AlertController, ToastController } from '@ionic/angular'
+import { ToastController } from '@ionic/angular'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -8,19 +8,21 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['success.page.scss'],
 })
 export class SuccessPage {
+  torOpen = true
+  lanOpen = false
+
   constructor (
     private readonly toastCtrl: ToastController,
-    private readonly alertCtrl: AlertController,
     public readonly stateService: StateService,
   ) { }
 
-  window = window
-  lanInstructionsOpen = false
+  ngAfterViewInit () {
+    this.download()
+  }
 
   async copy (address: string): Promise<void> {
-    let message = ''
-    await this.copyToClipboard(address)
-      .then(success => message = success ? 'copied to clipboard!' : 'failed to copy')
+    const success = await this.copyToClipboard(address)
+    const message = success ? 'copied to clipboard!' : 'failed to copy'
 
     const toast = await this.toastCtrl.create({
       header: message,
@@ -30,51 +32,46 @@ export class SuccessPage {
     await toast.present()
   }
 
-  async goToEmbassy () {
-    window.location.reload()
-  }
-
-  async copyToClipboard (str: string): Promise<boolean> {
-    const alert = await this.alertCtrl.create({
-      header: 'Please Save',
-      message: 'Make sure you save the address to your Embassy in a safe place.',
-      buttons: [
-        {
-          text: 'OK',
-          role: 'cancel',
-        },
-      ],
-    })
-
-    await alert.present()
-    if (window.isSecureContext) {
-      return navigator.clipboard.writeText(str)
-        .then(() => {
-          return true
-        })
-        .catch(err => {
-          return false
-        })
-    } else {
-      const el = document.createElement('textarea')
-      el.value = str
-      el.setAttribute('readonly', '')
-      el.style.position = 'absolute'
-      el.style.left = '-9999px'
-      document.body.appendChild(el)
-      el.select()
-      const copy = document.execCommand('copy')
-      document.body.removeChild(el)
-      return copy
-    }
+  toggleTor () {
+    this.torOpen = !this.torOpen
   }
 
   toggleLan () {
-    this.lanInstructionsOpen = !this.lanInstructionsOpen
+    this.lanOpen = !this.lanOpen
   }
 
   installCert () {
     document.getElementById('install-cert').click()
+  }
+
+  download () {
+    document.getElementById('tor-addr').innerHTML = this.stateService.torAddress
+    document.getElementById('lan-addr').innerHTML = this.stateService.lanAddress
+    document.getElementById('cert').setAttribute('href', 'data:application/x-x509-ca-cert;base64,' + encodeURIComponent(this.stateService.cert))
+    let html = document.getElementById('downloadable').innerHTML
+    const filename = 'embassy-info.html'
+
+    const elem = document.createElement('a')
+    elem.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(html))
+    elem.setAttribute('download', filename)
+    elem.style.display = 'none'
+
+    document.body.appendChild(elem)
+    elem.click()
+    document.body.removeChild(elem)
+  }
+
+  private async copyToClipboard (str: string): Promise<boolean> {
+    const el = document.createElement('textarea')
+    el.value = str
+    el.setAttribute('readonly', '')
+    el.style.position = 'absolute'
+    el.style.left = '-9999px'
+    document.body.appendChild(el)
+    el.select()
+    const copy = document.execCommand('copy')
+    document.body.removeChild(el)
+    return copy
   }
 }
 

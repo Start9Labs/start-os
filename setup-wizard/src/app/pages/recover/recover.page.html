@@ -1,4 +1,4 @@
-<ion-content color="light">
+<ion-content>
   <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
     <ion-row style="height: 100%;">
       <ion-col class="ion-text-center">
@@ -16,8 +16,8 @@
 
           <ion-card-content class="ion-margin">
             <ng-container *ngIf="!loading && !recoveryPartitions.length">
-              <h2 color="light">No recovery drives found</h2>
-              <p color="light">Please connect a recovery drive to your Embassy and refresh the page.</p>
+              <h2>No recovery drives found</h2>
+              <p>Please connect a recovery drive to your Embassy and refresh the page.</p>
               <ion-button 
                 (click)="refresh()"
                 style="text-align:center"
