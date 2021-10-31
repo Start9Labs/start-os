@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
-import { ApiService, DiskInfo, PartitionInfo } from 'src/app/services/api/api.service'
+import { ModalController } from '@ionic/angular'
+import { DiskInfo, PartitionInfo } from 'src/app/services/api/api.service'
 import * as argon2 from '@start9labs/argon2'
 
 @Component({
@@ -20,25 +20,15 @@ export class PasswordPage {
   passwordVer = ''
   unmasked2 = false
 
-  hasData: boolean
-
   constructor (
     private modalController: ModalController,
-    private apiService: ApiService,
-    private loadingCtrl: LoadingController,
   ) { }
-
-  ngOnInit () {
-    if (this.storageDrive && this.storageDrive.partitions.find(p => p.used)) {
-      this.hasData = true
-    }
-  }
 
   async verifyPw () {
     if (!this.recoveryPartition || !this.recoveryPartition['embassy-os']) this.pwError = 'No recovery drive' // unreachable
 
     try {
-      argon2.verify( this.recoveryPartition['embassy-os']['password-hash'], this.password)
+      argon2.verify(this.recoveryPartition['embassy-os']['password-hash'], this.password)
       this.modalController.dismiss({ password: this.password })
     } catch (e) {
       this.pwError = 'Incorrect password provided'
@@ -63,14 +53,14 @@ export class PasswordPage {
     }
 
     if (this.password.length < 12) {
-      this.pwError = '*password must be 12 characters or greater'
+      this.pwError = 'Must be 12 characters or greater'
     } else {
       this.pwError = ''
     }
   }
 
   checkVer () {
-    this.verError = this.password !== this.passwordVer ? '*passwords do not match' : ''
+    this.verError = this.password !== this.passwordVer ? 'Passwords do not match' : ''
   }
 
   cancel () {

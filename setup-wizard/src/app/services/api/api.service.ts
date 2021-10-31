@@ -26,6 +26,7 @@ export interface SetupEmbassyReq {
 export interface SetupEmbassyRes {
   'tor-address': string
   'lan-address': string
+  'root-ca': string
 }
 
 export interface DiskInfo {

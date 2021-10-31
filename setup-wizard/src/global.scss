@@ -25,32 +25,41 @@
 @import "~@ionic/angular/css/text-transformation.css";
 @import "~@ionic/angular/css/flex-utils.css";
 
+ion-toolbar {
+  --ion-background-color: var(--ion-color-light); 
+}
+
 ion-avatar {
   width: 27px;
   height: 27px;
+}
+
+ion-alert {
+  .alert-button {
+    color: var(--ion-color-dark) !important;
+  }
+}
+
+ion-button {
+  --color: var(--ion-color-dark) !important;
 }
 
 ion-item {
   --highlight-color-valid: transparent;
   --highlight-color-invalid: transparent;
   --highlight-color-focused: var(--ion-color-light);
+
+  --border-radius: 4px;
+  --border-style: solid;
+  --border-width: 1px;
+  --border-color: var(--ion-color-light);
 }
 
-.claim-button {
-  margin-inline-start: 0;
-  margin-inline-end: 0;
-  margin-top: 24px;
-  min-width: 140px;
-}
-
-.alertlike-modal {
-  .modal-wrapper {
-    max-height: 380px !important;
-    top: 25% !important;
-    width: 90% !important;
-    left: 5% !important;
-    --box-shadow: none !important;
-  }
+ion-card-title {
+  margin: 16px 0;
+  font-family: 'Montserrat';
+  font-size: x-large;
+  --color: var(--ion-color-light);
 }
 
 ion-toast {
@@ -59,6 +68,20 @@ ion-toast {
   --border-style: solid;
   --border-width: 1px;
   --color: white;
+}
+
+.inline {
+  * {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
+.claim-button {
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+  margin-top: 24px;
+  min-width: 140px;
 }
 
 .error-toast {
@@ -71,11 +94,64 @@ ion-toast {
   top: 64px;
 }
 
+.input-label {
+  text-align: left;
+  padding-bottom: 2px;
+  font-size: small;
+  font-weight: bold;
+}
+
+.error-border {
+  border: 2px solid var(--ion-color-danger);
+  border-radius: 4px;
+}
+
+.success-border {
+  border: 2px solid var(--ion-color-success);
+  border-radius: 4px;
+}
+
+.modal-wrapper.sc-ion-modal-md {
+  border-radius: 6px;
+  border: 2px solid rgba(255,255,255,.03);
+  box-shadow: 0 0 70px 70px black;
+}
+
+.modal-wrapper {
+  position: absolute;
+  height: 90% !important;
+  top: 5%;
+  width: 90% !important;
+  left: 5%;
+  display: block;
+}
+
+@media (min-width:1000px) {
+  .modal-wrapper {
+    position: absolute;
+    height: 80% !important;
+    top: 10%;
+    width: 50% !important;
+    left: 25%;
+    display: block;
+  }
+}
+
+.alertlike-modal {
+  .modal-wrapper {
+    max-height: 380px !important;
+    top: 25% !important;
+    width: 90% !important;
+    left: 5% !important;
+    --box-shadow: none !important;
+  }
+}
+
 @media (min-width:1000px) {
   .alertlike-modal {
     .modal-wrapper {
-      width: 40% !important;
-      left: 30% !important;
+      width: 60% !important;
+      left: 20% !important;
     }
   }
 }

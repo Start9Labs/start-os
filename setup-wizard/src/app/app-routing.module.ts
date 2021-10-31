@@ -3,6 +3,10 @@ import { PreloadAllModules, RouterModule, Routes } from '@angular/router'
 
 const routes: Routes = [
   {
+    path: 'init',
+    loadChildren: () => import('./pages/init/init.module').then( m => m.InitPageModule),
+  },
+  {
     path: 'product-key',
     loadChildren: () => import('./pages/product-key/product-key.module').then( m => m.ProductKeyPageModule),
   },

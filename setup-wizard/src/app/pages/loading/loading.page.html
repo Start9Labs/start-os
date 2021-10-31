@@ -10,12 +10,11 @@
         <ion-card color="dark">
           <ion-card-header>
             <ion-card-title style="font-size: 40px;">Recovering From Backup</ion-card-title>
-            <ion-card-subtitle>Progress: {{(stateService.dataProgress * 100).toFixed(0) }}%</ion-card-subtitle>
+            <ion-card-subtitle>Progress: {{ (stateService.dataProgress * 100).toFixed(0) }}%</ion-card-subtitle>
           </ion-card-header>
 
           <ion-card-content class="ion-margin">
-            <ion-progress-bar color="primary" style="max-width: 700px; margin: auto; padding-bottom: 20px; margin-bottom: 40px;" value="{{stateService.dataProgress}}"></ion-progress-bar>
-            
+            <ion-progress-bar color="primary" style="max-width: 700px; margin: auto; padding-bottom: 20px; margin-bottom: 40px;" [value]="stateService.dataProgress"></ion-progress-bar>
           </ion-card-content>
         </ion-card>
       </ion-col>
