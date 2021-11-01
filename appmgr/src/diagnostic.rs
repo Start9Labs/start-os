@@ -47,7 +47,8 @@ pub fn exit(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
 pub fn restart(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
     ctx.shutdown
         .send(Some(Shutdown {
-            zfs_pool: ctx.zfs_pool_name.clone(),
+            datadir: ctx.datadir.clone(),
+            disk_guid: ctx.disk_guid.clone(),
             db_handle: None,
             restart: true,
         }))

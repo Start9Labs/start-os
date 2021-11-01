@@ -62,7 +62,6 @@ const SYS_BLOCK_PATH: &'static str = "/sys/block";
 
 lazy_static::lazy_static! {
     static ref PARTITION_REGEX: Regex = Regex::new("-part[0-9]+$").unwrap();
-    static ref ZPOOL_REGEX: Regex = Regex::new("^\\s+([a-z0-9]+)\\s+ONLINE").unwrap();
 }
 
 #[instrument(skip(path))]
@@ -150,22 +149,7 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
 
 #[instrument]
 pub async fn list() -> Result<Vec<DiskInfo>, Error> {
-    let zpool_drives: BTreeSet<PathBuf> = match Command::new("zpool")
-        .arg("status")
-        .invoke(crate::ErrorKind::Zfs)
-        .await
-    {
-        Ok(v) => String::from_utf8(v)?
-            .lines()
-            .filter_map(|l| ZPOOL_REGEX.captures(l))
-            .filter_map(|c| c.get(1))
-            .map(|d| Path::new("/dev").join(d.as_str()))
-            .collect(),
-        Err(e) => {
-            tracing::warn!("`zpool status` returned error: {}", e);
-            BTreeSet::new()
-        }
-    };
+    let internal_drives: BTreeSet<PathBuf> = BTreeSet::new(); // todo!("parse pvscan");
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
             .await
@@ -233,7 +217,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                 tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source)
             })
             .unwrap_or_default();
-        if zpool_drives.contains(&disk) {
+        if internal_drives.contains(&disk) {
             internal = true;
         } else {
             for part in parts {
