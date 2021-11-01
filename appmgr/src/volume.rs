@@ -210,17 +210,11 @@ impl Volume {
                 volume_id,
                 path,
                 ..
-            } => ctx
-                .datadir
-                .join(PKG_VOLUME_DIR)
-                .join(package_id)
-                .join("data")
-                .join(volume_id)
-                .join(if path.is_absolute() {
-                    path.strip_prefix("/").unwrap()
-                } else {
-                    path.as_ref()
-                }),
+            } => data_dir(&ctx.datadir, package_id, volume_id).join(if path.is_absolute() {
+                path.strip_prefix("/").unwrap()
+            } else {
+                path.as_ref()
+            }),
             Volume::Certificate { interface_id: _ } => {
                 ctx.net_controller.nginx.ssl_directory_for(pkg_id)
             }
