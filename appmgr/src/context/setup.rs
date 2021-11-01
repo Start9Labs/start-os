@@ -30,7 +30,6 @@ use crate::{Error, ResultExt};
 #[serde(rename_all = "kebab-case")]
 pub struct SetupContextConfig {
     pub bind_rpc: Option<SocketAddr>,
-    pub zfs_pool_name: Option<String>,
     pub datadir: Option<PathBuf>,
 }
 impl SetupContextConfig {
@@ -49,17 +48,10 @@ impl SetupContextConfig {
             Ok(Self::default())
         }
     }
-    pub fn zfs_pool_name(&self) -> &str {
-        self.zfs_pool_name
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("embassy-data")
-    }
-    pub fn datadir(&self) -> Cow<'_, Path> {
+    pub fn datadir(&self) -> &Path {
         self.datadir
-            .as_ref()
-            .map(|a| Cow::Borrowed(a.as_path()))
-            .unwrap_or_else(|| Cow::Owned(Path::new("/").join(self.zfs_pool_name())))
+            .as_deref()
+            .unwrap_or_else(|| Path::new("/embassy-data"))
     }
 }
 
@@ -67,7 +59,6 @@ pub struct SetupContextSeed {
     pub bind_rpc: SocketAddr,
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
-    pub zfs_pool_name: Arc<String>,
     pub selected_v2_drive: RwLock<Option<PathBuf>>,
     pub cached_product_key: RwLock<Option<Arc<String>>>,
     pub recovery_status: RwLock<Option<Result<RecoveryStatus, RpcError>>>,
@@ -80,13 +71,11 @@ impl SetupContext {
     pub async fn init<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
         let cfg = SetupContextConfig::load(path).await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
-        let datadir = cfg.datadir().into_owned();
-        let zfs_pool_name = Arc::new(cfg.zfs_pool_name().to_owned());
+        let datadir = cfg.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,
             datadir,
-            zfs_pool_name,
             selected_v2_drive: RwLock::new(None),
             cached_product_key: RwLock::new(None),
             recovery_status: RwLock::new(None),

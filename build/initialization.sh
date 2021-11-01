@@ -14,7 +14,6 @@ apt install -y \
 	avahi-daemon \
 	iotop \
 	bmon \
-	zfsutils-linux \
 	exfat-utils \
 	sqlite3 \
 	wireless-tools \
@@ -37,7 +36,6 @@ touch /root/.docker/config.json
 
 docker run --privileged --rm tonistiigi/binfmt --install all
 docker network create -d bridge --subnet 172.18.0.1/16 start9 || true
-echo '{ "storage-driver": "zfs" }' > /etc/docker/daemon.json
 mkdir -p /etc/embassy
 hostnamectl set-hostname "embassy"
 systemctl enable embassyd.service embassy-init.service

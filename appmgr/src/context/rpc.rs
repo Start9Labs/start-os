@@ -43,7 +43,6 @@ pub struct RpcContextConfig {
     pub tor_control: Option<SocketAddr>,
     pub tor_socks: Option<SocketAddr>,
     pub revision_cache_size: Option<usize>,
-    pub zfs_pool_name: Option<String>,
     pub datadir: Option<PathBuf>,
     pub log_server: Option<Url>,
 }
@@ -62,17 +61,10 @@ impl RpcContextConfig {
             Ok(Self::default())
         }
     }
-    pub fn zfs_pool_name(&self) -> &str {
-        self.zfs_pool_name
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("embassy-data")
-    }
-    pub fn datadir(&self) -> Cow<'_, Path> {
+    pub fn datadir(&self) -> &Path {
         self.datadir
-            .as_ref()
-            .map(|a| Cow::Borrowed(a.as_path()))
-            .unwrap_or_else(|| Cow::Owned(Path::new("/").join(self.zfs_pool_name())))
+            .as_deref()
+            .unwrap_or_else(|| Path::new("/embassy-data"))
     }
     pub async fn db(&self, secret_store: &SqlitePool) -> Result<PatchDb, Error> {
         let db_path = self.datadir().join("main").join("embassy.db");
@@ -115,7 +107,7 @@ pub struct RpcContextSeed {
     pub bind_ws: SocketAddr,
     pub bind_static: SocketAddr,
     pub datadir: PathBuf,
-    pub zfs_pool_name: Arc<String>,
+    pub disk_guid: Arc<String>,
     pub db: PatchDb,
     pub secret_store: SqlitePool,
     pub docker: Docker,
@@ -136,7 +128,10 @@ pub struct RpcContextSeed {
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip(cfg_path))]
-    pub async fn init<P: AsRef<Path>>(cfg_path: Option<P>) -> Result<Self, Error> {
+    pub async fn init<P: AsRef<Path>>(
+        cfg_path: Option<P>,
+        disk_guid: Arc<String>,
+    ) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
         let log_epoch = Arc::new(AtomicU64::new(rand::random()));
         let logger = EmbassyLogger::init(log_epoch.clone(), base.log_server.clone(), false);
@@ -167,7 +162,7 @@ impl RpcContext {
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             bind_static: base.bind_static.unwrap_or(([127, 0, 0, 1], 5961).into()),
             datadir: base.datadir().to_path_buf(),
-            zfs_pool_name: Arc::new(base.zfs_pool_name().to_owned()),
+            disk_guid,
             db,
             secret_store,
             docker,
