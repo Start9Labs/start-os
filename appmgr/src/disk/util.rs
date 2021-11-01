@@ -35,7 +35,8 @@ pub struct DiskInfo {
     pub model: Option<String>,
     pub partitions: Vec<PartitionInfo>,
     pub capacity: usize,
-    pub internal: bool,
+    pub imported: bool, // device is currently used by embassy-os
+    pub exported: bool, // device is part of an embassy-os disk that is not currently being used
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
