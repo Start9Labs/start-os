@@ -37,7 +37,7 @@ where
     P: AsRef<Path>,
 {
     for disk in disks {
-        tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table and lvm2 metadata
+        tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table
         Command::new("pvcreate")
             .arg("-yff")
             .arg(disk.as_ref())
