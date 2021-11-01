@@ -990,7 +990,7 @@ export module Mock {
         },
       ],
       capacity: 1000000000000,
-      internal: true,
+      guid: 'asdfasdf',
     },
     {
       logicalname: '/dev/sdb',
@@ -1016,7 +1016,7 @@ export module Mock {
         },
       ],
       capacity: 10000000000,
-      internal: false,
+      guid: null,
     },
   ]
 

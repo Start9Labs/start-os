@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
-import { ModalController, NavController } from '@ionic/angular'
-import { ApiService, PartitionInfo } from 'src/app/services/api/api.service'
+import { AlertController, LoadingController, ModalController, NavController } from '@ionic/angular'
+import { ApiService, DiskInfo, PartitionInfo } from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../password/password.page'
@@ -12,39 +12,60 @@ import { ProdKeyModal } from '../prod-key-modal/prod-key-modal.page'
   styleUrls: ['recover.page.scss'],
 })
 export class RecoverPage {
-  passwords = { }
-  prodKeys = { }
-  recoveryPartitions: { partition: PartitionInfo, model: string, vendor: string }[] = []
   selectedPartition: PartitionInfo = null
   loading = true
+  drives: DiskInfo[] = []
+  hasShownGuidAlert = false
 
   constructor (
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly modalController: ModalController,
+    private readonly alertCtrl: AlertController,
+    private readonly loadingCtrl: LoadingController,
     readonly stateService: StateService,
     private readonly errorToastService: ErrorToastService,
   ) { }
 
   async ngOnInit () {
-    await this.getPartitions()
+    await this.getDrives()
   }
 
   async refresh () {
-    this.recoveryPartitions = []
     this.selectedPartition = null
     this.loading = true
-    await this.getPartitions()
+    await this.getDrives()
   }
 
-  async getPartitions () {
-    try {
-      let drives = await this.apiService.getDrives()
+  partitionClickable (partition: PartitionInfo) {
+    return partition['embassy-os']?.full && ((!this.stateService.hasProductKey && partition['embassy-os']?.version.startsWith('0.2') ) || this.stateService.hasProductKey)
+  }
 
-      this.recoveryPartitions = drives.map(d => d.partitions.map(p => ({ partition: p, vendor: d.vendor, model: d.model})).filter(p => p.partition['embassy-os']?.full)).flat()
-      // if theres no product key, only show 0.2s
-      if (!this.stateService.hasProductKey) {
-        this.recoveryPartitions = this.recoveryPartitions.filter(p => p.partition['embassy-os']?.version.startsWith('0.2'))
+  async getDrives () {
+    try {
+      this.drives = await this.apiService.getDrives()
+
+      const importableDrive = this.drives.filter(d => !!d.guid)[0]
+      if (!!importableDrive && !this.hasShownGuidAlert) {
+        const alert = await this.alertCtrl.create({
+          header: 'Warning',
+          subHeader: 'Drive contains data!',
+          message: 'All data stored on this drive will be permanently deleted.',
+          buttons: [
+            {
+              role: 'cancel',
+              text: 'Dismiss',
+            },
+            {
+              text: 'Use',
+              handler: async () => {
+                await this.importDrive(importableDrive.guid)
+              },
+            },
+          ],
+        })
+        await alert.present()
+        this.hasShownGuidAlert = true
       }
     } catch (e) {
       this.errorToastService.present(`${e.message}: ${e.data}`)
@@ -53,15 +74,27 @@ export class RecoverPage {
     }
   }
 
-  async choosePartition (partition: PartitionInfo) {
-    if (this.selectedPartition?.logicalname === partition.logicalname) {
-      this.selectedPartition = null
-      return
-    } else {
-      this.selectedPartition = partition
+  async importDrive (guid: string) {
+    const loader = await this.loadingCtrl.create({
+      message: 'Importing Drive',
+    })
+    await loader.present()
+    try {
+      await this.stateService.importDrive(guid)
+      await this.navCtrl.navigateForward(`/success`)
+    } catch (e) {
+      this.errorToastService.present(`${e.message}: ${e.data}`)
+    } finally {
+      loader.dismiss()
     }
+  }
 
-    if ((partition['embassy-os'].version.startsWith('0.2') && this.stateService.hasProductKey) || this.passwords[partition.logicalname] || this.prodKeys[partition.logicalname]) return
+  async choosePartition (partition: PartitionInfo) {
+    this.selectedPartition = partition
+
+    if (partition['embassy-os'].version.startsWith('0.2')) {
+      return this.selectRecoveryPartition()
+    }
 
     if (this.stateService.hasProductKey) {
       const modal = await this.modalController.create({
@@ -75,7 +108,7 @@ export class RecoverPage {
         if (!ret.data) {
           this.selectedPartition = null
         } else if (ret.data.password) {
-          this.passwords[partition.logicalname] = ret.data.password
+          this.selectRecoveryPartition(ret.data.password)
         }
 
       })
@@ -92,7 +125,7 @@ export class RecoverPage {
         if (!ret.data) {
           this.selectedPartition = null
         } else if (ret.data.productKey) {
-          this.prodKeys[partition.logicalname] = ret.data.productKey
+          this.selectRecoveryPartition()
         }
 
       })
@@ -100,11 +133,10 @@ export class RecoverPage {
     }
   }
 
-  async selectRecoveryPartition () {
+  async selectRecoveryPartition (password?: string) {
     this.stateService.recoveryPartition = this.selectedPartition
-    const pw = this.passwords[this.selectedPartition.logicalname]
-    if (pw) {
-      this.stateService.recoveryPassword = pw
+    if (password) {
+      this.stateService.recoveryPassword = password
     }
     await this.navCtrl.navigateForward(`/embassy`)
   }
