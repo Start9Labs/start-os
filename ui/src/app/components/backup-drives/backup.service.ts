@@ -24,19 +24,19 @@ export class BackupService {
     try {
       const drives = await this.embassyApi.getDrives({ })
       this.drives = drives
-      .filter(d => !d.internal)
-      .map(d => {
-        const partionInfo: MappedPartitionInfo[] = d.partitions.map(p => {
+        .filter(d => !d.guid)
+        .map(d => {
+          const partionInfo: MappedPartitionInfo[] = d.partitions.map(p => {
+            return {
+              ...p,
+              hasBackup: [0, 1].includes(this.emver.compare(p['embassy-os']?.version, '0.3.0')),
+            }
+          })
           return {
-            ...p,
-            hasBackup: [0, 1].includes(this.emver.compare(p['embassy-os']?.version, '0.3.0')),
+            ...d,
+            partitions: partionInfo,
           }
         })
-        return {
-          ...d,
-          partitions: partionInfo,
-        }
-      })
     } catch (e) {
       this.loadingError = getErrorMessage(e)
     } finally {

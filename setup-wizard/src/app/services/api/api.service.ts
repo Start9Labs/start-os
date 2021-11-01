@@ -8,6 +8,7 @@ export abstract class ApiService {
   // encrypted
   abstract verifyProductKey (): Promise<void> // echo - throws error if invalid
   abstract verify03XPassword (logicalname: string, password: string): Promise<boolean> // setup.recovery.test-password
+  abstract importDrive (guid: string): Promise<SetupEmbassyRes> // setup.execute
   abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
 }
 
@@ -35,6 +36,7 @@ export interface DiskInfo {
   model: string | null,
   partitions: PartitionInfo[],
   capacity: number,
+  guid: string | null, // cant back up if guid exists
 }
 
 export interface RecoveryStatusRes {

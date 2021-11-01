@@ -59,6 +59,14 @@ export class StateService {
     this.pollDataTransferProgress()
   }
 
+
+  async importDrive (guid: string) : Promise<void> {
+    const ret = await this.apiService.importDrive(guid)
+    this.torAddress = 'http://' + ret['tor-address']
+    this.lanAddress = 'https://' + ret['lan-address']
+    this.cert = ret['root-ca']
+  }
+
   async setupEmbassy () : Promise<void> {
     const ret = await this.apiService.setupEmbassy({
       'embassy-logicalname': this.storageDrive.logicalname,
