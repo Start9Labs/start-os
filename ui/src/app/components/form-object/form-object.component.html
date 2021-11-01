@@ -70,24 +70,44 @@
       <!-- object or union -->
       <ng-container *ngIf="spec.type === 'object' || spec.type ==='union'">
         <!-- label -->
-        <ion-item-divider>
+        <ion-item-divider (click)="toggleExpandObject(entry.key)" style="cursor: pointer;">
           <form-label [data]="{
-            spec: spec,
-            new: current && current[entry.key] === undefined,
-            edited: entry.value.dirty
-          }"></form-label>
+              spec: spec,
+              new: current && current[entry.key] === undefined,
+              edited: entry.value.dirty
+            }"
+          ></form-label>
+          <ion-icon
+          slot="end"
+          name="chevron-up"
+          [ngStyle]="{
+            'transform': objectDisplay[entry.key].expanded ? 'rotate(0deg)' : 'rotate(180deg)',
+            'transition': 'transform 0.4s ease-out'
+          }"
+          ></ion-icon>
         </ion-item-divider>
         <!-- body -->
-        <div class="nested-wrapper">
-          <form-object
-            [objectSpec]="
-              spec.type === 'union' ? 
-                spec.variants[$any(entry.value).controls[spec.tag.id].value] :
-                spec.spec"
-            [formGroup]="$any(entry.value)"
-            [current]="current ? current[entry.key] : undefined"
-            [unionSpec]="spec.type === 'union' ? spec : undefined"
-          ></form-object>
+        <div
+          [id]="entry.key"
+          [ngStyle]="{
+            'max-height': objectDisplay[entry.key].height,
+            'overflow': 'hidden',
+            'transition-property': 'max-height',
+            'transition-duration': '.5s',
+            'transition-delay': '.05s'
+          }"
+          >
+          <div class="nested-wrapper">
+            <form-object
+              [objectSpec]="
+                spec.type === 'union' ? 
+                  spec.variants[$any(entry.value).controls[spec.tag.id].value] :
+                  spec.spec"
+              [formGroup]="$any(entry.value)"
+              [current]="current ? current[entry.key] : undefined"
+              [unionSpec]="spec.type === 'union' ? spec : undefined"
+            ></form-object>
+          </div>
         </div>
       </ng-container>
       <!-- list (not enum) -->
@@ -114,9 +134,9 @@
               <!-- nested -->
               <ng-container *ngIf="spec.subtype === 'object' || spec.subtype === 'union'">
                 <!-- nested label -->
-                <ion-item button (click)="toggleExpand(entry.key, i)">
+                <ion-item button (click)="toggleExpandListObject(entry.key, i)">
                   <form-label [data]="{
-                    spec: $any({ name: objectListInfo[entry.key][i].displayAs || 'Entry ' + (i + 1) }),
+                    spec: $any({ name: objectListDisplay[entry.key][i].displayAs || 'Entry ' + (i + 1) }),
                     new: false,
                     edited: abstractControl.dirty,
                     invalid: abstractControl.invalid
@@ -125,7 +145,7 @@
                     slot="end"
                     name="chevron-up"
                     [ngStyle]="{
-                      'transform': objectListInfo[entry.key][i].expanded ? 'rotate(0deg)' : 'rotate(180deg)',
+                      'transform': objectListDisplay[entry.key][i].expanded ? 'rotate(0deg)' : 'rotate(180deg)',
                       'transition': 'transform 0.4s ease-out'
                     }"
                   ></ion-icon>
@@ -134,15 +154,13 @@
                 <div
                   [id]="entry.key"
                   [ngStyle]="{
-                    'max-height': objectListInfo[entry.key][i].height,
+                    'max-height': objectListDisplay[entry.key][i].height,
                     'overflow': 'hidden',
                     'transition-property': 'max-height',
                     'transition-duration': '.5s',
                     'transition-delay': '.05s'
                   }"
                   >
-                <!-- [hidden]="objectListInfo[entry.key][i].expanded ? false : true" -->
-
                   <form-object
                     [objectSpec]="
                       spec.subtype === 'union' ? 
