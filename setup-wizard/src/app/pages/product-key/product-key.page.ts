@@ -1,5 +1,5 @@
-import { Component } from '@angular/core'
-import { LoadingController, NavController } from '@ionic/angular'
+import { Component, ViewChild } from '@angular/core'
+import { IonInput, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import { HttpService } from 'src/app/services/api/http.service'
 import { StateService } from 'src/app/services/state.service'
@@ -10,6 +10,7 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['product-key.page.scss'],
 })
 export class ProductKeyPage {
+  @ViewChild('focusInput', { static: false }) elem: IonInput
   productKey: string
   error: string
 
@@ -20,6 +21,10 @@ export class ProductKeyPage {
     private readonly loadingCtrl: LoadingController,
     private readonly httpService: HttpService,
   ) { }
+
+  ngAfterViewInit () {
+    setTimeout(() => this.elem.setFocus(), 400)
+  }
 
   async submit () {
     if (!this.productKey) return this.error = 'Must enter product key'

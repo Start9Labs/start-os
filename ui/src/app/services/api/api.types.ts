@@ -300,7 +300,7 @@ export interface DriveInfo {
   model: string | null
   partitions: PartitionInfo[]
   capacity: number
-  internal: boolean
+  guid: string | null
 }
 
 export interface PartitionInfo {

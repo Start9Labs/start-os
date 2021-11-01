@@ -17,6 +17,7 @@
         [class]="error ? 'error-border' : ''"
       >
         <ion-input
+          #focusInput
           [(ngModel)]="productKey"
           [ngModelOptions]="{'standalone': true}"
           [type]="!unmasked ? 'password' : 'text'"

@@ -18,7 +18,7 @@
                 <p class="input-label">Product Key</p>
                 <ion-item color="dark">
                   <ion-icon slot="start" name="key-outline" style="margin-right: 16px;"></ion-icon>
-                  <ion-input color="medium" maxlength="12" name="productKey" [(ngModel)]="productKey" (ionChange)="error = ''"></ion-input>
+                  <ion-input #focusInput color="medium" maxlength="12" name="productKey" [(ngModel)]="productKey" (ionChange)="error = ''"></ion-input>
                 </ion-item>
                 <div class="ion-text-left">
                   <p *ngIf="error" style="padding-top: 4px"><ion-text color="danger">{{ error }}</ion-text></p>
