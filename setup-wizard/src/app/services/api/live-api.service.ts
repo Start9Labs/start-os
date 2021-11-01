@@ -57,6 +57,13 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async importDrive (guid: string) {
+    return this.http.rpcRequest<SetupEmbassyRes>({
+      method: 'setup.execute',
+      params: { guid },
+    })
+  }
+
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
     return this.http.rpcRequest<SetupEmbassyRes>({
       method: 'setup.execute',

@@ -30,6 +30,7 @@ export class MockApiService extends ApiService {
         vendor: 'Vendor',
         model: 'Model',
         logicalname: '/dev/sda',
+        guid: 'theguid',
         partitions: [
           {
             logicalname: 'sda1',
@@ -54,11 +55,13 @@ export class MockApiService extends ApiService {
         logicalname: 'dev/sdb',
         partitions: [],
         capacity: 1600.01234,
+        guid: null,
       },
       {
         vendor: 'Vendor',
         model: 'Model',
         logicalname: 'dev/sdc',
+        guid: null,
         partitions: [
           {
             logicalname: 'sdc1',
@@ -100,7 +103,8 @@ export class MockApiService extends ApiService {
         vendor: 'Vendor',
         model: 'Model',
         logicalname: '/dev/sdd',
-          partitions: [
+        guid: null,
+        partitions: [
           {
             logicalname: 'sdd1',
             label: null,
@@ -141,6 +145,15 @@ export class MockApiService extends ApiService {
   async verify03XPassword (logicalname: string, password: string) {
     await pauseFor(2000)
     return password.length > 8
+  }
+
+  async importDrive (guid: string) {
+    await pauseFor(3000)
+    return {
+      'tor-address': 'asdfasdfasdf.onion',
+      'lan-address': 'embassy-dfasdf.local',
+      'root-ca': rootCA,
+    }
   }
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {

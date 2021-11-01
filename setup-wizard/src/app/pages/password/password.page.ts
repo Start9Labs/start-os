@@ -1,5 +1,5 @@
-import { Component, Input } from '@angular/core'
-import { ModalController } from '@ionic/angular'
+import { Component, Input, ViewChild } from '@angular/core'
+import { IonInput, ModalController } from '@ionic/angular'
 import { DiskInfo, PartitionInfo } from 'src/app/services/api/api.service'
 import * as argon2 from '@start9labs/argon2'
 
@@ -9,6 +9,7 @@ import * as argon2 from '@start9labs/argon2'
   styleUrls: ['password.page.scss'],
 })
 export class PasswordPage {
+  @ViewChild('focusInput', { static: false }) elem: IonInput
   @Input() recoveryPartition: PartitionInfo
   @Input() storageDrive: DiskInfo
 
@@ -23,6 +24,10 @@ export class PasswordPage {
   constructor (
     private modalController: ModalController,
   ) { }
+
+  ngAfterViewInit () {
+    setTimeout(() => this.elem.setFocus(), 400)
+  }
 
   async verifyPw () {
     if (!this.recoveryPartition || !this.recoveryPartition['embassy-os']) this.pwError = 'No recovery drive' // unreachable

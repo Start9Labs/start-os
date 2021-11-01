@@ -1,5 +1,5 @@
-import { Component, Input } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
+import { Component, Input, ViewChild } from '@angular/core'
+import { IonInput, LoadingController, ModalController } from '@ionic/angular'
 import { ApiService, PartitionInfo } from 'src/app/services/api/api.service'
 import { HttpService } from 'src/app/services/api/http.service'
 
@@ -9,6 +9,7 @@ import { HttpService } from 'src/app/services/api/http.service'
   styleUrls: ['prod-key-modal.page.scss'],
 })
 export class ProdKeyModal {
+  @ViewChild('focusInput', { static: false }) elem: IonInput
   @Input() recoveryPartition: PartitionInfo
 
   error = ''
