@@ -89,7 +89,7 @@ impl DockerAction {
             .wait_with_output()
             .await
             .with_kind(crate::ErrorKind::Docker)?;
-        Ok(if res.status.success() {
+        Ok(if res.status.success() || res.status.code() == Some(143) {
             Ok(if let Some(format) = &self.io_format {
                 match format.from_slice(&res.stdout) {
                     Ok(a) => a,
@@ -152,7 +152,7 @@ impl DockerAction {
             .wait_with_output()
             .await
             .with_kind(crate::ErrorKind::Docker)?;
-        Ok(if res.status.success() {
+        Ok(if res.status.success() || res.status.code() == Some(143) {
             Ok(if let Some(format) = &self.io_format {
                 match format.from_slice(&res.stdout) {
                     Ok(a) => a,
