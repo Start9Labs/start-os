@@ -3,238 +3,273 @@ use std::path::Path;
 use tokio::process::Command;
 use tracing::instrument;
 
+use crate::disk::util::{mount, unmount};
 use crate::util::Invoke;
 use crate::{Error, ResultExt};
 
 pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
+pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
+pub const SWAP_SIZE: FsSize = FsSize::Gigabytes(8);
 
 // TODO: use IncorrectDisk / DiskNotAvailable / DiskCorrupted
 
-#[instrument(skip(disks))]
-pub async fn create<I: IntoIterator<Item = P>, P: AsRef<Path>>(
-    pool_name: &str,
-    disks: I,
+#[instrument(skip(disks, datadir, password))]
+pub async fn create<I, P>(
+    disks: &I,
+    datadir: impl AsRef<Path>,
     password: &str,
-) -> Result<String, Error> {
-    let guid = create_pool(pool_name, disks).await?;
-    create_fs(pool_name, password).await?;
-    export(pool_name).await?;
+) -> Result<String, Error>
+where
+    for<'a> &'a I: IntoIterator<Item = &'a P>,
+    P: AsRef<Path>,
+{
+    let guid = create_pool(disks).await?;
+    create_all_fs(&guid, &datadir, password).await?;
+    export(&guid, datadir).await?;
     Ok(guid)
 }
 
-#[instrument(skip(datadir))]
-pub async fn load<P: AsRef<Path>>(
-    guid: &str,
-    pool_name: &str,
-    datadir: P,
-    password: &str,
-) -> Result<(), Error> {
-    import(guid).await?;
-    mount(pool_name, datadir, password).await?;
-    Ok(())
-}
-
 #[instrument(skip(disks))]
-pub async fn create_pool<I: IntoIterator<Item = P>, P: AsRef<Path>>(
-    pool_name: &str,
-    disks: I,
-) -> Result<String, Error> {
-    let mut cmd = Command::new("zpool");
-    cmd.arg("create").arg("-f").arg(pool_name);
+pub async fn create_pool<I, P>(disks: &I) -> Result<String, Error>
+where
+    for<'a> &'a I: IntoIterator<Item = &'a P>,
+    P: AsRef<Path>,
+{
+    for disk in disks {
+        tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table and lvm2 metadata
+        Command::new("pvcreate")
+            .arg("-yff")
+            .arg(disk.as_ref())
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+    }
+    let guid = format!(
+        "EMBASSY_{}",
+        base32::encode(
+            base32::Alphabet::RFC4648 { padding: false },
+            &rand::random::<[u8; 32]>(),
+        )
+    );
+    let mut cmd = Command::new("vgcreate");
+    cmd.arg("-y").arg(&guid);
     for disk in disks {
         cmd.arg(disk.as_ref());
     }
-    cmd.invoke(crate::ErrorKind::Zfs).await?;
-    Ok(String::from_utf8(
-        Command::new("zpool")
-            .arg("get")
-            .arg("-H")
-            .arg("-ovalue")
-            .arg("guid")
-            .arg(pool_name)
-            .invoke(crate::ErrorKind::Zfs)
-            .await?,
-    )?
-    .trim() // this allocates but fuck it
-    .to_owned())
+    cmd.invoke(crate::ErrorKind::DiskManagement).await?;
+    Ok(guid)
 }
 
-#[instrument]
-pub async fn create_fs(pool_name: &str, password: &str) -> Result<(), Error> {
+#[derive(Debug, Clone, Copy)]
+pub enum FsSize {
+    Gigabytes(usize),
+    FreePercentage(usize),
+}
+
+#[instrument(skip(datadir, password))]
+pub async fn create_fs<P: AsRef<Path>>(
+    guid: &str,
+    datadir: P,
+    name: &str,
+    size: FsSize,
+    swap: bool,
+    password: &str,
+) -> Result<(), Error> {
     tokio::fs::write(PASSWORD_PATH, password)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
-    Command::new("zfs")
-        .arg("create")
-        .arg("-o")
-        .arg("reservation=5G")
-        .arg("-o")
-        .arg("encryption=on")
-        .arg("-o")
-        .arg("keylocation=file:///etc/embassy/password")
-        .arg("-o")
-        .arg("keyformat=passphrase")
-        .arg(format!("{}/main", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
+    let mut cmd = Command::new("lvcreate");
+    match size {
+        FsSize::Gigabytes(a) => cmd.arg("-L").arg(format!("{}G", a)),
+        FsSize::FreePercentage(a) => cmd.arg("-l").arg(format!("{}%FREE", a)),
+    };
+    cmd.arg("-y")
+        .arg("-n")
+        .arg(name)
+        .arg(guid)
+        .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    Command::new("zfs")
-        .arg("create")
-        .arg("-o")
-        .arg("reservation=5G")
-        .arg(format!("{}/updates", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
+    Command::new("cryptsetup")
+        .arg("luksFormat")
+        .arg(format!("--key-file={}", PASSWORD_PATH))
+        .arg(format!("--keyfile-size={}", password.len()))
+        .arg(Path::new("/dev").join(guid).join(name))
+        .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    Command::new("zfs")
-        .arg("create")
-        .arg("-o")
-        .arg("encryption=on")
-        .arg("-o")
-        .arg("keylocation=file:///etc/embassy/password")
-        .arg("-o")
-        .arg("keyformat=passphrase")
-        .arg(format!("{}/package-data", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
+    Command::new("cryptsetup")
+        .arg("luksOpen")
+        .arg(format!("--key-file={}", PASSWORD_PATH))
+        .arg(format!("--keyfile-size={}", password.len()))
+        .arg(Path::new("/dev").join(guid).join(name))
+        .arg(format!("{}_{}", guid, name))
+        .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    Command::new("zfs")
-        .arg("create")
-        .arg("-o")
-        .arg("encryption=on")
-        .arg("-o")
-        .arg("keylocation=file:///etc/embassy/password")
-        .arg("-o")
-        .arg("keyformat=passphrase")
-        .arg(format!("{}/tmp", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
+    if swap {
+        Command::new("mkswap")
+            .arg("-f")
+            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+        Command::new("swapon")
+            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+    } else {
+        Command::new("mkfs.ext4")
+            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+        mount(
+            Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
+            datadir.as_ref().join(name),
+        )
         .await?;
+    }
     tokio::fs::remove_file(PASSWORD_PATH)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
     Ok(())
 }
 
-#[instrument]
-pub async fn create_swap(pool_name: &str) -> Result<(), Error> {
-    let pagesize = String::from_utf8(
-        Command::new("getconf")
-            .arg("PAGESIZE")
-            .invoke(crate::ErrorKind::Zfs)
-            .await?,
-    )?;
-    Command::new("zfs")
-        .arg("create")
-        .arg("-V8G")
-        .arg("-b")
-        .arg(pagesize)
-        .arg("-o")
-        .arg("logbias=throughput")
-        .arg("-o")
-        .arg("sync=always")
-        .arg("-o")
-        .arg("primarycache=metadata")
-        .arg("-o")
-        .arg("com.sun:auto-snapshot=false")
-        .invoke(crate::ErrorKind::Zfs)
-        .await?;
-    Command::new("mkswap")
-        .arg("-f")
-        .arg(Path::new("/dev/zvol").join(pool_name).join("swap"))
-        .invoke(crate::ErrorKind::Zfs)
-        .await?;
-    Ok(())
-}
-
-#[instrument]
-pub async fn use_swap(pool_name: &str) -> Result<(), Error> {
-    Command::new("swapon")
-        .arg(Path::new("/dev/zvol").join(pool_name).join("swap"))
-        .invoke(crate::ErrorKind::Zfs)
-        .await?;
-    Ok(())
-}
-
-#[instrument]
-pub async fn export(pool_name: &str) -> Result<(), Error> {
-    Command::new("zpool")
-        .arg("export")
-        .arg(pool_name)
-        .invoke(crate::ErrorKind::Zfs)
-        .await?;
-    Ok(())
-}
-
-#[instrument]
-pub async fn import(guid: &str) -> Result<(), Error> {
-    Command::new("zpool")
-        .arg("import")
-        .arg("-f")
-        .arg(guid)
-        .invoke(crate::ErrorKind::Zfs)
-        .await?;
+#[instrument(skip(datadir, password))]
+pub async fn create_all_fs<P: AsRef<Path>>(
+    guid: &str,
+    datadir: P,
+    password: &str,
+) -> Result<(), Error> {
+    create_fs(guid, &datadir, "main", MAIN_FS_SIZE, false, password).await?;
+    create_fs(guid, &datadir, "swap", SWAP_SIZE, true, password).await?;
+    create_fs(
+        guid,
+        &datadir,
+        "package-data",
+        FsSize::FreePercentage(100),
+        false,
+        password,
+    )
+    .await?;
     Ok(())
 }
 
 #[instrument(skip(datadir))]
-pub async fn mount<P: AsRef<Path>>(
-    pool_name: &str,
+pub async fn unmount_fs<P: AsRef<Path>>(
+    guid: &str,
     datadir: P,
+    name: &str,
+    swap: bool,
+) -> Result<(), Error> {
+    if swap {
+        Command::new("swapoff")
+            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+    } else {
+        unmount(datadir.as_ref().join(name)).await?;
+    }
+    Command::new("cryptsetup")
+        .arg("luksClose")
+        .arg(format!("{}_{}", guid, name))
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
+
+    Ok(())
+}
+
+#[instrument(skip(datadir))]
+pub async fn unmount_all_fs<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error> {
+    unmount_fs(guid, &datadir, "main", false).await?;
+    unmount_fs(guid, &datadir, "swap", true).await?;
+    unmount_fs(guid, &datadir, "package-data", false).await?;
+    Ok(())
+}
+
+#[instrument(skip(datadir))]
+pub async fn export<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error> {
+    unmount_all_fs(guid, datadir).await?;
+    Command::new("vgchange")
+        .arg("-an")
+        .arg(guid)
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
+    Command::new("vgexport")
+        .arg(guid)
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
+    Ok(())
+}
+
+#[instrument(skip(datadir, password))]
+pub async fn import<P: AsRef<Path>>(guid: &str, datadir: P, password: &str) -> Result<(), Error> {
+    match Command::new("vgimport")
+        .arg(guid)
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(e)
+            if format!("{}", e.source).trim()
+                == format!("Volume group \"{}\" is not exported", guid) =>
+        {
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }?;
+    Command::new("vgchange")
+        .arg("-ay")
+        .arg(guid)
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
+    mount_all_fs(guid, datadir, password).await?;
+    Ok(())
+}
+
+#[instrument(skip(datadir, password))]
+pub async fn mount_fs<P: AsRef<Path>>(
+    guid: &str,
+    datadir: P,
+    name: &str,
+    swap: bool,
     password: &str,
 ) -> Result<(), Error> {
-    let mountpoint = String::from_utf8(
-        Command::new("zfs")
-            .arg("get")
-            .arg("-H")
-            .arg("-ovalue")
-            .arg("mountpoint")
-            .arg(pool_name)
-            .invoke(crate::ErrorKind::Zfs)
-            .await?,
-    )?;
-    if Path::new(mountpoint.trim()) != datadir.as_ref() {
-        Command::new("zfs")
-            .arg("set")
-            .arg(format!("mountpoint={}", datadir.as_ref().display()))
-            .arg(pool_name)
-            .invoke(crate::ErrorKind::Zfs)
-            .await?;
-    }
-
     tokio::fs::write(PASSWORD_PATH, password)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
-    Command::new("zfs")
-        .arg("load-key")
-        .arg(format!("{}/main", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
+    Command::new("cryptsetup")
+        .arg("luksOpen")
+        .arg(format!("--key-file={}", PASSWORD_PATH))
+        .arg(format!("--keyfile-size={}", password.len()))
+        .arg(Path::new("/dev").join(guid).join(name))
+        .arg(format!("{}_{}", guid, name))
+        .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    Command::new("zfs")
-        .arg("load-key")
-        .arg(format!("{}/package-data", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
+    if swap {
+        Command::new("swapon")
+            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+    } else {
+        mount(
+            Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
+            datadir.as_ref().join(name),
+        )
         .await?;
-    Command::new("zfs")
-        .arg("load-key")
-        .arg(format!("{}/tmp", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
-        .await?;
+    }
+
     tokio::fs::remove_file(PASSWORD_PATH)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
 
-    Command::new("zfs")
-        .arg("mount")
-        .arg(format!("{}/main", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
-        .await?;
-    Command::new("zfs")
-        .arg("mount")
-        .arg(format!("{}/package-data", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
-        .await?;
-    Command::new("zfs")
-        .arg("mount")
-        .arg(format!("{}/tmp", pool_name))
-        .invoke(crate::ErrorKind::Zfs)
-        .await?;
+    Ok(())
+}
+
+#[instrument(skip(datadir, password))]
+pub async fn mount_all_fs<P: AsRef<Path>>(
+    guid: &str,
+    datadir: P,
+    password: &str,
+) -> Result<(), Error> {
+    mount_fs(guid, &datadir, "main", false, password).await?;
+    mount_fs(guid, &datadir, "swap", true, password).await?;
+    mount_fs(guid, &datadir, "package-data", false, password).await?;
     Ok(())
 }

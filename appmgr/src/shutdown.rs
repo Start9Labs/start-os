@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use patch_db::{LockType, PatchDbHandle};
@@ -11,7 +12,8 @@ use crate::Error;
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
-    pub zfs_pool: Arc<String>,
+    pub datadir: PathBuf,
+    pub disk_guid: Option<Arc<String>>,
     pub restart: bool,
     pub db_handle: Option<Arc<PatchDbHandle>>,
 }
@@ -45,9 +47,11 @@ impl Shutdown {
                     tracing::error!("Error Stopping Docker: {}", e);
                     tracing::debug!("{:?}", e);
                 }
-                if let Err(e) = export(&*self.zfs_pool).await {
-                    tracing::error!("Error Exporting ZFS Pool: {}", e);
-                    tracing::debug!("{:?}", e);
+                if let Some(guid) = &self.disk_guid {
+                    if let Err(e) = export(guid, &self.datadir).await {
+                        tracing::error!("Error Exporting Volume Group: {}", e);
+                        tracing::debug!("{:?}", e);
+                    }
                 }
                 if let Err(e) = MARIO_DEATH.play().await {
                     tracing::error!("Error Playing Shutdown Song: {}", e);
@@ -76,7 +80,8 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
         .await;
     ctx.shutdown
         .send(Some(Shutdown {
-            zfs_pool: ctx.zfs_pool_name.clone(),
+            datadir: ctx.datadir.clone(),
+            disk_guid: Some(ctx.disk_guid.clone()),
             restart: false,
             db_handle: Some(Arc::new(db)),
         }))
@@ -93,7 +98,8 @@ pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
         .await;
     ctx.shutdown
         .send(Some(Shutdown {
-            zfs_pool: ctx.zfs_pool_name.clone(),
+            datadir: ctx.datadir.clone(),
+            disk_guid: Some(ctx.disk_guid.clone()),
             restart: true,
             db_handle: Some(Arc::new(db)),
         }))

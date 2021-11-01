@@ -142,25 +142,8 @@ pub async fn execute_inner(
         ));
     }
     let guid =
-        crate::disk::main::create(&ctx.zfs_pool_name, [embassy_logicalname], DEFAULT_PASSWORD)
-            .await?;
-    let search_string = format!("id: {}", guid);
-    let mut ctr = 0;
-    while {
-        ctr += 1;
-        ctr < 30 // 30s timeout
-    } && !String::from_utf8(
-        Command::new("zpool")
-            .arg("import")
-            .invoke(crate::ErrorKind::Zfs)
-            .await?,
-    )?
-    .lines()
-    .any(|line| line.trim() == &search_string)
-    {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-    crate::disk::main::load(&guid, &ctx.zfs_pool_name, &ctx.datadir, DEFAULT_PASSWORD).await?;
+        crate::disk::main::create(&[embassy_logicalname], &ctx.datadir, DEFAULT_PASSWORD).await?;
+    crate::disk::main::import(&guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
     let password = argon2::hash_encoded(
         embassy_password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],

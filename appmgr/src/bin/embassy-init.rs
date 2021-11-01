@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
@@ -72,16 +73,20 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         })
         .await
         .with_kind(embassy::ErrorKind::Network)?;
-        let pool_name = ctx.zfs_pool_name.clone();
         drop(ctx);
-        embassy::disk::main::export(&*pool_name).await?;
+        embassy::disk::main::export(
+            tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                .await?
+                .trim(),
+            cfg.datadir(),
+        )
+        .await?;
     }
 
-    embassy::disk::main::load(
-        tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for zfs pool - keeps track of the disk that goes with your embassy
+    embassy::disk::main::import(
+        tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
             .await?
             .trim(),
-        cfg.zfs_pool_name(),
         cfg.datadir(),
         DEFAULT_PASSWORD,
     )
@@ -99,7 +104,11 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .invoke(embassy::ErrorKind::Journald)
         .await?;
     tracing::info!("Mounted Logs");
-    let tmp_docker = cfg.datadir().join("tmp").join("docker");
+    let tmp_dir = cfg.datadir().join("package-data/tmp");
+    if tokio::fs::metadata(&tmp_dir).await.is_err() {
+        tokio::fs::create_dir_all(&tmp_dir).await?;
+    }
+    let tmp_docker = cfg.datadir().join("package-data/tmp/docker");
     if tokio::fs::metadata(&tmp_docker).await.is_ok() {
         tokio::fs::remove_dir_all(&tmp_docker).await?;
     }
@@ -210,7 +219,21 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .arg("nginx")
                 .invoke(embassy::ErrorKind::Nginx)
                 .await?;
-            let ctx = DiagnosticContext::init(cfg_path, e).await?;
+            let ctx = DiagnosticContext::init(
+                cfg_path,
+                if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
+                    Some(Arc::new(
+                        tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                            .await?
+                            .trim()
+                            .to_owned(),
+                    ))
+                } else {
+                    None
+                },
+                e,
+            )
+            .await?;
             let mut shutdown_recv = ctx.shutdown.subscribe();
             rpc_server!({
                 command: embassy::diagnostic_api,
