@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
@@ -36,7 +37,16 @@ fn err_to_500(e: Error) -> Response<Body> {
 
 #[instrument]
 async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
-    let rpc_ctx = RpcContext::init(cfg_path).await?;
+    let rpc_ctx = RpcContext::init(
+        cfg_path,
+        Arc::new(
+            tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                .await?
+                .trim()
+                .to_owned(),
+        ),
+    )
+    .await?;
     let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
     let sig_handler_ctx = rpc_ctx.clone();
@@ -302,7 +312,21 @@ fn main() {
                             .arg("nginx")
                             .invoke(embassy::ErrorKind::Nginx)
                             .await?;
-                        let ctx = DiagnosticContext::init(cfg_path, e).await?;
+                        let ctx = DiagnosticContext::init(
+                            cfg_path,
+                            if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
+                                Some(Arc::new(
+                                    tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                                        .await?
+                                        .trim()
+                                        .to_owned(),
+                                ))
+                            } else {
+                                None
+                            },
+                            e,
+                        )
+                        .await?;
                         rpc_server!({
                             command: embassy::diagnostic_api,
                             context: ctx.clone(),
