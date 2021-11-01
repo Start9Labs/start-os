@@ -9,6 +9,8 @@ use crate::{Error, ResultExt};
 
 pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
+pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
+pub const SWAP_SIZE: FsSize = FsSize::Gigabytes(8);
 
 // TODO: use IncorrectDisk / DiskNotAvailable / DiskCorrupted
 
@@ -35,7 +37,7 @@ where
     P: AsRef<Path>,
 {
     for disk in disks {
-        tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table
+        tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table and lvm2 metadata
         Command::new("pvcreate")
             .arg("-yff")
             .arg(disk.as_ref())
@@ -135,16 +137,8 @@ pub async fn create_all_fs<P: AsRef<Path>>(
     datadir: P,
     password: &str,
 ) -> Result<(), Error> {
-    create_fs(
-        guid,
-        &datadir,
-        "main",
-        FsSize::Gigabytes(8),
-        false,
-        password,
-    )
-    .await?;
-    create_fs(guid, &datadir, "swap", FsSize::Gigabytes(8), true, password).await?;
+    create_fs(guid, &datadir, "main", MAIN_FS_SIZE, false, password).await?;
+    create_fs(guid, &datadir, "swap", SWAP_SIZE, true, password).await?;
     create_fs(
         guid,
         &datadir,
