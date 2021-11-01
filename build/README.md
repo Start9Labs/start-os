@@ -1,6 +1,6 @@
 # Building Embassy OS
 
- The commands given assume a Debian or Ubuntu-based environment.
+ ⚠️ The commands given assume a Debian or Ubuntu-based environment. ⚠️
 
 ## Prerequisites
 
