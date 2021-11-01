@@ -35,9 +35,9 @@ where
     P: AsRef<Path>,
 {
     for disk in disks {
-        tokio::fs::write(disk.as_ref(), &[0; 512]).await?; // wipe partition table
+        tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table
         Command::new("pvcreate")
-            .arg("-y")
+            .arg("-yff")
             .arg(disk.as_ref())
             .invoke(crate::ErrorKind::DiskManagement)
             .await?;
@@ -61,7 +61,7 @@ where
 #[derive(Debug, Clone, Copy)]
 pub enum FsSize {
     Gigabytes(usize),
-    FreePercentage(f32),
+    FreePercentage(usize),
 }
 
 #[instrument(skip(datadir, password))]
@@ -79,7 +79,7 @@ pub async fn create_fs<P: AsRef<Path>>(
     let mut cmd = Command::new("lvcreate");
     match size {
         FsSize::Gigabytes(a) => cmd.arg("-L").arg(format!("{}G", a)),
-        FsSize::FreePercentage(a) => cmd.arg("-l").arg(format!("{:.2}%FREE", a)),
+        FsSize::FreePercentage(a) => cmd.arg("-l").arg(format!("{}%FREE", a)),
     };
     cmd.arg("-y")
         .arg("-n")
@@ -149,7 +149,7 @@ pub async fn create_all_fs<P: AsRef<Path>>(
         guid,
         &datadir,
         "package-data",
-        FsSize::FreePercentage(100.0),
+        FsSize::FreePercentage(100),
         false,
         password,
     )
@@ -206,10 +206,20 @@ pub async fn export<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error>
 
 #[instrument(skip(datadir, password))]
 pub async fn import<P: AsRef<Path>>(guid: &str, datadir: P, password: &str) -> Result<(), Error> {
-    Command::new("vgimport")
+    match Command::new("vgimport")
         .arg(guid)
         .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(e)
+            if format!("{}", e.source).trim()
+                == format!("Volume group \"{}\" is not exported", guid) =>
+        {
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }?;
     Command::new("vgchange")
         .arg("-ay")
         .arg(guid)

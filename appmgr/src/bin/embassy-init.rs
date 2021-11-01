@@ -104,7 +104,11 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         .invoke(embassy::ErrorKind::Journald)
         .await?;
     tracing::info!("Mounted Logs");
-    let tmp_docker = cfg.datadir().join("tmp").join("docker");
+    let tmp_dir = cfg.datadir().join("package-data/tmp");
+    if tokio::fs::metadata(&tmp_dir).await.is_err() {
+        tokio::fs::create_dir_all(&tmp_dir).await?;
+    }
+    let tmp_docker = cfg.datadir().join("package-data/tmp/docker");
     if tokio::fs::metadata(&tmp_docker).await.is_ok() {
         tokio::fs::remove_dir_all(&tmp_docker).await?;
     }
