@@ -22,9 +22,8 @@ export class FormObjectComponent {
   @Output() onInputChange = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = { }
   unmasked: { [key: string]: boolean } = { }
-  // @TODO for when we want to expand/collapse normal objects/union in addition to list ones
-  // objectExpanded: { [key: string]: boolean } = { }
-  objectListInfo: { [key: string]: { expanded: boolean, height: string, displayAs: string }[] } = { }
+  objectDisplay: { [key: string]: { expanded: boolean, height: string } } = { }
+  objectListDisplay: { [key: string]: { expanded: boolean, height: string, displayAs: string }[] } = { }
   Object = Object
 
   constructor (
@@ -33,20 +32,24 @@ export class FormObjectComponent {
     private readonly formService: FormService,
   ) { }
 
-  ngOnChanges (changes: { [propName: string]: SimpleChange }) {
-    // Lists are automatically expanded, but their members are not
+  ngOnInit () {
     Object.keys(this.objectSpec).forEach(key => {
       const spec = this.objectSpec[key]
       if (spec.type === 'list' && ['object', 'union'].includes(spec.subtype)) {
-        this.objectListInfo[key] = [];
+        this.objectListDisplay[key] = [];
         (this.formGroup.get(key).value as any[]).forEach((obj, index) => {
           const displayAs = (spec.spec as ListValueSpecOf<'object'>)['display-as']
-          this.objectListInfo[key][index] = {
+          this.objectListDisplay[key][index] = {
             expanded: false,
             height: '0px',
             displayAs: displayAs ? (Mustache as any).render(displayAs, obj) : '',
           }
         })
+      } else if (['object', 'union'].includes(spec.type)) {
+        this.objectDisplay[key] = {
+          expanded: false,
+          height: '0px',
+        }
       }
     })
   }
@@ -85,25 +88,30 @@ export class FormObjectComponent {
     arr.insert(0, newItem)
     if (['object', 'union'].includes(listSpec.subtype)) {
       const displayAs = (listSpec.spec as ListValueSpecOf<'object'>)['display-as']
-      this.objectListInfo[key].unshift({
+      this.objectListDisplay[key].unshift({
         height: '0px',
         expanded: true,
         displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',
       })
 
       pauseFor(200).then(() => {
-        this.objectListInfo[key][0].height = this.getDocSize(key)
+        this.objectListDisplay[key][0].height = this.getDocSize(key)
       })
     }
   }
 
-  toggleExpand (key: string, i: number) {
-    this.objectListInfo[key][i].expanded = !this.objectListInfo[key][i].expanded
-    this.objectListInfo[key][i].height = this.objectListInfo[key][i].expanded ? this.getDocSize(key) : '0px'
+  toggleExpandObject (key: string) {
+    this.objectDisplay[key].expanded = !this.objectDisplay[key].expanded
+    this.objectDisplay[key].height = this.objectDisplay[key].expanded ? this.getDocSize(key) : '0px'
+  }
+
+  toggleExpandListObject (key: string, i: number) {
+    this.objectListDisplay[key][i].expanded = !this.objectListDisplay[key][i].expanded
+    this.objectListDisplay[key][i].height = this.objectListDisplay[key][i].expanded ? this.getDocSize(key) : '0px'
   }
 
   updateLabel (key: string, i: number, displayAs: string) {
-    this.objectListInfo[key][i].displayAs = displayAs ? Mustache.render(displayAs, this.formGroup.get(key).value[i]) : ''
+    this.objectListDisplay[key][i].displayAs = displayAs ? Mustache.render(displayAs, this.formGroup.get(key).value[i]) : ''
   }
 
   getWarningText (text: string): IonicSafeString {
@@ -195,11 +203,11 @@ export class FormObjectComponent {
   }
 
   private deleteListItem (key: string, index: number, markDirty = true): void {
-    if (this.objectListInfo[key]) this.objectListInfo[key][index].height = '0px'
+    if (this.objectListDisplay[key]) this.objectListDisplay[key][index].height = '0px'
     const arr = this.formGroup.get(key) as FormArray
     if (markDirty) arr.markAsDirty()
     pauseFor(500).then(() => {
-      if (this.objectListInfo[key]) this.objectListInfo[key].splice(index, 1)
+      if (this.objectListDisplay[key]) this.objectListDisplay[key].splice(index, 1)
       arr.removeAt(index)
     })
   }
