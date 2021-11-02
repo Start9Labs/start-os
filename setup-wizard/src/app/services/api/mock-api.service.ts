@@ -150,20 +150,12 @@ export class MockApiService extends ApiService {
 
   async importDrive (guid: string) {
     await pauseFor(3000)
-    return {
-      'tor-address': 'asdfasdfasdf.onion',
-      'lan-address': 'embassy-dfasdf.local',
-      'root-ca': btoa(rootCA),
-    }
+    return setupRes
   }
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
     await pauseFor(3000)
-    return {
-      'tor-address': 'asdfasdfasdf.onion',
-      'lan-address': 'embassy-dfasdf.local',
-      'root-ca': btoa(rootCA),
-    }
+    return setupRes
   }
 
   async getRecoveryDrives () {
@@ -206,3 +198,9 @@ Rf3ZOPm9QP92YpWyYDkfAU04xdDo1vR0MYjKPkl4LjRqSU/tcCJnPMbJiwq+bWpX
 2WJoEBXB/p15Kn6JxjI0ze2SnSI48JZ8it4fvxrhOo0VoLNIuCuNXJOwU17Rdl1W
 YJidaq7je6k18AdgPA0Kh8y1XtfUH3fTaVw4
 -----END CERTIFICATE-----`
+
+const setupRes = {
+  'tor-address': 'http://asdafsadasdasasdasdfasdfasdf.onion',
+  'lan-address': 'https://embassy-abcdefgh.local',
+  'root-ca': btoa(rootCA),
+}
