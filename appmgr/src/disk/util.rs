@@ -212,7 +212,6 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
 
     let mut res = Vec::with_capacity(disks.len());
     for (disk, parts) in disks {
-        let guid = todo!();
         let mut partitions = Vec::with_capacity(parts.len());
         let vendor = get_vendor(&disk)
             .await
