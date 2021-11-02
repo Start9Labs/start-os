@@ -10,7 +10,7 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['product-key.page.scss'],
 })
 export class ProductKeyPage {
-  @ViewChild('focusInput', { static: false }) elem: IonInput
+  @ViewChild('focusInput') elem: IonInput
   productKey: string
   error: string
 
@@ -22,7 +22,7 @@ export class ProductKeyPage {
     private readonly httpService: HttpService,
   ) { }
 
-  ngAfterViewInit () {
+  ionViewDidEnter () {
     setTimeout(() => this.elem.setFocus(), 400)
   }
 

@@ -17,7 +17,7 @@ export class SuccessPage {
   ) { }
 
   ngAfterViewInit () {
-    this.download()
+    setTimeout(() => this.download(), 500)
   }
 
   async copy (address: string): Promise<void> {

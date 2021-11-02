@@ -66,7 +66,7 @@ export class MockApiService extends ApiService {
           {
             logicalname: 'sdc1',
             label: 'label 1',
-            capacity: null,
+            capacity: 0,
             used: null,
             'embassy-os': {
               version: '0.3.3',
@@ -77,18 +77,19 @@ export class MockApiService extends ApiService {
           {
             logicalname: 'sdc1MOCKTESTER',
             label: 'label 1',
-            capacity: null,
+            capacity: 0,
             used: null,
             'embassy-os': {
               version: '0.3.6',
               full: true,
+              // password is 'asdfasdf'
               'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
             },
           },
           {
             logicalname: 'sdc1',
             label: 'label 1',
-            capacity: null,
+            capacity: 0,
             used: null,
             'embassy-os': {
               version: '0.3.3',
@@ -152,7 +153,7 @@ export class MockApiService extends ApiService {
     return {
       'tor-address': 'asdfasdfasdf.onion',
       'lan-address': 'embassy-dfasdf.local',
-      'root-ca': rootCA,
+      'root-ca': btoa(rootCA),
     }
   }
 
@@ -161,7 +162,7 @@ export class MockApiService extends ApiService {
     return {
       'tor-address': 'asdfasdfasdf.onion',
       'lan-address': 'embassy-dfasdf.local',
-      'root-ca': rootCA,
+      'root-ca': btoa(rootCA),
     }
   }
 
@@ -182,4 +183,26 @@ export class MockApiService extends ApiService {
   }
 }
 
-const rootCA = 'LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURwekNDQW8rZ0F3SUJBZ0lSQUlJdU9hcmxRRVRsVVFFT1pKR1pZZEl3RFFZSktvWklodmNOQVFFTEJRQXcKYlRFTE1Ba0dBMVVFQmhNQ1ZWTXhGVEFUQmdOVkJBb01ERVY0WVcxd2JHVWdRMjl5Y0RFT01Bd0dBMVVFQ3d3RgpVMkZzWlhNeEN6QUpCZ05WQkFnTUFsZEJNUmd3RmdZRFZRUUREQTkzZDNjdVpYaGhiWEJzWlM1amIyMHhFREFPCkJnTlZCQWNNQjFObFlYUjBiR1V3SGhjTk1qRXdNekE0TVRVME5qSTNXaGNOTWpJd016QTRNVFkwTmpJM1dqQnQKTVFzd0NRWURWUVFHRXdKVlV6RVZNQk1HQTFVRUNnd01SWGhoYlhCc1pTQkRiM0p3TVE0d0RBWURWUVFMREFWVApZV3hsY3pFTE1Ba0dBMVVFQ0F3Q1YwRXhHREFXQmdOVkJBTU1EM2QzZHk1bGVHRnRjR3hsTG1OdmJURVFNQTRHCkExVUVCd3dIVTJWaGRIUnNaVENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFNUDcKdDVBS0ZaUTdhYnFrZXlVanNCVklXUmE5dENoOG9nZTl1L0x2Q2J4VTczOEc0anNzVCtPdWQzV01haklqdU5vdwpjcGMrMFEvZTQyVUxPLzZnVE5yVHM2T0NPbzlsVjZHMERwcmYvZTkxRFdvS2dQYXRlbS9wVWpOeXJhaWZIWmZ1CmI1bUxIQ2ZhaGpXWFVRdGMvc2ptRFFhWlJLM0thcjZsamxVQkUvTGU5TkV5T0FJa1NMUHpEdFc4TFhtNGl3Y1UKQlpyYjgyOHJLZDFBdzlvSTErM2JmekI2eFhtelp4YzVSTFh2ZU9DRWhLR0QzMmpLWi9STkZTQzhBWkF3SmUreApiVHN5cy9sVU9ZRlR1VDhCbjBUR3hSOHg3WTRINzUrRjlCYXZZM3YrV2tMajRNK29sTjlkTVI3RXQ5Rk10NHU0CllSb2t2NXpwOHpJYjVpVG5lMWtDQXdFQUFhTkNNRUF3RHdZRFZSMFRBUUgvQkFVd0F3RUIvekFkQmdOVkhRNEUKRmdRVWFXMytyMzI4dVRMb2tvZzJUa2xtb0JLK3l0NHdEZ1lEVlIwUEFRSC9CQVFEQWdHR01BMEdDU3FHU0liMwpEUUVCQ3dVQUE0SUJBUUFYamQvN1VaOFJERStQTFdTRE5HUWRMZW1PQlRjYXdGK3RLK1B6QTRFdmxtbjlWdU5jCmcreDNvWnZWWlNEUUJBTlV6MGI5b1BlbzU0YUUzOGRXMXpRbTJxZlRhYjg4MjJhcWVXTUx5SjFkTXNBZ3FZWDIKdDkrdTZ3M056UkN3OFB2ejE4VjY5K2RGRTVBZVhtTlAwWjUvZ2R6OEgvTlNwY3RqbHpvcGJTY1JaS0NTbFBpZApSZjNaT1BtOVFQOTJZcFd5WURrZkFVMDR4ZERvMXZSME1ZaktQa2w0TGpScVNVL3RjQ0puUE1iSml3cStiV3BYCjJXSm9FQlhCL3AxNUtuNkp4akkwemUyU25TSTQ4Slo4aXQ0ZnZ4cmhPbzBWb0xOSXVDdU5YSk93VTE3UmRsMVcKWUppZGFxN2plNmsxOEFkZ1BBMEtoOHkxWHRmVUgzZlRhVnc0Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0='
+const rootCA =
+`-----BEGIN CERTIFICATE-----
+MIIDpzCCAo+gAwIBAgIRAIIuOarlQETlUQEOZJGZYdIwDQYJKoZIhvcNAQELBQAw
+bTELMAkGA1UEBhMCVVMxFTATBgNVBAoMDEV4YW1wbGUgQ29ycDEOMAwGA1UECwwF
+U2FsZXMxCzAJBgNVBAgMAldBMRgwFgYDVQQDDA93d3cuZXhhbXBsZS5jb20xEDAO
+BgNVBAcMB1NlYXR0bGUwHhcNMjEwMzA4MTU0NjI3WhcNMjIwMzA4MTY0NjI3WjBt
+MQswCQYDVQQGEwJVUzEVMBMGA1UECgwMRXhhbXBsZSBDb3JwMQ4wDAYDVQQLDAVT
+YWxlczELMAkGA1UECAwCV0ExGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTEQMA4G
+A1UEBwwHU2VhdHRsZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMP7
+t5AKFZQ7abqkeyUjsBVIWRa9tCh8oge9u/LvCbxU738G4jssT+Oud3WMajIjuNow
+cpc+0Q/e42ULO/6gTNrTs6OCOo9lV6G0Dprf/e91DWoKgPatem/pUjNyraifHZfu
+b5mLHCfahjWXUQtc/sjmDQaZRK3Kar6ljlUBE/Le9NEyOAIkSLPzDtW8LXm4iwcU
+BZrb828rKd1Aw9oI1+3bfzB6xXmzZxc5RLXveOCEhKGD32jKZ/RNFSC8AZAwJe+x
+bTsys/lUOYFTuT8Bn0TGxR8x7Y4H75+F9BavY3v+WkLj4M+olN9dMR7Et9FMt4u4
+YRokv5zp8zIb5iTne1kCAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E
+FgQUaW3+r328uTLokog2TklmoBK+yt4wDgYDVR0PAQH/BAQDAgGGMA0GCSqGSIb3
+DQEBCwUAA4IBAQAXjd/7UZ8RDE+PLWSDNGQdLemOBTcawF+tK+PzA4Evlmn9VuNc
+g+x3oZvVZSDQBANUz0b9oPeo54aE38dW1zQm2qfTab8822aqeWMLyJ1dMsAgqYX2
+t9+u6w3NzRCw8Pvz18V69+dFE5AeXmNP0Z5/gdz8H/NSpctjlzopbScRZKCSlPid
+Rf3ZOPm9QP92YpWyYDkfAU04xdDo1vR0MYjKPkl4LjRqSU/tcCJnPMbJiwq+bWpX
+2WJoEBXB/p15Kn6JxjI0ze2SnSI48JZ8it4fvxrhOo0VoLNIuCuNXJOwU17Rdl1W
+YJidaq7je6k18AdgPA0Kh8y1XtfUH3fTaVw4
+-----END CERTIFICATE-----`
