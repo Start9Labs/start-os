@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::os::unix::prelude::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
@@ -8,7 +8,7 @@ use digest::Digest;
 use futures::TryStreamExt;
 use indexmap::IndexSet;
 use lazy_static::lazy_static;
-use nom::bytes::complete::{tag, take_till1, take_until1};
+use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::multispace1;
 use nom::character::is_space;
 use nom::combinator::{opt, rest};
