@@ -6,13 +6,13 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryStreamExt};
+use openssl::x509::X509;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
-use torut::onion::TorSecretKeyV3;
+use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
 use crate::context::SetupContext;
@@ -21,10 +21,11 @@ use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::util::{DiskInfo, PartitionInfo, TmpMountGuard};
 use crate::id::Id;
 use crate::install::PKG_PUBLIC_DIR;
+use crate::net::ssl::SslManager;
 use crate::s9pk::manifest::PackageId;
 use crate::sound::BEETHOVEN;
 use crate::util::io::from_yaml_async_reader;
-use crate::util::{Invoke, Version};
+use crate::util::Version;
 use crate::volume::{data_dir, VolumeId};
 use crate::{Error, ResultExt};
 
@@ -84,6 +85,7 @@ pub async fn recovery_status(
 pub struct SetupResult {
     tor_address: String,
     lan_address: String,
+    root_ca: String,
 }
 
 #[command(rpc_only)]
@@ -103,11 +105,12 @@ pub async fn execute(
     )
     .await
     {
-        Ok(a) => {
-            tracing::info!("Setup Successful! Tor Address: {}", a);
+        Ok((tor_addr, root_ca)) => {
+            tracing::info!("Setup Successful! Tor Address: {}", tor_addr);
             Ok(SetupResult {
-                tor_address: format!("http://{}", a),
+                tor_address: format!("http://{}", tor_addr),
                 lan_address: format!("https://embassy-{}.local", crate::hostname::get_id().await?),
+                root_ca: String::from_utf8(root_ca.to_pem()?)?,
             })
         }
         Err(e) => {
@@ -134,7 +137,7 @@ pub async fn execute_inner(
     embassy_password: String,
     recovery_partition: Option<PartitionInfo>,
     recovery_password: Option<String>,
-) -> Result<String, Error> {
+) -> Result<(OnionAddressV3, X509), Error> {
     if ctx.recovery_status.read().await.is_some() {
         return Err(Error::new(
             eyre!("Cannot execute setup while in recovery!"),
@@ -161,6 +164,10 @@ pub async fn execute_inner(
     )
     .execute(&mut sqlite_pool.acquire().await?)
     .await?;
+    let (_, root_ca) = SslManager::init(sqlite_pool.clone())
+        .await?
+        .export_root_ca()
+        .await?;
     sqlite_pool.close().await;
 
     if let Some(recovery_partition) = recovery_partition {
@@ -185,7 +192,7 @@ pub async fn execute_inner(
         complete_setup(ctx, guid).await?;
     }
 
-    Ok(tor_key.public().get_onion_address().to_string())
+    Ok((tor_key.public().get_onion_address(), root_ca))
 }
 
 #[instrument(skip(ctx))]
