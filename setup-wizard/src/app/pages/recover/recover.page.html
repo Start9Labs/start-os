@@ -1,14 +1,14 @@
 <ion-content>
   <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
     <ion-row style="height: 100%;">
-      <ion-col class="ion-text-center">
+      <ion-col>
 
-        <div style="padding-bottom: 32px;">
+        <div style="padding-bottom: 32px;" class="ion-text-center">
           <img src="assets/png/logo.png" style="max-width: 240px;" />
         </div>
 
         <ion-card color="dark">
-          <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
+          <ion-card-header class="ion-text-center">
             <ion-card-title>Select Recovery Drive</ion-card-title>
             <ion-card-subtitle>Select the drive containing the Embassy you want to recover.</ion-card-subtitle>
           </ion-card-header>
@@ -29,10 +29,8 @@
 
             <ion-item-group>
               <ng-container *ngIf="loading">
-                <ion-item-divider color="light">
-                  <ion-skeleton-text animated style="width: 120px; height: 16px;"></ion-skeleton-text>
-                </ion-item-divider>
-                <ion-item color="light">
+                <ion-skeleton-text animated class="skeleton-header"></ion-skeleton-text>
+                <ion-item color="light" style="padding-bottom: 10px;">
                   <ion-avatar slot="start" style="margin-right: 24px;">
                     <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
                   </ion-avatar>
@@ -45,18 +43,18 @@
               </ng-container>
 
               <!-- loaded -->
-              <div *ngFor="let drive of drives">
-                <ion-item-divider color="light">
+              <div *ngFor="let drive of drives" class="ion-padding-bottom">
+                <h2 class="drive-label">
                   {{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model || 'Unknown Model' }} - {{ drive.capacity | convertBytes }}
-                </ion-item-divider>
-                <ion-item color="light" button *ngFor="let partition of drive.partitions" [disabled]="!partitionClickable(partition)" (click)="choosePartition(partition)">
+                </h2>
+                <ion-item lines="none" button *ngFor="let partition of drive.partitions" [disabled]="!partitionClickable(partition)" (click)="choosePartition(partition)">
                   <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label>
                     <h1>{{ partition.label || partition.logicalname }}</h1>
-                    <h2>{{ drive.capacity | convertBytes }}</h2>
+                    <h2>{{ partition.capacity | convertBytes }}</h2>
                     <p *ngIf="partition['embassy-os'] && partition['embassy-os'].full">
                       <ion-text color="success">
-                        Embassy backups detected
+                        Embassy backup detected
                       </ion-text>
                     </p>
                   </ion-label>

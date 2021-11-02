@@ -58,16 +58,26 @@ export class LiveApiService extends ApiService {
   }
 
   async importDrive (guid: string) {
-    return this.http.rpcRequest<SetupEmbassyRes>({
+    const res = await this.http.rpcRequest<SetupEmbassyRes>({
       method: 'setup.execute',
       params: { guid },
     })
+
+    return {
+      ...res,
+      'root-ca': btoa(res['root-ca']),
+    }
   }
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
-    return this.http.rpcRequest<SetupEmbassyRes>({
+    const res = await this.http.rpcRequest<SetupEmbassyRes>({
       method: 'setup.execute',
       params: setupInfo as any,
     })
+
+    return {
+      ...res,
+      'root-ca': btoa(res['root-ca']),
+    }
   }
 }

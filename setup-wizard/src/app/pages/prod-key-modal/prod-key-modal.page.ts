@@ -9,7 +9,7 @@ import { HttpService } from 'src/app/services/api/http.service'
   styleUrls: ['prod-key-modal.page.scss'],
 })
 export class ProdKeyModal {
-  @ViewChild('focusInput', { static: false }) elem: IonInput
+  @ViewChild('focusInput') elem: IonInput
   @Input() recoveryPartition: PartitionInfo
 
   error = ''
@@ -22,6 +22,10 @@ export class ProdKeyModal {
     private readonly loadingCtrl: LoadingController,
     private readonly httpService: HttpService,
   ) { }
+
+  ngAfterViewInit () {
+    setTimeout(() => this.elem.setFocus(), 400)
+  }
 
   async verifyProductKey () {
     if (!this.productKey) return
