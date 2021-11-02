@@ -160,7 +160,6 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
         .await?;
     let pvscan_out_str = std::str::from_utf8(&pvscan_out)?;
     let disk_guids = parse_pvscan_output(pvscan_out_str);
-    let mut guid: Option<String>;
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
             .await
@@ -212,6 +211,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
 
     let mut res = Vec::with_capacity(disks.len());
     for (disk, parts) in disks {
+        let mut guid: Option<String> = None;
         let mut partitions = Vec::with_capacity(parts.len());
         let vendor = get_vendor(&disk)
             .await
