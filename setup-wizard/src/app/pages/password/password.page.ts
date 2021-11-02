@@ -9,7 +9,7 @@ import * as argon2 from '@start9labs/argon2'
   styleUrls: ['password.page.scss'],
 })
 export class PasswordPage {
-  @ViewChild('focusInput', { static: false }) elem: IonInput
+  @ViewChild('focusInput') elem: IonInput
   @Input() recoveryPartition: PartitionInfo
   @Input() storageDrive: DiskInfo
 

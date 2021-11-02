@@ -38,26 +38,25 @@ export class RecoverPage {
   }
 
   partitionClickable (partition: PartitionInfo) {
-    return partition['embassy-os']?.full && ((!this.stateService.hasProductKey && partition['embassy-os']?.version.startsWith('0.2') ) || this.stateService.hasProductKey)
+    return partition['embassy-os']?.full && (this.stateService.hasProductKey || this.is02x(partition))
   }
 
   async getDrives () {
     try {
-      this.drives = await this.apiService.getDrives()
+      this.drives = (await this.apiService.getDrives()).filter(d => d.partitions.length)
 
-      const importableDrive = this.drives.filter(d => !!d.guid)[0]
+      const importableDrive = this.drives.find(d => !!d.guid)
       if (!!importableDrive && !this.hasShownGuidAlert) {
         const alert = await this.alertCtrl.create({
-          header: 'Warning',
-          subHeader: 'Drive contains data!',
-          message: 'All data stored on this drive will be permanently deleted.',
+          header: 'Embassy Drive Detected',
+          message: 'A valid EmbassyOS data drive has been detected. To use this drive in its current state, simply click "Use Drive" below.',
           buttons: [
             {
               role: 'cancel',
-              text: 'Dismiss',
+              text: 'Cancel',
             },
             {
-              text: 'Use',
+              text: 'Use Drive',
               handler: async () => {
                 await this.importDrive(importableDrive.guid)
               },
@@ -113,6 +112,7 @@ export class RecoverPage {
 
       })
       await modal.present()
+    // if no product key, it means they are an upgrade kit user
     } else {
       const modal = await this.modalController.create({
         component: ProdKeyModal,
@@ -139,5 +139,9 @@ export class RecoverPage {
       this.stateService.recoveryPassword = password
     }
     await this.navCtrl.navigateForward(`/embassy`)
+  }
+
+  private is02x (partition: PartitionInfo): boolean {
+    return !this.stateService.hasProductKey && partition['embassy-os']?.version.startsWith('0.2')
   }
 }

@@ -8,7 +8,7 @@ import { getErrorMessage } from 'src/app/services/error-toast.service'
   styleUrls: ['./generic-input.component.scss'],
 })
 export class GenericInputComponent {
-  @ViewChild('mainInput', { static: false }) elem: IonInput
+  @ViewChild('mainInput') elem: IonInput
   @Input() title: string
   @Input() message: string
   @Input() warning: string

@@ -12,24 +12,17 @@
       <div style="padding-bottom: 16px;">
         <p>Verify the product key for the chosen recovery drive.</p>
       </div>
-      <ion-item
-        color="dark"
-        [class]="error ? 'error-border' : ''"
-      >
+      <ion-item color="dark">
         <ion-input
           #focusInput
           [(ngModel)]="productKey"
-          [ngModelOptions]="{'standalone': true}"
-          [type]="!unmasked ? 'password' : 'text'"
           placeholder="Enter Product Key"
-          maxlength="64"
           maxlength="12"
         ></ion-input>
-        <ion-button fill="clear" color="light" (click)="unmasked = !unmasked">
-          <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
-        </ion-button>
       </ion-item>
-      <p style="color: var(--ion-color-danger);">{{ error }}</p>
+      <div style="height: 16px;">
+        <p style="color: var(--ion-color-danger); font-size: x-small;">{{ error }}</p>
+      </div>
     </div>
     <input type="submit" style="display: none" />
   </form>
