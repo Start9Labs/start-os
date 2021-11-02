@@ -92,17 +92,17 @@ export class EmbassyPage {
 
       try {
         await this.stateService.setupEmbassy()
+        if (!!this.stateService.recoveryPartition) {
+          await this.navCtrl.navigateForward(`/loading`)
+        } else {
+          await this.navCtrl.navigateForward(`/init`)
+        }
       } catch (e) {
         this.errorToastService.present(`${e.message}: ${e.details}`)
         console.error(e.message)
         console.error(e.details)
       } finally {
         loader.dismiss()
-        if (!!this.stateService.recoveryPartition) {
-          await this.navCtrl.navigateForward(`/loading`)
-        } else {
-          await this.navCtrl.navigateForward(`/init`)
-        }
       }
     })
     await modal.present()
