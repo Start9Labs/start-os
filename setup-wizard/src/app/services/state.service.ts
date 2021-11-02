@@ -62,8 +62,8 @@ export class StateService {
 
   async importDrive (guid: string) : Promise<void> {
     const ret = await this.apiService.importDrive(guid)
-    this.torAddress = 'http://' + ret['tor-address']
-    this.lanAddress = 'https://' + ret['lan-address']
+    this.torAddress = ret['tor-address']
+    this.lanAddress = ret['lan-address']
     this.cert = ret['root-ca']
   }
 
@@ -74,8 +74,8 @@ export class StateService {
       'recovery-partition': this.recoveryPartition,
       'recovery-password': this.recoveryPassword,
     })
-    this.torAddress = 'http://' + ret['tor-address']
-    this.lanAddress = 'https://' + ret['lan-address']
+    this.torAddress = ret['tor-address']
+    this.lanAddress = ret['lan-address']
     this.cert = ret['root-ca']
   }
 }
