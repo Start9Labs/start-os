@@ -77,6 +77,7 @@ log = "0.4.14"
 nix = "0.23.0"
 nom = "7.0.0"
 num = "0.4.0"
+num_enum = "0.5.4"
 openssh-keys = "0.5.0"
 openssl = { version = "0.10.36", features = ["vendored"] }
 patch-db = { version = "*", path = "../patch-db/patch-db", features = [

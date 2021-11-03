@@ -17,7 +17,10 @@ use crate::action::docker::DockerAction;
 use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
 use crate::db::util::WithRevision;
-use crate::dependencies::{BreakageRes, DependencyError, DependencyErrors, TaggedDependencyError, break_transitive, heal_all_dependents_transitive, update_current_dependents};
+use crate::dependencies::{
+    break_transitive, heal_all_dependents_transitive, update_current_dependents, BreakageRes,
+    DependencyError, DependencyErrors, TaggedDependencyError,
+};
 use crate::install::cleanup::remove_current_dependents;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{

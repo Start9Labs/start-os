@@ -11,7 +11,6 @@ use embassy::middleware::diagnostic::diagnostic;
 use embassy::net::mdns::MdnsController;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
-use embassy::status::synchronize_all;
 use embassy::util::{daemon, Invoke};
 use embassy::{static_server, Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
@@ -183,22 +182,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         })
     };
 
-    let status_ctx = rpc_ctx.clone();
-    let status_daemon = daemon(
-        move || {
-            let ctx = status_ctx.clone();
-            async move {
-                if let Err(e) = synchronize_all(&ctx).await {
-                    tracing::error!("Error in Status Sync daemon: {}", e);
-                    tracing::debug!("{:?}", e);
-                } else {
-                    tracing::trace!("Status Sync completed successfully");
-                }
-            }
-        },
-        Duration::from_millis(500),
-        rpc_ctx.shutdown.subscribe(),
-    );
     let tor_health_ctx = rpc_ctx.clone();
     let tor_client = Client::builder()
         .proxy(
@@ -239,12 +222,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         file_server
             .map_err(|e| Error::new(e, ErrorKind::Network))
             .map_ok(|_| tracing::debug!("Static File Server Shutdown")),
-        status_daemon
-            .map_err(|e| Error::new(
-                e.wrap_err("Status Sync Daemon panicked!"),
-                ErrorKind::Unknown
-            ))
-            .map_ok(|_| tracing::debug!("Status Sync Daemon Shutdown")),
         tor_health_daemon
             .map_err(|e| Error::new(
                 e.wrap_err("Tor Health Daemon panicked!"),
