@@ -13,8 +13,12 @@ export class NavGuard implements CanActivate {
 
   canActivate (): boolean {
     if (this.httpService.productKey) {
+      console.log('here here here')
+      console.log('here here here')
+
       return true
     } else {
+      console.log('here here here')
       this.router.navigateByUrl('product-key')
       return false
     }
