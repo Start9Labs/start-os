@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use tokio::process::Command;
 use tracing::instrument;
@@ -17,6 +18,7 @@ pub const SWAP_SIZE: FsSize = FsSize::Gigabytes(8);
 #[instrument(skip(disks, datadir, password))]
 pub async fn create<I, P>(
     disks: &I,
+    pvscan: &BTreeMap<PathBuf, Option<String>>,
     datadir: impl AsRef<Path>,
     password: &str,
 ) -> Result<String, Error>
@@ -24,20 +26,34 @@ where
     for<'a> &'a I: IntoIterator<Item = &'a P>,
     P: AsRef<Path>,
 {
-    let guid = create_pool(disks).await?;
+    let guid = create_pool(disks, pvscan).await?;
     create_all_fs(&guid, &datadir, password).await?;
     export(&guid, datadir).await?;
     Ok(guid)
 }
 
 #[instrument(skip(disks))]
-pub async fn create_pool<I, P>(disks: &I) -> Result<String, Error>
+pub async fn create_pool<I, P>(
+    disks: &I,
+    pvscan: &BTreeMap<PathBuf, Option<String>>,
+) -> Result<String, Error>
 where
     for<'a> &'a I: IntoIterator<Item = &'a P>,
     P: AsRef<Path>,
 {
+    Command::new("dmsetup")
+        .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
     for disk in disks {
-        tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table and lvm2 metadata
+        if pvscan.contains_key(disk.as_ref()) {
+            Command::new("pvremove")
+                .arg("-yff")
+                .arg(disk.as_ref())
+                .invoke(crate::ErrorKind::DiskManagement)
+                .await?;
+        }
+        tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table
         Command::new("pvcreate")
             .arg("-yff")
             .arg(disk.as_ref())
