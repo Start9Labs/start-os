@@ -3,6 +3,7 @@ import { PreloadAllModules, RouterModule, Routes } from '@angular/router'
 import { NavGuard } from './guards/nav-guard'
 
 const routes: Routes = [
+  { path: '', redirectTo: '/product-key', pathMatch: 'full' },
   {
     path: 'init',
     loadChildren: () => import('./pages/init/init.module').then( m => m.InitPageModule),
