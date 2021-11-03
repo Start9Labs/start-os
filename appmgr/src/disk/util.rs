@@ -153,13 +153,17 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     .parse()?)
 }
 
-#[instrument]
-pub async fn list() -> Result<Vec<DiskInfo>, Error> {
+pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {
     let pvscan_out = Command::new("pvscan")
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
     let pvscan_out_str = std::str::from_utf8(&pvscan_out)?;
-    let disk_guids = parse_pvscan_output(pvscan_out_str);
+    Ok(parse_pvscan_output(pvscan_out_str))
+}
+
+#[instrument]
+pub async fn list() -> Result<Vec<DiskInfo>, Error> {
+    let disk_guids = pvscan().await?;
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
             .await

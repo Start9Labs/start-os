@@ -18,7 +18,7 @@ use tracing::instrument;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
-use crate::disk::util::{DiskInfo, PartitionInfo, TmpMountGuard};
+use crate::disk::util::{pvscan, DiskInfo, PartitionInfo, TmpMountGuard};
 use crate::id::Id;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::net::ssl::SslManager;
@@ -144,8 +144,13 @@ pub async fn execute_inner(
             crate::ErrorKind::InvalidRequest,
         ));
     }
-    let guid =
-        crate::disk::main::create(&[embassy_logicalname], &ctx.datadir, DEFAULT_PASSWORD).await?;
+    let guid = crate::disk::main::create(
+        &[embassy_logicalname],
+        &pvscan().await?,
+        &ctx.datadir,
+        DEFAULT_PASSWORD,
+    )
+    .await?;
     crate::disk::main::import(&guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
     let password = argon2::hash_encoded(
         embassy_password.as_bytes(),
