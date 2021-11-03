@@ -7,7 +7,6 @@ use std::task::Poll;
 use std::time::Duration;
 
 use bollard::container::StopContainerOptions;
-use chrono::Utc;
 use color_eyre::eyre::eyre;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
@@ -21,14 +20,15 @@ use tracing::instrument;
 use crate::action::docker::DockerAction;
 use crate::action::NoOutput;
 use crate::context::RpcContext;
+use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::status::MainStatus;
 use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
 
 pub mod health;
+mod sync;
 
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
@@ -140,7 +140,7 @@ pub enum Status {
     Paused = 2,
 }
 
-struct ManagerSharedState {
+pub struct ManagerSharedState {
     ctx: RpcContext,
     status: AtomicUsize,
     on_stop: Sender<OnStop>,
@@ -148,6 +148,7 @@ struct ManagerSharedState {
     container_name: String,
     tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
     synchronized: Notify,
+    synchronize_now: Notify,
 }
 
 #[derive(Clone, Copy)]
@@ -280,7 +281,7 @@ impl Manager {
         manifest: Manifest,
         tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
     ) -> Result<Self, Error> {
-        let (on_stop, mut recv) = channel(OnStop::Sleep);
+        let (on_stop, recv) = channel(OnStop::Sleep);
         let shared = Arc::new(ManagerSharedState {
             ctx,
             status: AtomicUsize::new(Status::Stopped as usize),
@@ -289,6 +290,7 @@ impl Manager {
             manifest,
             tor_keys,
             synchronized: Notify::new(),
+            synchronize_now: Notify::new(),
         });
         let thread_shared = shared.clone();
         let thread = tokio::spawn(async move {
@@ -337,6 +339,7 @@ impl Manager {
     }
 
     pub async fn synchronize(&self) {
+        self.shared.synchronize_now.notify_waiters();
         self.shared.synchronized.notified().await
     }
 }
@@ -490,69 +493,4 @@ async fn resume(shared: &ManagerSharedState) -> Result<(), Error> {
         std::sync::atomic::Ordering::SeqCst,
     );
     Ok(())
-}
-
-async fn synchronize_once(shared: &ManagerSharedState) -> Result<(), Error> {
-    let mut db = shared.ctx.db.handle();
-    let mut status = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&shared.manifest.id)
-        .expect(&mut db)
-        .await?
-        .installed()
-        .expect(&mut db)
-        .await?
-        .status()
-        .main()
-        .get_mut(&mut db)
-        .await?;
-    match shared.status.load(Ordering::SeqCst).try_into().unwrap() {
-        Status::Stopped => match &mut *status {
-            MainStatus::Stopped => (),
-            MainStatus::Stopping => {
-                *status = MainStatus::Stopped;
-            }
-            MainStatus::Running { started, .. } => {
-                *started = Utc::now();
-                start(shared).await?;
-            }
-            MainStatus::BackingUp { .. } => (),
-        },
-        Status::Running => match *status {
-            MainStatus::Stopped | MainStatus::Stopping => {
-                stop(shared).await?;
-            }
-            MainStatus::Running { .. } => (),
-            MainStatus::BackingUp { .. } => {
-                pause(shared).await?;
-            }
-        },
-        Status::Paused => match *status {
-            MainStatus::Stopped | MainStatus::Stopping => {
-                stop(shared).await?;
-            }
-            MainStatus::Running { .. } => {
-                resume(shared).await?;
-            }
-            MainStatus::BackingUp { .. } => (),
-        },
-    }
-    status.save(&mut db).await?;
-    Ok(())
-}
-
-async fn synchronizer(shared: &ManagerSharedState) {
-    loop {
-        if let Err(e) = synchronize_once(shared).await {
-            tracing::error!(
-                "Synchronizer for {}@{} failed: {}",
-                shared.manifest.id,
-                shared.manifest.version,
-                e
-            );
-            tracing::debug!("{:?}", e);
-        } else {
-            shared.synchronized.notify_waiters();
-        }
-    }
 }

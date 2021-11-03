@@ -7,7 +7,6 @@ use tracing::instrument;
 
 use self::health_check::HealthCheckId;
 use crate::context::RpcContext;
-use crate::control::stop;
 use crate::dependencies::DependencyErrors;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::Manifest;
