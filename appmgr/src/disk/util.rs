@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::os::unix::prelude::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
@@ -8,6 +8,12 @@ use digest::Digest;
 use futures::TryStreamExt;
 use indexmap::IndexSet;
 use lazy_static::lazy_static;
+use nom::bytes::complete::{tag, take_till1};
+use nom::character::complete::multispace1;
+use nom::character::is_space;
+use nom::combinator::{opt, rest};
+use nom::sequence::{pair, preceded, terminated};
+use nom::IResult;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
@@ -35,7 +41,7 @@ pub struct DiskInfo {
     pub model: Option<String>,
     pub partitions: Vec<PartitionInfo>,
     pub capacity: usize,
-    pub internal: bool,
+    pub guid: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -149,7 +155,11 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
 
 #[instrument]
 pub async fn list() -> Result<Vec<DiskInfo>, Error> {
-    let internal_drives: BTreeSet<PathBuf> = BTreeSet::new(); // todo!("parse pvscan");
+    let pvscan_out = Command::new("pvscan")
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
+    let pvscan_out_str = std::str::from_utf8(&pvscan_out)?;
+    let disk_guids = parse_pvscan_output(pvscan_out_str);
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
             .await
@@ -201,7 +211,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
 
     let mut res = Vec::with_capacity(disks.len());
     for (disk, parts) in disks {
-        let mut internal = false;
+        let mut guid: Option<String> = None;
         let mut partitions = Vec::with_capacity(parts.len());
         let vendor = get_vendor(&disk)
             .await
@@ -217,8 +227,8 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                 tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source)
             })
             .unwrap_or_default();
-        if internal_drives.contains(&disk) {
-            internal = true;
+        if let Some(g) = disk_guids.get(&disk) {
+            guid = g.clone();
         } else {
             for part in parts {
                 let mut embassy_os = None;
@@ -309,7 +319,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
             model,
             partitions,
             capacity,
-            internal,
+            guid,
         })
     }
 
@@ -805,4 +815,51 @@ impl Drop for PackageBackupMountGuard {
             }
         });
     }
+}
+
+fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>> {
+    fn parse_line(line: &str) -> IResult<&str, (&str, Option<&str>)> {
+        let pv_parse = preceded(
+            tag("  PV "),
+            terminated(take_till1(|c| is_space(c as u8)), multispace1),
+        );
+        let vg_parse = preceded(
+            tag("VG "),
+            terminated(take_till1(|c| is_space(c as u8)), multispace1),
+        );
+        let mut parser = terminated(pair(pv_parse, opt(vg_parse)), rest);
+        parser(line)
+    }
+    let lines = pvscan_output.lines();
+    let n = lines.clone().count();
+    let entries = lines.take(n.saturating_sub(1));
+    let mut ret = BTreeMap::new();
+    for entry in entries {
+        match parse_line(entry) {
+            Ok((_, (pv, vg))) => {
+                ret.insert(PathBuf::from(pv), vg.map(|s| s.to_owned()));
+            }
+            Err(_) => {
+                tracing::warn!("Failed to parse pvscan output line: {}", entry);
+            }
+        }
+    }
+    ret
+}
+
+#[test]
+fn test_pvscan_parser() {
+    let s1 = r#"  PV /dev/mapper/cryptdata   VG data            lvm2 [1.81 TiB / 0    free]
+  PV /dev/sdb                                   lvm2 [931.51 GiB]
+  Total: 2 [2.72 TiB] / in use: 1 [1.81 TiB] / in no VG: 1 [931.51 GiB]
+"#;
+    let s2 = r#"  PV /dev/sdb   VG EMBASSY_LZHJAENWGPCJJL6C6AXOD7OOOIJG7HFBV4GYRJH6HADXUCN4BRWQ   lvm2 [931.51 GiB / 0    free]
+  Total: 1 [931.51 GiB] / in use: 1 [931.51 GiB] / in no VG: 0 [0   ]
+"#;
+    let s3 = r#"  PV /dev/mapper/cryptdata   VG data            lvm2 [1.81 TiB / 0    free]
+  Total: 1 [1.81 TiB] / in use: 1 [1.81 TiB] / in no VG: 0 [0   ]
+"#;
+    println!("{:?}", parse_pvscan_output(s1));
+    println!("{:?}", parse_pvscan_output(s2));
+    println!("{:?}", parse_pvscan_output(s3));
 }

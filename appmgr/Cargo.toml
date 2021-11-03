@@ -75,6 +75,7 @@ lazy_static = "1.4"
 libc = "0.2.103"
 log = "0.4.14"
 nix = "0.23.0"
+nom = "7.0.0"
 num = "0.4.0"
 openssh-keys = "0.5.0"
 openssl = { version = "0.10.36", features = ["vendored"] }

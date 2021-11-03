@@ -855,6 +855,7 @@ dependencies = [
  "libc",
  "log",
  "nix 0.23.0",
+ "nom 7.0.0",
  "num",
  "openssh-keys",
  "openssl",
