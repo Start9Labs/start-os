@@ -223,27 +223,10 @@ async fn perform_backup<Db: DbHandle>(
         } else {
             continue;
         };
-        installed_model.lock(&mut db, LockType::Write).await;
-        let manifest = installed_model
-            .clone()
-            .manifest()
-            .get(&mut db, true)
-            .await?;
         let main_status_model = installed_model.clone().status().main();
         let (started, health) = match main_status_model.get(&mut db, true).await?.into_owned() {
             MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
             MainStatus::Stopped | MainStatus::Stopping => (None, Default::default()),
-            MainStatus::Restoring { .. } => {
-                backup_report.insert(
-                    package_id,
-                    PackageBackupReport {
-                        error: Some(
-                            "Can't do backup because service is in a restoring state".to_owned(),
-                        ),
-                    },
-                );
-                continue;
-            }
             MainStatus::BackingUp { .. } => {
                 backup_report.insert(
                     package_id,
@@ -256,16 +239,33 @@ async fn perform_backup<Db: DbHandle>(
                 continue;
             }
         };
+        let mut tx = db.begin().await?; // for lock scope
         main_status_model
             .put(
-                &mut db,
+                &mut tx,
                 &MainStatus::BackingUp {
                     started: started.clone(),
                     health: health.clone(),
                 },
             )
             .await?;
+        tx.save().await?; // drop locks
 
+        installed_model.lock(&mut db, LockType::Write).await;
+        let manifest = installed_model
+            .clone()
+            .manifest()
+            .get(&mut db, true)
+            .await?;
+
+        ctx.managers
+            .get(&(manifest.id.clone(), manifest.version.clone()))
+            .await
+            .ok_or_else(|| {
+                Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest)
+            })?
+            .synchronize()
+            .await;
         let guard = backup_guard.mount_package_backup(&package_id).await?;
         let res = manifest
             .backup
