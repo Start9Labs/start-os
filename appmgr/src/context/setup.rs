@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};

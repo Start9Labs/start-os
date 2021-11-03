@@ -50,20 +50,20 @@ pub async fn start(
         started: Utc::now(),
         health: BTreeMap::new(),
     };
-    status
-        .synchronize(
-            &*ctx
-                .managers
-                .get(&(id.clone(), version))
-                .await
-                .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::Docker))?,
-        )
-        .await?;
     status.save(&mut tx).await?;
     heal_all_dependents_transitive(&ctx, &mut tx, &id).await?;
 
+    let revision = tx.commit(None).await?;
+
+    ctx.managers
+        .get(&(id, version))
+        .await
+        .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
+        .synchronize()
+        .await;
+
     Ok(WithRevision {
-        revision: tx.commit(None).await?,
+        revision,
         response: (),
     })
 }
