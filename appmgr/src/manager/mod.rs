@@ -1,23 +1,26 @@
 use std::collections::BTreeMap;
+use std::convert::TryInto;
 use std::future::Future;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
 use bollard::container::StopContainerOptions;
 use color_eyre::eyre::eyre;
+use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Sqlite};
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
-use tokio::sync::RwLock;
+use tokio::sync::{Notify, RwLock};
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use crate::action::docker::DockerAction;
 use crate::action::NoOutput;
 use crate::context::RpcContext;
+use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -25,6 +28,7 @@ use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
 
 pub mod health;
+mod sync;
 
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
@@ -128,19 +132,23 @@ pub struct Manager {
     thread: Container<NonDetachingJoinHandle<()>>,
 }
 
+#[derive(TryFromPrimitive)]
+#[repr(usize)]
 pub enum Status {
     Running = 0,
     Stopped = 1,
     Paused = 2,
 }
 
-struct ManagerSharedState {
+pub struct ManagerSharedState {
     ctx: RpcContext,
     status: AtomicUsize,
     on_stop: Sender<OnStop>,
     manifest: Manifest,
     container_name: String,
     tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
+    synchronized: Notify,
+    synchronize_now: Notify,
 }
 
 #[derive(Clone, Copy)]
@@ -273,7 +281,7 @@ impl Manager {
         manifest: Manifest,
         tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
     ) -> Result<Self, Error> {
-        let (on_stop, mut recv) = channel(OnStop::Sleep);
+        let (on_stop, recv) = channel(OnStop::Sleep);
         let shared = Arc::new(ManagerSharedState {
             ctx,
             status: AtomicUsize::new(Status::Stopped as usize),
@@ -281,173 +289,20 @@ impl Manager {
             container_name: DockerAction::container_name(&manifest.id, None),
             manifest,
             tor_keys,
+            synchronized: Notify::new(),
+            synchronize_now: Notify::new(),
         });
         let thread_shared = shared.clone();
         let thread = tokio::spawn(async move {
-            loop {
-                fn handle_stop_action<'a>(
-                    recv: &'a mut Receiver<OnStop>,
-                ) -> (
-                    OnStop,
-                    Option<impl Future<Output = Result<(), RecvError>> + 'a>,
-                ) {
-                    let val = *recv.borrow_and_update();
-                    match val {
-                        OnStop::Sleep => (OnStop::Sleep, Some(recv.changed())),
-                        a => (a, None),
-                    }
-                }
-                let (stop_action, fut) = handle_stop_action(&mut recv);
-                match stop_action {
-                    OnStop::Sleep => {
-                        if let Some(fut) = fut {
-                            thread_shared.status.store(
-                                Status::Stopped as usize,
-                                std::sync::atomic::Ordering::SeqCst,
-                            );
-                            fut.await.unwrap();
-                            continue;
-                        }
-                    }
-                    OnStop::Exit => {
-                        thread_shared.status.store(
-                            Status::Stopped as usize,
-                            std::sync::atomic::Ordering::SeqCst,
-                        );
-                        break;
-                    }
-                    OnStop::Restart => {
-                        thread_shared.status.store(
-                            Status::Running as usize,
-                            std::sync::atomic::Ordering::SeqCst,
-                        );
-                    }
-                }
-                match run_main(&thread_shared).await {
-                    Ok(Ok(NoOutput)) => {
-                        thread_shared
-                            .on_stop
-                            .send(OnStop::Sleep)
-                            .map_err(|_| ())
-                            .unwrap(); // recv is still in scope, cannot fail
-                    }
-                    Ok(Err(e)) => {
-                        let res = thread_shared.ctx.notification_manager
-                            .notify(
-                                &mut thread_shared.ctx.db.handle(),
-                                Some(thread_shared.manifest.id.clone()),
-                                NotificationLevel::Warning,
-                                String::from("Service Crashed"),
-                                format!("The service {} has crashed with the following exit code: {}\nDetails: {}", thread_shared.manifest.id.clone(), e.0, e.1),
-                                (),
-                                Some(900) // 15 minutes
-                            )
-                            .await;
-                        match res {
-                            Err(e) => {
-                                // TODO for code review: Do we return this error or just log it?
-                                tracing::error!("Failed to issue notification: {}", e);
-                                tracing::debug!("{:?}", e);
-                            }
-                            Ok(()) => {}
-                        }
-                        tracing::error!("service crashed: {}: {}", e.0, e.1);
-                    }
-                    Err(e) => {
-                        tracing::error!("failed to start service: {}", e);
-                        tracing::debug!("{:?}", e);
-                    }
-                }
+            tokio::select! {
+                _ = manager_thread_loop(recv, &thread_shared) => (),
+                _ = synchronizer(&*thread_shared) => (),
             }
         });
         Ok(Manager {
             shared,
             thread: Container::new(Some(thread.into())),
         })
-    }
-
-    pub fn status(&self) -> Status {
-        match self.shared.status.load(std::sync::atomic::Ordering::SeqCst) {
-            0 => Status::Running,
-            1 => Status::Stopped,
-            2 => Status::Paused,
-            _ => unreachable!(),
-        }
-    }
-
-    #[instrument(skip(self))]
-    pub async fn stop(&self) -> Result<(), Error> {
-        self.shared.on_stop.send(OnStop::Sleep).map_err(|_| {
-            Error::new(
-                eyre!("Manager has already been shutdown"),
-                crate::ErrorKind::Docker,
-            )
-        })?;
-        if matches!(self.status(), Status::Paused) {
-            self.resume().await?;
-        }
-        match self
-            .shared
-            .ctx
-            .docker
-            .stop_container(
-                &self.shared.container_name,
-                Some(StopContainerOptions { t: 30 }),
-            )
-            .await
-        {
-            Err(bollard::errors::Error::DockerResponseNotFoundError { .. })
-            | Err(bollard::errors::Error::DockerResponseConflictError { .. })
-            | Err(bollard::errors::Error::DockerResponseNotModifiedError { .. }) => (), // Already stopped
-            a => a?,
-        };
-        self.shared.status.store(
-            Status::Stopped as usize,
-            std::sync::atomic::Ordering::SeqCst,
-        );
-        Ok(())
-    }
-
-    #[instrument(skip(self))]
-    pub async fn start(&self) -> Result<(), Error> {
-        self.shared.on_stop.send(OnStop::Restart).map_err(|_| {
-            Error::new(
-                eyre!("Manager has already been shutdown"),
-                crate::ErrorKind::Docker,
-            )
-        })?;
-        self.shared.status.store(
-            Status::Running as usize,
-            std::sync::atomic::Ordering::SeqCst,
-        );
-        Ok(())
-    }
-
-    #[instrument(skip(self))]
-    pub async fn pause(&self) -> Result<(), Error> {
-        self.shared
-            .ctx
-            .docker
-            .pause_container(&self.shared.container_name)
-            .await?;
-        self.shared
-            .status
-            .store(Status::Paused as usize, std::sync::atomic::Ordering::SeqCst);
-        Ok(())
-    }
-
-    #[instrument(skip(self))]
-    pub async fn resume(&self) -> Result<(), Error> {
-        self.shared
-            .ctx
-            .docker
-            .unpause_container(&self.shared.container_name)
-            .await?;
-        self.shared.status.store(
-            Status::Running as usize,
-            std::sync::atomic::Ordering::SeqCst,
-        );
-        Ok(())
     }
 
     #[instrument(skip(self))]
@@ -482,4 +337,160 @@ impl Manager {
         }
         Ok(())
     }
+
+    pub async fn synchronize(&self) {
+        self.shared.synchronize_now.notify_waiters();
+        self.shared.synchronized.notified().await
+    }
+}
+
+async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<ManagerSharedState>) {
+    loop {
+        fn handle_stop_action<'a>(
+            recv: &'a mut Receiver<OnStop>,
+        ) -> (
+            OnStop,
+            Option<impl Future<Output = Result<(), RecvError>> + 'a>,
+        ) {
+            let val = *recv.borrow_and_update();
+            match val {
+                OnStop::Sleep => (OnStop::Sleep, Some(recv.changed())),
+                a => (a, None),
+            }
+        }
+        let (stop_action, fut) = handle_stop_action(&mut recv);
+        match stop_action {
+            OnStop::Sleep => {
+                if let Some(fut) = fut {
+                    thread_shared.status.store(
+                        Status::Stopped as usize,
+                        std::sync::atomic::Ordering::SeqCst,
+                    );
+                    fut.await.unwrap();
+                    continue;
+                }
+            }
+            OnStop::Exit => {
+                thread_shared.status.store(
+                    Status::Stopped as usize,
+                    std::sync::atomic::Ordering::SeqCst,
+                );
+                break;
+            }
+            OnStop::Restart => {
+                thread_shared.status.store(
+                    Status::Running as usize,
+                    std::sync::atomic::Ordering::SeqCst,
+                );
+            }
+        }
+        match run_main(&thread_shared).await {
+            Ok(Ok(NoOutput)) => {
+                thread_shared
+                    .on_stop
+                    .send(OnStop::Sleep)
+                    .map_err(|_| ())
+                    .unwrap(); // recv is still in scope, cannot fail
+            }
+            Ok(Err(e)) => {
+                let res = thread_shared.ctx.notification_manager
+                    .notify(
+                        &mut thread_shared.ctx.db.handle(),
+                        Some(thread_shared.manifest.id.clone()),
+                        NotificationLevel::Warning,
+                        String::from("Service Crashed"),
+                        format!("The service {} has crashed with the following exit code: {}\nDetails: {}", thread_shared.manifest.id.clone(), e.0, e.1),
+                        (),
+                        Some(900) // 15 minutes
+                    )
+                    .await;
+                match res {
+                    Err(e) => {
+                        tracing::error!("Failed to issue notification: {}", e);
+                        tracing::debug!("{:?}", e);
+                    }
+                    Ok(()) => {}
+                }
+                tracing::error!("service crashed: {}: {}", e.0, e.1);
+            }
+            Err(e) => {
+                tracing::error!("failed to start service: {}", e);
+                tracing::debug!("{:?}", e);
+            }
+        }
+    }
+}
+
+#[instrument(skip(shared))]
+async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
+    shared.on_stop.send(OnStop::Sleep).map_err(|_| {
+        Error::new(
+            eyre!("Manager has already been shutdown"),
+            crate::ErrorKind::Docker,
+        )
+    })?;
+    if matches!(
+        shared.status.load(Ordering::SeqCst).try_into().unwrap(),
+        Status::Paused
+    ) {
+        resume(shared).await?;
+    }
+    match shared
+        .ctx
+        .docker
+        .stop_container(&shared.container_name, Some(StopContainerOptions { t: 30 }))
+        .await
+    {
+        Err(bollard::errors::Error::DockerResponseNotFoundError { .. })
+        | Err(bollard::errors::Error::DockerResponseConflictError { .. })
+        | Err(bollard::errors::Error::DockerResponseNotModifiedError { .. }) => (), // Already stopped
+        a => a?,
+    };
+    shared.status.store(
+        Status::Stopped as usize,
+        std::sync::atomic::Ordering::SeqCst,
+    );
+    Ok(())
+}
+
+#[instrument(skip(shared))]
+async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
+    shared.on_stop.send(OnStop::Restart).map_err(|_| {
+        Error::new(
+            eyre!("Manager has already been shutdown"),
+            crate::ErrorKind::Docker,
+        )
+    })?;
+    shared.status.store(
+        Status::Running as usize,
+        std::sync::atomic::Ordering::SeqCst,
+    );
+    Ok(())
+}
+
+#[instrument(skip(shared))]
+async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
+    shared
+        .ctx
+        .docker
+        .pause_container(&shared.container_name)
+        .await?;
+    shared
+        .status
+        .store(Status::Paused as usize, std::sync::atomic::Ordering::SeqCst);
+    Ok(())
+}
+
+#[instrument(skip(shared))]
+async fn resume(shared: &ManagerSharedState) -> Result<(), Error> {
+    shared
+        .ctx
+        .docker
+        .unpause_container(&shared.container_name)
+        .await?;
+    shared.status.store(
+        Status::Running as usize,
+        std::sync::atomic::Ordering::SeqCst,
+    );
+    Ok(())
 }
