@@ -18,4 +18,8 @@ import { SuccessPageRoutingModule } from './success-routing.module'
   ],
   declarations: [SuccessPage],
 })
-export class SuccessPageModule { }
+export class SuccessPageModule {
+  constructor () {
+    console.log('SuccessModule loaded.')
+  }
+}
