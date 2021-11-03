@@ -10,6 +10,13 @@ import { IonicModule, IonicRouteStrategy, iosTransitionAnimation } from '@ionic/
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
 import { GlobalErrorHandler } from './services/global-error-handler.service'
+import { SuccessPageModule } from './pages/success/success.module'
+import { InitPageModule } from './pages/init/init.module'
+import { HomePageModule } from './pages/home/home.module'
+import { LoadingPageModule } from './pages/loading/loading.module'
+import { ProdKeyModalModule } from './pages/prod-key-modal/prod-key-modal.module'
+import { ProductKeyPageModule } from './pages/product-key/product-key.module'
+import { RecoverPageModule } from './pages/recover/recover.module'
 
 const useMocks = require('../../config.json').useMocks as boolean
 
@@ -23,6 +30,13 @@ const useMocks = require('../../config.json').useMocks as boolean
     }),
     AppRoutingModule,
     HttpClientModule,
+    SuccessPageModule,
+    HomePageModule,
+    LoadingPageModule,
+    ProdKeyModalModule,
+    ProductKeyPageModule,
+    RecoverPageModule,
+    InitPageModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
