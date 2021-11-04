@@ -16,7 +16,7 @@ pub fn create_backup(
         String::new()
     };
 
-    let mut data_cmd = std::process::Command::new("duplicity");
+    let mut data_cmd = std::process::Command::new("duplicity").arg("--allow-source-mismatch");
     for exclude in exclude.lines().map(|s| s.trim()).filter(|s| !s.is_empty()) {
         if exclude.to_string().starts_with('!') {
             data_cmd.arg(format!(
@@ -56,6 +56,7 @@ pub fn restore_backup(
     let data_path = std::fs::canonicalize(data_path)?;
 
     let data_output = std::process::Command::new("duplicity")
+        .arg("--allow-source-mismatch")
         .env("PASSPHRASE", DEFAULT_PASSWORD)
         .arg("--force")
         .arg(format!("file://{}", mountpoint.display().to_string()))
