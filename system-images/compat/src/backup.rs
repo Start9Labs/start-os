@@ -32,7 +32,7 @@ pub fn create_backup(
             ));
         }
     }
-    let data_output = data_cmd
+    let data_output = &data_cmd
         .env("PASSPHRASE", DEFAULT_PASSWORD)
         .arg(data_path)
         .arg(format!("file://{}", mountpoint.display().to_string()))
