@@ -153,6 +153,41 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     .parse()?)
 }
 
+#[instrument(skip(path))]
+pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
+    Ok(String::from_utf8(
+        Command::new("df")
+            .arg("--output=avail")
+            .arg(path.as_ref())
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?,
+    )?
+    .lines()
+    .skip(1)
+    .next()
+    .unwrap_or_default()
+    .trim()
+    .parse()?)
+}
+
+#[instrument(skip(path))]
+pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
+    Ok(String::from_utf8(
+        Command::new("df")
+            .arg("--output=pcent")
+            .arg(path.as_ref())
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?,
+    )?
+    .lines()
+    .skip(1)
+    .next()
+    .replace("%", "")
+    .unwrap_or_default()
+    .trim()
+    .parse()?)
+}
+
 pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {
     let pvscan_out = Command::new("pvscan")
         .invoke(crate::ErrorKind::DiskManagement)
