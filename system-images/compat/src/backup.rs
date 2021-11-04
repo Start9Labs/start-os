@@ -16,7 +16,7 @@ pub fn create_backup(
         String::new()
     };
 
-    let mut data_cmd = std::process::Command::new("duplicity").arg("--allow-source-mismatch");
+    let mut data_cmd = std::process::Command::new("duplicity");
     for exclude in exclude.lines().map(|s| s.trim()).filter(|s| !s.is_empty()) {
         if exclude.to_string().starts_with('!') {
             data_cmd.arg(format!(
@@ -24,18 +24,19 @@ pub fn create_backup(
                 data_path
                     .join(exclude.to_string().trim_start_matches('!'))
                     .display()
-            ));
+            )).arg("--allow-source-mismatch");
         } else {
             data_cmd.arg(format!(
                 "--exclude={}",
                 data_path.join(exclude.to_string()).display()
-            ));
+            )).arg("--allow-source-mismatch");
         }
     }
-    let data_output = &data_cmd
+    let data_output = data_cmd
         .env("PASSPHRASE", DEFAULT_PASSWORD)
         .arg(data_path)
         .arg(format!("file://{}", mountpoint.display().to_string()))
+        .arg("--allow-source-mismatch")
         .stderr(Stdio::piped())
         .output()?;
     if !data_output.status.success() {
