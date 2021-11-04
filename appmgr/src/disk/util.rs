@@ -50,7 +50,7 @@ pub struct PartitionInfo {
     pub logicalname: PathBuf,
     pub label: Option<String>,
     pub capacity: usize,
-    pub used: Option<usize>,
+    pub used: Option<f64>,
     pub embassy_os: Option<EmbassyOsRecoveryInfo>,
 }
 
@@ -137,7 +137,7 @@ pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
 }
 
 #[instrument(skip(path))]
-pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
+pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<f64, Error> {
     Ok(String::from_utf8(
         Command::new("df")
             .arg("--output=used")
@@ -150,11 +150,11 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     .next()
     .unwrap_or_default()
     .trim()
-    .parse()?)
+    .parse::<f64>()?)
 }
 
 #[instrument(skip(path))]
-pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
+pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<f64, Error> {
     Ok(String::from_utf8(
         Command::new("df")
             .arg("--output=avail")
@@ -167,11 +167,11 @@ pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     .next()
     .unwrap_or_default()
     .trim()
-    .parse()?)
+    .parse::<f64>()?)
 }
 
 #[instrument(skip(path))]
-pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
+pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<f64, Error> {
     Ok(String::from_utf8(
         Command::new("df")
             .arg("--output=pcent")
@@ -182,10 +182,11 @@ pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
     .lines()
     .skip(1)
     .next()
-    .replace("%", "")
     .unwrap_or_default()
     .trim()
-    .parse()?)
+    .strip_suffix("%")
+    .unwrap()
+    .parse::<f64>()?)
 }
 
 pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {

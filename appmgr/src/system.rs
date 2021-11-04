@@ -9,11 +9,11 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;
+use crate::disk::util::{get_available, get_percentage, get_used};
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
-use crate::disk::util::{get_used, get_available, get_percentage};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
@@ -602,8 +602,6 @@ async fn get_mem_info() -> Result<MetricsMemory, Error> {
 
 #[instrument]
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
-    use crate::util::Invoke;
-
     let package_used_task = get_used("/embassy-data/package-data");
     let package_available_task = get_available("/embassy-data/package-data");
     let package_percentage_task = get_percentage("/embassy-data/package-data");
@@ -612,7 +610,7 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
     let os_percentage_task = get_percentage("/embassy-data/main");
 
     let (package_used, package_available, package_percentage, os_used, os_available, os_percentage) =
-        futures::try_join(
+        futures::try_join!(
             package_used_task,
             package_available_task,
             package_percentage_task,
