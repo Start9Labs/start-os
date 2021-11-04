@@ -13,7 +13,7 @@ use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::util::{display_none, display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
-crate::disk::util::{get_used, get_available, get_percentage};
+use crate::disk::util::{get_used, get_available, get_percentage};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
@@ -611,7 +611,15 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
     let os_available_task = get_available("/embassy-data/main");
     let os_percentage_task = get_percentage("/embassy-data/main");
 
-    let (package_used, package_available, package_percentage, os_used, os_available, os_percentage) = futures::try_join(package_used_task, package_available_task, package_percentage_task,os_used_task, os_available_task, os_percentage_task)?;
+    let (package_used, package_available, package_percentage, os_used, os_available, os_percentage) =
+        futures::try_join(
+            package_used_task,
+            package_available_task,
+            package_percentage_task,
+            os_used_task,
+            os_available_task,
+            os_percentage_task,
+        )?;
 
     let total_used = package_used + os_used;
     let total_available = package_available + os_available;
