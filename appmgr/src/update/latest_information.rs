@@ -1,7 +1,8 @@
+use std::collections::HashMap;
+
 use emver::Version;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use std::collections::HashMap;
 
 #[serde_as]
 #[derive(Debug, Deserialize, Serialize)]

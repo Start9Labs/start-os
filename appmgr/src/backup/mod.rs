@@ -22,8 +22,8 @@ use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
 use crate::{Error, ResultExt};
 
-mod backup_bulk;
-mod restore;
+pub mod backup_bulk;
+pub mod restore;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BackupReport {
@@ -47,7 +47,7 @@ pub fn backup() -> Result<(), Error> {
     Ok(())
 }
 
-#[command(rename = "backup", subcommands(restore::restore_packages))]
+#[command(rename = "backup", subcommands(restore::restore_packages_rpc))]
 pub fn package_backup() -> Result<(), Error> {
     Ok(())
 }
