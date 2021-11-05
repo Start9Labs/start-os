@@ -9,6 +9,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;
+use crate::disk::util::{get_available, get_percentage, get_used};
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::util::{display_none, display_serializable, IoFormat};
@@ -601,65 +602,33 @@ async fn get_mem_info() -> Result<MetricsMemory, Error> {
 
 #[instrument]
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
-    use crate::util::Invoke;
-    let mut size_cmd = tokio::process::Command::new("zpool");
-    let size_task = size_cmd
-        .arg("list")
-        .arg("-Hp")
-        .arg("-o")
-        .arg("size")
-        .arg("embassy-data")
-        .invoke(ErrorKind::ParseSysInfo);
-    let mut alloc_cmd = tokio::process::Command::new("zpool");
-    let alloc_task = alloc_cmd
-        .arg("list")
-        .arg("-Hp")
-        .arg("-o")
-        .arg("allocated")
-        .arg("embassy-data")
-        .invoke(ErrorKind::ParseSysInfo);
-    let mut free_cmd = tokio::process::Command::new("zpool");
-    let free_task = free_cmd
-        .arg("list")
-        .arg("-Hp")
-        .arg("-o")
-        .arg("free")
-        .arg("embassy-data")
-        .invoke(ErrorKind::ParseSysInfo);
-    let (size_bytes, alloc_bytes, free_bytes) =
-        futures::try_join!(size_task, alloc_task, free_task)?;
-    let size = String::from_utf8(size_bytes)?
-        .trim()
-        .parse::<f64>()
-        .map_err(|e| {
-            Error::new(
-                color_eyre::eyre::eyre!("Could not parse disk size: {}", e),
-                ErrorKind::ParseSysInfo,
-            )
-        })?;
-    let alloc = String::from_utf8(alloc_bytes)?
-        .trim()
-        .parse::<f64>()
-        .map_err(|e| {
-            Error::new(
-                color_eyre::eyre::eyre!("Could not parse disk alloc: {}", e),
-                ErrorKind::ParseSysInfo,
-            )
-        })?;
-    let free = String::from_utf8(free_bytes)?
-        .trim()
-        .parse::<f64>()
-        .map_err(|e| {
-            Error::new(
-                color_eyre::eyre::eyre!("Could not parse disk alloc: {}", e),
-                ErrorKind::ParseSysInfo,
-            )
-        })?;
+    let package_used_task = get_used("/embassy-data/package-data");
+    let package_available_task = get_available("/embassy-data/package-data");
+    let package_percentage_task = get_percentage("/embassy-data/package-data");
+    let os_used_task = get_used("/embassy-data/main");
+    let os_available_task = get_available("/embassy-data/main");
+    let os_percentage_task = get_percentage("/embassy-data/main");
+
+    let (package_used, package_available, package_percentage, os_used, os_available, os_percentage) =
+        futures::try_join!(
+            package_used_task,
+            package_available_task,
+            package_percentage_task,
+            os_used_task,
+            os_available_task,
+            os_percentage_task,
+        )?;
+
+    let total_used = package_used + os_used;
+    let total_available = package_available + os_available;
+    let total_percentage = package_percentage + os_percentage;
+    let total_size = total_used + total_available;
+
     Ok(MetricsDisk {
-        size: GigaBytes(size / 1_000_000_000.0),
-        used: GigaBytes(alloc / 1_000_000_000.0),
-        available: GigaBytes(free / 1_000_000_000.0),
-        used_percentage: Percentage(alloc / size * 100.0),
+        size: GigaBytes(total_size as f64 / 1_000_000_000.0),
+        used: GigaBytes(total_used as f64 / 1_000_000_000.0),
+        available: GigaBytes(total_available as f64 / 1_000_000_000.0),
+        used_percentage: Percentage(total_percentage as f64),
     })
 }
 
