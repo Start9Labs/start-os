@@ -40,7 +40,7 @@ pub struct DiskInfo {
     pub vendor: Option<String>,
     pub model: Option<String>,
     pub partitions: Vec<PartitionInfo>,
-    pub capacity: usize,
+    pub capacity: u64,
     pub guid: Option<String>,
 }
 
@@ -49,8 +49,8 @@ pub struct DiskInfo {
 pub struct PartitionInfo {
     pub logicalname: PathBuf,
     pub label: Option<String>,
-    pub capacity: usize,
-    pub used: Option<f64>,
+    pub capacity: u64,
+    pub used: Option<u64>,
     pub embassy_os: Option<EmbassyOsRecoveryInfo>,
 }
 
@@ -109,7 +109,7 @@ pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
 }
 
 #[instrument(skip(path))]
-pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
+pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     Ok(String::from_utf8(
         Command::new("blockdev")
             .arg("--getsize64")
@@ -118,7 +118,7 @@ pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<usize, Error> {
             .await?,
     )?
     .trim()
-    .parse()?)
+    .parse::<u64>()?)
 }
 
 #[instrument(skip(path))]
@@ -137,10 +137,11 @@ pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
 }
 
 #[instrument(skip(path))]
-pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<f64, Error> {
+pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     Ok(String::from_utf8(
         Command::new("df")
             .arg("--output=used")
+            .arg("--block-size=1")
             .arg(path.as_ref())
             .invoke(crate::ErrorKind::Filesystem)
             .await?,
@@ -150,14 +151,15 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<f64, Error> {
     .next()
     .unwrap_or_default()
     .trim()
-    .parse::<f64>()?)
+    .parse::<u64>()?)
 }
 
 #[instrument(skip(path))]
-pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<f64, Error> {
+pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     Ok(String::from_utf8(
         Command::new("df")
             .arg("--output=avail")
+            .arg("--block-size=1")
             .arg(path.as_ref())
             .invoke(crate::ErrorKind::Filesystem)
             .await?,
@@ -167,11 +169,11 @@ pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<f64, Error> {
     .next()
     .unwrap_or_default()
     .trim()
-    .parse::<f64>()?)
+    .parse::<u64>()?)
 }
 
 #[instrument(skip(path))]
-pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<f64, Error> {
+pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     Ok(String::from_utf8(
         Command::new("df")
             .arg("--output=pcent")
@@ -186,7 +188,7 @@ pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<f64, Error> {
     .trim()
     .strip_suffix("%")
     .unwrap()
-    .parse::<f64>()?)
+    .parse::<u64>()?)
 }
 
 pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {

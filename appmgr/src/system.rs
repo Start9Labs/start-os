@@ -625,10 +625,10 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
     let total_size = total_used + total_available;
 
     Ok(MetricsDisk {
-        size: GigaBytes(total_size / 1_000_000_000.0),
-        used: GigaBytes(total_used / 1_000_000_000.0),
-        available: GigaBytes(total_available / 1_000_000_000.0),
-        used_percentage: Percentage(total_percentage),
+        size: GigaBytes(total_size as f64 / 1_000_000_000.0),
+        used: GigaBytes(total_used as f64 / 1_000_000_000.0),
+        available: GigaBytes(total_available as f64 / 1_000_000_000.0),
+        used_percentage: Percentage(total_percentage as f64),
     })
 }
 
