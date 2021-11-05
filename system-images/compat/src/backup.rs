@@ -24,18 +24,19 @@ pub fn create_backup(
                 data_path
                     .join(exclude.to_string().trim_start_matches('!'))
                     .display()
-            ));
+            )).arg("--allow-source-mismatch");
         } else {
             data_cmd.arg(format!(
                 "--exclude={}",
                 data_path.join(exclude.to_string()).display()
-            ));
+            )).arg("--allow-source-mismatch");
         }
     }
     let data_output = data_cmd
         .env("PASSPHRASE", DEFAULT_PASSWORD)
         .arg(data_path)
         .arg(format!("file://{}", mountpoint.display().to_string()))
+        .arg("--allow-source-mismatch")
         .stderr(Stdio::piped())
         .output()?;
     if !data_output.status.success() {
@@ -56,6 +57,7 @@ pub fn restore_backup(
     let data_path = std::fs::canonicalize(data_path)?;
 
     let data_output = std::process::Command::new("duplicity")
+        .arg("--allow-source-mismatch")
         .env("PASSPHRASE", DEFAULT_PASSWORD)
         .arg("--force")
         .arg(format!("file://{}", mountpoint.display().to_string()))
