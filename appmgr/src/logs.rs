@@ -42,6 +42,7 @@ struct JournalctlEntry {
     #[serde(rename = "__REALTIME_TIMESTAMP")]
     timestamp: String,
     #[serde(rename = "MESSAGE")]
+    #[serde(deserialize_with = "deserialize_string_or_utf8_array")]
     message: String,
     #[serde(rename = "__CURSOR")]
     cursor: String,
@@ -58,6 +59,43 @@ impl JournalctlEntry {
             },
         ))
     }
+}
+
+fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<String, D::Error> {
+    struct Visitor;
+    impl<'de> serde::de::Visitor<'de> for Visitor {
+        type Value = String;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(formatter, "a parsable string")
+        }
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(v.to_owned())
+        }
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(v)
+        }
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::SeqAccess<'de>,
+        {
+            String::from_utf8(
+                std::iter::repeat_with(|| seq.next_element::<u8>().transpose())
+                    .take_while(|a| a.is_some())
+                    .filter_map(|a| a)
+                    .collect::<Result<Vec<u8>, _>>()?,
+            )
+            .map_err(serde::de::Error::custom)
+        }
+    }
+    deserializer.deserialize_any(Visitor)
 }
 
 #[derive(Debug)]
