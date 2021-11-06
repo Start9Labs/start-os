@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
-use futures::{FutureExt, TryStreamExt};
+use futures::{FutureExt, TryFutureExt, TryStreamExt};
 use openssl::x509::X509;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
@@ -17,11 +17,13 @@ use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
 use crate::backup::restore::recover_full_embassy;
+use crate::context::rpc::RpcContextConfig;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::util::{pvscan, DiskInfo, PartitionInfo, TmpMountGuard};
 use crate::id::Id;
+use crate::init::init;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::net::ssl::SslManager;
 use crate::s9pk::manifest::PackageId;
@@ -168,14 +170,18 @@ pub async fn execute_inner(
         }
         let (tor_addr, root_ca, recover_fut) = recover(
             ctx.clone(),
-            guid,
+            guid.clone(),
             embassy_password,
             recovery_partition,
             recovery_password,
         )
         .await?;
+        init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
         tokio::spawn(async move {
-            if let Err(e) = recover_fut.await {
+            if let Err(e) = recover_fut
+                .and_then(|_| complete_setup(ctx.clone(), guid))
+                .await
+            {
                 BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
                 tracing::error!("Error recovering drive!: {}", e);
                 tracing::debug!("{:?}", e);
@@ -185,6 +191,7 @@ pub async fn execute_inner(
         (tor_addr, root_ca)
     } else {
         let res = fresh_setup(&ctx, &embassy_password).await?;
+        init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
         complete_setup(ctx, guid).await?;
         res
     };
@@ -257,7 +264,6 @@ async fn recover(
         ));
     };
 
-    complete_setup(ctx, guid).await?;
     Ok(res)
 }
 

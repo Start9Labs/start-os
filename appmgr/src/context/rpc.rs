@@ -132,14 +132,14 @@ impl RpcContext {
         disk_guid: Arc<String>,
     ) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
-        tracing::trace!("Loaded Config");
+        tracing::info!("Loaded Config");
         let logger = EmbassyLogger::init(base.log_server.clone(), false);
-        tracing::trace!("Set Logger");
+        tracing::info!("Set Logger");
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
-        tracing::trace!("Opened Sqlite DB");
+        tracing::info!("Opened Sqlite DB");
         let db = base.db(&secret_store).await?;
-        tracing::trace!("Opened PatchDB");
+        tracing::info!("Opened PatchDB");
         let share = crate::db::DatabaseModel::new()
             .server_info()
             .share_stats()
@@ -147,7 +147,7 @@ impl RpcContext {
             .await?;
         logger.set_sharing(*share);
         let docker = Docker::connect_with_unix_defaults()?;
-        tracing::trace!("Connected to Docker");
+        tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
             ([127, 0, 0, 1], 80).into(),
             crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
@@ -157,11 +157,11 @@ impl RpcContext {
             None,
         )
         .await?;
-        tracing::trace!("Initialized Net Controller");
+        tracing::info!("Initialized Net Controller");
         let managers = ManagerMap::default();
         let metrics_cache = RwLock::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
-        tracing::trace!("Initialized Notification Manager");
+        tracing::info!("Initialized Notification Manager");
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
@@ -194,7 +194,7 @@ impl RpcContext {
             .await
         });
         let res = Self(seed);
-        tracing::trace!("Initialized Package Managers");
+        tracing::info!("Initialized Package Managers");
         res.managers
             .init(
                 &res,
