@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use basic_cookies::Cookie;
 use color_eyre::eyre::eyre;
 use digest::Digest;
@@ -29,17 +31,28 @@ impl HasLoggedOutSessions {
         logged_out_sessions: impl IntoIterator<Item = impl AsLogoutSessionId>,
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
+        let sessions = logged_out_sessions
+            .into_iter()
+            .by_ref()
+            .map(|x| x.as_logout_session_id())
+            .collect::<Vec<_>>();
         sqlx::query(&format!(
             "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id IN ('{}')",
-            logged_out_sessions
-                .into_iter()
-                .by_ref()
-                .map(|x| x.as_logout_session_id())
-                .collect::<Vec<_>>()
-                .join("','")
+            sessions.join("','")
         ))
         .execute(&mut ctx.secret_store.acquire().await?)
         .await?;
+        for session in sessions {
+            for socket in ctx
+                .open_authed_websockets
+                .lock()
+                .await
+                .remove(&session)
+                .unwrap_or_default()
+            {
+                let _ = socket.send(());
+            }
+        }
         Ok(Self(()))
     }
 }
@@ -140,6 +153,27 @@ impl HashSessionToken {
 impl AsLogoutSessionId for HashSessionToken {
     fn as_logout_session_id(self) -> String {
         self.hashed
+    }
+}
+impl PartialEq for HashSessionToken {
+    fn eq(&self, other: &Self) -> bool {
+        self.hashed == other.hashed
+    }
+}
+impl Eq for HashSessionToken {}
+impl PartialOrd for HashSessionToken {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.hashed.partial_cmp(&other.hashed)
+    }
+}
+impl Ord for HashSessionToken {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.hashed.cmp(&other.hashed)
+    }
+}
+impl Borrow<String> for HashSessionToken {
+    fn borrow(&self) -> &String {
+        &self.hashed
     }
 }
 
