@@ -18,7 +18,6 @@ apt install -y \
 	sqlite3 \
 	wireless-tools \
 	net-tools \
-	ifupdown \
 	ecryptfs-utils
 sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service

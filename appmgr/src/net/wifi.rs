@@ -585,8 +585,9 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(main_datadir: P) ->
         .arg("wpa_supplicant")
         .invoke(ErrorKind::Wifi)
         .await?;
-    Command::new("ifup")
+    Command::new("ifconfig")
         .arg("wlan0")
+        .arg("up")
         .invoke(ErrorKind::Wifi)
         .await?;
     Ok(())
