@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -16,13 +16,13 @@ use serde::Deserialize;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 use tokio::fs::File;
-use tokio::sync::broadcast::Sender;
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
 use crate::db::model::Database;
 use crate::hostname::{get_hostname, get_id};
 use crate::manager::ManagerMap;
+use crate::middleware::auth::HashSessionToken;
 use crate::net::tor::os_key;
 use crate::net::NetController;
 use crate::notifications::NotificationManager;
@@ -115,12 +115,13 @@ pub struct RpcContextSeed {
     pub revision_cache_size: usize,
     pub revision_cache: RwLock<VecDeque<Arc<Revision>>>,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
-    pub shutdown: Sender<Option<Shutdown>>,
+    pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub websocket_count: AtomicUsize,
     pub logger: EmbassyLogger,
     pub log_epoch: Arc<AtomicU64>,
     pub tor_socks: SocketAddr,
     pub notification_manager: NotificationManager,
+    pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
 }
 
 #[derive(Clone)]
@@ -185,6 +186,7 @@ impl RpcContext {
                 9050,
             ))),
             notification_manager,
+            open_authed_websockets: Mutex::new(BTreeMap::new()),
         });
         let metrics_seed = seed.clone();
         tokio::spawn(async move {
