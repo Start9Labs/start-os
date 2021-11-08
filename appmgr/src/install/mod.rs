@@ -11,7 +11,6 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use http::StatusCode;
 use patch_db::{DbHandle, LockType};
-use reqwest::Response;
 use rpc_toolkit::command;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
@@ -137,7 +136,25 @@ pub async fn install(
 
     tokio::spawn(async move {
         let mut db_handle = ctx.db.handle();
-        if let Err(e) = download_install_s9pk(&ctx, &man, s9pk).await {
+        if let Err(e) = download_install_s9pk(
+            &ctx,
+            &man,
+            InstallProgress::new(s9pk.content_length()),
+            tokio_util::io::StreamReader::new(s9pk.bytes_stream().map_err(|e| {
+                std::io::Error::new(
+                    if e.is_connect() {
+                        std::io::ErrorKind::ConnectionRefused
+                    } else if e.is_timeout() {
+                        std::io::ErrorKind::TimedOut
+                    } else {
+                        std::io::ErrorKind::Other
+                    },
+                    e,
+                )
+            })),
+        )
+        .await
+        {
             let err_str = format!("Install of {}@{} Failed: {}", man.id, man.version, e);
             tracing::error!("{}", err_str);
             tracing::debug!("{:?}", e);
@@ -250,57 +267,42 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
     })
 }
 
-#[instrument(skip(ctx, temp_manifest))]
+#[instrument(skip(ctx, temp_manifest, s9pk))]
 pub async fn download_install_s9pk(
     ctx: &RpcContext,
     temp_manifest: &Manifest,
-    s9pk: Response,
+    progress: Arc<InstallProgress>,
+    mut s9pk: impl AsyncRead + Unpin,
 ) -> Result<(), Error> {
     let pkg_id = &temp_manifest.id;
     let version = &temp_manifest.version;
 
-    let pkg_cache_dir = ctx
+    let pkg_archive_dir = ctx
         .datadir
         .join(PKG_ARCHIVE_DIR)
         .join(pkg_id)
         .join(version.as_str());
-    tokio::fs::create_dir_all(&pkg_cache_dir).await?;
-    let pkg_cache = pkg_cache_dir.join(AsRef::<Path>::as_ref(pkg_id).with_extension("s9pk"));
+    tokio::fs::create_dir_all(&pkg_archive_dir).await?;
+    let pkg_archive = pkg_archive_dir.join(AsRef::<Path>::as_ref(pkg_id).with_extension("s9pk"));
 
     let pkg_data_entry = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(pkg_id);
 
-    let progress = InstallProgress::new(s9pk.content_length());
     let progress_model = pkg_data_entry.and_then(|pde| pde.install_progress());
 
-    File::delete(&pkg_cache).await?;
+    File::delete(&pkg_archive).await?;
     let mut dst = OpenOptions::new()
         .create(true)
         .write(true)
         .read(true)
-        .open(&pkg_cache)
+        .open(&pkg_archive)
         .await?;
 
     progress
         .track_download_during(progress_model.clone(), &ctx.db, || async {
             let mut progress_writer = InstallProgressTracker::new(&mut dst, progress.clone());
-            tokio::io::copy(
-                &mut tokio_util::io::StreamReader::new(s9pk.bytes_stream().map_err(|e| {
-                    std::io::Error::new(
-                        if e.is_connect() {
-                            std::io::ErrorKind::ConnectionRefused
-                        } else if e.is_timeout() {
-                            std::io::ErrorKind::TimedOut
-                        } else {
-                            std::io::ErrorKind::Other
-                        },
-                        e,
-                    )
-                })),
-                &mut progress_writer,
-            )
-            .await?;
+            tokio::io::copy(&mut s9pk, &mut progress_writer).await?;
             progress.download_complete();
             Ok(())
         })

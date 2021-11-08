@@ -30,22 +30,22 @@
       "nullable": []
     }
   },
-  "165daa7d6a60cb42122373b2c5ac7d39399bcc99992f0002ee7bfef50a8daceb": {
-    "query": "DELETE FROM certificates WHERE id = 0 OR id = 1;",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Right": 0
-      },
-      "nullable": []
-    }
-  },
   "177c4b9cc7901a3b906e5969b86b1c11e6acbfb8e86e98f197d7333030b17964": {
     "query": "DELETE FROM notifications WHERE id = ?",
     "describe": {
       "columns": [],
       "parameters": {
         "Right": 1
+      },
+      "nullable": []
+    }
+  },
+  "1eee1fdc793919c391008854407143d7a11b4668486c11a760b49af49992f9f8": {
+    "query": "REPLACE INTO tor (package, interface, key) VALUES (?, 'main', ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 2
       },
       "nullable": []
     }
@@ -296,16 +296,6 @@
       ]
     }
   },
-  "70a100abc8ca04ffc559ca16460d4fd4c65aa34952ade2681491f0b44dc1aaa1": {
-    "query": "INSERT OR REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Right": 3
-      },
-      "nullable": []
-    }
-  },
   "7d548d2472fa3707bd17364b4800e229b9c2b1c0a22e245bf4e635b9b16b8c24": {
     "query": "INSERT INTO certificates (priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))",
     "describe": {
@@ -362,6 +352,16 @@
         false,
         false
       ]
+    }
+  },
+  "9fcedab1ba34daa2c6ae97c5953c09821b35b55be75b0c66045ab31a2cf4553e": {
+    "query": "REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
     }
   },
   "a1cbaac36d8e14c8c3e7276237c4824bff18861f91b0b08aa5791704c492acb7": {

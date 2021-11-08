@@ -36,212 +36,217 @@ fn err_to_500(e: Error) -> Response<Body> {
 
 #[instrument]
 async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
-    let rpc_ctx = RpcContext::init(
-        cfg_path,
-        Arc::new(
-            tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
-                .await?
-                .trim()
-                .to_owned(),
-        ),
-    )
-    .await?;
-    let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
-
-    let sig_handler_ctx = rpc_ctx.clone();
-    let sig_handler = tokio::spawn(async move {
-        use tokio::signal::unix::SignalKind;
-        futures::future::select_all(
-            [
-                SignalKind::interrupt(),
-                SignalKind::quit(),
-                SignalKind::terminate(),
-            ]
-            .iter()
-            .map(|s| {
-                async move {
-                    signal(*s)
-                        .expect(&format!("register {:?} handler", s))
-                        .recv()
-                        .await
-                }
-                .boxed()
-            }),
+    let (rpc_ctx, shutdown) = {
+        let rpc_ctx = RpcContext::init(
+            cfg_path,
+            Arc::new(
+                tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                    .await?
+                    .trim()
+                    .to_owned(),
+            ),
         )
-        .await;
-        sig_handler_ctx
-            .shutdown
-            .send(None)
-            .map_err(|_| ())
-            .expect("send shutdown signal");
-    });
-
-    tokio::fs::write("/etc/nginx/sites-available/default", {
-        let info = embassy::db::DatabaseModel::new()
-            .server_info()
-            .get(&mut rpc_ctx.db.handle(), true)
-            .await?;
-        format!(
-            include_str!("../nginx/main-ui.conf.template"),
-            lan_hostname = info.lan_address.host_str().unwrap(),
-            tor_hostname = info.tor_address.host_str().unwrap()
-        )
-    })
-    .await
-    .with_ctx(|_| {
-        (
-            embassy::ErrorKind::Filesystem,
-            "/etc/nginx/sites-available/default",
-        )
-    })?;
-    Command::new("systemctl")
-        .arg("reload")
-        .arg("nginx")
-        .invoke(embassy::ErrorKind::Nginx)
         .await?;
+        let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
-    let auth = auth(rpc_ctx.clone());
-    let ctx = rpc_ctx.clone();
-    let server = rpc_server!({
-        command: embassy::main_api,
-        context: ctx,
-        status: status_fn,
-        middleware: [
-            cors,
-            auth,
-        ]
-    })
-    .with_graceful_shutdown({
-        let mut shutdown = rpc_ctx.shutdown.subscribe();
-        async move {
-            shutdown.recv().await.expect("context dropped");
-        }
-    });
-
-    let rev_cache_ctx = rpc_ctx.clone();
-    let revision_cache_task = tokio::spawn(async move {
-        let mut sub = rev_cache_ctx.db.subscribe();
-        let mut shutdown = rev_cache_ctx.shutdown.subscribe();
-        loop {
-            let rev = match tokio::select! {
-                a = sub.recv() => a,
-                _ = shutdown.recv() => break,
-            } {
-                Ok(a) => a,
-                Err(_) => {
-                    rev_cache_ctx.revision_cache.write().await.truncate(0);
-                    continue;
-                }
-            }; // TODO: handle falling behind
-            let mut cache = rev_cache_ctx.revision_cache.write().await;
-            cache.push_back(rev);
-            if cache.len() > rev_cache_ctx.revision_cache_size {
-                cache.pop_front();
-            }
-        }
-    });
-
-    let ws_ctx = rpc_ctx.clone();
-    let ws_server = {
-        let builder = Server::bind(&ws_ctx.bind_ws);
-
-        let make_svc = ::rpc_toolkit::hyper::service::make_service_fn(move |_| {
-            let ctx = ws_ctx.clone();
-            async move {
-                Ok::<_, ::rpc_toolkit::hyper::Error>(::rpc_toolkit::hyper::service::service_fn(
-                    move |req| {
-                        let ctx = ctx.clone();
-                        async move {
-                            match req.uri().path() {
-                                "/db" => Ok(subscribe(ctx, req).await.unwrap_or_else(err_to_500)),
-                                _ => Response::builder()
-                                    .status(StatusCode::NOT_FOUND)
-                                    .body(Body::empty()),
-                            }
-                        }
-                    },
-                ))
-            }
+        let sig_handler_ctx = rpc_ctx.clone();
+        let sig_handler = tokio::spawn(async move {
+            use tokio::signal::unix::SignalKind;
+            futures::future::select_all(
+                [
+                    SignalKind::interrupt(),
+                    SignalKind::quit(),
+                    SignalKind::terminate(),
+                ]
+                .iter()
+                .map(|s| {
+                    async move {
+                        signal(*s)
+                            .expect(&format!("register {:?} handler", s))
+                            .recv()
+                            .await
+                    }
+                    .boxed()
+                }),
+            )
+            .await;
+            sig_handler_ctx
+                .shutdown
+                .send(None)
+                .map_err(|_| ())
+                .expect("send shutdown signal");
         });
-        builder.serve(make_svc)
-    }
-    .with_graceful_shutdown({
-        let mut shutdown = rpc_ctx.shutdown.subscribe();
-        async move {
-            shutdown.recv().await.expect("context dropped");
-        }
-    });
 
-    let file_server_ctx = rpc_ctx.clone();
-    let file_server = {
-        static_server::init(file_server_ctx, {
+        tokio::fs::write("/etc/nginx/sites-available/default", {
+            let info = embassy::db::DatabaseModel::new()
+                .server_info()
+                .get(&mut rpc_ctx.db.handle(), true)
+                .await?;
+            format!(
+                include_str!("../nginx/main-ui.conf.template"),
+                lan_hostname = info.lan_address.host_str().unwrap(),
+                tor_hostname = info.tor_address.host_str().unwrap()
+            )
+        })
+        .await
+        .with_ctx(|_| {
+            (
+                embassy::ErrorKind::Filesystem,
+                "/etc/nginx/sites-available/default",
+            )
+        })?;
+        Command::new("systemctl")
+            .arg("reload")
+            .arg("nginx")
+            .invoke(embassy::ErrorKind::Nginx)
+            .await?;
+
+        let auth = auth(rpc_ctx.clone());
+        let ctx = rpc_ctx.clone();
+        let server = rpc_server!({
+            command: embassy::main_api,
+            context: ctx,
+            status: status_fn,
+            middleware: [
+                cors,
+                auth,
+            ]
+        })
+        .with_graceful_shutdown({
             let mut shutdown = rpc_ctx.shutdown.subscribe();
             async move {
                 shutdown.recv().await.expect("context dropped");
             }
-        })
+        });
+
+        let rev_cache_ctx = rpc_ctx.clone();
+        let revision_cache_task = tokio::spawn(async move {
+            let mut sub = rev_cache_ctx.db.subscribe();
+            let mut shutdown = rev_cache_ctx.shutdown.subscribe();
+            loop {
+                let rev = match tokio::select! {
+                    a = sub.recv() => a,
+                    _ = shutdown.recv() => break,
+                } {
+                    Ok(a) => a,
+                    Err(_) => {
+                        rev_cache_ctx.revision_cache.write().await.truncate(0);
+                        continue;
+                    }
+                }; // TODO: handle falling behind
+                let mut cache = rev_cache_ctx.revision_cache.write().await;
+                cache.push_back(rev);
+                if cache.len() > rev_cache_ctx.revision_cache_size {
+                    cache.pop_front();
+                }
+            }
+        });
+
+        let ws_ctx = rpc_ctx.clone();
+        let ws_server = {
+            let builder = Server::bind(&ws_ctx.bind_ws);
+
+            let make_svc = ::rpc_toolkit::hyper::service::make_service_fn(move |_| {
+                let ctx = ws_ctx.clone();
+                async move {
+                    Ok::<_, ::rpc_toolkit::hyper::Error>(::rpc_toolkit::hyper::service::service_fn(
+                        move |req| {
+                            let ctx = ctx.clone();
+                            async move {
+                                match req.uri().path() {
+                                    "/db" => {
+                                        Ok(subscribe(ctx, req).await.unwrap_or_else(err_to_500))
+                                    }
+                                    _ => Response::builder()
+                                        .status(StatusCode::NOT_FOUND)
+                                        .body(Body::empty()),
+                                }
+                            }
+                        },
+                    ))
+                }
+            });
+            builder.serve(make_svc)
+        }
+        .with_graceful_shutdown({
+            let mut shutdown = rpc_ctx.shutdown.subscribe();
+            async move {
+                shutdown.recv().await.expect("context dropped");
+            }
+        });
+
+        let file_server_ctx = rpc_ctx.clone();
+        let file_server = {
+            static_server::init(file_server_ctx, {
+                let mut shutdown = rpc_ctx.shutdown.subscribe();
+                async move {
+                    shutdown.recv().await.expect("context dropped");
+                }
+            })
+        };
+
+        let tor_health_ctx = rpc_ctx.clone();
+        let tor_client = Client::builder()
+            .proxy(
+                Proxy::http(format!(
+                    "socks5h://{}:{}",
+                    rpc_ctx.tor_socks.ip(),
+                    rpc_ctx.tor_socks.port()
+                ))
+                .with_kind(crate::ErrorKind::Network)?,
+            )
+            .build()
+            .with_kind(crate::ErrorKind::Network)?;
+        let tor_health_daemon = daemon(
+            move || {
+                let ctx = tor_health_ctx.clone();
+                let client = tor_client.clone();
+                async move { tor_health_check(&client, &ctx.net_controller.tor).await }
+            },
+            Duration::from_secs(300),
+            rpc_ctx.shutdown.subscribe(),
+        );
+
+        embassy::sound::MARIO_COIN.play().await?;
+
+        futures::try_join!(
+            server
+                .map_err(|e| Error::new(e, ErrorKind::Network))
+                .map_ok(|_| tracing::debug!("RPC Server Shutdown")),
+            revision_cache_task
+                .map_err(|e| Error::new(
+                    eyre!("{}", e).wrap_err("Revision Cache daemon panicked!"),
+                    ErrorKind::Unknown
+                ))
+                .map_ok(|_| tracing::debug!("Revision Cache Shutdown")),
+            ws_server
+                .map_err(|e| Error::new(e, ErrorKind::Network))
+                .map_ok(|_| tracing::debug!("WebSocket Server Shutdown")),
+            file_server
+                .map_err(|e| Error::new(e, ErrorKind::Network))
+                .map_ok(|_| tracing::debug!("Static File Server Shutdown")),
+            tor_health_daemon
+                .map_err(|e| Error::new(
+                    e.wrap_err("Tor Health Daemon panicked!"),
+                    ErrorKind::Unknown
+                ))
+                .map_ok(|_| tracing::debug!("Tor Health Daemon Shutdown")),
+        )?;
+
+        let mut shutdown = shutdown_recv
+            .recv()
+            .await
+            .with_kind(crate::ErrorKind::Unknown)?;
+
+        sig_handler.abort();
+
+        if let Some(shutdown) = &mut shutdown {
+            drop(shutdown.db_handle.take());
+        }
+
+        (rpc_ctx, shutdown)
     };
-
-    let tor_health_ctx = rpc_ctx.clone();
-    let tor_client = Client::builder()
-        .proxy(
-            Proxy::http(format!(
-                "socks5h://{}:{}",
-                rpc_ctx.tor_socks.ip(),
-                rpc_ctx.tor_socks.port()
-            ))
-            .with_kind(crate::ErrorKind::Network)?,
-        )
-        .build()
-        .with_kind(crate::ErrorKind::Network)?;
-    let tor_health_daemon = daemon(
-        move || {
-            let ctx = tor_health_ctx.clone();
-            let client = tor_client.clone();
-            async move { tor_health_check(&client, &ctx.net_controller.tor).await }
-        },
-        Duration::from_secs(300),
-        rpc_ctx.shutdown.subscribe(),
-    );
-
-    embassy::sound::MARIO_COIN.play().await?;
-
-    futures::try_join!(
-        server
-            .map_err(|e| Error::new(e, ErrorKind::Network))
-            .map_ok(|_| tracing::debug!("RPC Server Shutdown")),
-        revision_cache_task
-            .map_err(|e| Error::new(
-                eyre!("{}", e).wrap_err("Revision Cache daemon panicked!"),
-                ErrorKind::Unknown
-            ))
-            .map_ok(|_| tracing::debug!("Revision Cache Shutdown")),
-        ws_server
-            .map_err(|e| Error::new(e, ErrorKind::Network))
-            .map_ok(|_| tracing::debug!("WebSocket Server Shutdown")),
-        file_server
-            .map_err(|e| Error::new(e, ErrorKind::Network))
-            .map_ok(|_| tracing::debug!("Static File Server Shutdown")),
-        tor_health_daemon
-            .map_err(|e| Error::new(
-                e.wrap_err("Tor Health Daemon panicked!"),
-                ErrorKind::Unknown
-            ))
-            .map_ok(|_| tracing::debug!("Tor Health Daemon Shutdown")),
-    )?;
-
-    let mut shutdown = shutdown_recv
-        .recv()
-        .await
-        .with_kind(crate::ErrorKind::Unknown)?;
-
-    if let Some(shutdown) = &mut shutdown {
-        drop(shutdown.db_handle.take());
-    }
-
-    rpc_ctx.managers.empty().await?;
-
-    sig_handler.abort();
+    rpc_ctx.shutdown().await?;
 
     Ok(shutdown)
 }

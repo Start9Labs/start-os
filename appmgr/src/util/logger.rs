@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+use lazy_static::lazy_static;
 use reqwest::{Client, Url};
 use serde::Serialize;
 use tracing::Subscriber;
@@ -51,6 +52,10 @@ impl<S: Subscriber> Layer<S> for SharingLayer {
     }
 }
 
+lazy_static! {
+    static ref LOGGER: Mutex<Option<(Arc<AtomicU64>, Arc<AtomicBool>)>> = Mutex::new(None);
+}
+
 #[derive(Clone)]
 pub struct EmbassyLogger {
     log_epoch: Arc<AtomicU64>,
@@ -71,29 +76,38 @@ impl EmbassyLogger {
             .with(ErrorLayer::default())
     }
     pub fn no_sharing() {
-        use tracing_subscriber::prelude::*;
-
-        Self::base_subscriber().init();
-        color_eyre::install().expect("Color Eyre Init");
+        Self::init(None, false);
     }
-    pub fn init(log_epoch: Arc<AtomicU64>, share_dest: Option<Url>, share_errors: bool) -> Self {
+    pub fn init(share_dest: Option<Url>, share_errors: bool) -> Self {
         use tracing_subscriber::prelude::*;
 
-        let share_dest = match share_dest {
-            None => "https://beta-registry-0-3.start9labs.com/error-logs".to_owned(), // TODO
-            Some(a) => a.to_string(),
-        };
-        let sharing = Arc::new(AtomicBool::new(share_errors));
-        let sharing_layer = SharingLayer {
-            log_epoch: log_epoch.clone(),
-            share_dest,
-            sharing: sharing.clone(),
-        };
+        let mut guard = LOGGER.lock().unwrap();
+        let (log_epoch, sharing) = if let Some((log_epoch, sharing)) = guard.take() {
+            sharing.store(share_errors, Ordering::SeqCst);
+            (log_epoch, sharing)
+        } else {
+            let log_epoch = Arc::new(AtomicU64::new(rand::random()));
+            let sharing = Arc::new(AtomicBool::new(share_errors));
+            let share_dest = match share_dest {
+                None => "https://beta-registry-0-3.start9labs.com/error-logs".to_owned(), // TODO
+                Some(a) => a.to_string(),
+            };
+            let sharing_layer = SharingLayer {
+                log_epoch: log_epoch.clone(),
+                share_dest,
+                sharing: sharing.clone(),
+            };
 
-        Self::base_subscriber().with(sharing_layer).init();
-        color_eyre::install().expect("Color Eyre Init");
+            Self::base_subscriber().with(sharing_layer).init();
+            color_eyre::install().expect("Color Eyre Init");
+            (log_epoch, sharing)
+        };
+        *guard = Some((log_epoch.clone(), sharing.clone()));
 
         EmbassyLogger { log_epoch, sharing }
+    }
+    pub fn epoch(&self) -> Arc<AtomicU64> {
+        self.log_epoch.clone()
     }
     pub fn set_sharing(&self, sharing: bool) {
         self.sharing.store(sharing, Ordering::SeqCst)

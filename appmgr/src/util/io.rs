@@ -1,3 +1,7 @@
+use std::path::Path;
+
+use futures::future::BoxFuture;
+use futures::{FutureExt, TryStreamExt};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 use crate::ResultExt;
@@ -192,4 +196,25 @@ pub async fn copy_and_shutdown<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
     w.flush().await?;
     w.shutdown().await?;
     Ok(())
+}
+
+pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
+    path: P,
+) -> BoxFuture<'a, Result<u64, std::io::Error>> {
+    async move {
+        tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(path.as_ref()).await?)
+            .try_fold(0, |acc, e| async move {
+                let m = e.metadata().await?;
+                Ok(acc
+                    + if m.is_file() {
+                        m.len()
+                    } else if m.is_dir() {
+                        dir_size(e.path()).await?
+                    } else {
+                        0
+                    })
+            })
+            .await
+    }
+    .boxed()
 }

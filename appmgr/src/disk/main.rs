@@ -106,6 +106,7 @@ pub async fn create_fs<P: AsRef<Path>>(
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
     Command::new("cryptsetup")
+        .arg("-q")
         .arg("luksFormat")
         .arg(format!("--key-file={}", PASSWORD_PATH))
         .arg(format!("--keyfile-size={}", password.len()))
@@ -113,6 +114,7 @@ pub async fn create_fs<P: AsRef<Path>>(
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
     Command::new("cryptsetup")
+        .arg("-q")
         .arg("luksOpen")
         .arg(format!("--key-file={}", PASSWORD_PATH))
         .arg(format!("--keyfile-size={}", password.len()))
@@ -183,6 +185,7 @@ pub async fn unmount_fs<P: AsRef<Path>>(
         unmount(datadir.as_ref().join(name)).await?;
     }
     Command::new("cryptsetup")
+        .arg("-q")
         .arg("luksClose")
         .arg(format!("{}_{}", guid, name))
         .invoke(crate::ErrorKind::DiskManagement)
@@ -196,6 +199,10 @@ pub async fn unmount_all_fs<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<()
     unmount_fs(guid, &datadir, "main", false).await?;
     unmount_fs(guid, &datadir, "swap", true).await?;
     unmount_fs(guid, &datadir, "package-data", false).await?;
+    Command::new("dmsetup")
+        .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
     Ok(())
 }
 
@@ -251,6 +258,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
     Command::new("cryptsetup")
+        .arg("-q")
         .arg("luksOpen")
         .arg(format!("--key-file={}", PASSWORD_PATH))
         .arg(format!("--keyfile-size={}", password.len()))

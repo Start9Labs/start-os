@@ -110,6 +110,14 @@ impl ManagerMap {
                 |((id, version), man)| async move {
                     man.exit().await?;
                     tracing::debug!("Manager for {}@{} shutdown", id, version);
+                    if let Err(e) = Arc::try_unwrap(man) {
+                        tracing::trace!(
+                            "Manager for {}@{} still has {} other open references",
+                            id,
+                            version,
+                            Arc::strong_count(&e) - 1
+                        );
+                    }
                     Ok::<_, Error>(())
                 },
             ))
