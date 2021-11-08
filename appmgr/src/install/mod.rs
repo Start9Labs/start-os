@@ -37,6 +37,7 @@ use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
 use crate::util::io::copy_and_shutdown;
 use crate::util::{display_none, display_serializable, AsyncFileExt, Version};
+use crate::version::{Current, VersionT};
 use crate::volume::asset_dir;
 use crate::{Error, ResultExt};
 
@@ -83,12 +84,20 @@ pub async fn install(
     let reg_url = ctx.package_registry_url().await?;
     let (man_res, s9pk) = tokio::try_join!(
         reqwest::get(format!(
-            "{}/package/manifest/{}?version={}",
-            reg_url, pkg_id, version
+            "{}/package/manifest/{}?version={}&eos-version={}&arch={}",
+            reg_url,
+            pkg_id,
+            version,
+            Current::new().semver(),
+            platforms::TARGET_ARCH,
         )),
         reqwest::get(format!(
-            "{}/package/{}.s9pk?version={}",
-            reg_url, pkg_id, version
+            "{}/package/{}.s9pk?version={}&eos-version={}&arch={}",
+            reg_url,
+            pkg_id,
+            version,
+            Current::new().semver(),
+            platforms::TARGET_ARCH,
         ))
     )
     .with_kind(crate::ErrorKind::Registry)?;
@@ -386,8 +395,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let reg_url = ctx.package_registry_url().await?;
     for (dep, info) in &manifest.dependencies.0 {
         let manifest: Option<Manifest> = match reqwest::get(format!(
-            "{}/package/manifest/{}?version={}",
-            reg_url, dep, info.version
+            "{}/package/manifest/{}?version={}&eos-version={}&arch={}",
+            reg_url,
+            dep,
+            info.version,
+            Current::new().semver(),
+            platforms::TARGET_ARCH,
         ))
         .await
         .with_kind(crate::ErrorKind::Registry)?
@@ -412,8 +425,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             if tokio::fs::metadata(&icon_path).await.is_err() {
                 tokio::fs::create_dir_all(&dir).await?;
                 let icon = reqwest::get(format!(
-                    "{}/package/icon/{}?version={}",
-                    reg_url, dep, info.version
+                    "{}/package/icon/{}?version={}&eos-version={}&arch={}",
+                    reg_url,
+                    dep,
+                    info.version,
+                    Current::new().semver(),
+                    platforms::TARGET_ARCH,
                 ))
                 .await
                 .with_kind(crate::ErrorKind::Registry)?;

@@ -28,6 +28,7 @@ use crate::db::util::WithRevision;
 use crate::notifications::NotificationLevel;
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
+use crate::version::{Current, VersionT};
 use crate::{Error, ErrorKind, ResultExt};
 
 lazy_static! {
@@ -177,13 +178,18 @@ lazy_static! {
 #[instrument(skip(ctx))]
 async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error> {
     let mut db = ctx.db.handle();
-    let latest_version = reqwest::get(format!("{}/eos/latest", ctx.eos_registry_url().await?))
-        .await
-        .with_kind(ErrorKind::Network)?
-        .json::<LatestInformation>()
-        .await
-        .with_kind(ErrorKind::Network)?
-        .version;
+    let latest_version = reqwest::get(format!(
+        "{}/eos/latest?eos-version={}&arch={}",
+        ctx.eos_registry_url().await?,
+        Current::new().semver(),
+        platforms::TARGET_ARCH,
+    ))
+    .await
+    .with_kind(ErrorKind::Network)?
+    .json::<LatestInformation>()
+    .await
+    .with_kind(ErrorKind::Network)?
+    .version;
     let current_version = crate::db::DatabaseModel::new()
         .server_info()
         .version()
@@ -321,7 +327,14 @@ struct EosUrl {
 }
 impl std::fmt::Display for EosUrl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/eos/eos.img?version=={}", self.base, self.version)
+        write!(
+            f,
+            "{}/eos/eos.img?version=={}&eos-version={}&arch={}",
+            self.base,
+            self.version,
+            Current::new().semver(),
+            platforms::TARGET_ARCH,
+        )
     }
 }
 
