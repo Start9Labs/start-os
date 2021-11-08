@@ -16,6 +16,7 @@ use rpc_toolkit::hyper::{Body, Error as HyperError, Request, Response};
 use rpc_toolkit::yajrc::{GenericRpcMethod, RpcError, RpcResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio::sync::{broadcast, oneshot};
 use tokio::task::JoinError;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
@@ -54,7 +55,7 @@ async fn ws_handler<
         ()
     });
 
-    let has_valid_session = loop {
+    let (has_valid_session, token) = loop {
         if let Some(Message::Text(cookie)) = stream
             .next()
             .await
@@ -90,23 +91,43 @@ async fn ws_handler<
                         .with_kind(crate::ErrorKind::Network)?;
                     return Ok(());
                 }
-                Ok(has_validation) => break has_validation,
+                Ok(has_validation) => break (has_validation, authenticated_session),
             }
         }
     };
+    let kill = subscribe_to_session_kill(&ctx, token).await;
     send_dump(has_valid_session, &mut stream, dump).await?;
 
-    deal_with_messages(has_valid_session, sub, stream).await?;
+    deal_with_messages(has_valid_session, kill, sub, stream).await?;
     Ok(())
+}
+
+async fn subscribe_to_session_kill(
+    ctx: &RpcContext,
+    token: HashSessionToken,
+) -> oneshot::Receiver<()> {
+    let (send, recv) = oneshot::channel();
+    let mut guard = ctx.open_authed_websockets.lock().await;
+    if !guard.contains_key(&token) {
+        guard.insert(token, vec![send]);
+    } else {
+        guard.get_mut(&token).unwrap().push(send);
+    }
+    recv
 }
 
 async fn deal_with_messages(
     _has_valid_authentication: HasValidSession,
-    mut sub: tokio::sync::broadcast::Receiver<Arc<Revision>>,
+    mut kill: oneshot::Receiver<()>,
+    mut sub: broadcast::Receiver<Arc<Revision>>,
     mut stream: WebSocketStream<Upgraded>,
 ) -> Result<(), Error> {
     loop {
         futures::select! {
+            _ = (&mut kill).fuse() => {
+                tracing::info!("Closing WebSocket: Reason: Session Terminated");
+                return Ok(())
+            }
             new_rev = sub.recv().fuse() => {
                 let rev = new_rev.with_kind(crate::ErrorKind::Database)?;
                 stream
@@ -132,6 +153,8 @@ async fn deal_with_messages(
                     Some(Message::Close(frame)) => {
                         if let Some(reason) = frame.as_ref() {
                             tracing::info!("Closing WebSocket: Reason: {} {}", reason.code, reason.reason);
+                        } else {
+                            tracing::info!("Closing WebSocket: Reason: Unknown");
                         }
                         stream
                             .send(Message::Close(frame))
