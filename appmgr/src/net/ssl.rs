@@ -422,21 +422,15 @@ fn make_leaf_cert(
         Some(&cfg),
         Some(&ctx),
         Nid::AUTHORITY_KEY_IDENTIFIER,
-        "keyid:always,issuer",
+        "keyid,issuer:always",
     )?;
-    // basicConstraints = critical, CA:true, pathlen:0
-    let basic_constraints = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::BASIC_CONSTRAINTS,
-        "critical,CA:true,pathlen:0",
-    )?;
-    // keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+    let basic_constraints =
+        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::BASIC_CONSTRAINTS, "CA:FALSE")?;
     let key_usage = X509Extension::new_nid(
         Some(&cfg),
         Some(&ctx),
         Nid::KEY_USAGE,
-        "critical,digitalSignature,cRLSign,keyCertSign",
+        "critical,digitalSignature,keyEncipherment",
     )?;
 
     let subject_alt_name = X509Extension::new_nid(
