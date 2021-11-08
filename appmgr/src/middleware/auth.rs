@@ -1,6 +1,3 @@
-use crate::context::RpcContext;
-use crate::{Error, ResultExt};
-
 use basic_cookies::Cookie;
 use color_eyre::eyre::eyre;
 use digest::Digest;
@@ -16,6 +13,9 @@ use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Metadata;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+
+use crate::context::RpcContext;
+use crate::{Error, ResultExt};
 pub trait AsLogoutSessionId {
     fn as_logout_session_id(self) -> String;
 }

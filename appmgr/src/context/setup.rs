@@ -55,6 +55,7 @@ impl SetupContextConfig {
 }
 
 pub struct SetupContextSeed {
+    pub config_path: Option<PathBuf>,
     pub bind_rpc: SocketAddr,
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
@@ -68,10 +69,11 @@ pub struct SetupContext(Arc<SetupContextSeed>);
 impl SetupContext {
     #[instrument(skip(path))]
     pub async fn init<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
-        let cfg = SetupContextConfig::load(path).await?;
+        let cfg = SetupContextConfig::load(path.as_ref()).await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let datadir = cfg.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
+            config_path: path.as_ref().map(|p| p.as_ref().to_owned()),
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,
             datadir,

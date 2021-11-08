@@ -3,9 +3,7 @@ use std::sync::Arc;
 
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
-use embassy::db::model::ServerStatus;
 use embassy::disk::main::DEFAULT_PASSWORD;
-use embassy::install::PKG_DOCKER_DIR;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
 use embassy::middleware::encrypt::encrypt;
@@ -26,8 +24,7 @@ fn status_fn(_: i32) -> StatusCode {
 }
 
 #[instrument]
-async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
-    let cfg = RpcContextConfig::load(cfg_path).await?;
+async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
     embassy::disk::util::mount("LABEL=EMBASSY", "/embassy-os").await?;
     if tokio::fs::metadata("/embassy-os/disk.guid").await.is_err() {
         #[cfg(feature = "avahi")]
@@ -73,101 +70,19 @@ async fn init(cfg_path: Option<&str>) -> Result<(), Error> {
         })
         .await
         .with_kind(embassy::ErrorKind::Network)?;
-        drop(ctx);
-        embassy::disk::main::export(
+    } else {
+        let cfg = RpcContextConfig::load(cfg_path).await?;
+        embassy::disk::main::import(
             tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                 .await?
                 .trim(),
             cfg.datadir(),
+            DEFAULT_PASSWORD,
         )
         .await?;
+        tracing::info!("Loaded Disk");
+        embassy::init::init(&cfg).await?;
     }
-
-    embassy::disk::main::import(
-        tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
-            .await?
-            .trim(),
-        cfg.datadir(),
-        DEFAULT_PASSWORD,
-    )
-    .await?;
-    tracing::info!("Loaded Disk");
-    let secret_store = cfg.secret_store().await?;
-    let log_dir = cfg.datadir().join("main").join("logs");
-    if tokio::fs::metadata(&log_dir).await.is_err() {
-        tokio::fs::create_dir_all(&log_dir).await?;
-    }
-    embassy::disk::util::bind(&log_dir, "/var/log/journal", false).await?;
-    Command::new("systemctl")
-        .arg("restart")
-        .arg("systemd-journald")
-        .invoke(embassy::ErrorKind::Journald)
-        .await?;
-    tracing::info!("Mounted Logs");
-    let tmp_dir = cfg.datadir().join("package-data/tmp");
-    if tokio::fs::metadata(&tmp_dir).await.is_err() {
-        tokio::fs::create_dir_all(&tmp_dir).await?;
-    }
-    let tmp_docker = cfg.datadir().join("package-data/tmp/docker");
-    if tokio::fs::metadata(&tmp_docker).await.is_ok() {
-        tokio::fs::remove_dir_all(&tmp_docker).await?;
-    }
-    Command::new("cp")
-        .arg("-r")
-        .arg("/var/lib/docker")
-        .arg(&tmp_docker)
-        .invoke(embassy::ErrorKind::Filesystem)
-        .await?;
-    Command::new("systemctl")
-        .arg("stop")
-        .arg("docker")
-        .invoke(embassy::ErrorKind::Docker)
-        .await?;
-    embassy::disk::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
-    Command::new("systemctl")
-        .arg("reset-failed")
-        .arg("docker")
-        .invoke(embassy::ErrorKind::Docker)
-        .await?;
-    Command::new("systemctl")
-        .arg("start")
-        .arg("docker")
-        .invoke(embassy::ErrorKind::Docker)
-        .await?;
-    tracing::info!("Mounted Docker Data");
-
-    embassy::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
-    tracing::info!("Loaded Docker Images");
-    // Loading system images
-    embassy::install::load_images("/var/lib/embassy/system-images").await?;
-    tracing::info!("Loaded System Docker Images");
-
-    embassy::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
-    tracing::info!("Synced SSH Keys");
-
-    embassy::hostname::sync_hostname().await?;
-    tracing::info!("Synced Hostname");
-    embassy::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
-    tracing::info!("Synchronized wpa_supplicant.conf");
-
-    let db = cfg.db(&secret_store).await?;
-    let mut handle = db.handle();
-    let mut info = embassy::db::DatabaseModel::new()
-        .server_info()
-        .get_mut(&mut handle)
-        .await?;
-    match info.status {
-        ServerStatus::Running | ServerStatus::Updated | ServerStatus::BackingUp => {
-            info.status = ServerStatus::Running;
-        }
-        ServerStatus::Updating => {
-            info.update_progress = None;
-            info.status = ServerStatus::Running;
-        }
-    }
-    info.save(&mut handle).await?;
-
-    embassy::version::init(&mut handle).await?;
 
     Ok(())
 }
@@ -196,8 +111,8 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
 
     run_script_if_exists("/embassy-os/preinit.sh").await;
 
-    let res = if let Err(e) = init(cfg_path).await {
-        (|| async {
+    let res = if let Err(e) = setup_or_init(cfg_path).await {
+        async {
             tracing::error!("{}", e.source);
             tracing::debug!("{}", e.source);
             embassy::sound::BEETHOVEN.play().await?;
@@ -259,7 +174,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                     .await
                     .with_kind(embassy::ErrorKind::Network)?,
             )
-        })()
+        }
         .await
     } else {
         Ok(None)

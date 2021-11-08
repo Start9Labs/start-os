@@ -93,6 +93,13 @@ impl SoundInterface {
             .await
             .with_ctx(|_| (ErrorKind::SoundError, SWITCH_FILE.to_string_lossy()))
     }
+    #[instrument(skip(self))]
+    pub async fn close(mut self) -> Result<(), Error> {
+        if let Some(lock) = self.0.take() {
+            lock.unlock().await?;
+        }
+        Ok(())
+    }
 }
 
 pub struct Song<Notes> {
@@ -114,6 +121,7 @@ where
                     Some(n) => sound.play_for_time_slice(self.tempo_qpm, n, slice).await?,
                 };
             }
+            sound.close().await?;
         }
         Ok(())
     }

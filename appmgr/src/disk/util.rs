@@ -191,6 +191,7 @@ pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     .parse::<u64>()?)
 }
 
+#[instrument]
 pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {
     let pvscan_out = Command::new("pvscan")
         .invoke(crate::ErrorKind::DiskManagement)
