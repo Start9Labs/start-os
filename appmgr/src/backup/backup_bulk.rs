@@ -41,15 +41,29 @@ impl<'de> Deserialize<'de> for OsBackup {
         D: serde::Deserializer<'de>,
     {
         #[derive(Deserialize)]
+        #[serde(rename = "kebab-case")]
         struct OsBackupDe {
-            tor_key: TorSecretKeyV3,
+            tor_key: String,
             root_ca_key: String,
             root_ca_cert: String,
             ui: Value,
         }
         let int = OsBackupDe::deserialize(deserializer)?;
+        let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, &int.tor_key)
+            .ok_or(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(&int.tor_key),
+                &"an RFC4648 encoded string",
+            ))?;
+        if key_vec.len() != 64 {
+            return Err(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(&int.tor_key),
+                &"a 64 byte value encoded as an RFC4648 string",
+            ));
+        }
+        let mut key_slice = [0; 64];
+        key_slice.clone_from_slice(&key_vec);
         Ok(OsBackup {
-            tor_key: int.tor_key,
+            tor_key: TorSecretKeyV3::from(key_slice),
             root_ca_key: PKey::<Private>::private_key_from_pem(int.root_ca_key.as_bytes())
                 .map_err(serde::de::Error::custom)?,
             root_ca_cert: X509::from_pem(int.root_ca_cert.as_bytes())
@@ -64,14 +78,18 @@ impl Serialize for OsBackup {
         S: serde::Serializer,
     {
         #[derive(Serialize)]
+        #[serde(rename = "kebab-case")]
         struct OsBackupSer<'a> {
-            tor_key: &'a TorSecretKeyV3,
+            tor_key: String,
             root_ca_key: String,
             root_ca_cert: String,
             ui: &'a Value,
         }
         OsBackupSer {
-            tor_key: &self.tor_key,
+            tor_key: base32::encode(
+                base32::Alphabet::RFC4648 { padding: true },
+                &self.tor_key.as_bytes(),
+            ),
             root_ca_key: String::from_utf8(
                 self.root_ca_key
                     .private_key_to_pem_pkcs8()
@@ -224,7 +242,9 @@ async fn perform_backup<Db: DbHandle>(
             continue;
         };
         let main_status_model = installed_model.clone().status().main();
-        let (started, health) = match main_status_model.get(&mut db, true).await?.into_owned() {
+
+        let mut tx = db.begin().await?; // for lock scope
+        let (started, health) = match main_status_model.get(&mut tx, true).await?.into_owned() {
             MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
             MainStatus::Stopped | MainStatus::Stopping => (None, Default::default()),
             MainStatus::BackingUp { .. } => {
@@ -239,7 +259,6 @@ async fn perform_backup<Db: DbHandle>(
                 continue;
             }
         };
-        let mut tx = db.begin().await?; // for lock scope
         main_status_model
             .put(
                 &mut tx,
@@ -251,7 +270,6 @@ async fn perform_backup<Db: DbHandle>(
             .await?;
         tx.save().await?; // drop locks
 
-        installed_model.lock(&mut db, LockType::Write).await;
         let manifest = installed_model
             .clone()
             .manifest()
@@ -266,6 +284,9 @@ async fn perform_backup<Db: DbHandle>(
             })?
             .synchronize()
             .await;
+
+        installed_model.lock(&mut db, LockType::Write).await;
+
         let guard = backup_guard.mount_package_backup(&package_id).await?;
         let res = manifest
             .backup

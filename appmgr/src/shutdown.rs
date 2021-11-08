@@ -22,42 +22,43 @@ impl Shutdown {
     pub fn execute(&self) {
         use std::process::Command;
 
-        tokio::runtime::Builder::new_current_thread()
+        let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .unwrap()
-            .block_on(async {
-                use tokio::process::Command;
+            .unwrap();
+        rt.block_on(async {
+            use tokio::process::Command;
 
-                if let Err(e) = Command::new("systemctl")
-                    .arg("stop")
-                    .arg("systemd-journald")
-                    .invoke(crate::ErrorKind::Journald)
-                    .await
-                {
-                    tracing::error!("Error Stopping Journald: {}", e);
+            if let Err(e) = Command::new("systemctl")
+                .arg("stop")
+                .arg("systemd-journald")
+                .invoke(crate::ErrorKind::Journald)
+                .await
+            {
+                tracing::error!("Error Stopping Journald: {}", e);
+                tracing::debug!("{:?}", e);
+            }
+            if let Err(e) = Command::new("systemctl")
+                .arg("stop")
+                .arg("docker")
+                .invoke(crate::ErrorKind::Docker)
+                .await
+            {
+                tracing::error!("Error Stopping Docker: {}", e);
+                tracing::debug!("{:?}", e);
+            }
+            if let Some(guid) = &self.disk_guid {
+                if let Err(e) = export(guid, &self.datadir).await {
+                    tracing::error!("Error Exporting Volume Group: {}", e);
                     tracing::debug!("{:?}", e);
                 }
-                if let Err(e) = Command::new("systemctl")
-                    .arg("stop")
-                    .arg("docker")
-                    .invoke(crate::ErrorKind::Docker)
-                    .await
-                {
-                    tracing::error!("Error Stopping Docker: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
-                if let Some(guid) = &self.disk_guid {
-                    if let Err(e) = export(guid, &self.datadir).await {
-                        tracing::error!("Error Exporting Volume Group: {}", e);
-                        tracing::debug!("{:?}", e);
-                    }
-                }
-                if let Err(e) = MARIO_DEATH.play().await {
-                    tracing::error!("Error Playing Shutdown Song: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
-            });
+            }
+            if let Err(e) = MARIO_DEATH.play().await {
+                tracing::error!("Error Playing Shutdown Song: {}", e);
+                tracing::debug!("{:?}", e);
+            }
+        });
+        drop(rt);
         if self.restart {
             Command::new("reboot").spawn().unwrap().wait().unwrap();
         } else {

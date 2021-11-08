@@ -132,11 +132,14 @@ impl RpcContext {
         disk_guid: Arc<String>,
     ) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
-        let log_epoch = Arc::new(AtomicU64::new(rand::random()));
-        let logger = EmbassyLogger::init(log_epoch.clone(), base.log_server.clone(), false);
+        tracing::info!("Loaded Config");
+        let logger = EmbassyLogger::init(base.log_server.clone(), false);
+        tracing::info!("Set Logger");
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
+        tracing::info!("Opened Sqlite DB");
         let db = base.db(&secret_store).await?;
+        tracing::info!("Opened PatchDB");
         let share = crate::db::DatabaseModel::new()
             .server_info()
             .share_stats()
@@ -144,6 +147,7 @@ impl RpcContext {
             .await?;
         logger.set_sharing(*share);
         let docker = Docker::connect_with_unix_defaults()?;
+        tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
             ([127, 0, 0, 1], 80).into(),
             crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
@@ -153,9 +157,11 @@ impl RpcContext {
             None,
         )
         .await?;
+        tracing::info!("Initialized Net Controller");
         let managers = ManagerMap::default();
         let metrics_cache = RwLock::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
+        tracing::info!("Initialized Notification Manager");
         let seed = Arc::new(RpcContextSeed {
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
@@ -172,8 +178,8 @@ impl RpcContext {
             metrics_cache,
             shutdown,
             websocket_count: AtomicUsize::new(0),
+            log_epoch: logger.epoch(),
             logger,
-            log_epoch,
             tor_socks: base.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
                 Ipv4Addr::new(127, 0, 0, 1),
                 9050,
@@ -188,6 +194,7 @@ impl RpcContext {
             .await
         });
         let res = Self(seed);
+        tracing::info!("Initialized Package Managers");
         res.managers
             .init(
                 &res,
@@ -222,6 +229,23 @@ impl RpcContext {
             .get(&mut self.db.handle(), false)
             .await?
             .to_owned())
+    }
+    #[instrument(skip(self))]
+    pub async fn shutdown(self) -> Result<(), Error> {
+        self.managers.empty().await?;
+        match Arc::try_unwrap(self.0) {
+            Ok(seed) => {
+                let RpcContextSeed { secret_store, .. } = seed;
+                secret_store.close().await;
+            }
+            Err(ctx) => {
+                tracing::warn!(
+                    "{} RPC Context(s) are still being held somewhere. This is likely a mistake.",
+                    Arc::strong_count(&ctx) - 1
+                );
+            }
+        }
+        Ok(())
     }
 }
 impl Context for RpcContext {

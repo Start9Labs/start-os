@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
-use futures::{FutureExt, TryStreamExt};
+use futures::{FutureExt, TryFutureExt, TryStreamExt};
 use openssl::x509::X509;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
@@ -15,19 +16,22 @@ use tokio::io::AsyncWriteExt;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
+use crate::backup::restore::recover_full_embassy;
+use crate::context::rpc::RpcContextConfig;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::util::{pvscan, DiskInfo, PartitionInfo, TmpMountGuard};
 use crate::id::Id;
+use crate::init::init;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::net::ssl::SslManager;
 use crate::s9pk::manifest::PackageId;
 use crate::sound::BEETHOVEN;
-use crate::util::io::from_yaml_async_reader;
+use crate::util::io::{dir_size, from_yaml_async_reader};
 use crate::util::Version;
 use crate::volume::{data_dir, VolumeId};
-use crate::{Error, ResultExt};
+use crate::{ensure_code, Error, ResultExt};
 
 #[command(subcommands(status, disk, execute, recovery))]
 pub fn setup() -> Result<(), Error> {
@@ -69,8 +73,8 @@ pub fn recovery() -> Result<(), Error> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RecoveryStatus {
-    bytes_transferred: u64,
-    total_bytes: u64,
+    pub bytes_transferred: u64,
+    pub total_bytes: u64,
 }
 
 #[command(rename = "status", rpc_only, metadata(authenticated = false))]
@@ -122,7 +126,7 @@ pub async fn execute(
 }
 
 #[instrument(skip(ctx))]
-pub async fn complete_setup(ctx: SetupContext, guid: String) -> Result<(), Error> {
+pub async fn complete_setup(ctx: SetupContext, guid: Arc<String>) -> Result<(), Error> {
     let mut guid_file = File::create("/embassy-os/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
@@ -130,7 +134,7 @@ pub async fn complete_setup(ctx: SetupContext, guid: String) -> Result<(), Error
     Ok(())
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip(ctx, embassy_password, recovery_password))]
 pub async fn execute_inner(
     ctx: SetupContext,
     embassy_logicalname: PathBuf,
@@ -144,14 +148,61 @@ pub async fn execute_inner(
             crate::ErrorKind::InvalidRequest,
         ));
     }
-    let guid = crate::disk::main::create(
-        &[embassy_logicalname],
-        &pvscan().await?,
-        &ctx.datadir,
-        DEFAULT_PASSWORD,
-    )
-    .await?;
-    crate::disk::main::import(&guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
+    let guid = Arc::new(
+        crate::disk::main::create(
+            &[embassy_logicalname],
+            &pvscan().await?,
+            &ctx.datadir,
+            DEFAULT_PASSWORD,
+        )
+        .await?,
+    );
+    crate::disk::main::import(&*guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
+
+    let res = if let Some(recovery_partition) = recovery_partition {
+        if recovery_partition
+            .embassy_os
+            .as_ref()
+            .map(|v| &*v.version < &emver::Version::new(0, 2, 8, 0))
+            .unwrap_or(true)
+        {
+            return Err(Error::new(eyre!("Unsupported version of EmbassyOS. Please update to at least 0.2.8 before recovering."), crate::ErrorKind::VersionIncompatible));
+        }
+        let (tor_addr, root_ca, recover_fut) = recover(
+            ctx.clone(),
+            guid.clone(),
+            embassy_password,
+            recovery_partition,
+            recovery_password,
+        )
+        .await?;
+        init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
+        tokio::spawn(async move {
+            if let Err(e) = recover_fut
+                .and_then(|_| complete_setup(ctx.clone(), guid))
+                .await
+            {
+                BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
+                tracing::error!("Error recovering drive!: {}", e);
+                tracing::debug!("{:?}", e);
+                *ctx.recovery_status.write().await = Some(Err(e.into()));
+            }
+        });
+        (tor_addr, root_ca)
+    } else {
+        let res = fresh_setup(&ctx, &embassy_password).await?;
+        init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
+        complete_setup(ctx, guid).await?;
+        res
+    };
+
+    Ok(res)
+}
+
+async fn fresh_setup(
+    ctx: &SetupContext,
+    embassy_password: &str,
+) -> Result<(OnionAddressV3, X509), Error> {
     let password = argon2::hash_encoded(
         embassy_password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],
@@ -162,7 +213,7 @@ pub async fn execute_inner(
     let key_vec = tor_key.as_bytes().to_vec();
     let sqlite_pool = ctx.secret_store().await?;
     sqlx::query!(
-        "INSERT OR REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+        "REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
         0,
         password,
         key_vec,
@@ -174,76 +225,46 @@ pub async fn execute_inner(
         .export_root_ca()
         .await?;
     sqlite_pool.close().await;
-
-    if let Some(recovery_partition) = recovery_partition {
-        if recovery_partition
-            .embassy_os
-            .as_ref()
-            .map(|v| &*v.version < &emver::Version::new(0, 2, 8, 0))
-            .unwrap_or(true)
-        {
-            return Err(Error::new(eyre!("Unsupported version of EmbassyOS. Please update to at least 0.2.8 before recovering."), crate::ErrorKind::VersionIncompatible));
-        }
-        tokio::spawn(async move {
-            if let Err(e) = recover(ctx.clone(), guid, recovery_partition, recovery_password).await
-            {
-                BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
-                tracing::error!("Error recovering drive!: {}", e);
-                tracing::debug!("{:?}", e);
-                *ctx.recovery_status.write().await = Some(Err(e.into()));
-            }
-        });
-    } else {
-        complete_setup(ctx, guid).await?;
-    }
-
     Ok((tor_key.public().get_onion_address(), root_ca))
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip(ctx, embassy_password, recovery_password))]
 async fn recover(
     ctx: SetupContext,
-    guid: String,
+    guid: Arc<String>,
+    embassy_password: String,
     recovery_partition: PartitionInfo,
     recovery_password: Option<String>,
-) -> Result<(), Error> {
+) -> Result<(OnionAddressV3, X509, BoxFuture<'static, Result<(), Error>>), Error> {
     let recovery_version = recovery_partition
         .embassy_os
         .as_ref()
         .map(|i| i.version.clone())
         .unwrap_or_default();
-    if recovery_version.major() == 0 && recovery_version.minor() == 2 {
-        recover_v2(&ctx, recovery_partition).await?;
+    let res = if recovery_version.major() == 0 && recovery_version.minor() == 2 {
+        let (tor_addr, root_ca) = fresh_setup(&ctx, &embassy_password).await?;
+        (
+            tor_addr,
+            root_ca,
+            recover_v2(ctx.clone(), recovery_partition).boxed(),
+        )
     } else if recovery_version.major() == 0 && recovery_version.minor() == 3 {
-        recover_v3(&ctx, recovery_partition, recovery_password).await?;
+        recover_full_embassy(
+            ctx.clone(),
+            guid.clone(),
+            embassy_password,
+            recovery_partition,
+            recovery_password,
+        )
+        .await?
     } else {
         return Err(Error::new(
             eyre!("Unsupported version of EmbassyOS: {}", recovery_version),
             crate::ErrorKind::VersionIncompatible,
         ));
-    }
+    };
 
-    complete_setup(ctx, guid).await
-}
-
-fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
-    path: P,
-    res: &'a AtomicU64,
-) -> BoxFuture<'a, Result<(), std::io::Error>> {
-    async move {
-        tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(path.as_ref()).await?)
-            .try_for_each(|e| async move {
-                let m = e.metadata().await?;
-                if m.is_file() {
-                    res.fetch_add(m.len(), Ordering::Relaxed);
-                } else if m.is_dir() {
-                    dir_size(e.path(), res).await?;
-                }
-                Ok(())
-            })
-            .await
-    }
-    .boxed()
+    Ok(res)
 }
 
 fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send + Sync>(
@@ -300,15 +321,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                             format!("cp -P {} -> {}", src_path.display(), dst_path.display()),
                         )
                     })?;
-                    // Removed (see https://unix.stackexchange.com/questions/87200/change-permissions-for-a-symbolic-link):
-                    // tokio::fs::set_permissions(&dst_path, m.permissions())
-                    //     .await
-                    //     .with_ctx(|_| {
-                    //         (
-                    //             crate::ErrorKind::Filesystem,
-                    //             format!("chmod {}", dst_path.display()),
-                    //         )
-                    //     })?;
+                    // Do not set permissions (see https://unix.stackexchange.com/questions/87200/change-permissions-for-a-symbolic-link)
                 }
                 Ok(())
             })
@@ -319,7 +332,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
 }
 
 #[instrument(skip(ctx))]
-async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Result<(), Error> {
+async fn recover_v2(ctx: SetupContext, recovery_partition: PartitionInfo) -> Result<(), Error> {
     let recovery = TmpMountGuard::mount(&recovery_partition.logicalname, None).await?;
 
     let secret_store = ctx.secret_store().await?;
@@ -346,19 +359,16 @@ async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Re
         .await?;
 
     let volume_path = recovery.as_ref().join("root/volumes");
-    let total_bytes = AtomicU64::new(0);
+    let mut total_bytes = 0;
     for (pkg_id, _) in &packages {
         let volume_src_path = volume_path.join(&pkg_id);
-        dir_size(&volume_src_path, &total_bytes)
-            .await
-            .with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    volume_src_path.display().to_string(),
-                )
-            })?;
+        total_bytes += dir_size(&volume_src_path).await.with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                volume_src_path.display().to_string(),
+            )
+        })?;
     }
-    let total_bytes = total_bytes.load(Ordering::SeqCst);
     *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
         bytes_transferred: 0,
         total_bytes,
@@ -392,6 +402,31 @@ async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Re
                 }
             } => (),
         );
+        let tor_src_path = recovery
+            .as_ref()
+            .join("var/lib/tor")
+            .join(format!("app-{}", pkg_id))
+            .join("hs_ed25519_secret_key");
+        let key_vec = tokio::fs::read(&tor_src_path).await.with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                tor_src_path.display().to_string(),
+            )
+        })?;
+        ensure_code!(
+            key_vec.len() == 96,
+            crate::ErrorKind::Tor,
+            "{} not 96 bytes",
+            tor_src_path.display()
+        );
+        let key_vec = key_vec[32..].to_vec();
+        sqlx::query!(
+            "REPLACE INTO tor (package, interface, key) VALUES (?, 'main', ?)",
+            *pkg_id,
+            key_vec,
+        )
+        .execute(&mut secret_store.acquire().await?)
+        .await?;
         let icon_leaf = AsRef::<Path>::as_ref(&pkg_id)
             .join(info.version.as_str())
             .join("icon.png");
@@ -399,7 +434,6 @@ async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Re
             .as_ref()
             .join("root/agent/icons")
             .join(format!("{}.png", pkg_id));
-        // TODO: tor address
         let icon_dst_path = ctx.datadir.join(PKG_PUBLIC_DIR).join(&icon_leaf);
         if let Some(parent) = icon_dst_path.parent() {
             tokio::fs::create_dir_all(&parent)
@@ -433,15 +467,7 @@ async fn recover_v2(ctx: &SetupContext, recovery_partition: PartitionInfo) -> Re
             .await?;
     }
 
+    secret_store.close().await;
     recovery.unmount().await?;
     Ok(())
-}
-
-#[instrument(skip(ctx))]
-async fn recover_v3(
-    ctx: &SetupContext,
-    recovery_partition: PartitionInfo,
-    recovery_password: Option<String>,
-) -> Result<(), Error> {
-    todo!()
 }

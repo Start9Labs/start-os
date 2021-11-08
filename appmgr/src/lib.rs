@@ -16,6 +16,7 @@ pub mod disk;
 pub mod error;
 pub mod hostname;
 pub mod id;
+pub mod init;
 pub mod inspect;
 pub mod install;
 pub mod logs;
@@ -42,7 +43,6 @@ pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
-pub use version::init;
 
 #[command(metadata(authenticated = false))]
 pub fn echo(#[arg] message: String) -> Result<String, RpcError> {

@@ -69,6 +69,7 @@ pub async fn synchronizer(shared: &ManagerSharedState) {
             );
             tracing::debug!("{:?}", e);
         } else {
+            tracing::trace!("{} status synchronized", shared.manifest.id);
             shared.synchronized.notify_waiters();
         }
         tokio::select! {
