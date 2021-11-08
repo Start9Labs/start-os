@@ -158,11 +158,6 @@ pub struct ManagerSharedState {
     synchronized: Notify,
     synchronize_now: Notify,
 }
-impl Drop for ManagerSharedState {
-    fn drop(&mut self) {
-        tracing::error!("ManagerSharedState dropped!");
-    }
-}
 
 #[derive(Clone, Copy)]
 pub enum OnStop {
