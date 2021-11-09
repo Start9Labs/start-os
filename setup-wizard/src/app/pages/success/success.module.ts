@@ -17,5 +17,6 @@ import { SuccessPageRoutingModule } from './success-routing.module'
     PasswordPageModule,
   ],
   declarations: [SuccessPage],
+  exports: [SuccessPage],
 })
 export class SuccessPageModule { }

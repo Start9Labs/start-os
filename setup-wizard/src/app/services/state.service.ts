@@ -12,6 +12,7 @@ export class StateService {
   isMigrating: boolean
 
   polling = false
+  embassyLoaded = false
 
   storageDrive: DiskInfo
   embassyPassword: string

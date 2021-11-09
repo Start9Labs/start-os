@@ -2,6 +2,7 @@ import { Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { interval, Observable } from 'rxjs'
 import { finalize, take } from 'rxjs/operators'
+import { StateService } from 'src/app/services/state.service'
 
 @Component({
   selector: 'app-init',
@@ -10,9 +11,10 @@ import { finalize, take } from 'rxjs/operators'
 })
 export class InitPage {
   progress: Observable<number>
+  showSuccess = false
 
   constructor (
-    private readonly navCtrl: NavController,
+    private readonly stateService: StateService,
   ) { }
 
   ngOnInit () {
@@ -20,9 +22,27 @@ export class InitPage {
     .pipe(
       take(101),
       finalize(() => {
-        this.navCtrl.navigateForward('/success')
+        this.stateService.embassyLoaded = true
+        setTimeout(() => this.download(), 500)
       }),
     )
+  }
+
+  download () {
+    document.getElementById('tor-addr').innerHTML = this.stateService.torAddress
+    document.getElementById('lan-addr').innerHTML = this.stateService.lanAddress
+    document.getElementById('cert').setAttribute('href', 'data:application/x-x509-ca-cert;base64,' + encodeURIComponent(this.stateService.cert))
+    let html = document.getElementById('downloadable').innerHTML
+    const filename = 'embassy-info.html'
+
+    const elem = document.createElement('a')
+    elem.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(html))
+    elem.setAttribute('download', filename)
+    elem.style.display = 'none'
+
+    document.body.appendChild(elem)
+    elem.click()
+    document.body.removeChild(elem)
   }
 }
 
