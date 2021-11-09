@@ -590,5 +590,6 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(main_datadir: P) ->
         .arg("up")
         .invoke(ErrorKind::Wifi)
         .await?;
+    Command::new("dhclient").invoke(ErrorKind::Wifi).await?;
     Ok(())
 }
