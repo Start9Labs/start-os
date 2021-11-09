@@ -15,7 +15,7 @@ use crate::util::{Invoke, Port};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub struct NginxController {
-    nginx_root: PathBuf,
+    pub nginx_root: PathBuf,
     inner: Mutex<NginxControllerInner>,
 }
 impl NginxController {
@@ -59,18 +59,6 @@ impl NginxControllerInner {
         let inner = NginxControllerInner {
             interfaces: BTreeMap::new(),
         };
-        let (key, cert) = ssl_manager.certificate_for(&get_hostname().await?).await?;
-        let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
-        let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
-        tokio::try_join!(
-            tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?),
-            tokio::fs::write(
-                &ssl_path_cert,
-                cert.into_iter()
-                    .flat_map(|c| c.to_pem().unwrap())
-                    .collect::<Vec<u8>>()
-            )
-        )?;
         Ok(inner)
     }
     #[instrument(skip(self, interfaces))]
@@ -97,33 +85,11 @@ impl NginxControllerInner {
                 // get ssl certificate chain
                 let (listen_args, ssl_certificate_line, ssl_certificate_key_line) =
                     if lan_port_config.ssl {
-                        let package_path = nginx_root.join(format!("ssl/{}", package));
-                        tokio::fs::create_dir_all(package_path).await?;
+                        // these have already been written by the net controller
                         let ssl_path_key =
                             nginx_root.join(format!("ssl/{}/{}.key.pem", package, id));
                         let ssl_path_cert =
                             nginx_root.join(format!("ssl/{}/{}.cert.pem", package, id));
-                        let (key, chain) = ssl_manager.certificate_for(&meta.dns_base).await?;
-                        // write nginx ssl certs
-                        tokio::try_join!(
-                            tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?).map(
-                                |res| res.with_ctx(|_| (
-                                    ErrorKind::Filesystem,
-                                    ssl_path_key.display().to_string()
-                                ))
-                            ),
-                            tokio::fs::write(
-                                &ssl_path_cert,
-                                chain
-                                    .into_iter()
-                                    .flat_map(|c| c.to_pem().unwrap())
-                                    .collect::<Vec<u8>>()
-                            )
-                            .map(|res| res.with_ctx(|_| (
-                                ErrorKind::Filesystem,
-                                ssl_path_cert.display().to_string()
-                            ))),
-                        )?;
 
                         (
                             format!("{} ssl", lan_port_config.mapping),
