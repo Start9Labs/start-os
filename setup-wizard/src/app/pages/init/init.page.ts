@@ -1,5 +1,4 @@
 import { Component } from '@angular/core'
-import { NavController } from '@ionic/angular'
 import { interval, Observable } from 'rxjs'
 import { finalize, take } from 'rxjs/operators'
 import { StateService } from 'src/app/services/state.service'
@@ -18,7 +17,7 @@ export class InitPage {
   ) { }
 
   ngOnInit () {
-    this.progress = interval(500)
+    this.progress = interval(130)
     .pipe(
       take(101),
       finalize(() => {
