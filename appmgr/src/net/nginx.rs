@@ -16,14 +16,12 @@ use crate::{Error, ErrorKind, ResultExt};
 
 pub struct NginxController {
     nginx_root: PathBuf,
-    pub ssl_manager: SslManager,
     inner: Mutex<NginxControllerInner>,
 }
 impl NginxController {
-    pub async fn init(nginx_root: PathBuf, ssl_manager: SslManager) -> Result<Self, Error> {
+    pub async fn init(nginx_root: PathBuf, ssl_manager: &SslManager) -> Result<Self, Error> {
         Ok(NginxController {
-            inner: Mutex::new(NginxControllerInner::init(&nginx_root, &ssl_manager).await?),
-            ssl_manager,
+            inner: Mutex::new(NginxControllerInner::init(&nginx_root, ssl_manager).await?),
             nginx_root,
         })
     }
@@ -32,6 +30,7 @@ impl NginxController {
     }
     pub async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &self,
+        ssl_manager: &SslManager,
         package: PackageId,
         ipv4: Ipv4Addr,
         interfaces: I,
@@ -39,13 +38,7 @@ impl NginxController {
         self.inner
             .lock()
             .await
-            .add(
-                &self.nginx_root,
-                &self.ssl_manager,
-                package,
-                ipv4,
-                interfaces,
-            )
+            .add(&self.nginx_root, ssl_manager, package, ipv4, interfaces)
             .await
     }
     pub async fn remove(&self, package: &PackageId) -> Result<(), Error> {

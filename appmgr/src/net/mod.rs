@@ -37,6 +37,7 @@ pub struct NetController {
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
     pub nginx: NginxController,
+    pub ssl: SslManager,
 }
 impl NetController {
     #[instrument(skip(db))]
@@ -47,7 +48,7 @@ impl NetController {
         db: SqlitePool,
         import_root_ca: Option<(PKey<Private>, X509)>,
     ) -> Result<Self, Error> {
-        let ssl_manager = match import_root_ca {
+        let ssl = match import_root_ca {
             None => SslManager::init(db).await,
             Some(a) => SslManager::import_root_ca(db, a.0, a.1).await,
         }?;
@@ -55,7 +56,8 @@ impl NetController {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
-            nginx: NginxController::init(PathBuf::from("/etc/nginx"), ssl_manager).await?,
+            nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
+            ssl,
         })
     }
 
@@ -107,7 +109,7 @@ impl NetController {
                             },
                         )),
                     });
-                self.nginx.add(pkg_id.clone(), ip, interfaces)
+                self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
             }
         );
         tor_res?;
@@ -139,6 +141,6 @@ impl NetController {
     }
 
     pub async fn export_root_ca(&self) -> Result<(PKey<Private>, X509), Error> {
-        self.nginx.ssl_manager.export_root_ca().await
+        self.ssl.export_root_ca().await
     }
 }
