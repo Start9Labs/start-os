@@ -6,7 +6,7 @@
         <div style="padding-bottom: 32px;">
           <img src="assets/png/logo.png" style="max-width: 240px;" />
         </div>
-        <success></success>
+        <success (dl)="download($event)"></success>
         <ion-card *ngIf="!stateService.embassyLoaded" color="dark">
           <ion-card-header>
             <ion-card-title style="font-size: 40px;">Initializing Embassy</ion-card-title>
