@@ -91,6 +91,7 @@ impl NetController {
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
         for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
     {
+        tracing::info!("Generating SSL Certificate mountpoints for {}", pkg_id);
         let package_path = self.nginx.nginx_root.join(format!("ssl/{}", pkg_id));
         tokio::fs::create_dir_all(package_path).await?;
         // write certificates for all interfaces
