@@ -82,6 +82,12 @@ fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
         {
             Ok(v)
         }
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(String::new())
+        }
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
         where
             A: serde::de::SeqAccess<'de>,
