@@ -895,7 +895,7 @@ export module Mock {
     },
     {
       timestamp: '2019-12-26T14:21:30.872Z',
-      message: 'ServerLogs ServerLogs ServerLogs ServerLogs ServerLogs',
+      message: '2021/11/09 22:55:04 \u001b[0;32;49mPOST \u001b[0;32;49m200\u001b[0m photoview.embassy/api/graphql \u001b[0;36;49m1.169406ms\u001b[0m unauthenticated',
     },
     {
       timestamp: '2019-12-26T14:22:30.872Z',
