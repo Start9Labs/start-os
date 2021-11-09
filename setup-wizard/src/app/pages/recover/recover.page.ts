@@ -43,9 +43,10 @@ export class RecoverPage {
 
   async getDrives () {
     try {
-      this.drives = (await this.apiService.getDrives()).filter(d => d.partitions.length)
+      const drives = (await this.apiService.getDrives()).filter(d => d.partitions.length)
+      this.drives = drives.filter(d => d.partitions.length)
 
-      const importableDrive = this.drives.find(d => !!d.guid)
+      const importableDrive = drives.find(d => !!d.guid)
       if (!!importableDrive && !this.hasShownGuidAlert) {
         const alert = await this.alertCtrl.create({
           header: 'Embassy Drive Detected',
