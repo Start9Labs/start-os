@@ -1,4 +1,4 @@
-import { Component } from '@angular/core'
+import { Component, EventEmitter, Output } from '@angular/core'
 import { ToastController } from '@ionic/angular'
 import { StateService } from 'src/app/services/state.service'
 
@@ -8,6 +8,7 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['success.page.scss'],
 })
 export class SuccessPage {
+  @Output() dl = new EventEmitter()
   torOpen = true
   lanOpen = false
 
@@ -38,6 +39,10 @@ export class SuccessPage {
 
   installCert () {
     document.getElementById('install-cert').click()
+  }
+
+  download () {
+    this.dl.emit(null)
   }
 
   private async copyToClipboard (str: string): Promise<boolean> {
