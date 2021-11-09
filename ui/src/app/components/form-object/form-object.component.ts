@@ -20,6 +20,7 @@ export class FormObjectComponent {
   @Input() current: { [key: string]: any }
   @Input() showEdited: boolean = false
   @Output() onInputChange = new EventEmitter<void>()
+  @Output() onUnionChange = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = { }
   unmasked: { [key: string]: boolean } = { }
   objectDisplay: { [key: string]: { expanded: boolean, height: string } } = { }
@@ -59,17 +60,27 @@ export class FormObjectComponent {
   }
 
   updateUnion (e: any): void {
+    const primary = this.unionSpec.tag.id
+
     Object.keys(this.formGroup.controls).forEach(control => {
-      if (control === 'type') return
+      if (control === primary) return
       this.formGroup.removeControl(control)
     })
 
     const unionGroup = this.formService.getUnionObject(this.unionSpec as ValueSpecUnion, e.detail.value)
 
     Object.keys(unionGroup.controls).forEach(control => {
-      if (control === 'type') return
+      if (control === primary) return
       this.formGroup.addControl(control, unionGroup.controls[control])
     })
+
+    this.onUnionChange.emit()
+  }
+
+  resizeUnion (key: string): void {
+    setTimeout(() => {
+      this.objectDisplay[key].height = this.getDocSize(key)
+    }, 100)
   }
 
   addListItemWrapper (key: string, spec: ValueSpec) {

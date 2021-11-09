@@ -106,6 +106,7 @@
               [formGroup]="$any(entry.value)"
               [current]="current ? current[entry.key] : undefined"
               [unionSpec]="spec.type === 'union' ? spec : undefined"
+              (onUnionChange)="resizeUnion(entry.key)"
             ></form-object>
           </div>
         </div>
