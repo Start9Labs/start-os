@@ -2,6 +2,10 @@ import { Component, Input, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { RR } from 'src/app/services/api/api.types'
+var Convert = require('ansi-to-html')
+var convert = new Convert({
+  bg: 'transparent',
+})
 
 @Component({
   selector: 'logs',
@@ -62,7 +66,7 @@ export class LogsPage {
       const container = document.getElementById('container')
       const beforeContainerHeight = container.scrollHeight
       const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${l.message}`).join('\n\n') + (logs.length ? '\n\n' : '')
+      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n\n') + (logs.length ? '\n\n' : '')
       container.prepend(newLogs)
       const afterContainerHeight = container.scrollHeight
 
