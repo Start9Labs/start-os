@@ -47,7 +47,7 @@ export class EmbassyPage {
   }
 
   async chooseDrive (drive: DiskInfo) {
-    if (!!drive.partitions.find(p => p.used)) {
+    if (!!drive.partitions.find(p => p.used) || !!drive.guid) {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
         subHeader: 'Drive contains data!',
