@@ -24,26 +24,51 @@ impl<S: Subscriber> Layer<S> for SharingLayer {
             #[derive(Serialize)]
             #[serde(rename_all = "kebab-case")]
             struct LogRequest<'a> {
-                log_epoch: u64,
+                log_epoch: String,
                 commit_hash: &'static str,
                 file: Option<&'a str>,
                 line: Option<u32>,
                 target: &'a str,
                 level: &'static str,
-                message: Option<String>,
+                log_message: Option<String>,
             }
             if event.metadata().level() <= &tracing::Level::WARN {
+                struct Visitor(Option<String>);
+                impl tracing::field::Visit for Visitor {
+                    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+                        if field.name() == "message" {
+                            self.0 = Some(value.to_owned());
+                        }
+                    }
+                    fn record_error(
+                        &mut self,
+                        field: &tracing::field::Field,
+                        value: &(dyn std::error::Error + 'static),
+                    ) {
+                        if field.name() == "message" {
+                            self.0 = Some(value.to_string());
+                        }
+                    }
+                    fn record_debug(
+                        &mut self,
+                        field: &tracing::field::Field,
+                        value: &dyn std::fmt::Debug,
+                    ) {
+                        if field.name() == "message" {
+                            self.0 = Some(format!("{:?}", value));
+                        }
+                    }
+                }
+                let mut message = Visitor(None);
+                event.record(&mut message);
                 let body = LogRequest {
-                    log_epoch: self.log_epoch.load(Ordering::SeqCst),
+                    log_epoch: self.log_epoch.load(Ordering::SeqCst).to_string(),
                     commit_hash: COMMIT_HASH,
                     file: event.metadata().file(),
                     line: event.metadata().line(),
                     target: event.metadata().target(),
                     level: event.metadata().level().as_str(),
-                    message: event
-                        .fields()
-                        .find(|f| f.name() == "message")
-                        .map(|f| f.to_string()),
+                    log_message: message.0,
                 };
                 // we don't care about the result and need it to be fast
                 tokio::spawn(Client::new().post(&self.share_dest).json(&body).send());
