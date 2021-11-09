@@ -50,7 +50,7 @@
           </ion-button>
           <ion-label>
             <h2>{{ prop.key }}</h2>
-            <p>{{ prop.value.masked && !unmasked[prop.key] ? (prop.value.value | mask ) : (prop.value.value | truncateEnd : 100) }}</p>
+            <p>{{ prop.value.masked && !unmasked[prop.key] ? (prop.value.value | mask ) : prop.value.value }}</p>
           </ion-label>
           <div slot="end" *ngIf="prop.value.copyable || prop.value.qr">
             <ion-button *ngIf="prop.value.masked" fill="clear" (click)="toggleMask(prop.key)">

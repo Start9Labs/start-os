@@ -2,7 +2,6 @@
   [scrollEvents]="true"
   (ionScroll)="scrollEvent()"
   style="height: 100%;"
-  id="ion-content"
   class="ion-padding"
 >
   <ion-infinite-scroll id="scroller" *ngIf="!loading && needInfinite" position="top" threshold="0" (ionInfinite)="loadData($event)">
