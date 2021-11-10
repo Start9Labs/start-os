@@ -27,6 +27,7 @@ where
     type Previous: VersionT;
     fn new() -> Self;
     fn semver(&self) -> emver::Version;
+    fn compat(&self) -> &'static emver::VersionRange;
     async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error>;
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error>;
     async fn commit<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {

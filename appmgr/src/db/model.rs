@@ -39,13 +39,7 @@ impl Database {
                 id,
                 version: Current::new().semver().into(),
                 last_backup: None,
-                eos_version_compat: VersionRange::Conj(
-                    Box::new(VersionRange::Anchor(
-                        emver::GTE,
-                        emver::Version::new(0, 3, 0, 0),
-                    )),
-                    Box::new(VersionRange::Anchor(emver::LTE, Current::new().semver())),
-                ),
+                eos_version_compat: Current::new().compat().clone(),
                 lan_address: format!("https://{}.local", hostname).parse().unwrap(),
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()

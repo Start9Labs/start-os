@@ -15,6 +15,7 @@ use crate::migration::Migrations;
 use crate::net::interface::Interfaces;
 use crate::status::health_check::HealthChecks;
 use crate::util::Version;
+use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
 
 pub const SYSTEM_PACKAGE_ID: PackageId<&'static str> = PackageId(SYSTEM_ID);
@@ -97,9 +98,15 @@ where
     }
 }
 
+fn current_version() -> Version {
+    Current::new().semver().into()
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct Manifest {
+    #[serde(default = "current_version")]
+    pub eos_version: Version,
     pub id: PackageId,
     pub title: String,
     #[model]
@@ -127,8 +134,6 @@ pub struct Manifest {
     pub properties: Option<ActionImplementation>,
     #[model]
     pub volumes: Volumes,
-    // #[serde(default = "current_version")]
-    pub min_os_version: Version,
     // #[serde(default)]
     pub interfaces: Interfaces,
     // #[serde(default)]
