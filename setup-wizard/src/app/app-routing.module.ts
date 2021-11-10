@@ -33,11 +33,6 @@ const routes: Routes = [
     loadChildren: () => import('./pages/loading/loading.module').then( m => m.LoadingPageModule),
     canActivate: [NavGuard],
   },
-  {
-    path: 'success',
-    loadChildren: () => import('./pages/success/success.module').then( m => m.SuccessPageModule),
-    canActivate: [NavGuard],
-  },
 ]
 
 @NgModule({
