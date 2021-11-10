@@ -438,8 +438,8 @@ fn make_leaf_cert(
         Some(&ctx),
         Nid::SUBJECT_ALT_NAME,
         &format!(
-            "DNS:*.{}.local,DNS:{}.onion,DNS:*.{}.onion",
-            &applicant.1, &applicant.1, &applicant.1
+            "DNS:{}.local,DNS:*.{}.local,DNS:{}.onion,DNS:*.{}.onion",
+            &applicant.1, &applicant.1, &applicant.1, &applicant.1
         ),
     )?;
     builder.append_extension(subject_key_identifier)?;
