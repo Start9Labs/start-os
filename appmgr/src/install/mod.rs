@@ -84,19 +84,19 @@ pub async fn install(
     let reg_url = ctx.package_registry_url().await?;
     let (man_res, s9pk) = tokio::try_join!(
         reqwest::get(format!(
-            "{}/package/manifest/{}?version={}&eos-version={}&arch={}",
+            "{}/package/manifest/{}?version={}&eos-version-compat={}&arch={}",
             reg_url,
             pkg_id,
             version,
-            Current::new().semver(),
+            Current::new().compat(),
             platforms::TARGET_ARCH,
         )),
         reqwest::get(format!(
-            "{}/package/{}.s9pk?version={}&eos-version={}&arch={}",
+            "{}/package/{}.s9pk?version={}&eos-version-compat={}&arch={}",
             reg_url,
             pkg_id,
             version,
-            Current::new().semver(),
+            Current::new().compat(),
             platforms::TARGET_ARCH,
         ))
     )
@@ -395,11 +395,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let reg_url = ctx.package_registry_url().await?;
     for (dep, info) in &manifest.dependencies.0 {
         let manifest: Option<Manifest> = match reqwest::get(format!(
-            "{}/package/manifest/{}?version={}&eos-version={}&arch={}",
+            "{}/package/manifest/{}?version={}&eos-version-compat={}&arch={}",
             reg_url,
             dep,
             info.version,
-            Current::new().semver(),
+            Current::new().compat(),
             platforms::TARGET_ARCH,
         ))
         .await
@@ -425,11 +425,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             if tokio::fs::metadata(&icon_path).await.is_err() {
                 tokio::fs::create_dir_all(&dir).await?;
                 let icon = reqwest::get(format!(
-                    "{}/package/icon/{}?version={}&eos-version={}&arch={}",
+                    "{}/package/icon/{}?version={}&eos-version-compat={}&arch={}",
                     reg_url,
                     dep,
                     info.version,
-                    Current::new().semver(),
+                    Current::new().compat(),
                     platforms::TARGET_ARCH,
                 ))
                 .await
