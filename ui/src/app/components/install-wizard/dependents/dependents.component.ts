@@ -47,7 +47,7 @@ export class DependentsComponent {
         complete: () => {
           this.hasDependentViolation = this.dependentBreakages && !isEmptyObject(this.dependentBreakages)
           if (this.hasDependentViolation) {
-            this.message = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title} will prohibit the following services from functioning properly and will cause them to stop if they are currently running.`
+            this.message = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title} will prohibit the following services from functioning properly and may cause them to stop if they are currently running.`
           } else {
             this.message = `No other services installed on your Embassy will be affected by this action.`
           }

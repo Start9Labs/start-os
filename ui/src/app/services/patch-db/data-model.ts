@@ -305,7 +305,6 @@ export type DependencyError = DependencyErrorNotInstalled |
                               DependencyErrorIncorrectVersion |
                               DependencyErrorConfigUnsatisfied |
                               DependencyErrorHealthChecksFailed |
-                              DependencyErrorInterfaceHealthChecksFailed |
                               DependencyErrorTransitive
 
 export enum DependencyErrorType {
@@ -340,11 +339,6 @@ export interface DependencyErrorConfigUnsatisfied {
 export interface DependencyErrorHealthChecksFailed {
   type: DependencyErrorType.HealthChecksFailed
   check: HealthCheckResult
-}
-
-export interface DependencyErrorInterfaceHealthChecksFailed {
-  type: DependencyErrorType.InterfaceHealthChecksFailed
-  failures: { [id: string]: HealthCheckResult }
 }
 
 export interface DependencyErrorTransitive {
