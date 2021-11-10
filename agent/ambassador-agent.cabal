@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           ambassador-agent
-version:        0.2.16
+version:        0.2.17
 build-type:     Simple
 extra-source-files:
     ./migrations/0.1.0::0.1.0
