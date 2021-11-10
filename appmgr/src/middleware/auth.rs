@@ -207,13 +207,15 @@ pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                                 )?));
                             } else {
                                 let mut guard = rate_limiter.lock().await;
-                                if guard.elapsed() < Duration::from_secs(0) {
+                                if guard.elapsed() < Duration::from_secs(10) {
                                     let (res_parts, _) = Response::new(()).into_parts();
                                     return Ok(Err(to_response(
                                         &req.headers,
                                         res_parts,
                                         Err(Error::new(
-                                            eyre!("Please limit login attempts to 1 per second."),
+                                            eyre!(
+                                                "Please limit login attempts to 1 per 10 seconds."
+                                            ),
                                             crate::ErrorKind::RateLimited,
                                         )
                                         .into()),
