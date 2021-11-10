@@ -752,7 +752,7 @@ export module Mock {
     },
     {
       id: 2,
-      'package-id': 'bitcoind',
+      'package-id': null,
       'created-at': '2019-12-26T14:20:30.872Z',
       code: 2,
       level: NotificationLevel.Warning,
@@ -762,7 +762,7 @@ export module Mock {
     },
     {
       id: 3,
-      'package-id': 'bitcoind',
+      'package-id': null,
       'created-at': '2019-12-26T14:20:30.872Z',
       code: 3,
       level: NotificationLevel.Info,

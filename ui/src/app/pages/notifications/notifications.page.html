@@ -53,29 +53,31 @@
     <ng-container *ngIf="notifications.length">
       <ion-item-group style="margin-bottom: 16px;">
         <ion-item-divider>
-          <ion-button slot="end" fill="clear" (click)="deleteAll()">
-            <ion-icon slot="start" name="trash-outline"></ion-icon>
+          <ion-button slot="end" fill="clear" (click)="presentAlertDeleteAll()">
             Delete All
           </ion-button>
         </ion-item-divider>
         <ion-item *ngFor="let not of notifications; let i = index">
           <ion-label>
             <h2>
-              <ion-text [color]="not | notificationColor"><b>{{ not.title }}</b></ion-text>
+              <b>
+                <span *ngIf="not['package-id']">{{ not['package-id'] }} - </span>
+                <ion-text [color]="not | notificationColor">{{ not.title }}</ion-text>
+              </b>
             </h2>
             <h2 class="notification-message">
               {{ not.message }}
-              <a *ngIf="not.code === 1" style="text-decoration: none; cursor: pointer;" (click)="viewBackupReport(not)">
-                - View Report
-              </a>
             </h2>
             <p>
               {{ not['created-at'] | date: 'short' }}
-              <a *ngIf="not['package-id'] as pkgId" style="text-decoration: none;" [routerLink]="['/services', not['package-id']]">
-                - {{ not['package-id'] }} 
-              </a>
             </p>
           </ion-label>
+          <ion-button *ngIf="not.code === 1" slot="end" fill="clear" color="dark" (click)="viewBackupReport(not)">
+            View Report
+          </ion-button>
+          <ion-button *ngIf="not['package-id']" slot="end" fill="clear" color="dark" [routerLink]="['/services', not['package-id']]">
+            View Service
+          </ion-button>
           <ion-button slot="end" fill="clear" (click)="delete(not.id, i)">
             <ion-icon slot="icon-only" name="close"></ion-icon>
           </ion-button>
