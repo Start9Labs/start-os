@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerNotification, ServerNotifications } from 'src/app/services/api/api.types'
-import { LoadingController, ModalController } from '@ionic/angular'
+import { AlertController, LoadingController, ModalController } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
@@ -21,6 +21,7 @@ export class NotificationsPage {
 
   constructor (
     private readonly embassyApi: ApiService,
+    private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
@@ -71,7 +72,40 @@ export class NotificationsPage {
     }
   }
 
-  async deleteAll (): Promise<void> {
+  async presentAlertDeleteAll () {
+    const alert = await this.alertCtrl.create({
+      backdropDismiss: false,
+      header: 'Delete All?',
+      message: 'Are you sure you want to delete all notifications?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Delete',
+          cssClass: 'enter-click',
+          handler: () => {
+            this.deleteAll()
+          },
+        },
+      ],
+    })
+    await alert.present()
+  }
+
+  async viewBackupReport (notification: ServerNotification<1>) {
+    const modal = await this.modalCtrl.create({
+      component: BackupReportPage,
+      componentProps: {
+        report: notification.data,
+        timestamp: notification['created-at'],
+      },
+    })
+    await modal.present()
+  }
+
+  private async deleteAll (): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -88,17 +122,6 @@ export class NotificationsPage {
     } finally {
       loader.dismiss()
     }
-  }
-
-  async viewBackupReport (notification: ServerNotification<1>) {
-    const modal = await this.modalCtrl.create({
-      component: BackupReportPage,
-      componentProps: {
-        report: notification.data,
-        timestamp: notification['created-at'],
-      },
-    })
-    await modal.present()
   }
 }
 
