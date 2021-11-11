@@ -60,9 +60,7 @@ impl NginxControllerInner {
             interfaces: BTreeMap::new(),
         };
         // write main ssl key/cert to fs location
-        let (key, cert) = ssl_manager
-            .certificate_for(&crate::hostname::get_hostname().await?)
-            .await?;
+        let (key, cert) = ssl_manager.certificate_for(&get_hostname().await?).await?;
         let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
         let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
         tokio::try_join!(
