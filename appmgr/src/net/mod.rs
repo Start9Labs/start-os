@@ -63,6 +63,9 @@ impl NetController {
             ssl,
         })
     }
+    pub fn ssl_directory_for(pkg_id: &PackageId) -> PathBuf {
+        PathBuf::from(format!("{}/{}", PACKAGE_CERT_PATH, pkg_id))
+    }
 
     #[instrument(skip(self, interfaces))]
     pub async fn add<'a, I>(
@@ -75,7 +78,7 @@ impl NetController {
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
         for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
     {
-        self.generate_certificate_mountpoints(pkg_id, &interfaces)
+        self.generate_certificate_mountpoint(pkg_id, &interfaces)
             .await?;
 
         let interfaces_tor = interfaces
@@ -125,7 +128,29 @@ impl NetController {
         Ok(())
     }
 
-    async fn generate_certificate_mountpoints<'a, I>(
+    #[instrument(skip(self, interfaces))]
+    pub async fn remove<I: IntoIterator<Item = InterfaceId> + Clone>(
+        &self,
+        pkg_id: &PackageId,
+        interfaces: I,
+    ) -> Result<(), Error> {
+        let (tor_res, _, nginx_res) = tokio::join!(
+            self.tor.remove(pkg_id, interfaces.clone()),
+            {
+                #[cfg(feature = "avahi")]
+                let mdns_fut = self.mdns.remove(pkg_id, interfaces);
+                #[cfg(not(feature = "avahi"))]
+                let mdns_fut = futures::future::ready(());
+                mdns_fut
+            },
+            self.nginx.remove(pkg_id)
+        );
+        tor_res?;
+        nginx_res?;
+        Ok(())
+    }
+
+    async fn generate_certificate_mountpoint<'a, I>(
         &self,
         pkg_id: &PackageId,
         interfaces: &I,
@@ -147,28 +172,6 @@ impl NetController {
                 crate::net::ssl::export_cert(&chain, &ssl_path_cert)
             )?;
         })
-    }
-
-    #[instrument(skip(self, interfaces))]
-    pub async fn remove<I: IntoIterator<Item = InterfaceId> + Clone>(
-        &self,
-        pkg_id: &PackageId,
-        interfaces: I,
-    ) -> Result<(), Error> {
-        let (tor_res, _, nginx_res) = tokio::join!(
-            self.tor.remove(pkg_id, interfaces.clone()),
-            {
-                #[cfg(feature = "avahi")]
-                let mdns_fut = self.mdns.remove(pkg_id, interfaces);
-                #[cfg(not(feature = "avahi"))]
-                let mdns_fut = futures::future::ready(());
-                mdns_fut
-            },
-            self.nginx.remove(pkg_id)
-        );
-        tor_res?;
-        nginx_res?;
-        Ok(())
     }
 
     pub async fn export_root_ca(&self) -> Result<(PKey<Private>, X509), Error> {

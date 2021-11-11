@@ -25,9 +25,6 @@ impl NginxController {
             nginx_root,
         })
     }
-    pub fn ssl_directory_for(&self, package: &PackageId) -> PathBuf {
-        self.nginx_root.join("ssl").join(package)
-    }
     pub async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &self,
         ssl_manager: &SslManager,
