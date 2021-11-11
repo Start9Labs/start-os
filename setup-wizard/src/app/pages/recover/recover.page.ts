@@ -23,8 +23,8 @@ export class RecoverPage {
     private readonly modalController: ModalController,
     private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
-    readonly stateService: StateService,
     private readonly errorToastService: ErrorToastService,
+    public readonly stateService: StateService,
   ) { }
 
   async ngOnInit () {
@@ -43,7 +43,7 @@ export class RecoverPage {
 
   async getDrives () {
     try {
-      const drives = (await this.apiService.getDrives()).filter(d => d.partitions.length)
+      const drives = await this.apiService.getDrives()
       this.drives = drives.filter(d => d.partitions.length)
 
       const importableDrive = drives.find(d => !!d.guid)
