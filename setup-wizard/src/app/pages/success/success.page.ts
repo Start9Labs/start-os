@@ -8,7 +8,7 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['success.page.scss'],
 })
 export class SuccessPage {
-  @Output() dl = new EventEmitter()
+  @Output() onDownload = new EventEmitter()
   torOpen = true
   lanOpen = false
 
@@ -42,7 +42,7 @@ export class SuccessPage {
   }
 
   download () {
-    this.dl.emit(null)
+    this.onDownload.emit()
   }
 
   private async copyToClipboard (str: string): Promise<boolean> {
