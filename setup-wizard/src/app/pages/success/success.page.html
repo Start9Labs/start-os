@@ -1,5 +1,5 @@
 
-<ion-card [ngClass]="!stateService.embassyLoaded ? 'hiddenPage' : ''" color="dark">
+<ion-card color="dark">
   <ion-card-header class="ion-text-center" color="success">
     <ion-icon style="font-size: 80px;" name="checkmark-circle-outline"></ion-icon>
     <ion-card-title>Setup Complete!</ion-card-title>
@@ -25,7 +25,7 @@
         'transition': 'max-height 0.4s ease-out'
       }"
     >
-      <div class="ion-padding">
+      <div class="ion-padding ion-text-start">
         <p>
           To use your Embassy over Tor, visit its unique Tor address from any Tor-enabled browser.
           For a list of recommended browsers, click <a href="https://docs.start9.com/user-manual/connecting.html" target="_blank" rel="noreferrer"><b>here</b></a>.
@@ -64,7 +64,7 @@
         'transition': 'max-height 0.4s ease-out'
       }"
     >
-      <div class="ion-padding">
+      <div class="ion-padding ion-text-start">
         <p>To use your Embassy locally, you must:</p>
         <ol>
           <li>Currently be connected to the same Local Area Network (LAN) as your Embassy.</li>
