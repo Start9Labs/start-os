@@ -20,17 +20,6 @@ pub struct NginxController {
 }
 impl NginxController {
     pub async fn init(nginx_root: PathBuf, ssl_manager: &SslManager) -> Result<Self, Error> {
-        // write main ssl key/cert to fs location
-        let (key, cert) = ssl_manager
-            .certificate_for(&crate::hostname::get_hostname().await?)
-            .await?;
-        let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
-        let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
-        tokio::try_join!(
-            crate::net::ssl::export_key(&key, &ssl_path_key),
-            crate::net::ssl::export_cert(&cert, &ssl_path_cert),
-        )?;
-
         Ok(NginxController {
             inner: Mutex::new(NginxControllerInner::init(&nginx_root, ssl_manager).await?),
             nginx_root,
@@ -70,6 +59,17 @@ impl NginxControllerInner {
         let inner = NginxControllerInner {
             interfaces: BTreeMap::new(),
         };
+        // write main ssl key/cert to fs location
+        let (key, cert) = ssl_manager
+            .certificate_for(&crate::hostname::get_hostname().await?)
+            .await?;
+        let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
+        let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
+        tokio::try_join!(
+            crate::net::ssl::export_key(&key, &ssl_path_key),
+            crate::net::ssl::export_cert(&cert, &ssl_path_cert),
+        )?;
+
         Ok(inner)
     }
     #[instrument(skip(self, interfaces))]
