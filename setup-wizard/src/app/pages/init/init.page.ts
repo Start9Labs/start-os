@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
-import { interval, Observable } from 'rxjs'
-import { finalize, take } from 'rxjs/operators'
+import { interval, Observable, Subscription } from 'rxjs'
+import { delay, finalize, take, tap } from 'rxjs/operators'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -9,22 +9,31 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['init.page.scss'],
 })
 export class InitPage {
-  progress: Observable<number>
-  showSuccess = false
+  progress: number
+  sub: Subscription
 
   constructor (
     public readonly stateService: StateService,
   ) { }
 
   ngOnInit () {
-    this.progress = interval(130)
+    this.sub = interval(130)
     .pipe(
       take(101),
-      finalize(() => {
-        this.stateService.embassyLoaded = true
-        setTimeout(() => this.download(), 500)
+      tap(num => {
+        this.progress = num
       }),
-    )
+      finalize(() => {
+        setTimeout(() => {
+          this.stateService.embassyLoaded = true
+          this.download()
+        }, 500)
+      }),
+    ).subscribe()
+  }
+
+  ngOnDestroy () {
+    if (this.sub) this.sub.unsubscribe()
   }
 
   download () {
