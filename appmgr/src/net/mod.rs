@@ -55,14 +55,11 @@ impl NetController {
             None => SslManager::init(db).await,
             Some(a) => SslManager::import_root_ca(db, a.0, a.1).await,
         }?;
-
-        let nginx_root = PathBuf::from("/etc/nginx");
-
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
-            nginx: NginxController::init(nginx_root, &ssl).await?,
+            nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
             ssl,
         })
     }
