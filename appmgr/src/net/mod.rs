@@ -1,7 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
-use futures::FutureExt;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::command;
@@ -18,7 +17,7 @@ use self::tor::TorController;
 use crate::net::interface::TorConfig;
 use crate::net::nginx::InterfaceMetadata;
 use crate::s9pk::manifest::PackageId;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::Error;
 
 pub mod interface;
 #[cfg(feature = "avahi")]
@@ -63,7 +62,8 @@ impl NetController {
             ssl,
         })
     }
-    pub fn ssl_directory_for(pkg_id: &PackageId) -> PathBuf {
+
+    pub fn ssl_directory_for(&self, pkg_id: &PackageId) -> PathBuf {
         PathBuf::from(format!("{}/{}", PACKAGE_CERT_PATH, pkg_id))
     }
 
