@@ -24,11 +24,12 @@ import           Lib.Tor
 import           Lib.Types.Core
 import           Model
 import           Settings
-import           System.Directory               ( doesPathExist
+import           System.Directory               ( createDirectoryIfMissing
+                                                , doesPathExist
                                                 , removePathForcibly
                                                 , renameDirectory
                                                 )
-import           UnliftIO.Directory             ( createDirectoryIfMissing )
+import           System.FilePath                ( takeDirectory )
 
 renewSslLeafCert :: AgentCtx -> IO ()
 renewSslLeafCert ctx = do
@@ -76,11 +77,12 @@ renewSslLeafCert ctx = do
                     $ flip runSqlPool (appConnPool ctx)
                     $ Notifications.emit (AppId "EmbassyOS") agentVersion
                     $ Notifications.CertRenewFailed (ExitFailure n) out err
-            ExitSuccess -> do
+            ExitSuccess -> liftIO $ do
                 let sslDir = toS $ sslDirectory `relativeTo` base
-                liftIO $ removePathForcibly sslDir
-                liftIO $ renameDirectory sslDirTmp sslDir
-                liftIO $ systemCtl RestartService "nginx" $> ()
+                createDirectoryIfMissing True (takeDirectory sslDir)
+                removePathForcibly sslDir
+                renameDirectory sslDirTmp sslDir
+                systemCtl RestartService "nginx" $> ()
 
 
 doesSslNeedRenew :: FilePath -> SqlPersistT IO Bool
