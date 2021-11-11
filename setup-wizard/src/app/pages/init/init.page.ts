@@ -13,7 +13,7 @@ export class InitPage {
   showSuccess = false
 
   constructor (
-    private readonly stateService: StateService,
+    public readonly stateService: StateService,
   ) { }
 
   ngOnInit () {
