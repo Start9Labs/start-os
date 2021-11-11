@@ -34,7 +34,10 @@ export class HttpService {
       res = await this.httpRequest<RPCResponse<T>>(httpOpts)
     }
 
-    if (isRpcError(res)) throw new RpcError(res.error)
+    if (isRpcError(res)) {
+      console.error('RPC ERROR: ', res)
+      throw new RpcError(res.error)
+    }
 
     if (isRpcSuccess(res)) return res.result
   }
