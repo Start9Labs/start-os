@@ -67,7 +67,6 @@ impl NginxControllerInner {
             crate::net::ssl::export_key(&key, &ssl_path_key),
             crate::net::ssl::export_cert(&cert, &ssl_path_cert),
         )?;
-
         Ok(inner)
     }
     #[instrument(skip(self, interfaces))]

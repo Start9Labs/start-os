@@ -86,7 +86,6 @@ impl NetController {
                 Some(cfg) => Some((i.0, cfg, i.2)),
             })
             .collect::<Vec<(InterfaceId, TorConfig, TorSecretKeyV3)>>();
-
         let (tor_res, _, nginx_res) = tokio::join!(
             self.tor.add(pkg_id, ip, interfaces_tor),
             {
