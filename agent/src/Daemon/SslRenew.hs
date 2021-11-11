@@ -50,7 +50,7 @@ renewSslLeafCert ctx = do
         entConfPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityConfPath sid)
         entCertPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityCertPath sid)
 
-        createDirectoryIfMissing True sslDirTmp
+        liftIO $ createDirectoryIfMissing True sslDirTmp
         liftIO $ BS.writeFile entConfPathTmp (domain_CSR_CONF hostname)
 
         (ec, out, err) <- writeLeafCert
