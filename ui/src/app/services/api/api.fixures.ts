@@ -1368,6 +1368,47 @@ export module Mock {
       'unique-by': null,
       'description': 'Advanced settings',
       'spec': {
+        'bitcoin-node': {
+          'name': 'Bitcoin Node Settings',
+          'type': 'union',
+          'unique-by': null,
+          'description': 'The node settings',
+          'default': 'internal',
+          'warning': 'Careful changing this',
+          'tag': {
+            'id': 'type',
+            'name': 'Type',
+            'variant-names': {
+              'internal': 'Internal',
+              'external': 'External',
+            },
+          },
+          'variants': {
+            'internal': {
+              'lan-address': {
+                'name': 'LAN Address',
+                'type': 'pointer',
+                'subtype': 'app',
+                'target': 'lan-address',
+                'app-id': 'bitcoind',
+                'description': 'the lan address',
+              },
+            },
+            'external': {
+              'public-domain': {
+                'name': 'Public Domain',
+                'type': 'string',
+                'description': 'the public address of the node',
+                'nullable': false,
+                'default': 'bitcoinnode.com',
+                'pattern': '.*',
+                'pattern-description': 'anything',
+                'masked': false,
+                'copyable': true,
+              },
+            },
+          },
+        },
         'notifications': {
           'name': 'Notification Preferences',
           'type': 'list',
@@ -1392,47 +1433,6 @@ export module Mock {
               'push',
               'webhook',
             ],
-          },
-        },
-      },
-    },
-    'bitcoin-node': {
-      'name': 'Bitcoin Node Settings',
-      'type': 'union',
-      'unique-by': null,
-      'description': 'The node settings',
-      'default': 'internal',
-      'warning': 'Careful changing this',
-      'tag': {
-        'id': 'type',
-        'name': 'Type',
-        'variant-names': {
-          'internal': 'Internal',
-          'external': 'External',
-        },
-      },
-      'variants': {
-        'internal': {
-          'lan-address': {
-            'name': 'LAN Address',
-            'type': 'pointer',
-            'subtype': 'app',
-            'target': 'lan-address',
-            'app-id': 'bitcoind',
-            'description': 'the lan address',
-          },
-        },
-        'external': {
-          'public-domain': {
-            'name': 'Public Domain',
-            'type': 'string',
-            'description': 'the public address of the node',
-            'nullable': false,
-            'default': 'bitcoinnode.com',
-            'pattern': '.*',
-            'pattern-description': 'anything',
-            'masked': false,
-            'copyable': true,
           },
         },
       },

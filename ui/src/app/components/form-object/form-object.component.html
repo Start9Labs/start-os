@@ -82,7 +82,7 @@
           name="chevron-up"
           [ngStyle]="{
             'transform': objectDisplay[entry.key].expanded ? 'rotate(0deg)' : 'rotate(180deg)',
-            'transition': 'transform 0.4s ease-out'
+            'transition': 'transform 0.25s ease-out'
           }"
           ></ion-icon>
         </ion-item-divider>
@@ -93,8 +93,7 @@
             'max-height': objectDisplay[entry.key].height,
             'overflow': 'hidden',
             'transition-property': 'max-height',
-            'transition-duration': '.5s',
-            'transition-delay': '.05s'
+            'transition-duration': '.25s'
           }"
           >
           <div class="nested-wrapper">
@@ -106,7 +105,7 @@
               [formGroup]="$any(entry.value)"
               [current]="current ? current[entry.key] : undefined"
               [unionSpec]="spec.type === 'union' ? spec : undefined"
-              (onUnionChange)="resizeUnion(entry.key)"
+              (onExpand)="resize(entry.key)"
             ></form-object>
           </div>
         </div>
