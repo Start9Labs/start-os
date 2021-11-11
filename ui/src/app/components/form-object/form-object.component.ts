@@ -1,4 +1,4 @@
-import { Component, Input, Output, SimpleChange, EventEmitter } from '@angular/core'
+import { Component, Input, Output, EventEmitter } from '@angular/core'
 import { AbstractFormGroupDirective, FormArray, FormGroup } from '@angular/forms'
 import { AlertButton, AlertController, IonicSafeString, ModalController } from '@ionic/angular'
 import { ConfigSpec, ListValueSpecOf, ValueSpec, ValueSpecBoolean, ValueSpecList, ValueSpecListOf, ValueSpecUnion } from 'src/app/pkg-config/config-types'
@@ -20,7 +20,7 @@ export class FormObjectComponent {
   @Input() current: { [key: string]: any }
   @Input() showEdited: boolean = false
   @Output() onInputChange = new EventEmitter<void>()
-  @Output() onUnionChange = new EventEmitter<void>()
+  @Output() onExpand = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = { }
   unmasked: { [key: string]: boolean } = { }
   objectDisplay: { [key: string]: { expanded: boolean, height: string } } = { }
@@ -74,13 +74,14 @@ export class FormObjectComponent {
       this.formGroup.addControl(control, unionGroup.controls[control])
     })
 
-    this.onUnionChange.emit()
+    this.onExpand.emit()
   }
 
-  resizeUnion (key: string): void {
+  resize (key: string): void {
     setTimeout(() => {
       this.objectDisplay[key].height = this.getDocSize(key)
-    }, 100)
+      this.onExpand.emit()
+    }, 250) // 250 to match transition-duration, defined in html
   }
 
   addListItemWrapper (key: string, spec: ValueSpec) {
@@ -114,6 +115,7 @@ export class FormObjectComponent {
   toggleExpandObject (key: string) {
     this.objectDisplay[key].expanded = !this.objectDisplay[key].expanded
     this.objectDisplay[key].height = this.objectDisplay[key].expanded ? this.getDocSize(key) : '0px'
+    this.onExpand.emit()
   }
 
   toggleExpandListObject (key: string, i: number) {
@@ -233,7 +235,7 @@ export class FormObjectComponent {
     added.forEach(val => this.addListItem(key, false, val))
   }
 
-   getDocSize (selected: string) {
+   private getDocSize (selected: string) {
     const element = document.getElementById(selected)
     return `${element.scrollHeight}px`
   }
