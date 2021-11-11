@@ -27,7 +27,7 @@ pub mod ssl;
 pub mod tor;
 pub mod wifi;
 
-const PACKAGE_CERT_PATH: &str = "/etc/ssl/package-certs";
+const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
 #[command(subcommands(tor::tor))]
 pub fn net() -> Result<(), Error> {
