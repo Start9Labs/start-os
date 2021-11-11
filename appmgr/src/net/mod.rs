@@ -28,6 +28,8 @@ pub mod ssl;
 pub mod tor;
 pub mod wifi;
 
+const PACKAGE_CERT_PATH: &str = "/etc/ssl/package-certs";
+
 #[command(subcommands(tor::tor))]
 pub fn net() -> Result<(), Error> {
     Ok(())
@@ -54,22 +56,7 @@ impl NetController {
             Some(a) => SslManager::import_root_ca(db, a.0, a.1).await,
         }?;
 
-        // write main ssl key/cert to fs location
         let nginx_root = PathBuf::from("/etc/nginx");
-        let (key, cert) = ssl
-            .certificate_for(&crate::hostname::get_hostname().await?)
-            .await?;
-        let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
-        let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
-        tokio::try_join!(
-            tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?),
-            tokio::fs::write(
-                &ssl_path_cert,
-                cert.into_iter()
-                    .flat_map(|c| c.to_pem().unwrap())
-                    .collect::<Vec<u8>>()
-            )
-        )?;
 
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
@@ -91,35 +78,8 @@ impl NetController {
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
         for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
     {
-        tracing::info!("Generating SSL Certificate mountpoints for {}", pkg_id);
-        let package_path = self.nginx.nginx_root.join(format!("ssl/{}", pkg_id));
-        tokio::fs::create_dir_all(package_path).await?;
-        // write certificates for all interfaces
-        for (id, _, key) in &interfaces {
-            let dns_base = OnionAddressV3::from(&key.public()).get_address_without_dot_onion();
-            let ssl_path_key = self
-                .nginx
-                .nginx_root
-                .join(format!("ssl/{}/{}.key.pem", pkg_id, id));
-            let ssl_path_cert = self
-                .nginx
-                .nginx_root
-                .join(format!("ssl/{}/{}.cert.pem", pkg_id, id));
-            let (key, chain) = self.ssl.certificate_for(&dns_base).await?;
-            tokio::try_join!(
-                tokio::fs::write(&ssl_path_key, key.private_key_to_pem_pkcs8()?).map(|res| res
-                    .with_ctx(|_| (ErrorKind::Filesystem, ssl_path_key.display().to_string()))),
-                tokio::fs::write(
-                    &ssl_path_cert,
-                    chain
-                        .into_iter()
-                        .flat_map(|c| c.to_pem().unwrap())
-                        .collect::<Vec<u8>>()
-                )
-                .map(|res| res
-                    .with_ctx(|_| (ErrorKind::Filesystem, ssl_path_cert.display().to_string()))),
-            )?;
-        }
+        self.generate_certificate_mountpoints(pkg_id, &interfaces)
+            .await?;
 
         let interfaces_tor = interfaces
             .clone()
@@ -167,6 +127,30 @@ impl NetController {
         nginx_res?;
 
         Ok(())
+    }
+
+    async fn generate_certificate_mountpoints<'a, I>(
+        &self,
+        pkg_id: &PackageId,
+        interfaces: &I,
+    ) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
+        for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
+    {
+        tracing::info!("Generating SSL Certificate mountpoints for {}", pkg_id);
+        let package_path = PathBuf::from(PACKAGE_CERT_PATH).join(pkg_id);
+        tokio::fs::create_dir_all(&package_path).await?;
+        Ok(for (id, _, key) in interfaces {
+            let dns_base = OnionAddressV3::from(&key.public()).get_address_without_dot_onion();
+            let ssl_path_key = package_path.join(format!("{}.key.pem", id));
+            let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
+            let (key, chain) = self.ssl.certificate_for(&dns_base).await?;
+            tokio::try_join!(
+                crate::net::ssl::export_key(&key, &ssl_path_key),
+                crate::net::ssl::export_cert(&chain, &ssl_path_cert)
+            )?;
+        })
     }
 
     #[instrument(skip(self, interfaces))]

@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
+use std::path::Path;
 
 use color_eyre::eyre::eyre;
+use futures::FutureExt;
 use openssl::asn1::{Asn1Integer, Asn1Time};
 use openssl::bn::{BigNum, MsbOption};
 use openssl::ec::{EcGroup, EcKey};
@@ -13,7 +15,7 @@ use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 
@@ -256,6 +258,23 @@ impl SslManager {
     }
 }
 
+pub async fn export_key(key: &PKey<Private>, target: &Path) -> Result<(), Error> {
+    tokio::fs::write(target, key.private_key_to_pem_pkcs8()?)
+        .map(|res| res.with_ctx(|_| (ErrorKind::Filesystem, target.display().to_string())))
+        .await?;
+    Ok(())
+}
+pub async fn export_cert(chain: &Vec<X509>, target: &Path) -> Result<(), Error> {
+    tokio::fs::write(
+        target,
+        chain
+            .into_iter()
+            .flat_map(|c| c.to_pem().unwrap())
+            .collect::<Vec<u8>>(),
+    )
+    .await?;
+    Ok(())
+}
 #[instrument]
 fn rand_serial() -> Result<Asn1Integer, Error> {
     let mut bn = BigNum::new()?;
