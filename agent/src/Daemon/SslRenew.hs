@@ -6,22 +6,30 @@ import           Startlude               hiding ( err )
 import           Data.String.Interpolate        ( i )
 import           System.Process                 ( system )
 
-import           Foundation
-import           Lib.SystemPaths
-import           Settings
-import           Lib.Ssl
-import           Daemon.ZeroConf                ( getStart9AgentHostname )
-import           Lib.Tor
+import           Constants
 import           Control.Carrier.Lift
-import           System.Directory               ( doesPathExist
+import           Daemon.ZeroConf                ( getStart9AgentHostname )
+import qualified Data.ByteString               as BS
+import           Database.Persist.Sql           ( Filter
+                                                , SqlPersistT
+                                                , count
+                                                , runSqlPool
+                                                )
+import           Foundation
+import qualified Lib.Notifications             as Notifications
+import           Lib.Ssl
+import           Lib.SystemCtl
+import           Lib.SystemPaths
+import           Lib.Tor
+import           Lib.Types.Core
+import           Model
+import           Settings
+import           System.Directory               ( createDirectoryIfMissing
+                                                , doesPathExist
                                                 , removePathForcibly
                                                 , renameDirectory
                                                 )
-import           Lib.SystemCtl
-import qualified Lib.Notifications             as Notifications
-import           Database.Persist.Sql           ( runSqlPool )
-import           Lib.Types.Core
-import           Constants
+import           System.FilePath                ( takeDirectory )
 
 renewSslLeafCert :: AgentCtx -> IO ()
 renewSslLeafCert ctx = do
@@ -30,7 +38,7 @@ renewSslLeafCert ctx = do
     let hostname = sid <> ".local"
     tor <- injectFilesystemBase base getAgentHiddenServiceUrl
     putStr @Text "SSL Renewal Required? "
-    needsRenew <- doesSslNeedRenew (toS $ entityCertPath sid `relativeTo` base)
+    needsRenew <- flip runSqlPool (appConnPool ctx) $ doesSslNeedRenew (toS $ entityCertPath sid `relativeTo` base)
     print needsRenew
     when needsRenew $ runM . injectFilesystemBase base $ do
         intCaKeyPath   <- toS <$> getAbsoluteLocationFor intermediateCaKeyPath
@@ -41,6 +49,9 @@ renewSslLeafCert ctx = do
         entKeyPathTmp  <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityKeyPath sid)
         entConfPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityConfPath sid)
         entCertPathTmp <- toS <$> getAbsoluteLocationFor (agentTmpDirectory <> entityCertPath sid)
+
+        liftIO $ createDirectoryIfMissing True sslDirTmp
+        liftIO $ BS.writeFile entConfPathTmp (domain_CSR_CONF hostname)
 
         (ec, out, err) <- writeLeafCert
             DeriveCertificate { applicantConfPath = entConfPathTmp
@@ -60,24 +71,28 @@ renewSslLeafCert ctx = do
             putStrLn @String $ "stdout: " <> out
             putStrLn @String $ "stderr: " <> err
         case ec of
-            ExitSuccess -> pure ()
             ExitFailure n ->
                 liftIO
                     . void
                     $ flip runSqlPool (appConnPool ctx)
                     $ Notifications.emit (AppId "EmbassyOS") agentVersion
                     $ Notifications.CertRenewFailed (ExitFailure n) out err
-        let sslDir = toS $ sslDirectory `relativeTo` base
-        liftIO $ removePathForcibly sslDir
-        liftIO $ renameDirectory sslDirTmp sslDir
-        liftIO $ systemCtl RestartService "nginx" $> ()
+            ExitSuccess -> liftIO $ do
+                let sslDir = toS $ sslDirectory `relativeTo` base
+                createDirectoryIfMissing True (takeDirectory sslDir)
+                removePathForcibly sslDir
+                renameDirectory sslDirTmp sslDir
+                systemCtl RestartService "nginx" $> ()
 
 
-doesSslNeedRenew :: FilePath -> IO Bool
+doesSslNeedRenew :: FilePath -> SqlPersistT IO Bool
 doesSslNeedRenew cert = do
-    exists <- doesPathExist cert
+    exists <- liftIO $ doesPathExist cert
     if exists
         then do
             ec <- liftIO $ system [i|openssl x509 -checkend 2592000 -noout -in #{cert}|]
             pure $ ec /= ExitSuccess
-        else pure False
+        else do
+            -- if we have set up the embassy already, then this is bad state that needs to be repaired
+            n <- count ([] :: [Filter Account])
+            pure $ n >= 1

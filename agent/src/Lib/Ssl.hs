@@ -10,8 +10,7 @@ module Lib.Ssl
     , root_CA_OPENSSL_CONF
     , intermediate_CA_OPENSSL_CONF
     , segment
-    )
-where
+    ) where
 
 import           Startlude
 
