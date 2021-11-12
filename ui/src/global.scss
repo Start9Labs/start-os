@@ -182,14 +182,8 @@ ion-button {
   white-space: nowrap;
 }
 
-.modal-wrapper.sc-ion-modal-md {
-  border-radius: 6px;
-  border: 2px solid rgba(255,255,255,.03);
-  box-shadow: 0 0 70px 70px black;
-}
-
 .qr-modal {
-  .modal-wrapper {
+  &::part(content) {
     width: 400px !important;
     height: 400px !important;
     top: unset !important;
@@ -197,28 +191,31 @@ ion-button {
   }
 }
 
-.modal-wrapper {
+ion-modal::part(content) {
   position: absolute;
   height: 90% !important;
   top: 5%;
   width: 90% !important;
   left: 5%;
   display: block;
+
+  border-radius: 6px;
+  border: 2px solid rgba(255,255,255,.03);
+  box-shadow: 0 0 70px 70px black;
 }
 
 @media (min-width:1000px) {
-  .modal-wrapper {
+  ion-modal::part(content) {
     position: absolute;
     height: 80% !important;
     top: 10%;
     width: 50% !important;
     left: 25%;
-    display: block;
   }
 }
 
 .alertlike-modal {
-  .modal-wrapper {
+  &::part(content) {
     max-height: 380px !important;
     top: 25% !important;
     width: 90% !important;
@@ -229,7 +226,7 @@ ion-button {
 
 @media (min-width:1000px) {
   .alertlike-modal {
-    .modal-wrapper {
+    &::part(content) {
       width: 60% !important;
       left: 20% !important;
     }
