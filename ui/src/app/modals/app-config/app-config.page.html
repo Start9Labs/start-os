@@ -47,10 +47,11 @@
           </h2>
           <p>
             <ion-text color="dark">
-              {{ pkg.manifest.title }} has been modified to satisfy {{ dependentInfo.title }}.
-              <br />
-              <br />
-              To accept the modifications, click "Save".
+              The following modifications have been made to {{ pkg.manifest.title }} to satisfy {{ dependentInfo.title }}:
+              <ul>
+                <li *ngFor="let d of diff" [innerHtml]="d"></li>
+              </ul>
+              To accept these modifications, click "Save".
             </ion-text>
           </p>
         </ion-label>

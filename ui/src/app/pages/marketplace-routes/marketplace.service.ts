@@ -50,9 +50,9 @@ export class MarketplaceService {
     })
   }
 
-  async getPkg (id: string, version?: string): Promise<MarketplacePkg> {
+  async getPkg (id: string, version = '*'): Promise<MarketplacePkg> {
     const pkgs = await this.api.getMarketplacePkgs({
-      ids: [{ id, version: version || '*' }],
+      ids: [{ id, version }],
       'eos-version-compat': this.patch.getData()['server-info']['eos-version-compat'],
     })
     const pkg = pkgs.find(pkg => pkg.manifest.id == id)
