@@ -74,6 +74,15 @@ export class FormObjectComponent {
       this.formGroup.addControl(control, unionGroup.controls[control])
     })
 
+    Object.entries(this.unionSpec.variants[e.detail.value]).forEach(([key, value]) => {
+      if (['object', 'union'].includes(value.type)) {
+        this.objectDisplay[key] = {
+          expanded: false,
+          height: '0px',
+        }
+      }
+    })
+
     this.onExpand.emit()
   }
 
