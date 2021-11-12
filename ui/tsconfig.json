@@ -12,6 +12,7 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "strictNullChecks": false,
+    "skipLibCheck": true,
     "target": "es2015",
     "paths": {
       "stream": ["./node_modules/stream-browserify"],
