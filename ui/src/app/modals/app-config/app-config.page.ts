@@ -1,7 +1,7 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { AlertController, ModalController, IonContent, LoadingController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { DependentInfo, isEmptyObject } from 'src/app/util/misc.util'
+import { DependentInfo, isEmptyObject, isObject } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
@@ -10,7 +10,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService, getErrorMessage } from 'src/app/services/error-toast.service'
 import { FormGroup } from '@angular/forms'
 import { convertValuesRecursive, FormService } from 'src/app/services/form.service'
-import { compare, Operation } from 'fast-json-patch'
+import { compare, Operation, getValueByPointer } from 'fast-json-patch'
 
 @Component({
   selector: 'app-config',
@@ -21,6 +21,7 @@ export class AppConfigPage {
   @ViewChild(IonContent) content: IonContent
   @Input() pkgId: string
   @Input() dependentInfo?: DependentInfo
+  diff: string[] // only if dependent info
   pkg: PackageDataEntry
   loadingText: string | undefined
   configSpec: ConfigSpec
@@ -72,6 +73,7 @@ export class AppConfigPage {
       this.configForm.markAllAsTouched()
 
       if (patch) {
+        this.diff = this.getDiff(patch)
         this.markDirty(patch)
       }
     } catch (e) {
@@ -145,6 +147,63 @@ export class AppConfigPage {
     } finally {
       this.saving = false
       loader.dismiss()
+    }
+  }
+
+  private getDiff (patch: Operation[]): string[] {
+    return patch.map(op => {
+      let message: string
+      switch (op.op) {
+        case 'add':
+          message = `Added ${this.getNewValue(op.value)}`
+          break
+        case 'remove':
+          message = `Removed ${this.getOldValue(op.path)}`
+          break
+        case 'replace':
+          message = `Changed from ${this.getOldValue(op.path)} to ${this.getNewValue(op.value)}`
+          break
+        default:
+          message = `Unknown operation`
+      }
+
+      let displayPath: string
+
+      const arrPath = op.path.substring(1)
+      .split('/')
+      .map(node => {
+        const num = Number(node)
+        return isNaN(num) ? node : num
+      })
+
+      if (typeof arrPath[arrPath.length - 1] === 'number') {
+        arrPath.pop()
+      }
+
+      displayPath = arrPath.join(' &rarr; ')
+
+      return `${displayPath}: ${message}`
+    })
+  }
+
+  private getOldValue (path: any): string {
+    const val = getValueByPointer(this.original, path)
+    if (['string', 'number', 'boolean'].includes(typeof val)) {
+      return val
+    } else if (isObject(val)) {
+      return 'entry'
+    } else {
+      return 'list'
+    }
+  }
+
+  private getNewValue (val: any): string {
+    if (['string', 'number', 'boolean'].includes(typeof val)) {
+      return val
+    } else if (isObject(val)) {
+      return 'new entry'
+    } else {
+      return 'new list'
     }
   }
 
