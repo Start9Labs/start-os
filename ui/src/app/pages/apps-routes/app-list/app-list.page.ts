@@ -1,4 +1,5 @@
 import { Component } from '@angular/core'
+import { ItemReorderEventDetail } from '@ionic/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -104,23 +105,14 @@ export class AppListPage {
 
   toggleReorder (): void {
     if (this.reordering) {
-      const newPkgs = []
-      this.order.forEach(id => {
-        const pkg = this.pkgs.find(pkg => pkg.entry.manifest.id === id)
-        if (pkg) {
-          newPkgs.push(pkg)
-        }
-      })
-      this.pkgs = newPkgs
+      this.order = this.pkgs.map(pkg => pkg.entry.manifest.id)
       this.setOrder()
     }
     this.reordering = !this.reordering
   }
 
-  async reorder (ev: any): Promise<void> {
-    ev.detail.complete()
-    const toMove = this.order.splice(ev.detail.from, 1)[0]
-    this.order.splice(ev.detail.to, 0, toMove)
+  async reorder (ev: CustomEvent<ItemReorderEventDetail>): Promise<void> {
+    this.pkgs = ev.detail.complete(this.pkgs)
   }
 
   async install (pkg: RecoveredInfo): Promise<void> {
