@@ -292,10 +292,11 @@ export module Mock {
                     'lan-address': {
                       'name': 'LAN Address',
                       'type': 'pointer',
-                      'subtype': 'app',
+                      'subtype': 'package',
                       'target': 'lan-address',
-                      'app-id': 'bitcoind',
                       'description': 'the lan address',
+                      'interface': 'tor-address',
+                      'package-id': '12341234',
                     },
                     'friendly-name': {
                       'name': 'Friendly Name',
@@ -1091,7 +1092,232 @@ export module Mock {
     },
   } as any // @TODO why is this necessary?
 
-  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = {
+  const realWorldConfigSpec: RR.GetPackageConfigRes = {
+    'config': {
+       'bitcoind': {
+          'bitcoind-rpc': {
+             'type': 'internal',
+             'rpc-user': 'btcpayserver',
+             'rpc-password': '3ZRIgPq60y3bpWRPXKPdhV',
+          },
+          'bitcoind-p2p': {
+             'type': 'internal',
+          },
+       },
+       'lightning': {
+          'type': 'lnd',
+       },
+       'tor-address': 'fzo2uwpfx3yxgvb2fjhmkbxa27logah3c7zw3fc6rxq5osqyegyy34qd.onion',
+    },
+    'spec': {
+       'tor-address': {
+          'type': 'pointer',
+          'subtype': 'package',
+          'target': 'tor-address',
+          'package-id': 'btcpayserver',
+          'interface': 'network',
+          'description': 'The Tor address for the network interface.',
+          'name': 'Network Tor Address',
+       },
+       'bitcoind': {
+          'type': 'object',
+          'spec': {
+             'bitcoind-rpc': {
+                'type': 'union',
+                'tag': {
+                   'id': 'type',
+                   'name': 'Type',
+                   'description': 'The Bitcoin Core node to connect to:\n  - internal: The Bitcoin Core and Proxy services installed to your Embassy\n  - external: An unpruned Bitcoin Core node running on a different device\n',
+                   'variant-names': {
+                      'external': 'External',
+                      'internal': 'Internal',
+                   },
+                },
+                'variants': {
+                   'external': {
+                      'connection-settings': {
+                         'type': 'union',
+                         'tag': {
+                            'id': 'type',
+                            'name': 'Type',
+                            'description': '- Manual: Raw information for finding a Bitcoin Core node\n- Quick Connect: A Quick Connect URL for a Bitcoin Core node\n',
+                            'variant-names': {
+                               'manual': 'Manual',
+                               'quick-connect': 'Quick Connect',
+                            },
+                         },
+                         'variants': {
+                            'manual': {
+                               'rpc-host': {
+                                  'type': 'string',
+                                  'copyable': false,
+                                  'masked': false,
+                                  'nullable': false,
+                                  'default': null,
+                                  'description': 'The public address of your Bitcoin Core server',
+                                  'name': 'Public Address',
+                               },
+                               'rpc-user': {
+                                  'type': 'string',
+                                  'copyable': false,
+                                  'masked': false,
+                                  'nullable': false,
+                                  'default': null,
+                                  'description': 'The username for the RPC user on your Bitcoin Core RPC server',
+                                  'name': 'RPC Username',
+                               },
+                               'rpc-password': {
+                                  'type': 'string',
+                                  'copyable': false,
+                                  'masked': false,
+                                  'nullable': false,
+                                  'default': null,
+                                  'description': 'The password for the RPC user on your Bitcoin Core RPC server',
+                                  'name': 'RPC Password',
+                               },
+                               'rpc-port': {
+                                  'type': 'number',
+                                  'range': '[0,65535]',
+                                  'integral': true,
+                                  'nullable': false,
+                                  'default': 8332,
+                                  'description': 'The port that your Bitcoin Core RPC server is bound to',
+                                  'name': 'RPC Port',
+                               },
+                            },
+                            'quick-connect': {
+                               'quick-connect-url': {
+                                  'type': 'string',
+                                  'copyable': false,
+                                  'masked': false,
+                                  'nullable': false,
+                                  'default': null,
+                                  'description': 'The Quick Connect URL for your Bitcoin Core RPC server\nNOTE: LND will not accept a .onion url for this option\n',
+                                  'name': 'Quick Connect URL',
+                               },
+                            },
+                         },
+                         'display-as': null,
+                         'unique-by': null,
+                         'default': 'quick-connect',
+                         'description': 'Information to connect to an external unpruned Bitcoin Core node',
+                         'name': 'Connection Settings',
+                      },
+                   },
+                   'internal': {
+                      'rpc-user': {
+                         'type': 'pointer',
+                         'subtype': 'package',
+                         'target': 'config',
+                         'package-id': 'btc-rpc-proxy',
+                         'selector': '$.users.[?(@.name == "btcpayserver")].name',
+                         'multi': false,
+                         'description': 'The username for the RPC user allocated to BTCPay',
+                         'name': 'RPC Username',
+                         'interface': 'asdf',
+                      },
+                      'rpc-password': {
+                         'type': 'pointer',
+                         'subtype': 'package',
+                         'target': 'config',
+                         'package-id': 'btc-rpc-proxy',
+                         'selector': '$.users.[?(@.name == "btcpayserver")].password',
+                         'multi': false,
+                         'description': 'The password for the RPC user allocated to BTCPay',
+                         'name': 'RPC Password',
+                         'interface': 'asdf',
+                      },
+                   },
+                },
+                'display-as': null,
+                'unique-by': null,
+                'default': 'internal',
+                'description': 'The Bitcoin Core node to connect to over the RPC interface',
+                'name': 'Bitcoin Core RPC',
+             },
+             'bitcoind-p2p': {
+                'type': 'union',
+                'tag': {
+                   'id': 'type',
+                   'name': 'type',
+                   'description': null,
+                   'variant-names': {
+                      'external': 'external',
+                      'internal': 'internal',
+                   },
+                },
+                'variants': {
+                   'external': {
+                      'p2p-host': {
+                         'type': 'string',
+                         'copyable': false,
+                         'masked': false,
+                         'nullable': false,
+                         'default': null,
+                         'description': 'The public address of your Bitcoin Core server',
+                         'name': 'Public Address',
+                      },
+                      'p2p-port': {
+                         'type': 'number',
+                         'range': '[0,65535]',
+                         'integral': true,
+                         'nullable': false,
+                         'default': 8333,
+                         'description': 'The port that your Bitcoin Core P2P server is bound to',
+                         'name': 'P2P Port',
+                      },
+                   },
+                   'internal': {
+
+                   },
+                },
+                'display-as': null,
+                'unique-by': null,
+                'default': 'internal',
+                'description': 'The Bitcoin Core node to connect to over the P2P interface',
+                'name': 'Bitcoin Core P2P',
+             },
+          },
+          'display-as': null,
+          'unique-by': null,
+          'description': 'RPC and P2P interface configuration options for Bitcoin Core',
+          'name': 'Bitcoin Settings',
+       },
+       'lightning': {
+          'type': 'union',
+          'tag': {
+             'id': 'type',
+             'name': 'Type',
+             'description': 'Enables BTCPay to use the selected internal lightning node.',
+             'variant-names': {
+                'c-lightning': 'C-Lightning',
+                'lnd': 'LND',
+                'none': 'No selection',
+             },
+          },
+          'variants': {
+             'c-lightning': {
+
+             },
+             'lnd': {
+
+             },
+             'none': {
+
+             },
+          },
+          'display-as': null,
+          'unique-by': null,
+          'default': 'none',
+          'description': 'Use this setting to grant BTCPay access to your Embassy\\\'s LND or c-lightning node. If you prefer to use an external Lightning node, or you do not intend to use Lightning, leave this setting blank. Please see the "Instructions" page for more details.',
+          'name': 'Embassy Lightning Node',
+       },
+    },
+ }
+
+  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = realWorldConfigSpec.spec
+
+  const testSpec = {
     'testnet': {
       'name': 'Testnet',
       'type': 'boolean',
@@ -1388,10 +1614,11 @@ export module Mock {
               'lan-address': {
                 'name': 'LAN Address',
                 'type': 'pointer',
-                'subtype': 'app',
+                'subtype': 'package',
                 'target': 'lan-address',
-                'app-id': 'bitcoind',
+                'package-id': 'bitcoind',
                 'description': 'the lan address',
+                'interface': 'interface',
               },
             },
             'external': {
@@ -1433,6 +1660,48 @@ export module Mock {
               'push',
               'webhook',
             ],
+          },
+        },
+      },
+    },
+    'bitcoin-node': {
+      'name': 'Bitcoin Node Settings',
+      'type': 'union',
+      'unique-by': null,
+      'description': 'The node settings',
+      'default': 'internal',
+      'warning': 'Careful changing this',
+      'tag': {
+        'id': 'type',
+        'name': 'Type',
+        'variant-names': {
+          'internal': 'Internal',
+          'external': 'External',
+        },
+      },
+      'variants': {
+        'internal': {
+          'lan-address': {
+            'name': 'LAN Address',
+            'type': 'pointer',
+            'subtype': 'package',
+            'target': 'lan-address',
+            'package-id': 'bitcoind',
+            'description': 'the lan address',
+            'interface': 'asdf',
+          },
+        },
+        'external': {
+          'public-domain': {
+            'name': 'Public Domain',
+            'type': 'string',
+            'description': 'the public address of the node',
+            'nullable': false,
+            'default': 'bitcoinnode.com',
+            'pattern': '.*',
+            'pattern-description': 'anything',
+            'masked': false,
+            'copyable': true,
           },
         },
       },
@@ -1485,7 +1754,9 @@ export module Mock {
     },
   }
 
-  export const MockConfig = {
+  export const MockConfig = realWorldConfigSpec.config
+
+  const testConfig = {
     testnet: false,
     'object-list': [
       {
