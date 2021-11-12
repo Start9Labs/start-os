@@ -889,6 +889,7 @@ dependencies = [
  "patch-db",
  "pbkdf2",
  "pin-project",
+ "platforms",
  "prettytable-rs",
  "proptest",
  "proptest-derive",
@@ -2266,6 +2267,12 @@ name = "pkg-config"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3831453b3449ceb48b6d9c7ad7c96d5ea673e9b470a1dc578c2ce6521230884c"
+
+[[package]]
+name = "platforms"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "989d43012e2ca1c4a02507c67282691a0a3207f9dc67cec596b43fe925b3d325"
 
 [[package]]
 name = "ppv-lite86"

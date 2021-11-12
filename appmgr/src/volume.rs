@@ -215,9 +215,7 @@ impl Volume {
             } else {
                 path.as_ref()
             }),
-            Volume::Certificate { interface_id: _ } => {
-                ctx.net_controller.nginx.ssl_directory_for(pkg_id)
-            }
+            Volume::Certificate { interface_id: _ } => ctx.net_controller.ssl_directory_for(pkg_id),
             Volume::Backup { .. } => backup_dir(pkg_id),
         }
     }
