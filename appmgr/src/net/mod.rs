@@ -27,6 +27,8 @@ pub mod ssl;
 pub mod tor;
 pub mod wifi;
 
+const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
+
 #[command(subcommands(tor::tor))]
 pub fn net() -> Result<(), Error> {
     Ok(())
@@ -37,6 +39,7 @@ pub struct NetController {
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
     pub nginx: NginxController,
+    pub ssl: SslManager,
 }
 impl NetController {
     #[instrument(skip(db))]
@@ -47,7 +50,7 @@ impl NetController {
         db: SqlitePool,
         import_root_ca: Option<(PKey<Private>, X509)>,
     ) -> Result<Self, Error> {
-        let ssl_manager = match import_root_ca {
+        let ssl = match import_root_ca {
             None => SslManager::init(db).await,
             Some(a) => SslManager::import_root_ca(db, a.0, a.1).await,
         }?;
@@ -55,20 +58,29 @@ impl NetController {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
-            nginx: NginxController::init(PathBuf::from("/etc/nginx"), ssl_manager).await?,
+            nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
+            ssl,
         })
     }
 
+    pub fn ssl_directory_for(&self, pkg_id: &PackageId) -> PathBuf {
+        PathBuf::from(format!("{}/{}", PACKAGE_CERT_PATH, pkg_id))
+    }
+
     #[instrument(skip(self, interfaces))]
-    pub async fn add<
-        'a,
-        I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
-    >(
+    pub async fn add<'a, I>(
         &self,
         pkg_id: &PackageId,
         ip: Ipv4Addr,
         interfaces: I,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
+        for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
+    {
+        self.generate_certificate_mountpoint(pkg_id, &interfaces)
+            .await?;
+
         let interfaces_tor = interfaces
             .clone()
             .into_iter()
@@ -107,7 +119,7 @@ impl NetController {
                             },
                         )),
                     });
-                self.nginx.add(pkg_id.clone(), ip, interfaces)
+                self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
             }
         );
         tor_res?;
@@ -138,7 +150,31 @@ impl NetController {
         Ok(())
     }
 
+    async fn generate_certificate_mountpoint<'a, I>(
+        &self,
+        pkg_id: &PackageId,
+        interfaces: &I,
+    ) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
+        for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
+    {
+        tracing::info!("Generating SSL Certificate mountpoints for {}", pkg_id);
+        let package_path = PathBuf::from(PACKAGE_CERT_PATH).join(pkg_id);
+        tokio::fs::create_dir_all(&package_path).await?;
+        Ok(for (id, _, key) in interfaces {
+            let dns_base = OnionAddressV3::from(&key.public()).get_address_without_dot_onion();
+            let ssl_path_key = package_path.join(format!("{}.key.pem", id));
+            let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
+            let (key, chain) = self.ssl.certificate_for(&dns_base).await?;
+            tokio::try_join!(
+                crate::net::ssl::export_key(&key, &ssl_path_key),
+                crate::net::ssl::export_cert(&chain, &ssl_path_cert)
+            )?;
+        })
+    }
+
     pub async fn export_root_ca(&self) -> Result<(PKey<Private>, X509), Error> {
-        self.nginx.ssl_manager.export_root_ca().await
+        self.ssl.export_root_ca().await
     }
 }
