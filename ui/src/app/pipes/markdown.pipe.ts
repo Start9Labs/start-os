@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { marked } from 'marked'
+import * as marked from 'marked'
 import * as DOMPurify from 'dompurify'
 
 @Pipe({
