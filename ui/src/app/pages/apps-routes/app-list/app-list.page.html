@@ -91,7 +91,7 @@
 
         <!-- reordering -->
         <ion-list>
-          <ion-reorder-group *ngIf="reordering" disabled="false" (ionItemReorder)="reorder($event)">
+          <ion-reorder-group *ngIf="reordering" disabled="false" (ionItemReorder)="reorder($any($event))">
             <ion-reorder *ngFor="let pkg of pkgs">
               <ion-item style="--background: var(--ion-color-medium-shade);">
                 <div
