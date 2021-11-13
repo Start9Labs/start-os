@@ -22,7 +22,6 @@ npm-debug.log*
 
 postprocess.js
 
-/.angular
 /.idea
 /.ionic
 /.sass-cache
