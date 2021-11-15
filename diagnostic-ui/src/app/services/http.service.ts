@@ -12,17 +12,14 @@ export class HttpService {
 
   async rpcRequest<T> (options: RPCOptions): Promise<T> {
     const res = await this.httpRequest<RPCResponse<T>>(options)
-
     if (isRpcError(res)) throw new RpcError(res.error)
-
     if (isRpcSuccess(res)) return res.result
   }
 
   async httpRequest<T> (body: RPCOptions): Promise<T> {
     const url = `${window.location.protocol}//${window.location.hostname}:${window.location.port}/rpc/v1`
     return this.http.post(url, body)
-      .toPromise()
-      .then((res: any) => res.body)
+      .toPromise().then(a => a as T)
       .catch(e => { throw new HttpError(e) })
   }
 }
