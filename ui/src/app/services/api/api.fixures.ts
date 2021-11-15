@@ -975,50 +975,54 @@ export module Mock {
     'signal-strength': 50,
   }
 
-  export const Drives: RR.GetDrivesRes = [
-    {
-      logicalname: '/dev/sda',
-      model: null,
-      vendor: 'SSK',
-      partitions: [
-        {
-          logicalname: 'sdba1',
-          label: 'Matt Stuff',
-          capacity: 1000000000000,
-          used: 0,
-          'embassy-os': null,
-        },
-      ],
-      capacity: 1000000000000,
-      guid: 'asdfasdf',
+  export const BackupTargets: RR.GetBackupTargetsRes = {
+    'hsbdjhasbasda': {
+      type: 'cifs',
+      hostname: 'smb://192.169.10.0',
+      path: '/Desktop/embassy-backups',
+      username: 'TestUser',
+      mountable: false,
+      'embassy-os': {
+        version: '0.3.0',
+        full: true,
+        'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNK',
+        'wrapped-key': '',
+      },
     },
-    {
-      logicalname: '/dev/sdb',
-      model: 'JMS567 SATA 6Gb/s bridge',
-      vendor: 'Samsung',
-      partitions: [
-        {
-          logicalname: 'sdba1',
-          label: 'Partition 1',
-          capacity: 1000000000,
-          used: 1000000000,
-          'embassy-os': {
-            version: '0.3.0',
-            full: true,
-          },
-        },
-        {
-          logicalname: 'sdba2',
-          label: 'Partition 2',
-          capacity: 900000000,
-          used: 300000000,
-          'embassy-os': null,
-        },
-      ],
-      capacity: 10000000000,
-      guid: null,
+    // 'ftcvewdnkemfksdm': {
+    //   type: 'disk',
+    //   logicalname: 'sdba1',
+    //   label: 'Matt Stuff',
+    //   capacity: 1000000000000,
+    //   used: 0,
+    //   model: 'Evo SATA 2.5',
+    //   vendor: 'Samsung',
+    //   'embassy-os': null,
+    // },
+    'csgashbdjkasnd': {
+      type: 'cifs',
+      hostname: 'smb://192.169.10.0',
+      path: '/Desktop/embassy-backups-2',
+      username: 'TestUser',
+      mountable: true,
+      'embassy-os': null,
     },
-  ]
+    // 'powjefhjbnwhdva': {
+    //   type: 'disk',
+    //   logicalname: 'sdba1',
+    //   label: 'Another Drive',
+    //   capacity: 2000000000000,
+    //   used: 100000000000,
+    //   model: null,
+    //   vendor: 'SSK',
+    //   'embassy-os': {
+    //     version: '0.3.0',
+    //     full: true,
+    //     'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+    //     'wrapped-key': '',
+    //   },
+    // },
+  }
 
   export const BackupInfo: RR.GetBackupInfoRes = {
     version: '0.3.0',

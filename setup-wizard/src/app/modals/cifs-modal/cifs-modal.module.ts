@@ -2,17 +2,19 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { FormsModule } from '@angular/forms'
-import { SuccessPage } from './success.page'
-import { PasswordPageModule } from '../../modals/password/password.module'
+import { CifsModal } from './cifs-modal.page'
 
 @NgModule({
+  declarations: [
+    CifsModal,
+  ],
   imports: [
     CommonModule,
     FormsModule,
     IonicModule,
-    PasswordPageModule,
   ],
-  declarations: [SuccessPage],
-  exports: [SuccessPage],
+  exports: [
+    CifsModal,
+  ],
 })
-export class SuccessPageModule { }
+export class CifsModalModule { }

@@ -109,6 +109,7 @@ export class WifiPage {
       {
         text: 'Forget',
         icon: 'trash',
+        role: 'destructive',
         handler: () => {
           this.delete(ssid, i)
         },
