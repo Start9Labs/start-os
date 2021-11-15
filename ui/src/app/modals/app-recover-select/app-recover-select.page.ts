@@ -13,9 +13,10 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['./app-recover-select.page.scss'],
 })
 export class AppRecoverSelectPage {
-  @Input() logicalname: string
-  @Input() password: string
+  @Input() id: string
   @Input() backupInfo: BackupInfo
+  @Input() password: string
+  @Input() oldPassword: string
   options: (PackageBackupInfo & {
     id: string
     checked: boolean
@@ -69,7 +70,8 @@ export class AppRecoverSelectPage {
     try {
       await this.embassyApi.restorePackages({
         ids,
-        logicalname: this.logicalname,
+        'target-id': this.id,
+        'old-password': this.oldPassword,
         password: this.password,
       })
       this.modalCtrl.dismiss(undefined, 'success')

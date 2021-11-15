@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs'
-import { ApiService, DiskInfo, PartitionInfo } from './api/api.service'
+import { ApiService, RecoverySource } from './api/api.service'
 import { ErrorToastService } from './error-toast.service'
 import { pauseFor } from '../util/misc.util'
 
@@ -14,11 +14,10 @@ export class StateService {
   polling = false
   embassyLoaded = false
 
-  storageDrive: DiskInfo
-  embassyPassword: string
-  recoveryPartition: PartitionInfo
+  recoverySource: RecoverySource
   recoveryPassword: string
-  dataTransferProgress: { bytesTransferred: number; totalBytes: number } | null
+
+  dataTransferProgress: { bytesTransferred: number, totalBytes: number } | null
   dataProgress = 0
   dataProgSubject = new BehaviorSubject(this.dataProgress)
 
@@ -60,7 +59,6 @@ export class StateService {
     this.pollDataTransferProgress()
   }
 
-
   async importDrive (guid: string) : Promise<void> {
     const ret = await this.apiService.importDrive(guid)
     this.torAddress = ret['tor-address']
@@ -68,12 +66,12 @@ export class StateService {
     this.cert = ret['root-ca']
   }
 
-  async setupEmbassy () : Promise<void> {
+  async setupEmbassy (storageLogicalname: string, password: string) : Promise<void> {
     const ret = await this.apiService.setupEmbassy({
-      'embassy-logicalname': this.storageDrive.logicalname,
-      'embassy-password': this.embassyPassword,
-      'recovery-partition': this.recoveryPartition,
-      'recovery-password': this.recoveryPassword,
+      'embassy-logicalname': storageLogicalname,
+      'embassy-password': password,
+      'recovery-source': this.recoverySource || null,
+      'recovery-password': this.recoveryPassword || null,
     })
     this.torAddress = ret['tor-address']
     this.lanAddress = ret['lan-address']

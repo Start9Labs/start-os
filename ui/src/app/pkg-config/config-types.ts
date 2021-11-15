@@ -93,12 +93,14 @@ export interface ListValueSpecString {
   'pattern-description'?: string
   masked: boolean
   copyable: boolean
+  placeholder?: string
 }
 
 export interface ListValueSpecNumber {
   range: string
   integral: boolean
   units?: string
+  placeholder?: string
 }
 
 export interface ListValueSpecEnum {

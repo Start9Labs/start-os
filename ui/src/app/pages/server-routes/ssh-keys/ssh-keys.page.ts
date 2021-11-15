@@ -3,7 +3,7 @@ import { AlertController, LoadingController, ModalController } from '@ionic/angu
 import { SSHKey } from 'src/app/services/api/api.types'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
+import { GenericInputComponent, GenericInputOptions } from 'src/app/modals/generic-input/generic-input.component'
 
 @Component({
   selector: 'ssh-keys',
@@ -40,23 +40,37 @@ export class SSHKeysPage {
   async presentModalAdd () {
     const { name, description } = sshSpec
 
+    const options: GenericInputOptions = {
+      title: name,
+      message: description,
+      label: name,
+      submitFn: (pk: string) => this.add(pk),
+    }
+
     const modal = await this.modalCtrl.create({
       component: GenericInputComponent,
-      componentProps: {
-        title: name,
-        message: description,
-        label: name,
-        loadingText: 'Saving',
-        submitFn: (pk: string) => this.add(pk),
-      },
+      componentProps: { options },
       cssClass: 'alertlike-modal',
     })
     await modal.present()
   }
 
   async add (pubkey: string): Promise<void> {
-    const key = await this.embassyApi.addSshKey({ key: pubkey })
-    this.sshKeys.push(key)
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Saving...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      const key = await this.embassyApi.addSshKey({ key: pubkey })
+      this.sshKeys.push(key)
+    } catch (e) {
+      throw new Error(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   async presentAlertDelete (i: number) {
