@@ -4,15 +4,17 @@ import { IonicModule } from '@ionic/angular'
 import { FormsModule } from '@angular/forms'
 import { ProdKeyModal } from './prod-key-modal.page'
 
-import { ProdKeyModalRoutingModule } from './prod-key-modal-routing.module'
-
 @NgModule({
+  declarations: [
+    ProdKeyModal,
+  ],
   imports: [
     CommonModule,
     FormsModule,
     IonicModule,
-    ProdKeyModalRoutingModule,
   ],
-  declarations: [ProdKeyModal],
+  exports: [
+    ProdKeyModal,
+  ],
 })
 export class ProdKeyModalModule { }

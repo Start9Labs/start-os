@@ -31,6 +31,7 @@ export interface ServerInfo {
     downloaded: number
   }
   'eos-version-compat': string
+  'password-hash': string
 }
 
 export enum ServerStatus {

@@ -1,9 +1,15 @@
 import { OperatorFunction } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { DriveInfo, PartitionInfo } from '../services/api/api.types'
+import { CifsBackupTarget, DiskBackupTarget } from '../services/api/api.types'
 
 export type Omit<ObjectType, KeysType extends keyof ObjectType> = Pick<ObjectType, Exclude<keyof ObjectType, KeysType>>
 export type PromiseRes<T> = { result: 'resolve', value: T } | { result: 'reject', value: Error }
+
+export interface MappedBackupTarget {
+  id: string
+  hasValidBackup: boolean
+  entry: DiskBackupTarget | CifsBackupTarget
+}
 
 export interface DependentInfo {
   id: string
@@ -189,12 +195,4 @@ export function debounce (delay: number = 300): MethodDecorator {
 
     return descriptor
   }
-}
-
-export interface MappedDriveInfo extends DriveInfo {
-  partitions: MappedPartitionInfo[]
-}
-
-export interface MappedPartitionInfo extends PartitionInfo {
-  hasBackup: boolean
 }

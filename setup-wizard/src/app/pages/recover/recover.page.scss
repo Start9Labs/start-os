@@ -1,20 +1,4 @@
-.selected {
-  border: 4px solid var(--ion-color-secondary);
-  box-shadow: 4px 4px 16px var(--ion-color-light);
-}
-
-.drive-label {
+.target-label {
   font-weight: bold;
-  padding-bottom: 6px;
-}
-
-.skeleton-header {
-  width: 180px;
-  height: 18px;
-  --ion-text-color-rgb: var(--ion-color-light-rgb);
-  margin-bottom: 6px;
-}
-
-ion-item {
   padding-bottom: 6px;
 }
