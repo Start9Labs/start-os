@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
@@ -18,6 +18,7 @@ use tracing::instrument;
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
+pub const ROOT_CA_STATIC_PATH: &str = "/var/lib/embassy/ssl/root-ca.crt";
 
 #[derive(Debug)]
 pub struct SslManager {
@@ -168,6 +169,15 @@ impl SslManager {
             }
             Some((key, cert)) => Ok((key, cert)),
         }?;
+        // generate static file for download, this will get blown up on embassy restart so it's good to write it on
+        // every ssl manager init
+        tokio::fs::create_dir_all(
+            Path::new(ROOT_CA_STATIC_PATH)
+                .parent()
+                .unwrap_or(Path::new("/")),
+        )
+        .await?;
+        tokio::fs::write(ROOT_CA_STATIC_PATH, root_cert.to_pem()?).await?;
         let (int_key, int_cert) = match store.load_intermediate_certificate().await? {
             None => {
                 let int_key = generate_key()?;

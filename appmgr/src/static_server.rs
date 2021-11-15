@@ -1,6 +1,6 @@
 use std::fs::Metadata;
 use std::future::Future;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use digest::Digest;
@@ -69,7 +69,20 @@ async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Respo
                 .unwrap());
         }
         (Ok(valid_session), Method::GET, Some(("package-data", path))) => {
-            file_send(valid_session, &ctx, PathBuf::from(path)).await
+            file_send(
+                valid_session,
+                &ctx,
+                ctx.datadir.join(PKG_PUBLIC_DIR).join(path),
+            )
+            .await
+        }
+        (Ok(valid_session), Method::GET, Some(("eos", "local.crt"))) => {
+            file_send(
+                valid_session,
+                &ctx,
+                PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH),
+            )
+            .await
         }
         _ => Ok(not_found()),
     }
@@ -93,21 +106,22 @@ fn server_error() -> Response<Body> {
 async fn file_send(
     _valid_session: HasValidSession,
     ctx: &RpcContext,
-    filename: PathBuf,
+    path: impl AsRef<Path>,
 ) -> Result<Response<Body>, Error> {
     // Serve a file by asynchronously reading it by chunks using tokio-util crate.
-    let path = ctx.datadir.join(PKG_PUBLIC_DIR).join(filename);
 
-    if let Ok(file) = File::open(path.clone()).await {
+    let path = path.as_ref();
+
+    if let Ok(file) = File::open(path).await {
         let metadata = file.metadata().await.with_kind(ErrorKind::Filesystem)?;
-        let _is_non_empty = match IsNonEmptyFile::new(&metadata, &path) {
+        let _is_non_empty = match IsNonEmptyFile::new(&metadata, path) {
             Some(a) => a,
             None => return Ok(not_found()),
         };
 
         let mut builder = Response::builder().status(StatusCode::OK);
-        builder = with_e_tag(&path, &metadata, builder)?;
-        builder = with_content_type(&path, builder);
+        builder = with_e_tag(path, &metadata, builder)?;
+        builder = with_content_type(path, builder);
         builder = with_content_length(&metadata, builder);
         let stream = FramedRead::new(file, BytesCodec::new());
         let body = Body::wrap_stream(stream);
@@ -120,7 +134,7 @@ async fn file_send(
 
 struct IsNonEmptyFile(());
 impl IsNonEmptyFile {
-    fn new(metadata: &Metadata, path: &PathBuf) -> Option<Self> {
+    fn new(metadata: &Metadata, path: &Path) -> Option<Self> {
         let length = metadata.len();
         if !metadata.is_file() || length == 0 {
             tracing::debug!("File is empty: {:?}", path);
@@ -130,7 +144,7 @@ impl IsNonEmptyFile {
     }
 }
 
-fn with_e_tag(path: &PathBuf, metadata: &Metadata, builder: Builder) -> Result<Builder, Error> {
+fn with_e_tag(path: &Path, metadata: &Metadata, builder: Builder) -> Result<Builder, Error> {
     let modified = metadata.modified().with_kind(ErrorKind::Filesystem)?;
     let mut hasher = sha2::Sha256::new();
     hasher.update(format!("{:?}", path).as_bytes());
@@ -151,7 +165,7 @@ fn with_e_tag(path: &PathBuf, metadata: &Metadata, builder: Builder) -> Result<B
     ))
 }
 ///https://en.wikipedia.org/wiki/Media_type
-fn with_content_type(path: &PathBuf, builder: Builder) -> Builder {
+fn with_content_type(path: &Path, builder: Builder) -> Builder {
     let content_type = match path.extension() {
         Some(os_str) => match os_str.to_str() {
             Some("apng") => "image/apng",
