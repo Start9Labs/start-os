@@ -7,13 +7,17 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
+use self::mount::filesystem::block_dev::BlockDev;
 use self::util::DiskInfo;
-use crate::disk::util::{BackupMountGuard, TmpMountGuard};
+use crate::disk::mount::backup::BackupMountGuard;
+use crate::disk::mount::guard::TmpMountGuard;
 use crate::s9pk::manifest::PackageId;
-use crate::util::{display_serializable, IoFormat, Version};
+use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::Version;
 use crate::Error;
 
 pub mod main;
+pub mod mount;
 pub mod quirks;
 pub mod util;
 
@@ -146,8 +150,11 @@ pub async fn backup_info(
     #[arg] logicalname: PathBuf,
     #[arg] password: String,
 ) -> Result<BackupInfo, Error> {
-    let guard =
-        BackupMountGuard::mount(TmpMountGuard::mount(logicalname, None).await?, &password).await?;
+    let guard = BackupMountGuard::mount(
+        TmpMountGuard::mount(&BlockDev::new(logicalname)).await?,
+        &password,
+    )
+    .await?;
 
     let res = guard.metadata.clone();
 

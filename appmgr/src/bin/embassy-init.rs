@@ -25,7 +25,6 @@ fn status_fn(_: i32) -> StatusCode {
 
 #[instrument]
 async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
-    embassy::disk::util::mount("LABEL=EMBASSY", "/embassy-os").await?;
     if tokio::fs::metadata("/embassy-os/disk.guid").await.is_err() {
         #[cfg(feature = "avahi")]
         let _mdns = MdnsController::init();

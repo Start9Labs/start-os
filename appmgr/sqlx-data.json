@@ -40,6 +40,24 @@
       "nullable": []
     }
   },
+  "1b2242afa55e730b37b00929b656d80940b457ec86c234ddd0de917bd8872611": {
+    "query": "INSERT INTO cifs_shares (hostname, path, username, password) VALUES (?, ?, ?, ?) RETURNING id AS \"id: u32\"",
+    "describe": {
+      "columns": [
+        {
+          "name": "id: u32",
+          "ordinal": 0,
+          "type_info": "Null"
+        }
+      ],
+      "parameters": {
+        "Right": 4
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
   "1eee1fdc793919c391008854407143d7a11b4668486c11a760b49af49992f9f8": {
     "query": "REPLACE INTO tor (package, interface, key) VALUES (?, 'main', ?)",
     "describe": {
@@ -262,6 +280,48 @@
       ]
     }
   },
+  "668f39c868f90cdbcc635858bac9e55ed73192ed2aec5c52dcfba9800a7a4a41": {
+    "query": "SELECT id AS \"id: u32\", hostname, path, username, password FROM cifs_shares",
+    "describe": {
+      "columns": [
+        {
+          "name": "id: u32",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "hostname",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "path",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "username",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "password",
+          "ordinal": 4,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true
+      ]
+    }
+  },
   "6b9abc9e079cff975f8a7f07ff70548c7877ecae3be0d0f2d3f439a6713326c0": {
     "query": "DELETE FROM notifications WHERE id < ?",
     "describe": {
@@ -374,12 +434,12 @@
       "nullable": []
     }
   },
-  "a596bdc5014ba9e7b362398abf09ec6a100923e001247a79503d1e820ffe71c3": {
-    "query": "-- Add migration script here\nCREATE TABLE IF NOT EXISTS tor\n(\n    package     TEXT NOT NULL,\n    interface   TEXT NOT NULL,\n    key         BLOB NOT NULL CHECK (length(key) = 64),\n    PRIMARY KEY (package, interface)\n);\nCREATE TABLE IF NOT EXISTS session\n(\n    id         TEXT NOT NULL PRIMARY KEY,\n    logged_in TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    logged_out TIMESTAMP,\n    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    user_agent TEXT,\n    metadata   TEXT NOT NULL DEFAULT 'null'\n);\nCREATE TABLE IF NOT EXISTS account\n(\n    id INTEGER PRIMARY KEY CHECK (id = 0),\n    password TEXT NOT NULL,\n    tor_key BLOB NOT NULL CHECK (length(tor_key) = 64)\n);\nCREATE TABLE IF NOT EXISTS ssh_keys\n(\n    fingerprint     TEXT NOT NULL,\n    openssh_pubkey  TEXT NOT NULL,\n    created_at      TEXT NOT NULL,\n    PRIMARY KEY (fingerprint)\n);\nCREATE TABLE IF NOT EXISTS certificates\n(\n    id INTEGER PRIMARY KEY, -- Root = 0, Int = 1, Other = 2..\n    priv_key_pem TEXT NOT NULL,\n    certificate_pem TEXT NOT NULL,\n    lookup_string TEXT UNIQUE,\n    created_at TEXT,\n    updated_at TEXT\n);\nCREATE TABLE IF NOT EXISTS notifications\n(\n    id INTEGER PRIMARY KEY,\n    package_id TEXT,\n    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    code INTEGER NOT NULL,\n    level TEXT NOT NULL,\n    title TEXT NOT NULL,\n    message TEXT NOT NULL,\n    data TEXT\n);",
+  "a4e7162322b28508310b9de7ebc891e619b881ff6d3ea09eba13da39626ab12f": {
+    "query": "UPDATE cifs_shares SET hostname = ?, path = ?, username = ?, password = ? WHERE id = ?",
     "describe": {
       "columns": [],
       "parameters": {
-        "Right": 0
+        "Right": 5
       },
       "nullable": []
     }
@@ -467,6 +527,52 @@
         true,
         false,
         false,
+        false,
+        false,
+        false,
+        true
+      ]
+    }
+  },
+  "b376d9e77e0861a9af2d1081ca48d14e83abc5a1546213d15bb570972c403beb": {
+    "query": "-- Add migration script here\nCREATE TABLE IF NOT EXISTS tor\n(\n    package     TEXT NOT NULL,\n    interface   TEXT NOT NULL,\n    key         BLOB NOT NULL CHECK (length(key) = 64),\n    PRIMARY KEY (package, interface)\n);\nCREATE TABLE IF NOT EXISTS session\n(\n    id         TEXT NOT NULL PRIMARY KEY,\n    logged_in TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    logged_out TIMESTAMP,\n    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    user_agent TEXT,\n    metadata   TEXT NOT NULL DEFAULT 'null'\n);\nCREATE TABLE IF NOT EXISTS account\n(\n    id INTEGER PRIMARY KEY CHECK (id = 0),\n    password TEXT NOT NULL,\n    tor_key BLOB NOT NULL CHECK (length(tor_key) = 64)\n);\nCREATE TABLE IF NOT EXISTS ssh_keys\n(\n    fingerprint     TEXT NOT NULL,\n    openssh_pubkey  TEXT NOT NULL,\n    created_at      TEXT NOT NULL,\n    PRIMARY KEY (fingerprint)\n);\nCREATE TABLE IF NOT EXISTS certificates\n(\n    id INTEGER PRIMARY KEY, -- Root = 0, Int = 1, Other = 2..\n    priv_key_pem TEXT NOT NULL,\n    certificate_pem TEXT NOT NULL,\n    lookup_string TEXT UNIQUE,\n    created_at TEXT,\n    updated_at TEXT\n);\nCREATE TABLE IF NOT EXISTS notifications\n(\n    id INTEGER PRIMARY KEY,\n    package_id TEXT,\n    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    code INTEGER NOT NULL,\n    level TEXT NOT NULL,\n    title TEXT NOT NULL,\n    message TEXT NOT NULL,\n    data TEXT\n);\nCREATE TABLE IF NOT EXISTS cifs_shares\n(\n    id INTEGER PRIMARY KEY,\n    hostname TEXT NOT NULL,\n    path TEXT NOT NULL,\n    username TEXT NOT NULL,\n    password TEXT\n);",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": []
+    }
+  },
+  "cc33fe2958fe7caeac6999a217f918a68b45ad596664170b4d07671c6ea49566": {
+    "query": "SELECT hostname, path, username, password FROM cifs_shares WHERE id = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "hostname",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "path",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "username",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "password",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
         false,
         false,
         false,
@@ -564,6 +670,16 @@
         false,
         false
       ]
+    }
+  },
+  "f63c8c5a8754b34a49ef5d67802fa2b72aa409bbec92ecc6901492092974b71a": {
+    "query": "DELETE FROM cifs_shares WHERE id = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
     }
   }
 }

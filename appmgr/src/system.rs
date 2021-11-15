@@ -12,7 +12,8 @@ use crate::db::util::WithRevision;
 use crate::disk::util::{get_available, get_percentage, get_used};
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
-use crate::util::{display_none, display_serializable, IoFormat};
+use crate::util::display_none;
+use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";

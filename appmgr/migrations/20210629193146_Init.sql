@@ -48,3 +48,11 @@ CREATE TABLE IF NOT EXISTS notifications
     message TEXT NOT NULL,
     data TEXT
 );
+CREATE TABLE IF NOT EXISTS cifs_shares
+(
+    id INTEGER PRIMARY KEY,
+    hostname TEXT NOT NULL,
+    path TEXT NOT NULL,
+    username TEXT NOT NULL,
+    password TEXT
+);

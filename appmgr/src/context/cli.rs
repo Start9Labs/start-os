@@ -22,7 +22,7 @@ use crate::ResultExt;
 pub struct CliContextConfig {
     pub bind_rpc: Option<SocketAddr>,
     pub host: Option<Url>,
-    #[serde(deserialize_with = "crate::util::deserialize_from_str_opt")]
+    #[serde(deserialize_with = "crate::util::serde::deserialize_from_str_opt")]
     pub proxy: Option<Url>,
     pub cookie_path: Option<PathBuf>,
 }

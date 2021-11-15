@@ -12,7 +12,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
     }
-    crate::disk::util::bind(&log_dir, "/var/log/journal", false).await?;
+    crate::disk::mount::util::bind(&log_dir, "/var/log/journal", false).await?;
     Command::new("systemctl")
         .arg("restart")
         .arg("systemd-journald")
@@ -38,7 +38,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
         .arg("docker")
         .invoke(crate::ErrorKind::Docker)
         .await?;
-    crate::disk::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
+    crate::disk::mount::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
     Command::new("systemctl")
         .arg("reset-failed")
         .arg("docker")

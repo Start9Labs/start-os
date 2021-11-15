@@ -15,7 +15,7 @@ use tracing::instrument;
 use crate::action::docker::DockerAction;
 use crate::error::ResultExt;
 use crate::s9pk::manifest::PackageId;
-use crate::util::Reversible;
+use crate::util::serde::Reversible;
 use crate::Error;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]

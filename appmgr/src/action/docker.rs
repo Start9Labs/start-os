@@ -5,7 +5,6 @@ use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use bollard::container::StopContainerOptions;
 use futures::future::Either as EitherFuture;
 use nix::sys::signal;
 use nix::unistd::Pid;
@@ -16,7 +15,8 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
-use crate::util::{IoFormat, Version};
+use crate::util::serde::IoFormat;
+use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
 

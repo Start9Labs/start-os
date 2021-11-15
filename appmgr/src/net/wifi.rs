@@ -11,7 +11,8 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::util::{display_none, display_serializable, Invoke, IoFormat};
+use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind};
 
 #[command(subcommands(add, connect, delete, get, set_country))]
