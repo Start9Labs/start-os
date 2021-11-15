@@ -46,6 +46,12 @@ export class HomePage {
           problem: 'Storage drive corrupted. This could be the result of data corruption or a physical damage.',
           solution: 'It may or may not be possible to re-use this drive by reformatting and recovering from backup. To enter recovery mode, click ENTER RECOVERY MODE below, then follow instructions. No data will be erased during this step.'
         }
+      } else {
+        this.error = {
+          code: error.code,
+          problem: error.message,
+          solution: 'Please conact support.'
+        }
       }
     } catch (e) {
       console.error(e)
