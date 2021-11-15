@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use tokio::process::Command;
 use tracing::instrument;
 
-use crate::disk::util::{mount, unmount};
+use crate::disk::mount::filesystem::block_dev::mount;
+use crate::disk::mount::util::unmount;
 use crate::util::Invoke;
 use crate::{Error, ResultExt};
 

@@ -16,7 +16,8 @@ use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::id::{Id, InvalidId};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{display_serializable, parse_stdin_deserializable, IoFormat, Version};
+use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
+use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
 

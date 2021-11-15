@@ -17,13 +17,15 @@ use crate::disk::PackageBackupInfo;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{AtomicFile, IoFormat, Version};
+use crate::util::serde::IoFormat;
+use crate::util::{AtomicFile, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
 use crate::{Error, ResultExt};
 
 pub mod backup_bulk;
 pub mod restore;
+pub mod target;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BackupReport {

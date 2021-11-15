@@ -4,7 +4,8 @@ use rpc_toolkit::command;
 
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
-use crate::util::{display_none, display_serializable, IoFormat};
+use crate::util::display_none;
+use crate::util::serde::{display_serializable, IoFormat};
 use crate::Error;
 
 #[command(subcommands(hash, manifest, license, icon, instructions, docker_images))]

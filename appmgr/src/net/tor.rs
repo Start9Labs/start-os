@@ -19,7 +19,7 @@ use tracing::instrument;
 use super::interface::{InterfaceId, TorConfig};
 use crate::context::RpcContext;
 use crate::s9pk::manifest::PackageId;
-use crate::util::{display_serializable, IoFormat};
+use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind, ResultExt as _};
 
 #[test]

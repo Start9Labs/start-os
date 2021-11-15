@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -14,17 +13,20 @@ use tokio::io::AsyncWriteExt;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
+use super::target::BackupTargetId;
 use super::PackageBackupReport;
 use crate::auth::check_password_against_db;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::model::ServerStatus;
 use crate::db::util::WithRevision;
-use crate::disk::util::{BackupMountGuard, TmpMountGuard};
+use crate::disk::mount::backup::BackupMountGuard;
+use crate::disk::mount::guard::TmpMountGuard;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
-use crate::util::{display_none, AtomicFile, IoFormat};
+use crate::util::serde::IoFormat;
+use crate::util::{display_none, AtomicFile};
 use crate::version::VersionT;
 use crate::Error;
 
@@ -112,14 +114,17 @@ impl Serialize for OsBackup {
 #[instrument(skip(ctx, old_password, password))]
 pub async fn backup_all(
     #[context] ctx: RpcContext,
-    #[arg] logicalname: PathBuf,
+    #[arg(rename = "target-id")] target_id: BackupTargetId,
     #[arg(rename = "old-password", long = "old-password")] old_password: Option<String>,
     #[arg] password: String,
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
+    let fs = target_id
+        .load(&mut ctx.secret_store.acquire().await?)
+        .await?;
     let mut backup_guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(&logicalname, None).await?,
+        TmpMountGuard::mount(&fs).await?,
         old_password.as_ref().unwrap_or(&password),
     )
     .await?;
