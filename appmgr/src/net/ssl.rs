@@ -172,9 +172,9 @@ impl SslManager {
         // generate static file for download, this will get blown up on embassy restart so it's good to write it on
         // every ssl manager init
         tokio::fs::create_dir_all(
-            &PathBuf::from(ROOT_CA_STATIC_PATH)
+            Path::new(ROOT_CA_STATIC_PATH)
                 .parent()
-                .unwrap_or(&PathBuf::from("/")),
+                .unwrap_or(Path::new("/")),
         )
         .await?;
         tokio::fs::write(ROOT_CA_STATIC_PATH, root_cert.to_pem()?).await?;
