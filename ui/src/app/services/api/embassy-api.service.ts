@@ -121,16 +121,20 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // backup
 
+  abstract getBackupTargets (params: RR.GetBackupTargetsReq): Promise<RR.GetBackupTargetsRes>
+
+  abstract addBackupTarget (params: RR.AddBackupTargetReq): Promise<RR.AddBackupTargetRes>
+
+  abstract updateBackupTarget (params: RR.UpdateBackupTargetReq): Promise<RR.UpdateBackupTargetRes>
+
+  abstract removeBackupTarget (params: RR.RemoveBackupTargetReq): Promise<RR.RemoveBackupTargetRes>
+
+  abstract getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes>
+
   protected abstract createBackupRaw (params: RR.CreateBackupReq): Promise<RR.CreateBackupRes>
   createBackup = (params: RR.CreateBackupReq) => this.syncResponse(
     () => this.createBackupRaw(params),
   )()
-
-  // drive
-
-  abstract getDrives (params: RR.GetDrivesReq): Promise<RR.GetDrivesRes>
-
-  abstract getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes>
 
   // package
 

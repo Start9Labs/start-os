@@ -109,6 +109,7 @@ export class WifiPage {
       {
         text: 'Forget',
         icon: 'trash',
+        role: 'destructive',
         handler: () => {
           this.delete(ssid, i)
         },
@@ -248,8 +249,6 @@ export class WifiPage {
     try {
       await this.api.deleteWifi({ ssid })
       this.wifi.ssids = this.wifi.ssids.filter((w, index) => index !== i)
-
-      console.log(this.wifi.ssids)
     } catch (e) {
       this.errToast.present(e)
     } finally {

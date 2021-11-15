@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
-import { interval, Observable, Subscription } from 'rxjs'
-import { delay, finalize, take, tap } from 'rxjs/operators'
+import { interval, Subscription } from 'rxjs'
+import { finalize, take, tap } from 'rxjs/operators'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -9,7 +9,7 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['init.page.scss'],
 })
 export class InitPage {
-  progress: number
+  progress = 0
   sub: Subscription
 
   constructor (

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { ApiService, DiskInfo, GetStatusRes, RecoveryStatusRes, SetupEmbassyReq, SetupEmbassyRes } from './api.service'
+import { ApiService, DiskInfo, EmbassyOSRecoveryInfo, GetStatusRes, RecoverySource, RecoveryStatusRes, SetupEmbassyReq, SetupEmbassyRes, VerifyCifs } from './api.service'
 import { HttpService } from './http.service'
 
 @Injectable({
@@ -43,6 +43,13 @@ export class LiveApiService extends ApiService {
 
   // ** ENCRYPTED **
 
+  async verifyCifs (params: VerifyCifs) {
+    return this.http.rpcRequest<EmbassyOSRecoveryInfo>({
+      method: 'setup.cifs.check',
+      params,
+    })
+  }
+
   async verifyProductKey () {
     return this.http.rpcRequest<void>({
       method: 'echo',
@@ -50,10 +57,10 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async verify03XPassword (logicalname: string, password: string) {
+  async verify03XPassword (source: RecoverySource, password: string) {
     return this.http.rpcRequest<boolean>({
       method: 'setup.recovery.test-password',
-      params: { logicalname, password },
+      params: { source, password },
     })
   }
 

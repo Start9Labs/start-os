@@ -25,8 +25,29 @@
 @import "~@ionic/angular/css/text-transformation.css";
 @import "~@ionic/angular/css/flex-utils.css";
 
+ion-content {
+  --background: var(--ion-color-medium);
+}
+
+ion-grid {
+  padding-top: 32px;
+  height: 100%;
+  max-width: 600px;
+}
+
+ion-row {
+  height: 100%;
+}
+
+ion-item {
+  --color: var(--ion-color-light);
+}
+
 ion-toolbar {
-  --ion-background-color: var(--ion-color-light); 
+  --ion-background-color: var(--ion-color-light);
+  ion-title {
+    color: var(--ion-color-dark);
+  }
 }
 
 ion-avatar {
@@ -34,24 +55,11 @@ ion-avatar {
   height: 27px;
 }
 
-ion-alert {
-  .alert-button {
-    color: var(--ion-color-dark) !important;
-  }
-}
-
-ion-button {
-  --color: var(--ion-color-dark) !important;
-}
-
 ion-item {
   --highlight-color-valid: transparent;
   --highlight-color-invalid: transparent;
 
   --border-radius: 4px;
-  --border-style: solid;
-  --border-width: 1px;
-  --border-color: var(--ion-color-light);
 }
 
 ion-card-title {
@@ -67,6 +75,11 @@ ion-toast {
   --border-style: solid;
   --border-width: 1px;
   --color: white;
+}
+
+.center-spinner { 
+  height: 20vh;
+  width: 100%;
 }
 
 .inline {
@@ -93,13 +106,6 @@ ion-toast {
   top: 64px;
 }
 
-.input-label {
-  text-align: left;
-  padding-bottom: 2px;
-  font-size: small;
-  font-weight: bold;
-}
-
 .error-border {
   border: 2px solid var(--ion-color-danger);
   border-radius: 4px;
@@ -111,9 +117,8 @@ ion-toast {
 }
 
 .modal-wrapper.sc-ion-modal-md {
-  border-radius: 6px;
-  border: 2px solid rgba(255,255,255,.03);
-  box-shadow: 0 0 70px 70px black;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,.03);
 }
 
 .modal-wrapper {

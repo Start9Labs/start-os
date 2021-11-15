@@ -3,7 +3,7 @@ import { pauseFor } from '../../util/misc.util'
 import { ApiService } from './embassy-api.service'
 import { PatchOp } from 'patch-db-client'
 import { DependencyErrorType, InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
-import { Log, RR, WithRevision } from './api.types'
+import { CifsBackupTarget, Log, RR, WithRevision } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import { HttpService } from '../http.service'
@@ -261,6 +261,49 @@ export class MockApiService extends ApiService {
 
   // backup
 
+  async getBackupTargets (params: RR.GetBackupTargetsReq): Promise<RR.GetBackupTargetsRes> {
+    await pauseFor(2000)
+    return Mock.BackupTargets
+  }
+
+  async addBackupTarget (params: RR.AddBackupTargetReq): Promise<RR.AddBackupTargetRes> {
+    await pauseFor(2000)
+    const { hostname, path, username } = params
+    return {
+      'latfgvwdbhjsndmk': {
+        type: 'cifs',
+        hostname,
+        path,
+        username,
+        mountable: true,
+        'embassy-os': null,
+      },
+    }
+  }
+
+  async updateBackupTarget (params: RR.UpdateBackupTargetReq): Promise<RR.UpdateBackupTargetRes> {
+    await pauseFor(2000)
+    const { id, hostname, path, username } = params
+    return {
+      [id]: {
+        ...Mock.BackupTargets[id] as CifsBackupTarget,
+        hostname,
+        path,
+        username,
+      },
+    }
+  }
+
+  async removeBackupTarget (params: RR.RemoveBackupTargetReq): Promise<RR.RemoveBackupTargetRes> {
+    await pauseFor(2000)
+    return null
+  }
+
+  async getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes> {
+    await pauseFor(2000)
+    return Mock.BackupInfo
+  }
+
   async createBackupRaw (params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
     const path = '/server-info/status'
@@ -313,18 +356,6 @@ export class MockApiService extends ApiService {
     }, 200)
 
     return res
-  }
-
-  // drives
-
-  async getDrives (params: RR.GetDrivesReq): Promise<RR.GetDrivesRes> {
-    await pauseFor(2000)
-    return Mock.Drives
-  }
-
-  async getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes> {
-    await pauseFor(2000)
-    return Mock.BackupInfo
   }
 
   // package

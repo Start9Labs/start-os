@@ -1,8 +1,8 @@
 <!-- not backing up -->
 <ng-container *ngIf="!backingUp">
   <backup-drives-header title="Create Backup"></backup-drives-header>
-  <ion-content class="ion-padding-top">
-    <backup-drives type="backup" (onSelect)="presentModalPassword($event)"></backup-drives>
+  <ion-content class="ion-padding">
+    <backup-drives type="create" (onSelect)="presentModalPassword($event)"></backup-drives>
   </ion-content>
 </ng-container>
 
@@ -38,9 +38,8 @@
               </ion-note>
               <!-- active -->
               <ion-note *ngIf="pkg.active" class="inline" slot="end">
+                <ion-spinner color="dark" style="height: 12px; width: 12px; margin-right: 6px;"></ion-spinner>
                 <ion-text color="dark">Backing up</ion-text>
-                &nbsp;
-                <ion-spinner color="dark" style="height: 12px; width: 12px;"></ion-spinner>
               </ion-note>
               <!-- queued -->
               <ion-note *ngIf="!pkg.complete && !pkg.active" slot="end">
