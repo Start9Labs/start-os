@@ -83,7 +83,9 @@ pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error
             .join("device")
             .join("vendor"),
     )
-    .await?;
+    .await?
+    .trim()
+    .to_owned();
     Ok(if vendor.is_empty() {
         None
     } else {
@@ -104,7 +106,9 @@ pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
             .join("device")
             .join("model"),
     )
-    .await?;
+    .await?
+    .trim()
+    .to_owned();
     Ok(if model.is_empty() { None } else { Some(model) })
 }
 

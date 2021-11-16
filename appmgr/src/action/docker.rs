@@ -3,7 +3,9 @@ use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
+use std::time::Duration;
 
+use bollard::container::StopContainerOptions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
@@ -46,17 +48,39 @@ impl DockerAction {
         volumes: &Volumes,
         input: Option<I>,
         allow_inject: bool,
+        timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let mut cmd = tokio::process::Command::new("docker");
+        let mut timeout_fut =
+            futures::future::Either::Left(futures::future::pending::<Result<_, Error>>());
         if self.inject && allow_inject {
             cmd.arg("exec");
         } else {
+            let container_name = Self::container_name(pkg_id, name);
             cmd.arg("run")
                 .arg("--rm")
                 .arg("--network=start9")
                 .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
                 .arg("--name")
-                .arg(Self::container_name(pkg_id, name));
+                .arg(&container_name);
+            if let Some(timeout) = timeout {
+                timeout_fut = futures::future::Either::Right(async move {
+                    tokio::time::sleep(timeout).await;
+
+                    match ctx
+                        .docker
+                        .stop_container(&container_name, Some(StopContainerOptions { t: 30 }))
+                        .await
+                    {
+                        Err(bollard::errors::Error::DockerResponseNotFoundError { .. })
+                        | Err(bollard::errors::Error::DockerResponseConflictError { .. })
+                        | Err(bollard::errors::Error::DockerResponseNotModifiedError { .. }) => (), // Already stopped
+                        a => a?,
+                    };
+
+                    Ok(futures::future::pending().await)
+                });
+            }
         }
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
@@ -85,10 +109,13 @@ impl DockerAction {
                 .await
                 .with_kind(crate::ErrorKind::Docker)?;
         }
-        let res = handle
+        let res = tokio::select! {
+            res = handle
             .wait_with_output()
-            .await
-            .with_kind(crate::ErrorKind::Docker)?;
+            => res
+            .with_kind(crate::ErrorKind::Docker)?,
+            res = timeout_fut => res?,
+        };
         Ok(if res.status.success() || res.status.code() == Some(143) {
             Ok(if let Some(format) = &self.io_format {
                 match format.from_slice(&res.stdout) {
@@ -125,6 +152,7 @@ impl DockerAction {
         pkg_version: &Version,
         volumes: &Volumes,
         input: Option<I>,
+        timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run").arg("--rm").arg("--network=none");
