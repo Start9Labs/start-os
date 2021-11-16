@@ -39,6 +39,7 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
                 &manifest.volumes,
                 None,
                 false,
+                None,
             )
             .await?
             .map_err(|(_, e)| Error::new(eyre!("{}", e), ErrorKind::Docker))

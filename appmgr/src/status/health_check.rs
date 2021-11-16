@@ -9,7 +9,7 @@ use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
-use crate::util::Version;
+use crate::util::{Duration, Version};
 use crate::volume::Volumes;
 use crate::Error;
 
@@ -72,6 +72,7 @@ pub struct HealthCheck {
     #[serde(flatten)]
     implementation: ActionImplementation,
     pub critical: bool,
+    pub timeout: Option<Duration>,
 }
 impl HealthCheck {
     #[instrument(skip(ctx))]
@@ -94,6 +95,10 @@ impl HealthCheck {
                 volumes,
                 Some(Utc::now().signed_duration_since(started).num_milliseconds()),
                 true,
+                Some(
+                    self.timeout
+                        .map_or(std::time::Duration::from_secs(30), |d| *d),
+                ),
             )
             .await?;
         Ok(match res {

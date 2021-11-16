@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 use std::process::{exit, Stdio};
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
 
 use async_trait::async_trait;
 use clap::ArgMatches;
@@ -651,30 +650,98 @@ pub fn parse_stdin_deserializable<T: for<'de> Deserialize<'de>>(
     format.from_reader(stdin)
 }
 
-pub fn parse_duration(arg: &str, _: &ArgMatches<'_>) -> Result<Duration, Error> {
-    let units_idx = arg.find(|c: char| c.is_alphabetic()).ok_or_else(|| {
-        Error::new(
-            eyre!("Must specify units for duration"),
-            crate::ErrorKind::Deserialization,
-        )
-    })?;
-    let (num, units) = arg.split_at(units_idx);
-    match units {
-        "d" if num.contains(".") => Ok(Duration::from_secs_f64(num.parse::<f64>()? * 86400_f64)),
-        "d" => Ok(Duration::from_secs(num.parse::<u64>()? * 86400)),
-        "h" if num.contains(".") => Ok(Duration::from_secs_f64(num.parse::<f64>()? * 3600_f64)),
-        "h" => Ok(Duration::from_secs(num.parse::<u64>()? * 3600)),
-        "m" if num.contains(".") => Ok(Duration::from_secs_f64(num.parse::<f64>()? * 60_f64)),
-        "m" => Ok(Duration::from_secs(num.parse::<u64>()? * 60)),
-        "s" if num.contains(".") => Ok(Duration::from_secs_f64(num.parse()?)),
-        "s" => Ok(Duration::from_secs(num.parse()?)),
-        "ms" => Ok(Duration::from_millis(num.parse()?)),
-        "us" => Ok(Duration::from_micros(num.parse()?)),
-        "ns" => Ok(Duration::from_nanos(num.parse()?)),
-        _ => Err(Error::new(
-            eyre!("Invalid units for duration"),
-            crate::ErrorKind::Deserialization,
-        )),
+#[derive(Debug, Clone, Copy)]
+pub struct Duration(std::time::Duration);
+impl Deref for Duration {
+    type Target = std::time::Duration;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl From<std::time::Duration> for Duration {
+    fn from(t: std::time::Duration) -> Self {
+        Duration(t)
+    }
+}
+impl std::str::FromStr for Duration {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let units_idx = s.find(|c: char| c.is_alphabetic()).ok_or_else(|| {
+            Error::new(
+                eyre!("Must specify units for duration"),
+                crate::ErrorKind::Deserialization,
+            )
+        })?;
+        let (num, units) = s.split_at(units_idx);
+        use std::time::Duration;
+        Ok(Duration(match units {
+            "d" if num.contains(".") => Duration::from_secs_f64(num.parse::<f64>()? * 86_400_f64),
+            "d" => Duration::from_secs(num.parse::<u64>()? * 86_400),
+            "h" if num.contains(".") => Duration::from_secs_f64(num.parse::<f64>()? * 3_600_f64),
+            "h" => Duration::from_secs(num.parse::<u64>()? * 3_600),
+            "m" if num.contains(".") => Duration::from_secs_f64(num.parse::<f64>()? * 60_f64),
+            "m" => Duration::from_secs(num.parse::<u64>()? * 60),
+            "s" if num.contains(".") => Duration::from_secs_f64(num.parse()?),
+            "s" => Duration::from_secs(num.parse()?),
+            "ms" if num.contains(".") => Duration::from_secs_f64(num.parse::<f64>()? / 1_000_f64),
+            "ms" => {
+                let millis: u128 = num.parse()?;
+                Duration::new((millis / 1_000) as u64, (millis % 1_000) as u32)
+            }
+            "us" | "µs" if num.contains(".") => {
+                Duration::from_secs_f64(num.parse::<f64>()? / 1_000_000_f64)
+            }
+            "us" | "µs" => {
+                let micros: u128 = num.parse()?;
+                Duration::new((micros / 1_000_000) as u64, (micros % 1_000_000) as u32)
+            }
+            "ns" if num.contains(".") => {
+                Duration::from_secs_f64(num.parse::<f64>()? / 1_000_000_000_f64)
+            }
+            "ns" => {
+                let nanos: u128 = num.parse()?;
+                Duration::new(
+                    (nanos / 1_000_000_000) as u64,
+                    (nanos % 1_000_000_000) as u32,
+                )
+            }
+            _ => {
+                return Err(Error::new(
+                    eyre!("Invalid units for duration"),
+                    crate::ErrorKind::Deserialization,
+                ))
+            }
+        }))
+    }
+}
+impl std::fmt::Display for Duration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let nanos = self.as_nanos();
+        match () {
+            _ if nanos % 86_400_000_000_000 == 0 => write!(f, "{}d", nanos / 86_400_000_000_000),
+            _ if nanos % 3_600_000_000_000 == 0 => write!(f, "{}h", nanos / 3_600_000_000_000),
+            _ if nanos % 60_000_000_000 == 0 => write!(f, "{}m", nanos / 60_000_000_000),
+            _ if nanos % 1_000_000_000 == 0 => write!(f, "{}s", nanos / 1_000_000_000),
+            _ if nanos % 1_000_000 == 0 => write!(f, "{}ms", nanos / 1_000_000),
+            _ if nanos % 1_000 == 0 => write!(f, "{}µs", nanos / 1_000),
+            _ => write!(f, "{}ns", nanos),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for Duration {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserialize_from_str(deserializer)
+    }
+}
+impl Serialize for Duration {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serialize_display(self, serializer)
     }
 }
 
