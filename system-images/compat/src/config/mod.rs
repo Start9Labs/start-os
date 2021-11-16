@@ -67,7 +67,7 @@ pub fn validate_dependency_configuration(
 
 pub fn apply_dependency_configuration(
     package_id: &str,
-    config: Config,
+    config: Option<Config>,
     dependency_id: &str,
     mut dep_config: Config,
     rules_path: &Path,
@@ -76,7 +76,10 @@ pub fn apply_dependency_configuration(
         serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
     cfgs.insert(dependency_id, Cow::Owned(dep_config.clone()));
-    cfgs.insert(package_id, Cow::Owned(config.clone()));
+    match config {
+        Some(config) => cfgs.insert(package_id, Cow::Owned(config.clone())),
+        None => cfgs.insert(package_id, Cow::Owned(serde_json::Map::new())),
+    };
     let rule_check = rules
         .into_iter()
         .map(|r| r.apply(dependency_id, &mut dep_config, &mut cfgs))
