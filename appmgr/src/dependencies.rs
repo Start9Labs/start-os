@@ -421,6 +421,7 @@ impl DependencyConfig {
                 dependent_version,
                 dependent_volumes,
                 Some(dependency_config),
+                None,
             )
             .await?
             .map_err(|(_, e)| e))
@@ -440,6 +441,7 @@ impl DependencyConfig {
                 dependent_version,
                 dependent_volumes,
                 Some(old),
+                None,
             )
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))
@@ -472,7 +474,7 @@ pub async fn configure_impl(
         &mut db,
         &dep_id,
         Some(new_config),
-        &Some(Duration::from_secs(3)),
+        &Some(Duration::from_secs(3).into()),
         false,
         &mut BTreeMap::new(),
         &mut BTreeMap::new(),
@@ -598,7 +600,14 @@ pub async fn configure_logic(
 
     let new_config = dependency
         .auto_configure
-        .sandboxed(&ctx, &pkg_id, &pkg_version, &pkg_volumes, Some(&old_config))
+        .sandboxed(
+            &ctx,
+            &pkg_id,
+            &pkg_version,
+            &pkg_volumes,
+            Some(&old_config),
+            None,
+        )
         .await?
         .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?;
 

@@ -11,6 +11,8 @@ PATCH_DB_CLIENT_SRC = $(shell find patch-db/client -not -path patch-db/client/di
 GIT_REFS := $(shell find .git/refs/heads)
 TMP_FILE := $(shell mktemp)
 
+.DELETE_ON_ERROR:
+
 all: eos.img
 
 gzip: eos.img

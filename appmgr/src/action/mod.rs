@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::str::FromStr;
+use std::time::Duration;
 
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
@@ -131,6 +132,7 @@ impl Action {
                 volumes,
                 input,
                 true,
+                None,
             )
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::Action))
@@ -154,11 +156,21 @@ impl ActionImplementation {
         volumes: &Volumes,
         input: Option<I>,
         allow_inject: bool,
+        timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         match self {
             ActionImplementation::Docker(action) => {
                 action
-                    .execute(ctx, pkg_id, pkg_version, name, volumes, input, allow_inject)
+                    .execute(
+                        ctx,
+                        pkg_id,
+                        pkg_version,
+                        name,
+                        volumes,
+                        input,
+                        allow_inject,
+                        timeout,
+                    )
                     .await
             }
         }
@@ -171,11 +183,12 @@ impl ActionImplementation {
         pkg_version: &Version,
         volumes: &Volumes,
         input: Option<I>,
+        timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         match self {
             ActionImplementation::Docker(action) => {
                 action
-                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input)
+                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
                     .await
             }
         }

@@ -92,6 +92,13 @@ impl NginxControllerInner {
                     if lan_port_config.ssl {
                         // these have already been written by the net controller
                         let package_path = nginx_root.join(format!("ssl/{}", package));
+                        if tokio::fs::metadata(&package_path).await.is_err() {
+                            tokio::fs::create_dir_all(&package_path)
+                                .await
+                                .with_ctx(|_| {
+                                    (ErrorKind::Filesystem, package_path.display().to_string())
+                                })?;
+                        }
                         let ssl_path_key = package_path.join(format!("{}.key.pem", id));
                         let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
                         let (key, chain) = ssl_manager.certificate_for(&meta.dns_base).await?;
