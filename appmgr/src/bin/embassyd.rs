@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
+use embassy::core::rpc_continuations::RequestGuid;
 use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
@@ -13,7 +14,8 @@ use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::util::{daemon, Invoke};
 use embassy::{static_server, Error, ErrorKind, ResultExt};
-use futures::{FutureExt, TryFutureExt};
+use futures::{FutureExt, TryFutureExt, TryStreamExt};
+use hyper::service::Service;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
 use rpc_toolkit::rpc_server;
@@ -154,8 +156,37 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                             let ctx = ctx.clone();
                             async move {
                                 match req.uri().path() {
-                                    "/db" => {
+                                    "/ws/db" => {
                                         Ok(subscribe(ctx, req).await.unwrap_or_else(err_to_500))
+                                    }
+                                    path if path.starts_with("/rest/rpc/") => {
+                                        match RequestGuid::from(
+                                            path.strip_prefix("/rest/rpc/").unwrap(),
+                                        ) {
+                                            None => Response::builder()
+                                                .status(StatusCode::BAD_REQUEST)
+                                                .body(Body::empty()),
+                                            Some(guid) => {
+                                                match ctx
+                                                    .rpc_stream_continuations
+                                                    .lock()
+                                                    .await
+                                                    .remove(&guid)
+                                                {
+                                                    None => Response::builder()
+                                                        .status(StatusCode::NOT_FOUND)
+                                                        .body(Body::empty()),
+                                                    Some(mut cont) => match cont.call(req).await {
+                                                        Ok(r) => Ok(r),
+                                                        Err(e) => Response::builder()
+                                                            .status(
+                                                                StatusCode::INTERNAL_SERVER_ERROR,
+                                                            )
+                                                            .body(Body::from(format!("{}", e))),
+                                                    },
+                                                }
+                                            }
+                                        }
                                     }
                                     _ => Response::builder()
                                         .status(StatusCode::NOT_FOUND)
