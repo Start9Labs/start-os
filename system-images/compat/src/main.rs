@@ -229,7 +229,8 @@ fn inner_main() -> Result<(), anyhow::Error> {
             }
             ("auto-configure", Some(sub_m)) => {
                 let dep_config = serde_yaml::from_reader(stdin())?;
-                let cfg_path = Path::new(sub_m.value_of("mountpoint").unwrap());
+                let cfg_path =
+                    Path::new(sub_m.value_of("mountpoint").unwrap()).join("start9/config.yaml");
                 let config = if cfg_path.exists() {
                     Some(serde_yaml::from_reader(File::open(cfg_path).unwrap()).unwrap())
                 } else {
