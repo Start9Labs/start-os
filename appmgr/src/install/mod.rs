@@ -1,7 +1,8 @@
 #![feature(btree_drain_filter)]
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::SeekFrom;
-use std::path::Path;
+use std::marker::PhantomData;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -17,14 +18,16 @@ use hyper::service::service_fn;
 use hyper::Body;
 use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
+use rpc_toolkit::yajrc::RpcError;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
 use tokio_stream::wrappers::ReadDirStream;
+use tokio_util::io::ReaderStream;
 use tracing::instrument;
 
 use self::cleanup::cleanup_failed;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, RecoveredPackageInfo,
@@ -42,7 +45,7 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
 use crate::util::io::copy_and_shutdown;
-use crate::util::{display_none, display_serializable, AsyncFileExt, Version};
+use crate::util::{display_none, display_serializable, AsyncFileExt, IoFormat, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::asset_dir;
 use crate::{Error, ResultExt};
@@ -272,6 +275,42 @@ pub async fn sideload(
         .await
         .insert(guid.clone(), cont);
     Ok(guid)
+}
+
+#[instrument(skip(ctx))]
+async fn cli_install(ctx: CliContext, target: String) -> Result<(), RpcError> {
+    if target.ends_with(".s9pk") {
+        let path = PathBuf::from(target);
+
+        // inspect manifest no verify
+        let manifest = crate::inspect::manifest(path.clone(), true, Some(IoFormat::Json)).await?;
+
+        // rpc call remote sideload
+        let guid = rpc_toolkit::command_helpers::call_remote(
+            ctx,
+            "package.sideload",
+            serde_json::json!({ "manifest": manifest }),
+            PhantomData::<RequestGuid>,
+        )
+        .await?
+        .result?;
+
+        // hit continuation api with guid that comes back
+        let file = tokio::fs::File::open(path).await?;
+        let body = Body::wrap_stream(tokio_util::io::ReaderStream::new());
+        let client = reqwest::Client::new();
+        let res = client.post("http://localhost/rest/rpc").body(body);
+    } else {
+        rpc_toolkit::command_helpers::call_remote(
+            ctx,
+            "package.install",
+            serde_json::json!({ "id": target }),
+            PhantomData::<()>,
+        )
+        .await?
+        .result?;
+    }
+    Ok(())
 }
 
 #[command(
