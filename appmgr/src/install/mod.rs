@@ -1,15 +1,20 @@
+#![feature(btree_drain_filter)]
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::SeekFrom;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt, TryStreamExt};
-use http::StatusCode;
+use http::header::CONTENT_LENGTH;
+use http::{Request, Response, StatusCode};
+use hyper::service::service_fn;
+use hyper::Body;
 use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 use tokio::fs::{File, OpenOptions};
@@ -20,6 +25,7 @@ use tracing::instrument;
 
 use self::cleanup::cleanup_failed;
 use crate::context::RpcContext;
+use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, RecoveredPackageInfo,
     StaticDependencyInfo, StaticFiles,
@@ -190,6 +196,82 @@ pub async fn install(
         revision: res,
         response: (),
     })
+}
+
+#[command(rpc_only, display(display_none))]
+#[instrument(skip(ctx))]
+pub async fn sideload(
+    #[context] ctx: RpcContext,
+    #[arg] manifest: Manifest,
+) -> Result<RequestGuid, Error> {
+    let new_ctx = ctx.clone();
+    let guid = RequestGuid::new();
+    let handler = Box::new(|req: Request<Body>| {
+        async move {
+            let content_length = match req.headers().get(CONTENT_LENGTH).map(|a| a.to_str()) {
+                None => None,
+                Some(Err(_)) => {
+                    return Response::builder()
+                        .status(StatusCode::BAD_REQUEST)
+                        .body(Body::from("Invalid Content Length"))
+                }
+                Some(Ok(a)) => match a.parse::<u64>() {
+                    Err(_) => {
+                        return Response::builder()
+                            .status(StatusCode::BAD_REQUEST)
+                            .body(Body::from("Invalid Content Length"))
+                    }
+                    Ok(a) => Some(a),
+                },
+            };
+            let res = download_install_s9pk(
+                &new_ctx,
+                &manifest,
+                InstallProgress::new(content_length),
+                tokio_util::io::StreamReader::new(req.into_body().map_err(|e| {
+                    std::io::Error::new(
+                        match &e {
+                            e if e.is_connect() => std::io::ErrorKind::ConnectionRefused,
+                            e if e.is_timeout() => std::io::ErrorKind::TimedOut,
+                            _ => std::io::ErrorKind::Other,
+                        },
+                        e,
+                    )
+                })),
+            )
+            .await;
+            match res {
+                Ok(()) => Response::builder()
+                    .status(StatusCode::OK)
+                    .body(Body::empty()),
+                Err(e) => {
+                    // TODO notify
+                    Response::builder()
+                        .status(StatusCode::INTERNAL_SERVER_ERROR)
+                        .body(Body::from(format!("{}", e)))
+                }
+            }
+        }
+        .boxed()
+    });
+    let cont = RpcContinuation {
+        created_at: Instant::now(), // TODO
+        handler: handler,
+    };
+    // gc the map
+    let mut guard = ctx.rpc_stream_continuations.lock().await;
+    let gced = std::mem::take(&mut *guard)
+        .into_iter()
+        .filter(|(_, v)| v.created_at.elapsed() < Duration::from_secs(30))
+        .collect::<BTreeMap<RequestGuid, RpcContinuation>>();
+    *guard = gced;
+    drop(guard);
+    // insert the new continuation
+    ctx.rpc_stream_continuations
+        .lock()
+        .await
+        .insert(guid.clone(), cont);
+    Ok(guid)
 }
 
 #[command(

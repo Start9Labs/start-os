@@ -176,14 +176,17 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                                                     None => Response::builder()
                                                         .status(StatusCode::NOT_FOUND)
                                                         .body(Body::empty()),
-                                                    Some(mut cont) => match cont.call(req).await {
-                                                        Ok(r) => Ok(r),
-                                                        Err(e) => Response::builder()
-                                                            .status(
-                                                                StatusCode::INTERNAL_SERVER_ERROR,
-                                                            )
-                                                            .body(Body::from(format!("{}", e))),
-                                                    },
+                                                    Some(cont) => {
+                                                        let fuck_rust_so_god_damn_much = cont.handler;
+                                                        match fuck_rust_so_god_damn_much(req).await {
+                                                            Ok(r) => Ok(r),
+                                                            Err(e) => Response::builder()
+                                                                .status(
+                                                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                                                )
+                                                                .body(Body::from(format!("{}", e))),
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
