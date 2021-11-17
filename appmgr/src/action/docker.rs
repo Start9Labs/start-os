@@ -6,6 +6,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use bollard::container::StopContainerOptions;
+use futures::future::Either as EitherFuture;
+use nix::sys::signal;
+use nix::unistd::Pid;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
@@ -51,8 +54,6 @@ impl DockerAction {
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let mut cmd = tokio::process::Command::new("docker");
-        let mut timeout_fut =
-            futures::future::Either::Left(futures::future::pending::<Result<_, Error>>());
         if self.inject && allow_inject {
             cmd.arg("exec");
         } else {
@@ -63,24 +64,6 @@ impl DockerAction {
                 .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
                 .arg("--name")
                 .arg(&container_name);
-            if let Some(timeout) = timeout {
-                timeout_fut = futures::future::Either::Right(async move {
-                    tokio::time::sleep(timeout).await;
-
-                    match ctx
-                        .docker
-                        .stop_container(&container_name, Some(StopContainerOptions { t: 30 }))
-                        .await
-                    {
-                        Err(bollard::errors::Error::DockerResponseNotFoundError { .. })
-                        | Err(bollard::errors::Error::DockerResponseConflictError { .. })
-                        | Err(bollard::errors::Error::DockerResponseNotModifiedError { .. }) => (), // Already stopped
-                        a => a?,
-                    };
-
-                    Ok(futures::future::pending().await)
-                });
-            }
         }
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
@@ -102,6 +85,28 @@ impl DockerAction {
                 .join(" ")
         );
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
+        let id = handle.id();
+        let timeout_fut = if let Some(timeout) = timeout {
+            EitherFuture::Right(async move {
+                tokio::time::sleep(timeout).await;
+
+                if let Some(id) = id {
+                    signal::kill(Pid::from_raw(id as i32), nix::sys::signal::SIGTERM)
+                        .with_kind(crate::ErrorKind::Docker)?;
+                }
+
+                tokio::time::sleep(Duration::from_secs(30)).await;
+
+                if let Some(id) = id {
+                    signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
+                        .with_kind(crate::ErrorKind::Docker)?;
+                }
+
+                Ok(futures::future::pending().await)
+            })
+        } else {
+            EitherFuture::Left(futures::future::pending::<Result<_, Error>>())
+        };
         if let (Some(input), Some(stdin)) = (&input_buf, &mut handle.stdin) {
             use tokio::io::AsyncWriteExt;
             stdin
