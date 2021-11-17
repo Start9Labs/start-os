@@ -46,7 +46,7 @@ pub fn validate_configuration(
 
 pub fn validate_dependency_configuration(
     name: &str,
-    config: Config,
+    config: &Option<Config>,
     parent_name: &str,
     parent_config: Config,
     rules_path: &Path,
@@ -54,7 +54,11 @@ pub fn validate_dependency_configuration(
     let rules: Vec<ConfigRuleEntry> = serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
     cfgs.insert(parent_name, Cow::Borrowed(&parent_config));
-    cfgs.insert(name, Cow::Borrowed(&config));
+    if let Some(config) = config {
+        cfgs.insert(name, Cow::Borrowed(&config))
+    } else {
+        cfgs.insert(name, Cow::Owned(serde_json::Map::new()))
+    };
     let rule_check = rules
         .into_iter()
         .map(|r| r.check(&parent_config, &cfgs))
