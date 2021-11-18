@@ -115,10 +115,7 @@ impl DockerAction {
                 .with_kind(crate::ErrorKind::Docker)?;
         }
         let res = tokio::select! {
-            res = handle
-            .wait_with_output()
-            => res
-            .with_kind(crate::ErrorKind::Docker)?,
+            res = handle.wait_with_output() => res.with_kind(crate::ErrorKind::Docker)?,
             res = timeout_fut => res?,
         };
         Ok(if res.status.success() || res.status.code() == Some(143) {
