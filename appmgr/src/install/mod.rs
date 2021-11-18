@@ -16,7 +16,7 @@ use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::service::service_fn;
 use hyper::Body;
-use patch_db::{DbHandle, LockType};
+use patch_db::{DbHandle, LockType, Model};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use tokio::fs::{File, OpenOptions};
@@ -48,7 +48,7 @@ use crate::util::io::copy_and_shutdown;
 use crate::util::{display_none, display_serializable, AsyncFileExt, IoFormat, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::asset_dir;
-use crate::{Error, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 
 pub mod cleanup;
 pub mod progress;
@@ -220,20 +220,67 @@ pub async fn sideload(
                     return Response::builder()
                         .status(StatusCode::BAD_REQUEST)
                         .body(Body::from("Invalid Content Length"))
+                        .with_kind(ErrorKind::Network)
                 }
                 Some(Ok(a)) => match a.parse::<u64>() {
                     Err(_) => {
                         return Response::builder()
                             .status(StatusCode::BAD_REQUEST)
                             .body(Body::from("Invalid Content Length"))
+                            .with_kind(ErrorKind::Network)
                     }
                     Ok(a) => Some(a),
                 },
             };
+            let progress = InstallProgress::new(content_length);
+
+            let mut hdl = new_ctx.db.handle();
+            let mut tx = hdl.begin().await?;
+
+            let mut pde = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&manifest.id)
+                .get_mut(&mut tx)
+                .await?;
+            match pde.take() {
+                Some(PackageDataEntry::Installed {
+                    installed,
+                    manifest,
+                    static_files,
+                }) => {
+                    *pde = Some(PackageDataEntry::Updating {
+                        install_progress: progress.clone(),
+                        installed,
+                        manifest,
+                        static_files,
+                    })
+                }
+                None => {
+                    *pde = Some(PackageDataEntry::Installing {
+                        install_progress: progress.clone(),
+                        static_files: StaticFiles::local(
+                            &manifest.id,
+                            &manifest.version,
+                            &manifest.assets.icon_type(),
+                        ),
+                        manifest: manifest.clone(),
+                    })
+                }
+                _ => {
+                    return Err(Error::new(
+                        eyre!("Cannot install over a package in a transient state"),
+                        crate::ErrorKind::InvalidRequest,
+                    ))
+                }
+            }
+            pde.save(&mut tx).await?;
+            tx.commit(None).await?;
+            drop(hdl);
+
             let res = download_install_s9pk(
                 &new_ctx,
                 &manifest,
-                InstallProgress::new(content_length),
+                progress,
                 tokio_util::io::StreamReader::new(req.into_body().map_err(|e| {
                     std::io::Error::new(
                         match &e {
@@ -245,18 +292,11 @@ pub async fn sideload(
                     )
                 })),
             )
-            .await;
-            match res {
-                Ok(()) => Response::builder()
-                    .status(StatusCode::OK)
-                    .body(Body::empty()),
-                Err(e) => {
-                    // TODO notify
-                    Response::builder()
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .body(Body::from(format!("{}", e)))
-                }
-            }
+            .await?;
+            Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::empty())
+                .with_kind(ErrorKind::Network)
         }
         .boxed()
     });

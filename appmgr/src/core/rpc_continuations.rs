@@ -23,13 +23,21 @@ impl RequestGuid {
             return None;
         }
         for c in r.chars() {
-            if !(c >= '0' && c <= '9' || c >= 'A' && c <= 'V') {
+            if !(c >= 'A' && c <= 'Z' || c >= '2' && c <= '7') {
                 return None;
             }
         }
         Some(RequestGuid(r.to_owned()))
     }
 }
+#[test]
+fn parse_guid() {
+    println!(
+        "{:?}",
+        RequestGuid::from(&format!("{}", RequestGuid::new()))
+    )
+}
+
 impl<T: AsRef<str>> std::fmt::Display for RequestGuid<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.as_ref().fmt(f)
@@ -39,7 +47,7 @@ impl<T: AsRef<str>> std::fmt::Display for RequestGuid<T> {
 pub struct RpcContinuation {
     pub created_at: Instant,
     pub handler: Box<
-        dyn FnOnce(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, http::Error>>
+        dyn FnOnce(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, crate::Error>>
             + Send
             + Sync,
     >,

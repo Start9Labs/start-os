@@ -155,6 +155,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                         move |req| {
                             let ctx = ctx.clone();
                             async move {
+                                tracing::debug!("Request to {}", req.uri().path());
                                 match req.uri().path() {
                                     "/ws/db" => {
                                         Ok(subscribe(ctx, req).await.unwrap_or_else(err_to_500))
@@ -163,9 +164,12 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                                         match RequestGuid::from(
                                             path.strip_prefix("/rest/rpc/").unwrap(),
                                         ) {
-                                            None => Response::builder()
-                                                .status(StatusCode::BAD_REQUEST)
-                                                .body(Body::empty()),
+                                            None => {
+                                                tracing::debug!("No Guid Path");
+                                                Response::builder()
+                                                    .status(StatusCode::BAD_REQUEST)
+                                                    .body(Body::empty())
+                                            }
                                             Some(guid) => {
                                                 match ctx
                                                     .rpc_stream_continuations
