@@ -180,8 +180,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                                                         .status(StatusCode::NOT_FOUND)
                                                         .body(Body::empty()),
                                                     Some(cont) => {
-                                                        let fuck_rust_so_god_damn_much = cont.handler;
-                                                        match fuck_rust_so_god_damn_much(req).await {
+                                                        match (cont.handler)(req).await {
                                                             Ok(r) => Ok(r),
                                                             Err(e) => Response::builder()
                                                                 .status(
