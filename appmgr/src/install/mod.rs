@@ -78,7 +78,10 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
         .collect())
 }
 
-#[command(display(display_none))]
+#[command(
+    custom_cli(cli_install(async, context(CliContext))),
+    display(display_none)
+)]
 #[instrument(skip(ctx))]
 pub async fn install(
     #[context] ctx: RpcContext,
@@ -286,6 +289,7 @@ async fn cli_install(ctx: CliContext, target: String) -> Result<(), RpcError> {
         let manifest = crate::inspect::manifest(path.clone(), true, Some(IoFormat::Json)).await?;
 
         // rpc call remote sideload
+        tracing::debug!("calling package.sideload");
         let guid = rpc_toolkit::command_helpers::call_remote(
             ctx,
             "package.sideload",
@@ -294,13 +298,26 @@ async fn cli_install(ctx: CliContext, target: String) -> Result<(), RpcError> {
         )
         .await?
         .result?;
+        tracing::debug!("package.sideload succeeded {:?}", guid);
 
         // hit continuation api with guid that comes back
         let file = tokio::fs::File::open(path).await?;
-        let body = Body::wrap_stream(tokio_util::io::ReaderStream::new());
+        let content_length = file.metadata().await?.len();
+        let body = Body::wrap_stream(tokio_util::io::ReaderStream::new(file));
         let client = reqwest::Client::new();
-        let res = client.post("http://localhost/rest/rpc").body(body);
+        let res = client
+            .post(format!("http://localhost:5960/rest/rpc/{}", guid))
+            .header(CONTENT_LENGTH, content_length)
+            .body(body)
+            .send()
+            .await?;
+        if res.status().as_u16() == 200 {
+            tracing::info!("Package Uploaded")
+        } else {
+            tracing::info!("Package Upload failed: {}", res.text().await?)
+        }
     } else {
+        tracing::debug!("calling package.install");
         rpc_toolkit::command_helpers::call_remote(
             ctx,
             "package.install",
@@ -309,6 +326,7 @@ async fn cli_install(ctx: CliContext, target: String) -> Result<(), RpcError> {
         )
         .await?
         .result?;
+        tracing::debug!("package.install succeeded");
     }
     Ok(())
 }
