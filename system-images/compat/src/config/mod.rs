@@ -46,7 +46,7 @@ pub fn validate_configuration(
 
 pub fn validate_dependency_configuration(
     name: &str,
-    config: Config,
+    config: &Option<Config>,
     parent_name: &str,
     parent_config: Config,
     rules_path: &Path,
@@ -54,7 +54,11 @@ pub fn validate_dependency_configuration(
     let rules: Vec<ConfigRuleEntry> = serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
     cfgs.insert(parent_name, Cow::Borrowed(&parent_config));
-    cfgs.insert(name, Cow::Borrowed(&config));
+    if let Some(config) = config {
+        cfgs.insert(name, Cow::Borrowed(&config))
+    } else {
+        cfgs.insert(name, Cow::Owned(serde_json::Map::new()))
+    };
     let rule_check = rules
         .into_iter()
         .map(|r| r.check(&parent_config, &cfgs))
@@ -67,7 +71,7 @@ pub fn validate_dependency_configuration(
 
 pub fn apply_dependency_configuration(
     package_id: &str,
-    config: Config,
+    config: Option<Config>,
     dependency_id: &str,
     mut dep_config: Config,
     rules_path: &Path,
@@ -76,7 +80,10 @@ pub fn apply_dependency_configuration(
         serde_yaml::from_reader(std::fs::File::open(rules_path)?)?;
     let mut cfgs = LinearMap::new();
     cfgs.insert(dependency_id, Cow::Owned(dep_config.clone()));
-    cfgs.insert(package_id, Cow::Owned(config.clone()));
+    match config {
+        Some(config) => cfgs.insert(package_id, Cow::Owned(config.clone())),
+        None => cfgs.insert(package_id, Cow::Owned(serde_json::Map::new())),
+    };
     let rule_check = rules
         .into_iter()
         .map(|r| r.apply(dependency_id, &mut dep_config, &mut cfgs))
