@@ -2,7 +2,6 @@ use std::time::Instant;
 
 use futures::future::BoxFuture;
 use http::{Request, Response};
-use hyper::service::Service;
 use hyper::Body;
 use rand::RngCore;
 

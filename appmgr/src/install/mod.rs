@@ -1,4 +1,3 @@
-#![feature(btree_drain_filter)]
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::SeekFrom;
 use std::marker::PhantomData;
@@ -14,16 +13,14 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
-use hyper::service::service_fn;
 use hyper::Body;
-use patch_db::{DbHandle, LockType, Model};
+use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
 use tokio_stream::wrappers::ReadDirStream;
-use tokio_util::io::ReaderStream;
 use tracing::instrument;
 
 use self::cleanup::cleanup_failed;
@@ -277,7 +274,7 @@ pub async fn sideload(
             tx.commit(None).await?;
             drop(hdl);
 
-            let res = download_install_s9pk(
+            download_install_s9pk(
                 &new_ctx,
                 &manifest,
                 progress,

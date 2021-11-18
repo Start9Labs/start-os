@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -19,7 +19,7 @@ use tokio::fs::File;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
-use crate::core::rpc_continuations::{self, RequestGuid, RpcContinuation};
+use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::Database;
 use crate::hostname::{get_hostname, get_id};
 use crate::manager::ManagerMap;
