@@ -4,7 +4,18 @@
   [style.font-style]="style"
   [style.font-weight]="weight"
 >
-  {{ disconnected ? 'Unknown' : rendering.display }}
-  <ion-spinner *ngIf="rendering.showDots" class="dots" name="dots"></ion-spinner>
-  <span *ngIf="installProgress">{{ installProgress }}%</span>
+  <span *ngIf= "!installProgress">
+    {{ disconnected ? 'Unknown' : rendering.display }}
+    <ion-spinner *ngIf="rendering.showDots" class="dots" name="dots"></ion-spinner>
+  </span>
+  <span *ngIf="installProgress">
+    <span *ngIf="installProgress < 99">
+      Installing
+      <ion-spinner class="dots" name="dots"></ion-spinner>{{ installProgress }}%
+    </span>
+    <span *ngIf="installProgress >= 99">
+      Finalizing install. This could take a minute<ion-spinner class="dots" name="dots"></ion-spinner>
+    </span>
+  </span>
+
 </p>
