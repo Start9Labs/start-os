@@ -8,6 +8,7 @@ pub mod backup;
 pub mod config;
 pub mod context;
 pub mod control;
+pub mod core;
 pub mod db;
 pub mod dependencies;
 pub mod developer;
@@ -83,6 +84,7 @@ pub fn server() -> Result<(), RpcError> {
 #[command(subcommands(
     action::action,
     install::install,
+    install::sideload,
     install::uninstall,
     install::list,
     config::config,

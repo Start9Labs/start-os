@@ -29,7 +29,8 @@ pub struct CliContextConfig {
 
 #[derive(Debug)]
 pub struct CliContextSeed {
-    pub url: Url,
+    pub base_url: Url,
+    pub rpc_url: Url,
     pub client: Client,
     pub cookie_store: Arc<CookieStoreMutex>,
     pub cookie_path: PathBuf,
@@ -69,14 +70,14 @@ impl CliContext {
         } else {
             CliContextConfig::default()
         };
-        let url = if let Some(host) = matches.value_of("host") {
+        let mut url = if let Some(host) = matches.value_of("host") {
             host.parse()?
         } else if let Some(host) = base.host {
             host
         } else {
             format!(
                 "http://{}",
-                base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into())
+                base.bind_rpc.unwrap_or(([127, 0, 0, 1], 80).into())
             )
             .parse()?
         };
@@ -100,7 +101,15 @@ impl CliContext {
             CookieStore::default()
         }));
         Ok(CliContext(Arc::new(CliContextSeed {
-            url,
+            base_url: url.clone(),
+            rpc_url: {
+                url.path_segments_mut()
+                    .map_err(|_| eyre!("Url cannot be base"))
+                    .with_kind(crate::ErrorKind::ParseUrl)?
+                    .push("rpc")
+                    .push("v1");
+                dbg!(url)
+            },
             client: {
                 let mut builder = Client::builder().cookie_provider(cookie_store.clone());
                 if let Some(proxy) = proxy {
@@ -122,19 +131,19 @@ impl std::ops::Deref for CliContext {
 }
 impl Context for CliContext {
     fn protocol(&self) -> &str {
-        self.0.url.scheme()
+        self.0.base_url.scheme()
     }
     fn host(&self) -> Host<&str> {
-        self.0.url.host().unwrap_or(DEFAULT_HOST)
+        self.0.base_url.host().unwrap_or(DEFAULT_HOST)
     }
     fn port(&self) -> u16 {
-        self.0.url.port().unwrap_or(DEFAULT_PORT)
+        self.0.base_url.port().unwrap_or(DEFAULT_PORT)
     }
     fn path(&self) -> &str {
-        self.0.url.path()
+        self.0.rpc_url.path()
     }
     fn url(&self) -> Url {
-        self.0.url.clone()
+        self.0.rpc_url.clone()
     }
     fn client(&self) -> &Client {
         &self.0.client

@@ -1,17 +1,22 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::SeekFrom;
-use std::path::Path;
+use std::marker::PhantomData;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt, TryStreamExt};
-use http::StatusCode;
+use http::header::CONTENT_LENGTH;
+use http::{Request, Response, StatusCode};
+use hyper::Body;
 use patch_db::{DbHandle, LockType};
-use rpc_toolkit::command;
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, Context};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
@@ -19,7 +24,8 @@ use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::cleanup_failed;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
+use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, RecoveredPackageInfo,
     StaticDependencyInfo, StaticFiles,
@@ -36,10 +42,10 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
 use crate::util::io::copy_and_shutdown;
-use crate::util::{display_none, display_serializable, AsyncFileExt, Version};
+use crate::util::{display_none, display_serializable, AsyncFileExt, IoFormat, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::asset_dir;
-use crate::{Error, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 
 pub mod cleanup;
 pub mod progress;
@@ -69,7 +75,10 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
         .collect())
 }
 
-#[command(display(display_none))]
+#[command(
+    custom_cli(cli_install(async, context(CliContext))),
+    display(display_none)
+)]
 #[instrument(skip(ctx))]
 pub async fn install(
     #[context] ctx: RpcContext,
@@ -190,6 +199,178 @@ pub async fn install(
         revision: res,
         response: (),
     })
+}
+
+#[command(rpc_only, display(display_none))]
+#[instrument(skip(ctx))]
+pub async fn sideload(
+    #[context] ctx: RpcContext,
+    #[arg] manifest: Manifest,
+) -> Result<RequestGuid, Error> {
+    let new_ctx = ctx.clone();
+    let guid = RequestGuid::new();
+    let handler = Box::new(|req: Request<Body>| {
+        async move {
+            let content_length = match req.headers().get(CONTENT_LENGTH).map(|a| a.to_str()) {
+                None => None,
+                Some(Err(_)) => {
+                    return Response::builder()
+                        .status(StatusCode::BAD_REQUEST)
+                        .body(Body::from("Invalid Content Length"))
+                        .with_kind(ErrorKind::Network)
+                }
+                Some(Ok(a)) => match a.parse::<u64>() {
+                    Err(_) => {
+                        return Response::builder()
+                            .status(StatusCode::BAD_REQUEST)
+                            .body(Body::from("Invalid Content Length"))
+                            .with_kind(ErrorKind::Network)
+                    }
+                    Ok(a) => Some(a),
+                },
+            };
+            let progress = InstallProgress::new(content_length);
+
+            let mut hdl = new_ctx.db.handle();
+            let mut tx = hdl.begin().await?;
+
+            let mut pde = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&manifest.id)
+                .get_mut(&mut tx)
+                .await?;
+            match pde.take() {
+                Some(PackageDataEntry::Installed {
+                    installed,
+                    manifest,
+                    static_files,
+                }) => {
+                    *pde = Some(PackageDataEntry::Updating {
+                        install_progress: progress.clone(),
+                        installed,
+                        manifest,
+                        static_files,
+                    })
+                }
+                None => {
+                    *pde = Some(PackageDataEntry::Installing {
+                        install_progress: progress.clone(),
+                        static_files: StaticFiles::local(
+                            &manifest.id,
+                            &manifest.version,
+                            &manifest.assets.icon_type(),
+                        ),
+                        manifest: manifest.clone(),
+                    })
+                }
+                _ => {
+                    return Err(Error::new(
+                        eyre!("Cannot install over a package in a transient state"),
+                        crate::ErrorKind::InvalidRequest,
+                    ))
+                }
+            }
+            pde.save(&mut tx).await?;
+            tx.commit(None).await?;
+            drop(hdl);
+
+            download_install_s9pk(
+                &new_ctx,
+                &manifest,
+                progress,
+                tokio_util::io::StreamReader::new(req.into_body().map_err(|e| {
+                    std::io::Error::new(
+                        match &e {
+                            e if e.is_connect() => std::io::ErrorKind::ConnectionRefused,
+                            e if e.is_timeout() => std::io::ErrorKind::TimedOut,
+                            _ => std::io::ErrorKind::Other,
+                        },
+                        e,
+                    )
+                })),
+            )
+            .await?;
+            Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::empty())
+                .with_kind(ErrorKind::Network)
+        }
+        .boxed()
+    });
+    let cont = RpcContinuation {
+        created_at: Instant::now(), // TODO
+        handler: handler,
+    };
+    // gc the map
+    let mut guard = ctx.rpc_stream_continuations.lock().await;
+    let gced = std::mem::take(&mut *guard)
+        .into_iter()
+        .filter(|(_, v)| v.created_at.elapsed() < Duration::from_secs(30))
+        .collect::<BTreeMap<RequestGuid, RpcContinuation>>();
+    *guard = gced;
+    drop(guard);
+    // insert the new continuation
+    ctx.rpc_stream_continuations
+        .lock()
+        .await
+        .insert(guid.clone(), cont);
+    Ok(guid)
+}
+
+#[instrument(skip(ctx))]
+async fn cli_install(ctx: CliContext, target: String) -> Result<(), RpcError> {
+    if target.ends_with(".s9pk") {
+        let path = PathBuf::from(target);
+
+        // inspect manifest no verify
+        let manifest = crate::inspect::manifest(path.clone(), true, Some(IoFormat::Json)).await?;
+
+        // rpc call remote sideload
+        tracing::debug!("calling package.sideload");
+        let guid = rpc_toolkit::command_helpers::call_remote(
+            ctx.clone(),
+            "package.sideload",
+            serde_json::json!({ "manifest": manifest }),
+            PhantomData::<RequestGuid>,
+        )
+        .await?
+        .result?;
+        tracing::debug!("package.sideload succeeded {:?}", guid);
+
+        // hit continuation api with guid that comes back
+        let file = tokio::fs::File::open(path).await?;
+        let content_length = file.metadata().await?.len();
+        let body = Body::wrap_stream(tokio_util::io::ReaderStream::new(file));
+        let client = reqwest::Client::new();
+        let res = client
+            .post(dbg!(format!(
+                "{}://{}/rest/rpc/{}",
+                ctx.protocol(),
+                ctx.host(),
+                guid
+            )))
+            .header(CONTENT_LENGTH, content_length)
+            .body(body)
+            .send()
+            .await?;
+        if res.status().as_u16() == 200 {
+            tracing::info!("Package Uploaded")
+        } else {
+            tracing::info!("Package Upload failed: {}", res.text().await?)
+        }
+    } else {
+        tracing::debug!("calling package.install");
+        rpc_toolkit::command_helpers::call_remote(
+            ctx,
+            "package.install",
+            serde_json::json!({ "id": target }),
+            PhantomData::<()>,
+        )
+        .await?
+        .result?;
+        tracing::debug!("package.install succeeded");
+    }
+    Ok(())
 }
 
 #[command(
