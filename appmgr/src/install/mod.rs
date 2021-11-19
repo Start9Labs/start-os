@@ -406,12 +406,12 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
         .idx_model(&id)
         .get_mut(&mut tx)
         .await?;
-    let (manifest, static_files) = match pde.take() {
+    let (manifest, static_files, installed) = match pde.take() {
         Some(PackageDataEntry::Installed {
             manifest,
             static_files,
-            ..
-        }) => (manifest, static_files),
+            installed,
+        }) => (manifest, static_files, installed),
         _ => {
             return Err(Error::new(
                 eyre!("Package is not installed."),
@@ -422,6 +422,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
     *pde = Some(PackageDataEntry::Removing {
         manifest,
         static_files,
+        removing: installed,
     });
     pde.save(&mut tx).await?;
     let res = tx.commit(None).await?;

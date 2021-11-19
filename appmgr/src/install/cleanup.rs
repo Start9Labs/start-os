@@ -232,13 +232,13 @@ pub async fn uninstall(
     let entry = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(id)
-        .and_then(|pde| pde.installed())
+        .and_then(|pde| pde.removing())
         .get(&mut tx, true)
         .await?
         .into_owned()
         .ok_or_else(|| {
             Error::new(
-                eyre!("Package not found: {}", id),
+                eyre!("Package not in removing state: {}", id),
                 crate::ErrorKind::NotFound,
             )
         })?;

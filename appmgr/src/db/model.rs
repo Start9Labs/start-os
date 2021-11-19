@@ -196,6 +196,7 @@ pub enum PackageDataEntry {
     Removing {
         static_files: StaticFiles,
         manifest: Manifest,
+        removing: InstalledPackageDataEntry,
     },
     #[serde(rename_all = "kebab-case")]
     Installed {
@@ -227,6 +228,9 @@ impl PackageDataEntry {
 impl PackageDataEntryModel {
     pub fn installed(self) -> OptionModel<InstalledPackageDataEntry> {
         self.0.child("installed").into()
+    }
+    pub fn removing(self) -> OptionModel<InstalledPackageDataEntry> {
+        self.0.child("removing").into()
     }
     pub fn install_progress(self) -> OptionModel<InstallProgress> {
         self.0.child("install-progress").into()
