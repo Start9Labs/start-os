@@ -131,7 +131,7 @@ pub async fn install(
                 install_progress: progress.clone(),
                 static_files,
                 installed,
-                manifest,
+                manifest: man.clone(),
             })
         }
         None => {
@@ -406,12 +406,12 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
         .idx_model(&id)
         .get_mut(&mut tx)
         .await?;
-    let (manifest, static_files, installed) = match pde.take() {
+    let (manifest, static_files) = match pde.take() {
         Some(PackageDataEntry::Installed {
             manifest,
             static_files,
-            installed,
-        }) => (manifest, static_files, installed),
+            ..
+        }) => (manifest, static_files),
         _ => {
             return Err(Error::new(
                 eyre!("Package is not installed."),
@@ -428,7 +428,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
     drop(handle);
 
     tokio::spawn(async move {
-        if let Err(e) = cleanup::uninstall(&ctx, &mut ctx.db.handle(), &installed).await {
+        if let Err(e) = cleanup::uninstall(&ctx, &mut ctx.db.handle(), &id).await {
             let err_str = format!("Uninstall of {} Failed: {}", id, e);
             tracing::error!("{}", err_str);
             tracing::debug!("{:?}", e);
@@ -524,7 +524,7 @@ pub async fn install_s9pk_or_cleanup<R: AsyncRead + AsyncSeek + Unpin>(
         let mut handle = ctx.db.handle();
         let mut tx = handle.begin().await?;
 
-        if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id, version).await {
+        if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id).await {
             let mut tx = handle.begin().await?;
             tracing::error!(
                 "Failed to clean up {}@{}: {}: Adding to broken packages",
