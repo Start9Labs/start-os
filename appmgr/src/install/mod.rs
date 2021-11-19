@@ -15,8 +15,8 @@ use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::Body;
 use patch_db::{DbHandle, LockType};
-use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, Context};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
@@ -328,7 +328,7 @@ async fn cli_install(ctx: CliContext, target: String) -> Result<(), RpcError> {
         // rpc call remote sideload
         tracing::debug!("calling package.sideload");
         let guid = rpc_toolkit::command_helpers::call_remote(
-            ctx,
+            ctx.clone(),
             "package.sideload",
             serde_json::json!({ "manifest": manifest }),
             PhantomData::<RequestGuid>,
@@ -343,7 +343,12 @@ async fn cli_install(ctx: CliContext, target: String) -> Result<(), RpcError> {
         let body = Body::wrap_stream(tokio_util::io::ReaderStream::new(file));
         let client = reqwest::Client::new();
         let res = client
-            .post(format!("http://localhost:5960/rest/rpc/{}", guid))
+            .post(dbg!(format!(
+                "{}://{}/rest/rpc/{}",
+                ctx.protocol(),
+                ctx.host(),
+                guid
+            )))
             .header(CONTENT_LENGTH, content_length)
             .body(body)
             .send()
