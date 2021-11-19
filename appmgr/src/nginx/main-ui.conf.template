@@ -21,9 +21,16 @@ server {{
         }}
 
         location /ws/ {{
-                proxy_pass http://127.0.0.1:5960/;
+                proxy_pass http://127.0.0.1:5960$request_uri;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "Upgrade";
+        }}
+
+        location /rest/ {{
+                proxy_pass http://127.0.0.1:5960$request_uri;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "Upgrade";
+                client_max_body_size 0;
         }}
 
         location /public/ {{
@@ -70,6 +77,13 @@ server {{
                 proxy_pass http://127.0.0.1:5960/;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "Upgrade";
+        }}
+
+        location /rest/ {{
+                proxy_pass http://127.0.0.1:5960$request_uri;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "Upgrade";
+                client_max_body_size 0;
         }}
 
         location /public/ {{

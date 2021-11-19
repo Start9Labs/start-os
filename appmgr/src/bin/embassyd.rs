@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
+use embassy::core::rpc_continuations::RequestGuid;
 use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
@@ -153,9 +154,44 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                         move |req| {
                             let ctx = ctx.clone();
                             async move {
+                                tracing::debug!("Request to {}", req.uri().path());
                                 match req.uri().path() {
-                                    "/db" => {
+                                    "/ws/db" => {
                                         Ok(subscribe(ctx, req).await.unwrap_or_else(err_to_500))
+                                    }
+                                    path if path.starts_with("/rest/rpc/") => {
+                                        match RequestGuid::from(
+                                            path.strip_prefix("/rest/rpc/").unwrap(),
+                                        ) {
+                                            None => {
+                                                tracing::debug!("No Guid Path");
+                                                Response::builder()
+                                                    .status(StatusCode::BAD_REQUEST)
+                                                    .body(Body::empty())
+                                            }
+                                            Some(guid) => {
+                                                match ctx
+                                                    .rpc_stream_continuations
+                                                    .lock()
+                                                    .await
+                                                    .remove(&guid)
+                                                {
+                                                    None => Response::builder()
+                                                        .status(StatusCode::NOT_FOUND)
+                                                        .body(Body::empty()),
+                                                    Some(cont) => {
+                                                        match (cont.handler)(req).await {
+                                                            Ok(r) => Ok(r),
+                                                            Err(e) => Response::builder()
+                                                                .status(
+                                                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                                                )
+                                                                .body(Body::from(format!("{}", e))),
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                     _ => Response::builder()
                                         .status(StatusCode::NOT_FOUND)
