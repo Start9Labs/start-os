@@ -108,7 +108,7 @@ impl CliContext {
                     .with_kind(crate::ErrorKind::ParseUrl)?
                     .push("rpc")
                     .push("v1");
-                dbg!(url)
+                url
             },
             client: {
                 let mut builder = Client::builder().cookie_provider(cookie_store.clone());
