@@ -13,7 +13,7 @@
 	- `sudo apt install -y docker.io`
 	- https://docs.docker.com/get-docker
 	- Add your user to the docker group: `sudo usermod -a -G docker $USER`
-	- If you have issues here, try to logout or reboot your system
+	- Reload user environment `exec sudo su -l $USER`
 - Prepare Docker environment
 	- Setup buildx (https://docs.docker.com/buildx/working-with-buildx/)
 	- Create a builder: `docker buildx create --use`
