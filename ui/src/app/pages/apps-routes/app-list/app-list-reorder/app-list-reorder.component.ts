@@ -16,6 +16,7 @@ import {
 @Component({
   selector: "app-list-reorder",
   templateUrl: "app-list-reorder.component.html",
+  styleUrls: ["app-list-reorder.component.scss"],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppListReorderComponent {

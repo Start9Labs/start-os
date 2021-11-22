@@ -14,9 +14,9 @@ export class AppListIconComponent {
   @Input()
   connectionFailure = false;
 
-  getColor(pkg: PkgInfo): string {
+  get color(): string {
     return this.connectionFailure
       ? "var(--ion-color-dark)"
-      : "var(--ion-color-" + pkg.primaryRendering.color + ")";
+      : "var(--ion-color-" + this.pkg.primaryRendering.color + ")";
   }
 }
