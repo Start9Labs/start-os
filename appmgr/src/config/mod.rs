@@ -232,6 +232,7 @@ pub async fn set_dry(
         .configured()
         .put(&mut tx, &true)
         .await?;
+    tx.abort().await?;
     Ok(BreakageRes(breakages))
 }
 

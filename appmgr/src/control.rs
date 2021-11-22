@@ -117,6 +117,8 @@ pub async fn stop_dry(
     let mut breakages = BTreeMap::new();
     stop_common(&mut tx, &id, &mut breakages).await?;
 
+    tx.abort().await?;
+
     Ok(BreakageRes(breakages))
 }
 
