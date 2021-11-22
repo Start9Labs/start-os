@@ -1,0 +1,42 @@
+<ion-item
+  button
+  detail="false"
+  [routerLink]="['/services', pkg.entry.manifest.id]"
+>
+  <app-list-icon
+    slot="start"
+    [pkg]="pkg"
+    [connectionFailure]="connectionFailure"
+  ></app-list-icon>
+  <ion-thumbnail slot="start" class="ion-margin-start">
+    <img alt="" [src]="pkg.entry['static-files'].icon" />
+  </ion-thumbnail>
+  <ion-label>
+    <h2>{{ pkg.entry.manifest.title }}</h2>
+    <p>{{ pkg.entry.manifest.version | displayEmver }}</p>
+    <status
+      [disconnected]="connectionFailure"
+      [rendering]="pkg.primaryRendering"
+      [installProgress]="pkg.installProgress?.totalProgress"
+      weight="bold"
+      size="small"
+    ></status>
+  </ion-label>
+  <ion-button
+    *ngIf="pkg.entry.manifest.interfaces | hasUi"
+    slot="end"
+    fill="clear"
+    color="primary"
+    (click)="launchUi(pkg.entry)"
+    [disabled]="
+      !(
+        pkg.entry.state
+        | isLaunchable
+          : pkg.entry.installed?.status.main.status
+          : pkg.entry.manifest.interfaces
+      )
+    "
+  >
+    <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+  </ion-button>
+</ion-item>
