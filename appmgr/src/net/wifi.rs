@@ -27,7 +27,7 @@ pub async fn add(
     #[arg] priority: isize,
     #[arg] connect: bool,
 ) -> Result<(), Error> {
-    let wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await; // WpaCli::init("wlan0".to_string(), ctx.datadir.join("main")); // TODO: pull from config
+    let wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await;
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
@@ -107,7 +107,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         }
         Ok(())
     }
-    let wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await; // WpaCli::init("wlan0".to_string(), ctx.datadir.join("main"));
+    let wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await;
     tokio::spawn(async move {
         match connect_procedure(wpa_supplicant, &ssid).await {
             Err(e) => {
@@ -128,7 +128,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(
             ErrorKind::Wifi,
         ));
     }
-    let mut wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await; // WpaCli::init("wlan0".to_string(), ctx.datadir.join("main"));
+    let mut wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await;
     let current = wpa_supplicant.get_current_network().await?;
     match current {
         None => {
@@ -254,7 +254,7 @@ pub async fn set_country(
     #[context] ctx: RpcContext,
     #[arg(parse(country_code_parse))] country: CountryCode,
 ) -> Result<(), Error> {
-    let mut wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await; // WpaCli::init("wlan0".to_string(), ctx.datadir.join("main"));
+    let mut wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await;
     wpa_supplicant.set_country_low(country.alpha2()).await
 }
 
