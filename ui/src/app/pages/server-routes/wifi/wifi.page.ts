@@ -154,12 +154,20 @@ export class WifiPage {
     }
   }
 
-  private async confirmWifi (ssid: string): Promise<void> {
+  private async confirmWifi (ssid: string, deleteOnFailure = false): Promise<void> {
     const timeout = 4000
     const maxAttempts = 5
     let attempts = 0
 
     while (attempts < maxAttempts) {
+      if (attempts > maxAttempts) {
+        this.presentToastFail()
+        if (deleteOnFailure) {
+          this.wifi.ssids = this.wifi.ssids.filter(s => s !== ssid)
+        }
+        break
+      }
+
       try {
         const start = new Date().valueOf()
         await this.getWifi(timeout)
@@ -171,9 +179,6 @@ export class WifiPage {
           attempts++
           const diff = end - start
           await pauseFor(Math.max(1000, timeout - diff))
-          if (attempts === maxAttempts) {
-            this.presentToastFail()
-          }
         }
       } catch (e) {
         attempts++
@@ -296,7 +301,7 @@ export class WifiPage {
         connect: true,
       })
 
-      await this.confirmWifi(ssid)
+      await this.confirmWifi(ssid, true)
 
     } catch (e) {
       this.errToast.present(e)
