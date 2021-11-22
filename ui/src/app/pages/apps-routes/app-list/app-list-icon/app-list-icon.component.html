@@ -1,0 +1,10 @@
+<ion-icon
+  *ngIf="pkg.error; else bulb"
+  class="warning-icon"
+  name="warning-outline"
+  size="small"
+  color="warning"
+></ion-icon>
+<ng-template #bulb>
+  <div class="bulb" [style.background-color]="getColor(pkg)"></div>
+</ng-template>

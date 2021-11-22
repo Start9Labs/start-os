@@ -13,9 +13,9 @@ import { DependencyStatus, HealthStatus, PrimaryRendering, PrimaryStatus, render
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
-import { PackageLoadingService, ProgressData } from 'src/app/services/package-loading.service'
 import { filter } from 'rxjs/operators'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
+import { packageLoadingProgress, ProgressData } from 'src/app/util/package-loading-progress';
 
 @Component({
   selector: 'app-show',
@@ -59,7 +59,6 @@ export class AppShowPage {
     private readonly embassyApi: ApiService,
     private readonly wizardBaker: WizardBaker,
     private readonly config: ConfigService,
-    private readonly packageLoadingService: PackageLoadingService,
     private readonly patch: PatchDbService,
     private readonly connectionService: ConnectionService,
   ) { }
@@ -84,8 +83,8 @@ export class AppShowPage {
         }
 
         this.pkg = pkg
-        this.statuses = renderPkgStatus(pkg)
-        this.installProgress = !isEmptyObject(pkg['install-progress']) ? this.packageLoadingService.transform(pkg['install-progress']) : undefined
+        this.statuses = renderPkgStatus(pkg)``
+        this.installProgress = !isEmptyObject(pkg['install-progress']) ? packageLoadingProgress(pkg['install-progress']) : undefined
       }),
 
       // 2
