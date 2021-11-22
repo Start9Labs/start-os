@@ -142,7 +142,7 @@ export module RR {
   export type GetPackageMetricsReq = { id: string } // package.metrics
   export type GetPackageMetricsRes = Metric
 
-  export type InstallPackageReq = WithExpire<{ id: string, 'version-spec'?: string }> // package.install
+  export type InstallPackageReq = WithExpire<{ id: string, version?: string }> // package.install
   export type InstallPackageRes = WithRevision<null>
 
   export type DryUpdatePackageReq = { id: string, version: string } // package.update.dry
