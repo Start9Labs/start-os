@@ -128,7 +128,7 @@ pub struct RpcContextSeed {
     pub notification_manager: NotificationManager,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
-    pub wifi_manager: Arc<Mutex<WpaCli>>,
+    pub wifi_manager: Arc<RwLock<WpaCli>>,
 }
 
 #[derive(Clone)]
@@ -196,7 +196,7 @@ impl RpcContext {
             notification_manager,
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
-            wifi_manager: Arc::new(Mutex::new(WpaCli::init(
+            wifi_manager: Arc::new(RwLock::new(WpaCli::init(
                 "wlan0".to_string(),
                 base.datadir().join("main"),
             ))),

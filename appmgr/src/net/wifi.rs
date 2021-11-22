@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 
 use clap::ArgMatches;
 use isocountry::CountryCode;
 use rpc_toolkit::command;
 use tokio::process::Command;
-use tokio::sync::{MutexGuard, OwnedMutexGuard};
+use tokio::sync::RwLock;
 use tracing::instrument;
 
 use crate::context::RpcContext;
@@ -27,7 +28,6 @@ pub async fn add(
     #[arg] priority: isize,
     #[arg] connect: bool,
 ) -> Result<(), Error> {
-    let wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await;
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
@@ -41,16 +41,21 @@ pub async fn add(
         ));
     }
     async fn add_procedure(
-        mut wpa_supplicant: OwnedMutexGuard<WpaCli>,
+        wifi_manager: Arc<RwLock<WpaCli>>,
         ssid: &str,
         password: &str,
         priority: isize,
         connect: bool,
     ) -> Result<(), Error> {
         tracing::info!("Adding new WiFi network: '{}'", ssid);
+        let mut wpa_supplicant = wifi_manager.write().await;
         wpa_supplicant.add_network(ssid, password, priority).await?;
+        drop(wpa_supplicant);
         if connect {
+            let wpa_supplicant = wifi_manager.read().await;
             let current = wpa_supplicant.get_current_network().await?;
+            drop(wpa_supplicant);
+            let mut wpa_supplicant = wifi_manager.write().await;
             let connected = wpa_supplicant.select_network(ssid).await?;
             if !connected {
                 tracing::error!("Faild to add new WiFi network: '{}'", ssid);
@@ -66,7 +71,15 @@ pub async fn add(
         Ok(())
     }
     tokio::spawn(async move {
-        match add_procedure(wpa_supplicant, &ssid, &password, priority, connect).await {
+        match add_procedure(
+            ctx.wifi_manager.clone(),
+            &ssid,
+            &password,
+            priority,
+            connect,
+        )
+        .await
+        {
             Err(e) => {
                 tracing::error!("Failed to add new WiFi network '{}': {}", ssid, e);
                 tracing::debug!("{:?}", e);
@@ -87,10 +100,13 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         ));
     }
     async fn connect_procedure(
-        mut wpa_supplicant: OwnedMutexGuard<WpaCli>,
+        wifi_manager: Arc<RwLock<WpaCli>>,
         ssid: &String,
     ) -> Result<(), Error> {
+        let wpa_supplicant = wifi_manager.read().await;
         let current = wpa_supplicant.get_current_network().await?;
+        drop(wpa_supplicant);
+        let mut wpa_supplicant = wifi_manager.write().await;
         let connected = wpa_supplicant.select_network(&ssid).await?;
         if connected {
             tracing::info!("Successfully connected to WiFi: '{}'", ssid);
@@ -107,9 +123,8 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         }
         Ok(())
     }
-    let wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await;
     tokio::spawn(async move {
-        match connect_procedure(wpa_supplicant, &ssid).await {
+        match connect_procedure(ctx.wifi_manager.clone(), &ssid).await {
             Err(e) => {
                 tracing::error!("Failed to connect to WiFi network '{}': {}", &ssid, e);
             }
@@ -128,8 +143,10 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(
             ErrorKind::Wifi,
         ));
     }
-    let mut wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await;
+    let wpa_supplicant = ctx.wifi_manager.read().await;
     let current = wpa_supplicant.get_current_network().await?;
+    drop(wpa_supplicant);
+    let mut wpa_supplicant = ctx.wifi_manager.write().await;
     match current {
         None => {
             wpa_supplicant.remove_network(&ssid).await?;
@@ -211,7 +228,7 @@ pub async fn get(
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<WiFiInfo, Error> {
-    let wpa_supplicant = WpaCli::init("wlan0".to_string(), ctx.datadir.join("main"));
+    let wpa_supplicant = ctx.wifi_manager.read().await;
     let ssids_task = async {
         Result::<Vec<String>, Error>::Ok(
             wpa_supplicant
@@ -254,7 +271,7 @@ pub async fn set_country(
     #[context] ctx: RpcContext,
     #[arg(parse(country_code_parse))] country: CountryCode,
 ) -> Result<(), Error> {
-    let mut wpa_supplicant = ctx.wifi_manager.clone().lock_owned().await;
+    let mut wpa_supplicant = ctx.wifi_manager.write().await;
     wpa_supplicant.set_country_low(country.alpha2()).await
 }
 
