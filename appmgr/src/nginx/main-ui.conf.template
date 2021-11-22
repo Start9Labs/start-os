@@ -74,7 +74,7 @@ server {{
         }}
 
         location /ws/ {{
-                proxy_pass http://127.0.0.1:5960/;
+                proxy_pass http://127.0.0.1:5960$request_uri;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "Upgrade";
         }}
