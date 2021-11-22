@@ -1,8 +1,4 @@
-<ion-item
-  button
-  detail="false"
-  [routerLink]="['/services', pkg.entry.manifest.id]"
->
+<ion-item button detail="false" [routerLink]="['/services', manifest.id]">
   <app-list-icon
     slot="start"
     [pkg]="pkg"
@@ -12,8 +8,8 @@
     <img alt="" [src]="pkg.entry['static-files'].icon" />
   </ion-thumbnail>
   <ion-label>
-    <h2>{{ pkg.entry.manifest.title }}</h2>
-    <p>{{ pkg.entry.manifest.version | displayEmver }}</p>
+    <h2>{{ manifest.title }}</h2>
+    <p>{{ manifest.version | displayEmver }}</p>
     <status
       [disconnected]="connectionFailure"
       [rendering]="pkg.primaryRendering"
@@ -23,19 +19,12 @@
     ></status>
   </ion-label>
   <ion-button
-    *ngIf="pkg.entry.manifest.interfaces | hasUi"
+    *ngIf="manifest.interfaces | hasUi"
     slot="end"
     fill="clear"
     color="primary"
     (click)="launchUi(pkg.entry)"
-    [disabled]="
-      !(
-        pkg.entry.state
-        | isLaunchable
-          : pkg.entry.installed?.status.main.status
-          : pkg.entry.manifest.interfaces
-      )
-    "
+    [disabled]="!(pkg.entry.state | isLaunchable: status:manifest.interfaces)"
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>
   </ion-button>

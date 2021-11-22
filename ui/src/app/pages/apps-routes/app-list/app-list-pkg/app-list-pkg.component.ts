@@ -5,7 +5,10 @@ import {
   Inject,
   Input,
 } from "@angular/core";
-import { PackageDataEntry } from "src/app/services/patch-db/data-model";
+import {
+  PackageMainStatus,
+  PackageDataEntry, Manifest,
+} from "src/app/services/patch-db/data-model";
 import { ConfigService } from "src/app/services/config.service";
 import { PkgInfo } from "src/app/util/get-package-info";
 
@@ -26,10 +29,12 @@ export class AppListPkgComponent {
     private readonly config: ConfigService
   ) {}
 
-  getColor(pkg: PkgInfo): string {
-    return this.connectionFailure
-      ? "var(--ion-color-dark)"
-      : "var(--ion-color-" + pkg.primaryRendering.color + ")";
+  get status(): PackageMainStatus {
+    return this.pkg.entry.installed?.status.main.status;
+  }
+
+  get manifest(): Manifest {
+    return this.pkg.entry.manifest;
   }
 
   launchUi(pkg: PackageDataEntry): void {
