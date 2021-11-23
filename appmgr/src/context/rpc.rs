@@ -26,6 +26,7 @@ use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::tor::os_key;
+use crate::net::wifi::WpaCli;
 use crate::net::NetController;
 use crate::notifications::NotificationManager;
 use crate::shutdown::Shutdown;
@@ -127,6 +128,7 @@ pub struct RpcContextSeed {
     pub notification_manager: NotificationManager,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
+    pub wifi_manager: Arc<RwLock<WpaCli>>,
 }
 
 #[derive(Clone)]
@@ -194,6 +196,10 @@ impl RpcContext {
             notification_manager,
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
+            wifi_manager: Arc::new(RwLock::new(WpaCli::init(
+                "wlan0".to_string(),
+                base.datadir().join("main"),
+            ))),
         });
         let metrics_seed = seed.clone();
         tokio::spawn(async move {
