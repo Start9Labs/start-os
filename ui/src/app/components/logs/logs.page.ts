@@ -66,7 +66,7 @@ export class LogsPage {
       const container = document.getElementById('container')
       const beforeContainerHeight = container.scrollHeight
       const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n\n') + (logs.length ? '\n\n' : '')
+      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n') + (logs.length ? '\n' : '')
       container.prepend(newLogs)
       const afterContainerHeight = container.scrollHeight
 
@@ -89,7 +89,7 @@ export class LogsPage {
 
       const container = document.getElementById('container')
       const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n\n') + (logs.length ? '\n\n' : '')
+      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n') + (logs.length ? '\n' : '')
       container.append(newLogs)
       this.loadingMore = false
       this.scrollEvent()

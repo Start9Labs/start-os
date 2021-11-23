@@ -11,7 +11,7 @@
   <text-spinner *ngIf="loading" text="Loading Logs"></text-spinner>
 
   <div id="container">
-    <div id="template" style="white-space: pre-line;"></div>
+    <div id="template" style="white-space: pre-line; font-family: monospace;"></div>
   </div>
   <div id="button-div" *ngIf="!loading" style="width: 100%; text-align: center;">
     <ion-button *ngIf="!loadingMore" (click)="loadMore()" strong color="dark">
