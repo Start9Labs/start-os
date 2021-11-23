@@ -59,7 +59,7 @@ export class LiveApiService extends ApiService {
 
   async importDrive (guid: string) {
     const res = await this.http.rpcRequest<SetupEmbassyRes>({
-      method: 'setup.execute',
+      method: 'setup.attach',
       params: { guid },
     })
 
