@@ -17,6 +17,10 @@ export class SuccessPage {
     public readonly stateService: StateService,
   ) { }
 
+  ngAfterViewInit () {
+    document.getElementById('install-cert').setAttribute('href', 'data:application/x-x509-ca-cert;base64,' + encodeURIComponent(this.stateService.cert))
+  }
+
   async copy (address: string): Promise<void> {
     const success = await this.copyToClipboard(address)
     const message = success ? 'copied to clipboard!' : 'failed to copy'
