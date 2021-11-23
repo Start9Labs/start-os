@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, AtomicUsize};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -20,14 +20,16 @@ use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
-use crate::db::model::Database;
+use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::hostname::{get_hostname, get_id};
+use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::tor::os_key;
 use crate::net::NetController;
 use crate::notifications::NotificationManager;
 use crate::shutdown::Shutdown;
+use crate::status::{MainStatus, Status};
 use crate::system::launch_metrics_task;
 use crate::util::io::from_toml_async_reader;
 use crate::util::logger::EmbassyLogger;
@@ -103,6 +105,7 @@ impl RpcContextConfig {
 }
 
 pub struct RpcContextSeed {
+    is_closed: AtomicBool,
     pub bind_rpc: SocketAddr,
     pub bind_ws: SocketAddr,
     pub bind_static: SocketAddr,
@@ -166,6 +169,7 @@ impl RpcContext {
         let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
         let seed = Arc::new(RpcContextSeed {
+            is_closed: AtomicBool::new(false),
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             bind_static: base.bind_static.unwrap_or(([127, 0, 0, 1], 5961).into()),
@@ -199,7 +203,8 @@ impl RpcContext {
             .await
         });
         let res = Self(seed);
-        tracing::info!("Initialized Package Managers");
+        res.cleanup().await?;
+        tracing::info!("Cleaned up transient states");
         res.managers
             .init(
                 &res,
@@ -207,7 +212,7 @@ impl RpcContext {
                 &mut res.secret_store.acquire().await?,
             )
             .await?;
-        // TODO: handle apps in bad / transient state
+        tracing::info!("Initialized Package Managers");
         Ok(res)
     }
     #[instrument(skip(self))]
@@ -238,16 +243,73 @@ impl RpcContext {
     #[instrument(skip(self))]
     pub async fn shutdown(self) -> Result<(), Error> {
         self.managers.empty().await?;
-        match Arc::try_unwrap(self.0) {
-            Ok(seed) => {
-                let RpcContextSeed { secret_store, .. } = seed;
-                secret_store.close().await;
+        self.secret_store.close().await;
+        self.is_closed.store(true, Ordering::SeqCst);
+        if let Err(ctx) = Arc::try_unwrap(self.0) {
+            tracing::warn!(
+                "{} RPC Context(s) are still being held somewhere. This is likely a mistake.",
+                Arc::strong_count(&ctx) - 1
+            );
+        }
+        Ok(())
+    }
+    #[instrument(skip(self))]
+    pub async fn cleanup(&self) -> Result<(), Error> {
+        let mut db = self.db.handle();
+        for package_id in crate::db::DatabaseModel::new()
+            .package_data()
+            .keys(&mut db, true)
+            .await?
+        {
+            if let Err(e) = async {
+                let mut pde = crate::db::DatabaseModel::new()
+                    .package_data()
+                    .idx_model(&package_id)
+                    .expect(&mut db)
+                    .await?
+                    .get_mut(&mut db)
+                    .await?;
+                match &mut *pde {
+                    PackageDataEntry::Installing { .. }
+                    | PackageDataEntry::Restoring { .. }
+                    | PackageDataEntry::Updating { .. } => {
+                        cleanup_failed(self, &mut db, &package_id).await?;
+                    }
+                    PackageDataEntry::Removing { .. } => {
+                        uninstall(self, &mut db, &package_id).await?;
+                    }
+                    PackageDataEntry::Installed {
+                        installed:
+                            InstalledPackageDataEntry {
+                                status: Status { main, .. },
+                                ..
+                            },
+                        ..
+                    } => {
+                        let new_main = match std::mem::replace(
+                            main,
+                            MainStatus::Stopped, /* placeholder */
+                        ) {
+                            MainStatus::BackingUp { started, health } => {
+                                if let Some(started) = started {
+                                    MainStatus::Running { started, health }
+                                } else {
+                                    MainStatus::Stopped
+                                }
+                            }
+                            a => a,
+                        };
+                        *main = new_main;
+
+                        pde.save(&mut db).await?;
+                    }
+                }
+                Ok::<_, Error>(())
             }
-            Err(ctx) => {
-                tracing::warn!(
-                    "{} RPC Context(s) are still being held somewhere. This is likely a mistake.",
-                    Arc::strong_count(&ctx) - 1
-                );
+            .await
+            {
+                tracing::error!("Failed to clean up package {}: {}", package_id, e);
+                tracing::debug!("{:?}", e);
             }
         }
         Ok(())
@@ -267,6 +329,9 @@ impl Context for RpcContext {
 impl Deref for RpcContext {
     type Target = RpcContextSeed;
     fn deref(&self) -> &Self::Target {
+        if self.0.is_closed.load(Ordering::SeqCst) {
+            panic!("RpcContext used after shutdown!");
+        }
         &*self.0
     }
 }

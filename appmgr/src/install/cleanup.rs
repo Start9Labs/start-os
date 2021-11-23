@@ -1,14 +1,16 @@
 use std::collections::{BTreeMap, HashMap};
 
 use bollard::image::ListImagesOptions;
+use color_eyre::eyre::eyre;
 use patch_db::{DbHandle, PatchDbHandle};
 use tracing::instrument;
 
 use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry};
+use crate::error::ErrorCollection;
 use crate::s9pk::manifest::PackageId;
-use crate::util::Version;
+use crate::util::{Apply, Version};
 use crate::Error;
 
 #[instrument(skip(ctx, db, deps))]
@@ -71,6 +73,7 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
 
 #[instrument(skip(ctx))]
 pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Result<(), Error> {
+    let mut errors = ErrorCollection::new();
     ctx.managers.remove(&(id.clone(), version.clone())).await;
     // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
     let images = ctx
@@ -87,19 +90,24 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
             },
             digests: false,
         }))
-        .await?;
-    futures::future::try_join_all(images.into_iter().map(|image| async {
-        let image = image; // move into future
-        ctx.docker.remove_image(&image.id, None, None).await
-    }))
-    .await?;
+        .await
+        .apply(|res| errors.handle(res));
+    errors.extend(
+        futures::future::join_all(images.into_iter().flatten().map(|image| async {
+            let image = image; // move into future
+            ctx.docker.remove_image(&image.id, None, None).await
+        }))
+        .await,
+    );
     let pkg_archive_dir = ctx
         .datadir
         .join(PKG_ARCHIVE_DIR)
         .join(id)
         .join(version.as_str());
     if tokio::fs::metadata(&pkg_archive_dir).await.is_ok() {
-        tokio::fs::remove_dir_all(&pkg_archive_dir).await?;
+        tokio::fs::remove_dir_all(&pkg_archive_dir)
+            .await
+            .apply(|res| errors.handle(res));
     }
     let docker_path = ctx
         .datadir
@@ -107,11 +115,12 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
         .join(id)
         .join(version.as_str());
     if tokio::fs::metadata(&docker_path).await.is_ok() {
-        tokio::fs::remove_dir_all(&docker_path).await?;
+        tokio::fs::remove_dir_all(&docker_path)
+            .await
+            .apply(|res| errors.handle(res));
     }
-    // TODO: delete public dir if not a dependency
 
-    Ok(())
+    errors.into_result()
 }
 
 #[instrument(skip(ctx, db))]
@@ -119,7 +128,6 @@ pub async fn cleanup_failed<Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
     id: &PackageId,
-    version: &Version,
 ) -> Result<(), Error> {
     let pde = crate::db::DatabaseModel::new()
         .package_data()
@@ -129,21 +137,30 @@ pub async fn cleanup_failed<Db: DbHandle>(
         .get(db, true)
         .await?
         .into_owned();
-    if match &pde {
-        PackageDataEntry::Installing { .. } | PackageDataEntry::Restoring { .. } => true,
-        PackageDataEntry::Updating { manifest, .. } => {
-            if &manifest.version != version {
-                true
+    if let Some(manifest) = match &pde {
+        PackageDataEntry::Installing { manifest, .. }
+        | PackageDataEntry::Restoring { manifest, .. } => Some(manifest),
+        PackageDataEntry::Updating {
+            manifest,
+            installed:
+                InstalledPackageDataEntry {
+                    manifest: installed_manifest,
+                    ..
+                },
+            ..
+        } => {
+            if &manifest.version != &installed_manifest.version {
+                Some(manifest)
             } else {
-                false
+                None
             }
         }
         _ => {
             tracing::warn!("{}: Nothing to clean up!", id);
-            false
+            None
         }
     } {
-        cleanup(ctx, id, version).await?;
+        cleanup(ctx, id, &manifest.version).await?;
     }
 
     match pde {
@@ -155,7 +172,6 @@ pub async fn cleanup_failed<Db: DbHandle>(
         }
         PackageDataEntry::Updating {
             installed,
-            manifest,
             static_files,
             ..
         } => {
@@ -165,8 +181,8 @@ pub async fn cleanup_failed<Db: DbHandle>(
                 .put(
                     db,
                     &PackageDataEntry::Installed {
+                        manifest: installed.manifest.clone(),
                         installed,
-                        manifest,
                         static_files,
                     },
                 )
@@ -210,13 +226,26 @@ pub async fn remove_current_dependents<'a, Db: DbHandle, I: IntoIterator<Item = 
 pub async fn uninstall(
     ctx: &RpcContext,
     db: &mut PatchDbHandle,
-    entry: &InstalledPackageDataEntry,
+    id: &PackageId,
 ) -> Result<(), Error> {
-    cleanup(ctx, &entry.manifest.id, &entry.manifest.version).await?;
     let mut tx = db.begin().await?;
+    let entry = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(id)
+        .and_then(|pde| pde.removing())
+        .get(&mut tx, true)
+        .await?
+        .into_owned()
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("Package not in removing state: {}", id),
+                crate::ErrorKind::NotFound,
+            )
+        })?;
+    cleanup(ctx, &entry.manifest.id, &entry.manifest.version).await?;
     crate::db::DatabaseModel::new()
         .package_data()
-        .remove(&mut tx, &entry.manifest.id)
+        .remove(&mut tx, id)
         .await?;
     remove_current_dependents(
         &mut tx,
@@ -231,12 +260,13 @@ pub async fn uninstall(
         entry.current_dependents.keys(),
     )
     .await?;
-    tokio::fs::remove_dir_all(
-        ctx.datadir
-            .join(crate::volume::PKG_VOLUME_DIR)
-            .join(&entry.manifest.id),
-    )
-    .await?;
+    let volumes = ctx
+        .datadir
+        .join(crate::volume::PKG_VOLUME_DIR)
+        .join(&entry.manifest.id);
+    if tokio::fs::metadata(&volumes).await.is_ok() {
+        tokio::fs::remove_dir_all(&volumes).await?;
+    }
     tx.commit(None).await?;
     Ok(())
 }
