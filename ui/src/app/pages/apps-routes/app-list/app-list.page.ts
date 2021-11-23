@@ -189,7 +189,7 @@ export class AppListPage {
           }
         })
 
-        this.empty = !this.pkgs.length
+        this.empty = !this.pkgs.length && isEmptyObject(this.recoveredPkgs)
 
         ids.forEach(id => {
           // if already exists, return
