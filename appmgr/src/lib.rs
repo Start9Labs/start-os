@@ -87,6 +87,7 @@ pub fn server() -> Result<(), RpcError> {
     install::sideload,
     install::uninstall,
     install::list,
+    install::update::update,
     config::config,
     control::start,
     control::stop,

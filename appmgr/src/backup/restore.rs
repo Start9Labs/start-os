@@ -198,7 +198,7 @@ pub async fn recover_full_embassy(
         async move {
             let rpc_ctx = RpcContext::init(ctx.config_path.as_ref(), disk_guid).await?;
             let mut db = rpc_ctx.db.handle();
-            
+
             let ids = backup_guard
             .metadata
             .package_backups
