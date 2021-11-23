@@ -394,13 +394,7 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
             }
         }
         match run_main(&thread_shared).await {
-            Ok(Ok(NoOutput)) => {
-                thread_shared
-                    .on_stop
-                    .send(OnStop::Sleep)
-                    .map_err(|_| ())
-                    .unwrap(); // recv is still in scope, cannot fail
-            }
+            Ok(Ok(NoOutput)) => (), // restart
             Ok(Err(e)) => {
                 let res = thread_shared.ctx.notification_manager
                     .notify(
