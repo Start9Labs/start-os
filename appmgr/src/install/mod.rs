@@ -49,6 +49,7 @@ use crate::{Error, ErrorKind, ResultExt};
 
 pub mod cleanup;
 pub mod progress;
+pub mod update;
 
 pub const PKG_ARCHIVE_DIR: &'static str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &'static str = "package-data/public";
@@ -392,6 +393,8 @@ pub async fn uninstall_dry(
     let mut breakages = BTreeMap::new();
     break_all_dependents_transitive(&mut tx, &id, DependencyError::NotInstalled, &mut breakages)
         .await?;
+
+    tx.abort().await?;
 
     Ok(BreakageRes(breakages))
 }
@@ -946,7 +949,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         {
             configured &= res.configured;
         }
-        if configured {
+        if configured && manifest.config.is_some() {
             crate::config::configure(
                 ctx,
                 &mut tx,
@@ -1041,7 +1044,7 @@ async fn handle_recovered_package(
     } else {
         false
     };
-    if configured {
+    if configured && manifest.config.is_some() {
         crate::config::configure(
             ctx,
             tx,
