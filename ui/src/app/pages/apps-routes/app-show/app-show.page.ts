@@ -173,12 +173,19 @@ export class AppShowPage {
   }
 
   async tryStart (): Promise<void> {
-    const message = this.pkg.manifest.alerts.start
-    if (message) {
-      this.presentAlertStart(message)
-    } else {
-      this.start()
+    if (this.dependencies.some(d => !!d.errorText)) {
+      const depErrMsg = `${this.pkg.manifest.title} has dependencies errors. It may not work as expected.`
+      const proceed = await this.presentAlertStart(depErrMsg)
+      if (!proceed) return
     }
+
+    const alertMsg = this.pkg.manifest.alerts.start
+    if (!!alertMsg) {
+      const proceed = await this.presentAlertStart(alertMsg)
+      if (!proceed) return
+    }
+
+    this.start()
   }
 
   async donate (): Promise<void> {
@@ -299,25 +306,30 @@ export class AppShowPage {
     })
   }
 
-  private async presentAlertStart (message: string): Promise<void> {
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Start',
-          handler: () => {
-            this.start()
+  private async presentAlertStart (message: string): Promise<boolean> {
+    return new Promise(async resolve => {
+      const alert = await this.alertCtrl.create({
+        header: 'Warning',
+        message,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            handler: () => {
+              resolve(false)
+            },
           },
-          cssClass: 'enter-click',
-        },
-      ],
+          {
+            text: 'Continue',
+            handler: () => {
+              resolve(true)
+            },
+            cssClass: 'enter-click',
+          },
+        ],
+      })
+      await alert.present()
     })
-    await alert.present()
   }
 
   private async start (): Promise<void> {
