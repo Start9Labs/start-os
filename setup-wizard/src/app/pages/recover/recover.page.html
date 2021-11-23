@@ -52,9 +52,14 @@
                   <ion-label>
                     <h1>{{ partition.label || partition.logicalname }}</h1>
                     <h2>{{ partition.capacity | convertBytes }}</h2>
-                    <p *ngIf="partition['embassy-os'] && partition['embassy-os'].full">
+                    <p *ngIf="partitionClickable(partition)">
                       <ion-text color="success">
                         Embassy backup detected
+                      </ion-text>
+                    </p>
+                    <p *ngIf="!partitionClickable(partition)">
+                      <ion-text>
+                        No Embassy backup detected
                       </ion-text>
                     </p>
                   </ion-label>
