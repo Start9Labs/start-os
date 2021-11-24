@@ -143,7 +143,14 @@ async fn deal_with_messages(
                     .with_kind(crate::ErrorKind::Network)?;
             }
             message = stream.next().fuse() => {
-                match message.transpose().with_kind(crate::ErrorKind::Network)? {
+                let message = match message.transpose() {
+                    Err(tokio_tungstenite::tungstenite::Error::ConnectionClosed) => {
+                        tracing::info!("Closing WebSocket: Reason: {}", tokio_tungstenite::tungstenite::Error::ConnectionClosed);
+                        return Ok(())
+                    }
+                    a => a,
+                }.with_kind(crate::ErrorKind::Network)?;
+                match message {
                     Some(Message::Ping(a)) => {
                         stream
                             .send(Message::Pong(a))
