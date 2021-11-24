@@ -454,23 +454,36 @@ export class MockApiService extends ApiService {
   }
 
   async startPackageRaw (params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
-    await pauseFor(2000)
     const path = `/package-data/${params.id}/installed/status/main`
-    const patch1 = [
-      {
-        op: PatchOp.REPLACE,
-        path: path + '/status',
-        value: PackageMainStatus.Running,
-      },
-      {
-        op: PatchOp.REPLACE,
-        path: path + '/started',
-        value: new Date().toISOString(),
-      },
-    ]
-    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch1 } })
+
+    await pauseFor(2000)
 
     setTimeout(async () => {
+      const patch0 = [
+        {
+          op: PatchOp.REPLACE,
+          path: path + '/status',
+          value: PackageMainStatus.Starting,
+        },
+      ]
+      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch0 } })
+
+      await pauseFor(4000)
+      console.log('run')
+      const patch1 = [
+        {
+          op: PatchOp.REPLACE,
+          path: path + '/status',
+          value: PackageMainStatus.Running,
+        },
+        {
+          op: PatchOp.REPLACE,
+          path: path + '/started',
+          value: new Date().toISOString(),
+        },
+      ]
+      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch1 } })
+
       const patch2 = [
         {
           op: PatchOp.REPLACE,
@@ -517,9 +530,9 @@ export class MockApiService extends ApiService {
       ]
 
       await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch3 } })
-    }, 4000)
+    }, 2000)
 
-    return res
+    return { response: null}
   }
 
   async dryStopPackage (params: RR.DryStopPackageReq): Promise<RR.DryStopPackageRes> {

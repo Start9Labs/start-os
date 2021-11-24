@@ -236,7 +236,7 @@ export interface Status {
   'dependency-errors': { [id: string]: DependencyError | null }
 }
 
-export type MainStatus = MainStatusStopped | MainStatusStopping | MainStatusRunning | MainStatusBackingUp
+export type MainStatus = MainStatusStopped | MainStatusStopping | MainStatusStarting | MainStatusRunning | MainStatusBackingUp
 
 export interface MainStatusStopped {
   status: PackageMainStatus.Stopped
@@ -244,6 +244,10 @@ export interface MainStatusStopped {
 
 export interface MainStatusStopping {
   status: PackageMainStatus.Stopping
+}
+
+export interface MainStatusStarting {
+  status: PackageMainStatus.Starting
 }
 
 export interface MainStatusRunning {
@@ -258,6 +262,7 @@ export interface MainStatusBackingUp {
 }
 
 export enum PackageMainStatus {
+  Starting = 'starting',
   Running = 'running',
   Stopping = 'stopping',
   Stopped = 'stopped',
