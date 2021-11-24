@@ -84,7 +84,7 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
 pub async fn install(
     #[context] ctx: RpcContext,
     #[arg] id: String,
-    #[arg] version_spec: Option<String>,
+    #[arg(rename = "version-spec")] version_spec: Option<String>,
 ) -> Result<WithRevision<()>, Error> {
     let version_str = match &version_spec {
         None => "*",
