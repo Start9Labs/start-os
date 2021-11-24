@@ -596,7 +596,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     let reg_url = ctx.package_registry_url().await?;
     for (dep, info) in &manifest.dependencies.0 {
         let manifest: Option<Manifest> = match reqwest::get(format!(
-            "{}/package/manifest/{}?version={}&eos-version-compat={}&arch={}",
+            "{}/package/manifest/{}?spec={}&eos-version-compat={}&arch={}",
             reg_url,
             dep,
             info.version,
@@ -626,7 +626,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             if tokio::fs::metadata(&icon_path).await.is_err() {
                 tokio::fs::create_dir_all(&dir).await?;
                 let icon = reqwest::get(format!(
-                    "{}/package/icon/{}?version={}&eos-version-compat={}&arch={}",
+                    "{}/package/icon/{}?spec={}&eos-version-compat={}&arch={}",
                     reg_url,
                     dep,
                     info.version,
