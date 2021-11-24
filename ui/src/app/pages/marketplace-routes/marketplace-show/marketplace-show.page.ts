@@ -191,8 +191,7 @@ export class MarketplaceShowPage {
     loader.present()
 
     try {
-      let installString = version ? `${id}@=${version}` : id
-      await this.embassyApi.installPackage({ id: installString })
+      await this.embassyApi.installPackage({ id, 'version-spec': version ? `=${version}` : undefined })
     } catch (e) {
       this.errToast.present(e)
     } finally {
