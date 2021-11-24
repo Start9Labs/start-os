@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -29,15 +30,33 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<(), Error> {
             MainStatus::Stopping => {
                 *status = MainStatus::Stopped;
             }
+            MainStatus::Starting => {
+                start(shared).await?;
+            }
             MainStatus::Running { started, .. } => {
                 *started = Utc::now();
                 start(shared).await?;
             }
             MainStatus::BackingUp { .. } => (),
         },
+        Status::Starting => match *status {
+            MainStatus::Stopped | MainStatus::Stopping => {
+                stop(shared).await?;
+            }
+            MainStatus::Starting | MainStatus::Running { .. } => (),
+            MainStatus::BackingUp { .. } => {
+                pause(shared).await?;
+            }
+        },
         Status::Running => match *status {
             MainStatus::Stopped | MainStatus::Stopping => {
                 stop(shared).await?;
+            }
+            MainStatus::Starting => {
+                *status = MainStatus::Running {
+                    started: Utc::now(),
+                    health: BTreeMap::new(),
+                };
             }
             MainStatus::Running { .. } => (),
             MainStatus::BackingUp { .. } => {
@@ -48,7 +67,7 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<(), Error> {
             MainStatus::Stopped | MainStatus::Stopping => {
                 stop(shared).await?;
             }
-            MainStatus::Running { .. } => {
+            MainStatus::Starting | MainStatus::Running { .. } => {
                 resume(shared).await?;
             }
             MainStatus::BackingUp { .. } => (),
