@@ -249,7 +249,8 @@ impl DockerAction {
                 continue;
             };
             let src = volume.path_for(ctx, pkg_id, pkg_version, volume_id);
-            if tokio::fs::metadata(&src).await.is_err() {
+            if let Err(e) = tokio::fs::metadata(&src).await {
+                tracing::warn!("{} not mounted to container: {}", src.display(), e);
                 continue;
             }
             res.push(OsStr::new("--mount").into());
