@@ -59,7 +59,7 @@ export class WizardBaker {
             action,
             verb: 'beginning update for',
             title,
-            executeAction: () => this.embassyApi.installPackage({ id, version }),
+            executeAction: () => this.embassyApi.installPackage({ id, 'version-spec': version ? `=${version}` : undefined }),
           },
         },
         bottomBar: {
@@ -158,7 +158,7 @@ export class WizardBaker {
             action,
             verb: 'beginning downgrade for',
             title,
-            executeAction: () => this.embassyApi.installPackage({ id, version }),
+            executeAction: () => this.embassyApi.installPackage({ id, 'version-spec': version ? `=${version}` : undefined }),
           },
         },
         bottomBar: {

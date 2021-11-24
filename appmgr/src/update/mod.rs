@@ -329,7 +329,7 @@ impl std::fmt::Display for EosUrl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}/eos/eos.img?version=={}&eos-version={}&arch={}",
+            "{}/eos/eos.img?spec=={}&eos-version={}&arch={}",
             self.base,
             self.version,
             Current::new().semver(),
