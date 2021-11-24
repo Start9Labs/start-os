@@ -35,11 +35,16 @@
                 </ion-item>
               </ng-container>
               <ng-container *ngIf="storageDrives.length">
-                <ion-item (click)="chooseDrive(drive)" class="ion-margin-bottom" button lines="none" *ngFor="let drive of storageDrives">
+                <ion-item (click)="chooseDrive(drive)" class="ion-margin-bottom" button lines="none" *ngFor="let drive of storageDrives" [disabled]="drive.capacity < 100000">
                   <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label class="ion-text-wrap">
                     <h1>{{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model || 'Unknown Model' }}</h1>
                     <h2>{{ drive.logicalname }} - {{ drive.capacity | convertBytes }}</h2>
+                    <p *ngIf="drive.capacity < 100000">
+                      <ion-text>
+                        Drive capacity too small.
+                      </ion-text>
+                    </p>
                   </ion-label>
                 </ion-item>
               </ng-container>
