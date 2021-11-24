@@ -84,11 +84,11 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
 pub async fn install(
     #[context] ctx: RpcContext,
     #[arg] id: String,
+    #[arg] version_spec: Option<String>,
 ) -> Result<WithRevision<()>, Error> {
-    let (pkg_id, version_str) = if let Some(split) = id.split_once("@") {
-        split
-    } else {
-        (id.as_str(), "*")
+    let version_str = match &version_spec {
+        None => "*",
+        Some(v) => &*v,
     };
     let version: VersionRange = version_str.parse()?;
     let reg_url = ctx.package_registry_url().await?;
@@ -96,7 +96,7 @@ pub async fn install(
         reqwest::get(format!(
             "{}/package/manifest/{}?spec={}&eos-version-compat={}&arch={}",
             reg_url,
-            pkg_id,
+            id,
             version,
             Current::new().compat(),
             platforms::TARGET_ARCH,
@@ -104,7 +104,7 @@ pub async fn install(
         reqwest::get(format!(
             "{}/package/{}.s9pk?spec={}&eos-version-compat={}&arch={}",
             reg_url,
-            pkg_id,
+            id,
             version,
             Current::new().compat(),
             platforms::TARGET_ARCH,
@@ -319,7 +319,11 @@ pub async fn sideload(
 }
 
 #[instrument(skip(ctx))]
-async fn cli_install(ctx: CliContext, target: String) -> Result<(), RpcError> {
+async fn cli_install(
+    ctx: CliContext,
+    target: String,
+    version_spec: Option<String>,
+) -> Result<(), RpcError> {
     if target.ends_with(".s9pk") {
         let path = PathBuf::from(target);
 
@@ -360,11 +364,23 @@ async fn cli_install(ctx: CliContext, target: String) -> Result<(), RpcError> {
             tracing::info!("Package Upload failed: {}", res.text().await?)
         }
     } else {
+        let params = match (target.split_once("@"), version_spec) {
+            (Some((pkg, v)), None) => serde_json::json!({ "id": pkg, "version-spec": v }),
+            (Some((pkg, v)), Some(_)) => {
+                return Err(crate::Error::new(
+                    eyre!("Invalid package id {}", target),
+                    ErrorKind::InvalidRequest,
+                )
+                .into())
+            }
+            (None, Some(v)) => serde_json::json!({ "id": target, "version-spec": v }),
+            (None, None) => serde_json::json!({ "id": target }),
+        };
         tracing::debug!("calling package.install");
         rpc_toolkit::command_helpers::call_remote(
             ctx,
             "package.install",
-            serde_json::json!({ "id": target }),
+            params,
             PhantomData::<()>,
         )
         .await?
