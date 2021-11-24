@@ -1,0 +1,36 @@
+name: 💡 Feature Request
+description: Suggest an idea for EmbassyOS
+title: '[feat]: '
+labels: ["Bug", "Needs Triage"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Prerequisites
+      description: Please confirm you have completed the following.
+      options:
+        - label: I have searched for [existing issues](https://github.com/start9labs/embassy-os/issues) that already report this problem, without success.
+          required: true
+  - type: textarea
+    attributes:
+      label: Describe the Feature Request
+      description: A clear and concise description of what the feature does.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Describe the Use Case
+      description: A clear and concise use case for what problem this feature would solve.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Describe Preferred Solution
+      description: A clear and concise description of how you want this feature to be added to EmbassyOS
+  - type: textarea
+    attributes:
+      label: Describe Alternatives
+      description: A clear and concise description of any alternative solutions or features you have considered.
+  - type: textarea
+    attributes:
+      label: Additional Information
+      description: List any other information that is relevant to your issue. Stack traces, related issues, suggestions on how to implement, Stack Overflow links, forum links, etc.
