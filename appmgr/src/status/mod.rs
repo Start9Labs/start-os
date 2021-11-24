@@ -29,6 +29,7 @@ pub struct Status {
 pub enum MainStatus {
     Stopped,
     Stopping,
+    Starting,
     Running {
         started: DateTime<Utc>,
         health: BTreeMap<HealthCheckId, HealthCheckResult>,
@@ -94,22 +95,25 @@ impl MainStatus {
     }
     pub fn running(&self) -> bool {
         match self {
-            MainStatus::Running { .. }
+            MainStatus::Starting
+            | MainStatus::Running { .. }
             | MainStatus::BackingUp {
                 started: Some(_), ..
             } => true,
-            _ => false,
+            MainStatus::Stopped
+            | MainStatus::Stopping
+            | MainStatus::BackingUp { started: None, .. } => false,
         }
     }
     pub fn stop(&mut self) {
         match self {
-            MainStatus::Running { .. } => {
+            MainStatus::Starting | MainStatus::Running { .. } => {
                 *self = MainStatus::Stopping;
             }
             MainStatus::BackingUp { started, .. } => {
                 *started = None;
             }
-            _ => (),
+            MainStatus::Stopped | MainStatus::Stopping => (),
         }
     }
 }
