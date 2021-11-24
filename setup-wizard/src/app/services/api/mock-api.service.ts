@@ -54,7 +54,7 @@ export class MockApiService extends ApiService {
         model: 'Model',
         logicalname: 'dev/sdb',
         partitions: [],
-        capacity: 1600.01234,
+        capacity: 34359738369,
         guid: null,
       },
       {
