@@ -29,6 +29,7 @@ pub struct Status {
 pub enum MainStatus {
     Stopped,
     Stopping,
+    Starting,
     Running {
         started: DateTime<Utc>,
         health: BTreeMap<HealthCheckId, HealthCheckResult>,
