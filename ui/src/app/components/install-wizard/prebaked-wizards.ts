@@ -18,6 +18,7 @@ export class WizardBaker {
     installAlert?: string
   }): InstallWizardComponent['params'] {
     const { id, title, version, installAlert } = values
+    let installString = version ? `${id}@=${version}` : id
 
     const action = 'update'
     const toolbar: TopbarParams  = { action, title, version }
@@ -59,7 +60,7 @@ export class WizardBaker {
             action,
             verb: 'beginning update for',
             title,
-            executeAction: () => this.embassyApi.installPackage({ id, version }),
+            executeAction: () => this.embassyApi.installPackage({ id: installString }),
           },
         },
         bottomBar: {
@@ -123,6 +124,7 @@ export class WizardBaker {
     installAlert?: string
   }): InstallWizardComponent['params'] {
     const { id, title, version, installAlert } = values
+    let installString = version ? `${id}@=${version}` : id
 
     const action = 'downgrade'
     const toolbar: TopbarParams  = { action, title, version }
@@ -158,7 +160,7 @@ export class WizardBaker {
             action,
             verb: 'beginning downgrade for',
             title,
-            executeAction: () => this.embassyApi.installPackage({ id, version }),
+            executeAction: () => this.embassyApi.installPackage({ id: installString }),
           },
         },
         bottomBar: {
