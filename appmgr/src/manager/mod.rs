@@ -269,7 +269,7 @@ async fn run_main(
             }
         }
     };
-    state
+    let _ = state
         .status
         .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| {
             if x == Status::Starting as usize {
@@ -474,7 +474,7 @@ async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
             crate::ErrorKind::Docker,
         )
     })?;
-    shared
+    let _ = shared
         .status
         .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| {
             if x != Status::Running as usize {

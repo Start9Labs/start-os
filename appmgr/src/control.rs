@@ -46,10 +46,7 @@ pub async fn start(
         .to_owned();
     let mut status = installed.status().main().get_mut(&mut tx).await?;
 
-    *status = MainStatus::Running {
-        started: Utc::now(),
-        health: BTreeMap::new(),
-    };
+    *status = MainStatus::Starting;
     status.save(&mut tx).await?;
     heal_all_dependents_transitive(&ctx, &mut tx, &id).await?;
 
