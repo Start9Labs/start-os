@@ -94,7 +94,7 @@ pub async fn install(
     let reg_url = ctx.package_registry_url().await?;
     let (man_res, s9pk) = tokio::try_join!(
         reqwest::get(format!(
-            "{}/package/manifest/{}?version={}&eos-version-compat={}&arch={}",
+            "{}/package/manifest/{}?spec={}&eos-version-compat={}&arch={}",
             reg_url,
             pkg_id,
             version,
@@ -102,7 +102,7 @@ pub async fn install(
             platforms::TARGET_ARCH,
         )),
         reqwest::get(format!(
-            "{}/package/{}.s9pk?version={}&eos-version-compat={}&arch={}",
+            "{}/package/{}.s9pk?spec={}&eos-version-compat={}&arch={}",
             reg_url,
             pkg_id,
             version,
