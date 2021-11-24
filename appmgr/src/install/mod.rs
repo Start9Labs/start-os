@@ -381,7 +381,7 @@ async fn cli_install(
             ctx,
             "package.install",
             params,
-            PhantomData::<()>,
+            PhantomData::<WithRevision<()>>,
         )
         .await?
         .result?;
