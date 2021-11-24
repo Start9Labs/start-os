@@ -129,7 +129,7 @@ pub async fn backup_all(
     let revision = assure_backing_up(&mut db).await?;
     tokio::task::spawn(async move {
         match perform_backup(&ctx, &mut db, backup_guard).await {
-            Ok(report) => ctx
+            Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => ctx
                 .notification_manager
                 .notify(
                     &mut db,
@@ -137,6 +137,25 @@ pub async fn backup_all(
                     NotificationLevel::Success,
                     "Backup Complete".to_owned(),
                     "Your backup has completed".to_owned(),
+                    BackupReport {
+                        server: ServerBackupReport {
+                            attempted: true,
+                            error: None,
+                        },
+                        packages: report,
+                    },
+                    None,
+                )
+                .await
+                .expect("failed to send notification"),
+            Ok(report) => ctx
+                .notification_manager
+                .notify(
+                    &mut db,
+                    None,
+                    NotificationLevel::Warning,
+                    "Backup Complete".to_owned(),
+                    "Your backup has completed, but some package(s) failed to backup".to_owned(),
                     BackupReport {
                         server: ServerBackupReport {
                             attempted: true,
