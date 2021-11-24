@@ -858,6 +858,9 @@ pub struct ValueSpecNumber {
     integral: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     units: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub placeholder: Option<Number>,
 }
 #[async_trait]
 impl ValueSpec for ValueSpecNumber {
@@ -1118,6 +1121,9 @@ pub struct ValueSpecString {
     pub copyable: bool,
     #[serde(default)]
     pub masked: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub placeholder: Option<String>,
 }
 #[async_trait]
 impl ValueSpec for ValueSpecString {
