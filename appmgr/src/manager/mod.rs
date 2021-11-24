@@ -143,9 +143,10 @@ pub struct Manager {
 #[derive(TryFromPrimitive)]
 #[repr(usize)]
 pub enum Status {
-    Running = 0,
-    Stopped = 1,
-    Paused = 2,
+    Starting = 0,
+    Running = 1,
+    Stopped = 2,
+    Paused = 3,
 }
 
 pub struct ManagerSharedState {
@@ -268,6 +269,15 @@ async fn run_main(
             }
         }
     };
+    let _ = state
+        .status
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| {
+            if x == Status::Starting as usize {
+                Some(Status::Running as usize)
+            } else {
+                None
+            }
+        });
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
@@ -464,10 +474,15 @@ async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
             crate::ErrorKind::Docker,
         )
     })?;
-    shared.status.store(
-        Status::Running as usize,
-        std::sync::atomic::Ordering::SeqCst,
-    );
+    let _ = shared
+        .status
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| {
+            if x != Status::Running as usize {
+                Some(Status::Starting as usize)
+            } else {
+                None
+            }
+        });
     Ok(())
 }
 
