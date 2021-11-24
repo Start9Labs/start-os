@@ -103,7 +103,7 @@ export const PrimaryRendering: { [key: string]: StatusRendering } = {
   [PrimaryStatus.Stopping]: { display: 'Stopping', color: 'dark-shade', showDots: true },
   [PrimaryStatus.Stopped]: { display: 'Stopped', color: 'dark-shade', showDots: false },
   [PrimaryStatus.BackingUp]: { display: 'Backing Up', color: 'primary', showDots: true },
-  [PrimaryStatus.Starting]: { display: 'Starting', color: 'primart', showDots: true },
+  [PrimaryStatus.Starting]: { display: 'Starting', color: 'primary', showDots: true },
   [PrimaryStatus.Running]: { display: 'Running', color: 'success', showDots: false },
   [PrimaryStatus.NeedsConfig]: { display: 'Needs Config', color: 'warning' },
 }
