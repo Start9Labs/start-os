@@ -1,5 +1,5 @@
 import { isEmptyObject } from '../util/misc.util'
-import { PackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
+import { DependencySeverity, PackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
 
 export function renderPkgStatus (pkg: PackageDataEntry): {
   primary: PrimaryStatus,
@@ -37,12 +37,12 @@ function getDependencyStatus (pkg: PackageDataEntry): DependencyStatus {
   const depIds = Object.keys(depErrors).filter(key => !!depErrors[key])
 
   for (let pkgId of depIds) {
-    if (pkg.manifest.dependencies[pkgId].critical) {
+    if (pkg.manifest.dependencies[pkgId].severity === DependencySeverity.Critical) {
       return DependencyStatus.Critical
     }
   }
 
-  return depIds.length ? DependencyStatus.Issue : DependencyStatus.Satisfied
+  return depIds.length ? DependencyStatus.Warning : DependencyStatus.Satisfied
 }
 
 function getHealthStatus (status: Status): HealthStatus {
@@ -83,7 +83,7 @@ export enum PrimaryStatus {
 }
 
 export enum DependencyStatus {
-  Issue = 'issue',
+  Warning = 'warning',
   Critical = 'critical',
   Satisfied = 'satisfied',
 }
@@ -109,7 +109,7 @@ export const PrimaryRendering: { [key: string]: StatusRendering } = {
 }
 
 export const DependencyRendering: { [key: string]: StatusRendering }  = {
-  [DependencyStatus.Issue]: { display: 'Issue', color: 'warning' },
+  [DependencyStatus.Warning]: { display: 'Issue', color: 'warning' },
   [DependencyStatus.Critical]: { display: 'Critical Issue', color: 'danger' },
   [DependencyStatus.Satisfied]: { display: 'Satisfied', color: 'success' },
 }
