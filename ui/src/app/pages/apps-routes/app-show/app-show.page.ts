@@ -16,6 +16,7 @@ import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 import { PackageLoadingService, ProgressData } from 'src/app/services/package-loading.service'
 import { filter } from 'rxjs/operators'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
+import { Pipe, PipeTransform } from '@angular/core'
 
 @Component({
   selector: 'app-show',
@@ -231,15 +232,18 @@ export class AppShowPage {
     await modal.present()
   }
 
-  async presentModalDescription (name: string, description: string) {
+  async presentAlertDescription (id: string) {
+    const health = this.pkg.manifest['health-checks'][id]
+
     const alert = await this.alertCtrl.create({
-      header: name,
-      message: description,
+      header: 'Health Check',
+      subHeader: health.name,
+      message: health.description,
       buttons: [
         {
           text: `OK`,
           handler: () => {
-            this.modalCtrl.dismiss()
+            alert.dismiss()
           },
           cssClass: 'enter-click',
         },
@@ -465,4 +469,20 @@ interface Button {
   icon: string
   color: string
   action: Function
+}
+
+
+@Pipe({
+  name: 'healthColor',
+})
+export class HealthColorPipe implements PipeTransform {
+  transform (val: HealthResult): string {
+    switch (val) {
+      case HealthResult.Success: return 'success'
+      case HealthResult.Failure: return 'warning'
+      case HealthResult.Disabled: return 'dark'
+      case HealthResult.Starting:
+      case HealthResult.Loading: return 'primary'
+    }
+  }
 }
