@@ -5,7 +5,7 @@ use patch_db::{DbHandle, HasModel};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use self::health_check::HealthCheckId;
+use self::health_check::{HealthCheckId, HealthCheckSeverity};
 use crate::context::RpcContext;
 use crate::dependencies::DependencyErrors;
 use crate::notifications::NotificationLevel;
@@ -67,7 +67,7 @@ impl MainStatus {
                                 .health_checks
                                 .0
                                 .get(check)
-                                .map(|hc| hc.critical)
+                                .map(|hc| hc.severity == HealthCheckSeverity::Critical)
                                 .unwrap_or_default() =>
                         {
                             ctx.notification_manager.notify(
