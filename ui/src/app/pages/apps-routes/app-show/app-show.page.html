@@ -66,14 +66,14 @@
             </ion-item>
           </ng-container>
           <ng-container *ngIf="!connectionFailure">
-            <ion-item *ngFor="let health of healthChecks | keyvalue : asIsOrder">
+            <ion-item button (click)="presentModalDescription(pkg.manifest['health-checks'][health.key].name, pkg.manifest['health-checks'][health.key].description)" *ngFor="let health of healthChecks | keyvalue : asIsOrder">
               <ng-container *ngIf="health.value?.result as result; else noResult">
                 <ion-spinner class="icon-spinner" color="primary" slot="start" *ngIf="[HealthResult.Starting, HealthResult.Loading] | includes : result"></ion-spinner>
                 <ion-icon slot="start" *ngIf="result === HealthResult.Success" name="checkmark" color="success"></ion-icon>
                 <ion-icon slot="start" *ngIf="result === HealthResult.Failure" name="warning-outline" color="warning"></ion-icon>
                 <ion-icon slot="start" *ngIf="result === HealthResult.Disabled" name="remove" color="dark"></ion-icon>
                 <ion-label>
-                  <h2 style="font-weight: bold;">{{ health.key }}</h2>
+                  <h2 style="font-weight: bold;">{{ pkg.manifest['health-checks'][health.key].name }}</h2>
                   <h2>Result: {{ result | titlecase }}</h2>
                   <p *ngIf="result === HealthResult.Loading"><ion-text color="primary">{{ $any(health.value).message }}</ion-text></p>
                   <p *ngIf="result === HealthResult.Failure"><ion-text color="warning">{{ $any(health.value).error }}</ion-text></p>
