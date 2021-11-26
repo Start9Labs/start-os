@@ -222,7 +222,7 @@ export class AppListPage {
       pkgInfo.entry = update
       pkgInfo.installProgress = !isEmptyObject(update['install-progress']) ? this.pkgLoading.transform(update['install-progress']) : undefined
       pkgInfo.primaryRendering = primaryRendering
-      pkgInfo.error = statuses.health === HealthStatus.Failure || [DependencyStatus.Issue, DependencyStatus.Critical].includes(statuses.dependency)
+      pkgInfo.error = statuses.health === HealthStatus.Failure || [DependencyStatus.Warning, DependencyStatus.Critical].includes(statuses.dependency)
     })
     return pkgInfo
   }
