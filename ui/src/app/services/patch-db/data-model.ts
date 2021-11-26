@@ -121,7 +121,7 @@ export interface Manifest {
     stop: string | null
   }
   main: ActionImpl
-  'health-checks': { [id: string]: ActionImpl & { severity: HealthCheckSeverity } }
+  'health-checks': { [id: string]: ActionImpl & { severity: HealthCheckSeverity, name: string, description: string } }
   config: ConfigActions | null
   volumes: { [id: string]: Volume }
   'min-os-version': string
