@@ -66,7 +66,7 @@
             </ion-item>
           </ng-container>
           <ng-container *ngIf="!connectionFailure">
-            <ion-item button (click)="presentModalDescription(pkg.manifest['health-checks'][health.key].name, pkg.manifest['health-checks'][health.key].description)" *ngFor="let health of healthChecks | keyvalue : asIsOrder">
+            <ion-item button *ngFor="let health of healthChecks | keyvalue : asIsOrder" (click)="presentAlertDescription(health.key)">
               <ng-container *ngIf="health.value?.result as result; else noResult">
                 <ion-spinner class="icon-spinner" color="primary" slot="start" *ngIf="[HealthResult.Starting, HealthResult.Loading] | includes : result"></ion-spinner>
                 <ion-icon slot="start" *ngIf="result === HealthResult.Success" name="checkmark" color="success"></ion-icon>
@@ -74,9 +74,14 @@
                 <ion-icon slot="start" *ngIf="result === HealthResult.Disabled" name="remove" color="dark"></ion-icon>
                 <ion-label>
                   <h2 style="font-weight: bold;">{{ pkg.manifest['health-checks'][health.key].name }}</h2>
-                  <h2>Result: {{ result | titlecase }}</h2>
-                  <p *ngIf="result === HealthResult.Loading"><ion-text color="primary">{{ $any(health.value).message }}</ion-text></p>
-                  <p *ngIf="result === HealthResult.Failure"><ion-text color="warning">{{ $any(health.value).error }}</ion-text></p>
+                  <ion-text [color]="result | healthColor">
+                    <p>
+                      <span *ngIf="!([HealthResult.Failure, HealthResult.Loading] | includes : result)">{{ result | titlecase }}</span>
+                      <span *ngIf="result === HealthResult.Starting">...</span>
+                      <span *ngIf="result === HealthResult.Failure">{{ $any(health.value).error }}</span>
+                      <span *ngIf="result === HealthResult.Loading">{{ $any(health.value).message }}</span>
+                    </p>
+                  </ion-text>
                 </ion-label>
               </ng-container>
               <ng-template #noResult>
