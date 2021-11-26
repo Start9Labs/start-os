@@ -74,12 +74,18 @@ pub enum HealthCheckSeverity {
     Critical,
 }
 
+impl Default for HealthCheckSeverity {
+    fn default() -> Self {
+        HealthCheckSeverity::Warning
+    }
+}
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HealthCheck {
     pub name: String,
     pub description: String,
     #[serde(flatten)]
     implementation: ActionImplementation,
+    #[serde(default)]
     pub severity: HealthCheckSeverity,
     pub timeout: Option<Duration>,
 }
