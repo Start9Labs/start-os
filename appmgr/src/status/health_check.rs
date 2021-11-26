@@ -76,7 +76,7 @@ pub enum HealthCheckSeverity {
 
 impl Default for HealthCheckSeverity {
     fn default() -> Self {
-        Warning
+        HealthCheckSeverity::Warning
     }
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
