@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { AppShowPage } from './app-show.page'
+import { AppShowPage, HealthColorPipe } from './app-show.page'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
@@ -17,6 +17,10 @@ const routes: Routes = [
 ]
 
 @NgModule({
+  declarations: [
+    AppShowPage,
+    HealthColorPipe,
+  ],
   imports: [
     CommonModule,
     StatusComponentModule,
@@ -27,7 +31,6 @@ const routes: Routes = [
     SharingModule,
     MarkdownPageModule,
   ],
-  declarations: [AppShowPage],
 })
 export class AppShowPageModule { }
 
