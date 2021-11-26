@@ -174,7 +174,7 @@ export class AppShowPage {
 
   async tryStart (): Promise<void> {
     if (this.dependencies.some(d => !!d.errorText)) {
-      const depErrMsg = `${this.pkg.manifest.title} has dependencies errors. It may not work as expected.`
+      const depErrMsg = `${this.pkg.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
       if (!proceed) return
     }
@@ -268,7 +268,7 @@ export class AppShowPage {
 
     if (errorText) {
       if (this.pkg.manifest.dependencies[id].severity === DependencySeverity.Critical) {
-        errorText = `Critical: ${errorText}. Running ${this.pkg.manifest.title} will cause harm to your system.`
+        errorText = `Critical: ${errorText}. ${this.pkg.manifest.title} cannot be started until this dependency is satisfied, as it may cause harm to your system.`
       } else  if (this.pkg.manifest.dependencies[id].severity === DependencySeverity.Warning) {
         errorText = `${errorText}. ${this.pkg.manifest.title} will not work as expected.`
       }
