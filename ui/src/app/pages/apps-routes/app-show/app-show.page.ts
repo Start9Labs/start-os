@@ -231,6 +231,23 @@ export class AppShowPage {
     await modal.present()
   }
 
+  async presentModalDescription (name: string, description: string) {
+    const alert = await this.alertCtrl.create({
+      header: name,
+      message: description,
+      buttons: [
+        {
+          text: `OK`,
+          handler: () => {
+            this.modalCtrl.dismiss()
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
+  }
+
   private setDepValues (id: string, errors: { [id: string]: DependencyError }): DependencyInfo {
     let errorText = ''
     let actionText = 'View'
