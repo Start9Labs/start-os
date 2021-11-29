@@ -15,7 +15,7 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 import { filter } from 'rxjs/operators'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
-import { packageLoadingProgress, ProgressData } from 'src/app/util/package-loading-progress';
+import { packageLoadingProgress, ProgressData } from 'src/app/util/package-loading-progress'
 
 @Component({
   selector: 'app-show',
@@ -83,7 +83,7 @@ export class AppShowPage {
         }
 
         this.pkg = pkg
-        this.statuses = renderPkgStatus(pkg)``
+        this.statuses = renderPkgStatus(pkg)
         this.installProgress = !isEmptyObject(pkg['install-progress']) ? packageLoadingProgress(pkg['install-progress']) : undefined
       }),
 
