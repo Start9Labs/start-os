@@ -15,7 +15,10 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 import { filter } from 'rxjs/operators'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
+<<<<<<< HEAD
 import { Pipe, PipeTransform } from '@angular/core'
+=======
+>>>>>>> 19161705 (drew water edits)
 import { packageLoadingProgress, ProgressData } from 'src/app/util/package-loading-progress'
 
 @Component({
