@@ -29,6 +29,7 @@ use crate::middleware::auth::{HasValidSession, HashSessionToken};
 use crate::util::{display_serializable, GeneralGuard, IoFormat};
 use crate::{Error, ResultExt};
 
+#[instrument(skip(ctx, ws_fut))]
 async fn ws_handler<
     WSFut: Future<Output = Result<Result<WebSocketStream<Upgraded>, HyperError>, JoinError>>,
 >(
@@ -116,6 +117,7 @@ async fn subscribe_to_session_kill(
     recv
 }
 
+#[instrument(skip(_has_valid_authentication, kill, sub, stream))]
 async fn deal_with_messages(
     _has_valid_authentication: HasValidSession,
     mut kill: oneshot::Receiver<()>,
@@ -143,13 +145,7 @@ async fn deal_with_messages(
                     .with_kind(crate::ErrorKind::Network)?;
             }
             message = stream.next().fuse() => {
-                let message = match message.transpose() {
-                    Err(tokio_tungstenite::tungstenite::Error::ConnectionClosed) => {
-                        tracing::info!("Closing WebSocket: Reason: {}", tokio_tungstenite::tungstenite::Error::ConnectionClosed);
-                        return Ok(())
-                    }
-                    a => a,
-                }.with_kind(crate::ErrorKind::Network)?;
+                let message = message.transpose().with_kind(crate::ErrorKind::Network)?;
                 match message {
                     Some(Message::Ping(a)) => {
                         stream
@@ -163,10 +159,6 @@ async fn deal_with_messages(
                         } else {
                             tracing::info!("Closing WebSocket: Reason: Unknown");
                         }
-                        stream
-                            .send(Message::Close(frame))
-                            .await
-                            .with_kind(crate::ErrorKind::Network)?;
                         return Ok(())
                     }
                     _ => (),
