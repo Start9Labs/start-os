@@ -249,6 +249,15 @@ export class FormObjectComponent {
     return `${element.scrollHeight}px`
   }
 
+  async presentUnionTagDescription (name: string, description: string) {
+
+    const alert = await this.alertCtrl.create({
+      header: name,
+      message: description,
+    })
+    await alert.present()
+  }
+
   asIsOrder () {
     return 0
   }
