@@ -1235,6 +1235,51 @@ export module Mock {
                 'description': 'The Bitcoin Core node to connect to over the RPC interface',
                 'name': 'Bitcoin Core RPC',
              },
+             'pruning': {
+                'default': 'disabled',
+                'description': 'Blockchain Pruning Options\nReduce the blockchain size on disk\n',
+                'display-as': null,
+                'name': 'Pruning Settings',
+                'tag': {
+                  'description': '- Disabled: Disable pruning\n- Automatic: Limit blockchain size on disk to a certain number of megabytes\n- Manual: Prune blockchain with the "pruneblockchain" RPC\n',
+                  'id': 'mode',
+                  'name': 'Pruning Mode',
+                  'variant-names': {
+                    'automatic': 'Automatic',
+                    'disabled': 'Disabled',
+                    'manual': 'Manual',
+                  },
+                },
+                'type': 'union',
+                'unique-by': null,
+                'variants': {
+                  'automatic': {
+                    'size': {
+                      'default': 550,
+                      'description': 'Limit of blockchain size on disk.',
+                      'integral': true,
+                      'name': 'Max Chain Size',
+                      'nullable': false,
+                      'range': '[550,1000000)',
+                      'type': 'number',
+                      'units': 'MiB',
+                    },
+                  },
+                  'disabled': { },
+                  'manual': {
+                    'size': {
+                        'default': 65536,
+                        'description': 'Prune blockchain if size expands beyond this.',
+                        'integral': true,
+                        'name': 'Failsafe Chain Size',
+                        'nullable': false,
+                        'range': '[550,1000000)',
+                        'type': 'number',
+                        'units': 'MiB',
+                    },
+                  },
+                },
+              },
              'bitcoind-p2p': {
                 'type': 'union',
                 'tag': {

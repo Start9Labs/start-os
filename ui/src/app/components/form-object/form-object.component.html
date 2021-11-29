@@ -4,6 +4,9 @@
     <ng-container *ngIf="unionSpec && entry.key === unionSpec.tag.id">
       <p class="input-label">{{ unionSpec.tag.name }}</p>
       <ion-item>
+        <ion-button *ngIf="unionSpec.tag.description" class="slot-start" fill="clear" size="small" (click)="presentUnionTagDescription(unionSpec.tag.name, unionSpec.tag.description)">
+          <ion-icon name="help-circle-outline"></ion-icon>
+        </ion-button>
         <ion-label>{{ unionSpec.tag.name }}</ion-label>
         <ion-select
           [interfaceOptions]="{ message: getWarningText(unionSpec.warning) }"
