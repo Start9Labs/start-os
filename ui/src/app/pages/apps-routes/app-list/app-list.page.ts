@@ -69,14 +69,7 @@ export class AppListPage {
 
   private watchNewlyRecovered (): Observable<unknown> {
     return this.patch.watch$('package-data').pipe(
-<<<<<<< HEAD
       filter((pkgs) => Object.keys(pkgs).length !== this.pkgs.length),
-=======
-      filter((pkgs) => {
-        console.log('PKGSPKGS', pkgs)
-        return !!pkgs && Object.keys(pkgs).length !== this.pkgs.length
-      }),
->>>>>>> 672a93ed (but on login)
       tap((pkgs) => {
         const ids = Object.keys(pkgs)
         const newIds = ids.filter(
