@@ -34,7 +34,7 @@ sudo umount /tmp/eos-mnt
 
 sudo mount ${OUTPUT_DEVICE}p3 /tmp/eos-mnt
 
-echo 'blacklist uas' >> /tmp/eos-mnt/etc/modprobe.d/blacklist.conf # UASP causes more problems than it's worth for now
+echo 'blacklist uas' | sudo tee -a /tmp/eos-mnt/etc/modprobe.d/blacklist.conf # UASP causes more problems than it's worth for now
 
 sudo sed -i 's/LABEL=writable/LABEL=green/g' /tmp/eos-mnt/etc/fstab
 sudo sed -i 's/LABEL=system-boot\(\s\+\S\+\s\+\S\+\s\+\)defaults/LABEL=system-boot\1defaults,ro/g' /tmp/eos-mnt/etc/fstab
