@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -51,7 +52,31 @@ pub enum DependencyError {
     #[serde(rename_all = "kebab-case")]
     Transitive, // { "type": "transitive" }
 }
+
 impl DependencyError {
+    pub fn cmp_priority(&self, other: &DependencyError) -> std::cmp::Ordering {
+        use std::cmp::Ordering::*;
+
+        use DependencyError::*;
+        match (self, other) {
+            (NotInstalled, NotInstalled) => Equal,
+            (NotInstalled, _) => Greater,
+            (_, NotInstalled) => Less,
+            (IncorrectVersion { .. }, IncorrectVersion { .. }) => Equal,
+            (IncorrectVersion { .. }, _) => Greater,
+            (_, IncorrectVersion { .. }) => Less,
+            (ConfigUnsatisfied { .. }, ConfigUnsatisfied { .. }) => Equal,
+            (ConfigUnsatisfied { .. }, _) => Greater,
+            (_, ConfigUnsatisfied { .. }) => Less,
+            (NotRunning, NotRunning) => Equal,
+            (NotRunning, _) => Greater,
+            (_, NotRunning) => Less,
+            (HealthChecksFailed { .. }, HealthChecksFailed { .. }) => Equal,
+            (HealthChecksFailed { .. }, _) => Greater,
+            (_, HealthChecksFailed { .. }) => Less,
+            (Transitive, Transitive) => Equal,
+        }
+    }
     pub fn merge_with(self, other: DependencyError) -> DependencyError {
         match (self, other) {
             (DependencyError::NotInstalled, _) | (_, DependencyError::NotInstalled) => {
@@ -740,7 +765,11 @@ pub fn break_transitive<'a, Db: DbHandle>(
         let mut status = model.clone().status().get_mut(&mut tx).await?;
 
         let old = status.dependency_errors.0.remove(dependency);
-        let newly_broken = old.is_none();
+        let newly_broken = if let Some(e) = &old {
+            error.cmp_priority(&e) == Ordering::Greater
+        } else {
+            true
+        };
         status.dependency_errors.0.insert(
             dependency.clone(),
             if let Some(old) = old {
