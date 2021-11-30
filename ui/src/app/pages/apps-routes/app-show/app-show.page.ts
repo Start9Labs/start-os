@@ -83,7 +83,7 @@ export class AppShowPage {
         }
 
         this.pkg = pkg
-        this.statuses = renderPkgStatus(pkg)``
+        this.statuses = renderPkgStatus(pkg)
         this.installProgress = !isEmptyObject(pkg['install-progress']) ? packageLoadingProgress(pkg['install-progress']) : undefined
       }),
 
