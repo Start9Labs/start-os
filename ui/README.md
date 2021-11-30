@@ -22,15 +22,6 @@ v8.0.0
 
 `cargo run -- -vvv -c example-config.toml`
 
-*Note:* If you have "SSL connect error" on Window while running cargo
-command create a file `config` in `C:\Users\%username%\.cargo`
-and add following lines there:
-
-```
-[http]
-check-revoke = false
-```
-
 ### Building Embassy UI
 
 **In a new terminal window, from `embassy-os/ui` run:**
