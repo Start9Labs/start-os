@@ -1,5 +1,6 @@
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
+use futures::{Future, FutureExt, TryFutureExt};
 use indexmap::IndexMap;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
@@ -20,76 +21,77 @@ pub struct Migrations {
 }
 impl Migrations {
     #[instrument(skip(ctx))]
-    pub async fn from(
-        &self,
-        ctx: &RpcContext,
-        version: &Version,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        volumes: &Volumes,
-    ) -> Result<Option<MigrationRes>, Error> {
-        Ok(
-            if let Some((_, migration)) = self
-                .from
-                .iter()
-                .find(|(range, _)| version.satisfies(*range))
-            {
-                Some(
-                    migration
-                        .execute(
-                            ctx,
-                            pkg_id,
-                            pkg_version,
-                            Some("Migration"), // Migrations cannot be executed concurrently
-                            volumes,
-                            Some(version),
-                            false,
-                            None,
-                        )
-                        .await?
-                        .map_err(|e| {
-                            Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
-                        })?,
-                )
-            } else {
-                None
-            },
-        )
+    pub fn from<'a>(
+        &'a self,
+        ctx: &'a RpcContext,
+        version: &'a Version,
+        pkg_id: &'a PackageId,
+        pkg_version: &'a Version,
+        volumes: &'a Volumes,
+    ) -> Option<impl Future<Output = Result<MigrationRes, Error>> + 'a> {
+        if let Some((_, migration)) = self
+            .from
+            .iter()
+            .find(|(range, _)| version.satisfies(*range))
+        {
+            Some(
+                migration
+                    .execute(
+                        ctx,
+                        pkg_id,
+                        pkg_version,
+                        Some("Migration"), // Migrations cannot be executed concurrently
+                        volumes,
+                        Some(version),
+                        false,
+                        None,
+                    )
+                    .map(|r| {
+                        r.and_then(|r| {
+                            r.map_err(|e| {
+                                Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
+                            })
+                        })
+                    }),
+            )
+        } else {
+            None
+        }
     }
+
     #[instrument(skip(ctx))]
-    pub async fn to(
-        &self,
-        ctx: &RpcContext,
-        version: &Version,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        volumes: &Volumes,
-    ) -> Result<Option<MigrationRes>, Error> {
-        Ok(
-            if let Some((_, migration)) =
-                self.to.iter().find(|(range, _)| version.satisfies(*range))
-            {
-                Some(
-                    migration
-                        .execute(
-                            ctx,
-                            pkg_id,
-                            pkg_version,
-                            Some("Migration"),
-                            volumes,
-                            Some(version),
-                            false,
-                            None,
-                        )
-                        .await?
-                        .map_err(|e| {
-                            Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
-                        })?,
-                )
-            } else {
-                None
-            },
-        )
+    pub fn to<'a>(
+        &'a self,
+        ctx: &'a RpcContext,
+        version: &'a Version,
+        pkg_id: &'a PackageId,
+        pkg_version: &'a Version,
+        volumes: &'a Volumes,
+    ) -> Option<impl Future<Output = Result<MigrationRes, Error>> + 'a> {
+        if let Some((_, migration)) = self.to.iter().find(|(range, _)| version.satisfies(*range)) {
+            Some(
+                migration
+                    .execute(
+                        ctx,
+                        pkg_id,
+                        pkg_version,
+                        Some("Migration"),
+                        volumes,
+                        Some(version),
+                        false,
+                        None,
+                    )
+                    .map(|r| {
+                        r.and_then(|r| {
+                            r.map_err(|e| {
+                                Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
+                            })
+                        })
+                    }),
+            )
+        } else {
+            None
+        }
     }
 }
 

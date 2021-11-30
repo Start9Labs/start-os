@@ -935,8 +935,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         ..
     } = prev
     {
-        let mut configured = prev.status.configured;
-        if let Some(res) = prev_manifest
+        let prev_is_configured = prev.status.configured;
+        let prev_migration = prev_manifest
             .migrations
             .to(
                 ctx,
@@ -945,14 +945,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 &prev_manifest.version,
                 &prev_manifest.volumes,
             )
-            .await?
-        {
-            configured &= res.configured;
-        }
-        if &prev.manifest.version != version {
-            cleanup(ctx, &prev.manifest.id, &prev.manifest.version).await?;
-        }
-        if let Some(res) = manifest
+            .map(futures::future::Either::Left);
+        let migration = manifest
             .migrations
             .from(
                 ctx,
@@ -961,10 +955,20 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 version,
                 &manifest.volumes,
             )
-            .await?
-        {
-            configured &= res.configured;
-        }
+            .map(futures::future::Either::Right);
+
+        let viable_migration = if prev_manifest.version > manifest.version {
+            prev_migration.or(migration)
+        } else {
+            migration.or(prev_migration)
+        };
+
+        let configured = prev_is_configured
+            && if let Some(f) = viable_migration {
+                f.await?.configured
+            } else {
+                false
+            };
         if configured && manifest.config.is_some() {
             crate::config::configure(
                 ctx,
@@ -1002,6 +1006,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 .collect::<BTreeSet<_>>(),
         )
         .await?;
+        if &prev.manifest.version != version {
+            cleanup(ctx, &prev.manifest.id, &prev.manifest.version).await?;
+        }
     } else if let PackageDataEntry::Restoring { .. } = prev {
         manifest
             .backup
@@ -1051,12 +1058,12 @@ async fn handle_recovered_package(
     version: &Version,
     tx: &mut patch_db::Transaction<&mut patch_db::PatchDbHandle>,
 ) -> Result<(), Error> {
-    let configured = if let Some(res) = manifest
-        .migrations
-        .from(ctx, &recovered.version, pkg_id, version, &manifest.volumes)
-        .await?
+    let configured = if let Some(migration) =
+        manifest
+            .migrations
+            .from(ctx, &recovered.version, pkg_id, version, &manifest.volumes)
     {
-        res.configured
+        migration.await?.configured
     } else {
         false
     };
