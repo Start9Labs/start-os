@@ -255,18 +255,6 @@ pub async fn set_impl(
         &mut breakages,
     )
     .await?;
-    crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&id)
-        .expect(&mut tx)
-        .await?
-        .installed()
-        .expect(&mut tx)
-        .await?
-        .status()
-        .configured()
-        .put(&mut tx, &true)
-        .await?;
     Ok(WithRevision {
         response: (),
         revision: tx.commit(expire_id).await?,
@@ -274,7 +262,34 @@ pub async fn set_impl(
 }
 
 #[instrument(skip(ctx, db))]
-pub fn configure<'a, Db: DbHandle>(
+pub async fn configure<Db: DbHandle>(
+    ctx: &RpcContext,
+    db: &mut Db,
+    id: &PackageId,
+    config: Option<Config>,
+    timeout: &Option<Duration>,
+    dry_run: bool,
+    overrides: &mut BTreeMap<PackageId, Config>,
+    breakages: &mut BTreeMap<PackageId, TaggedDependencyError>,
+) -> Result<(), Error> {
+    configure_rec(ctx, db, id, config, timeout, dry_run, overrides, breakages).await?;
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .expect(db)
+        .await?
+        .installed()
+        .expect(db)
+        .await?
+        .status()
+        .configured()
+        .put(db, &true)
+        .await?;
+    Ok(())
+}
+
+#[instrument(skip(ctx, db))]
+pub fn configure_rec<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
     id: &'a PackageId,
@@ -477,7 +492,7 @@ pub fn configure<'a, Db: DbHandle>(
                 for ptr in &dep_info.pointers {
                     if let PackagePointerSpec::Config(cfg_ptr) = ptr {
                         if cfg_ptr.select(&next) != cfg_ptr.select(&prev) {
-                            if let Err(e) = configure(
+                            if let Err(e) = configure_rec(
                                 ctx, db, dependent, None, timeout, dry_run, overrides, breakages,
                             )
                             .await
