@@ -69,7 +69,7 @@ export class AppListPage {
 
   private watchNewlyRecovered (): Observable<unknown> {
     return this.patch.watch$('package-data').pipe(
-      filter((pkgs) => Object.keys(pkgs).length !== this.pkgs.length),
+      filter((pkgs) => !!pkgs && Object.keys(pkgs).length !== this.pkgs.length),
       tap((pkgs) => {
         const ids = Object.keys(pkgs)
         const newIds = ids.filter(
@@ -85,7 +85,7 @@ export class AppListPage {
         const added = newIds.map((id) => pkgs[id])
 
         this.pkgs = [...added, ...filtered]
-        this.recoveredPkgs.filter((rec) => !pkgs[rec.id])
+        this.recoveredPkgs = this.recoveredPkgs.filter((rec) => !pkgs[rec.id])
       }),
     )
   }
