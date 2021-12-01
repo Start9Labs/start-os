@@ -109,7 +109,9 @@
                   <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1" color="warning">Update Available</ion-text>
                 </p>
                 <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state">
-                  <ion-text color="primary">{{ localPkg.state | titlecase }}...{{ (localPkg['install-progress'] | installState).totalProgress }}%</ion-text>
+                  <ion-text color="primary">{{ localPkg.state | titlecase }}...
+                    <span>{{ (localPkg['install-progress'] | installState).display }}</span>
+                  </ion-text>
                 </p>
                 <p *ngIf="localPkg.state === PackageState.Removing">
                   <ion-text color="warning">{{ localPkg.state | titlecase }}</ion-text>

@@ -31,13 +31,14 @@ export function packageLoadingProgress (
   const denominator = Math.floor(
     size * (downloadWeight + validateWeight + unpackWeight),
   )
-
+  const totalProgress = Math.floor(100 * numerator / denominator)
   return {
-    totalProgress: Math.floor((100 * numerator) / denominator),
+    totalProgress,
     downloadProgress: Math.floor((100 * downloaded) / size),
     validateProgress: Math.floor((100 * validated) / size),
     unpackProgress: Math.floor((100 * unpacked) / size),
     isComplete: downloadComplete && validationComplete && unpackComplete,
+    display: totalProgress > 98 ? 'Finalizing' : `${totalProgress}%`,
   }
 }
 
@@ -47,4 +48,5 @@ export interface ProgressData {
   validateProgress: number
   unpackProgress: number
   isComplete: boolean
+  display: string
 }
