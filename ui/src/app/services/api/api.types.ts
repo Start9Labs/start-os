@@ -129,10 +129,10 @@ export module RR {
   }
   export type AddBackupTargetRes = { [id: string]: CifsBackupTarget }
 
-  export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.update
+  export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.cifs.update
   export type UpdateBackupTargetRes = AddBackupTargetRes
 
-  export type RemoveBackupTargetReq = { id: string } // backup.target.remove
+  export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
   export type RemoveBackupTargetRes = null
 
   export type GetBackupInfoReq = { 'target-id': string, password: string } // backup.target.info
