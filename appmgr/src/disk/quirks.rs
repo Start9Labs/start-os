@@ -1,15 +1,15 @@
 use std::num::ParseIntError;
+use std::path::Path;
 
 use color_eyre::eyre::eyre;
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 use tracing::instrument;
 
 use super::util::TmpMountGuard;
-use crate::util::{AtomicFile, Invoke};
+use crate::util::AtomicFile;
 use crate::Error;
 
-pub const QUIRK_PATH: &'static str = "/embassy-os/usb-storage.quirks";
+pub const QUIRK_PATH: &'static str = "/sys/module/usb_storage/parameters/quirks";
 
 pub const WHITELIST: [(VendorId, ProductId); 3] = [
     (VendorId(0x1d6b), ProductId(0x0002)), // root hub usb2
@@ -112,33 +112,27 @@ pub async fn update_quirks(quirks: &mut Quirks) -> Result<(), Error> {
             continue;
         }
         quirks.add(vendor, product);
-        Command::new("modprobe")
-            .arg("usb_storage")
-            .arg(format!("quirks={}", quirks))
-            .invoke(crate::ErrorKind::DiskManagement)
-            .await?;
+        tokio::fs::write(QUIRK_PATH, quirks.to_string()).await?;
 
-        // reconnect usb device
-        tokio::fs::write(usb_device.path().join("authorized"), "0").await?;
-        tokio::fs::write(usb_device.path().join("authorized"), "1").await?;
+        reconnect_usb(usb_device.path()).await?;
     }
+    Ok(())
+}
+
+#[instrument(skip(usb_device_path))]
+pub async fn reconnect_usb(usb_device_path: impl AsRef<Path>) -> Result<(), Error> {
+    tokio::fs::write(usb_device_path.as_ref().join("authorized"), "0").await?;
+    tokio::fs::write(usb_device_path.as_ref().join("authorized"), "1").await?;
     Ok(())
 }
 
 #[instrument]
 pub async fn fetch_quirks() -> Result<Quirks, Error> {
-    if tokio::fs::metadata(QUIRK_PATH).await.is_ok() {
-        Ok(tokio::fs::read_to_string(QUIRK_PATH).await?.parse()?)
-    } else {
-        Ok(Quirks::default())
-    }
+    Ok(tokio::fs::read_to_string(QUIRK_PATH).await?.parse()?)
 }
 
 #[instrument]
 pub async fn save_quirks(quirks: &Quirks) -> Result<(), Error> {
-    let mut quirk_file = AtomicFile::new(QUIRK_PATH).await?;
-    quirk_file.write_all(quirks.to_string().as_bytes()).await?;
-    quirk_file.save().await?;
     let guard = TmpMountGuard::mount("/dev/mmcblk0p1", None).await?;
     let orig_path = guard.as_ref().join("cmdline.txt.orig");
     let target_path = guard.as_ref().join("cmdline.txt");

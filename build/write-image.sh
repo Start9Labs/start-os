@@ -21,12 +21,14 @@ sudo e2label ${OUTPUT_DEVICE}p4 blue
 mkdir -p /tmp/eos-mnt
 sudo mount ${OUTPUT_DEVICE}p1 /tmp/eos-mnt
 
-sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /tmp/eos-mnt/cmdline.txt
 sudo sed -i 's/LABEL=writable/LABEL=green/g' /tmp/eos-mnt/cmdline.txt
+# create a copy of the cmdline *without* the quirk string, so that it can be easily amended
+sudo cp /tmp/eos-mnt/cmdline.txt /tmp/eos-mnt/cmdline.txt.orig
+sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /tmp/eos-mnt/cmdline.txt
+
 cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp
 echo "dtoverlay=pwm-2chan" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
-sudo cp /tmp/eos-mnt/config.txt /tmp/eos-mnt/config.txt.orig
 
 # Unmount the boot partition and mount embassy partition
 sudo umount /tmp/eos-mnt
