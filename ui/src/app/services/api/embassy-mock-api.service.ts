@@ -1,22 +1,27 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '../../util/misc.util'
 import { ApiService } from './embassy-api.service'
-import { PatchOp } from 'patch-db-client'
-import { DependencyErrorType, InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
+import { PatchOp, Update, Operation, RemoveOperation } from 'patch-db-client'
+import { DataModel, DependencyErrorType, InstallProgress, PackageDataEntry, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
 import { Log, RR, WithRevision } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
-import { HttpService } from '../http.service'
 import markdown from 'raw-loader!src/assets/markdown/md-sample.md'
-import { Operation } from 'fast-json-patch'
+import { BehaviorSubject } from 'rxjs'
+import { LocalStorageBootstrap } from '../patch-db/local-storage-bootstrap'
+import { mockPatchData } from './mock-patch'
 
 @Injectable()
 export class MockApiService extends ApiService {
+  readonly mockPatch$ = new BehaviorSubject<Update<DataModel>>(undefined)
   private readonly revertTime = 4000
+  sequence: number
 
   constructor (
-    private readonly http: HttpService,
-  ) { super() }
+    private readonly bootstrapper: LocalStorageBootstrap,
+  ) {
+    super()
+  }
 
   async getStatic (url: string): Promise<string> {
     await pauseFor(2000)
@@ -26,22 +31,35 @@ export class MockApiService extends ApiService {
   // db
 
   async getRevisions (since: number): Promise<RR.GetRevisionsRes> {
-    return this.http.rpcRequest<RR.GetRevisionsRes>({ method: 'db.revisions', params: { since } })
+    return this.getDump()
   }
 
   async getDump (): Promise<RR.GetDumpRes> {
-    return this.http.rpcRequest<RR.GetDumpRes>({ method: 'db.dump' })
+    const cache = await this.bootstrapper.init()
+    return {
+      id: cache.sequence,
+      value: cache.data,
+      expireId: null,
+    }
   }
 
   async setDbValueRaw (params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
     await pauseFor(2000)
-    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.put.ui', params })
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/ui' + params.pointer,
+        value: params.value,
+      },
+    ]
+    return this.withRevision(patch)
   }
 
   // auth
 
   async login (params: RR.LoginReq): Promise<RR.loginRes> {
     await pauseFor(2000)
+    this.mockPatch$.next({ id: 1, value: mockPatchData, expireId: null })
     return null
   }
 
@@ -71,7 +89,8 @@ export class MockApiService extends ApiService {
         value: params.value,
       },
     ]
-    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+
+    return this.withRevision(patch)
   }
 
   async getServerLogs (params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
@@ -107,6 +126,10 @@ export class MockApiService extends ApiService {
       downloaded: 0,
     }
 
+    setTimeout(() => {
+      this.updateOSProgress(initialProgress.size)
+    }, 500)
+
     const patch = [
       {
         op: PatchOp.REPLACE,
@@ -119,12 +142,8 @@ export class MockApiService extends ApiService {
         value: initialProgress,
       },
     ]
-    const res = await this.http.rpcRequest<RR.UpdateServerRes>({ method: 'db.patch', params: { patch } })
-    res.response = 'updating'
 
-    this.updateOSProgress(initialProgress.size)
-
-    return res
+    return this.withRevision(patch, 'updating')
   }
 
   async restartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
@@ -198,11 +217,8 @@ export class MockApiService extends ApiService {
         value: 0,
       },
     ]
-    const { revision } = await this.http.rpcRequest<WithRevision<RR.GetNotificationsRes>>({ method: 'db.patch', params: { patch } }) as WithRevision<null>
-    return {
-      response: Mock.Notifications,
-      revision,
-    }
+
+    return this.withRevision(patch, Mock.Notifications)
   }
 
   async deleteNotification (params: RR.DeleteNotificationReq): Promise<RR.DeleteNotificationRes> {
@@ -264,55 +280,48 @@ export class MockApiService extends ApiService {
   async createBackupRaw (params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
     const path = '/server-info/status'
-    let patch = [
-      {
-        op: PatchOp.REPLACE,
-        path,
-        value: ServerStatus.BackingUp,
-      },
-    ]
-    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-
     const ids = ['bitcoind', 'lnd']
 
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
         const appPath = `/package-data/${ids[i]}/installed/status/main/status`
-        let appPatch = [
+        const appPatch = [
           {
             op: PatchOp.REPLACE,
             path: appPath,
             value: PackageMainStatus.BackingUp,
           },
         ]
-        this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: appPatch } })
+        this.updateMock(appPatch)
 
         await pauseFor(8000)
 
-        appPatch = [
-          {
-            op: PatchOp.REPLACE,
-            path: appPath,
-            value: PackageMainStatus.Stopped,
-          },
-        ]
-        this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: appPatch } })
+        appPatch[0].value = PackageMainStatus.Stopped
+        this.updateMock(appPatch)
       }
 
       await pauseFor(1000)
 
       // set server back to running
-      patch = [
+      const lastPatch = [
         {
           op: PatchOp.REPLACE,
           path,
           value: ServerStatus.Running,
         },
       ]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    }, 200)
+      this.updateMock(lastPatch)
+    }, 500)
 
-    return res
+    const originalPatch = [
+      {
+        op: PatchOp.REPLACE,
+        path,
+        value: ServerStatus.BackingUp,
+      },
+    ]
+
+    return this.withRevision(originalPatch)
   }
 
   // drives
@@ -362,6 +371,10 @@ export class MockApiService extends ApiService {
       'unpack-complete': false,
     }
 
+    setTimeout(async () => {
+      this.updateProgress(params.id, initialProgress)
+    }, 1000)
+
     const pkg: PackageDataEntry = {
       ...Mock.LocalPkgs[params.id],
       state: PackageState.Installing,
@@ -376,12 +389,7 @@ export class MockApiService extends ApiService {
         value: pkg,
       },
     ]
-
-    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    setTimeout(async () => {
-      this.updateProgress(params.id, initialProgress)
-    }, 1000)
-    return res
+    return this.withRevision(patch)
   }
 
   async dryUpdatePackage (params: RR.DryUpdatePackageReq): Promise<RR.DryUpdatePackageRes> {
@@ -411,7 +419,7 @@ export class MockApiService extends ApiService {
         value: true,
       },
     ]
-    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    return this.withRevision(patch)
   }
 
   async restorePackagesRaw (params: RR.RestorePackagesReq): Promise<RR.RestorePackagesRes> {
@@ -440,12 +448,13 @@ export class MockApiService extends ApiService {
       }, 2000)
 
       return {
-        op: 'add',
+        op: PatchOp.ADD,
         path: `/package-data/${id}`,
         value: pkg,
       }
     })
-    return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+
+    return this.withRevision(patch)
   }
 
   async executePackageAction (params: RR.ExecutePackageActionReq): Promise<RR.ExecutePackageActionRes> {
@@ -459,18 +468,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
 
     setTimeout(async () => {
-      const patch0 = [
-        {
-          op: PatchOp.REPLACE,
-          path: path + '/status',
-          value: PackageMainStatus.Starting,
-        },
-      ]
-      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch0 } })
-
-      await pauseFor(4000)
-      console.log('run')
-      const patch1 = [
+      const patch2 = [
         {
           op: PatchOp.REPLACE,
           path: path + '/status',
@@ -482,9 +480,9 @@ export class MockApiService extends ApiService {
           value: new Date().toISOString(),
         },
       ]
-      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch1 } })
+      this.updateMock(patch2)
 
-      const patch2 = [
+      const patch3 = [
         {
           op: PatchOp.REPLACE,
           path: path + '/health',
@@ -498,12 +496,11 @@ export class MockApiService extends ApiService {
           },
         },
       ]
-
-      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch2 } })
+      this.updateMock(patch3)
 
       await pauseFor(2000)
 
-      const patch3 = [
+      const patch4 = [
         {
           op: PatchOp.REPLACE,
           path: path + '/health',
@@ -528,11 +525,18 @@ export class MockApiService extends ApiService {
           },
         },
       ]
-
-      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch3 } })
+      this.updateMock(patch4)
     }, 2000)
 
-    return { response: null}
+    const originalPatch = [
+      {
+        op: PatchOp.REPLACE,
+        path: path + '/status',
+        value: PackageMainStatus.Starting,
+      },
+    ]
+
+    return this.withRevision(originalPatch)
   }
 
   async dryStopPackage (params: RR.DryStopPackageReq): Promise<RR.DryStopPackageRes> {
@@ -550,6 +554,18 @@ export class MockApiService extends ApiService {
   async stopPackageRaw (params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
     const path = `/package-data/${params.id}/installed/status/main`
+
+    setTimeout(() => {
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: path + '/status',
+          value: PackageMainStatus.Stopped,
+        },
+      ]
+      this.updateMock(patch2)
+    }, this.revertTime)
+
     const patch = [
       {
         op: PatchOp.REPLACE,
@@ -562,19 +578,8 @@ export class MockApiService extends ApiService {
         value: { },
       },
     ]
-    const res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    setTimeout(() => {
-      const patch = [
-        {
-          op: PatchOp.REPLACE,
-          path: path + '/status',
-          value: PackageMainStatus.Stopped,
-        },
-      ]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    }, this.revertTime)
 
-    return res
+    return this.withRevision(patch)
   }
 
   async dryUninstallPackage (params: RR.DryUninstallPackageReq): Promise<RR.DryUninstallPackageRes> {
@@ -584,6 +589,17 @@ export class MockApiService extends ApiService {
 
   async uninstallPackageRaw (params: RR.UninstallPackageReq): Promise<RR.UninstallPackageRes> {
     await pauseFor(2000)
+
+    setTimeout(async () => {
+      const patch2 = [
+        {
+          op: PatchOp.REMOVE,
+          path: `/package-data/${params.id}`,
+        } as RemoveOperation,
+      ]
+      this.updateMock(patch2)
+    }, this.revertTime)
+
     const patch = [
       {
         op: PatchOp.REPLACE,
@@ -591,35 +607,19 @@ export class MockApiService extends ApiService {
         value: PackageState.Removing,
       },
     ]
-    let res: any
-    res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    setTimeout(async () => {
-      const patch = [
-        {
-          op: PatchOp.REMOVE,
-          path: `/package-data/${params.id}`,
-        },
-      ]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-    }, this.revertTime)
 
-
-    return res
+    return this.withRevision(patch)
   }
 
-  async deleteRecoveredPackageRaw (params: RR.DeleteRecoveredPackageReq): Promise<RR.DeleteAllNotificationsRes> {
+  async deleteRecoveredPackageRaw (params: RR.DeleteRecoveredPackageReq): Promise<RR.DeleteRecoveredPackageRes> {
     await pauseFor(2000)
-    let res: any
-
     const patch = [
       {
         op: PatchOp.REMOVE,
         path: `/recovered-packages/${params.id}`,
-      },
+      } as RemoveOperation,
     ]
-    res = await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-
-    return res
+    return this.withRevision(patch)
   }
 
   async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes> {
@@ -631,7 +631,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  private async updateProgress (id: string, initialProgress: InstallProgress) {
+  private async updateProgress (id: string, initialProgress: InstallProgress): Promise<void> {
     const phases = [
       { progress: 'downloaded', completion: 'download-complete'},
       { progress: 'validated', completion: 'validation-complete'},
@@ -653,10 +653,10 @@ export class MockApiService extends ApiService {
               op: PatchOp.REMOVE,
               path: `/package-data/${id}/install-progress`,
             },
-            {
-              op: PatchOp.REMOVE,
-              path: `/recovered-packages/${id}`,
-            },
+            // {
+            //   op: PatchOp.REMOVE,
+            //   path: `/recovered-packages/${id}`,
+            // } as RemoveOperation,
           ]
         } else {
           patch = [
@@ -667,23 +667,19 @@ export class MockApiService extends ApiService {
             },
           ]
         }
-        try {
-          await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-        } catch (e) {
-          console.error('Insufficient Mocks, happens when installing a service that does not exist in recovered-package')
-        }
+        this.updateMock(patch)
       }
     }
 
     setTimeout(() => {
-      const patch = [
+      const patch2 = [
         {
           op: PatchOp.REPLACE,
           path: `/package-data/${id}`,
           value: Mock.LocalPkgs[id],
         },
       ]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+      this.updateMock(patch2)
     }, 1000)
   }
 
@@ -699,20 +695,20 @@ export class MockApiService extends ApiService {
           value: downloaded,
         },
       ]
-      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+      this.updateMock(patch)
     }
 
-    const patch = [
+    const patch2 = [
       {
         op: PatchOp.REPLACE,
         path: `/server-info/update-progress/downloaded`,
         value: size,
       },
     ]
-    await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+    this.updateMock(patch2)
 
     setTimeout(async () => {
-      const patch = [
+      const patch3: Operation[] = [
         {
           op: PatchOp.REPLACE,
           path: '/server-info/status',
@@ -723,18 +719,48 @@ export class MockApiService extends ApiService {
           path: '/server-info/update-progress',
         },
       ]
-
-      await this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
+      this.updateMock(patch3)
       // quickly revert server to "running" for continued testing
-      const patch2 = [
+      await pauseFor(100)
+      const patch4 = [
         {
           op: PatchOp.REPLACE,
           path: '/server-info/status',
           value: ServerStatus.Running,
         },
       ]
-      this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch: patch2 } })
+      this.updateMock(patch4)
     }, 1000)
+  }
 
+  private async updateMock (patch: Operation[]): Promise<void> {
+    if (!this.sequence) {
+      const { sequence } = await this.bootstrapper.init()
+      this.sequence = sequence
+    }
+    const revision = {
+      id: ++this.sequence,
+      patch,
+      expireId: null,
+    }
+    console.log('REVISION', revision)
+    this.mockPatch$.next(revision)
+  }
+
+  private async withRevision<T> (patch: Operation[], response: T = null): Promise<WithRevision<T>> {
+    if (!this.sequence) {
+      const { sequence } = await this.bootstrapper.init()
+      this.sequence = sequence
+    }
+
+    const revision = {
+      id: ++this.sequence,
+      patch,
+      expireId: null,
+    }
+
+    console.log('REVISION', revision)
+
+    return { response, revision }
   }
 }
