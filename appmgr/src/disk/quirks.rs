@@ -12,8 +12,8 @@ use crate::Error;
 pub const QUIRK_PATH: &'static str = "/embassy-os/usb-storage.quirks";
 
 pub const WHITELIST: [(VendorId, ProductId); 3] = [
-    (VendorId(0x1d6b), ProductId(0x0002)),
-    (VendorId(0x1d6b), ProductId(0x0003)),
+    (VendorId(0x1d6b), ProductId(0x0002)), // root hub usb2
+    (VendorId(0x1d6b), ProductId(0x0003)), // root hub usb3
     (VendorId(0x2109), ProductId(0x3431)),
 ];
 
@@ -57,7 +57,7 @@ impl Quirks {
 }
 impl Default for Quirks {
     fn default() -> Self {
-        Quirks(vec![(VendorId(0x152d), ProductId(0x0562))])
+        Quirks(vec![(VendorId(0x152d), ProductId(0x0562))]) // SSK enclosure shipped by Start9 Labs
     }
 }
 impl std::fmt::Display for Quirks {
@@ -117,6 +117,8 @@ pub async fn update_quirks(quirks: &mut Quirks) -> Result<(), Error> {
             .arg(format!("quirks={}", quirks))
             .invoke(crate::ErrorKind::DiskManagement)
             .await?;
+
+        // reconnect usb device
         tokio::fs::write(usb_device.path().join("authorized"), "0").await?;
         tokio::fs::write(usb_device.path().join("authorized"), "1").await?;
     }
