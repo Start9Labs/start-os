@@ -121,7 +121,7 @@ export module RR {
   export type GetBackupTargetsReq = { } // backup.target.list
   export type GetBackupTargetsRes = { [id: string]: BackupTarget }
 
-  export type AddBackupTargetReq = { // backup.target.add
+  export type AddBackupTargetReq = { // backup.target.cifs.add
     hostname: string
     path: string
     username: string
