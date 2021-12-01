@@ -192,7 +192,7 @@ export class LiveApiService extends ApiService {
   }
 
   async addBackupTarget (params: RR.AddBackupTargetReq): Promise<RR.AddBackupTargetRes> {
-    return this.http.rpcRequest({ method: 'backup.target.add', params })
+    return this.http.rpcRequest({ method: 'backup.target.cifs.add', params })
   }
 
   async updateBackupTarget (params: RR.UpdateBackupTargetReq): Promise<RR.UpdateBackupTargetRes> {
