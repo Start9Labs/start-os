@@ -47,6 +47,13 @@ sudo cp *.service /tmp/eos-mnt/etc/systemd/system/
 
 cd ..
 
+cd usbstoraged/
+
+sudo cp target/aarch64-unknown-linux-gnu/release/usbstoraged /tmp/eos-mnt/usr/local/bin
+sudo cp *.service /tmp/eos-mnt/etc/systemd/system/
+
+cd ..
+
 # Copy system images
 sudo mkdir -p /tmp/eos-mnt/var/lib/embassy/system-images
 sudo cp system-images/**/*.tar /tmp/eos-mnt/var/lib/embassy/system-images

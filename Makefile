@@ -1,9 +1,10 @@
 EMBASSY_BINS := appmgr/target/aarch64-unknown-linux-gnu/release/embassyd appmgr/target/aarch64-unknown-linux-gnu/release/embassy-init appmgr/target/aarch64-unknown-linux-gnu/release/embassy-cli appmgr/target/aarch64-unknown-linux-gnu/release/embassy-sdk
 EMBASSY_UIS := ui/www setup-wizard/www diagnostic-ui/www
-EMBASSY_SRC := ubuntu.img product_key.txt $(EMBASSY_BINS) appmgr/embassyd.service appmgr/embassy-init.service $(EMBASSY_UIS) $(shell find build)
+EMBASSY_SRC := ubuntu.img product_key.txt $(EMBASSY_BINS) appmgr/embassyd.service appmgr/embassy-init.service usbstoraged/usbstoraged.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/src)
 UTILS_SRC := $(shell find system-images/utils/Dockerfile)
 APPMGR_SRC := $(shell find appmgr/src) $(shell find patch-db/*/src) $(shell find rpc-toolkit/*/src) appmgr/Cargo.toml appmgr/Cargo.lock
+USBSTORAGED_SRC := $(shell find usbstoraged/src) usbstoraged/Cargo.toml usbstoraged/Cargo.lock
 UI_SRC := $(shell find ui/src)
 SETUP_WIZARD_SRC := $(shell find setup-wizard/src)
 DIAGNOSTIC_UI_SRC := $(shell find diagnostic-ui/src)
@@ -33,7 +34,7 @@ clean:
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
 
-eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar
+eos.img: $(EMBASSY_BINS) usbstoraged/target/aarch64-unknown-linux-gnu/release/usbstoraged system-images/compat/compat.tar system-images/utils/utils.tar
 	! test -f eos.img || rm eos.img
 	./build/make-image.sh
 
@@ -55,6 +56,9 @@ product_key.txt:
 
 $(EMBASSY_BINS): $(APPMGR_SRC)
 	cd appmgr && ./build-prod.sh
+
+usbstoraged/target/aarch64-unknown-linux-gnu/release/usbstoraged: $(USBSTORAGED_SRC)
+	cd usbstoraged && ./build-prod.sh
 
 ui/node_modules: ui/package.json
 	npm --prefix ui install

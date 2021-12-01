@@ -1,0 +1,10 @@
+/target
+**/*.rs.bk
+.DS_Store
+.vscode
+secrets.db
+*.s9pk
+*.sqlite3
+.env
+.editorconfig
+proptest-regressions/*
