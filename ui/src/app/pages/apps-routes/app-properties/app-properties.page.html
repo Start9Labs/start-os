@@ -1,7 +1,7 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button></ion-back-button>
+      <ion-back-button [defaultHref]="'/services/' + pkgId"></ion-back-button>
     </ion-buttons>
     <ion-title>Properties</ion-title>
     <ion-buttons *ngIf="!loading" slot="end">

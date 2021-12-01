@@ -51,7 +51,7 @@ import { GlobalErrorHandler } from './services/global-error-handler.service'
     {
       provide: ApiService,
       useFactory: ApiServiceFactory,
-      deps: [ConfigService, HttpService],
+      deps: [ConfigService, HttpService, LocalStorageBootstrap],
     },
     {
       provide: PatchDbService,

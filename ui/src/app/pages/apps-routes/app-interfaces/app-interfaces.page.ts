@@ -20,6 +20,7 @@ export class AppInterfacesPage {
   @ViewChild(IonContent) content: IonContent
   ui: LocalInterface | null
   other: LocalInterface[] = []
+  pkgId: string
 
   constructor (
     private readonly route: ActivatedRoute,
@@ -27,8 +28,8 @@ export class AppInterfacesPage {
   ) { }
 
   ngOnInit () {
-    const pkgId = this.route.snapshot.paramMap.get('pkgId')
-    const pkg = this.patch.getData()['package-data'][pkgId]
+    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+    const pkg = this.patch.getData()['package-data'][this.pkgId]
     const interfaces = pkg.manifest.interfaces
     const uiKey = getUiInterfaceKey(interfaces)
 

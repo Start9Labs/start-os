@@ -5,12 +5,12 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { RequestError } from '../http.service'
 
 export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
-  protected readonly sync = new Subject<Update<DataModel>>()
+  protected readonly sync$ = new Subject<Update<DataModel>>()
 
   /** PatchDb Source interface. Post/Patch requests provide a source of patches to the db. */
   // sequenceStream '_' is not used by the live api, but is overridden by the mock
   watch$ (_?: Store<DataModel>): Observable<Update<DataModel>> {
-    return this.sync.asObservable()
+    return this.sync$.asObservable()
   }
 
   connectionMade$ = new Subject<void>()
@@ -201,12 +201,12 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
       return f(a)
         .catch((e: RequestError) => {
-          if (e.revision) this.sync.next(e.revision)
+          if (e.revision) this.sync$.next(e.revision)
           throw e
         })
         .then(({ response, revision }) => {
           this.connectionMade$.next()
-          if (revision) this.sync.next(revision)
+          if (revision) this.sync$.next(revision)
           return response
         })
     }
