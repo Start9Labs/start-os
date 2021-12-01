@@ -1,5 +1,5 @@
 {
-  "gitHash": "",
+  "gitHash": "3fd3de293fac45b745b3691a1b1804cea6739950",
   "patchDb": {
     "poll": {
       "cooldown": 10000
@@ -11,9 +11,6 @@
   },
   "mocks": {
     "enabled": true,
-    "connection": "ws",
-    "rpcPort": "5959",
-    "wsPort": "5960",
     "maskAs": "tor",
     "skipStartupAlerts": true
   }
