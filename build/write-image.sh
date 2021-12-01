@@ -26,6 +26,7 @@ sudo sed -i 's/LABEL=writable/LABEL=green/g' /tmp/eos-mnt/cmdline.txt
 cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp
 echo "dtoverlay=pwm-2chan" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
+sudo cp /tmp/eos-mnt/config.txt /tmp/eos-mnt/config.txt.orig
 
 # Unmount the boot partition and mount embassy partition
 sudo umount /tmp/eos-mnt
@@ -43,13 +44,6 @@ cd appmgr/
 sudo cp target/aarch64-unknown-linux-gnu/release/embassy-init /tmp/eos-mnt/usr/local/bin
 sudo cp target/aarch64-unknown-linux-gnu/release/embassyd /tmp/eos-mnt/usr/local/bin
 sudo cp target/aarch64-unknown-linux-gnu/release/embassy-cli /tmp/eos-mnt/usr/local/bin
-sudo cp *.service /tmp/eos-mnt/etc/systemd/system/
-
-cd ..
-
-cd usbstoraged/
-
-sudo cp target/aarch64-unknown-linux-gnu/release/usbstoraged /tmp/eos-mnt/usr/local/bin
 sudo cp *.service /tmp/eos-mnt/etc/systemd/system/
 
 cd ..

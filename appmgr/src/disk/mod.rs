@@ -14,6 +14,7 @@ use crate::util::{display_serializable, IoFormat, Version};
 use crate::Error;
 
 pub mod main;
+pub mod quirks;
 pub mod util;
 
 #[command(subcommands(list, backup_info))]
