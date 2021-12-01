@@ -16,9 +16,10 @@ export class AppLogsPage {
   constructor (
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
-  ) {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
+  ) { }
 
+  ngOnInit () {
+    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
   }
 
   fetchFetchLogs () {
