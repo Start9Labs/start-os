@@ -2,6 +2,8 @@ name: 🐛 Bug Report
 description: Create a report to help us improve EmbassyOS
 title: '[bug]: '
 labels: [Bug, Needs Triage]
+assignees:
+  - ProofOfKeags
 body:
   - type: checkboxes
     attributes:
@@ -14,6 +16,7 @@ body:
     attributes:
       label: EmbassyOS Version
       description: What version of EmbassyOS are you running?
+      placeholder: e.g. 0.3.0
     validations:
       required: true
   - type: dropdown
@@ -27,12 +30,12 @@ body:
       required: true
   - type: dropdown
     attributes:
-      label: Operating System
+      label: Device OS
       description: What operating system is your device running?
       options:
-        - Linux
         - MacOS
         - Windows
+        - Linux
         - iOS
         - Android
         - CalyxOS
@@ -42,8 +45,8 @@ body:
       required: true
   - type: input
     attributes:
-      label: OS Version
-      description: What version is your operating system?
+      label: Device OS Version
+      description: What version is your device OS?
     validations:
       required: true
   - type: dropdown
@@ -51,9 +54,9 @@ body:
       label: Browser
       description: What browser are you using to connect to Embassy?
       options:
-        - Tor Browser
         - Firefox
         - Brave
+        - Tor Browser
         - Safari
         - Chrome
         - Opera
@@ -66,18 +69,19 @@ body:
     attributes:
       label: Browser Version
       description: What version is your browser?
+      placeholder: e.g. 94.0.2
     validations:
       required: true
   - type: textarea
     attributes:
       label: Current Behavior
-      description: A clear description of what the bug is and how it manifests.
+      description: A clear description of the bug and how it manifests.
     validations:
       required: true
   - type: textarea
     attributes:
       label: Expected Behavior
-      description: A clear description of what you expected to happen.
+      description: A clear description of what you expect to happen.
     validations:
       required: true
   - type: textarea
