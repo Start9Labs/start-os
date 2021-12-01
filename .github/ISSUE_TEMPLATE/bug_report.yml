@@ -13,7 +13,7 @@ body:
   - type: input
     attributes:
       label: EmbassyOS Version
-      description: What version of EmbassyOS are you running? For EmbassyOS 0.2.x issues, please use https://github.com/start9labs/eos-0.2.x.
+      description: What version of EmbassyOS are you running?
     validations:
       required: true
   - type: dropdown
