@@ -663,7 +663,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: `/package-data/${id}`,
-          value: Mock.LocalPkgs[id],
+          value: { ...Mock.LocalPkgs[id] },
         },
         {
           op: PatchOp.REMOVE,
@@ -734,7 +734,6 @@ export class MockApiService extends ApiService {
       patch,
       expireId: null,
     }
-    console.log('REVISION', revision)
     this.mockPatch$.next(revision)
   }
 
@@ -749,8 +748,6 @@ export class MockApiService extends ApiService {
       patch,
       expireId: null,
     }
-
-    console.log('REVISION', revision)
 
     return { response, revision }
   }
