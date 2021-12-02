@@ -505,26 +505,19 @@ pub fn configure<'a, Db: DbHandle>(
         }
 
         if let Some(signal) = signal {
-            ctx.docker
-                .kill_container(
-                    &DockerAction::container_name(id, None),
-                    Some(KillContainerOptions {
-                        signal: signal.to_string(),
-                    }),
-                )
-                .await
-                // ignore container is not running https://docs.docker.com/engine/api/v1.41/#operation/ContainerKill
-                .or_else(|e| {
-                    if matches!(
-                        e,
-                        bollard::errors::Error::DockerResponseConflictError { .. }
-                            | bollard::errors::Error::DockerResponseNotFoundError { .. }
-                    ) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                })?;
+            match ctx.managers.get(&(id.clone(), version.clone())).await {
+                None => {
+                    // in theory this should never happen, which indicates this function should be moved behind the
+                    // Manager interface
+                    return Err(Error::new(
+                        eyre!("Manager Not Found for package being configured"),
+                        crate::ErrorKind::Incoherent,
+                    ));
+                }
+                Some(m) => {
+                    m.signal(&signal).await?;
+                }
+            }
         }
 
         Ok(())
