@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::{DateTime, Utc};
 use patch_db::{DbHandle, HasModel};
@@ -46,10 +47,11 @@ impl MainStatus {
         ctx: &RpcContext,
         db: &mut Db,
         manifest: &Manifest,
+        should_commit: &AtomicBool,
     ) -> Result<(), Error> {
         match self {
             MainStatus::Running { started, health } => {
-                *health = manifest
+                let health_result = manifest
                     .health_checks
                     .check_all(
                         ctx,
@@ -59,6 +61,12 @@ impl MainStatus {
                         &manifest.volumes,
                     )
                     .await?;
+                if !should_commit.load(Ordering::SeqCst) {
+                    return Ok(());
+                } else {
+                    // only commit health check results if we are supposed to
+                    *health = health_result;
+                }
                 let mut should_stop = false;
                 for (check, res) in health {
                     match &res {

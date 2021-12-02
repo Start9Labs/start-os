@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::atomic::AtomicBool;
 
 use patch_db::DbHandle;
 use tracing::instrument;
@@ -15,6 +16,7 @@ pub async fn check<Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
     id: &PackageId,
+    should_commit: &AtomicBool,
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
 
@@ -41,7 +43,10 @@ pub async fn check<Db: DbHandle>(
         .get_mut(&mut checkpoint)
         .await?;
 
-    status.main.check(&ctx, &mut checkpoint, &*manifest).await?;
+    status
+        .main
+        .check(&ctx, &mut checkpoint, &*manifest, should_commit)
+        .await?;
 
     let failed = match &status.main {
         MainStatus::Running { health, .. } => health.clone(),
