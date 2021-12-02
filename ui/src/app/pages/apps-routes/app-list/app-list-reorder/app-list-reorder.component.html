@@ -14,7 +14,7 @@
 <ion-list *ngIf="reordering; else grid">
   <ion-reorder-group disabled="false" (ionItemReorder)="reorder($any($event))">
     <ion-reorder *ngFor="let item of pkgs">
-      <ion-item *ngIf="item | packageInfo | async as pkg" class="item">
+      <ion-item color="light" *ngIf="item | packageInfo | async as pkg" class="item">
         <app-list-icon
           slot="start"
           [pkg]="pkg"
