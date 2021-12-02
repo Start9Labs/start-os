@@ -1,7 +1,7 @@
 <!-- header -->
 <ion-item-divider>
   {{ reordering ? "Reorder" : "Installed Services" }}
-  <ion-button slot="end" fill="clear" (click)="toggle()">
+  <ion-button *ngIf="pkgs.length > 1" slot="end" fill="clear" (click)="toggle()">
     <ion-icon
       slot="start"
       [name]="reordering ? 'checkmark' : 'swap-vertical'"
@@ -20,7 +20,7 @@
           [pkg]="pkg"
           [connectionFailure]="connectionFailure$ | async"
         ></app-list-icon>
-        <ion-thumbnail slot="start" class="ion-margin-start">
+        <ion-thumbnail slot="start">
           <img alt="" [src]="pkg.entry['static-files'].icon" />
         </ion-thumbnail>
         <ion-label>

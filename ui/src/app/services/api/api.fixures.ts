@@ -1801,41 +1801,6 @@ export module Mock {
 
   export const MockConfig = realWorldConfigSpec.config
 
-  const testConfig = {
-    testnet: false,
-    'object-list': [
-      {
-        'first-name': 'First',
-        'last-name': 'Last',
-        'age': 30,
-      },
-      {
-        'first-name': 'First2',
-        'last-name': 'Last2',
-        'age': 40,
-      },
-    ],
-    'union-list': undefined,
-    'random-enum': 'option1',
-    'favorite-number': null,
-    rpcsettings: {
-      laws: {
-        law1: 'The first law',
-        law2: 'The second law',
-      },
-      rpcpass: null,
-      rpcuser: '123',
-      rulemakers: [],
-    },
-    advanced: {
-      notifications: ['email', 'text'],
-    },
-    'bitcoin-node': undefined,
-    port: 5959,
-    rpcallowip: undefined,
-    rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
-  }
-
   export const MockDependencyConfig = {
     testnet: true,
     'object-list': [
@@ -1875,19 +1840,6 @@ export module Mock {
     rpcallowip: undefined,
     rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
   }
-
-  export const Patch: Operation[] = [
-    {
-      op: 'replace',
-      path: '/testnet',
-      value: true,
-    },
-    {
-      op: 'add',
-      path: '/advanced/notifications/1',
-      value: 'text',
-    },
-  ]
 
   export const bitcoind: PackageDataEntry = {
     state: PackageState.Installed,
