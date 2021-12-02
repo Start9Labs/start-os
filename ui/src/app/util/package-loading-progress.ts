@@ -28,17 +28,19 @@ export function packageLoadingProgress (
       unpackWeight * unpacked,
   )
 
+
   const denominator = Math.floor(
     size * (downloadWeight + validateWeight + unpackWeight),
   )
   const totalProgress = Math.floor(100 * numerator / denominator)
+
   return {
     totalProgress,
     downloadProgress: Math.floor((100 * downloaded) / size),
     validateProgress: Math.floor((100 * validated) / size),
     unpackProgress: Math.floor((100 * unpacked) / size),
     isComplete: downloadComplete && validationComplete && unpackComplete,
-    display: totalProgress > 98 ? 'Finalizing' : `${totalProgress}%`,
+    display: totalProgress > 98 ? 'Finalizing...' : `Installing... ${totalProgress}%`,
   }
 }
 
