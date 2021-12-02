@@ -6,15 +6,14 @@
 >
   <span *ngIf= "!installProgress">
     {{ disconnected ? 'Unknown' : rendering.display }}
-    <ion-spinner *ngIf="rendering.showDots" class="dots" name="dots"></ion-spinner>
+    <span *ngIf="rendering.showDots">...</span>
   </span>
   <span *ngIf="installProgress">
     <span *ngIf="installProgress < 99">
-      Installing
-      <ion-spinner class="dots" name="dots"></ion-spinner>{{ installProgress }}%
+      Installing... {{ installProgress }}%
     </span>
     <span *ngIf="installProgress >= 99">
-      Finalizing install. This could take a minute<ion-spinner class="dots" name="dots"></ion-spinner>
+      Finalizing install. This could take a minute...
     </span>
   </span>
 
