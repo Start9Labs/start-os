@@ -112,15 +112,18 @@ pub async fn update_quirks(quirks: &mut Quirks) -> Result<(), Error> {
         tokio::fs::write(QUIRK_PATH, quirks.to_string()).await?;
 
         reconnect_usb(usb_device.path()).await?;
-        reconnect_usb(usb_device.path()).await?;
     }
     Ok(())
 }
 
 #[instrument(skip(usb_device_path))]
 pub async fn reconnect_usb(usb_device_path: impl AsRef<Path>) -> Result<(), Error> {
-    tokio::fs::write(usb_device_path.as_ref().join("authorized"), "0").await?;
-    tokio::fs::write(usb_device_path.as_ref().join("authorized"), "1").await?;
+    let authorized_path = usb_device_path.as_ref().join("authorized");
+    let authorized_file = tokio::fs::File::create(&authorized_path).await?;
+    authorized_file.write_all("0").await?;
+    authorized_file.sync_all().await?;
+    authorized_file.write_all("1").await?;
+    authorized_file.sync_all().await?;
     Ok(())
 }
 
