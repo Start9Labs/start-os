@@ -12,10 +12,11 @@ use crate::Error;
 
 pub const QUIRK_PATH: &'static str = "/sys/module/usb_storage/parameters/quirks";
 
-pub const WHITELIST: [(VendorId, ProductId); 3] = [
+pub const WHITELIST: [(VendorId, ProductId); 4] = [
     (VendorId(0x1d6b), ProductId(0x0002)), // root hub usb2
     (VendorId(0x1d6b), ProductId(0x0003)), // root hub usb3
     (VendorId(0x2109), ProductId(0x3431)),
+    (VendorId(0x1058), ProductId(0x262f)), // western digital black HDD
 ];
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
