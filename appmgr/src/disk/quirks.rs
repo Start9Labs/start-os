@@ -1,5 +1,6 @@
 use std::num::ParseIntError;
 use std::path::Path;
+use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use tokio::io::AsyncWriteExt;
@@ -109,6 +110,8 @@ pub async fn update_quirks(quirks: &mut Quirks) -> Result<(), Error> {
         }
         quirks.add(vendor, product);
         tokio::fs::write(QUIRK_PATH, quirks.to_string()).await?;
+
+        tokio::time::sleep(Duration::from_millis(1024)).await;
 
         reconnect_usb(usb_device.path()).await?;
     }
