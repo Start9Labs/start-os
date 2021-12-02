@@ -38,8 +38,8 @@ sudo umount /tmp/eos-mnt
 
 sudo mount ${OUTPUT_DEVICE}p3 /tmp/eos-mnt
 
-mkdir  /tmp/eos-mnt/media/boot-rw
-cp build/fstab /tmp/eos-mnt/etc/fstab
+sudo mkdir  /tmp/eos-mnt/media/boot-rw
+sudo cp build/fstab /tmp/eos-mnt/etc/fstab
 # Enter the appmgr directory, copy over the built EmbassyOS binaries and systemd services, edit the nginx config, then create the .ssh directory
 cd appmgr/
 
