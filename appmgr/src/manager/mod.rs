@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::future::Future;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
-use bollard::container::StopContainerOptions;
+use bollard::container::{KillContainerOptions, StopContainerOptions};
 use color_eyre::eyre::eyre;
+use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Sqlite};
@@ -158,6 +159,7 @@ pub struct ManagerSharedState {
     tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
     synchronized: Notify,
     synchronize_now: Notify,
+    commit_health_check_results: AtomicBool,
 }
 
 #[derive(Clone, Copy)]
@@ -255,11 +257,22 @@ async fn run_main(
                 .collect::<Result<Vec<_>, Error>>()?,
         )
         .await?;
+
+    state
+        .commit_health_check_results
+        .store(true, Ordering::SeqCst);
     let health = async {
         loop {
             tokio::time::sleep(Duration::from_secs(1)).await;
             let mut db = state.ctx.db.handle();
-            if let Err(e) = health::check(&state.ctx, &mut db, &state.manifest.id).await {
+            if let Err(e) = health::check(
+                &state.ctx,
+                &mut db,
+                &state.manifest.id,
+                &state.commit_health_check_results,
+            )
+            .await
+            {
                 tracing::error!(
                     "Failed to run health check for {}: {}",
                     &state.manifest.id,
@@ -310,6 +323,7 @@ impl Manager {
             tor_keys,
             synchronized: Notify::new(),
             synchronize_now: Notify::new(),
+            commit_health_check_results: AtomicBool::new(true),
         });
         let thread_shared = shared.clone();
         let thread = tokio::spawn(async move {
@@ -322,6 +336,37 @@ impl Manager {
             shared,
             thread: Container::new(Some(thread.into())),
         })
+    }
+
+    pub async fn signal(&self, signal: &Signal) -> Result<(), Error> {
+        // stop health checks from committing their results
+        self.shared
+            .commit_health_check_results
+            .store(false, Ordering::SeqCst);
+
+        // send signal to container
+        self.shared
+            .ctx
+            .docker
+            .kill_container(
+                &self.shared.container_name,
+                Some(KillContainerOptions {
+                    signal: signal.to_string(),
+                }),
+            )
+            .await
+            .or_else(|e| {
+                if matches!(
+                    e,
+                    bollard::errors::Error::DockerResponseConflictError { .. }
+                        | bollard::errors::Error::DockerResponseNotFoundError { .. }
+                ) {
+                    Ok(())
+                } else {
+                    Err(e)
+                }
+            })?;
+        Ok(())
     }
 
     #[instrument(skip(self))]
@@ -436,6 +481,9 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
 
 #[instrument(skip(shared))]
 async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
+    shared
+        .commit_health_check_results
+        .store(false, Ordering::SeqCst);
     shared.on_stop.send(OnStop::Sleep).map_err(|_| {
         Error::new(
             eyre!("Manager has already been shutdown"),

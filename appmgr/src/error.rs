@@ -60,6 +60,7 @@ pub enum ErrorKind {
     ParseDbField = 52,
     Duplicate = 53,
     MultipleErrors = 54,
+    Incoherent = 55,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -119,6 +120,7 @@ impl ErrorKind {
             ParseDbField => "Database Field Parse Error",
             Duplicate => "Duplication Error",
             MultipleErrors => "Multiple Errors",
+            Incoherent => "Incoherent",
         }
     }
 }
