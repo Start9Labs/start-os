@@ -646,37 +646,28 @@ export class MockApiService extends ApiService {
         if (i === initialProgress.size) {
           initialProgress[phase.completion] = true
         }
-        let patch: any
-        if (initialProgress['unpack-complete']) {
-          patch = [
-            {
-              op: PatchOp.REMOVE,
-              path: `/package-data/${id}/install-progress`,
-            },
-            // {
-            //   op: PatchOp.REMOVE,
-            //   path: `/recovered-packages/${id}`,
-            // } as RemoveOperation,
-          ]
-        } else {
-          patch = [
-            {
-              op: PatchOp.REPLACE,
-              path: `/package-data/${id}/install-progress`,
-              value: initialProgress,
-            },
-          ]
-        }
+
+        const patch = [
+          {
+            op: PatchOp.REPLACE,
+            path: `/package-data/${id}/install-progress`,
+            value: initialProgress,
+          },
+        ]
         this.updateMock(patch)
       }
     }
 
     setTimeout(() => {
-      const patch2 = [
+      const patch2: any = [
         {
           op: PatchOp.REPLACE,
           path: `/package-data/${id}`,
           value: Mock.LocalPkgs[id],
+        },
+        {
+          op: PatchOp.REMOVE,
+          path: `/package-data/${id}/install-progress`,
         },
       ]
       this.updateMock(patch2)
