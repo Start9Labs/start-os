@@ -17,6 +17,8 @@ pub mod main;
 pub mod quirks;
 pub mod util;
 
+pub const BOOT_RW_PATH: &'static str = "/media/boot-rw";
+
 #[command(subcommands(list, backup_info))]
 pub fn disk() -> Result<(), Error> {
     Ok(())

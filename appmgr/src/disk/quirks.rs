@@ -5,7 +5,7 @@ use color_eyre::eyre::eyre;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
-use super::util::TmpMountGuard;
+use super::BOOT_RW_PATH;
 use crate::util::AtomicFile;
 use crate::Error;
 
@@ -55,17 +55,13 @@ impl Quirks {
         self.0.contains(&(vendor, product))
     }
 }
-impl Default for Quirks {
-    fn default() -> Self {
-        Quirks(vec![(VendorId(0x152d), ProductId(0x0562))]) // SSK enclosure shipped by Start9 Labs
-    }
-}
 impl std::fmt::Display for Quirks {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut comma = false;
         for (vendor, product) in &self.0 {
             if comma {
                 write!(f, ",")?;
+            } else {
                 comma = true;
             }
             write!(f, "{}:{}:u", vendor, product)?;
@@ -133,9 +129,8 @@ pub async fn fetch_quirks() -> Result<Quirks, Error> {
 
 #[instrument]
 pub async fn save_quirks(quirks: &Quirks) -> Result<(), Error> {
-    let guard = TmpMountGuard::mount("/dev/mmcblk0p1", None).await?;
-    let orig_path = guard.as_ref().join("cmdline.txt.orig");
-    let target_path = guard.as_ref().join("cmdline.txt");
+    let orig_path = Path::new(BOOT_RW_PATH).join("cmdline.txt.orig");
+    let target_path = Path::new(BOOT_RW_PATH).join("cmdline.txt");
     if tokio::fs::metadata(&orig_path).await.is_err() {
         tokio::fs::copy(&target_path, &orig_path).await?;
     }
@@ -145,6 +140,6 @@ pub async fn save_quirks(quirks: &Quirks) -> Result<(), Error> {
         .write_all(format!("usb-storage.quirks={} {}", quirks, cmdline).as_bytes())
         .await?;
     target.save().await?;
-    guard.unmount().await?;
+
     Ok(())
 }
