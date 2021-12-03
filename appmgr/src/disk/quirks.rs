@@ -112,8 +112,6 @@ pub async fn update_quirks(quirks: &mut Quirks) -> Result<(), Error> {
         quirks.add(vendor, product);
         tokio::fs::write(QUIRK_PATH, quirks.to_string()).await?;
 
-        tokio::time::sleep(Duration::from_secs(30)).await;
-
         reconnect_usb(usb_device.path()).await?;
     }
     Ok(())
@@ -125,6 +123,9 @@ pub async fn reconnect_usb(usb_device_path: impl AsRef<Path>) -> Result<(), Erro
     let mut authorized_file = tokio::fs::File::create(&authorized_path).await?;
     authorized_file.write_all(b"0").await?;
     authorized_file.sync_all().await?;
+    drop(authorized_file);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let mut authorized_file = tokio::fs::File::create(&authorized_path).await?;
     authorized_file.write_all(b"1").await?;
     authorized_file.sync_all().await?;
     Ok(())
