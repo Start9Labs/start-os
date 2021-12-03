@@ -285,6 +285,8 @@ export class AppShowPage {
       }
     }
 
+    errorText = `${errorText}. ${ this.pkg.manifest.title} will not work as expected.`
+
     const depInfo = this.pkg.installed['dependency-info'][id]
 
     return {

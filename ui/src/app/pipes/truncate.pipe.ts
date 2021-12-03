@@ -20,3 +20,14 @@ export class TruncateEndPipe implements PipeTransform {
     return val.slice(0, length) + '...'
   }
 }
+
+@Pipe({
+  name: 'truncateTail',
+})
+export class TruncateTailPipe implements PipeTransform {
+  transform (val: string, length: number): unknown {
+    if (val.length <= length) return val
+    return '...' + val.substr(length * -1)
+  }
+}
+

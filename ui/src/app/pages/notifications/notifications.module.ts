@@ -6,6 +6,7 @@ import { NotificationsPage } from './notifications.page'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { BackupReportPageModule } from 'src/app/modals/backup-report/backup-report.module'
+import { TruncateTailPipe } from 'src/app/pipes/truncate.pipe'
 
 const routes: Routes = [
   {
@@ -23,6 +24,6 @@ const routes: Routes = [
     SharingModule,
     BackupReportPageModule,
   ],
-  declarations: [NotificationsPage],
+  declarations: [NotificationsPage, TruncateTailPipe],
 })
 export class NotificationsPageModule { }
