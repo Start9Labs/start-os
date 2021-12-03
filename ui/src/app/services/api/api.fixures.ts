@@ -1,6 +1,5 @@
-import { DependencyErrorType, DependencySeverity, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { Log, MarketplacePkg, Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
-import { Operation } from 'fast-json-patch'
 
 export module Mock {
 
@@ -458,7 +457,6 @@ export module Mock {
               'how': 'You can use an external node from your Embassy if you prefer.',
             },
             'config': null,
-            'severity': DependencySeverity.Critical,
         },
         'btc-rpc-proxy': {
             'version': '>=0.2.2',
@@ -468,7 +466,6 @@ export module Mock {
               'how': 'To use Proxy\'s user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.',
             },
             'config': null,
-            'severity': DependencySeverity.Critical,
         },
     },
   }
@@ -561,7 +558,6 @@ export module Mock {
         requirement: {
           type: 'required',
         },
-        severity: DependencySeverity.Warning,
         config: {
           check: {
             type: 'docker',
