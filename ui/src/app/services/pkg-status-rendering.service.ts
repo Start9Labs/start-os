@@ -1,5 +1,5 @@
 import { isEmptyObject } from '../util/misc.util'
-import { DependencySeverity, PackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
+import { PackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
 
 export function renderPkgStatus (pkg: PackageDataEntry): {
   primary: PrimaryStatus,
@@ -35,12 +35,6 @@ function getDependencyStatus (pkg: PackageDataEntry): DependencyStatus {
 
   const depErrors = installed.status['dependency-errors']
   const depIds = Object.keys(depErrors).filter(key => !!depErrors[key])
-
-  for (let pkgId of depIds) {
-    if (pkg.manifest.dependencies[pkgId].severity === DependencySeverity.Critical) {
-      return DependencyStatus.Critical
-    }
-  }
 
   return depIds.length ? DependencyStatus.Warning : DependencyStatus.Satisfied
 }
@@ -84,7 +78,6 @@ export enum PrimaryStatus {
 
 export enum DependencyStatus {
   Warning = 'warning',
-  Critical = 'critical',
   Satisfied = 'satisfied',
 }
 
@@ -110,7 +103,6 @@ export const PrimaryRendering: { [key: string]: StatusRendering } = {
 
 export const DependencyRendering: { [key: string]: StatusRendering }  = {
   [DependencyStatus.Warning]: { display: 'Issue', color: 'warning' },
-  [DependencyStatus.Critical]: { display: 'Critical Issue', color: 'danger' },
   [DependencyStatus.Satisfied]: { display: 'Satisfied', color: 'success' },
 }
 
