@@ -283,9 +283,8 @@ export class AppShowPage {
       } else if (error.type === DependencyErrorType.Transitive) {
         errorText = 'Dependency has a dependency issue'
       }
+      errorText = `${errorText}. ${ this.pkg.manifest.title} will not work as expected.`
     }
-
-    errorText = `${errorText}. ${ this.pkg.manifest.title} will not work as expected.`
 
     const depInfo = this.pkg.installed['dependency-info'][id]
 
