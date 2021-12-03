@@ -66,7 +66,7 @@
               </b>
             </h2>
             <h2 class="notification-message">
-              {{ not.message }}
+              <span *ngIf="not.message.length > 1000">...</span>{{ not.message.substr(-1000) }}
             </h2>
             <p>
               {{ not['created-at'] | date: 'short' }}
