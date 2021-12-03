@@ -3,7 +3,7 @@ import { EmverComparesPipe, EmverSatisfiesPipe, EmverDisplayPipe } from '../pipe
 import { IncludesPipe } from '../pipes/includes.pipe'
 import { TypeofPipe } from '../pipes/typeof.pipe'
 import { MarkdownPipe } from '../pipes/markdown.pipe'
-import { TruncateCenterPipe, TruncateEndPipe } from '../pipes/truncate.pipe'
+import { TruncateCenterPipe, TruncateEndPipe, TruncateTailPipe } from '../pipes/truncate.pipe'
 import { MaskPipe } from '../pipes/mask.pipe'
 import { HasUiPipe, LaunchablePipe } from '../pipes/ui.pipe'
 import { EmptyPipe } from '../pipes/empty.pipe'
@@ -22,6 +22,7 @@ import { ConvertBytesPipe } from '../pipes/convert-bytes.pipe'
     MarkdownPipe,
     TruncateCenterPipe,
     TruncateEndPipe,
+    TruncateTailPipe,
     MaskPipe,
     EmverDisplayPipe,
     HasUiPipe,
@@ -41,6 +42,7 @@ import { ConvertBytesPipe } from '../pipes/convert-bytes.pipe'
     MarkdownPipe,
     TruncateEndPipe,
     TruncateCenterPipe,
+    TruncateTailPipe,
     MaskPipe,
     EmverDisplayPipe,
     HasUiPipe,
