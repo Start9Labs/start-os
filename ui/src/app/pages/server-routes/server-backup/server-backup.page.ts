@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
+import { LoadingController, ModalController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GenericInputComponent, GenericInputOptions } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -24,6 +24,7 @@ export class ServerBackupPage {
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly patch: PatchDbService,
+    private readonly navCtrl: NavController,
   ) { }
 
   ngOnInit () {
@@ -38,6 +39,9 @@ export class ServerBackupPage {
           if (this.backingUp) {
             this.backingUp = false
             this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
+            if (!this.pkgs.some(pkg => pkg.active)) {
+              this.navCtrl.navigateRoot('/embassy')
+            }
           }
         }
       }),

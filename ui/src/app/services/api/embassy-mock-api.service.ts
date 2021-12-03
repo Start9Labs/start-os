@@ -273,7 +273,7 @@ export class MockApiService extends ApiService {
       'latfgvwdbhjsndmk': {
         type: 'cifs',
         hostname,
-        path,
+        path: path.replace(/\\/g, '/'),
         username,
         mountable: true,
         'embassy-os': null,
