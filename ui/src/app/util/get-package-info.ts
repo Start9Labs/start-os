@@ -24,8 +24,7 @@ export function getPackageInfo (entry: PackageDataEntry): PkgInfo {
       : undefined,
     error:
       statuses.health === HealthStatus.Failure ||
-      statuses.dependency === DependencyStatus.Warning ||
-      statuses.dependency === DependencyStatus.Critical,
+      statuses.dependency === DependencyStatus.Warning,
   }
 }
 

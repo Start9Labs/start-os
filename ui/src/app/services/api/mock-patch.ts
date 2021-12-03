@@ -1,4 +1,4 @@
-import { DataModel, DependencyErrorType, DependencySeverity, DockerIoFormat, HealthResult, Manifest, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
+import { DataModel, DependencyErrorType, DockerIoFormat, HealthResult, Manifest, PackageMainStatus, PackageState, ServerStatus } from 'src/app/services/patch-db/data-model'
 
 export const mockPatchData: DataModel = {
   'ui': {
@@ -543,7 +543,6 @@ export const mockPatchData: DataModel = {
               'how': 'You can use an external node from your Embassy if you prefer.',
             },
             'config': null,
-            'severity': DependencySeverity.Critical,
           },
           'btc-rpc-proxy': {
             'version': '>=0.2.2',
@@ -553,7 +552,6 @@ export const mockPatchData: DataModel = {
               'how': 'To use Proxy\'s user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.',
             },
             'config': null,
-            'severity': DependencySeverity.Warning,
           },
         },
       },
