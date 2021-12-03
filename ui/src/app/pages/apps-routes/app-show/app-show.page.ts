@@ -39,6 +39,7 @@ export class AppShowPage {
   dependencies: DependencyInfo[] = []
   statuses: {
     primary: PrimaryStatus
+    dependency: DependencyStatus
     health: HealthStatus
   } = { } as any
   connectionFailure: boolean
