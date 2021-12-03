@@ -44,6 +44,7 @@ export class LiveApiService extends ApiService {
   // ** ENCRYPTED **
 
   async verifyCifs (params: VerifyCifs) {
+    params.path = params.path.replace('/\\/g', '/')
     return this.http.rpcRequest<EmbassyOSRecoveryInfo>({
       method: 'setup.cifs.check',
       params,
@@ -58,6 +59,9 @@ export class LiveApiService extends ApiService {
   }
 
   async verify03XPassword (source: RecoverySource, password: string) {
+    if (source.type === 'cifs') {
+      source.path = source.path.replace('/\\/g', '/')
+    }
     return this.http.rpcRequest<boolean>({
       method: 'setup.recovery.test-password',
       params: { source, password },
@@ -77,6 +81,10 @@ export class LiveApiService extends ApiService {
   }
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
+    if (setupInfo['recovery-source'].type === 'cifs') {
+      setupInfo['recovery-source'].path = setupInfo['recovery-source'].path.replace('/\\/g', '/')
+    }
+
     const res = await this.http.rpcRequest<SetupEmbassyRes>({
       method: 'setup.execute',
       params: setupInfo as any,
