@@ -8,7 +8,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { DependencyError, DependencyErrorType, DependencySeverity, HealthCheckResult, HealthResult, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
+import { DependencyError, DependencyErrorType, HealthCheckResult, HealthResult, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { DependencyStatus, HealthStatus, PrimaryRendering, PrimaryStatus, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionFailure, ConnectionService } from 'src/app/services/connection.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -39,7 +39,6 @@ export class AppShowPage {
   dependencies: DependencyInfo[] = []
   statuses: {
     primary: PrimaryStatus
-    dependency: DependencyStatus
     health: HealthStatus
   } = { } as any
   connectionFailure: boolean
@@ -283,14 +282,6 @@ export class AppShowPage {
         action = () => this.fixDep('configure', id)
       } else if (error.type === DependencyErrorType.Transitive) {
         errorText = 'Dependency has a dependency issue'
-      }
-    }
-
-    if (errorText) {
-      if (this.pkg.manifest.dependencies[id].severity === DependencySeverity.Critical) {
-        errorText = `Critical: ${errorText}. ${this.pkg.manifest.title} cannot be started until this dependency is satisfied, as it may cause harm to your system.`
-      } else  if (this.pkg.manifest.dependencies[id].severity === DependencySeverity.Warning) {
-        errorText = `${errorText}. ${this.pkg.manifest.title} will not work as expected.`
       }
     }
 

@@ -121,7 +121,7 @@ export interface Manifest {
     stop: string | null
   }
   main: ActionImpl
-  'health-checks': { [id: string]: ActionImpl & { severity: HealthCheckSeverity, name: string, description: string } }
+  'health-checks': { [id: string]: ActionImpl & { name: string, description: string } }
   config: ConfigActions | null
   volumes: { [id: string]: Volume }
   'min-os-version': string
@@ -366,21 +366,10 @@ export interface DependencyEntry {
     type: 'required'
   }
   description: string | null
-  severity: DependencySeverity,
   config: {
     check: ActionImpl,
     'auto-configure': ActionImpl
   }
-}
-
-export enum HealthCheckSeverity {
-  Critical = 'critical',
-  Warning = 'warning',
-}
-
-export enum DependencySeverity {
-  Critical = 'critical',
-  Warning = 'warning',
 }
 
 export type URL = string
