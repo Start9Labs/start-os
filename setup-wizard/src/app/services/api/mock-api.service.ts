@@ -157,11 +157,6 @@ export class MockApiService extends ApiService {
     return
   }
 
-  async verify03XPassword (source: RecoverySource, password: string) {
-    await pauseFor(2000)
-    return password.length > 8
-  }
-
   async importDrive (guid: string) {
     await pauseFor(3000)
     return setupRes
