@@ -231,7 +231,6 @@ impl DependencyError {
                         .get(db, true)
                         .await?;
                     if status.main.running() {
-                        dbg!((id, dependency));
                         DependencyError::HealthChecksFailed {
                             failures: BTreeMap::new(),
                         }
@@ -285,6 +284,11 @@ impl DependencyError {
                                     .try_heal(ctx, db, id, dependency, dependency_config, info)
                                     .await?
                             }
+                        }
+                        MainStatus::Starting => {
+                            DependencyError::Transitive
+                                .try_heal(ctx, db, id, dependency, dependency_config, info)
+                                .await?
                         }
                         _ => return Ok(Some(DependencyError::NotRunning)),
                     }
