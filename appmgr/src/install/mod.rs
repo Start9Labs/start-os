@@ -348,12 +348,12 @@ async fn cli_install(
         let body = Body::wrap_stream(tokio_util::io::ReaderStream::new(file));
         let client = reqwest::Client::new();
         let res = client
-            .post(dbg!(format!(
+            .post(format!(
                 "{}://{}/rest/rpc/{}",
                 ctx.protocol(),
                 ctx.host(),
                 guid
-            )))
+            ))
             .header(CONTENT_LENGTH, content_length)
             .body(body)
             .send()
