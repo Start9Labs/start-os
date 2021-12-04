@@ -29,6 +29,7 @@ use crate::net::tor::os_key;
 use crate::net::wifi::WpaCli;
 use crate::net::NetController;
 use crate::notifications::NotificationManager;
+use crate::setup::password_hash;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::system::launch_metrics_task;
@@ -81,6 +82,7 @@ impl RpcContextConfig {
                     get_id().await?,
                     &get_hostname().await?,
                     &os_key(&mut secret_store.acquire().await?).await?,
+                    password_hash(&mut secret_store.acquire().await?).await?,
                 ),
                 None,
             )

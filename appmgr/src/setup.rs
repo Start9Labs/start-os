@@ -11,6 +11,7 @@ use openssl::x509::X509;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
+use sqlx::{Executor, Sqlite};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
@@ -37,6 +38,19 @@ use crate::util::io::{dir_size, from_yaml_async_reader};
 use crate::util::Version;
 use crate::volume::{data_dir, VolumeId};
 use crate::{ensure_code, Error, ResultExt};
+
+#[instrument(skip(secrets))]
+pub async fn password_hash<Ex>(secrets: &mut Ex) -> Result<String, Error>
+where
+    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+{
+    let password = sqlx::query!("SELECT password FROM account")
+        .fetch_one(secrets)
+        .await?
+        .password;
+
+    Ok(password)
+}
 
 #[command(subcommands(status, disk, execute, recovery, cifs))]
 pub fn setup() -> Result<(), Error> {

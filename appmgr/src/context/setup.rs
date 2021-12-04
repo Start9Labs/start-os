@@ -20,7 +20,7 @@ use url::Host;
 use crate::db::model::Database;
 use crate::hostname::{get_hostname, get_id, get_product_key};
 use crate::net::tor::os_key;
-use crate::setup::RecoveryStatus;
+use crate::setup::{password_hash, RecoveryStatus};
 use crate::util::io::from_toml_async_reader;
 use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
@@ -95,6 +95,7 @@ impl SetupContext {
                     get_id().await?,
                     &get_hostname().await?,
                     &os_key(&mut secret_store.acquire().await?).await?,
+                    password_hash(&mut secret_store.acquire().await?).await?,
                 ),
                 None,
             )
