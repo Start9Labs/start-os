@@ -6,9 +6,8 @@ export abstract class ApiService {
   abstract getRecoveryStatus (): Promise<RecoveryStatusRes> // setup.recovery.status
 
   // encrypted
-  abstract verifyCifs (cifs: VerifyCifs): Promise<EmbassyOSRecoveryInfo> // echo - throws error if invalid
+  abstract verifyCifs (cifs: VerifyCifs): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
   abstract verifyProductKey (): Promise<void> // echo - throws error if invalid
-  abstract verify03XPassword (source: RecoverySource, password: string): Promise<boolean> // setup.recovery.test-password
   abstract importDrive (guid: string): Promise<SetupEmbassyRes> // setup.execute
   abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
 }

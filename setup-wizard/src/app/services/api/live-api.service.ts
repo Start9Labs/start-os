@@ -45,7 +45,7 @@ export class LiveApiService extends ApiService {
 
   async verifyCifs (params: VerifyCifs) {
     return this.http.rpcRequest<EmbassyOSRecoveryInfo>({
-      method: 'setup.cifs.check',
+      method: 'setup.cifs.verify',
       params,
     })
   }
@@ -54,13 +54,6 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest<void>({
       method: 'echo',
       params: { 'message': 'hello' },
-    })
-  }
-
-  async verify03XPassword (source: RecoverySource, password: string) {
-    return this.http.rpcRequest<boolean>({
-      method: 'setup.recovery.test-password',
-      params: { source, password },
     })
   }
 
