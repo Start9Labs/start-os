@@ -231,6 +231,7 @@ impl DependencyError {
                         .get(db, true)
                         .await?;
                     if status.main.running() {
+                        dbg!((id, dependency));
                         DependencyError::HealthChecksFailed {
                             failures: BTreeMap::new(),
                         }
