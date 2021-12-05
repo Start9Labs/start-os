@@ -93,7 +93,7 @@ export class EmbassyPage {
 
   private async setupEmbassy (drive: DiskInfo, password: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      message: 'Transferring encrypted data',
+      message: 'Transferring encrypted data. This could take a while...',
     })
 
     await loader.present()

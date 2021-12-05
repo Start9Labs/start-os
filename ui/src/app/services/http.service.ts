@@ -133,7 +133,6 @@ export enum Method {
 
 export interface RPCOptions {
   method: string
-  // @TODO what are valid params? object, bool?
   params?: object
   timeout?: number
 }

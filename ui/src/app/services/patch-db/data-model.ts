@@ -130,7 +130,7 @@ export interface Manifest {
   backup: BackupActions
   migrations: Migrations
   actions: { [id: string]: Action }
-  permissions: any // @TODO
+  permissions: any // @TODO 0.3.1
   dependencies: DependencyInfo
 }
 

@@ -100,9 +100,6 @@ export class FormObjectComponent {
   addListItem (key: string, markDirty = true, val?: string): void {
     const arr = this.formGroup.get(key) as FormArray
     if (markDirty) arr.markAsDirty()
-    // @TODO why are these commented out?
-    // const validators = this.formService.getListItemValidators(this.objectSpec[key] as ValueSpecList, key, arr.length)
-    // arr.push(new FormControl(value, validators))
     const listSpec = this.objectSpec[key] as ValueSpecList
     const newItem = this.formService.getListItem(listSpec, val)
     newItem.markAllAsTouched()

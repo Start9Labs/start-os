@@ -160,10 +160,9 @@ export class AppComponent {
   }
 
   async presentAlertLogout () {
-    // @TODO warn user no way to recover Embassy if logout and forget password. Maybe require password to logout?
     const alert = await this.alertCtrl.create({
       header: 'Caution',
-      message: 'Are you sure you want to logout?',
+      message: 'Do you know your password? If you log out and forget your password, you may permanently lose access to your Embassy.',
       buttons: [
         {
           text: 'Cancel',
