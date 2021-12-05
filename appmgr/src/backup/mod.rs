@@ -44,7 +44,7 @@ pub struct PackageBackupReport {
     error: Option<String>,
 }
 
-#[command(subcommands(backup_bulk::backup_all))]
+#[command(subcommands(backup_bulk::backup_all, target::target))]
 pub fn backup() -> Result<(), Error> {
     Ok(())
 }

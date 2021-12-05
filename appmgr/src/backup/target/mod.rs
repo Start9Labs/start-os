@@ -94,6 +94,7 @@ impl Serialize for BackupTargetId {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 pub enum BackupTargetFS {
     Disk(BlockDev<PathBuf>),
