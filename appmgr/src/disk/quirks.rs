@@ -128,6 +128,7 @@ pub async fn reconnect_usb(usb_device_path: impl AsRef<Path>) -> Result<(), Erro
     let mut authorized_file = tokio::fs::File::create(&authorized_path).await?;
     authorized_file.write_all(b"1").await?;
     authorized_file.sync_all().await?;
+    tokio::time::sleep(Duration::from_secs(1)).await;
     Ok(())
 }
 
