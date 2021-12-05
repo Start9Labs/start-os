@@ -221,8 +221,8 @@ export module RR {
 
   export type GetMarketplacePackagesReq = {
     ids?: { id: string, version: string }[]
-    // iff !id
     'eos-version-compat': string
+    // iff !id
     category?: string
     query?: string
     page?: string

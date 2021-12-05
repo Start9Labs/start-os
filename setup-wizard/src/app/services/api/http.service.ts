@@ -151,7 +151,6 @@ export enum Method {
 
 export interface RPCOptions {
   method: string
-  // @TODO what are valid params? object, bool?
   params?: {
     [param: string]: string | number | boolean | object | string[] | number[];
   }
