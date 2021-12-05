@@ -22,6 +22,7 @@ use tokio::process::Command;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
+use super::quirks::{fetch_quirks, save_quirks, update_quirks};
 use super::BackupInfo;
 use crate::auth::check_password;
 use crate::middleware::encrypt::{decrypt_slice, encrypt_slice};
@@ -206,6 +207,9 @@ pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {
 
 #[instrument]
 pub async fn list() -> Result<Vec<DiskInfo>, Error> {
+    let mut quirks = fetch_quirks().await?;
+    update_quirks(&mut quirks).await?;
+    save_quirks(&mut quirks).await?;
     let disk_guids = pvscan().await?;
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)

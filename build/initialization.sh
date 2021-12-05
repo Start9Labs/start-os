@@ -47,7 +47,7 @@ ControlPort 9051
 CookieAuthentication 1
 EOF
 
-echo 'overlayroot="tmpfs"' > /etc/overlayroot.local.conf
+echo 'overlayroot="tmpfs":swap=1,recurse=0' > /etc/overlayroot.local.conf
 systemctl disable initialization.service
 sync
 reboot
