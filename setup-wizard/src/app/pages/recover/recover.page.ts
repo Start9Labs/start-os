@@ -38,7 +38,7 @@ export class RecoverPage {
     await this.getDrives()
   }
 
-  driveClickable (drive: MappedDisk) {
+  driveClickable (drive: DiskBackupTarget) {
     return drive['embassy-os']?.full && (this.stateService.hasProductKey || this.is02x(drive))
   }
 
@@ -173,7 +173,7 @@ export class RecoverPage {
     this.navCtrl.navigateForward(`/embassy`)
   }
 
-  private is02x (drive: MappedDisk): boolean {
+  private is02x (drive: DiskBackupTarget): boolean {
     return !this.stateService.hasProductKey && drive['embassy-os']?.version.startsWith('0.2')
   }
 }
