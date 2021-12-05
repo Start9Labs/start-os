@@ -41,10 +41,8 @@ export class ServerBackupPage {
           } else {
             if (this.backingUp) {
               this.backingUp = false
-              if (!this.pkgs.some(pkg => pkg.active)) {
-                this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
-                this.navCtrl.navigateRoot('/embassy')
-              }
+              this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
+              this.navCtrl.navigateRoot('/embassy')
             }
           }
         }),
