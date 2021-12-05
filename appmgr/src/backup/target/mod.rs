@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::Digest;
@@ -9,14 +11,19 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use sqlx::{Executor, Sqlite};
+use tracing::instrument;
 
 use self::cifs::CifsBackupTarget;
 use crate::context::RpcContext;
+use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::FileSystem;
+use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
+use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
+use crate::util::Version;
 use crate::Error;
 
 pub mod cifs;
@@ -151,4 +158,82 @@ pub async fn list(
                 .map(|(id, cifs)| (BackupTargetId::Cifs { id }, BackupTarget::Cifs(cifs))),
         )
         .collect())
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BackupInfo {
+    pub version: Version,
+    pub timestamp: Option<DateTime<Utc>>,
+    pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PackageBackupInfo {
+    pub title: String,
+    pub version: Version,
+    pub os_version: Version,
+    pub timestamp: DateTime<Utc>,
+}
+
+fn display_backup_info(info: BackupInfo, matches: &ArgMatches<'_>) {
+    use prettytable::*;
+
+    if matches.is_present("format") {
+        return display_serializable(info, matches);
+    }
+
+    let mut table = Table::new();
+    table.add_row(row![bc =>
+        "ID",
+        "VERSION",
+        "OS VERSION",
+        "TIMESTAMP",
+    ]);
+    table.add_row(row![
+        "EMBASSY OS",
+        info.version.as_str(),
+        info.version.as_str(),
+        &if let Some(ts) = &info.timestamp {
+            ts.to_string()
+        } else {
+            "N/A".to_owned()
+        },
+    ]);
+    for (id, info) in info.package_backups {
+        let row = row![
+            id.as_str(),
+            info.version.as_str(),
+            info.os_version.as_str(),
+            &info.timestamp.to_string(),
+        ];
+        table.add_row(row);
+    }
+    table.print_tty(false);
+}
+
+#[command(display(display_backup_info))]
+#[instrument(skip(ctx, password))]
+pub async fn info(
+    #[context] ctx: RpcContext,
+    #[arg(rename = "target-id")] target_id: BackupTargetId,
+    #[arg] password: String,
+) -> Result<BackupInfo, Error> {
+    let guard = BackupMountGuard::mount(
+        TmpMountGuard::mount(
+            &target_id
+                .load(&mut ctx.secret_store.acquire().await?)
+                .await?,
+        )
+        .await?,
+        &password,
+    )
+    .await?;
+
+    let res = guard.metadata.clone();
+
+    guard.unmount().await?;
+
+    Ok(res)
 }
