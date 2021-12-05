@@ -1,0 +1,3 @@
+LABEL=green	/	ext4	discard,errors=remount-ro	0	1
+LABEL=system-boot	/media/boot-rw	vfat	defaults	0	1
+/media/boot-rw	/boot/firmware	none	defaults,bind,ro	0	0
