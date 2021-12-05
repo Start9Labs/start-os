@@ -21,8 +21,11 @@ sudo e2label ${OUTPUT_DEVICE}p4 blue
 mkdir -p /tmp/eos-mnt
 sudo mount ${OUTPUT_DEVICE}p1 /tmp/eos-mnt
 
-sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /tmp/eos-mnt/cmdline.txt
 sudo sed -i 's/LABEL=writable/LABEL=green/g' /tmp/eos-mnt/cmdline.txt
+# create a copy of the cmdline *without* the quirk string, so that it can be easily amended
+sudo cp /tmp/eos-mnt/cmdline.txt /tmp/eos-mnt/cmdline.txt.orig
+sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /tmp/eos-mnt/cmdline.txt
+
 cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp
 echo "dtoverlay=pwm-2chan" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
@@ -35,8 +38,8 @@ sudo umount /tmp/eos-mnt
 
 sudo mount ${OUTPUT_DEVICE}p3 /tmp/eos-mnt
 
-sudo sed -i 's/LABEL=writable/LABEL=green/g' /tmp/eos-mnt/etc/fstab
-sudo sed -i 's/LABEL=system-boot\(\s\+\S\+\s\+\S\+\s\+\)defaults/LABEL=system-boot\1defaults,ro/g' /tmp/eos-mnt/etc/fstab
+sudo mkdir  /tmp/eos-mnt/media/boot-rw
+sudo cp build/fstab /tmp/eos-mnt/etc/fstab
 # Enter the appmgr directory, copy over the built EmbassyOS binaries and systemd services, edit the nginx config, then create the .ssh directory
 cd appmgr/
 
