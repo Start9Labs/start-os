@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 import { BackupService } from './backup.service'
-import { CifsBackupTarget, RR } from 'src/app/services/api/api.types'
+import { CifsBackupTarget, DiskBackupTarget, RR } from 'src/app/services/api/api.types'
 import { ActionSheetController, AlertController, LoadingController, ModalController } from '@ionic/angular'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
@@ -15,7 +15,7 @@ import { MappedBackupTarget } from 'src/app/util/misc.util'
 })
 export class BackupDrivesComponent {
   @Input() type: 'create' | 'restore'
-  @Output() onSelect: EventEmitter<MappedBackupTarget> = new EventEmitter()
+  @Output() onSelect: EventEmitter<MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>> = new EventEmitter()
   loadingText: string
 
   constructor (
@@ -33,7 +33,7 @@ export class BackupDrivesComponent {
     this.backupService.getBackupTargets()
   }
 
-  select (target: MappedBackupTarget): void {
+  select (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>): void {
     if (target.entry.type === 'cifs' && !target.entry.mountable) {
       const message = 'Unable to connect to shared folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
       this.presentAlertError(message)
@@ -69,7 +69,7 @@ export class BackupDrivesComponent {
     await modal.present()
   }
 
-  async presentActionCifs (target: MappedBackupTarget, index: number): Promise<void> {
+  async presentActionCifs (target: MappedBackupTarget<CifsBackupTarget>, index: number): Promise<void> {
     const entry = target.entry as CifsBackupTarget
 
     const action = await this.actionCtrl.create({

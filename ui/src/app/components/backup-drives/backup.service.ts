@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { IonicSafeString } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getErrorMessage } from 'src/app/services/error-toast.service'
-import { BackupTarget } from 'src/app/services/api/api.types'
+import { BackupTarget, CifsBackupTarget, DiskBackupTarget } from 'src/app/services/api/api.types'
 import { Emver } from 'src/app/services/emver.service'
 import { MappedBackupTarget } from 'src/app/util/misc.util'
 
@@ -10,8 +10,8 @@ import { MappedBackupTarget } from 'src/app/util/misc.util'
   providedIn: 'root',
 })
 export class BackupService {
-  cifs: MappedBackupTarget[]
-  drives: MappedBackupTarget[]
+  cifs: MappedBackupTarget<CifsBackupTarget>[]
+  drives: MappedBackupTarget<DiskBackupTarget>[]
   loading = true
   loadingError: string | IonicSafeString
 
@@ -32,7 +32,7 @@ export class BackupService {
         return {
           id,
           hasValidBackup: this.hasValidBackup(cifs),
-          entry: cifs,
+          entry: cifs as CifsBackupTarget,
         }
       })
       // drives
@@ -42,7 +42,7 @@ export class BackupService {
         return {
           id,
           hasValidBackup: this.hasValidBackup(drive),
-          entry: drive,
+          entry: drive as DiskBackupTarget,
         }
       })
     } catch (e) {
