@@ -47,6 +47,7 @@ pub async fn mount_cifs(
                 .unwrap_or_default()
         ))
         .arg(format!("//{}{}", ip, absolute_path.display()))
+        .arg(mountpoint.as_ref())
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
     Ok(())
