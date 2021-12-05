@@ -57,12 +57,12 @@ export class RestorePage {
 
   private async presentModalOldPassword (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>, password: string): Promise<void> {
     const options: GenericInputOptions = {
-      title: 'Old Password Needed',
-      message: 'This backup was created with a different password. Enter the ORIGINAL password that was used to encrypt this drive.',
-      label: 'Old Password',
-      placeholder: 'Enter old password',
+      title: 'Original Password Needed',
+      message: 'This backup was created with a different password. Enter the ORIGINAL password that was used to encrypt this backup.',
+      label: 'Original Password',
+      placeholder: 'Enter original password',
       useMask: true,
-      buttonText: 'Create Backup',
+      buttonText: 'Restore From Backup',
       submitFn: (oldPassword: string) => this.restoreFromBackup(target, password, oldPassword),
     }
 
