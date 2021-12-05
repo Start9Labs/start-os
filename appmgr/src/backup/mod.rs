@@ -11,9 +11,9 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
+use self::target::PackageBackupInfo;
 use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
-use crate::disk::PackageBackupInfo;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
