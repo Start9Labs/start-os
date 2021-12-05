@@ -336,7 +336,10 @@ impl Deref for RpcContext {
     type Target = RpcContextSeed;
     fn deref(&self) -> &Self::Target {
         if self.0.is_closed.load(Ordering::SeqCst) {
-            panic!("RpcContext used after shutdown!");
+            panic!(
+                "RpcContext used after shutdown! {:?}",
+                tracing_error::SpanTrace::capture()
+            );
         }
         &*self.0
     }
