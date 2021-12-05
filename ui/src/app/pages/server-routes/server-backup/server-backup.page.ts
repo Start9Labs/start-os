@@ -30,22 +30,24 @@ export class ServerBackupPage {
 
   ngOnInit () {
     this.subs = [
-      this.patch.watch$('server-info', 'status').subscribe(status => {
-        if (status === ServerStatus.BackingUp) {
-          if (!this.backingUp) {
-            this.backingUp = true
-            this.subscribeToBackup()
-          }
-        } else {
-          if (this.backingUp) {
-            this.backingUp = false
-            this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
-            if (!this.pkgs.some(pkg => pkg.active)) {
-              this.navCtrl.navigateRoot('/embassy')
+      this.patch.watch$('server-info', 'status')
+        .pipe()
+        .subscribe(status => {
+          if (status === ServerStatus.BackingUp) {
+            if (!this.backingUp) {
+              this.backingUp = true
+              this.subscribeToBackup()
+            }
+          } else {
+            if (this.backingUp) {
+              this.backingUp = false
+              if (!this.pkgs.some(pkg => pkg.active)) {
+                this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
+                this.navCtrl.navigateRoot('/embassy')
+              }
             }
           }
-        }
-      }),
+        }),
     ]
   }
 
