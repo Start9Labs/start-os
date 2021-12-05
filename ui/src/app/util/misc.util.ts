@@ -1,14 +1,13 @@
 import { OperatorFunction } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { CifsBackupTarget, DiskBackupTarget } from '../services/api/api.types'
 
 export type Omit<ObjectType, KeysType extends keyof ObjectType> = Pick<ObjectType, Exclude<keyof ObjectType, KeysType>>
 export type PromiseRes<T> = { result: 'resolve', value: T } | { result: 'reject', value: Error }
 
-export interface MappedBackupTarget {
+export interface MappedBackupTarget<T> {
   id: string
   hasValidBackup: boolean
-  entry: DiskBackupTarget | CifsBackupTarget
+  entry: T
 }
 
 export interface DependentInfo {

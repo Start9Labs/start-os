@@ -188,7 +188,7 @@
                   <ion-input
                     [type]="$any(spec.spec).masked ? 'password' : 'text'"
                     [inputmode]="spec.subtype === 'number' ? 'tel' : 'text'"
-                    [placeholder]="spec.spec.placeholder || 'Enter ' + spec.name"
+                    [placeholder]="$any(spec.spec).placeholder || 'Enter ' + spec.name"
                     [formControlName]="i"
                   >
                   </ion-input>

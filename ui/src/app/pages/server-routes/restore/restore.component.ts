@@ -3,7 +3,7 @@ import { ModalController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GenericInputComponent, GenericInputOptions } from 'src/app/modals/generic-input/generic-input.component'
 import { MappedBackupTarget } from 'src/app/util/misc.util'
-import { BackupInfo } from 'src/app/services/api/api.types'
+import { BackupInfo, CifsBackupTarget, DiskBackupTarget } from 'src/app/services/api/api.types'
 import { AppRecoverSelectPage } from 'src/app/modals/app-recover-select/app-recover-select.page'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import * as argon2 from '@start9labs/argon2'
@@ -22,7 +22,7 @@ export class RestorePage {
     private readonly patch: PatchDbService,
   ) { }
 
-  async presentModalPassword (target: MappedBackupTarget): Promise<void> {
+  async presentModalPassword (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Master Password Required',
       message: 'Enter your master password. On the next screen, you will select the individual services you want to restore.',
@@ -43,7 +43,7 @@ export class RestorePage {
     await modal.present()
   }
 
-  private async decryptDrive (target: MappedBackupTarget, password: string): Promise<void> {
+  private async decryptDrive (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>, password: string): Promise<void> {
     const passwordHash = this.patch.getData()['server-info']['password-hash']
     argon2.verify(passwordHash, password)
 
@@ -55,7 +55,7 @@ export class RestorePage {
     }
   }
 
-  private async presentModalOldPassword (target: MappedBackupTarget, password: string): Promise<void> {
+  private async presentModalOldPassword (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>, password: string): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Old Password Needed',
       message: 'This backup was created with a different password. Enter the ORIGINAL password that was used to encrypt this drive.',
@@ -76,7 +76,7 @@ export class RestorePage {
     await m.present()
   }
 
-  private async restoreFromBackup (target: MappedBackupTarget, password: string, oldPassword?: string): Promise<void> {
+  private async restoreFromBackup (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>, password: string, oldPassword?: string): Promise<void> {
     const backupInfo = await this.embassyApi.getBackupInfo({
       'target-id': target.id,
       password,

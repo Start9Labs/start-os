@@ -8,6 +8,7 @@ import { Subscription } from 'rxjs'
 import { take } from 'rxjs/operators'
 import { MappedBackupTarget } from 'src/app/util/misc.util'
 import * as argon2 from '@start9labs/argon2'
+import { CifsBackupTarget, DiskBackupTarget } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'server-backup',
@@ -49,7 +50,7 @@ export class ServerBackupPage {
     this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
   }
 
-  async presentModalPassword (target: MappedBackupTarget): Promise<void> {
+  async presentModalPassword (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>): Promise<void> {
     let message = 'Enter your master password to create an encrypted backup of your Embassy and all its services.'
     if (!target.hasValidBackup) {
       message = message + ' Since this is a fresh backup, it could take a while. Future backups will likely be much faster.'
@@ -74,7 +75,7 @@ export class ServerBackupPage {
     await m.present()
   }
 
-  private async test (target: MappedBackupTarget, password: string, oldPassword?: string): Promise<void> {
+  private async test (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>, password: string, oldPassword?: string): Promise<void> {
     const passwordHash = this.patch.getData()['server-info']['password-hash']
     argon2.verify(passwordHash, password)
 
@@ -94,7 +95,7 @@ export class ServerBackupPage {
     }
   }
 
-  private async presentModalOldPassword (target: MappedBackupTarget, password: string): Promise<void> {
+  private async presentModalOldPassword (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>, password: string): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Old Password Needed',
       message: 'This backup was created with a different password. Enter the ORIGINAL password that was used to encrypt this drive.',
