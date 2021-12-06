@@ -62,6 +62,7 @@ pub struct SetupContextSeed {
     pub selected_v2_drive: RwLock<Option<PathBuf>>,
     pub cached_product_key: RwLock<Option<Arc<String>>>,
     pub recovery_status: RwLock<Option<Result<RecoveryStatus, RpcError>>>,
+    pub disk_guid: RwLock<Option<Arc<String>>>,
 }
 
 #[derive(Clone)]
@@ -80,6 +81,7 @@ impl SetupContext {
             selected_v2_drive: RwLock::new(None),
             cached_product_key: RwLock::new(None),
             recovery_status: RwLock::new(None),
+            disk_guid: RwLock::new(None),
         })))
     }
     #[instrument(skip(self))]

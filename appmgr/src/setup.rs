@@ -52,7 +52,7 @@ where
     Ok(password)
 }
 
-#[command(subcommands(status, disk, execute, recovery, cifs))]
+#[command(subcommands(status, disk, execute, recovery, cifs, complete))]
 pub fn setup() -> Result<(), Error> {
     Ok(())
 }
@@ -190,7 +190,16 @@ pub async fn execute(
 }
 
 #[instrument(skip(ctx))]
-pub async fn complete_setup(ctx: SetupContext, guid: Arc<String>) -> Result<(), Error> {
+#[command(rpc_only)]
+pub async fn complete(#[context] ctx: SetupContext) -> Result<(), Error> {
+    let guid = if let Some(guid) = &*ctx.disk_guid.read().await {
+        guid.clone()
+    } else {
+        return Err(Error::new(
+            eyre!("setup.execute has not completed successfully"),
+            crate::ErrorKind::InvalidRequest,
+        ));
+    };
     if tokio::fs::metadata(PRODUCT_KEY_PATH).await.is_err() {
         let mut pkey_file = File::create(PRODUCT_KEY_PATH).await?;
         pkey_file
@@ -242,7 +251,10 @@ pub async fn execute_inner(
         init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
         tokio::spawn(async move {
             if let Err(e) = recover_fut
-                .and_then(|_| complete_setup(ctx.clone(), guid))
+                .and_then(|_| async {
+                    *ctx.disk_guid.write().await = Some(guid);
+                    Ok(())
+                })
                 .await
             {
                 BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
@@ -255,7 +267,7 @@ pub async fn execute_inner(
     } else {
         let res = fresh_setup(&ctx, &embassy_password).await?;
         init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
-        complete_setup(ctx, guid).await?;
+        *ctx.disk_guid.write().await = Some(guid);
         res
     };
 
