@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
-import { interval, Observable, Subscription } from 'rxjs'
-import { delay, finalize, take, tap } from 'rxjs/operators'
+import { interval, Subscription } from 'rxjs'
+import { finalize, take, tap } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 

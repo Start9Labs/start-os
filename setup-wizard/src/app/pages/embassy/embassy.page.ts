@@ -106,9 +106,8 @@ export class EmbassyPage {
         await this.navCtrl.navigateForward(`/init`)
       }
     } catch (e) {
-      this.errorToastService.present(`${e.message}: ${e.details}`)
-      console.error(e.message)
-      console.error(e.details)
+      this.errorToastService.present(`${e.message}: ${e.details}. Restart Embassy to try again.`)
+      console.error(e)
     } finally {
       loader.dismiss()
     }
