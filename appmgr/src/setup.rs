@@ -338,7 +338,7 @@ async fn recover(
         .await?
         .as_ref()
         .map(|i| i.version.clone())
-        .unwrap_or_default();
+        .unwrap_or_else(|| emver::Version::new(0, 2, 0, 0).into());
     let res = if recovery_version.major() == 0 && recovery_version.minor() == 2 {
         let (tor_addr, root_ca) = fresh_setup(&ctx, &embassy_password).await?;
         (
