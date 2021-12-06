@@ -248,6 +248,10 @@ ion-button {
   }
 }
 
+.wider-alert .alert-wrapper {
+  min-width: 60% !important;
+}
+
 ion-slides {
   .slider-wrapper {
     height: 100%;
