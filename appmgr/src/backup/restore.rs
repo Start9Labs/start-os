@@ -146,6 +146,7 @@ impl ProgressInfo {
         RecoveryStatus {
             total_bytes,
             bytes_transferred,
+            complete: false,
         }
     }
 }

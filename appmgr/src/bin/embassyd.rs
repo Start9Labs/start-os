@@ -38,6 +38,7 @@ fn err_to_500(e: Error) -> Response<Body> {
 #[instrument]
 async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
     let (rpc_ctx, shutdown) = {
+        embassy::hostname::sync_hostname().await?;
         let rpc_ctx = RpcContext::init(
             cfg_path,
             Arc::new(
@@ -179,16 +180,14 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                                                     None => Response::builder()
                                                         .status(StatusCode::NOT_FOUND)
                                                         .body(Body::empty()),
-                                                    Some(cont) => {
-                                                        match (cont.handler)(req).await {
-                                                            Ok(r) => Ok(r),
-                                                            Err(e) => Response::builder()
-                                                                .status(
-                                                                    StatusCode::INTERNAL_SERVER_ERROR,
-                                                                )
-                                                                .body(Body::from(format!("{}", e))),
-                                                        }
-                                                    }
+                                                    Some(cont) => match (cont.handler)(req).await {
+                                                        Ok(r) => Ok(r),
+                                                        Err(e) => Response::builder()
+                                                            .status(
+                                                                StatusCode::INTERNAL_SERVER_ERROR,
+                                                            )
+                                                            .body(Body::from(format!("{}", e))),
+                                                    },
                                                 }
                                             }
                                         }

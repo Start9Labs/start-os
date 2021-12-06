@@ -112,6 +112,7 @@ pub async fn set(#[context] ctx: SetupContext, #[arg] logicalname: PathBuf) -> R
 pub struct RecoveryStatus {
     pub bytes_transferred: u64,
     pub total_bytes: u64,
+    pub complete: bool,
 }
 
 #[command(rename = "status", rpc_only, metadata(authenticated = false))]
@@ -253,6 +254,9 @@ pub async fn execute_inner(
             if let Err(e) = recover_fut
                 .and_then(|_| async {
                     *ctx.disk_guid.write().await = Some(guid);
+                    if let Some(Ok(recovery_status)) = &mut *ctx.recovery_status.write().await {
+                        recovery_status.complete = true;
+                    }
                     Ok(())
                 })
                 .await
@@ -446,6 +450,7 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
     *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
         bytes_transferred: 0,
         total_bytes,
+        complete: false,
     }));
     let bytes_transferred = AtomicU64::new(0);
     let volume_id = VolumeId::Custom(Id::try_from("main".to_owned())?);
@@ -472,6 +477,7 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
                     *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
                         bytes_transferred: bytes_transferred.load(Ordering::Relaxed),
                         total_bytes,
+                        complete: false
                     }));
                 }
             } => (),

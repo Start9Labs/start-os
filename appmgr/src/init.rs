@@ -60,8 +60,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
     crate::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
 
-    crate::hostname::sync_hostname().await?;
-    tracing::info!("Synced Hostname");
     crate::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
     tracing::info!("Synchronized wpa_supplicant.conf");
 
