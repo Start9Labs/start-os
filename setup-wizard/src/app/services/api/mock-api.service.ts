@@ -167,20 +167,8 @@ export class MockApiService extends ApiService {
     return setupRes
   }
 
-  async getRecoveryDrives () {
-    await pauseFor(2000)
-    return [
-      {
-        logicalname: 'Name1',
-        version: '0.3.3',
-        name: 'My Embassy',
-      },
-      {
-        logicalname: 'Name2',
-        version: '0.2.7',
-        name: 'My Embassy',
-      },
-    ]
+  async setupComplete () {
+    await pauseFor(1000)
   }
 }
 

@@ -32,7 +32,7 @@ export class StateService {
 
   async pollDataTransferProgress () {
     this.polling = true
-    await pauseFor(1000)
+    await pauseFor(500)
 
     if (
       this.dataTransferProgress?.totalBytes &&
@@ -44,7 +44,7 @@ export class StateService {
     try {
       progress = await this.apiService.getRecoveryStatus()
     } catch (e) {
-      this.errorToastService.present(`${e.message}: ${e.details}`)
+      this.errorToastService.present(`${e.message}: ${e.details}. Restart Embassy to try again.`)
     }
     if (progress) {
       this.dataTransferProgress = {

@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import { interval, Subscription } from 'rxjs'
 import { finalize, take, tap } from 'rxjs/operators'
+import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -13,10 +14,14 @@ export class InitPage {
   sub: Subscription
 
   constructor (
+    private readonly apiService: ApiService,
     public readonly stateService: StateService,
   ) { }
 
   ngOnInit () {
+    // call setup.complete to tear down embassy.local and spin up embassy-[id].local
+    this.apiService.setupComplete()
+
     this.sub = interval(130)
     .pipe(
       take(101),
