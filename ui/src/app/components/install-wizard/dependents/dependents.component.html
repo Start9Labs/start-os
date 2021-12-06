@@ -3,26 +3,24 @@
   <ion-label class="long-message">Checking for installed services which depend on {{ params.title }}...</ion-label>
 </div>
 
-<div *ngIf="!(loading$ | async)" class="slide-content">
+<div *ngIf="!(loading$ | async) && !!dependentViolation" class="slide-content">
   <div style="margin-top: 25px;">
+
     <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
-      <ion-label color="warning" style="font-size: xx-large; font-weight: bold;"
-        *ngIf="hasDependentViolation">
+      <ion-label color="warning" style="font-size: xx-large; font-weight: bold;">
         WARNING
-      </ion-label>
-      <ion-label color="success" style="font-size: x-large; font-weight: bold; text-transform: capitalize;"
-        *ngIf="!hasDependentViolation">
-        READY
       </ion-label>
     </div>
 
-    <div *ngIf="message" class="long-message">
-      {{ message }}
+    <div class="long-message">
+      {{ dependentViolation }}
     </div>
-    <div *ngIf="hasDependentViolation" style="margin: 25px 0px;">
+
+    <div style="margin: 25px 0px;">
       <div style="border-width: 0px 0px 1px 0px; font-size: unset; text-align: left; font-weight: bold; margin-left: 13px; border-style: solid; border-color: var(--ion-color-light-tint);">
         <ion-text color="warning">Affected Services</ion-text>
       </div>
+
       <ion-item
         style="--ion-item-background: margin-top: 5px"
         *ngFor="let dep of dependentBreakages | keyvalue"

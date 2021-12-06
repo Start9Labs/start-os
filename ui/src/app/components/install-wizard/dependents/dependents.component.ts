@@ -27,8 +27,8 @@ export class DependentsComponent {
   }
 
   dependentBreakages: Breakages
-  hasDependentViolation: boolean
-  message: string | null = null
+  dependentViolation: string | undefined
+
   loading$ = new BehaviorSubject(false)
   cancel$ = new Subject<void>()
 
@@ -45,11 +45,10 @@ export class DependentsComponent {
     .subscribe(
       {
         complete: () => {
-          this.hasDependentViolation = this.dependentBreakages && !isEmptyObject(this.dependentBreakages)
-          if (this.hasDependentViolation) {
-            this.message = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title} will prohibit the following services from functioning properly and may cause them to stop if they are currently running.`
+          if (this.dependentBreakages && !isEmptyObject(this.dependentBreakages)) {
+            this.dependentViolation = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title} will prohibit the following services from functioning properly and may cause them to stop if they are currently running.`
           } else {
-            this.message = `No other services installed on your Embassy will be affected by this action.`
+            this.transitions.next()
           }
         },
         error: (e: Error) => this.transitions.error(new Error(`Fetching dependent service information failed: ${e.message || e}`)),

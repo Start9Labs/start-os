@@ -33,7 +33,9 @@ export class WizardBaker {
           },
         },
         bottomBar: {
-          cancel: { afterLoading: { text: 'Cancel' } },
+          cancel: {
+            afterLoading: { text: 'Cancel' },
+          },
           next: 'Next',
         },
       } : undefined,
@@ -48,8 +50,10 @@ export class WizardBaker {
           },
         },
         bottomBar: {
-          cancel: { afterLoading: { text: 'Cancel' } },
-          next: 'Update Anyways',
+          cancel: {
+            afterLoading: { text: 'Cancel' },
+          },
+          next: 'Update Anyway',
         },
       },
       {
@@ -94,7 +98,10 @@ export class WizardBaker {
           },
         },
         bottomBar: {
-          cancel: { afterLoading: { text: 'Cancel' } }, next: 'Begin Update',
+          cancel: {
+            afterLoading: { text: 'Cancel' },
+          },
+          next: 'Begin Update',
         },
       },
       {
@@ -137,7 +144,12 @@ export class WizardBaker {
             titleColor: 'warning',
           },
         },
-        bottomBar: { cancel: { afterLoading: { text: 'Cancel' } }, next: 'Next' },
+        bottomBar: {
+          cancel: {
+            afterLoading: { text: 'Cancel' },
+          },
+          next: 'Next',
+        },
       } : undefined,
       { slide: {
           selector: 'dependents',
@@ -149,7 +161,11 @@ export class WizardBaker {
           },
         },
         bottomBar: {
-          cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Downgrade Anyways',
+          cancel: {
+            whileLoading: { },
+            afterLoading: { text: 'Cancel' },
+          },
+          next: 'Downgrade Anyway',
         },
       },
       { slide: {
@@ -191,7 +207,11 @@ export class WizardBaker {
             titleColor: 'warning',
           },
         },
-        bottomBar: { cancel: { afterLoading: { text: 'Cancel' } }, next: 'Continue' },
+        bottomBar: {
+          cancel: {
+            afterLoading: { text: 'Cancel' },
+          },
+          next: 'Continue' },
       },
       {
         slide: {
@@ -203,7 +223,12 @@ export class WizardBaker {
             fetchBreakages: () => this.embassyApi.dryUninstallPackage({ id }).then(breakages => breakages),
           },
         },
-        bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Uninstall' },
+        bottomBar: {
+          cancel: {
+            whileLoading: { },
+            afterLoading: { text: 'Cancel' },
+          },
+          next: 'Uninstall' },
       },
       {
         slide: {
@@ -215,7 +240,12 @@ export class WizardBaker {
             executeAction: () => this.embassyApi.uninstallPackage({ id }),
           },
         },
-        bottomBar: { finish: 'Dismiss', cancel: { whileLoading: { } } },
+        bottomBar: {
+          finish: 'Dismiss',
+          cancel: {
+            whileLoading: { },
+          },
+        },
       },
     ]
     return { toolbar, slideDefinitions: slideDefinitions.filter(exists) }
@@ -242,7 +272,12 @@ export class WizardBaker {
             fetchBreakages: () => this.embassyApi.dryStopPackage({ id }).then(breakages => breakages),
           },
         },
-        bottomBar: { cancel: { whileLoading: { }, afterLoading: { text: 'Cancel' } }, next: 'Stop Service' },
+        bottomBar: {
+          cancel: {
+            whileLoading: { },
+            afterLoading: { text: 'Cancel' },
+          },
+          next: 'Stop Service' },
       },
       {
         slide: {
@@ -254,7 +289,12 @@ export class WizardBaker {
             executeAction: () => this.embassyApi.stopPackage({ id }),
           },
         },
-        bottomBar: { finish: 'Dismiss', cancel: { whileLoading: { } } },
+        bottomBar: {
+          finish: 'Dismiss',
+          cancel: {
+            whileLoading: { },
+          },
+        },
       },
     ]
     return { toolbar, slideDefinitions }
@@ -279,7 +319,11 @@ export class WizardBaker {
             title, fetchBreakages: () => Promise.resolve(breakages),
           },
         },
-        bottomBar: { cancel: { afterLoading: { text: 'Cancel' } }, next: 'Save Config Anyways' },
+        bottomBar: {
+          cancel: {
+            afterLoading: { text: 'Cancel' },
+          },
+          next: 'Save Config Anyway' },
       },
     ]
     return { toolbar, slideDefinitions }
