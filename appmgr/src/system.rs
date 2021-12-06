@@ -146,7 +146,7 @@ impl<'de> Deserialize<'de> for GigaBytes {
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsGeneral {
-    #[serde(rename = "Temparature")]
+    #[serde(rename = "Temperature")]
     temperature: Celsius,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
