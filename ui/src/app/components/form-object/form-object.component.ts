@@ -162,7 +162,7 @@ export class FormObjectComponent {
       component: EnumListPage,
     })
 
-    modal.onWillDismiss().then(res => {
+    modal.onWillDismiss().then((res: { data: string[] }) => {
       const data = res.data
       if (!data) return
       this.updateEnumList(key, current, data)
@@ -228,7 +228,7 @@ export class FormObjectComponent {
     if (this.objectListDisplay[key]) this.objectListDisplay[key][index].height = '0px'
     const arr = this.formGroup.get(key) as FormArray
     if (markDirty) arr.markAsDirty()
-    pauseFor(500).then(() => {
+    pauseFor(250).then(() => {
       if (this.objectListDisplay[key]) this.objectListDisplay[key].splice(index, 1)
       arr.removeAt(index)
     })
@@ -237,11 +237,17 @@ export class FormObjectComponent {
   private updateEnumList (key: string, current: string[], updated: string[]) {
     this.formGroup.get(key).markAsDirty()
 
-    let deleted = current.filter(x => !updated.includes(x))
-    deleted.forEach((_, index) => this.deleteListItem(key, index, false))
+    current.forEach((val, index) => {
+      if (!updated.includes(val)) {
+        this.deleteListItem(key, index, false)
+      }
+    })
 
-    let added = updated.filter(x => !current.includes(x))
-    added.forEach(val => this.addListItem(key, false, val))
+    updated.forEach(val => {
+      if (!current.includes(val)) {
+        this.addListItem(key, false, val)
+      }
+    })
   }
 
    private getDocSize (selected: string) {
