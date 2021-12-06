@@ -10,6 +10,7 @@ export abstract class ApiService {
   abstract verifyProductKey (): Promise<void> // echo - throws error if invalid
   abstract importDrive (guid: string): Promise<SetupEmbassyRes> // setup.execute
   abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
+  abstract setupComplete (): Promise<void> // setup.complete
 }
 
 export interface GetStatusRes {
