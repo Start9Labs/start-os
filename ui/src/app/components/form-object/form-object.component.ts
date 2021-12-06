@@ -237,11 +237,11 @@ export class FormObjectComponent {
   private updateEnumList (key: string, current: string[], updated: string[]) {
     this.formGroup.get(key).markAsDirty()
 
-    current.forEach((val, index) => {
-      if (!updated.includes(val)) {
-        this.deleteListItem(key, index, false)
+    for (let i = current.length - 1; i >= 0; i--) {
+      if (!updated.includes(current[i])) {
+        this.deleteListItem(key, i, false)
       }
-    })
+    }
 
     updated.forEach(val => {
       if (!current.includes(val)) {
@@ -250,7 +250,7 @@ export class FormObjectComponent {
     })
   }
 
-   private getDocSize (selected: string) {
+  private getDocSize (selected: string) {
     const element = document.getElementById(selected)
     return `${element.scrollHeight}px`
   }
