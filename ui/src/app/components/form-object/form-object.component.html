@@ -38,7 +38,7 @@
           <ion-input
             [type]="spec.type === 'string' && spec.masked && !unmasked[entry.key] ? 'password' : 'text'"
             [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
-            [placeholder]="'Enter ' + spec.name"
+            [placeholder]="spec.placeholder || 'Enter ' + spec.name"
             [formControlName]="entry.key"
             (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
             (ionChange)="handleInputChange()"
@@ -188,7 +188,7 @@
                   <ion-input
                     [type]="$any(spec.spec).masked ? 'password' : 'text'"
                     [inputmode]="spec.subtype === 'number' ? 'tel' : 'text'"
-                    [placeholder]="'Enter ' + spec.name"
+                    [placeholder]="$any(spec.spec).placeholder || 'Enter ' + spec.name"
                     [formControlName]="i"
                   >
                   </ion-input>

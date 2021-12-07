@@ -13,7 +13,7 @@ use tracing::instrument;
 use crate::db::model::{InterfaceAddressMap, InterfaceAddresses};
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
-use crate::util::Port;
+use crate::util::serde::Port;
 use crate::Error;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

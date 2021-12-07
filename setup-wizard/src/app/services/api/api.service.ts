@@ -6,10 +6,11 @@ export abstract class ApiService {
   abstract getRecoveryStatus (): Promise<RecoveryStatusRes> // setup.recovery.status
 
   // encrypted
+  abstract verifyCifs (cifs: VerifyCifs): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
   abstract verifyProductKey (): Promise<void> // echo - throws error if invalid
-  abstract verify03XPassword (logicalname: string, password: string): Promise<boolean> // setup.recovery.test-password
   abstract importDrive (guid: string): Promise<SetupEmbassyRes> // setup.execute
   abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
+  abstract setupComplete (): Promise<void> // setup.complete
 }
 
 export interface GetStatusRes {
@@ -17,17 +18,63 @@ export interface GetStatusRes {
   migrating: boolean
 }
 
+export type VerifyCifs = Omit<CifsRecoverySource, 'type'>
+
 export interface SetupEmbassyReq {
   'embassy-logicalname': string
   'embassy-password': string
-  'recovery-partition'?: PartitionInfo
-  'recovery-password'?: string
+  'recovery-source': RecoverySource | null
+  'recovery-password': string | null
 }
 
 export interface SetupEmbassyRes {
   'tor-address': string
   'lan-address': string
   'root-ca': string
+}
+
+export type BackupTarget = DiskBackupTarget | CifsBackupTarget
+
+export interface EmbassyOSRecoveryInfo {
+  version: string
+  full: boolean
+  'password-hash': string | null
+  'wrapped-key': string | null
+}
+
+export interface DiskBackupTarget {
+  type: 'disk'
+  vendor: string | null
+  model: string | null
+  logicalname: string | null
+  label: string | null
+  capacity: number
+  used: number | null
+  'embassy-os': EmbassyOSRecoveryInfo | null
+}
+
+export interface CifsBackupTarget {
+  type: 'cifs'
+  hostname: string
+  path: string
+  username: string
+  mountable: boolean
+  'embassy-os': EmbassyOSRecoveryInfo | null
+}
+
+export type RecoverySource = DiskRecoverySource | CifsRecoverySource
+
+export interface DiskRecoverySource {
+  type: 'disk'
+  logicalname: string // partition logicalname
+}
+
+export interface CifsRecoverySource {
+  type: 'cifs'
+  hostname: string
+  path: string
+  username: string
+  password: string | null
 }
 
 export interface DiskInfo {
@@ -42,6 +89,7 @@ export interface DiskInfo {
 export interface RecoveryStatusRes {
   'bytes-transferred': number
   'total-bytes': number
+  complete: boolean
 }
 
 export interface PartitionInfo {
@@ -49,11 +97,5 @@ export interface PartitionInfo {
   label: string | null,
   capacity: number,
   used: number | null,
-  'embassy-os': EmbassyOsRecoveryInfo | null,
-}
-
-export interface EmbassyOsRecoveryInfo {
-  version: string,
-  full: boolean, // contains full embassy backup
-  'password-hash': string | null, // null for 0.2.x
+  'embassy-os': EmbassyOSRecoveryInfo | null,
 }

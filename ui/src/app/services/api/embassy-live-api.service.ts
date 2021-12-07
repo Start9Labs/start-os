@@ -90,7 +90,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise <RR.GetMarketplaceDataRes> {
+  async getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes> {
     return this.http.httpRequest({
       method: Method.GET,
       url: '/marketplace/package/data',
@@ -98,7 +98,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise <RR.GetMarketplacePackagesRes> {
+  async getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes> {
     if (params.query) params.category = undefined
     return this.http.httpRequest({
       method: Method.GET,
@@ -110,7 +110,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise <RR.GetReleaseNotesRes> {
+  async getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes> {
     return this.http.httpRequest({
       method: Method.GET,
       url: '/marketplace/package/release-notes',
@@ -118,7 +118,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getLatestVersion (params: RR.GetLatestVersionReq): Promise <RR.GetLatestVersionRes> {
+  async getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes> {
     return this.http.httpRequest({
       method: Method.GET,
       url: '/marketplace/latest-version',
@@ -137,138 +137,149 @@ export class LiveApiService extends ApiService {
 
   // notification
 
-  async getNotificationsRaw (params: RR.GetNotificationsReq): Promise <RR.GetNotificationsRes> {
+  async getNotificationsRaw (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes> {
     return this.http.rpcRequest({ method: 'notification.list', params })
   }
 
-  async deleteNotification (params: RR.DeleteNotificationReq): Promise <RR.DeleteNotificationRes> {
+  async deleteNotification (params: RR.DeleteNotificationReq): Promise<RR.DeleteNotificationRes> {
     return this.http.rpcRequest({ method: 'notification.delete', params })
   }
 
-  async deleteAllNotifications (params: RR.DeleteAllNotificationsReq): Promise <RR.DeleteAllNotificationsRes> {
+  async deleteAllNotifications (params: RR.DeleteAllNotificationsReq): Promise<RR.DeleteAllNotificationsRes> {
     return this.http.rpcRequest({ method: 'notification.delete-before', params })
   }
 
   // wifi
 
-  async getWifi (params: RR.GetWifiReq, timeout?: number): Promise <RR.GetWifiRes> {
+  async getWifi (params: RR.GetWifiReq, timeout?: number): Promise<RR.GetWifiRes> {
     return this.http.rpcRequest({ method: 'wifi.get', params, timeout })
   }
 
-  async setWifiCountry (params: RR.SetWifiCountryReq): Promise <RR.SetWifiCountryRes> {
+  async setWifiCountry (params: RR.SetWifiCountryReq): Promise<RR.SetWifiCountryRes> {
     return this.http.rpcRequest({ method: 'wifi.country.set', params })
   }
 
-  async addWifi (params: RR.AddWifiReq): Promise <RR.AddWifiRes> {
+  async addWifi (params: RR.AddWifiReq): Promise<RR.AddWifiRes> {
     return this.http.rpcRequest({ method: 'wifi.add', params })
   }
 
-  async connectWifi (params: RR.ConnectWifiReq): Promise <RR.ConnectWifiRes> {
+  async connectWifi (params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes> {
     return this.http.rpcRequest({ method: 'wifi.connect', params })
   }
 
-  async deleteWifi (params: RR.DeleteWifiReq): Promise <RR.DeleteWifiRes> {
+  async deleteWifi (params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
     return this.http.rpcRequest({ method: 'wifi.delete', params })
   }
 
   // ssh
 
-  async getSshKeys (params: RR.GetSSHKeysReq): Promise <RR.GetSSHKeysRes> {
+  async getSshKeys (params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes> {
     return this.http.rpcRequest({ method: 'ssh.list', params })
   }
 
-  async addSshKey (params: RR.AddSSHKeyReq): Promise <RR.AddSSHKeyRes> {
+  async addSshKey (params: RR.AddSSHKeyReq): Promise<RR.AddSSHKeyRes> {
     return this.http.rpcRequest({ method: 'ssh.add', params })
   }
 
-  async deleteSshKey (params: RR.DeleteSSHKeyReq): Promise <RR.DeleteSSHKeyRes> {
+  async deleteSshKey (params: RR.DeleteSSHKeyReq): Promise<RR.DeleteSSHKeyRes> {
     return this.http.rpcRequest({ method: 'ssh.delete', params })
   }
 
   // backup
 
+  async getBackupTargets (params: RR.GetBackupTargetsReq): Promise<RR.GetBackupTargetsRes> {
+    return this.http.rpcRequest({ method: 'backup.target.list', params })
+  }
+
+  async addBackupTarget (params: RR.AddBackupTargetReq): Promise<RR.AddBackupTargetRes> {
+    params.path = params.path.replace('/\\/g', '/')
+    return this.http.rpcRequest({ method: 'backup.target.cifs.add', params })
+  }
+
+  async updateBackupTarget (params: RR.UpdateBackupTargetReq): Promise<RR.UpdateBackupTargetRes> {
+    return this.http.rpcRequest({ method: 'backup.target.cifs.update', params })
+  }
+
+  async removeBackupTarget (params: RR.RemoveBackupTargetReq): Promise<RR.RemoveBackupTargetRes> {
+    return this.http.rpcRequest({ method: 'backup.target.cifs.remove', params })
+  }
+
+  async getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes> {
+    return this.http.rpcRequest({ method: 'backup.target.info', params })
+  }
+
   async createBackupRaw (params: RR.CreateBackupReq): Promise <RR.CreateBackupRes> {
     return this.http.rpcRequest({ method: 'backup.create', params })
   }
 
-  // drives
-
-  getDrives (params: RR.GetDrivesReq): Promise <RR.GetDrivesRes> {
-    return this.http.rpcRequest({ method: 'disk.list', params })
-  }
-
-  getBackupInfo (params: RR.GetBackupInfoReq): Promise <RR.GetBackupInfoRes> {
-    return this.http.rpcRequest({ method: 'disk.backup-info', params })
-  }
-
   // package
 
-  async getPackageProperties (params: RR.GetPackagePropertiesReq): Promise <RR.GetPackagePropertiesRes < any > ['data'] > {
+  async getPackageProperties (params: RR.GetPackagePropertiesReq): Promise<RR.GetPackagePropertiesRes < any > ['data'] > {
     return this.http.rpcRequest({ method: 'package.properties', params })
       .then(parsePropertiesPermissive)
   }
 
-  async getPackageLogs (params: RR.GetPackageLogsReq): Promise <RR.GetPackageLogsRes> {
+  async getPackageLogs (params: RR.GetPackageLogsReq): Promise<RR.GetPackageLogsRes> {
     return this.http.rpcRequest( { method: 'package.logs', params })
   }
 
-  async getPkgMetrics (params: RR.GetPackageMetricsReq): Promise <RR.GetPackageMetricsRes> {
+  async getPkgMetrics (params: RR.GetPackageMetricsReq): Promise<RR.GetPackageMetricsRes> {
     return this.http.rpcRequest({ method: 'package.metrics', params })
   }
 
-  async installPackageRaw (params: RR.InstallPackageReq): Promise <RR.InstallPackageRes> {
+  async installPackageRaw (params: RR.InstallPackageReq): Promise<RR.InstallPackageRes> {
     return this.http.rpcRequest({ method: 'package.install', params })
   }
 
-  async dryUpdatePackage (params: RR.DryUpdatePackageReq): Promise <RR.DryUpdatePackageRes> {
+  async dryUpdatePackage (params: RR.DryUpdatePackageReq): Promise<RR.DryUpdatePackageRes> {
     return this.http.rpcRequest({ method: 'package.update.dry', params })
   }
 
-  async getPackageConfig (params: RR.GetPackageConfigReq): Promise <RR.GetPackageConfigRes> {
+  async getPackageConfig (params: RR.GetPackageConfigReq): Promise<RR.GetPackageConfigRes> {
     return this.http.rpcRequest({ method: 'package.config.get', params })
   }
 
-  async drySetPackageConfig (params: RR.DrySetPackageConfigReq): Promise <RR.DrySetPackageConfigRes> {
+  async drySetPackageConfig (params: RR.DrySetPackageConfigReq): Promise<RR.DrySetPackageConfigRes> {
     return this.http.rpcRequest({ method: 'package.config.set.dry', params })
   }
 
-  async setPackageConfigRaw (params: RR.SetPackageConfigReq): Promise <RR.SetPackageConfigRes> {
+  async setPackageConfigRaw (params: RR.SetPackageConfigReq): Promise<RR.SetPackageConfigRes> {
     return this.http.rpcRequest({ method: 'package.config.set', params })
   }
 
-  async restorePackagesRaw (params: RR.RestorePackagesReq): Promise <RR.RestorePackagesRes> {
+  async restorePackagesRaw (params: RR.RestorePackagesReq): Promise<RR.RestorePackagesRes> {
     return this.http.rpcRequest({ method: 'package.backup.restore', params })
   }
 
-  async executePackageAction (params: RR.ExecutePackageActionReq): Promise <RR.ExecutePackageActionRes> {
+  async executePackageAction (params: RR.ExecutePackageActionReq): Promise<RR.ExecutePackageActionRes> {
     return this.http.rpcRequest({ method: 'package.action', params })
   }
 
-  async startPackageRaw (params: RR.StartPackageReq): Promise <RR.StartPackageRes> {
+  async startPackageRaw (params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
     return this.http.rpcRequest({ method: 'package.start', params })
   }
 
-  async dryStopPackage (params: RR.DryStopPackageReq): Promise <RR.DryStopPackageRes> {
+  async dryStopPackage (params: RR.DryStopPackageReq): Promise<RR.DryStopPackageRes> {
     return this.http.rpcRequest({ method: 'package.stop.dry', params })
   }
 
-  async stopPackageRaw (params: RR.StopPackageReq): Promise <RR.StopPackageRes> {
+  async stopPackageRaw (params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     return this.http.rpcRequest({ method: 'package.stop', params })
   }
 
-  async dryUninstallPackage (params: RR.DryUninstallPackageReq): Promise <RR.DryUninstallPackageRes> {
+  async dryUninstallPackage (params: RR.DryUninstallPackageReq): Promise<RR.DryUninstallPackageRes> {
     return this.http.rpcRequest({ method: 'package.uninstall.dry', params })
   }
 
-  async deleteRecoveredPackageRaw (params: RR.DeleteRecoveredPackageReq): Promise <RR.DeleteRecoveredPackageRes> {
+  async deleteRecoveredPackageRaw (params: RR.DeleteRecoveredPackageReq): Promise<RR.DeleteRecoveredPackageRes> {
     return this.http.rpcRequest({ method: 'package.delete-recovered', params })
   }
 
-  async uninstallPackageRaw (params: RR.UninstallPackageReq): Promise <RR.UninstallPackageRes> {
+  async uninstallPackageRaw (params: RR.UninstallPackageReq): Promise<RR.UninstallPackageRes> {
     return this.http.rpcRequest({ method: 'package.uninstall', params })
   }
 
-  async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise <RR.DryConfigureDependencyRes> {
+  async dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes> {
     return this.http.rpcRequest({ method: 'package.dependency.configure.dry', params })
   }
 }

@@ -1,6 +1,6 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonInput, ModalController } from '@ionic/angular'
-import { DiskInfo, PartitionInfo } from 'src/app/services/api/api.service'
+import { BackupTarget, DiskInfo } from 'src/app/services/api/api.service'
 import * as argon2 from '@start9labs/argon2'
 
 @Component({
@@ -10,7 +10,7 @@ import * as argon2 from '@start9labs/argon2'
 })
 export class PasswordPage {
   @ViewChild('focusInput') elem: IonInput
-  @Input() recoveryPartition: PartitionInfo
+  @Input() target: BackupTarget
   @Input() storageDrive: DiskInfo
 
   pwError = ''
@@ -30,11 +30,11 @@ export class PasswordPage {
   }
 
   async verifyPw () {
-    if (!this.recoveryPartition || !this.recoveryPartition['embassy-os']) this.pwError = 'No recovery drive' // unreachable
+    if (!this.target || !this.target['embassy-os']) this.pwError = 'No recovery target' // unreachable
 
     try {
-      argon2.verify(this.recoveryPartition['embassy-os']['password-hash'], this.password)
-      this.modalController.dismiss({ password: this.password })
+      argon2.verify(this.target['embassy-os']['password-hash'], this.password)
+      this.modalController.dismiss({ password: this.password }, 'success')
     } catch (e) {
       this.pwError = 'Incorrect password provided'
     }
@@ -47,11 +47,11 @@ export class PasswordPage {
     }
 
     if (this.pwError || this.verError) return
-    this.modalController.dismiss({ password: this.password })
+    this.modalController.dismiss({ password: this.password }, 'success')
   }
 
   validate () {
-    if (!!this.recoveryPartition) return this.pwError = ''
+    if (!!this.target) return this.pwError = ''
 
     if (this.passwordVer) {
       this.checkVer()

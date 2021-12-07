@@ -12,7 +12,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
     }
-    crate::disk::util::bind(&log_dir, "/var/log/journal", false).await?;
+    crate::disk::mount::util::bind(&log_dir, "/var/log/journal", false).await?;
     Command::new("systemctl")
         .arg("restart")
         .arg("systemd-journald")
@@ -38,7 +38,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
         .arg("docker")
         .invoke(crate::ErrorKind::Docker)
         .await?;
-    crate::disk::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
+    crate::disk::mount::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
     Command::new("systemctl")
         .arg("reset-failed")
         .arg("docker")
@@ -60,8 +60,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
     crate::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
 
-    crate::hostname::sync_hostname().await?;
-    tracing::info!("Synced Hostname");
     crate::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
     tracing::info!("Synchronized wpa_supplicant.conf");
 

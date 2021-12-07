@@ -1,0 +1,10 @@
+<div class="inline">
+  <h2 *ngIf="hasValidBackup">
+    <ion-icon name="cloud-done" color="success"></ion-icon>
+    Embassy backup detected
+  </h2>
+  <h2 *ngIf="!hasValidBackup">
+    <ion-icon name="cloud-offline" color="danger"></ion-icon>
+    No Embassy backup
+  </h2>
+</div>

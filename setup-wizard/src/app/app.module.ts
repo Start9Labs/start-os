@@ -14,7 +14,7 @@ import { SuccessPageModule } from './pages/success/success.module'
 import { InitPageModule } from './pages/init/init.module'
 import { HomePageModule } from './pages/home/home.module'
 import { LoadingPageModule } from './pages/loading/loading.module'
-import { ProdKeyModalModule } from './pages/prod-key-modal/prod-key-modal.module'
+import { ProdKeyModalModule } from './modals/prod-key-modal/prod-key-modal.module'
 import { ProductKeyPageModule } from './pages/product-key/product-key.module'
 import { RecoverPageModule } from './pages/recover/recover.module'
 

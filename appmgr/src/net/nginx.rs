@@ -11,7 +11,8 @@ use super::interface::{InterfaceId, LanPortConfig};
 use super::ssl::SslManager;
 use crate::hostname::get_hostname;
 use crate::s9pk::manifest::PackageId;
-use crate::util::{Invoke, Port};
+use crate::util::serde::Port;
+use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
 pub struct NginxController {

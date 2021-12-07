@@ -25,11 +25,17 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::db::model::{ServerStatus, UpdateProgress};
 use crate::db::util::WithRevision;
+use crate::disk::mount::filesystem::label::Label;
+use crate::disk::mount::filesystem::FileSystem;
+use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::BOOT_RW_PATH;
 use crate::notifications::NotificationLevel;
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
 use crate::{Error, ErrorKind, ResultExt};
+
+mod latest_information;
 
 lazy_static! {
     static ref UPDATED: AtomicBool = AtomicBool::new(false);
@@ -78,89 +84,24 @@ fn display_update_result(status: WithRevision<UpdateResult>, _: &ArgMatches<'_>)
 }
 
 const HEADER_KEY: &str = "x-eos-hash";
-mod latest_information;
 
 #[derive(Debug, Clone, Copy)]
 enum WritableDrives {
     Green,
     Blue,
 }
-
-#[derive(Debug, Clone, Copy)]
-struct Boot;
-
-/// We are going to be creating some folders and mounting so
-/// we need to know the labels for those types. These labels
-/// are the labels that are shipping with the embassy, blue/ green
-/// are where the os sits and will do a swap during update.
-trait FileType: std::fmt::Debug + Copy + Send + Sync + 'static {
-    fn mount_folder(&self) -> PathBuf {
-        Path::new("/media").join(self.label())
-    }
-    fn label(&self) -> &'static str;
-    fn block_dev(&self) -> &'static Path;
-}
-impl FileType for WritableDrives {
+impl WritableDrives {
     fn label(&self) -> &'static str {
         match self {
-            WritableDrives::Green => "green",
-            WritableDrives::Blue => "blue",
+            Self::Green => "green",
+            Self::Blue => "blue",
         }
     }
-    fn block_dev(&self) -> &'static Path {
-        Path::new(match self {
-            WritableDrives::Green => "/dev/mmcblk0p3",
-            WritableDrives::Blue => "/dev/mmcblk0p4",
-        })
+    fn block_dev(&self) -> PathBuf {
+        Path::new("/dev/disk/by-label").join(self.label())
     }
-}
-impl FileType for Boot {
-    fn label(&self) -> &'static str {
-        "system-boot"
-    }
-    fn block_dev(&self) -> &'static Path {
-        Path::new("/dev/mmcblk0p1")
-    }
-}
-
-/// Proven data that this is mounted, should be consumed in an unmount
-#[derive(Debug)]
-struct MountedResource<X: FileType> {
-    value: X,
-    mounted: bool,
-}
-impl<X: FileType> MountedResource<X> {
-    fn new(value: X) -> Self {
-        MountedResource {
-            value,
-            mounted: true,
-        }
-    }
-    #[instrument]
-    async fn unmount(value: X) -> Result<(), Error> {
-        let folder = value.mount_folder();
-        Command::new("umount")
-            .arg(&folder)
-            .invoke(crate::ErrorKind::Filesystem)
-            .await?;
-        tokio::fs::remove_dir_all(&folder)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, folder.display().to_string()))?;
-        Ok(())
-    }
-    #[instrument]
-    async fn unmount_label(&mut self) -> Result<(), Error> {
-        Self::unmount(self.value).await?;
-        self.mounted = false;
-        Ok(())
-    }
-}
-impl<X: FileType> Drop for MountedResource<X> {
-    fn drop(&mut self) {
-        if self.mounted {
-            let value = self.value;
-            tokio::spawn(async move { Self::unmount(value).await.expect("failed to unmount") });
-        }
+    fn as_fs(&self) -> impl FileSystem {
+        Label::new(self.label())
     }
 }
 
@@ -222,7 +163,6 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
         ServerStatus::Running => (),
     }
 
-    let mounted_boot = mount_label(Boot).await?;
     let (new_label, _current_label) = query_mounted_label().await?;
     let (size, download) = download_file(
         ctx.db.handle(),
@@ -243,7 +183,7 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
 
     tokio::spawn(async move {
         let mut db = ctx.db.handle();
-        let res = do_update(download, new_label, mounted_boot).await;
+        let res = do_update(download, new_label).await;
         let mut info = crate::db::DatabaseModel::new()
             .server_info()
             .get_mut(&mut db)
@@ -280,12 +220,9 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
 async fn do_update(
     download: impl Future<Output = Result<(), Error>>,
     new_label: NewLabel,
-    mut mounted_boot: MountedResource<Boot>,
 ) -> Result<(), Error> {
     download.await?;
-    swap_boot_label(new_label, &mounted_boot).await?;
-
-    mounted_boot.unmount_label().await?;
+    swap_boot_label(new_label).await?;
 
     Ok(())
 }
@@ -354,13 +291,13 @@ async fn download_file<'a, Db: DbHandle + 'a>(
         .map(|l| l.parse())
         .transpose()?;
     Ok((size, async move {
-        let hash_from_header: String = "".to_owned(); // download_request
-                                                      // .headers()
-                                                      // .get(HEADER_KEY)
-                                                      // .ok_or_else(|| Error::new(eyre!("No {} in headers", HEADER_KEY), ErrorKind::Network))?
-                                                      // .to_str()
-                                                      // .with_kind(ErrorKind::InvalidRequest)?
-                                                      // .to_owned();
+        let hash_from_header: String = download_request
+            .headers()
+            .get(HEADER_KEY)
+            .ok_or_else(|| Error::new(eyre!("No {} in headers", HEADER_KEY), ErrorKind::Network))?
+            .to_str()
+            .with_kind(ErrorKind::InvalidRequest)?
+            .to_owned();
         let stream_download = download_request.bytes_stream();
         let file_sum = write_stream_to_label(&mut db, size, stream_download, new_label).await?;
         check_download(&hash_from_header, file_sum).await?;
@@ -408,39 +345,36 @@ async fn write_stream_to_label<Db: DbHandle>(
 
 #[instrument]
 async fn check_download(hash_from_header: &str, file_digest: Vec<u8>) -> Result<(), Error> {
-    // if hex::decode(hash_from_header).with_kind(ErrorKind::Network)? != file_digest {
-    //     return Err(Error::new(
-    //         eyre!("Hash sum does not match source"),
-    //         ErrorKind::Network,
-    //     ));
-    // }
+    if hex::decode(hash_from_header).with_kind(ErrorKind::Network)? != file_digest {
+        return Err(Error::new(
+            eyre!("Hash sum does not match source"),
+            ErrorKind::Network,
+        ));
+    }
     Ok(())
 }
 
 #[instrument]
-async fn swap_boot_label(
-    new_label: NewLabel,
-    mounted_boot: &MountedResource<Boot>,
-) -> Result<(), Error> {
+async fn swap_boot_label(new_label: NewLabel) -> Result<(), Error> {
     let block_dev = new_label.0.block_dev();
     Command::new("e2label")
         .arg(block_dev)
         .arg(new_label.0.label())
         .invoke(crate::ErrorKind::BlockDevice)
         .await?;
-    let mut mounted = mount_label(new_label.0).await?;
+    let mounted = TmpMountGuard::mount(&new_label.0.as_fs()).await?;
     let sedcmd = format!("s/LABEL=\\(blue\\|green\\)/LABEL={}/g", new_label.0.label());
     Command::new("sed")
         .arg("-i")
         .arg(&sedcmd)
-        .arg(mounted.value.mount_folder().join("etc/fstab"))
+        .arg(mounted.as_ref().join("etc/fstab"))
         .output()
         .await?;
-    mounted.unmount_label().await?;
+    mounted.unmount().await?;
     Command::new("sed")
         .arg("-i")
         .arg(&sedcmd)
-        .arg(mounted_boot.value.mount_folder().join("cmdline.txt"))
+        .arg(Path::new(BOOT_RW_PATH).join("cmdline.txt"))
         .output()
         .await?;
 
@@ -448,24 +382,6 @@ async fn swap_boot_label(
     Ok(())
 }
 
-#[instrument]
-async fn mount_label<F>(file_type: F) -> Result<MountedResource<F>, Error>
-where
-    F: FileType,
-{
-    let label = file_type.label();
-    let folder = file_type.mount_folder();
-    tokio::fs::create_dir_all(&folder)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, folder.display().to_string()))?;
-    Command::new("mount")
-        .arg("-L")
-        .arg(label)
-        .arg(folder)
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
-    Ok(MountedResource::new(file_type))
-}
 /// Captured from doing an fstab with an embassy box and the cat from the /etc/fstab
 #[test]
 fn test_capture() {

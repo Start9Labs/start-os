@@ -118,16 +118,32 @@ export module RR {
 
   // backup
 
-  export type CreateBackupReq = WithExpire<{ logicalname: string, password: string }> // backup.create
-  export type CreateBackupRes = WithRevision<null>
+  export type GetBackupTargetsReq = { } // backup.target.list
+  export type GetBackupTargetsRes = { [id: string]: BackupTarget }
 
-  // drive
+  export type AddBackupTargetReq = { // backup.target.cifs.add
+    hostname: string
+    path: string
+    username: string
+    password: string | null
+  }
+  export type AddBackupTargetRes = { [id: string]: CifsBackupTarget }
 
-  export type GetDrivesReq = { } // disk.list
-  export type GetDrivesRes = DriveInfo[]
+  export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.cifs.update
+  export type UpdateBackupTargetRes = AddBackupTargetRes
 
-  export type GetBackupInfoReq = { logicalname: string, password: string } // disk.backup-info
+  export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
+  export type RemoveBackupTargetRes = null
+
+  export type GetBackupInfoReq = { 'target-id': string, password: string } // backup.target.info
   export type GetBackupInfoRes = BackupInfo
+
+  export type CreateBackupReq = WithExpire<{ // backup.create
+    'target-id': string
+    'old-password': string | null
+    password: string
+  }>
+  export type CreateBackupRes = WithRevision<null>
 
   // package
 
@@ -157,7 +173,12 @@ export module RR {
   export type SetPackageConfigReq = WithExpire<DrySetPackageConfigReq> // package.config.set
   export type SetPackageConfigRes = WithRevision<null>
 
-  export type RestorePackagesReq = WithExpire<{ ids: string[], logicalname: string, password: string }> // package.backup.restore
+  export type RestorePackagesReq = WithExpire<{ // package.backup.restore
+    ids: string[]
+    'target-id': string
+    'old-password': string | null,
+    password: string
+  }>
   export type RestorePackagesRes = WithRevision<null>
 
   export type ExecutePackageActionReq = { id: string, 'action-id': string, input?: object } // package.action
@@ -200,8 +221,8 @@ export module RR {
 
   export type GetMarketplacePackagesReq = {
     ids?: { id: string, version: string }[]
-    // iff !id
     'eos-version-compat': string
+    // iff !ids
     category?: string
     query?: string
     page?: string
@@ -294,7 +315,51 @@ export interface SessionMetadata {
 
 export type PlatformType = 'cli' | 'ios' | 'ipad' | 'iphone' | 'android' | 'phablet' | 'tablet' | 'cordova' | 'capacitor' | 'electron' | 'pwa' | 'mobile' | 'mobileweb' | 'desktop' | 'hybrid'
 
-export interface DriveInfo {
+export type BackupTarget = DiskBackupTarget | CifsBackupTarget
+
+export interface EmbassyOSRecoveryInfo {
+  version: string
+  full: boolean
+  'password-hash': string | null
+  'wrapped-key': string | null
+}
+
+export interface DiskBackupTarget {
+  type: 'disk'
+  vendor: string | null
+  model: string | null
+  logicalname: string | null
+  label: string | null
+  capacity: number
+  used: number | null
+  'embassy-os': EmbassyOSRecoveryInfo | null
+}
+
+export interface CifsBackupTarget {
+  type: 'cifs'
+  hostname: string
+  path: string
+  username: string
+  mountable: boolean
+  'embassy-os': EmbassyOSRecoveryInfo | null
+}
+
+export type RecoverySource = DiskRecoverySource | CifsRecoverySource
+
+export interface DiskRecoverySource {
+  type: 'disk'
+  logicalname: string // partition logicalname
+}
+
+export interface CifsRecoverySource {
+  type: 'cifs'
+  hostname: string
+  path: string
+  username: string
+  password: string
+}
+
+export interface DiskInfo {
   logicalname: string
   vendor: string | null
   model: string | null
@@ -308,10 +373,10 @@ export interface PartitionInfo {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': EmbassyOsDriveInfo | null
+  'embassy-os': EmbassyOsDiskInfo | null
 }
 
-export interface EmbassyOsDriveInfo {
+export interface EmbassyOsDiskInfo {
   version: string
   full: boolean
 }

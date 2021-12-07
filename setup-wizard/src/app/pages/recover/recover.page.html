@@ -1,6 +1,6 @@
 <ion-content>
-  <ion-grid style="padding-top: 32px; height: 100%; max-width: 540px;">
-    <ion-row style="height: 100%;">
+  <ion-grid>
+    <ion-row>
       <ion-col>
 
         <div style="padding-bottom: 32px;" class="ion-text-center">
@@ -9,66 +9,53 @@
 
         <ion-card color="dark">
           <ion-card-header class="ion-text-center">
-            <ion-card-title>Select Recovery Drive</ion-card-title>
-            <ion-card-subtitle>Select the drive containing the Embassy you want to recover.</ion-card-subtitle>
+            <ion-card-title>Restore from Backup</ion-card-title>
+            <ion-card-subtitle>Select the shared folder or physical drive containing your Embassy backup</ion-card-subtitle>
           </ion-card-header>
 
-
           <ion-card-content class="ion-margin">
-            <ng-container *ngIf="!loading && !drives.length">
-              <h2>No recovery drives found</h2>
-              <p>Please connect a recovery drive to your Embassy and refresh the page.</p>
-              <ion-button 
-                (click)="refresh()"
-                style="text-align:center"
-                class="claim-button"
-              >
-                Refresh
-              </ion-button>
-            </ng-container>
+            <ion-spinner *ngIf="loading" class="center-spinner" name="lines"></ion-spinner>
 
-            <ion-item-group>
-              <ng-container *ngIf="loading">
-                <ion-skeleton-text animated class="skeleton-header"></ion-skeleton-text>
-                <ion-item color="light" style="padding-bottom: 10px;">
-                  <ion-avatar slot="start" style="margin-right: 24px;">
-                    <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
-                  </ion-avatar>
+            <!-- loaded -->
+            <ion-item-group *ngIf="!loading">
+              <!-- cifs -->
+              <h2 class="target-label">
+                Shared Network Folder
+              </h2>
+              <p class="ion-padding-bottom">
+                Using a shared folder is the recommended way to recover from backup, since it works with all Embassy hardware configurations.
+                To restore from a shared folder, please follow the <a href="https://docs.start9.com/user-manual/general/backups.html" target="blank" noreferrer>instructions</a>.
+              </p>
+
+              <!-- connect -->
+              <ion-item button lines="none" (click)="presentModalCifs()">
+                <ion-icon slot="start" name="folder-open-outline" size="large" color="light"></ion-icon>
+                <ion-label>Open Shared Folder</ion-label>
+              </ion-item>
+
+              <br />
+              <br />
+
+              <!-- drives -->
+              <h2 class="target-label">
+                Physical Drives
+              </h2>
+              <p class="ion-padding-bottom">
+                Warning! Plugging in more than one physical drive to Embassy can lead to power failure and data corruption.
+                To restore from a physical drive, please follow the <a href="https://docs.start9.com/user-manual/general/backups.html" target="blank" noreferrer>instructions</a>.
+              </p>
+
+              <ng-container *ngFor="let target of driveTargets">
+                <ion-item button *ngIf="target.drive as drive" [disabled]="!driveClickable(drive)" (click)="select(drive)">
+                  <ion-icon slot="start" name="save-outline" size="large" color="light"></ion-icon>
                   <ion-label>
-                    <ion-skeleton-text animated style="width: 100px; height: 20px; margin-bottom: 12px;"></ion-skeleton-text>
-                    <ion-skeleton-text animated style="width: 50px; height: 16px; margin-bottom: 16px;"></ion-skeleton-text>
-                    <ion-skeleton-text animated style="width: 100px;"></ion-skeleton-text>
+                    <h1>{{ drive.label || drive.logicalname }}</h1>
+                    <drive-status [hasValidBackup]="target.hasValidBackup"></drive-status>
+                    <p>{{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model || 'Unknown Model' }}</p>
+                    <p>Capacity: {{ drive.capacity | convertBytes }}</p>
                   </ion-label>
                 </ion-item>
               </ng-container>
-
-              <!-- loaded -->
-              <div *ngFor="let drive of drives" class="ion-padding-bottom">
-                <h2 class="drive-label">
-                  {{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model || 'Unknown Model' }} - {{ drive.capacity | convertBytes }}
-                </h2>
-                <ion-item lines="none" button *ngFor="let partition of drive.partitions" [disabled]="!partitionClickable(partition)" (click)="choosePartition(partition)">
-                  <ion-icon slot="start" name="save-outline"></ion-icon>
-                  <ion-label>
-                    <h1>{{ partition.label || partition.logicalname }}</h1>
-                    <h2>{{ partition.capacity | convertBytes }}</h2>
-                    <p *ngIf="partitionClickable(partition)">
-                      <ion-text color="success">
-                        Embassy backup detected
-                      </ion-text>
-                    </p>
-                    <p *ngIf="!partitionClickable(partition)">
-                      <ion-text>
-                        No Embassy backup detected
-                      </ion-text>
-                    </p>
-                  </ion-label>
-                  <div *ngIf="partition['embassy-os'] && partition['embassy-os'].full">
-                    <ion-icon *ngIf="partition['embassy-os'].version.startsWith('0.2')" color="success" slot="end" name="lock-open-outline" size="large"></ion-icon>
-                    <ion-icon *ngIf="!partition['embassy-os'].version.startsWith('0.2')" color="danger" slot="end" name="lock-closed-outline" size="large"></ion-icon>
-                  </div>
-                </ion-item>
-              </div>
             </ion-item-group>
           </ion-card-content>
         </ion-card>
