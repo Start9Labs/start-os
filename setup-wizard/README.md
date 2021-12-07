@@ -1,25 +1,31 @@
 # Embassy Setup Wizard
 
-## Instructions for running locally
+## Development Environment Setup
 
-**Make sure you have git, node, and npm installed**
+**Make sure you have git, nvm (node, npm), and rust installed**
 
-Install Ionic
+```
+node --version
+v16.11.0
 
-`npm i -g @ionic/cli`
+npm --version
+v8.0.0
+```
 
-Clone this repository
+### Building Embassy UI
 
 `git clone https://github.com/Start9Labs/embassy-os.git`
 
-`cd embassy-os/setup-wizard`
+`cd embassy-os`
 
-Install dependencies
+`cd setup-wizard/`
 
-`npm i`
+`npm --prefix . install @ionic/cli`
 
-Copy `config-sample.json` to new file `config.json`
+`npm --prefix . install`
 
-Start the server
+Copy `config-sample.json` and contents to new file `config.json`
+
+**Start the development server**
 
 `ionic serve`

@@ -1,0 +1,81 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      Connect Shared Folder
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <form (ngSubmit)="submit()" #cifsForm="ngForm">
+    <p>Hostname *</p>
+    <ion-item>
+      <ion-input
+        id="hostname"
+        required
+        [(ngModel)]="cifs.hostname"
+        name="hostname"
+        #hostname="ngModel"
+        placeholder="e.g. My Computer, Bob's Laptop"
+      ></ion-input>
+    </ion-item>
+    <p [hidden]="hostname.valid || hostname.pristine">
+      <ion-text color="danger">Hostname is required</ion-text>
+    </p>
+
+    <p>Path *</p>
+    <ion-item>
+      <ion-input
+        id="path"
+        required
+        [(ngModel)]="cifs.path"
+        name="path"
+        #path="ngModel"
+        placeholder="ex. /Desktop/my-folder'"
+      ></ion-input>
+    </ion-item>
+    <p [hidden]="path.valid || path.pristine">
+      <ion-text color="danger">Path is required</ion-text>
+    </p>
+
+    <p>Username *</p>
+    <ion-item>
+      <ion-input
+        id="username"
+        required
+        [(ngModel)]="cifs.username"
+        name="username"
+        #username="ngModel"
+        placeholder="Enter username"
+      ></ion-input>
+    </ion-item>
+    <p [hidden]="username.valid || username.pristine">
+      <ion-text color="danger">Username is required</ion-text>
+    </p>
+
+    <p>Password</p>
+    <ion-item>
+      <ion-input
+        id="password"
+        type="password"
+        [(ngModel)]="cifs.password"
+        name="password"
+        #password="ngModel"
+      ></ion-input>
+    </ion-item>
+
+    <button hidden type="submit"></button>
+  </form>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" (click)="cancel()">
+      Cancel
+    </ion-button>
+    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" strong="true" [disabled]="!cifsForm.form.valid" (click)="submit()">
+      Verify
+    </ion-button>
+  </ion-toolbar>
+</ion-footer>
+

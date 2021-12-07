@@ -11,17 +11,23 @@ use openssl::x509::X509;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
+use sqlx::{Executor, Sqlite};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
 use crate::backup::restore::recover_full_embassy;
+use crate::backup::target::BackupTargetFS;
 use crate::context::rpc::RpcContextConfig;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
-use crate::disk::util::{pvscan, DiskInfo, PartitionInfo, TmpMountGuard};
+use crate::disk::mount::filesystem::block_dev::BlockDev;
+use crate::disk::mount::filesystem::cifs::Cifs;
+use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
+use crate::hostname::PRODUCT_KEY_PATH;
 use crate::id::Id;
 use crate::init::init;
 use crate::install::PKG_PUBLIC_DIR;
@@ -33,7 +39,20 @@ use crate::util::Version;
 use crate::volume::{data_dir, VolumeId};
 use crate::{ensure_code, Error, ResultExt};
 
-#[command(subcommands(status, disk, execute, recovery))]
+#[instrument(skip(secrets))]
+pub async fn password_hash<Ex>(secrets: &mut Ex) -> Result<String, Error>
+where
+    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+{
+    let password = sqlx::query!("SELECT password FROM account")
+        .fetch_one(secrets)
+        .await?
+        .password;
+
+    Ok(password)
+}
+
+#[command(subcommands(status, disk, execute, recovery, cifs, complete))]
 pub fn setup() -> Result<(), Error> {
     Ok(())
 }
@@ -51,7 +70,7 @@ pub async fn status(#[context] ctx: SetupContext) -> Result<StatusRes, Error> {
         product_key: tokio::fs::metadata("/embassy-os/product_key.txt")
             .await
             .is_ok(),
-        migrating: ctx.recovery_status.read().await.is_some(), // TODO
+        migrating: ctx.recovery_status.read().await.is_some(),
     })
 }
 
@@ -65,8 +84,26 @@ pub async fn list_disks() -> Result<Vec<DiskInfo>, Error> {
     crate::disk::list(None).await
 }
 
-#[command(subcommands(recovery_status))]
+#[command(subcommands(v2, recovery_status))]
 pub fn recovery() -> Result<(), Error> {
+    Ok(())
+}
+
+#[command(subcommands(set))]
+pub fn v2() -> Result<(), Error> {
+    Ok(())
+}
+
+#[command(rpc_only, metadata(authenticated = false))]
+pub async fn set(#[context] ctx: SetupContext, #[arg] logicalname: PathBuf) -> Result<(), Error> {
+    let guard = TmpMountGuard::mount(&BlockDev::new(&logicalname)).await?;
+    let product_key = tokio::fs::read_to_string(guard.as_ref().join("root/agent/product_key"))
+        .await?
+        .trim()
+        .to_owned();
+    guard.unmount().await?;
+    *ctx.cached_product_key.write().await = Some(Arc::new(product_key));
+    *ctx.selected_v2_drive.write().await = Some(logicalname);
     Ok(())
 }
 
@@ -75,6 +112,7 @@ pub fn recovery() -> Result<(), Error> {
 pub struct RecoveryStatus {
     pub bytes_transferred: u64,
     pub total_bytes: u64,
+    pub complete: bool,
 }
 
 #[command(rename = "status", rpc_only, metadata(authenticated = false))]
@@ -82,6 +120,30 @@ pub async fn recovery_status(
     #[context] ctx: SetupContext,
 ) -> Result<Option<RecoveryStatus>, RpcError> {
     ctx.recovery_status.read().await.clone().transpose()
+}
+
+#[command(subcommands(verify_cifs))]
+pub fn cifs() -> Result<(), Error> {
+    Ok(())
+}
+
+#[command(rename = "verify", rpc_only)]
+pub async fn verify_cifs(
+    #[arg] hostname: String,
+    #[arg] path: PathBuf,
+    #[arg] username: String,
+    #[arg] password: Option<String>,
+) -> Result<EmbassyOsRecoveryInfo, Error> {
+    let guard = TmpMountGuard::mount(&Cifs {
+        hostname,
+        path,
+        username,
+        password,
+    })
+    .await?;
+    let embassy_os = recovery_info(&guard).await?;
+    guard.unmount().await?;
+    embassy_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -97,14 +159,17 @@ pub async fn execute(
     #[context] ctx: SetupContext,
     #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
     #[arg(rename = "embassy-password")] embassy_password: String,
-    #[arg(rename = "recovery-partition")] recovery_partition: Option<PartitionInfo>,
+    #[arg(rename = "recovery-source")] mut recovery_source: Option<BackupTargetFS>,
     #[arg(rename = "recovery-password")] recovery_password: Option<String>,
 ) -> Result<SetupResult, Error> {
+    if let Some(v2_drive) = &*ctx.selected_v2_drive.read().await {
+        recovery_source = Some(BackupTargetFS::Disk(BlockDev::new(v2_drive.clone())))
+    }
     match execute_inner(
         ctx,
         embassy_logicalname,
         embassy_password,
-        recovery_partition,
+        recovery_source,
         recovery_password,
     )
     .await
@@ -126,7 +191,23 @@ pub async fn execute(
 }
 
 #[instrument(skip(ctx))]
-pub async fn complete_setup(ctx: SetupContext, guid: Arc<String>) -> Result<(), Error> {
+#[command(rpc_only)]
+pub async fn complete(#[context] ctx: SetupContext) -> Result<(), Error> {
+    let guid = if let Some(guid) = &*ctx.disk_guid.read().await {
+        guid.clone()
+    } else {
+        return Err(Error::new(
+            eyre!("setup.execute has not completed successfully"),
+            crate::ErrorKind::InvalidRequest,
+        ));
+    };
+    if tokio::fs::metadata(PRODUCT_KEY_PATH).await.is_err() {
+        let mut pkey_file = File::create(PRODUCT_KEY_PATH).await?;
+        pkey_file
+            .write_all(ctx.product_key().await?.as_bytes())
+            .await?;
+        pkey_file.sync_all().await?;
+    }
     let mut guid_file = File::create("/embassy-os/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
@@ -139,7 +220,7 @@ pub async fn execute_inner(
     ctx: SetupContext,
     embassy_logicalname: PathBuf,
     embassy_password: String,
-    recovery_partition: Option<PartitionInfo>,
+    recovery_source: Option<BackupTargetFS>,
     recovery_password: Option<String>,
 ) -> Result<(OnionAddressV3, X509), Error> {
     if ctx.recovery_status.read().await.is_some() {
@@ -159,27 +240,25 @@ pub async fn execute_inner(
     );
     crate::disk::main::import(&*guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
 
-    let res = if let Some(recovery_partition) = recovery_partition {
-        if recovery_partition
-            .embassy_os
-            .as_ref()
-            .map(|v| &*v.version < &emver::Version::new(0, 2, 8, 0))
-            .unwrap_or(true)
-        {
-            return Err(Error::new(eyre!("Unsupported version of EmbassyOS. Please update to at least 0.2.8 before recovering."), crate::ErrorKind::VersionIncompatible));
-        }
+    let res = if let Some(recovery_source) = recovery_source {
         let (tor_addr, root_ca, recover_fut) = recover(
             ctx.clone(),
             guid.clone(),
             embassy_password,
-            recovery_partition,
+            recovery_source,
             recovery_password,
         )
         .await?;
         init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
         tokio::spawn(async move {
             if let Err(e) = recover_fut
-                .and_then(|_| complete_setup(ctx.clone(), guid))
+                .and_then(|_| async {
+                    *ctx.disk_guid.write().await = Some(guid);
+                    if let Some(Ok(recovery_status)) = &mut *ctx.recovery_status.write().await {
+                        recovery_status.complete = true;
+                    }
+                    Ok(())
+                })
                 .await
             {
                 BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
@@ -192,7 +271,7 @@ pub async fn execute_inner(
     } else {
         let res = fresh_setup(&ctx, &embassy_password).await?;
         init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
-        complete_setup(ctx, guid).await?;
+        *ctx.disk_guid.write().await = Some(guid);
         res
     };
 
@@ -233,11 +312,12 @@ async fn recover(
     ctx: SetupContext,
     guid: Arc<String>,
     embassy_password: String,
-    recovery_partition: PartitionInfo,
+    recovery_source: BackupTargetFS,
     recovery_password: Option<String>,
 ) -> Result<(OnionAddressV3, X509, BoxFuture<'static, Result<(), Error>>), Error> {
-    let recovery_version = recovery_partition
-        .embassy_os
+    let recovery_source = TmpMountGuard::mount(&recovery_source).await?;
+    let recovery_version = recovery_info(&recovery_source)
+        .await?
         .as_ref()
         .map(|i| i.version.clone())
         .unwrap_or_default();
@@ -246,14 +326,14 @@ async fn recover(
         (
             tor_addr,
             root_ca,
-            recover_v2(ctx.clone(), recovery_partition).boxed(),
+            recover_v2(ctx.clone(), recovery_source).boxed(),
         )
     } else if recovery_version.major() == 0 && recovery_version.minor() == 3 {
         recover_full_embassy(
             ctx.clone(),
             guid.clone(),
             embassy_password,
-            recovery_partition,
+            recovery_source,
             recovery_password,
         )
         .await?
@@ -332,14 +412,12 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
 }
 
 #[instrument(skip(ctx))]
-async fn recover_v2(ctx: SetupContext, recovery_partition: PartitionInfo) -> Result<(), Error> {
-    let recovery = TmpMountGuard::mount(&recovery_partition.logicalname, None).await?;
-
+async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result<(), Error> {
     let secret_store = ctx.secret_store().await?;
     let db = ctx.db(&secret_store).await?;
     let mut handle = db.handle();
 
-    let apps_yaml_path = recovery
+    let apps_yaml_path = recovery_source
         .as_ref()
         .join("root")
         .join("appmgr")
@@ -358,7 +436,7 @@ async fn recover_v2(ctx: SetupContext, recovery_partition: PartitionInfo) -> Res
         })?)
         .await?;
 
-    let volume_path = recovery.as_ref().join("root/volumes");
+    let volume_path = recovery_source.as_ref().join("root/volumes");
     let mut total_bytes = 0;
     for (pkg_id, _) in &packages {
         let volume_src_path = volume_path.join(&pkg_id);
@@ -372,6 +450,7 @@ async fn recover_v2(ctx: SetupContext, recovery_partition: PartitionInfo) -> Res
     *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
         bytes_transferred: 0,
         total_bytes,
+        complete: false,
     }));
     let bytes_transferred = AtomicU64::new(0);
     let volume_id = VolumeId::Custom(Id::try_from("main".to_owned())?);
@@ -398,11 +477,12 @@ async fn recover_v2(ctx: SetupContext, recovery_partition: PartitionInfo) -> Res
                     *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
                         bytes_transferred: bytes_transferred.load(Ordering::Relaxed),
                         total_bytes,
+                        complete: false
                     }));
                 }
             } => (),
         );
-        let tor_src_path = recovery
+        let tor_src_path = recovery_source
             .as_ref()
             .join("var/lib/tor")
             .join(format!("app-{}", pkg_id))
@@ -430,7 +510,7 @@ async fn recover_v2(ctx: SetupContext, recovery_partition: PartitionInfo) -> Res
         let icon_leaf = AsRef::<Path>::as_ref(&pkg_id)
             .join(info.version.as_str())
             .join("icon.png");
-        let icon_src_path = recovery
+        let icon_src_path = recovery_source
             .as_ref()
             .join("root/agent/icons")
             .join(format!("{}.png", pkg_id));
@@ -468,6 +548,6 @@ async fn recover_v2(ctx: SetupContext, recovery_partition: PartitionInfo) -> Res
     }
 
     secret_store.close().await;
-    recovery.unmount().await?;
+    recovery_source.unmount().await?;
     Ok(())
 }

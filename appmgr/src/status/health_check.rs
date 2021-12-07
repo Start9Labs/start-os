@@ -9,7 +9,8 @@ use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
-use crate::util::{Duration, Version};
+use crate::util::serde::Duration;
+use crate::util::Version;
 use crate::volume::Volumes;
 use crate::Error;
 

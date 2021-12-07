@@ -19,7 +19,7 @@ export const mockPatchData: DataModel = {
     'package-marketplace': null,
     'share-stats': false,
     'unread-notification-count': 4,
-    // 'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+    'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
     'eos-version-compat': '>=0.3.0',
   },
   'recovered-packages': {

@@ -15,10 +15,10 @@ export class LoadingPage {
 
   ngOnInit () {
     this.stateService.pollDataTransferProgress()
-    const progSub = this.stateService.dataProgSubject.subscribe(async progress => {
-      if (progress === 1) {
+    const progSub = this.stateService.dataCompletionSubject.subscribe(async complete => {
+      if (complete) {
         progSub.unsubscribe()
-        await this.navCtrl.navigateForward(`/success`)
+        await this.navCtrl.navigateForward(`/init`)
       }
     })
   }

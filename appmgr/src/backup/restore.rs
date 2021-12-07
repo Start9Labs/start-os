@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -16,20 +16,23 @@ use tokio::task::JoinHandle;
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
+use super::target::BackupTargetId;
 use crate::auth::check_password_against_db;
 use crate::backup::backup_bulk::OsBackup;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::db::util::WithRevision;
-use crate::disk::util::{BackupMountGuard, PackageBackupMountGuard, PartitionInfo, TmpMountGuard};
+use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
+use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
 use crate::net::ssl::SslManager;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::setup::RecoveryStatus;
+use crate::util::display_none;
 use crate::util::io::dir_size;
-use crate::util::{display_none, IoFormat};
+use crate::util::serde::IoFormat;
 use crate::volume::{backup_dir, BACKUP_DIR, PKG_VOLUME_DIR};
 use crate::{Error, ResultExt};
 
@@ -44,14 +47,17 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<PackageId>
 pub async fn restore_packages_rpc(
     #[context] ctx: RpcContext,
     #[arg(parse(parse_comma_separated))] ids: Vec<PackageId>,
-    #[arg] logicalname: PathBuf,
+    #[arg(rename = "target-id")] target_id: BackupTargetId,
     #[arg(rename = "old-password", long = "old-password")] old_password: Option<String>,
     #[arg] password: String,
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
+    let fs = target_id
+        .load(&mut ctx.secret_store.acquire().await?)
+        .await?;
     let mut backup_guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(&logicalname, None).await?,
+        TmpMountGuard::mount(&fs).await?,
         old_password.as_ref().unwrap_or(&password),
     )
     .await?;
@@ -140,6 +146,7 @@ impl ProgressInfo {
         RecoveryStatus {
             total_bytes,
             bytes_transferred,
+            complete: false,
         }
     }
 }
@@ -149,11 +156,11 @@ pub async fn recover_full_embassy(
     ctx: SetupContext,
     disk_guid: Arc<String>,
     embassy_password: String,
-    recovery_partition: PartitionInfo,
+    recovery_source: TmpMountGuard,
     recovery_password: Option<String>,
 ) -> Result<(OnionAddressV3, X509, BoxFuture<'static, Result<(), Error>>), Error> {
     let backup_guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(&recovery_partition.logicalname, None).await?,
+        recovery_source,
         recovery_password.as_deref().unwrap_or_default(),
     )
     .await?;

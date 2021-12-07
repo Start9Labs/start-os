@@ -61,6 +61,7 @@ pub enum ErrorKind {
     Duplicate = 53,
     MultipleErrors = 54,
     Incoherent = 55,
+    InvalidBackupTargetId = 56,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -121,6 +122,7 @@ impl ErrorKind {
             Duplicate => "Duplication Error",
             MultipleErrors => "Multiple Errors",
             Incoherent => "Incoherent",
+            InvalidBackupTargetId => "Invalid Backup Target ID",
         }
     }
 }
@@ -336,7 +338,7 @@ where
 macro_rules! ensure_code {
     ($x:expr, $c:expr, $fmt:expr $(, $arg:expr)*) => {
         if !($x) {
-            return Err(crate::Error::new(eyre!($fmt, $($arg, )*), $c));
+            return Err(crate::Error::new(color_eyre::eyre::eyre!($fmt, $($arg, )*), $c));
         }
     };
 }
