@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { ApiService, DiskInfo, GetStatusRes, RecoveryStatusRes, SetupEmbassyReq, SetupEmbassyRes } from './api.service'
+import { ApiService, DiskInfo, EmbassyOSRecoveryInfo, GetStatusRes, RecoverySource, RecoveryStatusRes, SetupEmbassyReq, SetupEmbassyRes, VerifyCifs } from './api.service'
 import { HttpService } from './http.service'
 
 @Injectable({
@@ -43,17 +43,18 @@ export class LiveApiService extends ApiService {
 
   // ** ENCRYPTED **
 
+  async verifyCifs (params: VerifyCifs) {
+    params.path = params.path.replace('/\\/g', '/')
+    return this.http.rpcRequest<EmbassyOSRecoveryInfo>({
+      method: 'setup.cifs.verify',
+      params,
+    })
+  }
+
   async verifyProductKey () {
     return this.http.rpcRequest<void>({
       method: 'echo',
       params: { 'message': 'hello' },
-    })
-  }
-
-  async verify03XPassword (logicalname: string, password: string) {
-    return this.http.rpcRequest<boolean>({
-      method: 'setup.recovery.test-password',
-      params: { logicalname, password },
     })
   }
 
@@ -70,6 +71,10 @@ export class LiveApiService extends ApiService {
   }
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
+    if (setupInfo['recovery-source'].type === 'cifs') {
+      setupInfo['recovery-source'].path = setupInfo['recovery-source'].path.replace('/\\/g', '/')
+    }
+
     const res = await this.http.rpcRequest<SetupEmbassyRes>({
       method: 'setup.execute',
       params: setupInfo as any,
@@ -79,5 +84,12 @@ export class LiveApiService extends ApiService {
       ...res,
       'root-ca': btoa(res['root-ca']),
     }
+  }
+
+  async setupComplete () {
+    await this.http.rpcRequest<SetupEmbassyRes>({
+      method: 'setup.complete',
+      params: { },
+    })
   }
 }

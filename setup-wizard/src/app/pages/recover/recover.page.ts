@@ -1,10 +1,12 @@
-import { Component } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { AlertController, LoadingController, ModalController, NavController } from '@ionic/angular'
-import { ApiService, DiskInfo, PartitionInfo } from 'src/app/services/api/api.service'
+import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
+import { ApiService, CifsBackupTarget, DiskBackupTarget, DiskRecoverySource, RecoverySource } from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
-import { PasswordPage } from '../password/password.page'
-import { ProdKeyModal } from '../prod-key-modal/prod-key-modal.page'
+import { MappedDisk } from 'src/app/util/misc.util'
+import { PasswordPage } from '../../modals/password/password.page'
+import { ProdKeyModal } from '../../modals/prod-key-modal/prod-key-modal.page'
 
 @Component({
   selector: 'app-recover',
@@ -12,14 +14,14 @@ import { ProdKeyModal } from '../prod-key-modal/prod-key-modal.page'
   styleUrls: ['recover.page.scss'],
 })
 export class RecoverPage {
-  selectedPartition: PartitionInfo = null
   loading = true
-  drives: DiskInfo[] = []
+  driveTargets: MappedDisk[] = []
   hasShownGuidAlert = false
 
   constructor (
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
+    private readonly modalCtrl: ModalController,
     private readonly modalController: ModalController,
     private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
@@ -32,25 +34,43 @@ export class RecoverPage {
   }
 
   async refresh () {
-    this.selectedPartition = null
     this.loading = true
     await this.getDrives()
   }
 
-  partitionClickable (partition: PartitionInfo) {
-    return partition['embassy-os']?.full && (this.stateService.hasProductKey || this.is02x(partition))
+  driveClickable (drive: DiskBackupTarget) {
+    return drive['embassy-os']?.full && (this.stateService.hasProductKey || this.is02x(drive))
   }
 
   async getDrives () {
+    this.driveTargets = []
     try {
       const drives = await this.apiService.getDrives()
-      this.drives = drives.filter(d => d.partitions.length)
+      drives.filter(d => d.partitions.length).forEach(d => {
+        d.partitions.forEach(p => {
+          this.driveTargets.push(
+            {
+              hasValidBackup: p['embassy-os']?.full,
+              drive: {
+                type: 'disk',
+                vendor: d.vendor,
+                model: d.model,
+                logicalname: p.logicalname,
+                label: p.label,
+                capacity: p.capacity,
+                used: p.used,
+                'embassy-os': p['embassy-os'],
+              },
+            },
+          )
+        })
+      })
 
       const importableDrive = drives.find(d => !!d.guid)
       if (!!importableDrive && !this.hasShownGuidAlert) {
         const alert = await this.alertCtrl.create({
           header: 'Embassy Drive Detected',
-          message: 'A valid EmbassyOS data drive has been detected. To use this drive in its current state, simply click "Use Drive" below.',
+          message: 'A valid EmbassyOS data drive has been detected. To use this drive as-is, simply click "Use Drive" below.',
           buttons: [
             {
               role: 'cancel',
@@ -74,14 +94,69 @@ export class RecoverPage {
     }
   }
 
-  async importDrive (guid: string) {
+  async presentModalCifs (): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: CifsModal,
+    })
+    modal.onDidDismiss().then(res => {
+      if (res.role === 'success') {
+        const { hostname, path, username, password } = res.data.cifs
+        this.stateService.recoverySource = {
+          type: 'cifs',
+          hostname,
+          path,
+          username,
+          password,
+        }
+        this.stateService.recoveryPassword = res.data.recoveryPassword
+        this.navCtrl.navigateForward('/embassy')
+      }
+    })
+    await modal.present()
+  }
+
+  async select (target: DiskBackupTarget) {
+    if (target['embassy-os'].version.startsWith('0.2')) {
+      return this.selectRecoverySource(target.logicalname)
+    }
+
+    if (this.stateService.hasProductKey) {
+      const modal = await this.modalController.create({
+        component: PasswordPage,
+        componentProps: { target },
+        cssClass: 'alertlike-modal',
+      })
+      modal.onDidDismiss().then(res => {
+        if (res.data && res.data.password) {
+          this.selectRecoverySource(target.logicalname, res.data.password)
+        }
+      })
+      await modal.present()
+    // if no product key, it means they are an upgrade kit user
+    } else {
+      const modal = await this.modalController.create({
+        component: ProdKeyModal,
+        componentProps: { target },
+        cssClass: 'alertlike-modal',
+      })
+      modal.onDidDismiss().then(res => {
+        if (res.data && res.data.productKey) {
+          this.selectRecoverySource(target.logicalname)
+        }
+
+      })
+      await modal.present()
+    }
+  }
+
+  private async importDrive (guid: string) {
     const loader = await this.loadingCtrl.create({
       message: 'Importing Drive',
     })
     await loader.present()
     try {
       await this.stateService.importDrive(guid)
-      await this.navCtrl.navigateForward(`/success`)
+      await this.navCtrl.navigateForward(`/init`)
     } catch (e) {
       this.errorToastService.present(`${e.message}: ${e.data}`)
     } finally {
@@ -89,60 +164,26 @@ export class RecoverPage {
     }
   }
 
-  async choosePartition (partition: PartitionInfo) {
-    this.selectedPartition = partition
-
-    if (partition['embassy-os'].version.startsWith('0.2')) {
-      return this.selectRecoveryPartition()
+  private async selectRecoverySource (logicalname: string, password?: string) {
+    this.stateService.recoverySource = {
+      type: 'disk',
+      logicalname,
     }
-
-    if (this.stateService.hasProductKey) {
-      const modal = await this.modalController.create({
-        component: PasswordPage,
-        componentProps: {
-          recoveryPartition: this.selectedPartition,
-        },
-        cssClass: 'alertlike-modal',
-      })
-      modal.onDidDismiss().then(async ret => {
-        if (!ret.data) {
-          this.selectedPartition = null
-        } else if (ret.data.password) {
-          this.selectRecoveryPartition(ret.data.password)
-        }
-
-      })
-      await modal.present()
-    // if no product key, it means they are an upgrade kit user
-    } else {
-      const modal = await this.modalController.create({
-        component: ProdKeyModal,
-        componentProps: {
-          recoveryPartition: this.selectedPartition,
-        },
-        cssClass: 'alertlike-modal',
-      })
-      modal.onDidDismiss().then(async ret => {
-        if (!ret.data) {
-          this.selectedPartition = null
-        } else if (ret.data.productKey) {
-          this.selectRecoveryPartition()
-        }
-
-      })
-      await modal.present()
-    }
+    this.stateService.recoveryPassword = password
+    this.navCtrl.navigateForward(`/embassy`)
   }
 
-  async selectRecoveryPartition (password?: string) {
-    this.stateService.recoveryPartition = this.selectedPartition
-    if (password) {
-      this.stateService.recoveryPassword = password
-    }
-    await this.navCtrl.navigateForward(`/embassy`)
+  private is02x (drive: DiskBackupTarget): boolean {
+    return !this.stateService.hasProductKey && drive['embassy-os']?.version.startsWith('0.2')
   }
+}
 
-  private is02x (partition: PartitionInfo): boolean {
-    return !this.stateService.hasProductKey && partition['embassy-os']?.version.startsWith('0.2')
-  }
+
+@Component({
+  selector: 'drive-status',
+  templateUrl: './drive-status.component.html',
+  styleUrls: ['./recover.page.scss'],
+})
+export class DriveStatusComponent {
+  @Input() hasValidBackup: boolean
 }

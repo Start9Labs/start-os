@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use chrono::Utc;
 use color_eyre::eyre::eyre;
 use patch_db::DbHandle;
 use rpc_toolkit::command;
@@ -14,7 +13,8 @@ use crate::dependencies::{
 };
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
-use crate::util::{display_none, display_serializable};
+use crate::util::display_none;
+use crate::util::serde::display_serializable;
 use crate::{Error, ResultExt};
 
 #[command(display(display_none))]

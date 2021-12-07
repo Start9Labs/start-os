@@ -11,19 +11,21 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
+use self::target::PackageBackupInfo;
 use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
-use crate::disk::PackageBackupInfo;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{AtomicFile, IoFormat, Version};
+use crate::util::serde::IoFormat;
+use crate::util::{AtomicFile, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
 use crate::{Error, ResultExt};
 
 pub mod backup_bulk;
 pub mod restore;
+pub mod target;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BackupReport {
@@ -42,7 +44,7 @@ pub struct PackageBackupReport {
     error: Option<String>,
 }
 
-#[command(subcommands(backup_bulk::backup_all))]
+#[command(subcommands(backup_bulk::backup_all, target::target))]
 pub fn backup() -> Result<(), Error> {
     Ok(())
 }

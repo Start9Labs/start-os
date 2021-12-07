@@ -23,7 +23,8 @@ use crate::dependencies::{
 };
 use crate::install::cleanup::remove_current_dependents;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::util::{display_none, display_serializable, parse_stdin_deserializable, IoFormat};
+use crate::util::display_none;
+use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::{Error, ResultExt as _};
 
 pub mod action;
@@ -188,7 +189,7 @@ pub fn set(
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
-    #[arg(long = "timeout")] timeout: Option<crate::util::Duration>,
+    #[arg(long = "timeout")] timeout: Option<crate::util::serde::Duration>,
     #[arg(stdin, parse(parse_stdin_deserializable))] config: Option<Config>,
     #[arg(rename = "expire-id", long = "expire-id")] expire_id: Option<String>,
 ) -> Result<(PackageId, Option<Config>, Option<Duration>, Option<String>), Error> {

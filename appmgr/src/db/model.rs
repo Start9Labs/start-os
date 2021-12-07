@@ -32,7 +32,12 @@ pub struct Database {
     pub ui: Value,
 }
 impl Database {
-    pub fn init(id: String, hostname: &str, tor_key: &TorSecretKeyV3) -> Self {
+    pub fn init(
+        id: String,
+        hostname: &str,
+        tor_key: &TorSecretKeyV3,
+        password_hash: String,
+    ) -> Self {
         // TODO
         Database {
             server_info: ServerInfo {
@@ -59,6 +64,7 @@ impl Database {
                 },
                 share_stats: false,
                 update_progress: None,
+                password_hash,
             },
             package_data: AllPackageData::default(),
             recovered_packages: BTreeMap::new(),
@@ -91,6 +97,7 @@ pub struct ServerInfo {
     pub share_stats: bool,
     #[model]
     pub update_progress: Option<UpdateProgress>,
+    pub password_hash: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

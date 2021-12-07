@@ -21,7 +21,8 @@ use crate::error::ResultExt;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::{MainStatus, Status};
-use crate::util::{display_none, display_serializable, Version};
+use crate::util::serde::display_serializable;
+use crate::util::{display_none, Version};
 use crate::volume::Volumes;
 use crate::Error;
 

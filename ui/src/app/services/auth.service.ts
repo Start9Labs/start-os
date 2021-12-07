@@ -6,14 +6,13 @@ import { Storage } from '@ionic/storage-angular'
 export enum AuthState {
   UNVERIFIED,
   VERIFIED,
-  INITIALIZING,
 }
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
   private readonly LOGGED_IN_KEY = 'loggedInKey'
-  private readonly authState$: BehaviorSubject<AuthState> = new BehaviorSubject(AuthState.INITIALIZING)
+  private readonly authState$: BehaviorSubject<AuthState> = new BehaviorSubject(undefined)
 
   constructor (
     private readonly storage: Storage,

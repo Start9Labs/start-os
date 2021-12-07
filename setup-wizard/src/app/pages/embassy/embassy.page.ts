@@ -1,9 +1,9 @@
 import { Component } from '@angular/core'
 import { AlertController, LoadingController, ModalController, NavController } from '@ionic/angular'
-import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
+import { ApiService, DiskInfo, DiskRecoverySource } from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
-import { PasswordPage } from '../password/password.page'
+import { PasswordPage } from '../../modals/password/password.page'
 
 @Component({
   selector: 'app-embassy',
@@ -11,8 +11,7 @@ import { PasswordPage } from '../password/password.page'
   styleUrls: ['embassy.page.scss'],
 })
 export class EmbassyPage {
-  storageDrives = []
-  selectedDrive: DiskInfo = null
+  storageDrives: DiskInfo[] = []
   loading = true
 
   constructor (
@@ -30,15 +29,14 @@ export class EmbassyPage {
   }
 
   async refresh () {
-    this.storageDrives = []
-    this.selectedDrive = null
     this.loading = true
     await this.getDrives()
   }
 
   async getDrives () {
     try {
-      this.storageDrives = (await this.apiService.getDrives()).filter(d => !d.partitions.map(p => p.logicalname).includes(this.stateService.recoveryPartition?.logicalname))
+      const drives = await this.apiService.getDrives()
+      this.storageDrives = drives.filter(d => !d.partitions.map(p => p.logicalname).includes((this.stateService.recoverySource as DiskRecoverySource)?.logicalname))
     } catch (e) {
       this.errorToastService.present(e.message)
     } finally {
@@ -60,14 +58,22 @@ export class EmbassyPage {
           {
             text: 'Continue',
             handler: () => {
-              this.presentModalPassword(drive)
+              if (this.stateService.recoveryPassword) {
+                this.setupEmbassy(drive, this.stateService.recoveryPassword)
+              } else {
+                this.presentModalPassword(drive)
+              }
             },
           },
         ],
       })
       await alert.present()
     } else {
-      this.presentModalPassword(drive)
+      if (this.stateService.recoveryPassword) {
+        this.setupEmbassy(drive, this.stateService.recoveryPassword)
+      } else {
+        this.presentModalPassword(drive)
+      }
     }
   }
 
@@ -80,31 +86,30 @@ export class EmbassyPage {
     })
     modal.onDidDismiss().then(async ret => {
       if (!ret.data || !ret.data.password) return
-
-      const loader = await this.loadingCtrl.create({
-        message: 'Transferring encrypted data',
-      })
-
-      await loader.present()
-
-      this.stateService.storageDrive = drive
-      this.stateService.embassyPassword = ret.data.password
-
-      try {
-        await this.stateService.setupEmbassy()
-        if (!!this.stateService.recoveryPartition) {
-          await this.navCtrl.navigateForward(`/loading`)
-        } else {
-          await this.navCtrl.navigateForward(`/init`)
-        }
-      } catch (e) {
-        this.errorToastService.present(`${e.message}: ${e.details}`)
-        console.error(e.message)
-        console.error(e.details)
-      } finally {
-        loader.dismiss()
-      }
+      this.setupEmbassy(drive, ret.data.password)
     })
     await modal.present()
+  }
+
+  private async setupEmbassy (drive: DiskInfo, password: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      message: 'Transferring encrypted data. This could take a while...',
+    })
+
+    await loader.present()
+
+    try {
+      await this.stateService.setupEmbassy(drive.logicalname, password)
+      if (!!this.stateService.recoverySource) {
+        await this.navCtrl.navigateForward(`/loading`)
+      } else {
+        await this.navCtrl.navigateForward(`/init`)
+      }
+    } catch (e) {
+      this.errorToastService.present(`${e.message}: ${e.details}. Restart Embassy to try again.`)
+      console.error(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 }

@@ -14,7 +14,8 @@ use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
-use crate::util::{display_none, display_serializable, IoFormat};
+use crate::util::display_none;
+use crate::util::serde::{display_serializable, IoFormat};
 use crate::{ensure_code, Error, ResultExt};
 
 #[command(subcommands(login, logout, session))]

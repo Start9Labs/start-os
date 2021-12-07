@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from 'src/app/util/misc.util'
-import { ApiService, SetupEmbassyReq } from './api.service'
+import { ApiService, RecoverySource, SetupEmbassyReq, VerifyCifs } from './api.service'
 
 let tries = 0
 
@@ -27,8 +27,8 @@ export class MockApiService extends ApiService {
     await pauseFor(1000)
     return [
       {
-        vendor: 'Vendor',
-        model: 'Model',
+        vendor: 'Samsung',
+        model: 'SATA',
         logicalname: '/dev/sda',
         guid: 'theguid',
         partitions: [
@@ -50,16 +50,16 @@ export class MockApiService extends ApiService {
         capacity: 150000,
       },
       {
-        vendor: 'Vendor',
-        model: 'Model',
+        vendor: 'Samsung',
+        model: null,
         logicalname: 'dev/sdb',
         partitions: [],
         capacity: 34359738369,
         guid: null,
       },
       {
-        vendor: 'Vendor',
-        model: 'Model',
+        vendor: 'Crucial',
+        model: 'MX500',
         logicalname: 'dev/sdc',
         guid: null,
         partitions: [
@@ -72,6 +72,7 @@ export class MockApiService extends ApiService {
               version: '0.3.3',
               full: true,
               'password-hash': 'asdfasdfasdf',
+              'wrapped-key': '',
             },
           },
           {
@@ -84,6 +85,7 @@ export class MockApiService extends ApiService {
               full: true,
               // password is 'asdfasdf'
               'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+              'wrapped-key': '',
             },
           },
           {
@@ -95,14 +97,15 @@ export class MockApiService extends ApiService {
               version: '0.3.3',
               full: false,
               'password-hash': 'asdfasdfasdf',
+              'wrapped-key': '',
             },
           },
         ],
         capacity: 100000,
       },
       {
-        vendor: 'Vendor',
-        model: 'Model',
+        vendor: 'Sandisk',
+        model: null,
         logicalname: '/dev/sdd',
         guid: null,
         partitions: [
@@ -115,6 +118,7 @@ export class MockApiService extends ApiService {
               version: '0.2.7',
               full: true,
               'password-hash': 'asdfasdfasdf',
+              'wrapped-key': '',
             },
           },
         ],
@@ -133,19 +137,25 @@ export class MockApiService extends ApiService {
     return {
       'bytes-transferred': tries,
       'total-bytes': 4,
+      complete: tries === 4
     }
   }
 
   // ** ENCRYPTED **
 
+  async verifyCifs (params: VerifyCifs) {
+    await pauseFor(1000)
+    return {
+      version: '0.3.0',
+      full: true,
+      'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+      'wrapped-key': '',
+    }
+  }
+
   async verifyProductKey () {
     await pauseFor(1000)
     return
-  }
-
-  async verify03XPassword (logicalname: string, password: string) {
-    await pauseFor(2000)
-    return password.length > 8
   }
 
   async importDrive (guid: string) {
@@ -158,25 +168,13 @@ export class MockApiService extends ApiService {
     return setupRes
   }
 
-  async getRecoveryDrives () {
-    await pauseFor(2000)
-    return [
-      {
-        logicalname: 'Name1',
-        version: '0.3.3',
-        name: 'My Embassy',
-      },
-      {
-        logicalname: 'Name2',
-        version: '0.2.7',
-        name: 'My Embassy',
-      },
-    ]
+  async setupComplete () {
+    await pauseFor(1000)
   }
 }
 
 const rootCA =
-`-----BEGIN CERTIFICATE-----
+  `-----BEGIN CERTIFICATE-----
 MIIDpzCCAo+gAwIBAgIRAIIuOarlQETlUQEOZJGZYdIwDQYJKoZIhvcNAQELBQAw
 bTELMAkGA1UEBhMCVVMxFTATBgNVBAoMDEV4YW1wbGUgQ29ycDEOMAwGA1UECwwF
 U2FsZXMxCzAJBgNVBAgMAldBMRgwFgYDVQQDDA93d3cuZXhhbXBsZS5jb20xEDAO

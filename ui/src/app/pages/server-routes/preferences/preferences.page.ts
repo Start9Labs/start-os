@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { IonContent, ModalController } from '@ionic/angular'
-import { GenericInputComponent } from 'src/app/modals/generic-input/generic-input.component'
+import { IonContent, LoadingController, ModalController } from '@ionic/angular'
+import { GenericInputComponent, GenericInputOptions } from 'src/app/modals/generic-input/generic-input.component'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerConfigService } from 'src/app/services/server-config.service'
@@ -17,6 +17,7 @@ export class PreferencesPage {
   defaultName: string
 
   constructor (
+    private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
     public readonly serverConfig: ServerConfigService,
@@ -32,19 +33,20 @@ export class PreferencesPage {
   }
 
   async presentModalName (): Promise<void> {
+    const options: GenericInputOptions = {
+      title: 'Edit Device Name',
+      message: 'This is for your reference only.',
+      label: 'Device Name',
+      useMask: false,
+      placeholder: this.defaultName,
+      nullable: true,
+      initialValue: this.patch.getData().ui.name,
+      buttonText: 'Save',
+      submitFn: (value: string) => this.setDbValue('name', value || this.defaultName),
+    }
+
     const modal = await this.modalCtrl.create({
-      componentProps: {
-        title: 'Edit Device Name',
-        message: 'This is for your reference only.',
-        label: 'Device Name',
-        useMask: false,
-        placeholder: this.defaultName,
-        nullable: true,
-        value: this.patch.getData().ui.name,
-        buttonText: 'Save',
-        loadingText: 'Saving',
-        submitFn: (value: string) => this.setDbValue('name', value || this.defaultName),
-      },
+      componentProps: { options },
       cssClass: 'alertlike-modal',
       presentingElement: await this.modalCtrl.getTop(),
       component: GenericInputComponent,
@@ -54,7 +56,20 @@ export class PreferencesPage {
   }
 
   private async setDbValue (key: string, value: string): Promise<void> {
-    await this.api.setDbValue({ pointer: `/${key}`, value })
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Saving...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.api.setDbValue({ pointer: `/${key}`, value })
+    } catch (e) {
+      throw new Error(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 }
 

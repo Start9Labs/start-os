@@ -145,7 +145,7 @@ export const serverConfig: ConfigSpec = {
   'share-stats': {
     type: 'boolean',
     name: 'Report Bugs',
-    description: new IonicSafeString(`If enabled, generic error codes will be anonymously transmitted over Tor to the Start9 team. This helps us identify and fix bugs quickly. <a href="https://docs.start9.com" target="_blank" rel="noreferrer">Read more</a> `) as any, // @TODO get actual link
+    description: new IonicSafeString(`If enabled, generic error codes will be anonymously transmitted over Tor to the Start9 team. This helps us identify and fix bugs quickly. <a href="https://docs.start9.com/user-manual/general/user-preferences/report-bugs.html" target="_blank" rel="noreferrer">Read more</a> `) as any,
     default: false,
   },
   // password: {

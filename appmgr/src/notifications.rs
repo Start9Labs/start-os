@@ -14,7 +14,8 @@ use crate::backup::BackupReport;
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;
 use crate::s9pk::manifest::PackageId;
-use crate::util::{display_none, display_serializable};
+use crate::util::display_none;
+use crate::util::serde::display_serializable;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[command(subcommands(list, delete, delete_before, create))]
