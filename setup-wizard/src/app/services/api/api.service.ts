@@ -89,6 +89,7 @@ export interface DiskInfo {
 export interface RecoveryStatusRes {
   'bytes-transferred': number
   'total-bytes': number
+  complete: boolean
 }
 
 export interface PartitionInfo {

@@ -137,6 +137,7 @@ export class MockApiService extends ApiService {
     return {
       'bytes-transferred': tries,
       'total-bytes': 4,
+      complete: tries === 4
     }
   }
 
@@ -173,7 +174,7 @@ export class MockApiService extends ApiService {
 }
 
 const rootCA =
-`-----BEGIN CERTIFICATE-----
+  `-----BEGIN CERTIFICATE-----
 MIIDpzCCAo+gAwIBAgIRAIIuOarlQETlUQEOZJGZYdIwDQYJKoZIhvcNAQELBQAw
 bTELMAkGA1UEBhMCVVMxFTATBgNVBAoMDEV4YW1wbGUgQ29ycDEOMAwGA1UECwwF
 U2FsZXMxCzAJBgNVBAgMAldBMRgwFgYDVQQDDA93d3cuZXhhbXBsZS5jb20xEDAO
