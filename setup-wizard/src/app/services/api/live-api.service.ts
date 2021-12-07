@@ -71,7 +71,7 @@ export class LiveApiService extends ApiService {
   }
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
-    if (setupInfo['recovery-source'].type === 'cifs') {
+    if (setupInfo['recovery-source']?.type === 'cifs') {
       setupInfo['recovery-source'].path = setupInfo['recovery-source'].path.replace('/\\/g', '/')
     }
 
