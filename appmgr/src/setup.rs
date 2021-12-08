@@ -52,7 +52,7 @@ where
     Ok(password)
 }
 
-#[command(subcommands(status, disk, execute, recovery, cifs, complete))]
+#[command(subcommands(status, disk, attach, execute, recovery, cifs, complete))]
 pub fn setup() -> Result<(), Error> {
     Ok(())
 }
@@ -82,6 +82,24 @@ pub fn disk() -> Result<(), Error> {
 #[command(rename = "list", rpc_only, metadata(authenticated = false))]
 pub async fn list_disks() -> Result<Vec<DiskInfo>, Error> {
     crate::disk::list(None).await
+}
+
+#[command(rpc_only)]
+pub async fn attach(
+    #[context] ctx: SetupContext,
+    #[arg] guid: Arc<String>,
+) -> Result<SetupResult, Error> {
+    crate::disk::main::import(&*guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
+    init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
+    *ctx.disk_guid.write().await = Some(guid.clone());
+    let secrets = ctx.secret_store().await?;
+    let tor_key = crate::net::tor::os_key(&mut secrets.acquire().await?).await?;
+    let (_, root_ca) = SslManager::init(secrets).await?.export_root_ca().await?;
+    Ok(SetupResult {
+        tor_address: format!("http://{}", tor_key.public().get_onion_address()),
+        lan_address: format!("https://embassy-{}.local", crate::hostname::get_id().await?),
+        root_ca: String::from_utf8(root_ca.to_pem()?)?,
+    })
 }
 
 #[command(subcommands(v2, recovery_status))]

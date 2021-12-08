@@ -52,7 +52,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
     tracing::info!("Mounted Docker Data");
 
     crate::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
-    tracing::info!("Loaded Docker Images");
+    tracing::info!("Loaded Package Docker Images");
     // Loading system images
     crate::install::load_images("/var/lib/embassy/system-images").await?;
     tracing::info!("Loaded System Docker Images");
