@@ -231,8 +231,9 @@ pub async fn import<P: AsRef<Path>>(guid: &str, datadir: P, password: &str) -> R
     {
         Ok(_) => Ok(()),
         Err(e)
-            if format!("{}", e.source).trim()
-                == format!("Volume group \"{}\" is not exported", guid) =>
+            if format!("{}", e.source)
+                .lines()
+                .any(|l| l.trim() == format!("Volume group \"{}\" is not exported", guid)) =>
         {
             Ok(())
         }
