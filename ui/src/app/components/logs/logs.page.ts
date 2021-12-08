@@ -98,7 +98,7 @@ export class LogsPage {
 
   scrollEvent () {
     const buttonDiv = document.getElementById('button-div')
-    this.isOnBottom = buttonDiv.getBoundingClientRect().top < window.innerHeight
+    this.isOnBottom = buttonDiv && buttonDiv.getBoundingClientRect().top < window.innerHeight
   }
 
   scrollToBottom () {
