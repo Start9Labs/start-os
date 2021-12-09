@@ -6,7 +6,7 @@ export abstract class ApiService {
   abstract getRecoveryStatus (): Promise<RecoveryStatusRes> // setup.recovery.status
 
   // encrypted
-  abstract verifyCifs (cifs: VerifyCifs): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
+  abstract verifyCifs (cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
   abstract verifyProductKey (): Promise<void> // echo - throws error if invalid
   abstract importDrive (guid: string): Promise<SetupEmbassyRes> // setup.execute
   abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
@@ -18,12 +18,10 @@ export interface GetStatusRes {
   migrating: boolean
 }
 
-export type VerifyCifs = Omit<CifsRecoverySource, 'type'>
-
 export interface SetupEmbassyReq {
   'embassy-logicalname': string
   'embassy-password': string
-  'recovery-source': RecoverySource | null
+  'recovery-source': CifsRecoverySource | DiskRecoverySource | null
   'recovery-password': string | null
 }
 
@@ -33,8 +31,6 @@ export interface SetupEmbassyRes {
   'root-ca': string
 }
 
-export type BackupTarget = DiskBackupTarget | CifsBackupTarget
-
 export interface EmbassyOSRecoveryInfo {
   version: string
   full: boolean
@@ -43,7 +39,6 @@ export interface EmbassyOSRecoveryInfo {
 }
 
 export interface DiskBackupTarget {
-  type: 'disk'
   vendor: string | null
   model: string | null
   logicalname: string | null
@@ -54,7 +49,6 @@ export interface DiskBackupTarget {
 }
 
 export interface CifsBackupTarget {
-  type: 'cifs'
   hostname: string
   path: string
   username: string
@@ -62,15 +56,11 @@ export interface CifsBackupTarget {
   'embassy-os': EmbassyOSRecoveryInfo | null
 }
 
-export type RecoverySource = DiskRecoverySource | CifsRecoverySource
-
 export interface DiskRecoverySource {
-  type: 'disk'
   logicalname: string // partition logicalname
 }
 
 export interface CifsRecoverySource {
-  type: 'cifs'
   hostname: string
   path: string
   username: string

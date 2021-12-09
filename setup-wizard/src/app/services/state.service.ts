@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs'
-import { ApiService, RecoverySource } from './api/api.service'
+import { ApiService, CifsRecoverySource, DiskRecoverySource } from './api/api.service'
 import { ErrorToastService } from './error-toast.service'
 import { pauseFor } from '../util/misc.util'
 
@@ -14,7 +14,7 @@ export class StateService {
   polling = false
   embassyLoaded = false
 
-  recoverySource: RecoverySource
+  recoverySource: CifsRecoverySource | DiskRecoverySource
   recoveryPassword: string
 
   dataTransferProgress: { bytesTransferred: number, totalBytes: number, complete: boolean } | null

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { ApiService, DiskInfo, EmbassyOSRecoveryInfo, GetStatusRes, RecoverySource, RecoveryStatusRes, SetupEmbassyReq, SetupEmbassyRes, VerifyCifs } from './api.service'
+import { ApiService, CifsRecoverySource, DiskInfo, DiskRecoverySource, EmbassyOSRecoveryInfo, GetStatusRes, RecoveryStatusRes, SetupEmbassyReq, SetupEmbassyRes } from './api.service'
 import { HttpService } from './http.service'
 
 @Injectable({
@@ -43,11 +43,11 @@ export class LiveApiService extends ApiService {
 
   // ** ENCRYPTED **
 
-  async verifyCifs (params: VerifyCifs) {
-    params.path = params.path.replace('/\\/g', '/')
+  async verifyCifs (source: CifsRecoverySource) {
+    source.path = source.path.replace('/\\/g', '/')
     return this.http.rpcRequest<EmbassyOSRecoveryInfo>({
       method: 'setup.cifs.verify',
-      params,
+      params: source as any,
     })
   }
 
@@ -71,7 +71,7 @@ export class LiveApiService extends ApiService {
   }
 
   async setupEmbassy (setupInfo: SetupEmbassyReq) {
-    if (setupInfo['recovery-source']?.type === 'cifs') {
+    if (isCifsSource(setupInfo['recovery-source'])) {
       setupInfo['recovery-source'].path = setupInfo['recovery-source'].path.replace('/\\/g', '/')
     }
 
@@ -92,4 +92,8 @@ export class LiveApiService extends ApiService {
       params: { },
     })
   }
+}
+
+function isCifsSource (source: CifsRecoverySource | DiskRecoverySource | undefined): source is CifsRecoverySource {
+  return !!(source as CifsRecoverySource)?.hostname
 }
