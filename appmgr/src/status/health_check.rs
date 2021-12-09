@@ -68,26 +68,12 @@ impl HealthChecks {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
-pub enum HealthCheckSeverity {
-    Warning,
-    Critical,
-}
-
-impl Default for HealthCheckSeverity {
-    fn default() -> Self {
-        HealthCheckSeverity::Warning
-    }
-}
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HealthCheck {
     pub name: String,
     pub description: String,
     #[serde(flatten)]
     implementation: ActionImplementation,
-    #[serde(default)]
-    pub severity: HealthCheckSeverity,
     pub timeout: Option<Duration>,
 }
 impl HealthCheck {
