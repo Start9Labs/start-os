@@ -63,7 +63,8 @@ impl DockerAction {
                 .arg("--network=start9")
                 .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
                 .arg("--name")
-                .arg(&container_name);
+                .arg(&container_name)
+                .arg("--no-healthcheck");
         }
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
