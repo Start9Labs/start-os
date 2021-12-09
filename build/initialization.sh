@@ -5,8 +5,11 @@ set -e
 
 ! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
 
-apt update
-apt install -y \
+apt-get update
+apt-get purge -y \
+	bluez \
+	unattended-upgrades
+apt-get install -y \
 	docker.io \
 	tor \
 	nginx \
@@ -21,7 +24,8 @@ apt install -y \
 	ecryptfs-utils \
 	cifs-utils \
 	samba-common-bin
-sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
+apt-get autoremove -y
+
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
 sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
