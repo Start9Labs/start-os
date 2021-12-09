@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from 'src/app/util/misc.util'
-import { ApiService, RecoverySource, SetupEmbassyReq, VerifyCifs } from './api.service'
+import { ApiService, CifsRecoverySource, SetupEmbassyReq } from './api.service'
 
 let tries = 0
 
@@ -137,13 +137,13 @@ export class MockApiService extends ApiService {
     return {
       'bytes-transferred': tries,
       'total-bytes': 4,
-      complete: tries === 4
+      complete: tries === 4,
     }
   }
 
   // ** ENCRYPTED **
 
-  async verifyCifs (params: VerifyCifs) {
+  async verifyCifs (params: CifsRecoverySource) {
     await pauseFor(1000)
     return {
       version: '0.3.0',

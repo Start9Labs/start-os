@@ -28,6 +28,10 @@ export class EmbassyPage {
     await this.getDrives()
   }
 
+  tooSmall (drive: DiskInfo) {
+    return drive.capacity < 34359738368
+  }
+
   async refresh () {
     this.loading = true
     await this.getDrives()
