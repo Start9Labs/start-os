@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use patch_db::DbHandle;
 use tracing::instrument;
@@ -20,51 +20,83 @@ pub async fn check<Db: DbHandle>(
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
 
+    let mut checkpoint = tx.begin().await?;
+
     let installed_model = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(id)
-        .expect(&mut tx)
+        .expect(&mut checkpoint)
         .await?
         .installed()
-        .expect(&mut tx)
+        .expect(&mut checkpoint)
         .await?;
-
-    let mut checkpoint = tx.begin().await?;
 
     let manifest = installed_model
         .clone()
         .manifest()
         .get(&mut checkpoint, true)
-        .await?;
+        .await?
+        .into_owned();
 
-    let mut status = installed_model
+    let started = installed_model
         .clone()
         .status()
-        .get_mut(&mut checkpoint)
-        .await?;
-
-    status
-        .main
-        .check(&ctx, &mut checkpoint, &*manifest, should_commit)
-        .await?;
-
-    let failed = match &status.main {
-        MainStatus::Running { health, .. } => health.clone(),
-        MainStatus::BackingUp { health, .. } => health.clone(),
-        _ => BTreeMap::new(),
-    };
-
-    status.save(&mut checkpoint).await?;
+        .main()
+        .started()
+        .get(&mut checkpoint, true)
+        .await?
+        .into_owned();
 
     checkpoint.save().await?;
 
+    let health_results = if let Some(started) = started {
+        manifest
+            .health_checks
+            .check_all(ctx, started, id, &manifest.version, &manifest.volumes)
+            .await?
+    } else {
+        return Ok(());
+    };
+
+    if !should_commit.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+
+    let mut checkpoint = tx.begin().await?;
+
+    let mut status = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(id)
+        .expect(&mut checkpoint)
+        .await?
+        .installed()
+        .expect(&mut checkpoint)
+        .await?
+        .status()
+        .main()
+        .get_mut(&mut checkpoint)
+        .await?;
+
+    match &mut *status {
+        MainStatus::Running { health, .. } => {
+            *health = health_results.clone();
+        }
+        _ => (),
+    }
+
+    status.save(&mut checkpoint).await?;
+
     let current_dependents = installed_model
         .current_dependents()
-        .get(&mut tx, true)
+        .get(&mut checkpoint, true)
         .await?;
+
+    checkpoint.save().await?;
+
     for (dependent, info) in &*current_dependents {
-        let failures: BTreeMap<HealthCheckId, HealthCheckResult> = failed
+        let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results
             .iter()
+            .filter(|(_, hc_res)| !matches!(hc_res, HealthCheckResult::Success { .. }))
             .filter(|(hc_id, _)| info.health_checks.contains(hc_id))
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();

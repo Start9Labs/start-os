@@ -395,7 +395,6 @@ pub struct DepInfo {
     pub version: VersionRange,
     pub requirement: DependencyRequirement,
     pub description: Option<String>,
-    pub critical: bool,
     #[serde(default)]
     #[model]
     pub config: Option<DependencyConfig>,
@@ -792,37 +791,10 @@ pub fn break_transitive<'a, Db: DbHandle>(
                     error: error.clone(),
                 },
             );
-            if status.main.running() {
-                let transitive_error = if model
-                    .clone()
-                    .manifest()
-                    .dependencies()
-                    .idx_model(dependency)
-                    .get(&mut tx, true)
-                    .await?
-                    .into_owned()
-                    .ok_or_else(|| {
-                        Error::new(
-                            eyre!("{} not in listed dependencies", dependency),
-                            crate::ErrorKind::Database,
-                        )
-                    })?
-                    .critical
-                {
-                    status.main.stop();
-                    DependencyError::NotRunning
-                } else {
-                    DependencyError::Transitive
-                };
-                status.save(&mut tx).await?;
+            status.save(&mut tx).await?;
 
-                tx.save().await?;
-                break_all_dependents_transitive(db, id, transitive_error, breakages).await?;
-            } else {
-                status.save(&mut tx).await?;
-
-                tx.save().await?;
-            }
+            tx.save().await?;
+            break_all_dependents_transitive(db, id, DependencyError::Transitive, breakages).await?;
         } else {
             status.save(&mut tx).await?;
 
