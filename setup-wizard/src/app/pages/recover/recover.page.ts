@@ -1,10 +1,9 @@
 import { Component, Input } from '@angular/core'
 import { AlertController, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
-import { ApiService, CifsBackupTarget, DiskBackupTarget, DiskRecoverySource, RecoverySource } from 'src/app/services/api/api.service'
+import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
-import { MappedDisk } from 'src/app/util/misc.util'
 import { PasswordPage } from '../../modals/password/password.page'
 import { ProdKeyModal } from '../../modals/prod-key-modal/prod-key-modal.page'
 
@@ -15,7 +14,7 @@ import { ProdKeyModal } from '../../modals/prod-key-modal/prod-key-modal.page'
 })
 export class RecoverPage {
   loading = true
-  driveTargets: MappedDisk[] = []
+  mappedDrives: MappedDisk[] = []
   hasShownGuidAlert = false
 
   constructor (
@@ -38,29 +37,30 @@ export class RecoverPage {
     await this.getDrives()
   }
 
-  driveClickable (drive: DiskBackupTarget) {
-    return drive['embassy-os']?.full && (this.stateService.hasProductKey || this.is02x(drive))
+  driveClickable (mapped: MappedDisk) {
+    return mapped.drive['embassy-os']?.full && (this.stateService.hasProductKey || mapped.is02x)
   }
 
   async getDrives () {
-    this.driveTargets = []
+    this.mappedDrives = []
     try {
       const drives = await this.apiService.getDrives()
       drives.filter(d => d.partitions.length).forEach(d => {
         d.partitions.forEach(p => {
-          this.driveTargets.push(
+          const drive: DiskBackupTarget = {
+            vendor: d.vendor,
+            model: d.model,
+            logicalname: p.logicalname,
+            label: p.label,
+            capacity: p.capacity,
+            used: p.used,
+            'embassy-os': p['embassy-os'],
+          }
+          this.mappedDrives.push(
             {
               hasValidBackup: p['embassy-os']?.full,
-              drive: {
-                type: 'disk',
-                vendor: d.vendor,
-                model: d.model,
-                logicalname: p.logicalname,
-                label: p.label,
-                capacity: p.capacity,
-                used: p.used,
-                'embassy-os': p['embassy-os'],
-              },
+              is02x: drive['embassy-os']?.version.startsWith('0.2'),
+              drive,
             },
           )
         })
@@ -102,7 +102,6 @@ export class RecoverPage {
       if (res.role === 'success') {
         const { hostname, path, username, password } = res.data.cifs
         this.stateService.recoverySource = {
-          type: 'cifs',
           hostname,
           path,
           username,
@@ -166,15 +165,10 @@ export class RecoverPage {
 
   private async selectRecoverySource (logicalname: string, password?: string) {
     this.stateService.recoverySource = {
-      type: 'disk',
       logicalname,
     }
     this.stateService.recoveryPassword = password
     this.navCtrl.navigateForward(`/embassy`)
-  }
-
-  private is02x (drive: DiskBackupTarget): boolean {
-    return !this.stateService.hasProductKey && drive['embassy-os']?.version.startsWith('0.2')
   }
 }
 
@@ -186,4 +180,12 @@ export class RecoverPage {
 })
 export class DriveStatusComponent {
   @Input() hasValidBackup: boolean
+  @Input() is02x: boolean
+}
+
+
+interface MappedDisk {
+  is02x: boolean
+  hasValidBackup: boolean
+  drive: DiskBackupTarget
 }

@@ -37,7 +37,8 @@ export class ConfigService {
   mocks = mocks
 
   skipStartupAlerts  = mocks.enabled && mocks.skipStartupAlerts
-  supportsWebSockets = 'WebSocket' in window || 'MozWebSocket' in window
+  isConsulate = window['platform'] === 'ios'
+  supportsWebSockets = !!window.WebSocket || this.isConsulate
 
   isTor (): boolean {
     return (mocks.enabled && mocks.maskAs === 'tor') || this.origin.endsWith('.onion')

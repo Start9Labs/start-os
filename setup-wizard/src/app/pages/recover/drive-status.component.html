@@ -1,10 +1,14 @@
 <div class="inline">
-  <h2 *ngIf="hasValidBackup">
+  <!-- has backup -->
+  <h2 *ngIf="hasValidBackup; else noBackup">
     <ion-icon name="cloud-done" color="success"></ion-icon>
-    Embassy backup detected
+    {{ is02x ? 'Embassy 0.2.x backup detected' : 'Embassy backup detected' }}
   </h2>
-  <h2 *ngIf="!hasValidBackup">
-    <ion-icon name="cloud-offline" color="danger"></ion-icon>
-    No Embassy backup
-  </h2>
+  <!-- no backup -->
+  <ng-template #noBackup>
+    <h2>
+      <ion-icon name="cloud-offline" color="danger"></ion-icon>
+      No Embassy backup
+    </h2>
+  </ng-template>
 </div>

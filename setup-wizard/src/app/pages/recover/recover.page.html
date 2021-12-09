@@ -45,12 +45,12 @@
                 To restore from a physical drive, please follow the <a href="https://docs.start9.com/user-manual/general/backups.html" target="blank" noreferrer>instructions</a>.
               </p>
 
-              <ng-container *ngFor="let target of driveTargets">
-                <ion-item button *ngIf="target.drive as drive" [disabled]="!driveClickable(drive)" (click)="select(drive)">
+              <ng-container *ngFor="let mapped of mappedDrives">
+                <ion-item button *ngIf="mapped.drive as drive" [disabled]="!driveClickable(mapped)" (click)="select(drive)">
                   <ion-icon slot="start" name="save-outline" size="large" color="light"></ion-icon>
                   <ion-label>
                     <h1>{{ drive.label || drive.logicalname }}</h1>
-                    <drive-status [hasValidBackup]="target.hasValidBackup"></drive-status>
+                    <drive-status [hasValidBackup]="mapped.hasValidBackup" [is02x]="mapped.is02x"></drive-status>
                     <p>{{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model || 'Unknown Model' }}</p>
                     <p>Capacity: {{ drive.capacity | convertBytes }}</p>
                   </ion-label>
