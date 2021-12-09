@@ -27,7 +27,7 @@ sudo cp /tmp/eos-mnt/cmdline.txt /tmp/eos-mnt/cmdline.txt.orig
 sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /tmp/eos-mnt/cmdline.txt
 
 cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp
-echo "dtoverlay=pwm-2chan" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
+echo "dtoverlay=pwm-2chan,disable-bt" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
 
 # Unmount the boot partition and mount embassy partition
