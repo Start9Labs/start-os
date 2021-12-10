@@ -13,6 +13,7 @@ use tracing::instrument;
 
 use super::FileSystem;
 use crate::disk::mount::guard::TmpMountGuard;
+use crate::net::mdns::resolve_mdns;
 use crate::util::Invoke;
 use crate::Error;
 
@@ -26,22 +27,7 @@ pub async fn mount_cifs(
 ) -> Result<(), Error> {
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
     let ip: IpAddr = if hostname.ends_with(".local") {
-        String::from_utf8(
-            Command::new("avahi-resolve-host-name")
-                .arg(hostname)
-                .invoke(crate::ErrorKind::Network)
-                .await?,
-        )?
-        .split_once("\t")
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("Failed to resolve hostname: {}", hostname),
-                crate::ErrorKind::Network,
-            )
-        })?
-        .1
-        .trim()
-        .parse()?
+        resolve_mdns(hostname).await?
     } else {
         String::from_utf8(
             Command::new("nmblookup")
