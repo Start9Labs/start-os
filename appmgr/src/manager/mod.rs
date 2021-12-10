@@ -264,8 +264,8 @@ async fn run_main(
         .commit_health_check_results
         .store(true, Ordering::SeqCst);
     let health = async {
+        tokio::time::sleep(Duration::from_secs(1)).await; // only sleep for 1 second before first health check
         loop {
-            tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_COOLDOWN_SECONDS)).await;
             let mut db = state.ctx.db.handle();
             if let Err(e) = health::check(
                 &state.ctx,
@@ -282,6 +282,7 @@ async fn run_main(
                 );
                 tracing::debug!("{:?}", e);
             }
+            tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_COOLDOWN_SECONDS)).await;
         }
     };
     let _ = state
