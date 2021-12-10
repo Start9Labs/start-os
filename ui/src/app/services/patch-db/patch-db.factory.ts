@@ -8,25 +8,27 @@ import { AuthService } from '../auth.service'
 import { MockApiService } from '../api/embassy-mock-api.service'
 import { filter } from 'rxjs/operators'
 import { exists } from 'src/app/util/misc.util'
+import { Storage } from '@ionic/storage-angular'
 
 export function PatchDbServiceFactory (
   config: ConfigService,
   embassyApi: ApiService,
   bootstrapper: LocalStorageBootstrap,
   auth: AuthService,
+  storage: Storage,
 ): PatchDbService {
 
   const { mocks, patchDb: { poll } } = config
 
   if (mocks.enabled) {
     const source = new MockSource<DataModel>((embassyApi as MockApiService).mockPatch$.pipe(filter(exists)))
-    return new PatchDbService(source, source, embassyApi, bootstrapper, auth)
+    return new PatchDbService(source, source, embassyApi, bootstrapper, auth, storage)
   } else {
     const protocol = window.location.protocol === 'http:' ? 'ws' : 'wss'
     const host = window.location.host
     const wsSource =  new WebsocketSource<DataModel>(`${protocol}://${host}/ws/db`)
     const pollSource = new PollSource<DataModel>({ ...poll }, embassyApi)
 
-    return new PatchDbService(wsSource, pollSource, embassyApi, bootstrapper, auth)
+    return new PatchDbService(wsSource, pollSource, embassyApi, bootstrapper, auth, storage)
   }
 }
