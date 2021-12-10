@@ -66,6 +66,7 @@ sudo mkdir -p /tmp/eos-mnt/root/.ssh
 
 if [ "$ENVIRONMENT" = "dev" ]; then
 	cat ./build/initialization.sh | grep -v "passwd -l ubuntu" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
+	sudo chmod +x /tmp/eos-mnt/usr/local/bin/initialization.sh
 else
 	sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
 fi
