@@ -65,6 +65,10 @@ impl DockerAction {
                 .arg("--name")
                 .arg(&container_name)
                 .arg("--no-healthcheck");
+            match ctx.docker.remove_container(&container_name, None).await {
+                Ok(()) | Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => Ok(()),
+                Err(e) => Err(e),
+            }?;
         }
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
