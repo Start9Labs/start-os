@@ -53,6 +53,7 @@ ControlPort 9051
 CookieAuthentication 1
 EOF
 
+passwd -l ubuntu
 echo 'overlayroot="tmpfs":swap=1,recurse=0' > /etc/overlayroot.local.conf
 systemctl disable initialization.service
 sync
