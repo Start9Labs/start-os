@@ -23,7 +23,7 @@ use tokio::process::Command;
 use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
-use self::cleanup::cleanup_failed;
+use self::cleanup::{cleanup_failed, remove_current_dependents};
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
@@ -32,7 +32,7 @@ use crate::db::model::{
 };
 use crate::db::util::WithRevision;
 use crate::dependencies::{
-    break_all_dependents_transitive, update_current_dependents, BreakageRes, DependencyError,
+    add_current_dependents, break_all_dependents_transitive, BreakageRes, DependencyError,
     DependencyErrors,
 };
 use crate::install::cleanup::{cleanup, update_dependents};
@@ -853,7 +853,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             }
         })
         .collect();
-    update_current_dependents(&mut tx, pkg_id, &current_dependencies).await?;
     let current_dependents = {
         // search required dependencies
         let mut deps = BTreeMap::new();
@@ -997,6 +996,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             *main_status = prev.status.main;
             main_status.save(&mut tx).await?;
         }
+        remove_current_dependents(&mut tx, pkg_id, prev.current_dependencies.keys()).await?; // remove previous
+        add_current_dependents(&mut tx, pkg_id, &current_dependencies).await?; // add new
         update_dependents(
             ctx,
             &mut tx,
@@ -1023,6 +1024,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 &manifest.volumes,
             )
             .await?;
+        add_current_dependents(&mut tx, pkg_id, &current_dependencies).await?;
         update_dependents(ctx, &mut tx, pkg_id, current_dependents.keys()).await?;
     } else if let Some(recovered) = crate::db::DatabaseModel::new()
         .recovered_packages()
@@ -1032,8 +1034,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .into_owned()
     {
         handle_recovered_package(recovered, manifest, ctx, pkg_id, version, &mut tx).await?;
+        add_current_dependents(&mut tx, pkg_id, &current_dependencies).await?;
         update_dependents(ctx, &mut tx, pkg_id, current_dependents.keys()).await?;
     } else {
+        add_current_dependents(&mut tx, pkg_id, &current_dependencies).await?;
         update_dependents(ctx, &mut tx, pkg_id, current_dependents.keys()).await?;
     }
 

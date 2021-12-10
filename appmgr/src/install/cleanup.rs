@@ -197,10 +197,10 @@ pub async fn cleanup_failed<Db: DbHandle>(
 #[instrument(skip(db, current_dependencies))]
 pub async fn remove_current_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a PackageId>>(
     db: &mut Db,
-    id: &PackageId,
+    id: &'a PackageId,
     current_dependencies: I,
 ) -> Result<(), Error> {
-    for dep in current_dependencies {
+    for dep in current_dependencies.into_iter().chain(std::iter::once(id)) {
         if let Some(current_dependents) = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(dep)
