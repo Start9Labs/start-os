@@ -79,7 +79,7 @@ export class PatchDbService {
           this.patchConnection$.next(PatchConnection.Initializing)
           await this.initSource(this.wsSource)
           this.start()
-        } else {
+        } else if (connection !== PatchConnection.Connected) {
           console.log('CONNECTED PATCHDB')
           this.patchConnection$.next(PatchConnection.Connected)
         }
