@@ -31,6 +31,8 @@ use crate::Error;
 pub mod health;
 mod sync;
 
+pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 60;
+
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
@@ -263,7 +265,7 @@ async fn run_main(
         .store(true, Ordering::SeqCst);
     let health = async {
         loop {
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_COOLDOWN_SECONDS)).await;
             let mut db = state.ctx.db.handle();
             if let Err(e) = health::check(
                 &state.ctx,
@@ -371,6 +373,9 @@ impl Manager {
 
     #[instrument(skip(self))]
     async fn exit(&self) -> Result<(), Error> {
+        self.shared
+            .commit_health_check_results
+            .store(false, Ordering::SeqCst);
         let _ = self.shared.on_stop.send(OnStop::Exit);
         match self
             .shared
