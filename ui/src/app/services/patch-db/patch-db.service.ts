@@ -1,17 +1,13 @@
-import { Inject, Injectable, InjectionToken } from '@angular/core'
+import { Injectable } from '@angular/core'
+import { Storage } from '@ionic/storage-angular'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
 import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
-import { catchError, concatMap, debounceTime, finalize, map, tap } from 'rxjs/operators'
+import { catchError, debounceTime, finalize, map, tap, withLatestFrom } from 'rxjs/operators'
 import { pauseFor } from 'src/app/util/misc.util'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
 import { DataModel } from './data-model'
 
-export const HTTP_SOURCE = new InjectionToken<Source<DataModel>>('')
-export const WS_SOURCE = new InjectionToken<Source<DataModel>>('')
-export const POLL_SOURCE = new InjectionToken<Source<DataModel>>('')
-export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('')
-export const AUTH = new InjectionToken<AuthService>('')
 
 export enum PatchConnection {
   Initializing = 'initializing',
@@ -23,24 +19,29 @@ export enum PatchConnection {
   providedIn: 'root',
 })
 export class PatchDbService {
+  private readonly WS_SUCCESS = 'wsSuccess'
   private patchConnection$ = new BehaviorSubject(PatchConnection.Initializing)
+  private wsSuccess$ = new BehaviorSubject(false)
+  private polling$ = new BehaviorSubject(false)
   private patchDb: PatchDB<DataModel>
   private patchSub: Subscription
   data: DataModel
-  polling: boolean
 
   getData () { return this.patchDb.store.cache.data }
 
   constructor (
-    @Inject(WS_SOURCE) private readonly wsSource: Source<DataModel>,
-    @Inject(POLL_SOURCE) private readonly pollSource: Source<DataModel>,
-    @Inject(HTTP_SOURCE) private readonly http: ApiService,
-    @Inject(BOOTSTRAPPER) private readonly bootstrapper: Bootstrapper<DataModel>,
-    @Inject(AUTH) private readonly auth: AuthService,
+    private readonly wsSource: Source<DataModel>,
+    private readonly pollSource: Source<DataModel>,
+    private readonly http: ApiService,
+    private readonly bootstrapper: Bootstrapper<DataModel>,
+    private readonly auth: AuthService,
+    private readonly storage: Storage,
   ) { }
 
   async init (): Promise<void> {
     await this.initSource(this.wsSource)
+    const wsSuccess = !!(await this.storage.get(this.WS_SUCCESS))
+    this.wsSuccess$.next(wsSuccess)
   }
 
   async initSource (source: Source<DataModel>): Promise<void> {
@@ -50,7 +51,7 @@ export class PatchDbService {
   }
 
   start (): void {
-    console.log(this.patchSub ? 'restarting patch-db' : 'starting patch-db')
+    console.log(this.patchSub ? 'patchDB: RESTARTING' : 'patchDB: STARTING')
 
     // make sure everything is stopped before initializing
     if (this.patchSub) {
@@ -61,55 +62,60 @@ export class PatchDbService {
     this.patchSub = this.patchDb.sync$()
     .pipe(
       debounceTime(420),
-      tap(cache => {
+      withLatestFrom(this.patchConnection$, this.wsSuccess$, this.polling$),
+      tap(async ([cache, connection, wsSuccess, polling]) => {
         this.bootstrapper.update(cache)
-      }),
-      concatMap(() => this.patchConnection$),
-    )
-    .subscribe({
-      next: async connection => {
-        if (!this.polling) {
-          console.log('CON: WEBSOCKET SUCCESS')
-          localStorage.setItem('wsSuccess', 'true')
-        }
 
-        if (connection === PatchConnection.Disconnected && !!localStorage.getItem('wsSuccess')) {
-          console.log('CON: SWITCHING BACK TO WEBSOCKETS')
-          this.polling = false
+        if (connection === PatchConnection.Initializing) {
+          console.log(polling ? 'patchDB: POLL CONNECTED' : 'patchDB: WEBSOCKET CONNECTED')
+          this.patchConnection$.next(PatchConnection.Connected)
+          if (!wsSuccess && !polling) {
+            console.log('patchDB: WEBSOCKET SUCCESS')
+            this.storage.set(this.WS_SUCCESS, 'true')
+            this.wsSuccess$.next(true)
+          }
+        } else if (connection === PatchConnection.Disconnected && wsSuccess) {
+          console.log('patchDB: SWITCHING BACK TO WEBSOCKETS')
+          this.polling$.next(false)
           this.patchConnection$.next(PatchConnection.Initializing)
           await this.initSource(this.wsSource)
           this.start()
-        } else if (connection !== PatchConnection.Connected) {
-          console.log(this.polling ? 'CON: POLL CONNECTED' : 'CON: WEBSOCKET CONNECTED')
-          this.patchConnection$.next(PatchConnection.Connected)
         }
-      },
-      error: async e => {
-        console.error('patch-db SYNC ERROR', e)
+      }),
+      catchError(e => {
         if (e.code === 34) {
+          console.log('patchDB: Unauthorized. Logging out.')
           this.auth.setUnverified()
         } else {
-          if (this.polling) {
-            console.log('CON: POLLING FAILED')
-            this.patchConnection$.next(PatchConnection.Disconnected)
-            await pauseFor(2000)
-          } else {
-            console.log('CON: WEBSOCKET FAILED')
-            this.patchConnection$.next(PatchConnection.Initializing)
-            this.polling = true
-            await this.initSource(this.pollSource)
-          }
-          this.start()
+          return of([])
+          .pipe(
+            withLatestFrom(this.polling$),
+            tap(async ([e, polling]) => {
+              if (polling) {
+                console.log('patchDB: POLLING FAILED', e)
+                this.patchConnection$.next(PatchConnection.Disconnected)
+                await pauseFor(2000)
+              } else {
+                console.log('patchDB: WEBSOCKET FAILED', e)
+                this.patchConnection$.next(PatchConnection.Initializing)
+                this.polling$.next(true)
+                await this.initSource(this.pollSource)
+              }
+              this.start()
+            }),
+          )
         }
-      },
+      }),
+    )
+    .subscribe({
       complete: () => {
-        console.warn('patch-db SYNC COMPLETE')
+        console.warn('patchDB: SYNC COMPLETE')
       },
     })
   }
 
   stop (): void {
-    console.log('stopping patch-db')
+    console.log('patchDB: STOPPING')
     this.patchConnection$.next(PatchConnection.Initializing)
     if (this.patchSub) {
       this.patchSub.unsubscribe()
@@ -129,15 +135,16 @@ export class PatchDbService {
   }
 
   watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
-    console.log('WATCHING', ...args)
+    const argsString = args.join('/') || '/'
+    console.log('patchDB: WATCHING ', argsString)
     return this.patchDb.store.watch$(...(args as []))
     .pipe(
-      tap(data => console.log('NEW VALUE', data, ...args)),
+      tap(data => console.log('patchDB: NEW VALUE', argsString, data)),
       catchError(e => {
-        console.error('Error watching patch-db', e)
+        console.error('patchDB: WATCH ERROR', e)
         return of(e.message)
       }),
-      finalize(() => console.log('UNSUBSCRIBING', ...args)),
+      finalize(() => console.log('patchDB: UNSUBSCRIBING', argsString)),
     )
   }
 }
