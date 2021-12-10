@@ -77,8 +77,3 @@ export class CifsModal {
     alert.present()
   }
 }
-
-interface MappedCifs {
-  hasValidBackup: boolean
-  cifs: CifsBackupTarget
-}

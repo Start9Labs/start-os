@@ -80,7 +80,6 @@ export class InstallWizardComponent {
     if (this.slideComponents[this.slideIndex + 1] === undefined) { return this.transition({ final: true }) }
     this.zone.run(async () => {
       this.slideComponents[this.slideIndex + 1].load(prevResult)
-      await pauseFor(50) // give the load ^ opportunity to propogate into slide before sliding it into view
       this.slideIndex += 1
       await this.slideContainer.lockSwipes(false)
       await this.contentContainer.scrollToTop()
