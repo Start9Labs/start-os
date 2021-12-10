@@ -649,7 +649,7 @@ pub async fn configure_logic(
 }
 
 #[instrument(skip(db, current_dependencies))]
-pub async fn update_current_dependents<
+pub async fn add_current_dependents<
     'a,
     Db: DbHandle,
     I: IntoIterator<Item = (&'a PackageId, &'a CurrentDependencyInfo)>,
@@ -658,10 +658,7 @@ pub async fn update_current_dependents<
     dependent_id: &PackageId,
     current_dependencies: I,
 ) -> Result<(), Error> {
-    for (dependency, dep_info) in current_dependencies
-        .into_iter()
-        .filter(|(dependency, _)| dependency != &dependent_id)
-    {
+    for (dependency, dep_info) in current_dependencies {
         if let Some(dependency_model) = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(&dependency)
@@ -745,6 +742,8 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
         .current_dependents()
         .keys(db, true)
         .await?
+        .into_iter()
+        .filter(|dependent| id != dependent)
     {
         break_transitive(db, &dependent, id, error.clone(), breakages).await?;
     }
@@ -821,6 +820,8 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
         .current_dependents()
         .keys(db, true)
         .await?
+        .into_iter()
+        .filter(|dependent| id != dependent)
     {
         heal_transitive(ctx, db, &dependent, id).await?;
     }

@@ -37,6 +37,8 @@ pub async fn dry(
         .current_dependents()
         .keys(&mut tx, true)
         .await?
+        .into_iter()
+        .filter(|dependent| &id != dependent)
     {
         let version_req = crate::db::DatabaseModel::new()
             .package_data()
