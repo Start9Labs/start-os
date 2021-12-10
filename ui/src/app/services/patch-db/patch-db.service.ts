@@ -69,18 +69,18 @@ export class PatchDbService {
     .subscribe({
       next: async connection => {
         if (!this.polling) {
-          console.log('WEBSOCKET SUCCESS')
+          console.log('CON: WEBSOCKET SUCCESS')
           localStorage.setItem('wsSuccess', 'true')
         }
 
         if (connection === PatchConnection.Disconnected && !!localStorage.getItem('wsSuccess')) {
-          console.log('SWITCHING BACK TO WEBSOCKETS')
+          console.log('CON: SWITCHING BACK TO WEBSOCKETS')
           this.polling = false
           this.patchConnection$.next(PatchConnection.Initializing)
           await this.initSource(this.wsSource)
           this.start()
         } else if (connection !== PatchConnection.Connected) {
-          console.log('CONNECTED PATCHDB')
+          console.log(this.polling ? 'CON: POLL CONNECTED' : 'CON: WEBSOCKET CONNECTED')
           this.patchConnection$.next(PatchConnection.Connected)
         }
       },
@@ -90,11 +90,11 @@ export class PatchDbService {
           this.auth.setUnverified()
         } else {
           if (this.polling) {
-            console.log('TRY POLLING')
+            console.log('CON: POLLING FAILED')
             this.patchConnection$.next(PatchConnection.Disconnected)
             await pauseFor(2000)
           } else {
-            console.log('WEBSOCKET FAILED')
+            console.log('CON: WEBSOCKET FAILED')
             this.patchConnection$.next(PatchConnection.Initializing)
             this.polling = true
             await this.initSource(this.pollSource)
