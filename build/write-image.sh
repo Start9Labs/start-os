@@ -64,8 +64,13 @@ sudo cp -R diagnostic-ui/www /tmp/eos-mnt/var/www/html/diagnostic
 # Make the .ssh directory
 sudo mkdir -p /tmp/eos-mnt/root/.ssh
 
-sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
+if [ "$ENVIRONMENT" = "dev" ]; then
+	cat ./build/initialization.sh | grep -v "passwd -l ubuntu" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
+else
+	sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
+fi
+
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
-sudo ln -s  /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
+sudo ln -s /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
 
 sudo umount /tmp/eos-mnt
