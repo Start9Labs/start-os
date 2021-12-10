@@ -9,7 +9,7 @@ use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry};
 use crate::error::ErrorCollection;
-use crate::s9pk::manifest::PackageId;
+use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Apply, Version};
 use crate::Error;
 
@@ -21,51 +21,49 @@ pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a Pack
     deps: I,
 ) -> Result<(), Error> {
     for dep in deps {
-        let man = crate::db::DatabaseModel::new()
+        if let Some(man) = &*crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(&dep)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?
-            .manifest()
+            .and_then(|m| m.installed())
+            .map::<_, Manifest>(|m| m.manifest())
             .get(db, true)
-            .await?;
-        if let Err(e) = if let Some(info) = man.dependencies.0.get(id) {
-            info.satisfied(ctx, db, id, None, dep).await?
-        } else {
-            Ok(())
-        } {
-            let mut errs = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&dep)
-                .expect(db)
-                .await?
-                .installed()
-                .expect(db)
-                .await?
-                .status()
-                .dependency_errors()
-                .get_mut(db)
-                .await?;
-            errs.0.insert(id.clone(), e);
-            errs.save(db).await?;
-        } else {
-            let mut errs = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&dep)
-                .expect(db)
-                .await?
-                .installed()
-                .expect(db)
-                .await?
-                .status()
-                .dependency_errors()
-                .get_mut(db)
-                .await?;
-            errs.0.remove(id);
-            errs.save(db).await?;
+            .await?
+        {
+            if let Err(e) = if let Some(info) = man.dependencies.0.get(id) {
+                info.satisfied(ctx, db, id, None, dep).await?
+            } else {
+                Ok(())
+            } {
+                let mut errs = crate::db::DatabaseModel::new()
+                    .package_data()
+                    .idx_model(&dep)
+                    .expect(db)
+                    .await?
+                    .installed()
+                    .expect(db)
+                    .await?
+                    .status()
+                    .dependency_errors()
+                    .get_mut(db)
+                    .await?;
+                errs.0.insert(id.clone(), e);
+                errs.save(db).await?;
+            } else {
+                let mut errs = crate::db::DatabaseModel::new()
+                    .package_data()
+                    .idx_model(&dep)
+                    .expect(db)
+                    .await?
+                    .installed()
+                    .expect(db)
+                    .await?
+                    .status()
+                    .dependency_errors()
+                    .get_mut(db)
+                    .await?;
+                errs.0.remove(id);
+                errs.save(db).await?;
+            }
         }
     }
     Ok(())
