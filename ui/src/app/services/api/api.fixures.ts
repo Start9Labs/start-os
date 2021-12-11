@@ -1,3 +1,4 @@
+import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { Log, MarketplacePkg, Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
 
@@ -1363,9 +1364,7 @@ export module Mock {
     },
  }
 
-  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = realWorldConfigSpec.spec
-
-  const testSpec = {
+  const testSpec: ConfigSpec = {
     'testnet': {
       'name': 'Testnet',
       'type': 'boolean',
@@ -1636,82 +1635,6 @@ export module Mock {
         },
       },
     },
-    'advanced': {
-      'name': 'Advanced',
-      'type': 'object',
-      'unique-by': null,
-      'description': 'Advanced settings',
-      'spec': {
-        'bitcoin-node': {
-          'name': 'Bitcoin Node Settings',
-          'type': 'union',
-          'unique-by': null,
-          'description': 'The node settings',
-          'default': 'internal',
-          'warning': 'Careful changing this',
-          'tag': {
-            'id': 'type',
-            'name': 'Type',
-            'variant-names': {
-              'internal': 'Internal',
-              'external': 'External',
-            },
-          },
-          'variants': {
-            'internal': {
-              'lan-address': {
-                'name': 'LAN Address',
-                'type': 'pointer',
-                'subtype': 'package',
-                'target': 'lan-address',
-                'package-id': 'bitcoind',
-                'description': 'the lan address',
-                'interface': 'interface',
-              },
-            },
-            'external': {
-              'public-domain': {
-                'name': 'Public Domain',
-                'type': 'string',
-                'description': 'the public address of the node',
-                'nullable': false,
-                'default': 'bitcoinnode.com',
-                'pattern': '.*',
-                'pattern-description': 'anything',
-                'masked': false,
-                'copyable': true,
-              },
-            },
-          },
-        },
-        'notifications': {
-          'name': 'Notification Preferences',
-          'type': 'list',
-          'subtype': 'enum',
-          'description': 'how you want to be notified',
-          'range': '[1,3]',
-          'default': [
-            'email',
-          ],
-          'spec': {
-            'value-names': {
-              'email': 'EEEEmail',
-              'text': 'Texxxt',
-              'call': 'Ccccall',
-              'push': 'PuuuusH',
-              'webhook': 'WebHooookkeee',
-            },
-            'values': [
-              'email',
-              'text',
-              'call',
-              'push',
-              'webhook',
-            ],
-          },
-        },
-      },
-    },
     'bitcoin-node': {
       'name': 'Bitcoin Node Settings',
       'type': 'union',
@@ -1800,9 +1723,139 @@ export module Mock {
         'copyable': false,
       },
     },
+    'advanced': {
+      'name': 'Advanced',
+      'type': 'object',
+      'unique-by': null,
+      'description': 'Advanced settings',
+      'spec': {
+        'notifications': {
+          'name': 'Notification Preferences',
+          'type': 'list',
+          'subtype': 'enum',
+          'description': 'how you want to be notified',
+          'range': '[1,3]',
+          'default': [
+            'email',
+          ],
+          'spec': {
+            'value-names': {
+              'email': 'EEEEmail',
+              'text': 'Texxxt',
+              'call': 'Ccccall',
+              'push': 'PuuuusH',
+              'webhook': 'WebHooookkeee',
+            },
+            'values': [
+              'email',
+              'text',
+              'call',
+              'push',
+              'webhook',
+            ],
+          },
+        },
+        'rpcsettings': {
+          'name': 'RPC Settings',
+          'type': 'object',
+          'unique-by': null,
+          'description': 'rpc username and password',
+          'warning': 'Adding RPC users gives them special permissions on your node.',
+          'spec': {
+            'laws': {
+              'name': 'Laws',
+              'type': 'object',
+              'unique-by': 'law1',
+              'description': 'the law of the realm',
+              'spec': {
+                'law1': {
+                  'name': 'First Law',
+                  'type': 'string',
+                  'description': 'the first law',
+                  'nullable': true,
+                  'masked': false,
+                  'copyable': true,
+                },
+                'law2': {
+                  'name': 'Second Law',
+                  'type': 'string',
+                  'description': 'the second law',
+                  'nullable': true,
+                  'masked': false,
+                  'copyable': true,
+                },
+              },
+            },
+            'rulemakers': {
+              'name': 'Rule Makers',
+              'type': 'list',
+              'subtype': 'object',
+              'description': 'the people who make the rules',
+              'range': '[0,2]',
+              'default': [],
+              'spec': {
+                'unique-by': null,
+                'spec': {
+                  'rulemakername': {
+                    'name': 'Rulemaker Name',
+                    'type': 'string',
+                    'description': 'the name of the rule maker',
+                    'nullable': false,
+                    'default': {
+                      'charset': 'a-g,2-9',
+                      'len': 12,
+                    },
+                    'masked': false,
+                    'copyable': false,
+                  },
+                  'rulemakerip': {
+                    'name': 'Rulemaker IP',
+                    'type': 'string',
+                    'description': 'the ip of the rule maker',
+                    'nullable': false,
+                    'default': '192.168.1.0',
+                    'pattern': '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
+                    'pattern-description': 'may only contain numbers and periods',
+                    'masked': false,
+                    'copyable': true,
+                  },
+                },
+              },
+            },
+            'rpcuser': {
+              'name': 'RPC Username',
+              'type': 'string',
+              'description': 'rpc username',
+              'nullable': false,
+              'default': 'defaultrpcusername',
+              'pattern': '^[a-zA-Z]+$',
+              'pattern-description': 'must contain only letters.',
+              'masked': false,
+              'copyable': true,
+            },
+            'rpcpass': {
+              'name': 'RPC User Password',
+              'type': 'string',
+              'description': 'rpc password',
+              'nullable': false,
+              'default': {
+                'charset': 'a-z,A-Z,2-9',
+                'len': 20,
+              },
+              'masked': true,
+              'copyable': true,
+            },
+          },
+        },
+      },
+    },
   }
 
-  export const MockConfig = realWorldConfigSpec.config
+  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = testSpec
+  export const MockConfig = { }
+
+  // export const ConfigSpec: RR.GetPackageConfigRes['spec'] = realWorldConfigSpec.spec
+  // export const MockConfig = realWorldConfigSpec.config
 
   export const MockDependencyConfig = {
     testnet: true,
