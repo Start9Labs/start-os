@@ -91,7 +91,7 @@
         </ion-item-divider>
         <!-- body -->
         <div
-          [id]="entry.key"
+          [id]="getElementId(entry.key)"
           [ngStyle]="{
             'max-height': objectDisplay[entry.key].height,
             'overflow': 'hidden',
@@ -155,7 +155,7 @@
                 </ion-item>
                 <!-- nested body -->
                 <div
-                  [id]="entry.key"
+                  [id]="getElementId(entry.key)"
                   [ngStyle]="{
                     'max-height': objectListDisplay[entry.key][i].height,
                     'overflow': 'hidden',
