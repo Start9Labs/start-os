@@ -26,6 +26,7 @@ const useMocks = require('../../config.json').useMocks as boolean
   imports: [
     BrowserModule,
     IonicModule.forRoot({
+      mode: 'md',
       navAnimation: iosTransitionAnimation,
     }),
     AppRoutingModule,

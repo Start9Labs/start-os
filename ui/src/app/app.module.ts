@@ -29,7 +29,9 @@ import { GlobalErrorHandler } from './services/global-error-handler.service'
   imports: [
     HttpClientModule,
     BrowserModule,
-    IonicModule.forRoot(),
+    IonicModule.forRoot({
+      mode: 'md',
+    }),
     AppRoutingModule,
     IonicStorageModule.forRoot({
       storeName: '_embassykv',
