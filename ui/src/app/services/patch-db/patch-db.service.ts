@@ -26,6 +26,7 @@ export class PatchDbService {
   private patchDb: PatchDB<DataModel>
   private patchSub: Subscription
   data: DataModel
+  errors = 0
 
   getData () { return this.patchDb.store.cache.data }
 
@@ -51,7 +52,9 @@ export class PatchDbService {
   }
 
   start (): void {
-    console.log(this.patchSub ? 'patchDB: RESTARTING' : 'patchDB: STARTING')
+    const a = this.patchSub ? 'RESTARTING ' : 'STARTING '
+    const b = !!this.polling$.getValue() ? 'POLL' : 'WEBSOCKET'
+    console.log('patchDB: ' + a + b)
 
     // make sure everything is stopped before initializing
     if (this.patchSub) {
@@ -87,7 +90,7 @@ export class PatchDbService {
           console.log('patchDB: Unauthorized. Logging out.')
           this.auth.setUnverified()
         } else {
-          return of([])
+          return of(e)
           .pipe(
             withLatestFrom(this.polling$),
             tap(async ([e, polling]) => {
@@ -135,7 +138,7 @@ export class PatchDbService {
   }
 
   watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
-    const argsString = args.join('/') || '/'
+    const argsString = '/' + args.join('/')
     console.log('patchDB: WATCHING ', argsString)
     return this.patchDb.store.watch$(...(args as []))
     .pipe(

@@ -44,10 +44,10 @@ export class ConnectionService {
       ),
     ])
     .subscribe(async ([network, patchConnection, progress]) => {
-      if (patchConnection !== PatchConnection.Disconnected) {
-        this.connectionFailure$.next(ConnectionFailure.None)
-      } else if (!network) {
+      if (!network) {
         this.connectionFailure$.next(ConnectionFailure.Network)
+      } else if (patchConnection !== PatchConnection.Disconnected) {
+        this.connectionFailure$.next(ConnectionFailure.None)
       } else if (!!progress && progress.downloaded === progress.size) {
         this.connectionFailure$.next(ConnectionFailure.None)
       } else if (!this.configService.isTor()) {
@@ -62,7 +62,6 @@ export class ConnectionService {
 
 export enum ConnectionFailure {
   None = 'none',
-  Diagnosing = 'diagnosing',
   Network = 'network',
   Tor = 'tor',
   Lan = 'lan',
