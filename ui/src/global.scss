@@ -159,7 +159,7 @@ ion-icon {
 
 ion-toolbar {
   --min-height: 72px;
-  --ion-background-color: var(--ion-color-light); 
+  --background: var(--ion-color-light); 
 }
 
 ion-infinite-scroll ion-infinite-scroll-content {
@@ -255,10 +255,16 @@ ion-slides {
   }
 }
 
+ion-back-button {
+  --background: var(--ion-color-light); 
+  --color: var(--ion-color-dark);
+}
+
 ion-item-divider {
   text-transform: uppercase;
   --padding-top: 24px;
   font-weight: 600;
+  --background: transparent;
   --color: var(--ion-color-dark);
   font-size: medium;
   border-bottom: none;

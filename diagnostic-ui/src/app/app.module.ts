@@ -19,7 +19,9 @@ const useMocks = require('../../config.json').useMocks
   imports: [
     HttpClientModule,
     BrowserModule,
-    IonicModule.forRoot(),
+    IonicModule.forRoot({
+      mode: 'md',
+    }),
     AppRoutingModule,
   ],
   providers: [
