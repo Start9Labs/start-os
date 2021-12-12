@@ -196,7 +196,7 @@ export class AppComponent {
     .subscribe(async connectionFailure => {
       if (connectionFailure === ConnectionFailure.None) {
         if (this.offlineToast) {
-          this.offlineToast.dismiss()
+          await this.offlineToast.dismiss()
           this.offlineToast = undefined
         }
       } else {
@@ -206,16 +206,13 @@ export class AppComponent {
           case ConnectionFailure.Network:
             message = 'Phone or computer has no network connection.'
             break
-          case ConnectionFailure.Diagnosing:
-            message = new IonicSafeString('Running network diagnostics <ion-spinner style="padding: 0; margin: 0" name="dots"></ion-spinner>')
-            break
           case ConnectionFailure.Tor:
             message = 'Browser unable to connect over Tor.'
-            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#tor-failure'
+            link = 'https://docs.start9.com/support/FAQ/troubleshooting.html#tor-failure'
             break
           case ConnectionFailure.Lan:
             message = 'Embassy not found on Local Area Network.'
-            link = 'https://docs.start9.com/support/FAQ/setup-faq.html#lan-failure'
+            link = 'https://docs.start9.com/support/FAQ/troubleshooting.html#lan-failure'
             break
         }
         await this.presentToastOffline(message, link)
