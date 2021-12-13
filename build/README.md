@@ -19,7 +19,7 @@
 	- Create a builder: `docker buildx create --use`
 	- Add multi-arch build ability: `docker run --rm --privileged linuxkit/binfmt:v0.8`
 - Node Version 12+
-	- `sudo apt install -y nodejs`
+	- `sudo snap install node`
 	- https://nodejs.org/en/docs
 - NPM Version 7+
 	- `sudo apt install -y npm`
