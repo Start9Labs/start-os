@@ -15,7 +15,7 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
-use crate::util::serde::IoFormat;
+use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
@@ -39,6 +39,8 @@ pub struct DockerAction {
     pub inject: bool,
     #[serde(default)]
     pub shm_size_mb: Option<usize>, // TODO: use postfix sizing? like 1k vs 1m vs 1g
+    #[serde(default)]
+    pub sigterm_timeout: Option<SerdeDuration>,
 }
 impl DockerAction {
     #[instrument(skip(ctx, input))]
@@ -100,7 +102,12 @@ impl DockerAction {
                         .with_kind(crate::ErrorKind::Docker)?;
                 }
 
-                tokio::time::sleep(Duration::from_secs(30)).await;
+                tokio::time::sleep(
+                    self.sigterm_timeout
+                        .map(|a| *a)
+                        .unwrap_or(Duration::from_secs(30)),
+                )
+                .await;
 
                 if let Some(id) = id {
                     signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
