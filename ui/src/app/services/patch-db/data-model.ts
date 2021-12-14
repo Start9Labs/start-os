@@ -144,6 +144,7 @@ export interface ActionImpl {
   'io-format': DockerIoFormat | null
   inject: boolean
   'shm-size': string
+  'sigterm-timeout': string | null
 }
 
 export enum DockerIoFormat {

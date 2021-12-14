@@ -11,6 +11,7 @@ import { NotificationColorPipe } from '../pipes/notification-color.pipe'
 import { InstallState } from '../pipes/install-state.pipe'
 import { TextSpinnerComponentModule } from '../components/text-spinner/text-spinner.component.module'
 import { ConvertBytesPipe } from '../pipes/convert-bytes.pipe'
+import { DurationToSecondsPipe } from '../pipes/unit-conversion.pipe'
 
 @NgModule({
   declarations: [
@@ -30,6 +31,7 @@ import { ConvertBytesPipe } from '../pipes/convert-bytes.pipe'
     EmptyPipe,
     NotificationColorPipe,
     ConvertBytesPipe,
+    DurationToSecondsPipe,
   ],
   imports: [
     TextSpinnerComponentModule,
@@ -51,6 +53,7 @@ import { ConvertBytesPipe } from '../pipes/convert-bytes.pipe'
     EmptyPipe,
     NotificationColorPipe,
     ConvertBytesPipe,
+    DurationToSecondsPipe,
     // components
     TextSpinnerComponentModule,
   ],
