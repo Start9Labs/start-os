@@ -32,6 +32,7 @@
             [installProgress]="pkg.installProgress?.totalProgress"
             weight="bold"
             size="small"
+            [sigtermTimeout]="pkg.entry.manifest.main['sigterm-timeout']"
           ></status>
         </ion-label>
         <ion-icon slot="end" name="reorder-three" color="dark"></ion-icon>

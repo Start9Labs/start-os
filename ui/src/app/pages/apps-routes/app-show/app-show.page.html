@@ -29,6 +29,7 @@
           weight="500"
           [installProgress]="installProgress?.totalProgress"
           [rendering]="PR[statuses.primary]"
+          [sigtermTimeout]="pkg.manifest.main['sigterm-timeout']"
         ></status>
       </ion-label>
       <ng-container *ngIf="pkg.state === PackageState.Installed && !connectionFailure">
