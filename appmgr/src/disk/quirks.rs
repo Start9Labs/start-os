@@ -110,7 +110,14 @@ pub async fn update_quirks(quirks: &mut Quirks) -> Result<(), Error> {
             continue;
         }
         quirks.add(vendor, product);
-        tokio::fs::write(QUIRK_PATH, quirks.to_string()).await?;
+        {
+            // write quirks to sysfs
+            let mut quirk_file = tokio::fs::File::create(QUIRK_PATH).await?;
+            quirk_file.write_all(quirks.to_string().as_bytes()).await?;
+            quirk_file.sync_all().await?;
+            drop(quirk_file);
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
 
         reconnect_usb(usb_device.path()).await?;
     }
