@@ -24,7 +24,8 @@ apt-get install -y \
 	net-tools \
 	ecryptfs-utils \
 	cifs-utils \
-	samba-common-bin
+	samba-common-bin \
+	ntp
 apt-get autoremove -y
 
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
