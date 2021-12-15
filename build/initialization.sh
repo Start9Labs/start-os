@@ -15,6 +15,7 @@ apt-get install -y \
 	nginx \
 	libavahi-client3 \
 	avahi-daemon \
+	avahi-utils \
 	iotop \
 	bmon \
 	exfat-utils \
@@ -23,7 +24,8 @@ apt-get install -y \
 	net-tools \
 	ecryptfs-utils \
 	cifs-utils \
-	samba-common-bin
+	samba-common-bin \
+	ntp
 apt-get autoremove -y
 
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service

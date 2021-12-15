@@ -1,16 +1,40 @@
 use std::collections::BTreeMap;
+use std::net::IpAddr;
 
 use avahi_sys::{
     self, avahi_client_errno, avahi_entry_group_add_service, avahi_entry_group_commit,
     avahi_entry_group_free, avahi_entry_group_reset, avahi_free, avahi_strerror, AvahiClient,
     AvahiEntryGroup,
 };
+use color_eyre::eyre::eyre;
 use libc::c_void;
+use tokio::process::Command;
 use tokio::sync::Mutex;
 use torut::onion::TorSecretKeyV3;
 
 use super::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
+use crate::util::Invoke;
+use crate::Error;
+
+pub async fn resolve_mdns(hostname: &str) -> Result<IpAddr, Error> {
+    Ok(String::from_utf8(
+        Command::new("avahi-resolve-host-name")
+            .arg(hostname)
+            .invoke(crate::ErrorKind::Network)
+            .await?,
+    )?
+    .split_once("\t")
+    .ok_or_else(|| {
+        Error::new(
+            eyre!("Failed to resolve hostname: {}", hostname),
+            crate::ErrorKind::Network,
+        )
+    })?
+    .1
+    .trim()
+    .parse()?)
+}
 
 pub struct MdnsController(Mutex<MdnsControllerInner>);
 impl MdnsController {
