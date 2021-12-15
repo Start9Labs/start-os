@@ -277,7 +277,8 @@ export class WizardBaker {
             whileLoading: { },
             afterLoading: { text: 'Cancel' },
           },
-          next: 'Stop Service' },
+          next: 'Stop Service',
+        },
       },
       {
         slide: {

@@ -40,7 +40,6 @@ export function packageLoadingProgress (
     validateProgress: Math.floor((100 * validated) / size),
     unpackProgress: Math.floor((100 * unpacked) / size),
     isComplete: downloadComplete && validationComplete && unpackComplete,
-    display: totalProgress > 98 ? 'Finalizing...' : `Installing... ${totalProgress}%`,
   }
 }
 
@@ -50,5 +49,4 @@ export interface ProgressData {
   validateProgress: number
   unpackProgress: number
   isComplete: boolean
-  display: string
 }

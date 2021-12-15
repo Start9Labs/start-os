@@ -119,9 +119,6 @@ const sshSpec = {
   name: 'SSH Key',
   description: 'Enter the SSH public key of you would like to authorize for root access to your Embassy.',
   nullable: false,
-  // @TODO regex for SSH Key
-  // pattern: '',
-  'pattern-description': 'Must be a valid SSH key',
   masked: false,
   copyable: false,
 }

@@ -16,11 +16,12 @@
         [(ngModel)]="cifs.hostname"
         name="hostname"
         #hostname="ngModel"
-        placeholder="e.g. My Computer, Bob's Laptop"
+        placeholder="e.g. 'My Computer' OR 'my-computer.local'"
+        pattern="^[a-zA-Z0-9._-]+( [a-zA-Z0-9]+)*$"
       ></ion-input>
     </ion-item>
     <p [hidden]="hostname.valid || hostname.pristine">
-      <ion-text color="danger">Hostname is required</ion-text>
+      <ion-text color="danger">Hostname is required. e.g. 'My Computer' OR 'my-computer.local'</ion-text>
     </p>
 
     <p>Path *</p>
