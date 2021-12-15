@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
 use futures::TryStreamExt;
@@ -47,7 +47,7 @@ pub async fn add(
     let guard = TmpMountGuard::mount(&cifs).await?;
     let embassy_os = recovery_info(&guard).await?;
     guard.unmount().await?;
-    let path_string = cifs.path.display().to_string();
+    let path_string = Path::new("/").join(&cifs.path).display().to_string();
     let id: u32 = sqlx::query!(
         "INSERT INTO cifs_shares (hostname, path, username, password) VALUES (?, ?, ?, ?) RETURNING id AS \"id: u32\"",
         cifs.hostname,
@@ -95,7 +95,7 @@ pub async fn update(
     let guard = TmpMountGuard::mount(&cifs).await?;
     let embassy_os = recovery_info(&guard).await?;
     guard.unmount().await?;
-    let path_string = cifs.path.display().to_string();
+    let path_string = Path::new("/").join(&cifs.path).display().to_string();
     if sqlx::query!(
         "UPDATE cifs_shares SET hostname = ?, path = ?, username = ?, password = ? WHERE id = ?",
         cifs.hostname,

@@ -3,6 +3,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
+use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::Digest;
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,7 @@ use tracing::instrument;
 
 use super::FileSystem;
 use crate::disk::mount::guard::TmpMountGuard;
+use crate::net::mdns::resolve_mdns;
 use crate::util::Invoke;
 use crate::Error;
 
@@ -24,16 +26,21 @@ pub async fn mount_cifs(
     mountpoint: impl AsRef<Path>,
 ) -> Result<(), Error> {
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
-    let ip: IpAddr = String::from_utf8(
-        Command::new("nmblookup")
-            .arg(hostname)
-            .invoke(crate::ErrorKind::Network)
-            .await?,
-    )?
-    .split(" ")
-    .next()
-    .unwrap()
-    .parse()?;
+    let ip: IpAddr = if hostname.ends_with(".local") {
+        resolve_mdns(hostname).await?
+    } else {
+        String::from_utf8(
+            Command::new("nmblookup")
+                .arg(hostname)
+                .invoke(crate::ErrorKind::Network)
+                .await?,
+        )?
+        .split(" ")
+        .next()
+        .unwrap()
+        .trim()
+        .parse()?
+    };
     let absolute_path = Path::new("/").join(path.as_ref());
     Command::new("mount")
         .arg("-t")

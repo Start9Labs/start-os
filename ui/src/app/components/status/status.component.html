@@ -6,14 +6,16 @@
 >
   <span *ngIf= "!installProgress">
     {{ disconnected ? 'Unknown' : rendering.display }}
-    <span *ngIf="rendering.showDots">...</span>
+    <span *ngIf="rendering.showDots" class="loading-dots"></span>
   </span>
   <span *ngIf="installProgress">
     <span *ngIf="installProgress < 99">
-      Installing... {{ installProgress }}%
+      Installing
+      <span class="loading-dots"></span>{{ installProgress }}%
     </span>
     <span *ngIf="installProgress >= 99">
-      Finalizing install. This could take a minute...
+      Finalizing install. This could take a minute
+      <span class="loading-dots"></span>
     </span>
   </span>
 

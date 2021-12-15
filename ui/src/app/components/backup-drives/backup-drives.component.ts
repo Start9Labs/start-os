@@ -238,8 +238,10 @@ const CifsSpec: ConfigSpec = {
   hostname: {
     type: 'string',
     name: 'Hostname',
-    description: 'The local URL of the shared folder.',
-    placeholder: `e.g. My Computer, Bob's Laptop`,
+    description: 'The hostname of your target device on the Local Area Network.',
+    placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
+    pattern: '^[a-zA-Z0-9._-]+( [a-zA-Z0-9]+)*$',
+    'pattern-description': `Must be a valid hostname. e.g. 'My Computer' OR 'my-computer.local'`,
     nullable: false,
     masked: false,
     copyable: false,
@@ -247,7 +249,7 @@ const CifsSpec: ConfigSpec = {
   path: {
     type: 'string',
     name: 'Path',
-    description: 'The path to the shared folder on the target device.',
+    description: 'The directory path to the shared folder on your target device.',
     placeholder: 'e.g. /Desktop/my-folder',
     nullable: false,
     masked: false,
