@@ -16,6 +16,7 @@
       [installProgress]="pkg.installProgress?.totalProgress"
       weight="bold"
       size="small"
+      [sigtermTimeout]="manifest.main['sigterm-timeout']"
     ></status>
   </ion-label>
   <ion-button

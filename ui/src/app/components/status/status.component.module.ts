@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { StatusComponent } from './status.component'
 import { IonicModule } from '@ionic/angular'
+import { SharingModule } from 'src/app/modules/sharing.module'
 
 @NgModule({
   declarations: [
@@ -10,6 +11,7 @@ import { IonicModule } from '@ionic/angular'
   imports: [
     CommonModule,
     IonicModule,
+    SharingModule,
   ],
   exports: [StatusComponent],
 })

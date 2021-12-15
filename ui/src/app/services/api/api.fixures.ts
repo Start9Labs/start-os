@@ -51,6 +51,7 @@ export module Mock {
         'io-format': DockerIoFormat.Yaml,
         'inject': false,
         'shm-size': '',
+        'sigterm-timeout': '1ms',
     },
     'health-checks': { },
     'config': {
@@ -102,6 +103,7 @@ export module Mock {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
         },
         'restore': {
             'type': 'docker',
@@ -113,6 +115,7 @@ export module Mock {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
         },
     },
     'migrations': null,
@@ -135,6 +138,7 @@ export module Mock {
               'io-format': DockerIoFormat.Yaml,
               'inject': false,
               'shm-size': '',
+              'sigterm-timeout': null,
             },
             'input-spec': {
               'reason': {
@@ -361,6 +365,7 @@ export module Mock {
         'io-format': DockerIoFormat.Yaml,
         'inject': false,
         'shm-size': '',
+        'sigterm-timeout': '10000µs',
     },
     'health-checks': { },
     'config': {
@@ -412,6 +417,7 @@ export module Mock {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
         },
         'restore': {
             'type': 'docker',
@@ -423,6 +429,7 @@ export module Mock {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
         },
     },
     'migrations': null,
@@ -444,6 +451,7 @@ export module Mock {
                 'io-format': DockerIoFormat.Yaml,
                 'inject': false,
                 'shm-size': '',
+                'sigterm-timeout': null,
             },
             'input-spec': null,
         },
@@ -503,6 +511,7 @@ export module Mock {
       'io-format': DockerIoFormat.Yaml,
       inject: false,
       'shm-size': '',
+      'sigterm-timeout': '1m',
     },
     'health-checks': { },
     config: { get: { } as any, set: { } as any },
@@ -536,6 +545,7 @@ export module Mock {
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
+        'sigterm-timeout': null,
       },
       restore: {
         type: 'docker',
@@ -547,6 +557,7 @@ export module Mock {
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
+        'sigterm-timeout': null,
       },
     },
     migrations: null,
@@ -570,6 +581,7 @@ export module Mock {
             'io-format': DockerIoFormat.Cbor,
             inject: false,
             'shm-size': '10m',
+            'sigterm-timeout': null,
           },
           'auto-configure': {
             type: 'docker',
@@ -581,6 +593,7 @@ export module Mock {
             'io-format': DockerIoFormat.Cbor,
             inject: false,
             'shm-size': '10m',
+            'sigterm-timeout': null,
           },
         },
       },

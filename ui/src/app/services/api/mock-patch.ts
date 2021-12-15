@@ -69,6 +69,7 @@ export const mockPatchData: DataModel = {
           'io-format': DockerIoFormat.Yaml,
           'inject': false,
           'shm-size': '',
+          'sigterm-timeout': '.49m',
         },
         'health-checks': {
           'chain-state': { 'name': 'Chain State', 'description': 'Checks the chainstate' },
@@ -126,6 +127,7 @@ export const mockPatchData: DataModel = {
               'io-format': DockerIoFormat.Yaml,
               'inject': false,
               'shm-size': '',
+              'sigterm-timeout': null,
             },
             'restore': {
               'type': 'docker',
@@ -137,6 +139,7 @@ export const mockPatchData: DataModel = {
               'io-format': DockerIoFormat.Yaml,
               'inject': false,
               'shm-size': '',
+              'sigterm-timeout': null,
             },
           },
           'migrations': null,
@@ -159,6 +162,7 @@ export const mockPatchData: DataModel = {
                 'io-format': DockerIoFormat.Yaml,
                 'inject': false,
                 'shm-size': '',
+                'sigterm-timeout': null,
               },
               'input-spec': {
                 'reason': {
@@ -446,6 +450,7 @@ export const mockPatchData: DataModel = {
           'io-format': DockerIoFormat.Yaml,
           'inject': false,
           'shm-size': '',
+          'sigterm-timeout': '0.5s',
         },
         'health-checks': { },
         'config': {
@@ -497,6 +502,7 @@ export const mockPatchData: DataModel = {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
           },
           'restore': {
             'type': 'docker',
@@ -508,6 +514,7 @@ export const mockPatchData: DataModel = {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
           },
         },
         'migrations': null,
@@ -529,6 +536,7 @@ export const mockPatchData: DataModel = {
               'io-format': DockerIoFormat.Yaml,
               'inject': false,
               'shm-size': '',
+              'sigterm-timeout': null,
             },
             'input-spec': null,
           },
