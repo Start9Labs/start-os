@@ -4,10 +4,11 @@ import { Pipe, PipeTransform } from '@angular/core'
   name: 'durationToSeconds',
 })
 export class DurationToSecondsPipe implements PipeTransform {
-  transform (duration: string): number {
+  transform (duration: string | null): number {
     if (!duration) return 0
-    const unit = units.filter(u => duration.includes(u)).reduce((a, b) => a.length > b.length ? a : b )
-    const num = duration.replace(unit, '')
+    const splitUnit = duration.match(/^([0-9]*(\.[0-9]+)?)(ns|µs|ms|s|m|d)$/)
+    const unit = splitUnit[3]
+    const num = splitUnit[1]
     return Number(num) * unitsToSeconds[unit]
   }
 }
@@ -21,5 +22,3 @@ const unitsToSeconds = {
   'h': 3600,
   'd': 86400,
 }
-
-const units = Object.keys(unitsToSeconds)
