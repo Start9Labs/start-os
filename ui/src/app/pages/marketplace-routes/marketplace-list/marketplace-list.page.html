@@ -109,13 +109,16 @@
                   <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1" color="warning">Update Available</ion-text>
                 </p>
                 <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state">
-                  <ion-text color="primary">
-                    <span>{{ (localPkg['install-progress'] | installState).display }}</span>
+                  <ion-text color="primary" *ngIf="(localPkg['install-progress'] | installState) as progress">
+                    Installing
+                    <span class="loading-dots"></span>{{ progress.totalProgress < 99 ? progress.totalProgress + '%' : 'finalizing' }}
                   </ion-text>
                 </p>
                 <p *ngIf="localPkg.state === PackageState.Removing">
-                  <ion-text color="warning">{{ localPkg.state | titlecase }}</ion-text>
-                  <ion-spinner name="dots" color="warning"></ion-spinner>
+                  <ion-text color="danger">
+                    Removing
+                    <span class="loading-dots"></span>
+                  </ion-text>
                 </p>
               </ng-container>
               <ng-template #none>
