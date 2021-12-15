@@ -15,6 +15,7 @@ apt-get install -y \
 	nginx \
 	libavahi-client3 \
 	avahi-daemon \
+	avahi-utils \
 	iotop \
 	bmon \
 	exfat-utils \
