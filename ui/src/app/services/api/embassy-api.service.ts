@@ -13,8 +13,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     return this.sync$.asObservable()
   }
 
-  connectionMade$ = new Subject<void>()
-
   // for getting static files: ex icons, instructions, licenses
   abstract getStatic (url: string): Promise<string>
 
@@ -209,7 +207,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
           throw e
         })
         .then(({ response, revision }) => {
-          this.connectionMade$.next()
           if (revision) this.sync$.next(revision)
           return response
         })
