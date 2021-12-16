@@ -7,6 +7,7 @@
       [disconnected]="connectionFailure"
       [installProgress]="(progress | installState)?.totalProgress"
       [rendering]="PR[status.primary]"
+      [sigtermTimeout]="pkg.manifest.main['sigterm-timeout']"
     ></status>
   </ion-label>
   <ng-container *ngIf="isInstalled">

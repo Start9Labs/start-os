@@ -36,11 +36,6 @@
     "uuid": "^8.3.2",
     "zone.js": "^0.11.4"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged && npm run typecheck"
-    }
-  },
   "lint-staged": {
     "*.{js,ts,html,md,less,json}": [
       "prettier --write",
