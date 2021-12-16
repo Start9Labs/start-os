@@ -380,7 +380,6 @@ export class AppShowPage {
         title: 'Instructions',
         description: `Understand how to use ${pkgTitle}`,
         icon: 'list-outline',
-        color: 'danger',
       },
       // config
       {
@@ -388,7 +387,6 @@ export class AppShowPage {
         title: 'Config',
         description: `Customize ${pkgTitle}`,
         icon: 'construct-outline',
-        color: 'danger',
       },
       // properties
       {
@@ -396,7 +394,6 @@ export class AppShowPage {
         title: 'Properties',
         description: 'Runtime information, credentials, and other values of interest',
         icon: 'briefcase-outline',
-        color: 'danger',
       },
       // actions
       {
@@ -404,7 +401,6 @@ export class AppShowPage {
         title: 'Actions',
         description: `Uninstall and other commands specific to ${pkgTitle}`,
         icon: 'flash-outline',
-        color: 'danger',
       },
       // interfaces
       {
@@ -412,37 +408,24 @@ export class AppShowPage {
         title: 'Interfaces',
         description: 'User and machine access points',
         icon: 'desktop-outline',
-        color: 'danger',
       },
-      // metrics
-      // {
-      //   action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
-      //   title: 'Monitor',
-      //   description: 'View system usage',
-      //   icon: 'pulse-outline',
-      //   color: 'danger',
-      // },
-      // logs
       {
         action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         title: 'Logs',
         description: 'Raw, unfiltered service logs',
         icon: 'receipt-outline',
-        color: 'danger',
       },
       {
         action: () => this.navCtrl.navigateForward([`marketplace/${this.pkgId}`]),
         title: 'Marketplace',
         description: 'View service in marketplace',
         icon: 'storefront-outline',
-        color: 'danger',
       },
       {
         action: () => this.donate(),
         title: 'Donate',
         description: `Support ${pkgTitle}`,
         icon: 'logo-bitcoin',
-        color: 'danger',
       },
     ]
   }
@@ -466,7 +449,6 @@ interface Button {
   title: string
   description: string
   icon: string
-  color: string
   action: Function
 }
 
