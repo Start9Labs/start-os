@@ -3,7 +3,6 @@ import { Storage } from '@ionic/storage-angular'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
 import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
 import { catchError, debounceTime, finalize, map, tap, withLatestFrom } from 'rxjs/operators'
-import { pauseFor } from 'src/app/util/misc.util'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
 import { DataModel } from './data-model'
@@ -45,22 +44,10 @@ export class PatchDbService {
     this.wsSuccess$.next(wsSuccess)
   }
 
-  async initSource (source: Source<DataModel>): Promise<void> {
-    const cache = await this.bootstrapper.init()
-    this.patchDb = new PatchDB([source, this.http], this.http, cache)
-    this.data = this.patchDb.store.cache.data
-  }
-
   start (): void {
     const a = this.patchSub ? 'RESTARTING ' : 'STARTING '
     const b = !!this.polling$.getValue() ? 'POLL' : 'WEBSOCKET'
     console.log('patchDB: ' + a + b)
-
-    // make sure everything is stopped before initializing
-    if (this.patchSub) {
-      this.patchSub.unsubscribe()
-      this.patchSub = undefined
-    }
 
     this.patchSub = this.patchDb.sync$()
     .pipe(
@@ -80,7 +67,6 @@ export class PatchDbService {
         } else if (connection === PatchConnection.Disconnected && wsSuccess) {
           console.log('patchDB: SWITCHING BACK TO WEBSOCKETS')
           this.polling$.next(false)
-          this.patchConnection$.next(PatchConnection.Initializing)
           await this.initSource(this.wsSource)
           this.start()
         }
@@ -93,18 +79,16 @@ export class PatchDbService {
           return of(e)
           .pipe(
             withLatestFrom(this.polling$),
-            tap(async ([e, polling]) => {
+            tap(async ([newE, polling]) => {
               if (polling) {
-                console.log('patchDB: POLLING FAILED', e)
+                console.log('patchDB: POLLING FAILED', newE)
                 this.patchConnection$.next(PatchConnection.Disconnected)
-                await pauseFor(2000)
               } else {
-                console.log('patchDB: WEBSOCKET FAILED', e)
-                this.patchConnection$.next(PatchConnection.Initializing)
+                console.log('patchDB: WEBSOCKET FAILED', newE)
                 this.polling$.next(true)
                 await this.initSource(this.pollSource)
+                this.start()
               }
-              this.start()
             }),
           )
         }
@@ -118,8 +102,11 @@ export class PatchDbService {
   }
 
   stop (): void {
-    console.log('patchDB: STOPPING')
-    this.patchConnection$.next(PatchConnection.Initializing)
+    if (this.patchDb) {
+      console.log('patchDB: STOPPING')
+      this.patchConnection$.next(PatchConnection.Initializing)
+      this.patchDb.store.reset()
+    }
     if (this.patchSub) {
       this.patchSub.unsubscribe()
       this.patchSub = undefined
@@ -149,5 +136,14 @@ export class PatchDbService {
       }),
       finalize(() => console.log('patchDB: UNSUBSCRIBING', argsString)),
     )
+  }
+
+  private async initSource (source: Source<DataModel>): Promise<void> {
+    this.stop()
+    const cache = await this.bootstrapper.init()
+    console.log('CACHE', cache)
+    this.patchDb = new PatchDB([source, this.http], this.http, cache)
+    this.data = this.patchDb.store.cache.data
+    console.log('DATA', this.data)
   }
 }
