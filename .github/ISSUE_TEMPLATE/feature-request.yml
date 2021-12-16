@@ -3,7 +3,7 @@ description: Suggest an idea for EmbassyOS
 title: '[feat]: '
 labels: [Enhancement]
 assignees:
-  - ProofOfKeags
+  - dr-bonez
 body:
   - type: checkboxes
     attributes:
