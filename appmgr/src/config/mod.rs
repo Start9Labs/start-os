@@ -304,7 +304,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
         crate::db::DatabaseModel::new()
             .package_data()
             .lock(db, LockType::Write)
-            .await;
+            .await?;
         // fetch data from db
         let pkg_model = crate::db::DatabaseModel::new()
             .package_data()

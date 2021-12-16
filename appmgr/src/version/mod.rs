@@ -107,7 +107,7 @@ pub async fn init<Db: DbHandle>(db: &mut Db) -> Result<(), Error> {
     let ptr: JsonPointer = "/server-info/version"
         .parse()
         .with_kind(crate::ErrorKind::Database)?;
-    db.lock(ptr.clone(), LockType::Write).await;
+    db.lock(ptr.clone(), LockType::Write).await?;
     let version: Version = db.get(&ptr).await?;
     match version {
         Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db).await?,

@@ -26,8 +26,8 @@ pub async fn dry(
     let mut breakages = BTreeMap::new();
     crate::db::DatabaseModel::new()
         .package_data()
-        .lock(&mut tx, LockType::DeepRead)
-        .await;
+        .lock(&mut tx, LockType::Read)
+        .await?;
     for dependent in crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
