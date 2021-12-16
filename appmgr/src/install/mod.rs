@@ -820,7 +820,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     crate::db::DatabaseModel::new()
         .package_data()
         .lock(&mut tx, LockType::Write)
-        .await;
+        .await?;
 
     tracing::info!("Install {}@{}: Creating volumes", pkg_id, version);
     manifest.volumes.install(ctx, pkg_id, version).await?;

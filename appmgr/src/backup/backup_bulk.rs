@@ -310,7 +310,7 @@ async fn perform_backup<Db: DbHandle>(
             .synchronize()
             .await;
 
-        installed_model.lock(&mut db, LockType::Write).await;
+        installed_model.lock(&mut db, LockType::Write).await?;
 
         let guard = backup_guard.mount_package_backup(&package_id).await?;
         let res = manifest
