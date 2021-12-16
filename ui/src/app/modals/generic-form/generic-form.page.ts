@@ -19,6 +19,7 @@ export class GenericFormPage {
   @Input() title: string
   @Input() spec: ConfigSpec
   @Input() buttons: ActionButton[]
+  @Input() initialValue: object = { }
   submitBtn: ActionButton
   formGroup: FormGroup
 
@@ -28,7 +29,7 @@ export class GenericFormPage {
   ) { }
 
   ngOnInit () {
-    this.formGroup = this.formService.createForm(this.spec)
+    this.formGroup = this.formService.createForm(this.spec, this.initialValue)
     this.submitBtn = this.buttons.find(btn => btn.isSubmit) || {
       text: '',
       handler: () => Promise.resolve(true),
@@ -48,6 +49,7 @@ export class GenericFormPage {
       return
     }
 
+    // @TODO make this more like generic input component dismissal
     const success = await handler(this.formGroup.value)
     if (success !== false) this.modalCtrl.dismiss()
   }

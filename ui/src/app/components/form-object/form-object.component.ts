@@ -6,6 +6,7 @@ import { FormService } from 'src/app/services/form.service'
 import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
 import { pauseFor } from 'src/app/util/misc.util'
+import { v4 } from 'uuid'
 const Mustache = require('mustache')
 
 @Component({
@@ -25,6 +26,8 @@ export class FormObjectComponent {
   unmasked: { [key: string]: boolean } = { }
   objectDisplay: { [key: string]: { expanded: boolean, height: string } } = { }
   objectListDisplay: { [key: string]: { expanded: boolean, height: string, displayAs: string }[] } = { }
+  private objectId = v4()
+
   Object = Object
 
   constructor (
@@ -100,9 +103,6 @@ export class FormObjectComponent {
   addListItem (key: string, markDirty = true, val?: string): void {
     const arr = this.formGroup.get(key) as FormArray
     if (markDirty) arr.markAsDirty()
-    // @TODO why are these commented out?
-    // const validators = this.formService.getListItemValidators(this.objectSpec[key] as ValueSpecList, key, arr.length)
-    // arr.push(new FormControl(value, validators))
     const listSpec = this.objectSpec[key] as ValueSpecList
     const newItem = this.formService.getListItem(listSpec, val)
     newItem.markAllAsTouched()
@@ -250,9 +250,13 @@ export class FormObjectComponent {
     })
   }
 
-  private getDocSize (selected: string) {
-    const element = document.getElementById(selected)
+  private getDocSize (key: string) {
+    const element = document.getElementById(this.getElementId(key))
     return `${element.scrollHeight}px`
+  }
+
+  getElementId (key: string): string {
+    return `${key}-${this.objectId}`
   }
 
   async presentUnionTagDescription (name: string, description: string) {

@@ -1,5 +1,5 @@
 import { Component, Input, ViewChild } from '@angular/core'
-import { ModalController, IonicSafeString, LoadingController, IonInput } from '@ionic/angular'
+import { ModalController, IonicSafeString, IonInput } from '@ionic/angular'
 import { getErrorMessage } from 'src/app/services/error-toast.service'
 
 @Component({
@@ -9,24 +9,30 @@ import { getErrorMessage } from 'src/app/services/error-toast.service'
 })
 export class GenericInputComponent {
   @ViewChild('mainInput') elem: IonInput
-  @Input() title: string
-  @Input() message: string
-  @Input() warning: string
-  @Input() label: string
-  @Input() buttonText = 'Submit'
-  @Input() placeholder = 'Enter Value'
-  @Input() nullable = false
-  @Input() useMask = false
-  @Input() value = ''
-  @Input() loadingText = ''
-  @Input() submitFn: (value: string) => Promise<any>
+  @Input() options: GenericInputOptions
+  value: string
   unmasked = false
   error: string | IonicSafeString
 
   constructor (
     private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
   ) { }
+
+  ngOnInit () {
+    const defaultOptions: Partial<GenericInputOptions> = {
+      buttonText: 'Submit',
+      placeholder: 'Enter value',
+      nullable: false,
+      useMask: false,
+      initialValue: '',
+    }
+    this.options = {
+      ...defaultOptions,
+      ...this.options,
+    }
+
+    this.value = this.options.initialValue
+  }
 
   ngAfterViewInit () {
     setTimeout(() => this.elem.setFocus(), 400)
@@ -43,25 +49,28 @@ export class GenericInputComponent {
   async submit () {
     const value = this.value.trim()
 
-    if (!value && !this.nullable) {
-      return
-    }
-
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      cssClass: 'loader',
-      message: this.loadingText,
-    })
-    await loader.present()
+    if (!value && !this.options.nullable) return
 
     try {
-      await this.submitFn(value)
+      await this.options.submitFn(value)
       this.modalCtrl.dismiss(undefined, 'success')
     } catch (e) {
       this.error = getErrorMessage(e)
     }
-    finally {
-      loader.dismiss()
-    }
   }
+}
+
+export interface GenericInputOptions {
+  // required
+  title: string
+  message: string
+  label: string
+  submitFn: (value: string) => Promise<any>
+  // optional
+  warning?: string
+  buttonText?: string
+  placeholder?: string
+  nullable?: boolean
+  useMask?: boolean
+  initialValue?: string
 }

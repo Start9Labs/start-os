@@ -31,7 +31,9 @@ const { mocks } = require('../../config.json')
   imports: [
     HttpClientModule,
     BrowserModule,
-    IonicModule.forRoot(),
+    IonicModule.forRoot({
+      mode: 'md',
+    }),
     AppRoutingModule,
     IonicStorageModule.forRoot({
       storeName: '_embassykv',

@@ -159,7 +159,7 @@ ion-icon {
 
 ion-toolbar {
   --min-height: 72px;
-  --ion-background-color: var(--ion-color-light); 
+  --background: var(--ion-color-light); 
 }
 
 ion-infinite-scroll ion-infinite-scroll-content {
@@ -248,6 +248,10 @@ ion-button {
   }
 }
 
+.wider-alert .alert-wrapper {
+  min-width: 60% !important;
+}
+
 ion-slides {
   .slider-wrapper {
     height: 100%;
@@ -255,10 +259,16 @@ ion-slides {
   }
 }
 
+ion-back-button {
+  --background: var(--ion-color-light); 
+  --color: var(--ion-color-dark);
+}
+
 ion-item-divider {
   text-transform: uppercase;
   --padding-top: 24px;
   font-weight: 600;
+  --background: transparent;
   --color: var(--ion-color-dark);
   font-size: medium;
   border-bottom: none;
@@ -300,4 +310,29 @@ ion-loading {
 
 h2 {
   line-height: unset;
+}
+
+.loading-dots:after {
+  content: "...";
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: bottom;
+  animation: ellipsis-dot 1s infinite .3s;
+  animation-fill-mode: forwards;
+  width: 1em;
+}
+
+@keyframes ellipsis-dot {
+  25% {
+    content: "";
+  }
+  50% {
+    content: ".";
+  }
+  75% {
+    content: "..";
+  }
+  100% {
+    content: "...";
+  }
 }

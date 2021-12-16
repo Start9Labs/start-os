@@ -1,24 +1,19 @@
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::{DateTime, Utc};
-use patch_db::{DbHandle, HasModel};
+use patch_db::{HasModel, Model};
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
 
-use self::health_check::{HealthCheckId, HealthCheckSeverity};
-use crate::context::RpcContext;
+use self::health_check::HealthCheckId;
 use crate::dependencies::DependencyErrors;
-use crate::notifications::NotificationLevel;
-use crate::s9pk::manifest::Manifest;
 use crate::status::health_check::HealthCheckResult;
-use crate::Error;
 
 pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct Status {
     pub configured: bool,
+    #[model]
     pub main: MainStatus,
     #[model]
     pub dependency_errors: DependencyErrors,
@@ -41,66 +36,6 @@ pub enum MainStatus {
     },
 }
 impl MainStatus {
-    #[instrument(skip(ctx, db, manifest))]
-    pub async fn check<Db: DbHandle>(
-        &mut self,
-        ctx: &RpcContext,
-        db: &mut Db,
-        manifest: &Manifest,
-        should_commit: &AtomicBool,
-    ) -> Result<(), Error> {
-        match self {
-            MainStatus::Running { started, health } => {
-                let health_result = manifest
-                    .health_checks
-                    .check_all(
-                        ctx,
-                        *started,
-                        &manifest.id,
-                        &manifest.version,
-                        &manifest.volumes,
-                    )
-                    .await?;
-                if !should_commit.load(Ordering::SeqCst) {
-                    return Ok(());
-                } else {
-                    // only commit health check results if we are supposed to
-                    *health = health_result;
-                }
-                let mut should_stop = false;
-                for (check, res) in health {
-                    match &res {
-                        health_check::HealthCheckResult::Failure { error }
-                            if manifest
-                                .health_checks
-                                .0
-                                .get(check)
-                                .map(|hc| hc.severity == HealthCheckSeverity::Critical)
-                                .unwrap_or_default() =>
-                        {
-                            ctx.notification_manager.notify(
-                                db,
-                                Some(manifest.id.clone()),
-                                NotificationLevel::Error,
-                                String::from("Critical Health Check Failed"),
-                                format!("{} was shut down because a health check required for its operation failed\n{}", manifest.title, error),
-                                (),
-                                None,
-                            )
-                            .await?;
-                            should_stop = true;
-                        }
-                        _ => (),
-                    }
-                }
-                if should_stop {
-                    *self = MainStatus::Stopping;
-                }
-            }
-            _ => (),
-        }
-        Ok(())
-    }
     pub fn running(&self) -> bool {
         match self {
             MainStatus::Starting
@@ -123,5 +58,10 @@ impl MainStatus {
             }
             MainStatus::Stopped | MainStatus::Stopping => (),
         }
+    }
+}
+impl MainStatusModel {
+    pub fn started(self) -> Model<Option<DateTime<Utc>>> {
+        self.0.child("started")
     }
 }

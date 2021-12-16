@@ -105,6 +105,24 @@ export class NotificationsPage {
     await modal.present()
   }
 
+  async viewFullMessage (title: string, message: string) {
+    const alert = await this.alertCtrl.create({
+      header: title,
+      message: message,
+      cssClass: 'wider-alert',
+      buttons: [
+        {
+          text: `OK`,
+          handler: () => {
+            alert.dismiss()
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
+  }
+
   private async deleteAll (): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',

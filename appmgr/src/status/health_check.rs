@@ -9,7 +9,8 @@ use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
-use crate::util::{Duration, Version};
+use crate::util::serde::Duration;
+use crate::util::Version;
 use crate::volume::Volumes;
 use crate::Error;
 
@@ -67,26 +68,12 @@ impl HealthChecks {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
-pub enum HealthCheckSeverity {
-    Warning,
-    Critical,
-}
-
-impl Default for HealthCheckSeverity {
-    fn default() -> Self {
-        HealthCheckSeverity::Warning
-    }
-}
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HealthCheck {
     pub name: String,
     pub description: String,
     #[serde(flatten)]
     implementation: ActionImplementation,
-    #[serde(default)]
-    pub severity: HealthCheckSeverity,
     pub timeout: Option<Duration>,
 }
 impl HealthCheck {

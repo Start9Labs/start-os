@@ -1,3 +1,4 @@
+import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { DependencyErrorType, DockerIoFormat, Manifest, PackageDataEntry, PackageMainStatus, PackageState } from 'src/app/services/patch-db/data-model'
 import { Log, MarketplacePkg, Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
 
@@ -50,6 +51,7 @@ export module Mock {
         'io-format': DockerIoFormat.Yaml,
         'inject': false,
         'shm-size': '',
+        'sigterm-timeout': '1ms',
     },
     'health-checks': { },
     'config': {
@@ -101,6 +103,7 @@ export module Mock {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
         },
         'restore': {
             'type': 'docker',
@@ -112,6 +115,7 @@ export module Mock {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
         },
     },
     'migrations': null,
@@ -134,6 +138,7 @@ export module Mock {
               'io-format': DockerIoFormat.Yaml,
               'inject': false,
               'shm-size': '',
+              'sigterm-timeout': null,
             },
             'input-spec': {
               'reason': {
@@ -360,6 +365,7 @@ export module Mock {
         'io-format': DockerIoFormat.Yaml,
         'inject': false,
         'shm-size': '',
+        'sigterm-timeout': '10000µs',
     },
     'health-checks': { },
     'config': {
@@ -411,6 +417,7 @@ export module Mock {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
         },
         'restore': {
             'type': 'docker',
@@ -422,6 +429,7 @@ export module Mock {
             'io-format': DockerIoFormat.Yaml,
             'inject': false,
             'shm-size': '',
+            'sigterm-timeout': null,
         },
     },
     'migrations': null,
@@ -443,6 +451,7 @@ export module Mock {
                 'io-format': DockerIoFormat.Yaml,
                 'inject': false,
                 'shm-size': '',
+                'sigterm-timeout': null,
             },
             'input-spec': null,
         },
@@ -502,6 +511,7 @@ export module Mock {
       'io-format': DockerIoFormat.Yaml,
       inject: false,
       'shm-size': '',
+      'sigterm-timeout': '1m',
     },
     'health-checks': { },
     config: { get: { } as any, set: { } as any },
@@ -535,6 +545,7 @@ export module Mock {
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
+        'sigterm-timeout': null,
       },
       restore: {
         type: 'docker',
@@ -546,6 +557,7 @@ export module Mock {
         'io-format': DockerIoFormat.Yaml,
         inject: false,
         'shm-size': '',
+        'sigterm-timeout': null,
       },
     },
     migrations: null,
@@ -569,6 +581,7 @@ export module Mock {
             'io-format': DockerIoFormat.Cbor,
             inject: false,
             'shm-size': '10m',
+            'sigterm-timeout': null,
           },
           'auto-configure': {
             type: 'docker',
@@ -580,6 +593,7 @@ export module Mock {
             'io-format': DockerIoFormat.Cbor,
             inject: false,
             'shm-size': '10m',
+            'sigterm-timeout': null,
           },
         },
       },
@@ -975,50 +989,54 @@ export module Mock {
     'signal-strength': 50,
   }
 
-  export const Drives: RR.GetDrivesRes = [
-    {
-      logicalname: '/dev/sda',
-      model: null,
-      vendor: 'SSK',
-      partitions: [
-        {
-          logicalname: 'sdba1',
-          label: 'Matt Stuff',
-          capacity: 1000000000000,
-          used: 0,
-          'embassy-os': null,
-        },
-      ],
-      capacity: 1000000000000,
-      guid: 'asdfasdf',
+  export const BackupTargets: RR.GetBackupTargetsRes = {
+    'hsbdjhasbasda': {
+      type: 'cifs',
+      hostname: 'smb://192.169.10.0',
+      path: '/Desktop/embassy-backups',
+      username: 'TestUser',
+      mountable: false,
+      'embassy-os': {
+        version: '0.3.0',
+        full: true,
+        'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNK',
+        'wrapped-key': '',
+      },
     },
-    {
-      logicalname: '/dev/sdb',
-      model: 'JMS567 SATA 6Gb/s bridge',
-      vendor: 'Samsung',
-      partitions: [
-        {
-          logicalname: 'sdba1',
-          label: 'Partition 1',
-          capacity: 1000000000,
-          used: 1000000000,
-          'embassy-os': {
-            version: '0.3.0',
-            full: true,
-          },
-        },
-        {
-          logicalname: 'sdba2',
-          label: 'Partition 2',
-          capacity: 900000000,
-          used: 300000000,
-          'embassy-os': null,
-        },
-      ],
-      capacity: 10000000000,
-      guid: null,
+    // 'ftcvewdnkemfksdm': {
+    //   type: 'disk',
+    //   logicalname: 'sdba1',
+    //   label: 'Matt Stuff',
+    //   capacity: 1000000000000,
+    //   used: 0,
+    //   model: 'Evo SATA 2.5',
+    //   vendor: 'Samsung',
+    //   'embassy-os': null,
+    // },
+    'csgashbdjkasnd': {
+      type: 'cifs',
+      hostname: 'smb://192.169.10.0',
+      path: '/Desktop/embassy-backups-2',
+      username: 'TestUser',
+      mountable: true,
+      'embassy-os': null,
     },
-  ]
+    // 'powjefhjbnwhdva': {
+    //   type: 'disk',
+    //   logicalname: 'sdba1',
+    //   label: 'Another Drive',
+    //   capacity: 2000000000000,
+    //   used: 100000000000,
+    //   model: null,
+    //   vendor: 'SSK',
+    //   'embassy-os': {
+    //     version: '0.3.0',
+    //     full: true,
+    //     'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+    //     'wrapped-key': '',
+    //   },
+    // },
+  }
 
   export const BackupInfo: RR.GetBackupInfoRes = {
     version: '0.3.0',
@@ -1359,9 +1377,7 @@ export module Mock {
     },
  }
 
-  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = realWorldConfigSpec.spec
-
-  const testSpec = {
+  const testSpec: ConfigSpec = {
     'testnet': {
       'name': 'Testnet',
       'type': 'boolean',
@@ -1632,82 +1648,6 @@ export module Mock {
         },
       },
     },
-    'advanced': {
-      'name': 'Advanced',
-      'type': 'object',
-      'unique-by': null,
-      'description': 'Advanced settings',
-      'spec': {
-        'bitcoin-node': {
-          'name': 'Bitcoin Node Settings',
-          'type': 'union',
-          'unique-by': null,
-          'description': 'The node settings',
-          'default': 'internal',
-          'warning': 'Careful changing this',
-          'tag': {
-            'id': 'type',
-            'name': 'Type',
-            'variant-names': {
-              'internal': 'Internal',
-              'external': 'External',
-            },
-          },
-          'variants': {
-            'internal': {
-              'lan-address': {
-                'name': 'LAN Address',
-                'type': 'pointer',
-                'subtype': 'package',
-                'target': 'lan-address',
-                'package-id': 'bitcoind',
-                'description': 'the lan address',
-                'interface': 'interface',
-              },
-            },
-            'external': {
-              'public-domain': {
-                'name': 'Public Domain',
-                'type': 'string',
-                'description': 'the public address of the node',
-                'nullable': false,
-                'default': 'bitcoinnode.com',
-                'pattern': '.*',
-                'pattern-description': 'anything',
-                'masked': false,
-                'copyable': true,
-              },
-            },
-          },
-        },
-        'notifications': {
-          'name': 'Notification Preferences',
-          'type': 'list',
-          'subtype': 'enum',
-          'description': 'how you want to be notified',
-          'range': '[1,3]',
-          'default': [
-            'email',
-          ],
-          'spec': {
-            'value-names': {
-              'email': 'EEEEmail',
-              'text': 'Texxxt',
-              'call': 'Ccccall',
-              'push': 'PuuuusH',
-              'webhook': 'WebHooookkeee',
-            },
-            'values': [
-              'email',
-              'text',
-              'call',
-              'push',
-              'webhook',
-            ],
-          },
-        },
-      },
-    },
     'bitcoin-node': {
       'name': 'Bitcoin Node Settings',
       'type': 'union',
@@ -1796,9 +1736,139 @@ export module Mock {
         'copyable': false,
       },
     },
+    'advanced': {
+      'name': 'Advanced',
+      'type': 'object',
+      'unique-by': null,
+      'description': 'Advanced settings',
+      'spec': {
+        'notifications': {
+          'name': 'Notification Preferences',
+          'type': 'list',
+          'subtype': 'enum',
+          'description': 'how you want to be notified',
+          'range': '[1,3]',
+          'default': [
+            'email',
+          ],
+          'spec': {
+            'value-names': {
+              'email': 'EEEEmail',
+              'text': 'Texxxt',
+              'call': 'Ccccall',
+              'push': 'PuuuusH',
+              'webhook': 'WebHooookkeee',
+            },
+            'values': [
+              'email',
+              'text',
+              'call',
+              'push',
+              'webhook',
+            ],
+          },
+        },
+        'rpcsettings': {
+          'name': 'RPC Settings',
+          'type': 'object',
+          'unique-by': null,
+          'description': 'rpc username and password',
+          'warning': 'Adding RPC users gives them special permissions on your node.',
+          'spec': {
+            'laws': {
+              'name': 'Laws',
+              'type': 'object',
+              'unique-by': 'law1',
+              'description': 'the law of the realm',
+              'spec': {
+                'law1': {
+                  'name': 'First Law',
+                  'type': 'string',
+                  'description': 'the first law',
+                  'nullable': true,
+                  'masked': false,
+                  'copyable': true,
+                },
+                'law2': {
+                  'name': 'Second Law',
+                  'type': 'string',
+                  'description': 'the second law',
+                  'nullable': true,
+                  'masked': false,
+                  'copyable': true,
+                },
+              },
+            },
+            'rulemakers': {
+              'name': 'Rule Makers',
+              'type': 'list',
+              'subtype': 'object',
+              'description': 'the people who make the rules',
+              'range': '[0,2]',
+              'default': [],
+              'spec': {
+                'unique-by': null,
+                'spec': {
+                  'rulemakername': {
+                    'name': 'Rulemaker Name',
+                    'type': 'string',
+                    'description': 'the name of the rule maker',
+                    'nullable': false,
+                    'default': {
+                      'charset': 'a-g,2-9',
+                      'len': 12,
+                    },
+                    'masked': false,
+                    'copyable': false,
+                  },
+                  'rulemakerip': {
+                    'name': 'Rulemaker IP',
+                    'type': 'string',
+                    'description': 'the ip of the rule maker',
+                    'nullable': false,
+                    'default': '192.168.1.0',
+                    'pattern': '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
+                    'pattern-description': 'may only contain numbers and periods',
+                    'masked': false,
+                    'copyable': true,
+                  },
+                },
+              },
+            },
+            'rpcuser': {
+              'name': 'RPC Username',
+              'type': 'string',
+              'description': 'rpc username',
+              'nullable': false,
+              'default': 'defaultrpcusername',
+              'pattern': '^[a-zA-Z]+$',
+              'pattern-description': 'must contain only letters.',
+              'masked': false,
+              'copyable': true,
+            },
+            'rpcpass': {
+              'name': 'RPC User Password',
+              'type': 'string',
+              'description': 'rpc password',
+              'nullable': false,
+              'default': {
+                'charset': 'a-z,A-Z,2-9',
+                'len': 20,
+              },
+              'masked': true,
+              'copyable': true,
+            },
+          },
+        },
+      },
+    },
   }
 
-  export const MockConfig = realWorldConfigSpec.config
+  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = testSpec
+  export const MockConfig = { }
+
+  // export const ConfigSpec: RR.GetPackageConfigRes['spec'] = realWorldConfigSpec.spec
+  // export const MockConfig = realWorldConfigSpec.config
 
   export const MockDependencyConfig = {
     testnet: true,

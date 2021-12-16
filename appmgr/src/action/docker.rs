@@ -5,7 +5,6 @@ use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use bollard::container::StopContainerOptions;
 use futures::future::Either as EitherFuture;
 use nix::sys::signal;
 use nix::unistd::Pid;
@@ -16,7 +15,8 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
-use crate::util::{IoFormat, Version};
+use crate::util::serde::{Duration as SerdeDuration, IoFormat};
+use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
 
@@ -39,6 +39,8 @@ pub struct DockerAction {
     pub inject: bool,
     #[serde(default)]
     pub shm_size_mb: Option<usize>, // TODO: use postfix sizing? like 1k vs 1m vs 1g
+    #[serde(default)]
+    pub sigterm_timeout: Option<SerdeDuration>,
 }
 impl DockerAction {
     #[instrument(skip(ctx, input))]
@@ -63,7 +65,12 @@ impl DockerAction {
                 .arg("--network=start9")
                 .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
                 .arg("--name")
-                .arg(&container_name);
+                .arg(&container_name)
+                .arg("--no-healthcheck");
+            match ctx.docker.remove_container(&container_name, None).await {
+                Ok(()) | Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => Ok(()),
+                Err(e) => Err(e),
+            }?;
         }
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
@@ -95,7 +102,12 @@ impl DockerAction {
                         .with_kind(crate::ErrorKind::Docker)?;
                 }
 
-                tokio::time::sleep(Duration::from_secs(30)).await;
+                tokio::time::sleep(
+                    self.sigterm_timeout
+                        .map(|a| *a)
+                        .unwrap_or(Duration::from_secs(30)),
+                )
+                .await;
 
                 if let Some(id) = id {
                     signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)

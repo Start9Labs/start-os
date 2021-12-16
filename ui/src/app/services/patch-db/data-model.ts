@@ -31,6 +31,7 @@ export interface ServerInfo {
     downloaded: number
   }
   'eos-version-compat': string
+  'password-hash': string
 }
 
 export enum ServerStatus {
@@ -129,7 +130,7 @@ export interface Manifest {
   backup: BackupActions
   migrations: Migrations
   actions: Record<string, Action>
-  permissions: any // @TODO
+  permissions: any // @TODO 0.3.1
   dependencies: DependencyInfo
 }
 
@@ -143,6 +144,7 @@ export interface ActionImpl {
   'io-format': DockerIoFormat | null
   inject: boolean
   'shm-size': string
+  'sigterm-timeout': string | null
 }
 
 export enum DockerIoFormat {

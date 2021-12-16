@@ -18,12 +18,13 @@ use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
 use crate::db::util::WithRevision;
 use crate::dependencies::{
-    break_transitive, heal_all_dependents_transitive, update_current_dependents, BreakageRes,
+    add_current_dependents, break_transitive, heal_all_dependents_transitive, BreakageRes,
     DependencyError, DependencyErrors, TaggedDependencyError,
 };
 use crate::install::cleanup::remove_current_dependents;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::util::{display_none, display_serializable, parse_stdin_deserializable, IoFormat};
+use crate::util::display_none;
+use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::{Error, ResultExt as _};
 
 pub mod action;
@@ -188,7 +189,7 @@ pub fn set(
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
-    #[arg(long = "timeout")] timeout: Option<crate::util::Duration>,
+    #[arg(long = "timeout")] timeout: Option<crate::util::serde::Duration>,
     #[arg(stdin, parse(parse_stdin_deserializable))] config: Option<Config>,
     #[arg(rename = "expire-id", long = "expire-id")] expire_id: Option<String>,
 ) -> Result<(PackageId, Option<Config>, Option<Duration>, Option<String>), Error> {
@@ -434,10 +435,11 @@ pub fn configure_rec<'a, Db: DbHandle>(
 
         // update dependencies
         let mut deps = pkg_model.clone().current_dependencies().get_mut(db).await?;
-        remove_current_dependents(db, id, deps.keys()).await?;
+        remove_current_dependents(db, id, deps.keys()).await?; // remove previous
+        add_current_dependents(db, id, &current_dependencies).await?; // add new
+        current_dependencies.remove(id);
         *deps = current_dependencies.clone();
         deps.save(db).await?;
-        update_current_dependents(db, id, &current_dependencies).await?;
         let mut errs = pkg_model
             .clone()
             .status()

@@ -6,7 +6,8 @@ use rpc_toolkit::command;
 use crate::context::RpcContext;
 use crate::dependencies::{break_transitive, BreakageRes, DependencyError};
 use crate::s9pk::manifest::PackageId;
-use crate::util::{display_serializable, Version};
+use crate::util::serde::display_serializable;
+use crate::util::Version;
 use crate::Error;
 
 #[command(subcommands(dry))]
@@ -36,6 +37,8 @@ pub async fn dry(
         .current_dependents()
         .keys(&mut tx, true)
         .await?
+        .into_iter()
+        .filter(|dependent| &id != dependent)
     {
         let version_req = crate::db::DatabaseModel::new()
             .package_data()

@@ -27,7 +27,7 @@ sudo cp /tmp/eos-mnt/cmdline.txt /tmp/eos-mnt/cmdline.txt.orig
 sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /tmp/eos-mnt/cmdline.txt
 
 cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp
-echo "dtoverlay=pwm-2chan" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
+echo "dtoverlay=pwm-2chan,disable-bt" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
 
 # Unmount the boot partition and mount embassy partition
@@ -39,6 +39,7 @@ sudo umount /tmp/eos-mnt
 sudo mount ${OUTPUT_DEVICE}p3 /tmp/eos-mnt
 
 sudo mkdir  /tmp/eos-mnt/media/boot-rw
+sudo mkdir  /tmp/eos-mnt/embassy-os
 sudo cp build/fstab /tmp/eos-mnt/etc/fstab
 # Enter the appmgr directory, copy over the built EmbassyOS binaries and systemd services, edit the nginx config, then create the .ssh directory
 cd appmgr/
@@ -63,8 +64,14 @@ sudo cp -R diagnostic-ui/www /tmp/eos-mnt/var/www/html/diagnostic
 # Make the .ssh directory
 sudo mkdir -p /tmp/eos-mnt/root/.ssh
 
-sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
+if [ "$ENVIRONMENT" = "dev" ]; then
+	cat ./build/initialization.sh | grep -v "passwd -l ubuntu" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
+	sudo chmod +x /tmp/eos-mnt/usr/local/bin/initialization.sh
+else
+	sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
+fi
+
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
-sudo ln -s  /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
+sudo ln -s /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
 
 sudo umount /tmp/eos-mnt

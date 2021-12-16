@@ -8,15 +8,16 @@ use sqlx::{Pool, Sqlite};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::util::{display_none, display_serializable, IoFormat};
+use crate::util::display_none;
+use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "/root/.ssh/authorized_keys";
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct PubKey(
-    #[serde(serialize_with = "crate::util::serialize_display")]
-    #[serde(deserialize_with = "crate::util::deserialize_from_str")]
+    #[serde(serialize_with = "crate::util::serde::serialize_display")]
+    #[serde(deserialize_with = "crate::util::serde::deserialize_from_str")]
     openssh_keys::PublicKey,
 );
 

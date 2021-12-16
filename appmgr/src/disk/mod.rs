@@ -1,25 +1,18 @@
-use std::collections::BTreeMap;
-use std::path::PathBuf;
-
-use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use rpc_toolkit::command;
-use serde::{Deserialize, Serialize};
-use tracing::instrument;
 
 use self::util::DiskInfo;
-use crate::disk::util::{BackupMountGuard, TmpMountGuard};
-use crate::s9pk::manifest::PackageId;
-use crate::util::{display_serializable, IoFormat, Version};
+use crate::util::serde::{display_serializable, IoFormat};
 use crate::Error;
 
 pub mod main;
+pub mod mount;
 pub mod quirks;
 pub mod util;
 
 pub const BOOT_RW_PATH: &'static str = "/media/boot-rw";
 
-#[command(subcommands(list, backup_info))]
+#[command(subcommands(list))]
 pub fn disk() -> Result<(), Error> {
     Ok(())
 }
@@ -85,73 +78,4 @@ pub async fn list(
     format: Option<IoFormat>,
 ) -> Result<Vec<DiskInfo>, Error> {
     crate::disk::util::list().await
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct BackupInfo {
-    pub version: Version,
-    pub timestamp: Option<DateTime<Utc>>,
-    pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct PackageBackupInfo {
-    pub title: String,
-    pub version: Version,
-    pub os_version: Version,
-    pub timestamp: DateTime<Utc>,
-}
-
-fn display_backup_info(info: BackupInfo, matches: &ArgMatches<'_>) {
-    use prettytable::*;
-
-    if matches.is_present("format") {
-        return display_serializable(info, matches);
-    }
-
-    let mut table = Table::new();
-    table.add_row(row![bc =>
-        "ID",
-        "VERSION",
-        "OS VERSION",
-        "TIMESTAMP",
-    ]);
-    table.add_row(row![
-        "EMBASSY OS",
-        info.version.as_str(),
-        info.version.as_str(),
-        &if let Some(ts) = &info.timestamp {
-            ts.to_string()
-        } else {
-            "N/A".to_owned()
-        },
-    ]);
-    for (id, info) in info.package_backups {
-        let row = row![
-            id.as_str(),
-            info.version.as_str(),
-            info.os_version.as_str(),
-            &info.timestamp.to_string(),
-        ];
-        table.add_row(row);
-    }
-    table.print_tty(false);
-}
-
-#[command(rename = "backup-info", display(display_backup_info))]
-#[instrument(skip(password))]
-pub async fn backup_info(
-    #[arg] logicalname: PathBuf,
-    #[arg] password: String,
-) -> Result<BackupInfo, Error> {
-    let guard =
-        BackupMountGuard::mount(TmpMountGuard::mount(logicalname, None).await?, &password).await?;
-
-    let res = guard.metadata.clone();
-
-    guard.unmount().await?;
-
-    Ok(res)
 }

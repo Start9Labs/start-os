@@ -2,14 +2,16 @@ import { Injectable } from '@angular/core'
 import { IonicSafeString } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getErrorMessage } from 'src/app/services/error-toast.service'
-import { MappedDriveInfo, MappedPartitionInfo } from 'src/app/util/misc.util'
+import { BackupTarget, CifsBackupTarget, DiskBackupTarget } from 'src/app/services/api/api.types'
 import { Emver } from 'src/app/services/emver.service'
+import { MappedBackupTarget } from 'src/app/util/misc.util'
 
 @Injectable({
   providedIn: 'root',
 })
 export class BackupService {
-  drives: MappedDriveInfo[]
+  cifs: MappedBackupTarget<CifsBackupTarget>[]
+  drives: MappedBackupTarget<DiskBackupTarget>[]
   loading = true
   loadingError: string | IonicSafeString
 
@@ -18,25 +20,31 @@ export class BackupService {
     private readonly emver: Emver,
   ) { }
 
-  async getExternalDrives (): Promise<void> {
+  async getBackupTargets (): Promise<void> {
     this.loading = true
 
     try {
-      const drives = await this.embassyApi.getDrives({ })
-      this.drives = drives
-        .filter(d => !d.guid)
-        .map(d => {
-          const partionInfo: MappedPartitionInfo[] = d.partitions.map(p => {
-            return {
-              ...p,
-              hasBackup: [0, 1].includes(this.emver.compare(p['embassy-os']?.version, '0.3.0')),
-            }
-          })
-          return {
-            ...d,
-            partitions: partionInfo,
-          }
-        })
+      const targets = await this.embassyApi.getBackupTargets({ })
+      // cifs
+      this.cifs = Object.entries(targets)
+      .filter(([_, target]) => target.type === 'cifs')
+      .map(([id, cifs]) => {
+        return {
+          id,
+          hasValidBackup: this.hasValidBackup(cifs),
+          entry: cifs as CifsBackupTarget,
+        }
+      })
+      // drives
+      this.drives = Object.entries(targets)
+      .filter(([_, target]) => target.type === 'disk')
+      .map(([id, drive]) => {
+        return {
+          id,
+          hasValidBackup: this.hasValidBackup(drive),
+          entry: drive as DiskBackupTarget,
+        }
+      })
     } catch (e) {
       this.loadingError = getErrorMessage(e)
     } finally {
@@ -44,4 +52,7 @@ export class BackupService {
     }
   }
 
+  hasValidBackup (target: BackupTarget): boolean {
+    return [0, 1].includes(this.emver.compare(target['embassy-os']?.version, '0.3.0'))
+  }
 }

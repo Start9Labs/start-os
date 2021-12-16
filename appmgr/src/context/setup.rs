@@ -20,7 +20,7 @@ use url::Host;
 use crate::db::model::Database;
 use crate::hostname::{get_hostname, get_id, get_product_key};
 use crate::net::tor::os_key;
-use crate::setup::RecoveryStatus;
+use crate::setup::{password_hash, RecoveryStatus};
 use crate::util::io::from_toml_async_reader;
 use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
@@ -62,6 +62,7 @@ pub struct SetupContextSeed {
     pub selected_v2_drive: RwLock<Option<PathBuf>>,
     pub cached_product_key: RwLock<Option<Arc<String>>>,
     pub recovery_status: RwLock<Option<Result<RecoveryStatus, RpcError>>>,
+    pub disk_guid: RwLock<Option<Arc<String>>>,
 }
 
 #[derive(Clone)]
@@ -80,6 +81,7 @@ impl SetupContext {
             selected_v2_drive: RwLock::new(None),
             cached_product_key: RwLock::new(None),
             recovery_status: RwLock::new(None),
+            disk_guid: RwLock::new(None),
         })))
     }
     #[instrument(skip(self))]
@@ -95,6 +97,7 @@ impl SetupContext {
                     get_id().await?,
                     &get_hostname().await?,
                     &os_key(&mut secret_store.acquire().await?).await?,
+                    password_hash(&mut secret_store.acquire().await?).await?,
                 ),
                 None,
             )
