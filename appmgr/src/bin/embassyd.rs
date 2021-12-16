@@ -79,30 +79,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .expect("send shutdown signal");
         });
 
-        tokio::fs::write("/etc/nginx/sites-available/default", {
-            let info = embassy::db::DatabaseModel::new()
-                .server_info()
-                .get(&mut rpc_ctx.db.handle(), true)
-                .await?;
-            format!(
-                include_str!("../nginx/main-ui.conf.template"),
-                lan_hostname = info.lan_address.host_str().unwrap(),
-                tor_hostname = info.tor_address.host_str().unwrap()
-            )
-        })
-        .await
-        .with_ctx(|_| {
-            (
-                embassy::ErrorKind::Filesystem,
-                "/etc/nginx/sites-available/default",
-            )
-        })?;
-        Command::new("systemctl")
-            .arg("reload")
-            .arg("nginx")
-            .invoke(embassy::ErrorKind::Nginx)
-            .await?;
-
+        rpc_ctx.set_nginx_conf(&mut rpc_ctx.db.handle()).await?;
         let auth = auth(rpc_ctx.clone());
         let ctx = rpc_ctx.clone();
         let server = rpc_server!({
