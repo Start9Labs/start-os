@@ -22,6 +22,7 @@ pub mod inspect;
 pub mod install;
 pub mod logs;
 pub mod manager;
+pub mod marketplace;
 pub mod middleware;
 pub mod migration;
 pub mod net;
@@ -75,7 +76,8 @@ pub fn main_api() -> Result<(), RpcError> {
     system::metrics,
     shutdown::shutdown,
     shutdown::restart,
-    update::update_system
+    update::update_system,
+    marketplace::set_eos_url,
 ))]
 pub fn server() -> Result<(), RpcError> {
     Ok(())
@@ -95,6 +97,7 @@ pub fn server() -> Result<(), RpcError> {
     properties::properties,
     dependencies::dependency,
     backup::package_backup,
+    marketplace::set_package_url,
 ))]
 pub fn package() -> Result<(), RpcError> {
     Ok(())
