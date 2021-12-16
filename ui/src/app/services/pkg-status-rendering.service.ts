@@ -1,11 +1,18 @@
 import { isEmptyObject } from '../util/misc.util'
-import { PackageDataEntry, PackageMainStatus, PackageState, Status } from './patch-db/data-model'
+import {
+  PackageDataEntry,
+  PackageMainStatus,
+  PackageState,
+  Status,
+} from './patch-db/data-model'
 
-export function renderPkgStatus (pkg: PackageDataEntry): {
-  primary: PrimaryStatus,
-  dependency: DependencyStatus | null,
+export interface PackageStatus {
+  primary: PrimaryStatus
+  dependency: DependencyStatus | null
   health: HealthStatus | null
-} {
+}
+
+export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
   let primary: PrimaryStatus
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
@@ -21,7 +28,7 @@ export function renderPkgStatus (pkg: PackageDataEntry): {
   return { primary, dependency, health }
 }
 
-function getPrimaryStatus (status: Status): PrimaryStatus {
+function getPrimaryStatus(status: Status): PrimaryStatus {
   if (!status.configured) {
     return PrimaryStatus.NeedsConfig
   } else {
@@ -29,7 +36,7 @@ function getPrimaryStatus (status: Status): PrimaryStatus {
   }
 }
 
-function getDependencyStatus (pkg: PackageDataEntry): DependencyStatus {
+function getDependencyStatus(pkg: PackageDataEntry): DependencyStatus {
   const installed = pkg.installed
   if (isEmptyObject(installed['current-dependencies'])) return null
 
@@ -39,7 +46,7 @@ function getDependencyStatus (pkg: PackageDataEntry): DependencyStatus {
   return depIds.length ? DependencyStatus.Warning : DependencyStatus.Satisfied
 }
 
-function getHealthStatus (status: Status): HealthStatus {
+function getHealthStatus(status: Status): HealthStatus {
   if (status.main.status === PackageMainStatus.Running) {
     const values = Object.values(status.main.health)
     if (values.some(h => h.result === 'failure')) {

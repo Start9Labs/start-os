@@ -2,7 +2,6 @@
   "rules": {
     "no-unused-variable": true,
     "no-unused-expression": true,
-    "space-before-function-paren": true,
     "semicolon": [
       true,
       "never"
@@ -24,8 +23,7 @@
       "check-type",
       "check-typecast",
       "check-type-operator",
-      "check-preblock",
-      "check-postbrace"
+      "check-preblock"
     ],
     "trailing-comma": [
       true,

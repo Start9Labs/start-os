@@ -110,7 +110,7 @@
                 </p>
                 <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state">
                   <ion-text color="primary">
-                    <span>{{ (localPkg['install-progress'] | installState).display }}</span>
+                    <span>{{ (localPkg['install-progress'] | installState)?.display }}</span>
                   </ion-text>
                 </p>
                 <p *ngIf="localPkg.state === PackageState.Removing">
