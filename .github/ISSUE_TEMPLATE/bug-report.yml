@@ -3,7 +3,7 @@ description: Create a report to help us improve EmbassyOS
 title: '[bug]: '
 labels: [Bug, Needs Triage]
 assignees:
-  - ProofOfKeags
+  - dr-bonez
 body:
   - type: checkboxes
     attributes:
