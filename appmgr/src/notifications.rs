@@ -37,7 +37,7 @@ pub async fn list(
             let model = crate::db::DatabaseModel::new()
                 .server_info()
                 .unread_notification_count();
-            model.lock(&mut handle, LockType::Write).await;
+            model.lock(&mut handle, LockType::Write).await?;
             let records = sqlx::query!(
                 "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT ?",
                 limit

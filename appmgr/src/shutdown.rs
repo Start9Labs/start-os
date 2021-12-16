@@ -78,7 +78,7 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     crate::db::DatabaseModel::new()
         .lock(&mut db, LockType::Write)
-        .await;
+        .await?;
     ctx.shutdown
         .send(Some(Shutdown {
             datadir: ctx.datadir.clone(),
@@ -96,7 +96,7 @@ pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     crate::db::DatabaseModel::new()
         .lock(&mut db, LockType::Write)
-        .await;
+        .await?;
     ctx.shutdown
         .send(Some(Shutdown {
             datadir: ctx.datadir.clone(),
