@@ -431,6 +431,13 @@ export class AppShowPage {
         color: 'danger',
       },
       {
+        action: () => this.navCtrl.navigateForward([`marketplace/${this.pkgId}`]),
+        title: 'Marketplace',
+        description: 'View service in marketplace',
+        icon: 'storefront-outline',
+        color: 'danger',
+      },
+      {
         action: () => this.donate(),
         title: 'Donate',
         description: `Support ${pkgTitle}`,
