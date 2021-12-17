@@ -18,10 +18,10 @@ use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
 use crate::db::util::WithRevision;
 use crate::dependencies::{
-    add_current_dependents, break_transitive, heal_all_dependents_transitive, BreakageRes,
-    DependencyError, DependencyErrors, TaggedDependencyError,
+    add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
+    BreakageRes, DependencyError, DependencyErrors, TaggedDependencyError,
 };
-use crate::install::cleanup::remove_current_dependents;
+use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
@@ -435,8 +435,8 @@ pub fn configure_rec<'a, Db: DbHandle>(
 
         // update dependencies
         let mut deps = pkg_model.clone().current_dependencies().get_mut(db).await?;
-        remove_current_dependents(db, id, deps.keys()).await?; // remove previous
-        add_current_dependents(db, id, &current_dependencies).await?; // add new
+        remove_from_current_dependents_lists(db, id, deps.keys()).await?; // remove previous
+        add_dependent_to_current_dependents_lists(db, id, &current_dependencies).await?; // add new
         current_dependencies.remove(id);
         *deps = current_dependencies.clone();
         deps.save(db).await?;

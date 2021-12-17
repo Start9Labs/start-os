@@ -23,7 +23,7 @@ use tokio::process::Command;
 use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
-use self::cleanup::{cleanup_failed, remove_current_dependents};
+use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
@@ -32,10 +32,10 @@ use crate::db::model::{
 };
 use crate::db::util::WithRevision;
 use crate::dependencies::{
-    add_current_dependents, break_all_dependents_transitive, BreakageRes, DependencyError,
-    DependencyErrors,
+    add_dependent_to_current_dependents_lists, break_all_dependents_transitive, BreakageRes,
+    DependencyError, DependencyErrors,
 };
-use crate::install::cleanup::{cleanup, update_dependents};
+use crate::install::cleanup::{cleanup, update_dependency_errors_of_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -996,9 +996,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             *main_status = prev.status.main;
             main_status.save(&mut tx).await?;
         }
-        remove_current_dependents(&mut tx, pkg_id, prev.current_dependencies.keys()).await?; // remove previous
-        add_current_dependents(&mut tx, pkg_id, &current_dependencies).await?; // add new
-        update_dependents(
+        remove_from_current_dependents_lists(&mut tx, pkg_id, prev.current_dependencies.keys())
+            .await?; // remove previous
+        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?; // add new
+        update_dependency_errors_of_dependents(
             ctx,
             &mut tx,
             pkg_id,
@@ -1024,8 +1025,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 &manifest.volumes,
             )
             .await?;
-        add_current_dependents(&mut tx, pkg_id, &current_dependencies).await?;
-        update_dependents(ctx, &mut tx, pkg_id, current_dependents.keys()).await?;
+        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?;
+        update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
+            .await?;
     } else if let Some(recovered) = crate::db::DatabaseModel::new()
         .recovered_packages()
         .idx_model(pkg_id)
@@ -1034,11 +1036,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .into_owned()
     {
         handle_recovered_package(recovered, manifest, ctx, pkg_id, version, &mut tx).await?;
-        add_current_dependents(&mut tx, pkg_id, &current_dependencies).await?;
-        update_dependents(ctx, &mut tx, pkg_id, current_dependents.keys()).await?;
+        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?;
+        update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
+            .await?;
     } else {
-        add_current_dependents(&mut tx, pkg_id, &current_dependencies).await?;
-        update_dependents(ctx, &mut tx, pkg_id, current_dependents.keys()).await?;
+        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?;
+        update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
+            .await?;
     }
 
     crate::db::DatabaseModel::new()
