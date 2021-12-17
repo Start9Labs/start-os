@@ -34,6 +34,11 @@ pub fn net() -> Result<(), Error> {
     Ok(())
 }
 
+/// Indicates that the net controller has created the
+/// SSL keys
+#[derive(Clone, Copy)]
+pub struct GeneratedCertificateMountPoint(());
+
 pub struct NetController {
     pub tor: TorController,
     #[cfg(feature = "avahi")]
@@ -67,20 +72,18 @@ impl NetController {
         PathBuf::from(format!("{}/{}", PACKAGE_CERT_PATH, pkg_id))
     }
 
-    #[instrument(skip(self, interfaces))]
+    #[instrument(skip(self, interfaces, _generated_certificate))]
     pub async fn add<'a, I>(
         &self,
         pkg_id: &PackageId,
         ip: Ipv4Addr,
         interfaces: I,
+        _generated_certificate: GeneratedCertificateMountPoint,
     ) -> Result<(), Error>
     where
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
         for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
     {
-        self.generate_certificate_mountpoint(pkg_id, &interfaces)
-            .await?;
-
         let interfaces_tor = interfaces
             .clone()
             .into_iter()
@@ -150,11 +153,11 @@ impl NetController {
         Ok(())
     }
 
-    async fn generate_certificate_mountpoint<'a, I>(
+    pub async fn generate_certificate_mountpoint<'a, I>(
         &self,
         pkg_id: &PackageId,
         interfaces: &I,
-    ) -> Result<(), Error>
+    ) -> Result<GeneratedCertificateMountPoint, Error>
     where
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
         for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
@@ -162,7 +165,7 @@ impl NetController {
         tracing::info!("Generating SSL Certificate mountpoints for {}", pkg_id);
         let package_path = PathBuf::from(PACKAGE_CERT_PATH).join(pkg_id);
         tokio::fs::create_dir_all(&package_path).await?;
-        Ok(for (id, _, key) in interfaces {
+        for (id, _, key) in interfaces {
             let dns_base = OnionAddressV3::from(&key.public()).get_address_without_dot_onion();
             let ssl_path_key = package_path.join(format!("{}.key.pem", id));
             let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
@@ -171,7 +174,8 @@ impl NetController {
                 crate::net::ssl::export_key(&key, &ssl_path_key),
                 crate::net::ssl::export_cert(&chain, &ssl_path_cert)
             )?;
-        })
+        }
+        Ok(GeneratedCertificateMountPoint(()))
     }
 
     pub async fn export_root_ca(&self) -> Result<(PKey<Private>, X509), Error> {
