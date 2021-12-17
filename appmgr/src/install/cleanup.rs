@@ -14,7 +14,11 @@ use crate::util::{Apply, Version};
 use crate::Error;
 
 #[instrument(skip(ctx, db, deps))]
-pub async fn update_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a PackageId>>(
+pub async fn update_dependency_errors_of_dependents<
+    'a,
+    Db: DbHandle,
+    I: IntoIterator<Item = &'a PackageId>,
+>(
     ctx: &RpcContext,
     db: &mut Db,
     id: &PackageId,
@@ -193,7 +197,11 @@ pub async fn cleanup_failed<Db: DbHandle>(
 }
 
 #[instrument(skip(db, current_dependencies))]
-pub async fn remove_current_dependents<'a, Db: DbHandle, I: IntoIterator<Item = &'a PackageId>>(
+pub async fn remove_from_current_dependents_lists<
+    'a,
+    Db: DbHandle,
+    I: IntoIterator<Item = &'a PackageId>,
+>(
     db: &mut Db,
     id: &'a PackageId,
     current_dependencies: I,
@@ -245,13 +253,13 @@ pub async fn uninstall(
         .package_data()
         .remove(&mut tx, id)
         .await?;
-    remove_current_dependents(
+    remove_from_current_dependents_lists(
         &mut tx,
         &entry.manifest.id,
         entry.current_dependencies.keys(),
     )
     .await?;
-    update_dependents(
+    update_dependency_errors_of_dependents(
         ctx,
         &mut tx,
         &entry.manifest.id,
