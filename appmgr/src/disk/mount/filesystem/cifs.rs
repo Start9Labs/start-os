@@ -13,9 +13,26 @@ use tracing::instrument;
 
 use super::FileSystem;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::net::mdns::resolve_mdns;
 use crate::util::Invoke;
 use crate::Error;
+
+async fn resolve_hostname(hostname: &str) -> Result<IpAddr, Error> {
+    #[cfg(feature = "avahi")]
+    if hostname.ends_with(".local") {
+        return Ok(crate::net::mdns::resolve_mdns(hostname).await?);
+    }
+    Ok(String::from_utf8(
+        Command::new("nmblookup")
+            .arg(hostname)
+            .invoke(crate::ErrorKind::Network)
+            .await?,
+    )?
+    .split(" ")
+    .next()
+    .unwrap()
+    .trim()
+    .parse()?)
+}
 
 #[instrument(skip(path, password, mountpoint))]
 pub async fn mount_cifs(
@@ -26,21 +43,7 @@ pub async fn mount_cifs(
     mountpoint: impl AsRef<Path>,
 ) -> Result<(), Error> {
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
-    let ip: IpAddr = if hostname.ends_with(".local") {
-        resolve_mdns(hostname).await?
-    } else {
-        String::from_utf8(
-            Command::new("nmblookup")
-                .arg(hostname)
-                .invoke(crate::ErrorKind::Network)
-                .await?,
-        )?
-        .split(" ")
-        .next()
-        .unwrap()
-        .trim()
-        .parse()?
-    };
+    let ip: IpAddr = resolve_hostname(hostname).await?;
     let absolute_path = Path::new("/").join(path.as_ref());
     Command::new("mount")
         .arg("-t")
