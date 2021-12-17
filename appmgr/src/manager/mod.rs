@@ -23,6 +23,7 @@ use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
+use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Container, NonDetachingJoinHandle, Version};
@@ -176,22 +177,32 @@ async fn run_main(
     state: &Arc<ManagerSharedState>,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
     let rt_state = state.clone();
-    let mut runtime = tokio::spawn(async move {
-        rt_state
-            .manifest
-            .main
-            .execute::<(), NoOutput>(
-                &rt_state.ctx,
-                &rt_state.manifest.id,
-                &rt_state.manifest.version,
-                None,
-                &rt_state.manifest.volumes,
-                None,
-                false,
-                None,
-            )
-            .await
-    });
+    let interfaces = state
+        .manifest
+        .interfaces
+        .0
+        .iter()
+        .map(|(id, info)| {
+            Ok((
+                id.clone(),
+                info,
+                state
+                    .tor_keys
+                    .get(id)
+                    .ok_or_else(|| {
+                        Error::new(eyre!("interface {} missing key", id), crate::ErrorKind::Tor)
+                    })?
+                    .clone(),
+            ))
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    let generated_certificate = state
+        .ctx
+        .net_controller
+        .generate_certificate_mountpoint(&state.manifest.id, &interfaces)
+        .await?;
+    let mut runtime =
+        tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await });
     let ip;
     loop {
         match state
@@ -232,32 +243,7 @@ async fn run_main(
     state
         .ctx
         .net_controller
-        .add(
-            &state.manifest.id,
-            ip,
-            state
-                .manifest
-                .interfaces
-                .0
-                .iter()
-                .map(|(id, info)| {
-                    Ok((
-                        id.clone(),
-                        info,
-                        state
-                            .tor_keys
-                            .get(id)
-                            .ok_or_else(|| {
-                                Error::new(
-                                    eyre!("interface {} missing key", id),
-                                    crate::ErrorKind::Tor,
-                                )
-                            })?
-                            .clone(),
-                    ))
-                })
-                .collect::<Result<Vec<_>, Error>>()?,
-        )
+        .add(&state.manifest.id, ip, interfaces, generated_certificate)
         .await?;
 
     state
@@ -307,6 +293,28 @@ async fn run_main(
         )
         .await?;
     res
+}
+
+/// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
+/// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
+async fn start_up_image(
+    rt_state: Arc<ManagerSharedState>,
+    _generated_certificate: GeneratedCertificateMountPoint,
+) -> Result<Result<NoOutput, (i32, String)>, Error> {
+    rt_state
+        .manifest
+        .main
+        .execute::<(), NoOutput>(
+            &rt_state.ctx,
+            &rt_state.manifest.id,
+            &rt_state.manifest.version,
+            None,
+            &rt_state.manifest.volumes,
+            None,
+            false,
+            None,
+        )
+        .await
 }
 
 impl Manager {
