@@ -30,6 +30,7 @@ use crate::disk::mount::filesystem::FileSystem;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::BOOT_RW_PATH;
 use crate::notifications::NotificationLevel;
+use crate::sound::{BEP, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4};
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
@@ -194,6 +195,9 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
             Ok(()) => {
                 info.status = ServerStatus::Updated;
                 info.save(&mut db).await.expect("could not save status");
+                BEP.play().await.expect("could not bep");
+                BEP.play().await.expect("could not bep");
+                BEP.play().await.expect("could not bep");
             }
             Err(e) => {
                 info.status = ServerStatus::Running;
@@ -209,7 +213,24 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
                         None,
                     )
                     .await
-                    .expect("")
+                    .expect("");
+                // TODO: refactor sound lib to make compound tempos easier to deal with
+                UPDATE_FAILED_1
+                    .play()
+                    .await
+                    .expect("could not play song: update failed 1");
+                UPDATE_FAILED_2
+                    .play()
+                    .await
+                    .expect("could not play song: update failed 2");
+                UPDATE_FAILED_3
+                    .play()
+                    .await
+                    .expect("could not play song: update failed 3");
+                UPDATE_FAILED_4
+                    .play()
+                    .await
+                    .expect("could not play song: update failed 4");
             }
         }
     });

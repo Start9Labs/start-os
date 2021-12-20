@@ -10,7 +10,7 @@ use embassy::middleware::encrypt::encrypt;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::shutdown::Shutdown;
-use embassy::sound::MARIO_COIN;
+use embassy::sound::CHIME;
 use embassy::util::logger::EmbassyLogger;
 use embassy::util::Invoke;
 use embassy::{Error, ResultExt};
@@ -51,7 +51,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
             async move { ctx.product_key().await }
         };
         let encrypt = encrypt(keysource);
-        MARIO_COIN.play().await?;
+        CHIME.play().await?;
         rpc_server!({
             command: embassy::setup_api,
             context: ctx.clone(),
