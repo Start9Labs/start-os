@@ -93,10 +93,10 @@ export class AppComponent {
 
     // watch auth
     this.authService.watch$()
-    .subscribe(auth => {
+    .subscribe(async auth => {
       // VERIFIED
       if (auth === AuthState.VERIFIED) {
-        this.patch.start()
+        await this.patch.start()
 
         this.showMenu = true
         // if on the login screen, route to dashboard

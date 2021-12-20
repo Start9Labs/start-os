@@ -1,22 +1,17 @@
 import { Injectable } from '@angular/core'
 import { Storage } from '@ionic/storage-angular'
-import { Bootstrapper, PatchDB, RPCError, Source, Store } from 'patch-db-client'
-import { BehaviorSubject, identity, merge, Observable, of, Subscription } from 'rxjs'
-import { catchError, debounceTime, finalize, first, map, mergeMap, switchMap, tap, withLatestFrom } from 'rxjs/operators'
+import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
+import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
+import { catchError, debounceTime, finalize, mergeMap, tap, withLatestFrom } from 'rxjs/operators'
+import { pauseFor } from 'src/app/util/misc.util'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
 import { DataModel } from './data-model'
-import * as rxjs from 'rxjs'
-
 
 export enum PatchConnection {
   Initializing = 'initializing',
   Connected = 'connected',
   Disconnected = 'disconnected',
-}
-
-function hasCode (x: { }): x is { code: unknown } {
-  return 'code' in x
 }
 
 @Injectable({
@@ -29,7 +24,8 @@ export class PatchDbService {
   private polling$ = new BehaviorSubject(false)
   private patchDb: PatchDB<DataModel>
   private subs: Subscription[] = []
-  private source$: BehaviorSubject<Source<DataModel>> = new BehaviorSubject(this.wsSource)
+  private sources$: BehaviorSubject<Source<DataModel>[]> = new BehaviorSubject([this.wsSource])
+
   data: DataModel
   errors = 0
 
@@ -46,15 +42,18 @@ export class PatchDbService {
 
   async init (): Promise<void> {
     const cache = await this.bootstrapper.init()
-    console.log('CACHE', cache)
+    this.sources$.next([this.wsSource, this.http])
 
-    const merged = rxjs.merge(this.source$.pipe(switchMap(x => x.watch$())), this.http.watch$())
-    this.patchDb = new PatchDB(merged, this.http, cache)
-    this.patchConnection$.next(PatchConnection.Connected)
+    this.patchDb = new PatchDB(this.sources$, this.http, cache)
+
+    this.patchConnection$.next(PatchConnection.Initializing)
+    this.data = this.patchDb.store.cache.data
   }
 
-  start (): void {
-    this.init()
+  async start (): Promise<void> {
+    await this.init()
+
+    console.log('PATCH DB', this.patchDb)
 
     this.subs.push(
 
@@ -67,12 +66,14 @@ export class PatchDbService {
           if (polling) {
             console.log('patchDB: POLLING FAILED', e)
             this.patchConnection$.next(PatchConnection.Disconnected)
+            await pauseFor(2000)
+            this.sources$.next([this.pollSource, this.http])
             return
           }
 
           console.log('patchDB: WEBSOCKET FAILED', e)
           this.polling$.next(true)
-          this.source$.next(this.pollSource)
+          this.sources$.next([this.pollSource, this.http])
         }),
       )
       .subscribe({
@@ -80,6 +81,7 @@ export class PatchDbService {
           console.warn('patchDB: SYNC COMPLETE')
         },
       }),
+
 
       // RPC ERROR
       this.patchDb.rpcError$
@@ -106,7 +108,6 @@ export class PatchDbService {
             tap(async ([cache, connection, wsSuccess, polling]) => {
               this.bootstrapper.update(cache)
 
-              console.log('CACHE CACHE CACHE', cache)
               if (connection === PatchConnection.Initializing) {
                 console.log(polling ? 'patchDB: POLL CONNECTED' : 'patchDB: WEBSOCKET CONNECTED')
                 this.patchConnection$.next(PatchConnection.Connected)
@@ -117,8 +118,9 @@ export class PatchDbService {
                 }
               } else if (connection === PatchConnection.Disconnected && wsSuccess) {
                 console.log('patchDB: SWITCHING BACK TO WEBSOCKETS')
+                this.patchConnection$.next(PatchConnection.Initializing)
                 this.polling$.next(false)
-                this.source$.next(this.wsSource)
+                this.sources$.next([this.wsSource, this.http])
               }
             }),
           )
@@ -164,10 +166,28 @@ export class PatchDbService {
         finalize(() => console.log('patchDB: UNSUBSCRIBING', argsString)),
       )
   }
+}
 
-  //   private async initSource (source: Source<DataModel>): Promise<void> {
-  //     this.stop()
-  //     this.data = this.patchDb.store.cache.data
-  //     console.log('DATA', this.data)
-  //   }
+
+function switchMapAfter<A, B> (projection: (a: A) => Observable<B>) {
+  return (observable: Observable<A>) =>
+    new Observable<B>((subscriber) => {
+      let lastLive: null | Subscription = null
+      const subscription = observable.subscribe({
+        next (value) {
+          console.log('switchMapAfter JCWM new events')
+          const lastLiveValue = lastLive
+          lastLive = projection(value).subscribe(subscriber)
+          if (!!lastLiveValue) {
+            lastLiveValue.unsubscribe()
+          }
+        },
+      })
+      return () => {
+        subscription.unsubscribe()
+        if (!!lastLive) {
+          lastLive.unsubscribe()
+        }
+      }
+    })
 }

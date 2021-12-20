@@ -47,7 +47,6 @@ export class LoginPage {
     await this.loader.present()
 
     try {
-      console.log('LOGGING IN')
       document.cookie = ''
       await this.api.login({
         password: this.password,
