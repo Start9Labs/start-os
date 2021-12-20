@@ -22,6 +22,10 @@ export class MarketplaceService {
     private readonly patch: PatchDbService,
   ) { }
 
+  get eosUpdateAvailable () {
+    return this.eos.version !== this.patch.data['server-info'].version
+  }
+
   async load (): Promise<void> {
     const [data, eos, pkgs] = await Promise.all([
       this.api.getMarketplaceData({ }),
