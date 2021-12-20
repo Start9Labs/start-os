@@ -52,7 +52,7 @@ export class LoginPage {
         password: this.password,
         metadata: { platforms: getPlatforms() },
       })
-      console.log('DONE DONE')
+
       this.authService.setVerified()
       this.password = ''
     } catch (e) {

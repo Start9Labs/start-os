@@ -142,16 +142,9 @@ export class PatchDbService {
     this.subs = []
   }
 
-  //   connected$ (): Observable<boolean> {
-  //     return this.patchConnection$
-  //     .pipe(
-  //       map(status => status === PatchConnection.Connected),
-  //     )
-  //   }
-
-    watchPatchConnection$ (): Observable<PatchConnection> {
-      return this.patchConnection$.asObservable()
-    }
+  watchPatchConnection$ (): Observable<PatchConnection> {
+    return this.patchConnection$.asObservable()
+  }
 
   watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
     const argsString = '/' + args.join('/')
