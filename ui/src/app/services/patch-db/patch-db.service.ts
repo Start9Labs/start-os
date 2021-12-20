@@ -53,8 +53,6 @@ export class PatchDbService {
   async start (): Promise<void> {
     await this.init()
 
-    console.log('PATCH DB', this.patchDb)
-
     this.subs.push(
 
       // Connection Error
@@ -159,28 +157,4 @@ export class PatchDbService {
         finalize(() => console.log('patchDB: UNSUBSCRIBING', argsString)),
       )
   }
-}
-
-
-function switchMapAfter<A, B> (projection: (a: A) => Observable<B>) {
-  return (observable: Observable<A>) =>
-    new Observable<B>((subscriber) => {
-      let lastLive: null | Subscription = null
-      const subscription = observable.subscribe({
-        next (value) {
-          console.log('switchMapAfter JCWM new events')
-          const lastLiveValue = lastLive
-          lastLive = projection(value).subscribe(subscriber)
-          if (!!lastLiveValue) {
-            lastLiveValue.unsubscribe()
-          }
-        },
-      })
-      return () => {
-        subscription.unsubscribe()
-        if (!!lastLive) {
-          lastLive.unsubscribe()
-        }
-      }
-    })
 }
