@@ -219,7 +219,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             rpc_ctx.shutdown.subscribe(),
         );
 
-        embassy::sound::MARIO_COIN.play().await?;
+        embassy::sound::CHARGE.play().await?;
 
         futures::try_join!(
             server

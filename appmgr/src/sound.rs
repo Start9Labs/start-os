@@ -336,42 +336,63 @@ macro_rules! song {
 
 pub const BEP: Song<[(Option<Note>, TimeSlice); 1]> = song!(150, [note(A, 4, Sixteenth);]);
 
-pub const MARIO_DEATH: Song<[(Option<Note>, TimeSlice); 12]> = song!(400, [
-    note(B, 4, Quarter);
-    note(F, 5, Quarter);
-    rest(Quarter);
-    note(F, 5, Quarter);
-    note(F, 5, Triplet(&Half));
-    note(E, 5, Triplet(&Half));
-    note(D, 5, Triplet(&Half));
-    note(C, 5, Quarter);
-    note(E, 4, Quarter);
-    rest(Quarter);
-    note(E, 4, Quarter);
-    note(C, 4, Half);
-]);
-
-pub const MARIO_POWER_UP: Song<[(Option<Note>, TimeSlice); 15]> = song!(400, [
-    note(G,4,Triplet(&Eighth));
-    note(B,4,Triplet(&Eighth));
-    note(D,5,Triplet(&Eighth));
-    note(G,5,Triplet(&Eighth));
-    note(B,5,Triplet(&Eighth));
-    note(Ab,4,Triplet(&Eighth));
-    note(C,5,Triplet(&Eighth));
-    note(Eb,5,Triplet(&Eighth));
-    note(Ab,5,Triplet(&Eighth));
-    note(C,5,Triplet(&Eighth));
-    note(Bb,4,Triplet(&Eighth));
-    note(D,5,Triplet(&Eighth));
-    note(F,5,Triplet(&Eighth));
-    note(Bb,5,Triplet(&Eighth));
-    note(D,6,Triplet(&Eighth));
-]);
-
-pub const MARIO_COIN: Song<[(Option<Note>, TimeSlice); 2]> = song!(400, [
+pub const CHIME: Song<[(Option<Note>, TimeSlice); 2]> = song!(400, [
     note(B, 5, Eighth);
     note(E, 6, Tie(&Dot(&Quarter), &Half));
+]);
+
+pub const CHARGE: Song<[(Option<Note>, TimeSlice); 7]> = song!(120, [
+    note(G, 3, Triplet(&Eighth));
+    note(C, 4, Triplet(&Eighth));
+    note(E, 4, Triplet(&Eighth));
+    note(G, 4, Triplet(&Eighth));
+    rest(Triplet(&Eighth));
+    note(E, 4, Triplet(&Eighth));
+    note(G, 4, Whole);
+]);
+
+pub const SHUTDOWN: Song<[(Option<Note>, TimeSlice); 12]> = song!(120, [
+    note(C, 5, Eighth);
+    rest(Eighth);
+    note(G, 4, Triplet(&Eighth));
+    note(Gb, 4, Triplet(&Eighth));
+    note(G, 4, Triplet(&Eighth));
+    note(Ab, 4, Quarter);
+    note(G, 4, Eighth);
+    rest(Eighth);
+    rest(Quarter);
+    note(B, 4, Eighth);
+    rest(Eighth);
+    note(C, 5, Eighth);
+]);
+
+pub const UPDATE_FAILED_1: Song<[(Option<Note>, TimeSlice); 5]> = song!(120, [
+    note(C, 4, Triplet(&Sixteenth));
+    note(Eb, 4, Triplet(&Sixteenth));
+    note(Gb, 4, Triplet(&Sixteenth));
+    note(A, 4, Quarter);
+    rest(Eighth);
+]);
+pub const UPDATE_FAILED_2: Song<[(Option<Note>, TimeSlice); 5]> = song!(110, [
+    note(B, 3, Triplet(&Sixteenth));
+    note(D, 4, Triplet(&Sixteenth));
+    note(F, 4, Triplet(&Sixteenth));
+    note(Ab, 4, Quarter);
+    rest(Eighth);
+]);
+pub const UPDATE_FAILED_3: Song<[(Option<Note>, TimeSlice); 5]> = song!(100, [
+    note(Bb, 3, Triplet(&Sixteenth));
+    note(Db, 4, Triplet(&Sixteenth));
+    note(E, 4, Triplet(&Sixteenth));
+    note(G, 4, Quarter);
+    rest(Eighth);
+]);
+pub const UPDATE_FAILED_4: Song<[(Option<Note>, TimeSlice); 5]> = song!(90, [
+    note(A, 3, Triplet(&Sixteenth));
+    note(C, 4, Triplet(&Sixteenth));
+    note(Eb, 4, Triplet(&Sixteenth));
+    note(Gb, 4, Tie(&Dot(&Quarter), &Quarter));
+    rest(Quarter);
 ]);
 
 pub const BEETHOVEN: Song<[(Option<Note>, TimeSlice); 9]> = song!(216, [
