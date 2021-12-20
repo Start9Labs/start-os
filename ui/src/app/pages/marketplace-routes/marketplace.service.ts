@@ -23,7 +23,7 @@ export class MarketplaceService {
   ) { }
 
   get eosUpdateAvailable () {
-    return this.eos.version !== this.patch.data['server-info'].version
+    return this.emver.compare(this.eos.version, this.patch.data['server-info'].version) === 1
   }
 
   async load (): Promise<void> {
