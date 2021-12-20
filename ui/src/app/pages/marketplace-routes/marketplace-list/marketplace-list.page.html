@@ -83,7 +83,7 @@
     </div>
     <ion-grid>
       <ion-row>
-        <ion-col *ngIf="marketplaceService.eos && category === 'featured'" sizeXs="12" sizeSm="12" sizeMd="6">
+        <ion-col *ngIf="marketplaceService.eosUpdateAvailable && category === 'featured'" sizeXs="12" sizeSm="12" sizeMd="6">
           <ion-item button class="eos-item" (click)="updateEos()">
             <ion-thumbnail slot="start">
               <img src="assets/img/icon.png" />
