@@ -157,7 +157,7 @@ pub async fn create_all_fs<P: AsRef<Path>>(
     password: &str,
 ) -> Result<(), Error> {
     create_fs(guid, &datadir, "main", MAIN_FS_SIZE, false, password).await?;
-    // create_fs(guid, &datadir, "swap", SWAP_SIZE, true, password).await?;
+    create_fs(guid, &datadir, "swap", SWAP_SIZE, true, password).await?;
     create_fs(
         guid,
         &datadir,
