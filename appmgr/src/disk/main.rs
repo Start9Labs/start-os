@@ -129,10 +129,10 @@ pub async fn create_fs<P: AsRef<Path>>(
             .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
             .invoke(crate::ErrorKind::DiskManagement)
             .await?;
-        Command::new("swapon")
-            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
-            .invoke(crate::ErrorKind::DiskManagement)
-            .await?;
+        // Command::new("swapon")
+        //     .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+        //     .invoke(crate::ErrorKind::DiskManagement)
+        //     .await?;
     } else {
         Command::new("mkfs.ext4")
             .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
@@ -178,10 +178,10 @@ pub async fn unmount_fs<P: AsRef<Path>>(
     swap: bool,
 ) -> Result<(), Error> {
     if swap {
-        Command::new("swapoff")
-            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
-            .invoke(crate::ErrorKind::DiskManagement)
-            .await?;
+        // Command::new("swapoff")
+        //     .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+        //     .invoke(crate::ErrorKind::DiskManagement)
+        //     .await?;
     } else {
         unmount(datadir.as_ref().join(name)).await?;
     }
@@ -198,7 +198,7 @@ pub async fn unmount_fs<P: AsRef<Path>>(
 #[instrument(skip(datadir))]
 pub async fn unmount_all_fs<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error> {
     unmount_fs(guid, &datadir, "main", false).await?;
-    // unmount_fs(guid, &datadir, "swap", true).await?;
+    unmount_fs(guid, &datadir, "swap", true).await?;
     unmount_fs(guid, &datadir, "package-data", false).await?;
     Command::new("dmsetup")
         .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
@@ -269,10 +269,10 @@ pub async fn mount_fs<P: AsRef<Path>>(
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
     if swap {
-        Command::new("swapon")
-            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
-            .invoke(crate::ErrorKind::DiskManagement)
-            .await?;
+        // Command::new("swapon")
+        //     .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+        //     .invoke(crate::ErrorKind::DiskManagement)
+        //     .await?;
     } else {
         mount(
             Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
@@ -295,7 +295,7 @@ pub async fn mount_all_fs<P: AsRef<Path>>(
     password: &str,
 ) -> Result<(), Error> {
     mount_fs(guid, &datadir, "main", false, password).await?;
-    // mount_fs(guid, &datadir, "swap", true, password).await?;
+    mount_fs(guid, &datadir, "swap", true, password).await?;
     mount_fs(guid, &datadir, "package-data", false, password).await?;
     Ok(())
 }
