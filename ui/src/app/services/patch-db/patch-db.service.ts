@@ -166,9 +166,7 @@ export class PatchDbService {
     return this.patchConnection$.asObservable()
   }
 
-  watch$: Store<DataModel>['watch$'] = (
-    ...args: (string | number)[],
-  ): Observable<DataModel> => {
+  watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
     const argsString = '/' + args.join('/')
     console.log('patchDB: WATCHING ', argsString)
     return this.patchDb.store.watch$(...(args as [])).pipe(
