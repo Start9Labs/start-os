@@ -4,6 +4,7 @@
 set -e
 
 ! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
+mount -o remount,rw /boot/firmware
 
 apt-get update
 apt-get purge -y \
