@@ -1,19 +1,19 @@
 import { Subject, Observable } from 'rxjs'
-import { Http, Update, Operation, Revision, Source, Store } from 'patch-db-client'
+import { Http, Update, Operation, Revision, Source, Store, RPCResponse } from 'patch-db-client'
 import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { RequestError } from '../http.service'
+import { map } from 'rxjs/operators'
 
 export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   protected readonly sync$ = new Subject<Update<DataModel>>()
 
   /** PatchDb Source interface. Post/Patch requests provide a source of patches to the db. */
   // sequenceStream '_' is not used by the live api, but is overridden by the mock
-  watch$ (_?: Store<DataModel>): Observable<Update<DataModel>> {
-    return this.sync$.asObservable()
+  watch$ (_?: Store<DataModel>): Observable<RPCResponse<Update<DataModel>>> {
+    return this.sync$.asObservable().pipe(map( result => ({ result,
+      jsonrpc: '2.0'})))
   }
-
-  connectionMade$ = new Subject<void>()
 
   // for getting static files: ex icons, instructions, licenses
   abstract getStatic (url: string): Promise<string>
@@ -209,7 +209,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
           throw e
         })
         .then(({ response, revision }) => {
-          this.connectionMade$.next()
           if (revision) this.sync$.next(revision)
           return response
         })

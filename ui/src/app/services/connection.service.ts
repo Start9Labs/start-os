@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject, combineLatest, fromEvent, merge, Subscription } from 'rxjs'
 import { PatchConnection, PatchDbService } from './patch-db/patch-db.service'
-import { HttpService, Method } from './http.service'
 import { distinctUntilChanged } from 'rxjs/operators'
 import { ConfigService } from './config.service'
 
@@ -13,7 +12,6 @@ export class ConnectionService {
   private readonly connectionFailure$ = new BehaviorSubject<ConnectionFailure>(ConnectionFailure.None)
 
   constructor (
-    private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly patch: PatchDbService,
   ) { }
@@ -46,10 +44,10 @@ export class ConnectionService {
       ),
     ])
     .subscribe(async ([network, patchConnection, progress]) => {
-      if (patchConnection !== PatchConnection.Disconnected) {
-        this.connectionFailure$.next(ConnectionFailure.None)
-      } else if (!network) {
+      if (!network) {
         this.connectionFailure$.next(ConnectionFailure.Network)
+      } else if (patchConnection !== PatchConnection.Disconnected) {
+        this.connectionFailure$.next(ConnectionFailure.None)
       } else if (!!progress && progress.downloaded === progress.size) {
         this.connectionFailure$.next(ConnectionFailure.None)
       } else if (!this.configService.isTor()) {
@@ -64,7 +62,6 @@ export class ConnectionService {
 
 export enum ConnectionFailure {
   None = 'none',
-  Diagnosing = 'diagnosing',
   Network = 'network',
   Tor = 'tor',
   Lan = 'lan',
