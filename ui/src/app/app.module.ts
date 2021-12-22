@@ -3,7 +3,7 @@ import { BrowserModule } from '@angular/platform-browser'
 import { RouteReuseStrategy } from '@angular/router'
 import { IonicModule, IonicRouteStrategy, IonNav } from '@ionic/angular'
 import { Drivers } from '@ionic/storage'
-import { IonicStorageModule } from '@ionic/storage-angular'
+import { IonicStorageModule, Storage } from '@ionic/storage-angular'
 import { HttpClientModule } from '@angular/common/http'
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
@@ -48,8 +48,10 @@ import { GlobalErrorHandler } from './services/global-error-handler.service'
   providers: [
     FormBuilder,
     IonNav,
-    Storage,
-    { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
+    {
+      provide: RouteReuseStrategy,
+      useClass: IonicRouteStrategy,
+    },
     {
       provide: ApiService,
       useFactory: ApiServiceFactory,
@@ -58,9 +60,12 @@ import { GlobalErrorHandler } from './services/global-error-handler.service'
     {
       provide: PatchDbService,
       useFactory: PatchDbServiceFactory,
-      deps: [ConfigService, ApiService, LocalStorageBootstrap, AuthService],
+      deps: [ConfigService, ApiService, LocalStorageBootstrap, AuthService, Storage],
     },
-    { provide: ErrorHandler, useClass: GlobalErrorHandler},
+    {
+      provide: ErrorHandler,
+      useClass: GlobalErrorHandler,
+    },
   ],
   bootstrap: [AppComponent],
   schemas: [ CUSTOM_ELEMENTS_SCHEMA ],
