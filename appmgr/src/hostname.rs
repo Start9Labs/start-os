@@ -9,6 +9,11 @@ pub const PRODUCT_KEY_PATH: &'static str = "/embassy-os/product_key.txt";
 
 #[instrument]
 pub async fn get_hostname() -> Result<String, Error> {
+    Ok(format!("embassy-{}", get_id().await?))
+}
+
+#[instrument]
+pub async fn get_current_hostname() -> Result<String, Error> {
     let out = Command::new("hostname")
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
