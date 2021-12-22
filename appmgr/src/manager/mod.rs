@@ -569,11 +569,24 @@ async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
 
 #[instrument(skip(shared))]
 async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
-    shared
-        .ctx
-        .docker
-        .pause_container(&shared.container_name)
-        .await?;
+    let mut res = Ok(());
+    for _retry in 0..5 {
+        res = shared
+            .ctx
+            .docker
+            .pause_container(&shared.container_name)
+            .await;
+        if !matches!(
+            res,
+            Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 500,
+                ..
+            }),
+        ) {
+            break;
+        }
+    }
+    res?;
     shared
         .status
         .store(Status::Paused as usize, std::sync::atomic::Ordering::SeqCst);
