@@ -96,13 +96,13 @@ if [[ "$(uname)" == "Darwin" ]]; then
 	if which pv > /dev/null; then
 		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1m 2>/dev/null
 	else
-		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct
+		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1m
 	fi
 else
 	if which pv > /dev/null; then
-		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct 2>/dev/null
+		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct conv=fsync 2>/dev/null 
 	else
-		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct
+		sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | sudo dd of=${TARGET_PARTITION} bs=1M iflag=fullblock oflag=direct conv=fsync
 	fi
 fi
 echo Verifying...
