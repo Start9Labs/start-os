@@ -57,10 +57,12 @@ export interface CifsBackupTarget {
 }
 
 export interface DiskRecoverySource {
+  type: 'disk'
   logicalname: string // partition logicalname
 }
 
 export interface CifsRecoverySource {
+  type: 'cifs'
   hostname: string
   path: string
   username: string
