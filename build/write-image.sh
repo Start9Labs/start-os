@@ -4,9 +4,9 @@ set -e
 
 # Write contents of LOOPDEV (Ubuntu image) to sd card and make filesystems, then detach the loop device
 echo USING $LOOPDEV TO IMAGE $OUTPUT_DEVICE
-sudo dd if=${LOOPDEV}p1 of=${OUTPUT_DEVICE}p1 bs=4096 conv=fsync status=progress
+sudo dd if=${LOOPDEV}p1 of=${OUTPUT_DEVICE}p1 bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
 sudo mkfs.vfat -F 32 ${OUTPUT_DEVICE}p2
-sudo dd if=${LOOPDEV}p2 of=${OUTPUT_DEVICE}p3 bs=4096 conv=fsync status=progress
+sudo dd if=${LOOPDEV}p2 of=${OUTPUT_DEVICE}p3 bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
 sudo mkfs.ext4 ${OUTPUT_DEVICE}p4
 
 sudo losetup -d $LOOPDEV
