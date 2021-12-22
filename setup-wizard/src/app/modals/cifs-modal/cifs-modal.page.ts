@@ -10,6 +10,7 @@ import { PasswordPage } from '../password/password.page'
 })
 export class CifsModal {
   cifs = {
+    type: 'cifs' as 'cifs',
     hostname: '',
     path: '',
     username: '',
