@@ -13,7 +13,7 @@ import {
   ConnectionFailure,
   ConnectionService,
 } from 'src/app/services/connection.service'
-import { filter, map, startWith } from 'rxjs/operators'
+import { map, startWith } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 
 const STATES = [
@@ -37,9 +37,8 @@ export class AppShowPage {
         this.navCtrl.navigateRoot('/services')
       }
 
-      return pkg
+      return { ...pkg }
     }),
-    filter<PackageDataEntry>(Boolean),
     startWith(this.patch.getData()['package-data'][this.pkgId]),
   )
 
