@@ -205,7 +205,7 @@ pub async fn recovery_info(
         .await
         .is_ok()
     {
-        Ok(Some(
+        return Ok(Some(
             IoFormat::Cbor.from_slice(
                 &tokio::fs::read(&backup_unencrypted_metadata_path)
                     .await
@@ -216,10 +216,19 @@ pub async fn recovery_info(
                         )
                     })?,
             )?,
-        ))
-    } else {
-        Ok(None)
+        ));
     }
+    let version_path = mountpoint.as_ref().join("root/appmgr/version");
+    if tokio::fs::metadata(&version_path).await.is_ok() {
+        return Ok(Some(EmbassyOsRecoveryInfo {
+            version: from_yaml_async_reader(File::open(&version_path).await?).await?,
+            full: true,
+            password_hash: None,
+            wrapped_key: None,
+        }));
+    }
+
+    Ok(None)
 }
 
 #[instrument]
@@ -333,19 +342,6 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                             }
                         } {
                             embassy_os = Some(recovery_info)
-                        } else if label.as_deref() == Some("rootfs") {
-                            let version_path = mount_guard.as_ref().join("root/appmgr/version");
-                            if tokio::fs::metadata(&version_path).await.is_ok() {
-                                embassy_os = Some(EmbassyOsRecoveryInfo {
-                                    version: from_yaml_async_reader(
-                                        File::open(&version_path).await?,
-                                    )
-                                    .await?,
-                                    full: true,
-                                    password_hash: None,
-                                    wrapped_key: None,
-                                });
-                            }
                         }
                         mount_guard.unmount().await?;
                     }
