@@ -3,7 +3,6 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::Digest;
 use serde::{Deserialize, Serialize};
@@ -48,14 +47,8 @@ pub async fn mount_cifs(
     Command::new("mount")
         .arg("-t")
         .arg("cifs")
-        .arg("-o")
-        .arg(format!(
-            "username={}{}",
-            username,
-            password
-                .map(|p| format!(",password={}", p))
-                .unwrap_or_default()
-        ))
+        .env("USER", username)
+        .env("PASSWD", password.unwrap_or_default())
         .arg(format!("//{}{}", ip, absolute_path.display()))
         .arg(mountpoint.as_ref())
         .invoke(crate::ErrorKind::Filesystem)
