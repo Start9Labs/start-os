@@ -12,7 +12,6 @@ use crate::{Error, ResultExt};
 pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
 pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
-pub const SWAP_SIZE: FsSize = FsSize::Gigabytes(8);
 
 // TODO: use IncorrectDisk / DiskNotAvailable / DiskCorrupted
 
@@ -89,7 +88,6 @@ pub async fn create_fs<P: AsRef<Path>>(
     datadir: P,
     name: &str,
     size: FsSize,
-    swap: bool,
     password: &str,
 ) -> Result<(), Error> {
     tokio::fs::write(PASSWORD_PATH, password)
@@ -123,27 +121,15 @@ pub async fn create_fs<P: AsRef<Path>>(
         .arg(format!("{}_{}", guid, name))
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    if swap {
-        Command::new("mkswap")
-            .arg("-f")
-            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
-            .invoke(crate::ErrorKind::DiskManagement)
-            .await?;
-        // Command::new("swapon")
-        //     .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
-        //     .invoke(crate::ErrorKind::DiskManagement)
-        //     .await?;
-    } else {
-        Command::new("mkfs.ext4")
-            .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
-            .invoke(crate::ErrorKind::DiskManagement)
-            .await?;
-        mount(
-            Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
-            datadir.as_ref().join(name),
-        )
+    Command::new("mkfs.ext4")
+        .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+        .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    }
+    mount(
+        Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
+        datadir.as_ref().join(name),
+    )
+    .await?;
     tokio::fs::remove_file(PASSWORD_PATH)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
@@ -156,14 +142,12 @@ pub async fn create_all_fs<P: AsRef<Path>>(
     datadir: P,
     password: &str,
 ) -> Result<(), Error> {
-    create_fs(guid, &datadir, "main", MAIN_FS_SIZE, false, password).await?;
-    create_fs(guid, &datadir, "swap", SWAP_SIZE, true, password).await?;
+    create_fs(guid, &datadir, "main", MAIN_FS_SIZE, password).await?;
     create_fs(
         guid,
         &datadir,
         "package-data",
         FsSize::FreePercentage(100),
-        false,
         password,
     )
     .await?;
@@ -171,20 +155,8 @@ pub async fn create_all_fs<P: AsRef<Path>>(
 }
 
 #[instrument(skip(datadir))]
-pub async fn unmount_fs<P: AsRef<Path>>(
-    guid: &str,
-    datadir: P,
-    name: &str,
-    swap: bool,
-) -> Result<(), Error> {
-    if swap {
-        // Command::new("swapoff")
-        //     .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
-        //     .invoke(crate::ErrorKind::DiskManagement)
-        //     .await?;
-    } else {
-        unmount(datadir.as_ref().join(name)).await?;
-    }
+pub async fn unmount_fs<P: AsRef<Path>>(guid: &str, datadir: P, name: &str) -> Result<(), Error> {
+    unmount(datadir.as_ref().join(name)).await?;
     Command::new("cryptsetup")
         .arg("-q")
         .arg("luksClose")
@@ -197,9 +169,8 @@ pub async fn unmount_fs<P: AsRef<Path>>(
 
 #[instrument(skip(datadir))]
 pub async fn unmount_all_fs<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error> {
-    unmount_fs(guid, &datadir, "main", false).await?;
-    unmount_fs(guid, &datadir, "swap", true).await?;
-    unmount_fs(guid, &datadir, "package-data", false).await?;
+    unmount_fs(guid, &datadir, "main").await?;
+    unmount_fs(guid, &datadir, "package-data").await?;
     Command::new("dmsetup")
         .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
         .invoke(crate::ErrorKind::DiskManagement)
@@ -253,7 +224,6 @@ pub async fn mount_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
     name: &str,
-    swap: bool,
     password: &str,
 ) -> Result<(), Error> {
     tokio::fs::write(PASSWORD_PATH, password)
@@ -268,18 +238,11 @@ pub async fn mount_fs<P: AsRef<Path>>(
         .arg(format!("{}_{}", guid, name))
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    if swap {
-        // Command::new("swapon")
-        //     .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
-        //     .invoke(crate::ErrorKind::DiskManagement)
-        //     .await?;
-    } else {
-        mount(
-            Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
-            datadir.as_ref().join(name),
-        )
-        .await?;
-    }
+    mount(
+        Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
+        datadir.as_ref().join(name),
+    )
+    .await?;
 
     tokio::fs::remove_file(PASSWORD_PATH)
         .await
@@ -294,8 +257,7 @@ pub async fn mount_all_fs<P: AsRef<Path>>(
     datadir: P,
     password: &str,
 ) -> Result<(), Error> {
-    mount_fs(guid, &datadir, "main", false, password).await?;
-    mount_fs(guid, &datadir, "swap", true, password).await?;
-    mount_fs(guid, &datadir, "package-data", false, password).await?;
+    mount_fs(guid, &datadir, "main", password).await?;
+    mount_fs(guid, &datadir, "package-data", password).await?;
     Ok(())
 }
