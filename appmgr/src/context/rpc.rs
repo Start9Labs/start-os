@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use bollard::Docker;
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{PatchDb, Revision};
+use patch_db::{DbHandle, PatchDb, Revision};
 use reqwest::Url;
 use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
@@ -16,6 +16,7 @@ use serde::Deserialize;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 use tokio::fs::File;
+use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
@@ -35,7 +36,7 @@ use crate::status::{MainStatus, Status};
 use crate::system::launch_metrics_task;
 use crate::util::io::from_toml_async_reader;
 use crate::util::logger::EmbassyLogger;
-use crate::util::AsyncFileExt;
+use crate::util::{AsyncFileExt, Invoke};
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -247,6 +248,38 @@ impl RpcContext {
             .get(&mut self.db.handle(), false)
             .await?
             .to_owned())
+    }
+    #[instrument(skip(self, db))]
+    pub async fn set_nginx_conf<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+        tokio::fs::write("/etc/nginx/sites-available/default", {
+            let info = crate::db::DatabaseModel::new()
+                .server_info()
+                .get(db, true)
+                .await?;
+            format!(
+                include_str!("../nginx/main-ui.conf.template"),
+                lan_hostname = info.lan_address.host_str().unwrap(),
+                tor_hostname = info.tor_address.host_str().unwrap(),
+                eos_marketplace = info.eos_marketplace,
+                package_marketplace = info
+                    .package_marketplace
+                    .as_ref()
+                    .unwrap_or(&info.eos_marketplace),
+            )
+        })
+        .await
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                "/etc/nginx/sites-available/default",
+            )
+        })?;
+        Command::new("systemctl")
+            .arg("reload")
+            .arg("nginx")
+            .invoke(crate::ErrorKind::Nginx)
+            .await?;
+        Ok(())
     }
     #[instrument(skip(self))]
     pub async fn shutdown(self) -> Result<(), Error> {

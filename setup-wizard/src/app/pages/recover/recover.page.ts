@@ -102,6 +102,7 @@ export class RecoverPage {
       if (res.role === 'success') {
         const { hostname, path, username, password } = res.data.cifs
         this.stateService.recoverySource = {
+          type: 'cifs',
           hostname,
           path,
           username,
@@ -131,7 +132,7 @@ export class RecoverPage {
         }
       })
       await modal.present()
-    // if no product key, it means they are an upgrade kit user
+      // if no product key, it means they are an upgrade kit user
     } else {
       const modal = await this.modalController.create({
         component: ProdKeyModal,
@@ -165,6 +166,7 @@ export class RecoverPage {
 
   private async selectRecoverySource (logicalname: string, password?: string) {
     this.stateService.recoverySource = {
+      type: 'disk',
       logicalname,
     }
     this.stateService.recoveryPassword = password
