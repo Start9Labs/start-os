@@ -20,6 +20,7 @@ use crate::Error;
 pub async fn resolve_mdns(hostname: &str) -> Result<IpAddr, Error> {
     Ok(String::from_utf8(
         Command::new("avahi-resolve-host-name")
+            .arg("-4")
             .arg(hostname)
             .invoke(crate::ErrorKind::Network)
             .await?,
