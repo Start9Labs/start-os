@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core'
+import { BehaviorSubject, Subject } from 'rxjs'
 
 @Component({
   selector: 'notes',
@@ -14,6 +15,8 @@ export class NotesComponent {
   }
 
   load () { }
+  loading$ = new BehaviorSubject(false)
+  cancel$ = new Subject<void>()
 
   asIsOrder () {
     return 0

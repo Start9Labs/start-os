@@ -10,7 +10,6 @@ export interface Button {
   title: string
   description: string
   icon: string
-  color: string
   action: Function
 }
 
@@ -37,7 +36,6 @@ export class ToButtonsPipe implements PipeTransform {
         title: 'Instructions',
         description: `Understand how to use ${pkgTitle}`,
         icon: 'list-outline',
-        color: 'danger',
       },
       // config
       {
@@ -46,7 +44,6 @@ export class ToButtonsPipe implements PipeTransform {
         title: 'Config',
         description: `Customize ${pkgTitle}`,
         icon: 'construct-outline',
-        color: 'danger',
       },
       // properties
       {
@@ -58,7 +55,6 @@ export class ToButtonsPipe implements PipeTransform {
         description:
           'Runtime information, credentials, and other values of interest',
         icon: 'briefcase-outline',
-        color: 'danger',
       },
       // actions
       {
@@ -67,7 +63,6 @@ export class ToButtonsPipe implements PipeTransform {
         title: 'Actions',
         description: `Uninstall and other commands specific to ${pkgTitle}`,
         icon: 'flash-outline',
-        color: 'danger',
       },
       // interfaces
       {
@@ -78,16 +73,7 @@ export class ToButtonsPipe implements PipeTransform {
         title: 'Interfaces',
         description: 'User and machine access points',
         icon: 'desktop-outline',
-        color: 'danger',
       },
-      // metrics
-      // {
-      //   action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
-      //   title: 'Monitor',
-      //   description: 'View system usage',
-      //   icon: 'pulse-outline',
-      //   color: 'danger',
-      // },
       // logs
       {
         action: () =>
@@ -95,14 +81,19 @@ export class ToButtonsPipe implements PipeTransform {
         title: 'Logs',
         description: 'Raw, unfiltered service logs',
         icon: 'receipt-outline',
-        color: 'danger',
+      },
+      // view in marketplace
+      {
+        action: () => this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`]),
+        title: 'Marketplace',
+        description: 'View service in marketplace',
+        icon: 'storefront-outline',
       },
       {
         action: () => this.donate(pkg),
         title: 'Donate',
         description: `Support ${pkgTitle}`,
         icon: 'logo-bitcoin',
-        color: 'danger',
       },
     ]
   }

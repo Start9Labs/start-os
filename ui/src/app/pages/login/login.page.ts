@@ -52,6 +52,7 @@ export class LoginPage {
         password: this.password,
         metadata: { platforms: getPlatforms() },
       })
+
       this.authService.setVerified()
       this.password = ''
     } catch (e) {

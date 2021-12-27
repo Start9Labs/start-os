@@ -6,7 +6,7 @@ use rpc_toolkit::command;
 
 use crate::context::RpcContext;
 use crate::disk::main::export;
-use crate::sound::MARIO_DEATH;
+use crate::sound::SHUTDOWN;
 use crate::util::{display_none, Invoke};
 use crate::Error;
 
@@ -53,7 +53,7 @@ impl Shutdown {
                     tracing::debug!("{:?}", e);
                 }
             }
-            if let Err(e) = MARIO_DEATH.play().await {
+            if let Err(e) = SHUTDOWN.play().await {
                 tracing::error!("Error Playing Shutdown Song: {}", e);
                 tracing::debug!("{:?}", e);
             }
@@ -78,7 +78,7 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     crate::db::DatabaseModel::new()
         .lock(&mut db, LockType::Write)
-        .await;
+        .await?;
     ctx.shutdown
         .send(Some(Shutdown {
             datadir: ctx.datadir.clone(),
@@ -96,7 +96,7 @@ pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     crate::db::DatabaseModel::new()
         .lock(&mut db, LockType::Write)
-        .await;
+        .await?;
     ctx.shutdown
         .send(Some(Shutdown {
             datadir: ctx.datadir.clone(),

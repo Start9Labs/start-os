@@ -59,7 +59,11 @@ export class MockApiService extends ApiService {
 
   async login (params: RR.LoginReq): Promise<RR.loginRes> {
     await pauseFor(2000)
-    this.mockPatch$.next({ id: 1, value: mockPatchData, expireId: null })
+
+    setTimeout(() => {
+      this.mockPatch$.next({ id: 1, value: mockPatchData, expireId: null })
+    }, 2000)
+
     return null
   }
 

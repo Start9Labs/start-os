@@ -649,7 +649,7 @@ pub async fn configure_logic(
 }
 
 #[instrument(skip(db, current_dependencies))]
-pub async fn add_current_dependents<
+pub async fn add_dependent_to_current_dependents_lists<
     'a,
     Db: DbHandle,
     I: IntoIterator<Item = (&'a PackageId, &'a CurrentDependencyInfo)>,

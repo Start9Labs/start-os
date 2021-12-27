@@ -70,3 +70,4 @@ export class AppShowPage {
     return STATES.includes(state)
   }
 }
+

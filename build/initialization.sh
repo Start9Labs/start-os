@@ -4,6 +4,7 @@
 set -e
 
 ! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
+mount -o remount,rw /boot/firmware
 
 apt-get update
 apt-get purge -y \
@@ -27,6 +28,7 @@ apt-get install -y \
 	samba-common-bin \
 	ntp
 apt-get autoremove -y
+apt-get upgrade -y
 
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
