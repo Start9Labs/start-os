@@ -20,6 +20,7 @@
     "@angular/platform-browser-dynamic": "^12.2.5",
     "@angular/router": "^12.2.5",
     "@ionic/angular": "^5.6.13",
+    "ansi-to-html": "^0.7.2",
     "rxjs": "^6.6.7",
     "tslib": "^2.3.1",
     "zone.js": "^0.11.4"
