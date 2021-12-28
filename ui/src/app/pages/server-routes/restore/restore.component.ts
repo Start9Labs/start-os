@@ -29,7 +29,7 @@ export class RestorePage {
       label: 'Master Password',
       placeholder: 'Enter master password',
       useMask: true,
-      buttonText: 'Next',
+      buttonText: !!target.entry['embassy-os']['password-hash'] ? 'Next' : 'Restore From Backup',
       submitFn: (password: string) => this.decryptDrive(target, password),
     }
 
@@ -48,7 +48,9 @@ export class RestorePage {
     argon2.verify(passwordHash, password)
 
     try {
-      argon2.verify(target.entry['embassy-os']['password-hash'], password)
+      if (target.entry['embassy-os']['password-hash']) {
+        argon2.verify(target.entry['embassy-os']['password-hash'], password)
+      }
       await this.restoreFromBackup(target, password)
     } catch (e) {
       setTimeout(() => this.presentModalOldPassword(target, password), 500)

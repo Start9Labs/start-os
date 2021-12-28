@@ -1019,7 +1019,12 @@ export module Mock {
       path: '/Desktop/embassy-backups-2',
       username: 'TestUser',
       mountable: true,
-      'embassy-os': null,
+      'embassy-os': {
+        version: '0.3.0',
+        full: true,
+        'password-hash': '',
+        'wrapped-key': '',
+      },
     },
     // 'powjefhjbnwhdva': {
     //   type: 'disk',
