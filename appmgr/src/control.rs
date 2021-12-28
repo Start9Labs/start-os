@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use color_eyre::eyre::eyre;
-use patch_db::DbHandle;
+use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 use tracing::instrument;
 
@@ -25,6 +25,10 @@ pub async fn start(
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .lock(&mut tx, LockType::Write)
+        .await?;
     let installed = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
@@ -37,6 +41,7 @@ pub async fn start(
                 format!("{} is not installed", id),
             )
         })?;
+    installed.lock(&mut tx, LockType::Read).await?;
     let version = installed
         .clone()
         .manifest()

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use patch_db::DbHandle;
+use patch_db::{DbHandle, LockType};
 use tracing::instrument;
 
 use crate::context::RpcContext;
@@ -63,6 +63,11 @@ pub async fn check<Db: DbHandle>(
     }
 
     let mut checkpoint = tx.begin().await?;
+
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .lock(&mut checkpoint, LockType::Write)
+        .await?;
 
     let mut status = crate::db::DatabaseModel::new()
         .package_data()

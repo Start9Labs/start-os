@@ -6,7 +6,7 @@ use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use patch_db::{DbHandle, HasModel, Map, MapModel, PatchDbHandle};
+use patch_db::{DbHandle, HasModel, LockType, Map, MapModel, PatchDbHandle};
 use rand::SeedableRng;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
@@ -535,6 +535,10 @@ pub async fn configure_logic(
     db: &mut PatchDbHandle,
     (pkg_id, dependency_id): (PackageId, PackageId),
 ) -> Result<ConfigDryRes, Error> {
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .lock(db, LockType::Read)
+        .await?;
     let pkg_model = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&pkg_id)
