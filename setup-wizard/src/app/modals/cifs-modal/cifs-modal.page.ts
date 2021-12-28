@@ -38,7 +38,15 @@ export class CifsModal {
 
     try {
       const embassyOS = await this.apiService.verifyCifs(this.cifs)
-      this.presentModalPassword(embassyOS)
+      const is02x = embassyOS.version.startsWith('0.2')
+
+      if (is02x) {
+        this.modalController.dismiss({
+          cifs: this.cifs,
+        }, 'success')
+      } else {
+        this.presentModalPassword(embassyOS)
+      }
     } catch (e) {
       this.presentAlertFailed()
     } finally {
