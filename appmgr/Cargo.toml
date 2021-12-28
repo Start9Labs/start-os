@@ -41,6 +41,7 @@ avahi = ["avahi-sys"]
 default = ["avahi", "sound", "metal"]
 metal = []
 sound = []
+unstable = ["patch-db/unstable"]
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
