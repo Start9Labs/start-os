@@ -1,0 +1,20 @@
+<p>Downloading: {{ installProgress.downloadProgress }}%</p>
+<ion-progress-bar
+  [color]="getColor('download-complete')"
+  [value]="installProgress.downloadProgress / 100"
+  [buffer]="!installProgress.downloadProgress ? 0 : 1"
+></ion-progress-bar>
+
+<p>Validating: {{ installProgress.validateProgress }}%</p>
+<ion-progress-bar
+  [color]="getColor('validation-complete')"
+  [value]="installProgress.validateProgress / 100"
+  [buffer]="validationBuffer"
+></ion-progress-bar>
+
+<p>Unpacking: {{ installProgress.unpackProgress }}%</p>
+<ion-progress-bar
+  [color]="getColor('unpack-complete')"
+  [value]="installProgress.unpackProgress / 100"
+  [buffer]="unpackingBuffer"
+></ion-progress-bar>

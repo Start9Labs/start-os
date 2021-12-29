@@ -122,14 +122,14 @@ export interface Manifest {
     stop: string | null
   }
   main: ActionImpl
-  'health-checks': { [id: string]: ActionImpl & { name: string, description: string } }
+  'health-checks': Record<string, ActionImpl & { name: string, description: string }>
   config: ConfigActions | null
-  volumes: { [id: string]: Volume }
+  volumes: Record<string, Volume>
   'min-os-version': string
-  interfaces: { [id: string]: InterfaceDef }
+  interfaces: Record<string, InterfaceDef>
   backup: BackupActions
   migrations: Migrations
-  actions: { [id: string]: Action }
+  actions: Record<string, Action>
   permissions: any // @TODO 0.3.1
   dependencies: DependencyInfo
 }
