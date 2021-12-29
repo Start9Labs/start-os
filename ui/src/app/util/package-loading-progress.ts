@@ -1,8 +1,13 @@
 import { InstallProgress } from 'src/app/services/patch-db/data-model'
+import { isEmptyObject } from './misc.util'
 
-export function packageLoadingProgress (
+export function packageLoadingProgress(
   loadData: InstallProgress,
-): ProgressData {
+): ProgressData | null {
+  if (isEmptyObject(loadData)) {
+    return null
+  }
+
   let {
     downloaded,
     validated,
@@ -28,11 +33,10 @@ export function packageLoadingProgress (
       unpackWeight * unpacked,
   )
 
-
   const denominator = Math.floor(
     size * (downloadWeight + validateWeight + unpackWeight),
   )
-  const totalProgress = Math.floor(100 * numerator / denominator)
+  const totalProgress = Math.floor((100 * numerator) / denominator)
 
   return {
     totalProgress,

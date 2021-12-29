@@ -13,15 +13,13 @@ import {
 } from './package-loading-progress'
 import { Subscription } from 'rxjs'
 
-export function getPackageInfo (entry: PackageDataEntry): PkgInfo {
+export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
   const statuses = renderPkgStatus(entry)
 
   return {
     entry,
     primaryRendering: PrimaryRendering[statuses.primary],
-    installProgress: !isEmptyObject(entry['install-progress'])
-      ? packageLoadingProgress(entry['install-progress'])
-      : undefined,
+    installProgress: packageLoadingProgress(entry['install-progress']),
     error:
       statuses.health === HealthStatus.Failure ||
       statuses.dependency === DependencyStatus.Warning,
@@ -31,7 +29,7 @@ export function getPackageInfo (entry: PackageDataEntry): PkgInfo {
 export interface PkgInfo {
   entry: PackageDataEntry
   primaryRendering: StatusRendering
-  installProgress: ProgressData
+  installProgress: ProgressData | null
   error: boolean
   sub?: Subscription | null
 }

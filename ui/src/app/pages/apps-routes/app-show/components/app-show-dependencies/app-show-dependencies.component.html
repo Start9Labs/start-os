@@ -1,0 +1,29 @@
+<ion-item-divider>Dependencies</ion-item-divider>
+<!-- dependencies are a subset of the pkg.manifest.dependencies that are currently required as determined by the service config -->
+<ion-item button *ngFor="let dep of dependencies" (click)="dep.action()">
+  <ion-thumbnail slot="start">
+    <img [src]="dep.icon" alt="" />
+  </ion-thumbnail>
+  <ion-label>
+    <h2 class="inline">
+      <ion-icon
+        *ngIf="!!dep.errorText"
+        class="icon"
+        slot="start"
+        name="warning-outline"
+        color="warning"
+      ></ion-icon>
+      {{ dep.title }}
+    </h2>
+    <p>{{ dep.version | displayEmver }}</p>
+    <p>
+      <ion-text [color]="dep.errorText ? 'warning' : 'success'">
+        {{ dep.errorText || 'satisfied' }}
+      </ion-text>
+    </p>
+  </ion-label>
+  <ion-button *ngIf="dep.actionText" slot="end" fill="clear">
+    {{ dep.actionText }}
+    <ion-icon slot="end" name="arrow-forward"></ion-icon>
+  </ion-button>
+</ion-item>

@@ -8,9 +8,7 @@ import { HttpClientModule } from '@angular/common/http'
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
 import { ApiService } from './services/api/embassy-api.service'
-import { ApiServiceFactory } from './services/api/api.service.factory'
 import { PatchDbServiceFactory } from './services/patch-db/patch-db.factory'
-import { HttpService } from './services/http.service'
 import { ConfigService } from './services/config.service'
 import { QrCodeModule } from 'ng-qrcode'
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
@@ -22,6 +20,10 @@ import { FormBuilder } from '@angular/forms'
 import { GenericInputComponentModule } from './modals/generic-input/generic-input.component.module'
 import { AuthService } from './services/auth.service'
 import { GlobalErrorHandler } from './services/global-error-handler.service'
+import { MockApiService } from './services/api/embassy-mock-api.service'
+import { LiveApiService } from './services/api/embassy-live-api.service'
+
+const { mocks } = require('../../config.json')
 
 @NgModule({
   declarations: [AppComponent],
@@ -54,8 +56,7 @@ import { GlobalErrorHandler } from './services/global-error-handler.service'
     },
     {
       provide: ApiService,
-      useFactory: ApiServiceFactory,
-      deps: [ConfigService, HttpService, LocalStorageBootstrap],
+      useClass: mocks.enabled ? MockApiService : LiveApiService,
     },
     {
       provide: PatchDbService,

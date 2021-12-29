@@ -1,0 +1,13 @@
+<ion-item-divider>Menu</ion-item-divider>
+<ion-item
+  *ngFor="let button of buttons"
+  button
+  detail
+  (click)="button.action()"
+>
+  <ion-icon slot="start" [name]="button.icon"></ion-icon>
+  <ion-label>
+    <h2>{{ button.title }}</h2>
+    <p *ngIf="button.description">{{ button.description }}</p>
+  </ion-label>
+</ion-item>
