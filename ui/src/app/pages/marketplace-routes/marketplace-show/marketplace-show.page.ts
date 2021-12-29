@@ -113,7 +113,7 @@ export class MarketplaceShowPage {
     const modal = await this.modalCtrl.create({
       componentProps: {
         title,
-        contentUrl: this.pkg[title],
+        contentUrl: `/marketplace${this.pkg[title]}`,
       },
       component: MarkdownPage,
     })
@@ -191,7 +191,7 @@ export class MarketplaceShowPage {
     loader.present()
 
     try {
-      await this.embassyApi.installPackage({ id, 'version-spec': version ? `=${version}` : undefined })
+      await this.embassyApi.installPackage({ id, 'version-spec': version ? ` = ${version}` : undefined })
     } catch (e) {
       this.errToast.present(e)
     } finally {
