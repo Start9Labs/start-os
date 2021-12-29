@@ -16,7 +16,7 @@
       <ion-row>
         <ion-col sizeXs="12" sizeSm="12" sizeMd="9" sizeLg="9" sizeXl="9">
           <div class="header">
-            <img [src]="pkg.icon" />
+            <img [src]="'/marketplace' + pkg.icon" />
             <div class="header-text">
               <h1 class="header-title">{{ pkg.manifest.title }}</h1>
               <p class="header-version">{{ pkg.manifest.version | displayEmver }}</p>
@@ -124,7 +124,7 @@
               <ion-col *ngFor="let dep of pkg.manifest.dependencies | keyvalue" sizeSm="12" sizeMd="6">
                 <ion-item [routerLink]="['/marketplace', dep.key]">
                   <ion-thumbnail slot="start">
-                    <img [src]="pkg['dependency-metadata'][dep.key].icon" />
+                    <img [src]="'/marketplace' + pkg['dependency-metadata'][dep.key].icon" />
                   </ion-thumbnail>
                   <ion-label>
                     <h2>
