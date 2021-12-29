@@ -47,7 +47,7 @@ export class AppMetricsPage {
     while (this.going) {
       const startTime = Date.now()
       await this.getMetrics()
-      await pauseFor(5000 - (Date.now() - startTime))
+      await pauseFor(Math.max(4000 - (Date.now() - startTime), 0))
     }
   }
 
