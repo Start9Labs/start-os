@@ -1,158 +1,40 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="services"></ion-back-button>
-    </ion-buttons>
-    <ion-item lines="none" color="light">
-      <ion-avatar slot="start">
-        <img [src]="pkg['static-files'].icon" />
-      </ion-avatar>
-      <ion-label style="text-overflow: ellipsis;">
-        <h1 style="font-family: 'Montserrat';" [class.less-large]="pkg.manifest.title.length > 20">
-          {{ pkg.manifest.title }}
-        </h1>
-        <h2>{{ pkg.manifest.version | displayEmver }}</h2>
-      </ion-label>
-    </ion-item>
-  </ion-toolbar>
-</ion-header>
+<ng-container *ngIf="pkg$ | async as pkg">
+  <app-show-header [pkg]="pkg"></app-show-header>
 
-<ion-content>
-  <ion-item-group>
-    <!-- ** status ** -->
-    <ion-item-divider>Status</ion-item-divider>
-    <ion-item>
-      <ion-label style="overflow: visible;">
-        <status
-          [disconnected]="connectionFailure"
-          size="x-large"
-          weight="500"
-          [installProgress]="installProgress?.totalProgress"
-          [rendering]="PR[statuses.primary]"
-          [sigtermTimeout]="pkg.manifest.main['sigterm-timeout']"
-        ></status>
-      </ion-label>
-      <ng-container *ngIf="pkg.state === PackageState.Installed && !connectionFailure">
-        <ion-button slot="end" class="action-button" *ngIf="pkg.manifest.interfaces | hasUi" [disabled]="!(pkg.state | isLaunchable : pkg.installed.status.main.status : pkg.manifest.interfaces)" (click)="launchUi()">
-          Launch UI
-          <ion-icon slot="end" name="open-outline"></ion-icon>
-        </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="!pkg.installed.status.configured" (click)="presentModalConfig({ pkgId })">
-          Configure
-        </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="statuses.primary === PS.Running" color="danger" (click)="stop()">
-          Stop
-        </ion-button>
-        <ion-button slot="end" class="action-button" *ngIf="statuses.primary === PS.Stopped && pkg.installed.status.configured" color="success" (click)="tryStart()">
-          Start
-        </ion-button>
-      </ng-container>
-    </ion-item>
-    <!-- ** installed ** -->
-    <ng-container *ngIf="pkg.state === PackageState.Installed">
-      <!-- ** !backing-up ** -->
-      <ng-container *ngIf="statuses.primary !== PS.BackingUp">
+  <ion-content *ngIf="pkg | toDependencies | async as dependencies">
+    <ion-item-group *ngIf="pkg | toStatus as status">
+      <!-- ** status ** -->
+      <app-show-status
+        [pkg]="pkg"
+        [connectionFailure]="connectionFailure$ | async"
+        [dependencies]="dependencies"
+        [status]="status"
+      ></app-show-status>
+      <!-- ** installed && !backing-up ** -->
+      <ng-container *ngIf="isInstalled(pkg, status)">
         <!-- ** health checks ** -->
-        <ng-container *ngIf="statuses.primary === PS.Running && !(healthChecks | empty)">
-          <ion-item-divider>Health Checks</ion-item-divider>
-          <ng-container *ngIf="connectionFailure">
-            <ion-item *ngFor="let health of healthChecks | keyvalue">
-              <ion-avatar slot="start">
-                <ion-skeleton-text style="width: 20px; height: 20px; border-radius: 0;"></ion-skeleton-text>
-              </ion-avatar>
-              <ion-label>
-                <ion-skeleton-text style="width: 100px; margin-bottom: 10px;"></ion-skeleton-text>
-                <ion-skeleton-text style="width: 150px; margin-bottom: 10px;"></ion-skeleton-text>
-              </ion-label>
-            </ion-item>
-          </ng-container>
-          <ng-container *ngIf="!connectionFailure">
-            <ion-item button *ngFor="let health of healthChecks | keyvalue : asIsOrder" (click)="presentAlertDescription(health.key)">
-              <ng-container *ngIf="health.value?.result as result; else noResult">
-                <ion-spinner class="icon-spinner" color="primary" slot="start" *ngIf="[HealthResult.Starting, HealthResult.Loading] | includes : result"></ion-spinner>
-                <ion-icon slot="start" *ngIf="result === HealthResult.Success" name="checkmark" color="success"></ion-icon>
-                <ion-icon slot="start" *ngIf="result === HealthResult.Failure" name="warning-outline" color="warning"></ion-icon>
-                <ion-icon slot="start" *ngIf="result === HealthResult.Disabled" name="remove" color="dark"></ion-icon>
-                <ion-label>
-                  <h2 style="font-weight: bold;">{{ pkg.manifest['health-checks'][health.key].name }}</h2>
-                  <ion-text [color]="result | healthColor">
-                    <p>
-                      <span *ngIf="!([HealthResult.Failure, HealthResult.Loading] | includes : result)">{{ result | titlecase }}</span>
-                      <span *ngIf="result === HealthResult.Starting">...</span>
-                      <span *ngIf="result === HealthResult.Failure">{{ $any(health.value).error }}</span>
-                      <span *ngIf="result === HealthResult.Loading">{{ $any(health.value).message }}</span>
-                    </p>
-                  </ion-text>
-                </ion-label>
-              </ng-container>
-              <ng-template #noResult>
-                <ion-spinner class="icon-spinner" color="dark" slot="start"></ion-spinner>
-                <ion-label>
-                  <h2 style="font-weight: bold;">{{ health.key }}</h2>
-                  <p>Awaiting result...</p>
-                </ion-label>
-              </ng-template>
-            </ion-item>
-          </ng-container>
-        </ng-container>
+        <app-show-health-checks
+          *ngIf="isRunning(status)"
+          [pkg]="pkg"
+          [connectionFailure]="connectionFailure$ | async"
+        ></app-show-health-checks>
         <!-- ** dependencies ** -->
-        <ng-container *ngIf="dependencies.length">
-          <ion-item-divider>Dependencies</ion-item-divider>
-          <!-- dependencies are a subset of the pkg.manifest.dependencies that are currently required as determined by the service config -->
-          <ion-item button *ngFor="let dep of dependencies" (click)="dep.action()">
-            <ion-thumbnail slot="start">
-              <img [src]="dep.icon" />
-            </ion-thumbnail>
-            <ion-label>
-              <h2 class="inline" style="font-family: 'Montserrat'">
-                <ion-icon style="padding-right: 4px;" *ngIf="!!dep.errorText" slot="start" name="warning-outline" color="warning"></ion-icon>
-                {{ dep.title }}
-              </h2>
-              <p>{{ dep.version | displayEmver }}</p>
-              <p>
-                <ion-text [color]="!!dep.errorText ? 'warning' : 'success'">{{ dep.errorText || 'satisfied' }}</ion-text>
-              </p>
-            </ion-label>
-            <ion-button *ngIf="dep.actionText" slot="end" fill="clear">
-              {{ dep.actionText }}
-              <ion-icon slot="end" name="arrow-forward"></ion-icon>
-            </ion-button>
-          </ion-item>
-        </ng-container>
+        <app-show-dependencies
+          *ngIf="dependencies.length"
+          [dependencies]="dependencies"
+        ></app-show-dependencies>
         <!-- ** menu ** -->
-        <ion-item-divider>Menu</ion-item-divider>
-        <ion-item button detail *ngFor="let button of buttons" (click)="button.action()">
-          <ion-icon slot="start" [name]="button.icon"></ion-icon>
-          <ion-label>
-            <h2>{{ button.title }}</h2>
-            <p *ngIf="button.description">{{ button.description }}</p>
-          </ion-label>
-        </ion-item>
+        <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
       </ng-container>
+    </ion-item-group>
+
+    <!-- ** installing, updating, restoring ** -->
+    <ng-container *ngIf="showProgress(pkg)">
+      <app-show-progress
+        *ngIf="pkg['install-progress'] | installState as installProgress"
+        [pkg]="pkg"
+        [installProgress]="installProgress"
+      ></app-show-progress>
     </ng-container>
-  </ion-item-group>
-
-  <!-- ** installing, updating, restoring ** -->
-  <div *ngIf="([PackageState.Installing, PackageState.Updating, PackageState.Restoring] | includes : pkg.state) && installProgress" style="padding: 16px;">
-    <p>Downloading: {{ installProgress.downloadProgress }}%</p>
-    <ion-progress-bar
-      [color]="pkg['install-progress']['download-complete'] ? 'success' : 'secondary'"
-      [value]="installProgress.downloadProgress / 100"
-      [buffer]="!installProgress.downloadProgress ? 0 : 1"
-    ></ion-progress-bar>
-
-    <p>Validating: {{ installProgress.validateProgress }}%</p>
-    <ion-progress-bar
-      [color]="pkg['install-progress']['validation-complete'] ? 'success' : 'secondary'"
-      [value]="installProgress.validateProgress / 100"
-      [buffer]="installProgress.downloadProgress === 100 && !installProgress.validateProgress ? 0 : 1"
-    ></ion-progress-bar>
-
-    <p>Unpacking: {{ installProgress.unpackProgress }}%</p>
-    <ion-progress-bar
-      [color]="pkg['install-progress']['unpack-complete'] ? 'success' : 'secondary'"
-      [value]="installProgress.unpackProgress / 100"
-      [buffer]="installProgress.validateProgress === 100 && !installProgress.unpackProgress ? 0 : 1"
-    ></ion-progress-bar>
-  </div>
-</ion-content>
+  </ion-content>
+</ng-container>

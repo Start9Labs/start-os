@@ -1,0 +1,18 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="services"></ion-back-button>
+    </ion-buttons>
+    <ion-item lines="none" color="light">
+      <ion-avatar slot="start">
+        <img [src]="pkg['static-files'].icon" alt="" />
+      </ion-avatar>
+      <ion-label>
+        <h1 class="name" [class.less-large]="pkg.manifest.title.length > 20">
+          {{ pkg.manifest.title }}
+        </h1>
+        <h2>{{ pkg.manifest.version | displayEmver }}</h2>
+      </ion-label>
+    </ion-item>
+  </ion-toolbar>
+</ion-header>
