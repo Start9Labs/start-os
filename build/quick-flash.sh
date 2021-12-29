@@ -45,10 +45,10 @@ if ! which pv > /dev/null; then
 fi
 
 if [[ "$(uname)" == "Darwin" ]]; then
-	export TARGET_PARTITION="disk$(diskutil list | grep EMBASSY | head -1 | rev | cut -b 3)s3"
+	export TARGET_PARTITION="/dev/disk$(diskutil list | grep EMBASSY | head -1 | rev | cut -b 3)s3"
 	if ! test -e $TARGET_PARTITION; then
 		>&2 echo '`green` partition not found'
-                exit 1
+        exit 1
 	fi
 	export SOURCE_DEVICE="$(hdiutil attach -nomount eos.img | head -n1 | sed -E 's/([^ ]+).*$/\1/g')"
 	export SOURCE_PARTITION="${SOURCE_DEVICE}s3"
