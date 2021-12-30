@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::os::unix::prelude::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -7,6 +8,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt, TryStreamExt};
+use nix::unistd::{Gid, Uid};
 use openssl::x509::X509;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
@@ -385,6 +387,22 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                             format!("cp {} -> {}", src_path.display(), dst_path.display()),
                         )
                     })?;
+                    let tmp_dst_path = dst_path.clone();
+                    tokio::task::spawn_blocking(move || {
+                        nix::unistd::chown(
+                            &tmp_dst_path,
+                            Some(Uid::from_raw(m.uid())),
+                            Some(Gid::from_raw(m.gid())),
+                        )
+                    })
+                    .await
+                    .with_kind(crate::ErrorKind::Unknown)?
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("chown {}", dst_path.display()),
+                        )
+                    })?;
                     ctr.fetch_add(m.len(), Ordering::Relaxed);
                 } else if m.is_dir() {
                     tokio::fs::create_dir_all(&dst_path).await.with_ctx(|_| {
@@ -401,6 +419,22 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                                 format!("chmod {}", dst_path.display()),
                             )
                         })?;
+                    let tmp_dst_path = dst_path.clone();
+                    tokio::task::spawn_blocking(move || {
+                        nix::unistd::chown(
+                            &tmp_dst_path,
+                            Some(Uid::from_raw(m.uid())),
+                            Some(Gid::from_raw(m.gid())),
+                        )
+                    })
+                    .await
+                    .with_kind(crate::ErrorKind::Unknown)?
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("chown {}", dst_path.display()),
+                        )
+                    })?;
                     dir_copy(src_path, dst_path, ctr).await?;
                 } else if m.file_type().is_symlink() {
                     tokio::fs::symlink(
