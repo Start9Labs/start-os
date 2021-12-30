@@ -1,2 +1,0 @@
-#!/bin/bash
-curl -k --header "Content-Type: application/json" --request PATCH --data '{"rpcuser":"bitcoin","rpcpassword":"shitcoin"}' https://localhost:5959/v0/apps/installed/bitcoind/config
