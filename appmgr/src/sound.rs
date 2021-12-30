@@ -348,7 +348,7 @@ pub const CHARGE: Song<[(Option<Note>, TimeSlice); 7]> = song!(128, [
     note(G, 5, Triplet(&Eighth));
     rest(Triplet(&Eighth));
     note(E, 5, Triplet(&Eighth));
-    note(G, 5, Dot(&Half));
+    note(G, 5, Half);
 ]);
 
 pub const SHUTDOWN: Song<[(Option<Note>, TimeSlice); 12]> = song!(120, [
