@@ -18,7 +18,6 @@ export class AppListPage {
   pkgs: readonly PackageDataEntry[] = []
   recoveredPkgs: readonly RecoveredInfo[] = []
   order: readonly string[] = []
-  loading = true
   reordering = false
 
   constructor (
@@ -42,7 +41,6 @@ export class AppListPage {
           this.pkgs = pkgs
           this.recoveredPkgs = recoveredPkgs
           this.order = order
-          this.loading = false
 
           // set order in UI DB if there were unknown packages
           if (order.length < pkgs.length) {
