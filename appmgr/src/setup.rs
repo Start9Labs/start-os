@@ -474,7 +474,8 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
     let volume_id = VolumeId::Custom(Id::try_from("main".to_owned())?);
     for (pkg_id, info) in packages {
         let volume_src_path = volume_path.join(&pkg_id);
-        let volume_dst_path = data_dir(&ctx.datadir, &pkg_id, &volume_id);
+        let (src_id, dst_id) = rename_pkg_id(pkg_id);
+        let volume_dst_path = data_dir(&ctx.datadir, &dst_id, &volume_id);
         tokio::fs::create_dir_all(&volume_dst_path)
             .await
             .with_ctx(|_| {
@@ -503,7 +504,7 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
         let tor_src_path = recovery_source
             .as_ref()
             .join("var/lib/tor")
-            .join(format!("app-{}", pkg_id))
+            .join(format!("app-{}", src_id))
             .join("hs_ed25519_secret_key");
         let key_vec = tokio::fs::read(&tor_src_path).await.with_ctx(|_| {
             (
@@ -520,18 +521,18 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
         let key_vec = key_vec[32..].to_vec();
         sqlx::query!(
             "REPLACE INTO tor (package, interface, key) VALUES (?, 'main', ?)",
-            *pkg_id,
+            *dst_id,
             key_vec,
         )
         .execute(&mut secret_store.acquire().await?)
         .await?;
-        let icon_leaf = AsRef::<Path>::as_ref(&pkg_id)
+        let icon_leaf = AsRef::<Path>::as_ref(&dst_id)
             .join(info.version.as_str())
             .join("icon.png");
         let icon_src_path = recovery_source
             .as_ref()
             .join("root/agent/icons")
-            .join(format!("{}.png", pkg_id));
+            .join(format!("{}.png", src_id));
         let icon_dst_path = ctx.datadir.join(PKG_PUBLIC_DIR).join(&icon_leaf);
         if let Some(parent) = icon_dst_path.parent() {
             tokio::fs::create_dir_all(&parent)
@@ -553,7 +554,7 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
         let icon_url = Path::new("/public/package-data").join(&icon_leaf);
         crate::db::DatabaseModel::new()
             .recovered_packages()
-            .idx_model(&pkg_id)
+            .idx_model(&dst_id)
             .put(
                 &mut handle,
                 &RecoveredPackageInfo {
@@ -568,4 +569,12 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
     secret_store.close().await;
     recovery_source.unmount().await?;
     Ok(())
+}
+
+fn rename_pkg_id(src_pkg_id: PackageId) -> (PackageId, PackageId) {
+    if &*src_pkg_id == "bitwarden" {
+        (src_pkg_id, "vaultwarden".parse().unwrap())
+    } else {
+        (src_pkg_id.clone(), src_pkg_id)
+    }
 }
