@@ -228,7 +228,7 @@ export class WifiPage {
   private async connect (ssid: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: 'Connecting. This could take while...',
+      message: 'Connecting. This could take a while...',
       cssClass: 'loader',
     })
     await loader.present()
@@ -287,7 +287,7 @@ export class WifiPage {
   private async saveAndConnect (ssid: string, password: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: 'Connecting. This could take while...',
+      message: 'Connecting. This could take a while...',
       cssClass: 'loader',
     })
     await loader.present()

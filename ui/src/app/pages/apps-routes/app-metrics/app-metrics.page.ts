@@ -45,8 +45,9 @@ export class AppMetricsPage {
   async startDaemon (): Promise<void> {
     this.going = true
     while (this.going) {
+      const startTime = Date.now()
       await this.getMetrics()
-      await pauseFor(250)
+      await pauseFor(Math.max(4000 - (Date.now() - startTime), 0))
     }
   }
 
