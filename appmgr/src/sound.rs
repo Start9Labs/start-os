@@ -341,14 +341,14 @@ pub const CHIME: Song<[(Option<Note>, TimeSlice); 2]> = song!(400, [
     note(E, 6, Tie(&Dot(&Quarter), &Half));
 ]);
 
-pub const CHARGE: Song<[(Option<Note>, TimeSlice); 7]> = song!(120, [
-    note(G, 3, Triplet(&Eighth));
-    note(C, 4, Triplet(&Eighth));
-    note(E, 4, Triplet(&Eighth));
+pub const CHARGE: Song<[(Option<Note>, TimeSlice); 7]> = song!(128, [
     note(G, 4, Triplet(&Eighth));
+    note(C, 5, Triplet(&Eighth));
+    note(E, 5, Triplet(&Eighth));
+    note(G, 5, Triplet(&Eighth));
     rest(Triplet(&Eighth));
-    note(E, 4, Triplet(&Eighth));
-    note(G, 4, Whole);
+    note(E, 5, Triplet(&Eighth));
+    note(G, 5, Dot(&Half));
 ]);
 
 pub const SHUTDOWN: Song<[(Option<Note>, TimeSlice); 12]> = song!(120, [
