@@ -336,3 +336,13 @@ h2 {
     content: "...";
   }
 }
+
+@keyframes flickerAnimation {
+  0%   { opacity:1; }
+  20%  { opacity:0; }
+  60%  { opacity:0; }
+  100% { opacity:1; }
+}
+.fader {
+  animation: flickerAnimation 4s infinite;
+}
