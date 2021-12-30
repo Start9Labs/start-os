@@ -98,7 +98,7 @@
         <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeSm="12" sizeMd="6">
           <ion-item [routerLink]="['/marketplace', pkg.manifest.id]">
             <ion-thumbnail slot="start">
-              <img [src]="pkg.icon" />
+              <img [src]="'/marketplace' + pkg.icon" />
             </ion-thumbnail>
             <ion-label>
               <h2 style="font-family: 'Montserrat'; font-weight: bold;">{{ pkg.manifest.title }}</h2>
