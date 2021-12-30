@@ -1,3 +1,0 @@
-#!/bin/bash
-
-curl -k --header "Content-Type: application/json" --request POST --data '{"productKey":"abcdefgh","pubKey":"03df51984d6b8b8b1cc693e239491f77a36c9e9dfe4a486e9972a18e03610a0d22"}' https://localhost:5959/v0/register

@@ -1,3 +1,0 @@
-#!/bin/bash
-curl -k --header "Content-Type: application/json" --request POST --data '{"versionSpecification":">=0.0.0"}' https://localhost:5959/v0/update
-
