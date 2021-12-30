@@ -1,9 +1,0 @@
-[Unit]
-Description=restarter
-
-[Timer]
-OnUnitActiveSec=60s
-OnBootSec=60s
-
-[Install]
-WantedBy=timers.target
