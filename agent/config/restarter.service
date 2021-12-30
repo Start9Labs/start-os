@@ -1,7 +1,0 @@
-[Unit]
-Description=restarts dead containers
-Requires=docker.service
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/appmgr repair-app-status

@@ -1,5 +1,0 @@
-SOCKSPort 0.0.0.0:9050 # Default: Bind to localhost:9050 for local connections.
-HiddenServiceDir /var/lib/tor/agent/
-HiddenServicePort 5959 127.0.0.1:5959
-HiddenServicePort 80 127.0.0.1:80
-HiddenServicePort 443 127.0.0.1:443
