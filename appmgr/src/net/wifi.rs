@@ -17,10 +17,16 @@ use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind};
 
-#[command(subcommands(add, connect, delete, get, set_country, get_available))]
+#[command(subcommands(add, connect, delete, get, set_country, available))]
 pub async fn wifi() -> Result<(), Error> {
     Ok(())
 }
+
+#[command(subcommands(get_available))]
+pub async fn available() -> Result<(), Error> {
+    Ok(())
+}
+
 #[command(display(display_none))]
 #[instrument(skip(ctx))]
 pub async fn add(
@@ -300,7 +306,7 @@ pub async fn get(
     })
 }
 
-#[command(display(display_wifi_list))]
+#[command(rename = "get", display(display_wifi_list))]
 #[instrument(skip(ctx))]
 pub async fn get_available(
     #[context] ctx: RpcContext,
@@ -322,7 +328,6 @@ pub async fn get_available(
 }
 
 #[command(display(display_none))]
-#[instrument(skip(ctx))]
 pub async fn set_country(
     #[context] ctx: RpcContext,
     #[arg(parse(country_code_parse))] country: CountryCode,
