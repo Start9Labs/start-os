@@ -10,7 +10,7 @@ import {
   tap,
   withLatestFrom,
 } from 'rxjs/operators'
-import { pauseFor } from 'src/app/util/misc.util'
+import { isEmptyObject, pauseFor } from 'src/app/util/misc.util'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
 import { DataModel } from './data-model'
@@ -46,6 +46,10 @@ export class PatchDbService {
 
   getData () {
     return this.patchDb.store.cache.data
+  }
+
+  get loaded (): boolean {
+    return this.patchDb?.store?.cache?.data && !isEmptyObject(this.patchDb.store.cache.data)
   }
 
   constructor (
