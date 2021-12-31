@@ -58,7 +58,7 @@ export class WifiPage {
   }
 
   async getAvailableWifi (timeout?: number): Promise<void> {
-    this.availableWifi = await this.api.getAvailableWifi({ }, timeout)
+    this.availableWifi = (await this.api.getAvailableWifi({ }, timeout)).sort((a, b) => b.strength - a.strength)
   }
 
   async presentAlertCountry (): Promise<void> {
