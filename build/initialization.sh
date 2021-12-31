@@ -26,7 +26,8 @@ apt-get install -y \
 	ecryptfs-utils \
 	cifs-utils \
 	samba-common-bin \
-	ntp
+	ntp \
+	network-manager
 apt-get autoremove -y
 apt-get upgrade -y
 
