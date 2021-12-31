@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,11 +17,10 @@ use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind};
 
-#[command(subcommands(add, connect, delete, get, set_country))]
+#[command(subcommands(add, connect, delete, get, set_country, get_available))]
 pub async fn wifi() -> Result<(), Error> {
     Ok(())
 }
-
 #[command(display(display_none))]
 #[instrument(skip(ctx))]
 pub async fn add(
@@ -176,6 +175,13 @@ pub struct WiFiInfo {
     ethernet: bool,
     signal_strength: Option<usize>,
 }
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct WifiListInfo {
+    signal: u8,
+    security: Vec<String>,
+}
+pub type WifiList = HashMap<Ssid, WifiListInfo>;
 fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
     use prettytable::*;
 
@@ -224,6 +230,30 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
     table_ssids.print_tty(false);
 }
 
+fn display_wifi_list(info: WifiList, matches: &ArgMatches<'_>) {
+    use prettytable::*;
+
+    if matches.is_present("format") {
+        return display_serializable(info, matches);
+    }
+
+    let mut table_global = Table::new();
+    table_global.add_row(row![bc =>
+        "SSID",
+        "SIGNAL",
+        "SECURITY",
+    ]);
+    for (ssid, table_info) in info {
+        table_global.add_row(row![
+            &ssid.0,
+            &format!("{}", table_info.signal),
+            &format!("{}", table_info.security.join(" "))
+        ]);
+    }
+
+    table_global.print_tty(false);
+}
+
 #[command(display(display_wifi_info))]
 #[instrument(skip(ctx))]
 pub async fn get(
@@ -270,6 +300,27 @@ pub async fn get(
     })
 }
 
+#[command(display(display_wifi_list))]
+#[instrument(skip(ctx))]
+pub async fn get_available(
+    #[context] ctx: RpcContext,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
+) -> Result<WifiList, Error> {
+    let wpa_supplicant = ctx.wifi_manager.read().await;
+    let (wifi_list, network_list) = tokio::join!(
+        wpa_supplicant.list_wifi_low(),
+        wpa_supplicant.list_networks_low()
+    );
+    let network_list = network_list?;
+
+    Ok(wifi_list?
+        .into_iter()
+        .filter(|(ssid, _)| !network_list.contains_key(ssid))
+        .collect())
+}
+
 #[command(display(display_none))]
 #[instrument(skip(ctx))]
 pub async fn set_country(
@@ -288,42 +339,12 @@ pub struct WpaCli {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NetworkId(String);
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct Ssid(String);
 #[derive(Clone, Debug)]
 pub struct Psk(String);
-pub enum NetworkAttr {
-    Ssid(String),
-    Psk(String),
-    Priority(isize),
-    ScanSsid(bool),
-}
-impl NetworkAttr {
-    fn name(&self) -> &'static str {
-        use NetworkAttr::*;
-        match self {
-            Ssid(_) => "ssid",
-            Psk(_) => "psk",
-            Priority(_) => "priority",
-            ScanSsid(_) => "scan_ssid",
-        }
-    }
-    fn value(&self) -> String {
-        use NetworkAttr::*;
-        match self {
-            Ssid(s) => format!("\"{}\"", s),
-            Psk(s) => format!("\"{}\"", s),
-            Priority(n) => format!("{}", n),
-            ScanSsid(b) => {
-                if *b {
-                    String::from("1")
-                } else {
-                    String::from("0")
-                }
-            }
-        }
-    }
-}
 impl WpaCli {
     pub fn init(interface: String, datadir: PathBuf) -> Self {
         WpaCli { interface, datadir }
@@ -435,7 +456,7 @@ impl WpaCli {
                 let mut cs = dbg!(l).split(":");
                 let name = Ssid(cs.next()?.to_owned());
                 let uuid = NetworkId(cs.next()?.to_owned());
-                let connection_type = cs.next()?;
+                let _connection_type = cs.next()?;
                 let device = cs.next()?;
                 if device != &self.interface {
                     println!("Bad B");
@@ -444,6 +465,29 @@ impl WpaCli {
                 Some((name, uuid))
             })
             .collect::<BTreeMap<Ssid, NetworkId>>())
+    }
+
+    #[instrument]
+    pub async fn list_wifi_low(&self) -> Result<WifiList, Error> {
+        let r = Command::new("nmcli")
+            .arg("-g")
+            .arg("SSID,SIGNAL,security")
+            .arg("d")
+            .arg("wifi")
+            .arg("list")
+            .invoke(ErrorKind::Wifi)
+            .await?;
+        Ok(String::from_utf8(r)?
+            .lines()
+            .filter_map(|l| {
+                let mut values = dbg!(l).split(":");
+                let ssid = Ssid(values.next()?.to_owned());
+                let signal: u8 = std::str::FromStr::from_str(values.next()?).ok()?;
+                let security: Vec<String> =
+                    values.next()?.split(" ").map(|x| x.to_owned()).collect();
+                Some((ssid, WifiListInfo { signal, security }))
+            })
+            .collect::<WifiList>())
     }
     pub async fn select_network_low(&mut self, id: &NetworkId) -> Result<(), Error> {
         let _ = Command::new("nmcli")

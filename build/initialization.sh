@@ -61,5 +61,6 @@ EOF
 passwd -l ubuntu
 echo 'overlayroot="tmpfs":swap=1,recurse=0' > /etc/overlayroot.local.conf
 systemctl disable initialization.service
+sudo systemctl restart NetworkManager
 sync
 reboot
