@@ -9,8 +9,9 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import Fuse from 'fuse.js/dist/fuse.min.js'
-import { isEmptyObject } from 'src/app/util/misc.util'
+import { exists, isEmptyObject } from 'src/app/util/misc.util'
 import { Router } from '@angular/router'
+import { filter, first } from 'rxjs/operators'
 
 const defaultOps = {
   isCaseSensitive: false,
@@ -57,15 +58,18 @@ export class MarketplaceListPage {
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
-    private readonly patch: PatchDbService,
     private readonly alertCtrl: AlertController,
     private readonly router: Router,
+    public readonly patch: PatchDbService,
     public readonly marketplaceService: MarketplaceService,
   ) { }
 
   async ngOnInit () {
     this.subs = [
-      this.patch.watch$('package-data').subscribe(pkgs => {
+      this.patch.watch$('package-data')
+      .pipe(
+        filter((data) => exists(data) && !isEmptyObject(data)),
+      ).subscribe(pkgs => {
         this.localPkgs = pkgs
         Object.values(this.localPkgs).forEach(pkg => {
           pkg['install-progress'] = { ...pkg['install-progress'] }
@@ -76,23 +80,30 @@ export class MarketplaceListPage {
       }),
     ]
 
-    try {
-      if (!this.marketplaceService.pkgs.length) {
-        await this.marketplaceService.load()
+    this.patch.watch$('server-info')
+    .pipe(
+      filter((data) => exists(data) && !isEmptyObject(data)),
+      first(),
+    ).subscribe(async _ => {
+      try {
+        if (!this.marketplaceService.pkgs.length) {
+          await this.marketplaceService.load()
+        }
+
+        // category should start as first item in array
+        // remove here then add at beginning
+        const filterdCategories = this.marketplaceService.data.categories.filter(cat => this.category !== cat)
+        this.categories = [this.category, 'updates'].concat(filterdCategories).concat(['all'])
+
+        this.filterPkgs()
+
+      } catch (e) {
+        this.errToast.present(e)
+      } finally {
+        this.loading = false
       }
+    })
 
-      // category should start as first item in array
-      // remove here then add at beginning
-      const filterdCategories = this.marketplaceService.data.categories.filter(cat => this.category !== cat)
-      this.categories = [this.category, 'updates'].concat(filterdCategories).concat(['all'])
-
-      this.filterPkgs()
-
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      this.loading = false
-    }
   }
 
   ngAfterViewInit () {
