@@ -1,0 +1,51 @@
+# 0.3.0 Changelog
+
+- Websockets
+	- Real-time sync
+- Patch DB
+	- Closely mirror FE and BE state. Most operating systems are connected to their GUI. Here it is served over the web. Patch DB and websockets serve to close the perceptual gap of this inherent challenge.
+- Switch kernel from Raspbian to Ubuntu
+	- 64 bit
+	- Possibility for alternative hardware
+- Merging of lifeline, agent, and appmgr into embassyd
+	- Elimination of Haskell in favor of pure Rust
+	- Unified API for interacting with the OS
+	- Easier to build from source
+- OS (quarantined from OS and service data)
+	- Kernel/boot
+	- Persistent metadata (disk guid, product key)
+	- Rootfs (the os)
+	- Reserved (for updates) - swaps with rootfs
+- Revamped OS updates
+	- Progress indicators
+	- Non-blocking
+	- Simple swap on reboot
+- Revamped setup flow
+	- Elimination of Setup App (Apple/Google dependencies gone)
+	- Setup Wizard on http://embassy.local
+- Revamped service config
+	- Dynamic, validated forms
+- Diagnostic UI
+	- Missing disk, wrong disk, corrupt disk
+- Turing complete API for actions, backup/restore, config, properties, notifications, health checks, and dependency requirements
+- Optional, arbitrary inputs for actions
+- Install, update, recover progress for apps
+- Multiple interfaces
+	- E.g. rpc, p2p, ui
+- Health checks
+	- Developer defined
+	- Internal, dependencies, and/or external
+- Full Embassy backup (diff-based)
+- External drive support/requirement
+	- Single at first
+	- Groundwork for extension and mirror drives
+- Disk encryption
+	- Random key encrypted with static value
+	- Groundwork for swapping static value with chosen password
+- Session Management
+	- List all active sessions
+	- Option to kill
+- More robust and extensive logs
+- Donations
+
+
