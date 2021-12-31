@@ -105,6 +105,9 @@ export module RR {
   export type DeleteWifiReq = { ssid: string } // wifi.delete
   export type DeleteWifiRes = null
 
+  export type GetAvailableWifiReq = { }
+  export type GetAvailableWifiRes = AvailableWifi[] // wifi.available.get
+
   // ssh
 
   export type GetSSHKeysReq = { } // ssh.list
@@ -441,4 +444,10 @@ export interface BackupReport {
       error: string | null
     }
   }
+}
+
+export interface AvailableWifi {
+  ssid: string
+  strength: number
+  security: string []
 }

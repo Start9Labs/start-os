@@ -17,6 +17,7 @@ import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 export class WifiPage {
   loading = true
   wifi: RR.GetWifiRes = { } as any
+  availableWifi: RR.GetAvailableWifiRes = []
   countries = require('../../../util/countries.json') as { [key: string]: string }
 
   constructor (
@@ -31,7 +32,10 @@ export class WifiPage {
 
   async ngOnInit () {
     try {
-      await this.getWifi()
+      await Promise.all([
+        this.getWifi(),
+        this.getAvailableWifi(),
+      ])
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -39,11 +43,22 @@ export class WifiPage {
     }
   }
 
+  async getWifiData(timeout?: number) {
+    await Promise.all([
+      this.getWifi(timeout),
+      this.getAvailableWifi(timeout),
+    ])
+  }
+
   async getWifi (timeout?: number): Promise<void> {
     this.wifi = await this.api.getWifi({ }, timeout)
     if (!this.wifi.country) {
       await this.presentAlertCountry()
     }
+  }
+
+  async getAvailableWifi (timeout?: number): Promise<void> {
+    this.availableWifi = await this.api.getAvailableWifi({ }, timeout)
   }
 
   async presentAlertCountry (): Promise<void> {
@@ -77,7 +92,8 @@ export class WifiPage {
     await alert.present()
   }
 
-  async presentModalAdd () {
+  async presentModalAdd (ssid?: string, needsPW: boolean = true) {
+    const wifiSpec = getWifiValueSpec(ssid, needsPW)
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
       componentProps: {
@@ -171,7 +187,7 @@ export class WifiPage {
 
       try {
         const start = new Date().valueOf()
-        await this.getWifi(timeout)
+        await this.getWifiData(timeout)
         const end = new Date().valueOf()
         if (this.wifi.connected === ssid) {
           this.presentAlertSuccess(ssid)
@@ -276,7 +292,7 @@ export class WifiPage {
         priority: 0,
         connect: false,
       })
-      await this.getWifi()
+      await this.getWifiData()
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -310,25 +326,29 @@ export class WifiPage {
   }
 }
 
-const wifiSpec: ValueSpecObject = {
-  type: 'object',
-  name: 'WiFi Credentials',
-  description: 'Enter the network SSID and password. You can connect now or save the network for later.',
-  'unique-by': null,
-  spec: {
-    ssid: {
-      type: 'string',
-      name: 'Network SSID',
-      nullable: false,
-      masked: false,
-      copyable: false,
+function getWifiValueSpec (ssid?: string, needsPW: boolean = true): ValueSpecObject {
+  return {
+    type: 'object',
+    name: 'WiFi Credentials',
+    description: 'Enter the network SSID and password. You can connect now or save the network for later.',
+    'unique-by': null,
+    spec: {
+      ssid: {
+        type: 'string',
+        name: 'Network SSID',
+        nullable: false,
+        masked: false,
+        copyable: false,
+        default: ssid,
+      },
+      password: {
+        type: 'string',
+        name: 'Password',
+        nullable: !needsPW,
+        masked: true,
+        copyable: false,
+      },
     },
-    password: {
-      type: 'string',
-      name: 'Password',
-      nullable: false,
-      masked: true,
-      copyable: false,
-    },
-  },
+  }
 }
+

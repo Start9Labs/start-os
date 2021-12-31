@@ -989,6 +989,19 @@ export module Mock {
     'signal-strength': 50,
   }
 
+  export const AvailableWifi: RR.GetAvailableWifiRes = [
+    {
+      ssid: 'Goosers a billion',
+      strength: 40,
+      security: [],
+    },
+    {
+      ssid: 'Bill nye the wifi guy',
+      strength: 99,
+      security: ['1', '2', '3'],
+    },
+  ]
+
   export const BackupTargets: RR.GetBackupTargetsRes = {
     'hsbdjhasbasda': {
       type: 'cifs',
