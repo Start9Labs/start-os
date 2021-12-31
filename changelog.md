@@ -42,7 +42,9 @@
 - Disk encryption
 	- Random key encrypted with static value
 	- Groundwork for swapping static value with chosen password
-- Session-based auth
+- Session Management
+	- List all active sessions
+	- Option to kill
 - More robust and extensive logs
 - Donations
 
