@@ -187,6 +187,13 @@ pub struct WifiListInfo {
     strength: u8,
     security: Vec<String>,
 }
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct WifiListOut {
+    ssid: Ssid,
+    strength: u8,
+    security: Vec<String>,
+}
 pub type WifiList = HashMap<Ssid, WifiListInfo>;
 fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
     use prettytable::*;
@@ -236,7 +243,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
     table_ssids.print_tty(false);
 }
 
-fn display_wifi_list(info: WifiList, matches: &ArgMatches<'_>) {
+fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches<'_>) {
     use prettytable::*;
 
     if matches.is_present("format") {
@@ -249,9 +256,9 @@ fn display_wifi_list(info: WifiList, matches: &ArgMatches<'_>) {
         "STRENGTH",
         "SECURITY",
     ]);
-    for (ssid, table_info) in info {
+    for table_info in info {
         table_global.add_row(row![
-            &ssid.0,
+            &table_info.ssid.0,
             &format!("{}", table_info.strength),
             &format!("{}", table_info.security.join(" "))
         ]);
@@ -313,18 +320,25 @@ pub async fn get_available(
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
-) -> Result<WifiList, Error> {
+) -> Result<Vec<WifiListOut>, Error> {
     let wpa_supplicant = ctx.wifi_manager.read().await;
     let (wifi_list, network_list) = tokio::join!(
         wpa_supplicant.list_wifi_low(),
         wpa_supplicant.list_networks_low()
     );
     let network_list = network_list?;
-
-    Ok(wifi_list?
+    let mut wifi_list: Vec<WifiListOut> = wifi_list?
         .into_iter()
         .filter(|(ssid, _)| !network_list.contains_key(ssid))
-        .collect())
+        .map(|(ssid, info)| WifiListOut {
+            ssid,
+            strength: info.strength,
+            security: info.security,
+        })
+        .collect();
+    wifi_list.sort_by_key(|x| x.strength);
+    wifi_list.reverse();
+    Ok(wifi_list)
 }
 
 #[command(display(display_none))]
