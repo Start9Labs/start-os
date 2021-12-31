@@ -155,6 +155,10 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'wifi.get', params, timeout })
   }
 
+  async getAvailableWifi (params: RR.GetAvailableWifiReq, timeout?: number): Promise<RR.GetAvailableWifiRes> {
+    return this.http.rpcRequest({ method: 'wifi.available.get', params, timeout })
+  }
+
   async setWifiCountry (params: RR.SetWifiCountryReq): Promise<RR.SetWifiCountryRes> {
     return this.http.rpcRequest({ method: 'wifi.country.set', params })
   }

@@ -103,6 +103,8 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract getWifi (params: RR.GetWifiReq, timeout: number): Promise<RR.GetWifiRes>
 
+  abstract getAvailableWifi (params: RR.GetAvailableWifiReq, timeout: number): Promise<RR.GetAvailableWifiRes>
+
   abstract setWifiCountry (params: RR.SetWifiCountryReq): Promise<RR.SetWifiCountryRes>
 
   abstract addWifi (params: RR.AddWifiReq): Promise<RR.AddWifiRes>
