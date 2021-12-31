@@ -178,7 +178,7 @@ pub struct WiFiInfo {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct WifiListInfo {
-    signal: u8,
+    strength: u8,
     security: Vec<String>,
 }
 pub type WifiList = HashMap<Ssid, WifiListInfo>;
@@ -240,13 +240,13 @@ fn display_wifi_list(info: WifiList, matches: &ArgMatches<'_>) {
     let mut table_global = Table::new();
     table_global.add_row(row![bc =>
         "SSID",
-        "SIGNAL",
+        "STRENGTH",
         "SECURITY",
     ]);
     for (ssid, table_info) in info {
         table_global.add_row(row![
             &ssid.0,
-            &format!("{}", table_info.signal),
+            &format!("{}", table_info.strength),
             &format!("{}", table_info.security.join(" "))
         ]);
     }
@@ -485,7 +485,13 @@ impl WpaCli {
                 let signal: u8 = std::str::FromStr::from_str(values.next()?).ok()?;
                 let security: Vec<String> =
                     values.next()?.split(" ").map(|x| x.to_owned()).collect();
-                Some((ssid, WifiListInfo { signal, security }))
+                Some((
+                    ssid,
+                    WifiListInfo {
+                        strength: signal,
+                        security,
+                    },
+                ))
             })
             .collect::<WifiList>())
     }
