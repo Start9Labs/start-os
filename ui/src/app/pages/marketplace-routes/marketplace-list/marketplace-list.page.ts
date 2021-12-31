@@ -58,9 +58,9 @@ export class MarketplaceListPage {
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly wizardBaker: WizardBaker,
-    private readonly patch: PatchDbService,
     private readonly alertCtrl: AlertController,
     private readonly router: Router,
+    public readonly patch: PatchDbService,
     public readonly marketplaceService: MarketplaceService,
   ) { }
 

@@ -22,8 +22,8 @@ export class AppListPage {
 
   constructor (
     private readonly api: ApiService,
-    private readonly patch: PatchDbService,
     private readonly destroy$: DestroyService,
+    public readonly patch: PatchDbService,
   ) { }
 
   get empty (): boolean {
