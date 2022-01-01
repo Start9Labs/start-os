@@ -175,23 +175,22 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct WiFiInfo {
-    ssids: Vec<String>,
-    connected: Option<String>,
+    ssids: HashMap<Ssid, SignalStrength>,
+    connected: Option<Ssid>,
     country: CountryCode,
     ethernet: bool,
-    signal_strength: Option<usize>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct WifiListInfo {
-    strength: u8,
+    strength: SignalStrength,
     security: Vec<String>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct WifiListOut {
     ssid: Ssid,
-    strength: u8,
+    strength: SignalStrength,
     security: Vec<String>,
 }
 pub type WifiList = HashMap<Ssid, WifiListInfo>;
@@ -213,31 +212,31 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
         &info
             .connected
             .as_ref()
-            .map_or("[N/A]".to_owned(), |c| format!("{}", c)),
+            .map_or("[N/A]".to_owned(), |c| format!("{}", c.0)),
         &info
-            .signal_strength
+            .connected
             .as_ref()
-            .map_or("[N/A]".to_owned(), |ss| format!("{}", ss)),
+            .and_then(|x| info.ssids.get(x))
+            .map_or("[N/A]".to_owned(), |ss| format!("{}", ss.0)),
         &format!("{}", info.country.alpha2()),
         &format!("{}", info.ethernet)
     ]);
     table_global.print_tty(false);
 
     let mut table_ssids = Table::new();
-    table_ssids.add_row(row![bc => "SSID",]);
-    for ssid in &info.ssids {
-        let mut row = row![ssid];
-        if Some(ssid) == info.connected.as_ref() {
-            row.iter_mut()
-                .map(|c| {
-                    c.style(Attr::ForegroundColor(match &info.signal_strength {
-                        Some(100) => color::GREEN,
-                        Some(0) => color::RED,
-                        _ => color::YELLOW,
-                    }))
-                })
-                .collect::<()>()
-        }
+    table_ssids.add_row(row![bc => "SSID", "STRENGTH"]);
+    for (ssid, signal_strength) in &info.ssids {
+        let mut row = row![&ssid.0, format!("{}", signal_strength.0)];
+        row.iter_mut()
+            .map(|c| {
+                c.style(Attr::ForegroundColor(match &signal_strength.0 {
+                    x if x >= &90 => color::GREEN,
+                    x if x == &50 => color::MAGENTA,
+                    x if x == &0 => color::RED,
+                    _ => color::YELLOW,
+                }))
+            })
+            .for_each(drop);
         table_ssids.add_row(row);
     }
     table_ssids.print_tty(false);
@@ -259,7 +258,7 @@ fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches<'_>) {
     for table_info in info {
         table_global.add_row(row![
             &table_info.ssid.0,
-            &format!("{}", table_info.strength),
+            &format!("{}", table_info.strength.0),
             &format!("{}", table_info.security.join(" "))
         ]);
     }
@@ -276,40 +275,30 @@ pub async fn get(
     format: Option<IoFormat>,
 ) -> Result<WiFiInfo, Error> {
     let wpa_supplicant = ctx.wifi_manager.read().await;
-    let ssids_task = async {
-        Result::<Vec<String>, Error>::Ok(
-            wpa_supplicant
-                .list_networks_low()
-                .await?
-                .into_keys()
-                .map(|x| x.0)
-                .collect::<Vec<String>>(),
-        )
-    };
-    let current_task = wpa_supplicant.get_current_network();
-    let country_task = wpa_supplicant.get_country_low();
-    let ethernet_task = interface_connected("eth0"); // TODO: pull from config
-    let rssi_task = wpa_supplicant.signal_poll_low();
-    let (ssids_res, current_res, country_res, ethernet_res, rssi_res) = tokio::join!(
-        ssids_task,
-        current_task,
-        country_task,
-        ethernet_task,
-        rssi_task
+    let (list_networks, current_res, country_res, ethernet_res, signal_strengths) = tokio::join!(
+        wpa_supplicant.list_networks_low(),
+        wpa_supplicant.get_current_network(),
+        wpa_supplicant.get_country_low(),
+        interface_connected("eth0"), // TODO: pull from config
+        wpa_supplicant.list_wifi_low()
     );
+    let signal_strengths = signal_strengths?;
+    let ssids: HashMap<Ssid, SignalStrength> = list_networks?
+        .into_keys()
+        .map(|x| {
+            let signal_strength = signal_strengths
+                .get(&x)
+                .map(|x| x.strength)
+                .unwrap_or_default();
+            (x, signal_strength)
+        })
+        .collect();
     let current = current_res?;
-    let signal_strength = match rssi_res? {
-        None => None,
-        Some(x) if x <= -100 => Some(0 as usize),
-        Some(x) if x >= -50 => Some(100 as usize),
-        Some(x) => Some(2 * (x + 100) as usize),
-    };
     Ok(WiFiInfo {
-        ssids: ssids_res?,
-        connected: current.map(|x| x.0),
+        ssids,
+        connected: current.map(|x| x),
         country: country_res?,
         ethernet: ethernet_res?,
-        signal_strength,
     })
 }
 
@@ -362,6 +351,29 @@ pub struct NetworkId(String);
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
 pub struct Ssid(String);
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
+pub struct SignalStrength(u8);
+
+impl SignalStrength {
+    fn new(size: Option<u8>) -> Self {
+        let size = match size {
+            None => return Self(0),
+            Some(x) => x,
+        };
+        if size >= 100 {
+            return Self(100);
+        }
+        Self(size)
+    }
+}
+
+impl Default for SignalStrength {
+    fn default() -> Self {
+        Self(0)
+    }
+}
 #[derive(Clone, Debug)]
 pub struct Psk(String);
 impl WpaCli {
@@ -501,7 +513,7 @@ impl WpaCli {
             .filter_map(|l| {
                 let mut values = dbg!(l).split(":");
                 let ssid = Ssid(values.next()?.to_owned());
-                let signal: u8 = std::str::FromStr::from_str(values.next()?).ok()?;
+                let signal = SignalStrength::new(std::str::FromStr::from_str(values.next()?).ok());
                 let security: Vec<String> =
                     values.next()?.split(" ").map(|x| x.to_owned()).collect();
                 Some((
@@ -534,29 +546,6 @@ impl WpaCli {
     //         .await?;
     //     Ok(())
     // }
-    #[instrument]
-    pub async fn signal_poll_low(&self) -> Result<Option<isize>, Error> {
-        let r = Command::new("wpa_cli")
-            .arg("-i")
-            .arg(&self.interface)
-            .arg("signal_poll")
-            .invoke(ErrorKind::Wifi)
-            .await?;
-        let e = || {
-            Error::new(
-                color_eyre::eyre::eyre!("Invalid output from wpa_cli signal_poll"),
-                ErrorKind::Wifi,
-            )
-        };
-        let output = String::from_utf8(r)?;
-        Ok(if output.trim() == "FAIL" {
-            None
-        } else {
-            let l = output.lines().next().ok_or_else(e)?;
-            let rssi = l.split("=").nth(1).ok_or_else(e)?.parse()?;
-            Some(rssi)
-        })
-    }
 
     // // High Level
     // pub async fn save_config(&mut self) -> Result<(), Error> {
