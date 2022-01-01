@@ -492,10 +492,6 @@ impl WpaCli {
                 let uuid = NetworkId(cs.next()?.to_owned());
                 let _connection_type = cs.next()?;
                 let device = cs.next()?;
-                if device != &self.interface {
-                    println!("Bad B");
-                    return None;
-                }
                 Some((name, uuid))
             })
             .collect::<BTreeMap<Ssid, NetworkId>>())
