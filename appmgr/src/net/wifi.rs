@@ -347,10 +347,13 @@ pub struct WpaCli {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NetworkId(String);
 
+/// Ssid are the names of the wifis, usually human readable.
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
 pub struct Ssid(String);
+
+/// So a signal strength is a number between 0-100, I want the null option to be 0 since there is no signal
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
