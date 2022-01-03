@@ -179,8 +179,9 @@ pub struct WiFiInfo {
     connected: Option<Ssid>,
     country: CountryCode,
     ethernet: bool,
+    available_wifi: Vec<WifiListOut>,
 }
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct WifiListInfo {
     strength: SignalStrength,
@@ -240,6 +241,22 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
         table_ssids.add_row(row);
     }
     table_ssids.print_tty(false);
+
+    let mut table_global = Table::new();
+    table_global.add_row(row![bc =>
+        "SSID",
+        "STRENGTH",
+        "SECURITY",
+    ]);
+    for table_info in info.available_wifi {
+        table_global.add_row(row![
+            &table_info.ssid.0,
+            &format!("{}", table_info.strength.0),
+            &format!("{}", table_info.security.join(" "))
+        ]);
+    }
+
+    table_global.print_tty(false);
 }
 
 fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches<'_>) {
@@ -283,7 +300,23 @@ pub async fn get(
         wpa_supplicant.list_wifi_low()
     );
     let signal_strengths = signal_strengths?;
-    let ssids: HashMap<Ssid, SignalStrength> = list_networks?
+    let list_networks = list_networks?;
+    let available_wifi = {
+        let mut wifi_list: Vec<WifiListOut> = signal_strengths
+            .clone()
+            .into_iter()
+            .filter(|(ssid, _)| !list_networks.contains_key(ssid))
+            .map(|(ssid, info)| WifiListOut {
+                ssid,
+                strength: info.strength,
+                security: info.security,
+            })
+            .collect();
+        wifi_list.sort_by_key(|x| x.strength);
+        wifi_list.reverse();
+        wifi_list
+    };
+    let ssids: HashMap<Ssid, SignalStrength> = list_networks
         .into_keys()
         .map(|x| {
             let signal_strength = signal_strengths
@@ -299,6 +332,7 @@ pub async fn get(
         connected: current.map(|x| x),
         country: country_res?,
         ethernet: ethernet_res?,
+        available_wifi,
     })
 }
 
