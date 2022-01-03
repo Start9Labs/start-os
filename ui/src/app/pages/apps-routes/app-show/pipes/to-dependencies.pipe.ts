@@ -33,7 +33,6 @@ export class ToDependenciesPipe implements PipeTransform {
   ) {}
 
   transform(pkg: PackageDataEntry): Observable<DependencyInfo[]> {
-    console.log('TRANSFORMING TRANSFORMING')
     return combineLatest([
       this.patch.watch$(
         'package-data',
