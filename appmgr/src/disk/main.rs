@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use color_eyre::eyre::eyre;
 use tokio::process::Command;
 use tracing::instrument;
 
+use super::util::pvscan;
 use crate::disk::mount::filesystem::block_dev::mount;
 use crate::disk::mount::util::unmount;
 use crate::util::Invoke;
@@ -12,8 +14,6 @@ use crate::{Error, ResultExt};
 pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
 pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
-
-// TODO: use IncorrectDisk / DiskNotAvailable / DiskCorrupted
 
 #[instrument(skip(disks, datadir, password))]
 pub async fn create<I, P>(
@@ -195,6 +195,29 @@ pub async fn export<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error>
 
 #[instrument(skip(datadir, password))]
 pub async fn import<P: AsRef<Path>>(guid: &str, datadir: P, password: &str) -> Result<(), Error> {
+    let scan = pvscan().await?;
+    if scan
+        .values()
+        .filter_map(|a| a.as_ref())
+        .filter(|a| a.starts_with("EMBASSY_"))
+        .next()
+        .is_none()
+    {
+        return Err(Error::new(
+            eyre!("Embassy disk not found."),
+            crate::ErrorKind::DiskNotAvailable,
+        ));
+    }
+    if !scan
+        .values()
+        .filter_map(|a| a.as_ref())
+        .any(|id| id == guid)
+    {
+        return Err(Error::new(
+            eyre!("An Embassy disk was found, but it is not the correct disk for this device."),
+            crate::ErrorKind::IncorrectDisk,
+        ));
+    }
     match Command::new("vgimport")
         .arg(guid)
         .invoke(crate::ErrorKind::DiskManagement)
