@@ -32,6 +32,7 @@ export class AppShowPage {
 
   readonly pkg$ = this.patch.watch$('package-data', this.pkgId).pipe(
     map(pkg => {
+      console.log('PKG PKG', pkg)
       // if package disappears, navigate to list page
       if (!pkg) {
         this.navCtrl.navigateRoot('/services')
@@ -67,6 +68,7 @@ export class AppShowPage {
   }
 
   showProgress({ state }: PackageDataEntry): boolean {
+    console.log('state:', state)
     return STATES.includes(state)
   }
 }
