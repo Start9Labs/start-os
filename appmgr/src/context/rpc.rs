@@ -309,7 +309,7 @@ impl RpcContext {
                     .idx_model(&package_id)
                     .get_mut(&mut db)
                     .await?;
-                match pde.as_ref_mut().ok_or_else(|| {
+                match pde.as_mut().ok_or_else(|| {
                     Error::new(
                         eyre!("Node does not exist: /package-data/{}", package_id),
                         crate::ErrorKind::Database,
@@ -332,7 +332,7 @@ impl RpcContext {
                         ..
                     } => {
                         let new_main = match std::mem::replace(
-                            &mut main,
+                            main,
                             MainStatus::Stopped, /* placeholder */
                         ) {
                             MainStatus::BackingUp { started, health } => {
