@@ -332,7 +332,7 @@ impl RpcContext {
                         ..
                     } => {
                         let new_main = match std::mem::replace(
-                            main,
+                            &mut main,
                             MainStatus::Stopped, /* placeholder */
                         ) {
                             MainStatus::BackingUp { started, health } => {
