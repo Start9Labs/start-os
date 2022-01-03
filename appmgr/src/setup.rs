@@ -381,6 +381,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                 let src_path = e.path();
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
+                    let len = m.len();
                     tokio::fs::copy(&src_path, &dst_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
@@ -403,7 +404,7 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                             format!("chown {}", dst_path.display()),
                         )
                     })?;
-                    ctr.fetch_add(m.len(), Ordering::Relaxed);
+                    ctr.fetch_add(len, Ordering::Relaxed);
                 } else if m.is_dir() {
                     tokio::fs::create_dir_all(&dst_path).await.with_ctx(|_| {
                         (
