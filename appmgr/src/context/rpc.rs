@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
+use color_eyre::eyre::eyre;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, PatchDb, Revision};
 use reqwest::Url;
@@ -306,11 +307,14 @@ impl RpcContext {
                 let mut pde = crate::db::DatabaseModel::new()
                     .package_data()
                     .idx_model(&package_id)
-                    .expect(&mut db)
-                    .await?
                     .get_mut(&mut db)
                     .await?;
-                match &mut *pde {
+                match pde.as_mut().ok_or_else(|| {
+                    Error::new(
+                        eyre!("Node does not exist: /package-data/{}", package_id),
+                        crate::ErrorKind::Database,
+                    )
+                })? {
                     PackageDataEntry::Installing { .. }
                     | PackageDataEntry::Restoring { .. }
                     | PackageDataEntry::Updating { .. } => {
