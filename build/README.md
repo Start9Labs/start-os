@@ -48,9 +48,6 @@ Flash the resulting `eos.img` to your SD Card (16GB required, any larger is neit
 
 We recommend [Balena Etcher](https://www.balena.io/etcher/)
 
-Note: The latest version of Balena may not flash `eos.img` properly. Version 1.5.122 should work properly if you are having issues with the latest version of Balena.
-https://github.com/balena-io/etcher/releases/tag/v1.5.122
-
 ## Setup
 
 Visit http://embassy.local from any web browser
