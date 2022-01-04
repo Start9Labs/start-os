@@ -373,7 +373,38 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
     ctr: &'a AtomicU64,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
+        let m = tokio::fs::metadata(&src).await?;
         let dst_path = dst.as_ref();
+        tokio::fs::create_dir_all(&dst_path).await.with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                format!("mkdir {}", dst_path.display()),
+            )
+        })?;
+        tokio::fs::set_permissions(&dst_path, m.permissions())
+            .await
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    format!("chmod {}", dst_path.display()),
+                )
+            })?;
+        let tmp_dst_path = dst_path.to_owned();
+        tokio::task::spawn_blocking(move || {
+            nix::unistd::chown(
+                &tmp_dst_path,
+                Some(Uid::from_raw(m.uid())),
+                Some(Gid::from_raw(m.gid())),
+            )
+        })
+        .await
+        .with_kind(crate::ErrorKind::Unknown)?
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                format!("chown {}", dst_path.display()),
+            )
+        })?;
         tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(src.as_ref()).await?)
             .map_err(|e| Error::new(e, crate::ErrorKind::Filesystem))
             .try_for_each(|e| async move {
@@ -406,36 +437,6 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                     })?;
                     ctr.fetch_add(len, Ordering::Relaxed);
                 } else if m.is_dir() {
-                    tokio::fs::create_dir_all(&dst_path).await.with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            format!("mkdir {}", dst_path.display()),
-                        )
-                    })?;
-                    tokio::fs::set_permissions(&dst_path, m.permissions())
-                        .await
-                        .with_ctx(|_| {
-                            (
-                                crate::ErrorKind::Filesystem,
-                                format!("chmod {}", dst_path.display()),
-                            )
-                        })?;
-                    let tmp_dst_path = dst_path.clone();
-                    tokio::task::spawn_blocking(move || {
-                        nix::unistd::chown(
-                            &tmp_dst_path,
-                            Some(Uid::from_raw(m.uid())),
-                            Some(Gid::from_raw(m.gid())),
-                        )
-                    })
-                    .await
-                    .with_kind(crate::ErrorKind::Unknown)?
-                    .with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            format!("chown {}", dst_path.display()),
-                        )
-                    })?;
                     dir_copy(src_path, dst_path, ctr).await?;
                 } else if m.file_type().is_symlink() {
                     tokio::fs::symlink(
@@ -508,17 +509,9 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
     let bytes_transferred = AtomicU64::new(0);
     let volume_id = VolumeId::Custom(Id::try_from("main".to_owned())?);
     for (pkg_id, info) in packages {
-        let volume_src_path = volume_path.join(&pkg_id);
         let (src_id, dst_id) = rename_pkg_id(pkg_id);
+        let volume_src_path = volume_path.join(&src_id);
         let volume_dst_path = data_dir(&ctx.datadir, &dst_id, &volume_id);
-        tokio::fs::create_dir_all(&volume_dst_path)
-            .await
-            .with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    volume_dst_path.display().to_string(),
-                )
-            })?;
         tokio::select!(
             res = dir_copy(
                 &volume_src_path,
