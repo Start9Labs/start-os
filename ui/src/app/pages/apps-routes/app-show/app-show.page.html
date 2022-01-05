@@ -1,14 +1,5 @@
 <ng-container *ngIf="pkg$ | async as pkg">
   <app-show-header [pkg]="pkg"></app-show-header>
-  
-  <!-- ** installing, updating, restoring ** -->
-  <ion-content *ngIf="showProgress(pkg)">
-    <app-show-progress
-      *ngIf="pkg['install-progress'] | installState as installProgress"
-      [pkg]="pkg"
-      [installProgress]="installProgress"
-    ></app-show-progress>
-  </ion-content>
 
   <ion-content *ngIf="pkg | toDependencies | async as dependencies">
     <ion-item-group *ngIf="pkg | toStatus as status">
@@ -36,6 +27,14 @@
         <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
       </ng-container>
     </ion-item-group>
-
+    
+    <!-- ** installing, updating, restoring ** -->
+    <ion-content *ngIf="showProgress(pkg)">
+      <app-show-progress
+        *ngIf="pkg['install-progress'] | installState as installProgress"
+        [pkg]="pkg"
+        [installProgress]="installProgress"
+      ></app-show-progress>
+    </ion-content>
   </ion-content>
 </ng-container>
