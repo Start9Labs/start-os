@@ -1,7 +1,7 @@
 use clap::ArgMatches;
 use rpc_toolkit::command;
 
-use self::util::DiskInfo;
+use self::util::DiskListResponse;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::Error;
 
@@ -17,7 +17,7 @@ pub fn disk() -> Result<(), Error> {
     Ok(())
 }
 
-fn display_disk_info(info: Vec<DiskInfo>, matches: &ArgMatches<'_>) {
+fn display_disk_info(info: DiskListResponse, matches: &ArgMatches<'_>) {
     use prettytable::*;
 
     if matches.is_present("format") {
@@ -32,7 +32,7 @@ fn display_disk_info(info: Vec<DiskInfo>, matches: &ArgMatches<'_>) {
         "USED",
         "EMBASSY OS VERSION"
     ]);
-    for disk in info {
+    for disk in info.disks {
         let row = row![
             disk.logicalname.display(),
             "N/A",
@@ -76,6 +76,6 @@ pub async fn list(
     #[allow(unused_variables)]
     #[arg]
     format: Option<IoFormat>,
-) -> Result<Vec<DiskInfo>, Error> {
+) -> Result<DiskListResponse, Error> {
     crate::disk::util::list().await
 }
