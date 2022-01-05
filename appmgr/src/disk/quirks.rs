@@ -1,6 +1,5 @@
 use std::num::ParseIntError;
 use std::path::Path;
-use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use tokio::io::AsyncWriteExt;
@@ -91,8 +90,9 @@ impl std::str::FromStr for Quirks {
 }
 
 #[instrument]
-pub async fn update_quirks(quirks: &mut Quirks) -> Result<(), Error> {
+pub async fn update_quirks(quirks: &mut Quirks) -> Result<Vec<String>, Error> {
     let mut usb_devices = tokio::fs::read_dir("/sys/bus/usb/devices/").await?;
+    let mut to_reconnect = Vec::new();
     while let Some(usb_device) = usb_devices.next_entry().await? {
         if tokio::fs::metadata(usb_device.path().join("idVendor"))
             .await
@@ -116,26 +116,25 @@ pub async fn update_quirks(quirks: &mut Quirks) -> Result<(), Error> {
             quirk_file.write_all(quirks.to_string().as_bytes()).await?;
             quirk_file.sync_all().await?;
             drop(quirk_file);
-            tokio::time::sleep(Duration::from_secs(2)).await;
         }
 
-        reconnect_usb(usb_device.path()).await?;
+        disconnect_usb(usb_device.path()).await?;
+        let (vendor_name, product_name) = tokio::try_join!(
+            tokio::fs::read_to_string(usb_device.path().join("manufacturer")),
+            tokio::fs::read_to_string(usb_device.path().join("product")),
+        )?;
+        to_reconnect.push(format!("{} {}", vendor_name, product_name));
     }
-    Ok(())
+    Ok(to_reconnect)
 }
 
 #[instrument(skip(usb_device_path))]
-pub async fn reconnect_usb(usb_device_path: impl AsRef<Path>) -> Result<(), Error> {
-    let authorized_path = usb_device_path.as_ref().join("authorized");
+pub async fn disconnect_usb(usb_device_path: impl AsRef<Path>) -> Result<(), Error> {
+    let authorized_path = usb_device_path.as_ref().join("bConfigurationValue");
     let mut authorized_file = tokio::fs::File::create(&authorized_path).await?;
     authorized_file.write_all(b"0").await?;
     authorized_file.sync_all().await?;
     drop(authorized_file);
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    let mut authorized_file = tokio::fs::File::create(&authorized_path).await?;
-    authorized_file.write_all(b"1").await?;
-    authorized_file.sync_all().await?;
-    tokio::time::sleep(Duration::from_secs(2)).await;
     Ok(())
 }
 

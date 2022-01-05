@@ -26,6 +26,13 @@ use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
+pub struct DiskListResponse {
+    pub disks: Vec<DiskInfo>,
+    pub reconnect: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct DiskInfo {
     pub logicalname: PathBuf,
     pub vendor: Option<String>,
@@ -232,9 +239,9 @@ pub async fn recovery_info(
 }
 
 #[instrument]
-pub async fn list() -> Result<Vec<DiskInfo>, Error> {
+pub async fn list() -> Result<DiskListResponse, Error> {
     let mut quirks = fetch_quirks().await?;
-    update_quirks(&mut quirks).await?;
+    let reconnect = update_quirks(&mut quirks).await?;
     save_quirks(&mut quirks).await?;
     let disk_guids = pvscan().await?;
     let disks = tokio_stream::wrappers::ReadDirStream::new(
@@ -366,7 +373,10 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
         })
     }
 
-    Ok(res)
+    Ok(DiskListResponse {
+        disks: res,
+        reconnect,
+    })
 }
 
 fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>> {
