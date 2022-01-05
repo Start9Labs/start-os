@@ -53,3 +53,20 @@ We recommend [Balena Etcher](https://www.balena.io/etcher/)
 Visit http://embassy.local from any web browser
 
 We recommend [Firefox](https://www.mozilla.org/firefox/browsers)
+
+## Troubleshooting
+
+1. I just flashed my SD card, fired up my Embassy, bootup sounds and all, but my browser is saying "Unable to connect" with embassy.local.
+
+- Try doing a hard refresh on your browser, or opening the url in a private/incognito window. If you've ran an instance 
+  of Embassy before, sometimes you can have a stale cache that will block you from navigating to the page.
+
+2. Flashing the image isn't working with balenaEtcher. I'm getting `Cannot read property 'message' of null` when I try.
+- The latest versions of Balena may not flash properly. This version here: https://github.com/balena-io/etcher/releases/tag/v1.5.122 should work properly.
+
+3. Startup isn't working properly and I'm curious as to why. How can I view logs regarding startup for debugging? 
+- During the Build step, instead of running just `make` run `ENVIRONMENT=dev make`. Flash like normal, and insert into your Embassy. Boot up your Embassy, and on another computer
+on the same network, ssh into the Embassy with the username/password `ubuntu`.  After logging in and changing the password, run `journalctl -u initialization.service -ef` to view the start up logs.
+
+4. I need to reset my password, how can I do that?
+- At the time of writing, there is no way to do that in 0.3.0 cleanly. You'll need to reflash your device unfortunately.
