@@ -28,7 +28,7 @@ use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
+use crate::disk::util::{pvscan, recovery_info, DiskInfo, DiskListResponse, EmbassyOsRecoveryInfo};
 use crate::hostname::PRODUCT_KEY_PATH;
 use crate::id::Id;
 use crate::init::init;
@@ -82,7 +82,7 @@ pub fn disk() -> Result<(), Error> {
 }
 
 #[command(rename = "list", rpc_only, metadata(authenticated = false))]
-pub async fn list_disks() -> Result<Vec<DiskInfo>, Error> {
+pub async fn list_disks() -> Result<DiskListResponse, Error> {
     crate::disk::list(None).await
 }
 
