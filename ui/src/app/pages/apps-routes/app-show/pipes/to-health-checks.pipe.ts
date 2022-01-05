@@ -27,13 +27,13 @@ export class ToHealthChecksPipe implements PipeTransform {
       .watch$('package-data', pkg.manifest.id, 'installed', 'status', 'main')
       .pipe(
         filter(obj => exists(obj)),
-        map(main =>
+        map(main => {
           // Question: is this ok or do we have to use Object.keys
           // to maintain order and the keys initially present in pkg?
-          main.status === PackageMainStatus.Running
+          return main.status === PackageMainStatus.Running && !isEmptyObject(main.health)
             ? main.health
-            : healthChecks,
-        ),
+            : healthChecks
+        }),
         startWith(healthChecks),
       )
 

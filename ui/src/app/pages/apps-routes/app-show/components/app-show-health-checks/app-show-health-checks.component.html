@@ -1,78 +1,80 @@
 <ng-container
   *ngIf="pkg | toHealthChecks | async | keyvalue: asIsOrder as checks"
 >
-  <ion-item-divider>Health Checks</ion-item-divider>
-  <ng-container *ngIf="connectionFailure; else connected">
-    <ion-item *ngFor="let health of checks">
-      <ion-avatar slot="start">
-        <ion-skeleton-text class="avatar"></ion-skeleton-text>
-      </ion-avatar>
-      <ion-label>
-        <ion-skeleton-text class="label"></ion-skeleton-text>
-        <ion-skeleton-text class="description"></ion-skeleton-text>
-      </ion-label>
-    </ion-item>
+  <ng-container *ngIf="checks.length">
+    <ion-item-divider>Health Checks</ion-item-divider>
+    <ng-container *ngIf="connectionFailure; else connected">
+      <ion-item *ngFor="let health of checks">
+        <ion-avatar slot="start">
+          <ion-skeleton-text class="avatar"></ion-skeleton-text>
+        </ion-avatar>
+        <ion-label>
+          <ion-skeleton-text class="label"></ion-skeleton-text>
+          <ion-skeleton-text class="description"></ion-skeleton-text>
+        </ion-label>
+      </ion-item>
+    </ng-container>
+    <ng-template #connected>
+      <ion-item
+        *ngFor="let health of checks"
+        button
+        (click)="presentAlertDescription(health.key)"
+      >
+        <ng-container *ngIf="health.value?.result as result; else noResult">
+          <ion-spinner
+            *ngIf="isLoading(result)"
+            class="icon-spinner"
+            color="primary"
+            slot="start"
+          ></ion-spinner>
+          <ion-icon
+            *ngIf="result === HealthResult.Success"
+            slot="start"
+            name="checkmark"
+            color="success"
+          ></ion-icon>
+          <ion-icon
+            *ngIf="result === HealthResult.Failure"
+            slot="start"
+            name="warning-outline"
+            color="warning"
+          ></ion-icon>
+          <ion-icon
+            *ngIf="result === HealthResult.Disabled"
+            slot="start"
+            name="remove"
+            color="dark"
+          ></ion-icon>
+          <ion-label>
+            <h2 class="bold">
+              {{ pkg.manifest['health-checks'][health.key].name }}
+            </h2>
+            <ion-text [color]="result | healthColor">
+              <p>
+                <span *ngIf="isReady(result)">{{ result | titlecase }}</span>
+                <span *ngIf="result === HealthResult.Starting">...</span>
+                <span *ngIf="result === HealthResult.Failure">
+                  {{ $any(health.value).error }}
+                </span>
+                <span *ngIf="result === HealthResult.Loading">
+                  {{ $any(health.value).message }}
+                </span>
+              </p>
+            </ion-text>
+          </ion-label>
+        </ng-container>
+        <ng-template #noResult>
+          <ion-spinner
+            class="icon-spinner"
+            color="dark"
+            slot="start"
+          ></ion-spinner>
+          <ion-label>
+            <h2 class="bold">{{ health.key }}</h2>
+            <p>Awaiting result...</p>
+          </ion-label>
+        </ng-template>
+      </ion-item>
+    </ng-template>
   </ng-container>
-  <ng-template #connected>
-    <ion-item
-      *ngFor="let health of checks"
-      button
-      (click)="presentAlertDescription(health.key)"
-    >
-      <ng-container *ngIf="health.value?.result as result; else noResult">
-        <ion-spinner
-          *ngIf="isLoading(result)"
-          class="icon-spinner"
-          color="primary"
-          slot="start"
-        ></ion-spinner>
-        <ion-icon
-          *ngIf="result === HealthResult.Success"
-          slot="start"
-          name="checkmark"
-          color="success"
-        ></ion-icon>
-        <ion-icon
-          *ngIf="result === HealthResult.Failure"
-          slot="start"
-          name="warning-outline"
-          color="warning"
-        ></ion-icon>
-        <ion-icon
-          *ngIf="result === HealthResult.Disabled"
-          slot="start"
-          name="remove"
-          color="dark"
-        ></ion-icon>
-        <ion-label>
-          <h2 class="bold">
-            {{ pkg.manifest['health-checks'][health.key].name }}
-          </h2>
-          <ion-text [color]="result | healthColor">
-            <p>
-              <span *ngIf="isReady(result)">{{ result | titlecase }}</span>
-              <span *ngIf="result === HealthResult.Starting">...</span>
-              <span *ngIf="result === HealthResult.Failure">
-                {{ $any(health.value).error }}
-              </span>
-              <span *ngIf="result === HealthResult.Loading">
-                {{ $any(health.value).message }}
-              </span>
-            </p>
-          </ion-text>
-        </ion-label>
-      </ng-container>
-      <ng-template #noResult>
-        <ion-spinner
-          class="icon-spinner"
-          color="dark"
-          slot="start"
-        ></ion-spinner>
-        <ion-label>
-          <h2 class="bold">{{ health.key }}</h2>
-          <p>Awaiting result...</p>
-        </ion-label>
-      </ng-template>
-    </ion-item>
-  </ng-template>
 </ng-container>
