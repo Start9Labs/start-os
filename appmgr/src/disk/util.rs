@@ -376,8 +376,11 @@ fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>>
             terminated(take_till1(|c| is_space(c as u8)), multispace1),
         );
         let vg_parse = preceded(
-            tag("VG "),
-            terminated(take_till1(|c| is_space(c as u8)), multispace1),
+            opt(tag("is in exported ")),
+            preceded(
+                tag("VG "),
+                terminated(take_till1(|c| is_space(c as u8)), multispace1),
+            ),
         );
         let mut parser = terminated(pair(pv_parse, opt(vg_parse)), rest);
         parser(line)
@@ -411,7 +414,11 @@ fn test_pvscan_parser() {
     let s3 = r#"  PV /dev/mapper/cryptdata   VG data            lvm2 [1.81 TiB / 0    free]
   Total: 1 [1.81 TiB] / in use: 1 [1.81 TiB] / in no VG: 0 [0   ]
 "#;
+    let s4 = r#"  PV /dev/sda    is in exported VG EMBASSY_ZFHOCTYV3ZJMJW3OTFMG55LSQZLP667EDNZKDNUJKPJX5HE6S5HQ [931.51 GiB / 0    free]
+  Total: 1 [931.51 GiB] / in use: 1 [931.51 GiB] / in no VG: 0 [0   ]
+"#;
     println!("{:?}", parse_pvscan_output(s1));
     println!("{:?}", parse_pvscan_output(s2));
     println!("{:?}", parse_pvscan_output(s3));
+    println!("{:?}", parse_pvscan_output(s4));
 }
