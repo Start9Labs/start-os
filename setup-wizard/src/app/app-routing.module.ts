@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core'
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router'
-import { NavGuard } from './guards/nav-guard'
+import { NavGuard, RecoveryNavGuard } from './guards/nav-guard'
 
 const routes: Routes = [
   { path: '', redirectTo: '/product-key', pathMatch: 'full' },
@@ -21,7 +21,7 @@ const routes: Routes = [
   {
     path: 'recover',
     loadChildren: () => import('./pages/recover/recover.module').then( m => m.RecoverPageModule),
-    canActivate: [NavGuard],
+    canActivate: [RecoveryNavGuard],
   },
   {
     path: 'embassy',
