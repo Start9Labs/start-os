@@ -35,7 +35,7 @@ clean:
 
 eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar
 	! test -f eos.img || rm eos.img
-	./build/make-image.sh
+	if [ $(NO_KEY) -eq 1 ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
 
 system-images/compat/compat.tar: $(COMPAT_SRC)
 	cd system-images/compat && ./build.sh
@@ -51,6 +51,7 @@ ubuntu.img:
 product_key.txt:
 	$(shell which echo) -n "X" > product_key.txt
 	cat /dev/urandom | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
+	if [ "$(KEY)" != "" ]; then $(shell which echo) -n "$(KEY)" > product_key.txt; fi
 	echo >> product_key.txt
 
 $(EMBASSY_BINS): $(APPMGR_SRC)

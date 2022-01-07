@@ -33,7 +33,7 @@ sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
 # Unmount the boot partition and mount embassy partition
 sudo umount /tmp/eos-mnt
 sudo mount ${OUTPUT_DEVICE}p2 /tmp/eos-mnt
-sudo cp product_key.txt /tmp/eos-mnt
+if [ "$NO_KEY" != "1" ]; then sudo cp product_key.txt /tmp/eos-mnt; else echo "This image is being written with no product key"; fi
 sudo umount /tmp/eos-mnt
 
 sudo mount ${OUTPUT_DEVICE}p3 /tmp/eos-mnt
