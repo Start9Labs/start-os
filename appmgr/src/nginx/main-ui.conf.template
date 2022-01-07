@@ -105,7 +105,7 @@ server {{
         }}
 
         location /marketplace/ {{
-                proxy_pass https://beta-registry-0-3.start9labs.com/; # TODO
+                proxy_pass {package_marketplace}/;
         }}
 
         location / {{
