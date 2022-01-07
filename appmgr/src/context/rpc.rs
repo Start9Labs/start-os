@@ -145,13 +145,11 @@ impl RpcContext {
     ) -> Result<Self, Error> {
         let base = RpcContextConfig::load(cfg_path).await?;
         tracing::info!("Loaded Config");
-        let log_epoch = Arc::new(AtomicU64::new(rand::random()));
         let tor_proxy = base.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(127, 0, 0, 1),
             9050,
         )));
         let logger = EmbassyLogger::init(
-            log_epoch.clone(),
             base.log_server.clone(),
             false,
             tor_proxy.ip(),

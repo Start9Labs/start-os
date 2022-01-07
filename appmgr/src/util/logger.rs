@@ -1,7 +1,8 @@
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
+use lazy_static::lazy_static;
 use reqwest::{Client, Proxy, Url};
 use serde::Serialize;
 use tracing::Subscriber;
@@ -103,14 +104,14 @@ impl EmbassyLogger {
             .with(ErrorLayer::default())
     }
     pub fn no_sharing() {
-        Self::init(None, false, IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9050);
+        let _ = Self::init(None, false, IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9050);
     }
     pub fn init(
         share_dest: Option<Url>,
         share_errors: bool,
         tor_proxy_ip: IpAddr,
         tor_proxy_port: u16,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         use tracing_subscriber::prelude::*;
 
         let mut guard = LOGGER.lock().unwrap();
@@ -121,7 +122,7 @@ impl EmbassyLogger {
             let log_epoch = Arc::new(AtomicU64::new(rand::random()));
             let sharing = Arc::new(AtomicBool::new(share_errors));
             let share_dest = match share_dest {
-                None => "https://beta-registry-0-3.start9labs.com/error-logs".to_owned(), // TODO
+                None => "http://registry.privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion/support/error-logs".to_owned(),
                 Some(a) => a.to_string(),
             };
             let tor_proxy = Client::builder()
