@@ -15,7 +15,6 @@ export class HomePage {
   } = { } as any
   solutions: string[] = []
   restarted = false
-  forgotten = false
 
   constructor (
     private readonly loadingCtrl: LoadingController,
@@ -84,7 +83,8 @@ export class HomePage {
 
     try {
       await this.api.forgetDrive()
-      this.forgotten = true
+      await this.api.restart()
+      this.restarted = true
     } catch (e) {
       console.error(e)
     } finally {

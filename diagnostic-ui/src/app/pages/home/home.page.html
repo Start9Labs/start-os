@@ -1,6 +1,6 @@
 <ion-content>
   <div style="padding: 48px">
-    <ng-container *ngIf="!restarted && !forgotten; else refresh">
+    <ng-container *ngIf="!restarted; else refresh">
       <h1 class="ion-text-center" style="padding-bottom: 36px; font-size: calc(2vw + 14px);">EmbassyOS - Diagnostic Mode</h1>
       <h2 style="padding-bottom: 16px; font-size: calc(1vw + 14px); font-weight: bold;">EmbassyOS launch error:</h2>
       <div class="code-block">
@@ -18,7 +18,7 @@
       </ion-button>
       <div *ngIf="error.code === 15 || error.code === 25" class="ion-padding-top">
         <ion-button *ngIf="error.code === 15" (click)="forgetDrive()">
-          {{ error.code === 15 ? 'Use Current Drive' : 'Enter Recovery Mode' }}
+          {{ error.code === 15 ? 'Setup Current Drive' : 'Enter Recovery Mode' }}
         </ion-button>
       </div>
     </ng-container>
