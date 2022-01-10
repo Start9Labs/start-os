@@ -1,4 +1,4 @@
-use patch_db::DbHandle;
+use patch_db::{DbHandle, LockType};
 use reqwest::Url;
 use rpc_toolkit::command;
 
@@ -10,6 +10,10 @@ use crate::Error;
 pub async fn set_eos_url(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
+    crate::db::DatabaseModel::new()
+        .server_info()
+        .lock(&mut tx, LockType::Write)
+        .await?;
     crate::db::DatabaseModel::new()
         .server_info()
         .eos_marketplace()
@@ -24,12 +28,16 @@ pub async fn set_eos_url(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<
 pub async fn set_package_url(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
-    ctx.set_nginx_conf(&mut tx).await?;
+    crate::db::DatabaseModel::new()
+        .server_info()
+        .lock(&mut tx, LockType::Write)
+        .await?;
     crate::db::DatabaseModel::new()
         .server_info()
         .package_marketplace()
         .put(&mut tx, &Some(url))
         .await?;
+    ctx.set_nginx_conf(&mut tx).await?;
     tx.commit(None).await?;
     Ok(())
 }

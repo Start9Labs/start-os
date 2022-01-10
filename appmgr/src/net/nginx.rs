@@ -120,8 +120,10 @@ impl NginxControllerInner {
                         )
                     };
                 // write nginx configs
-                let nginx_conf_path =
-                    nginx_root.join(format!("sites-available/{}_{}.conf", package, id));
+                let nginx_conf_path = nginx_root.join(format!(
+                    "sites-available/{}_{}_{}.conf",
+                    package, id, port.0
+                ));
                 tokio::fs::write(
                     &nginx_conf_path,
                     format!(
@@ -138,7 +140,7 @@ impl NginxControllerInner {
                 .await
                 .with_ctx(|_| (ErrorKind::Filesystem, nginx_conf_path.display().to_string()))?;
                 let sites_enabled_link_path =
-                    nginx_root.join(format!("sites-enabled/{}_{}.conf", package, id));
+                    nginx_root.join(format!("sites-enabled/{}_{}_{}.conf", package, id, port.0));
                 if tokio::fs::metadata(&sites_enabled_link_path).await.is_ok() {
                     tokio::fs::remove_file(&sites_enabled_link_path).await?;
                 }
@@ -150,7 +152,7 @@ impl NginxControllerInner {
         match self.interfaces.get_mut(&package) {
             None => {
                 let info = PackageNetInfo {
-                    ip: ipv4,
+                    _ip: ipv4,
                     interfaces: interface_map,
                 };
                 self.interfaces.insert(package, info);
@@ -168,35 +170,44 @@ impl NginxControllerInner {
     async fn remove(&mut self, nginx_root: &Path, package: &PackageId) -> Result<(), Error> {
         let removed = self.interfaces.remove(package);
         if let Some(net_info) = removed {
-            for (id, _meta) in net_info.interfaces {
-                // remove ssl certificates and nginx configs
-                let package_path = nginx_root.join(format!("ssl/{}", package));
-                let enabled_path =
-                    nginx_root.join(format!("sites-enabled/{}_{}.conf", package, id));
-                let available_path =
-                    nginx_root.join(format!("sites-available/{}_{}.conf", package, id));
-                let _ = tokio::try_join!(
-                    async {
-                        if tokio::fs::metadata(&package_path).await.is_ok() {
-                            tokio::fs::remove_dir_all(&package_path)
-                                .map(|res| {
-                                    res.with_ctx(|_| {
-                                        (ErrorKind::Filesystem, package_path.display().to_string())
+            for (id, meta) in net_info.interfaces {
+                for (port, _lan_port_config) in meta.lan_config.iter() {
+                    // remove ssl certificates and nginx configs
+                    let package_path = nginx_root.join(format!("ssl/{}", package));
+                    let enabled_path = nginx_root
+                        .join(format!("sites-enabled/{}_{}_{}.conf", package, id, port.0));
+                    let available_path = nginx_root.join(format!(
+                        "sites-available/{}_{}_{}.conf",
+                        package, id, port.0
+                    ));
+                    let _ = tokio::try_join!(
+                        async {
+                            if tokio::fs::metadata(&package_path).await.is_ok() {
+                                tokio::fs::remove_dir_all(&package_path)
+                                    .map(|res| {
+                                        res.with_ctx(|_| {
+                                            (
+                                                ErrorKind::Filesystem,
+                                                package_path.display().to_string(),
+                                            )
+                                        })
                                     })
-                                })
-                                .await?;
-                            Ok(())
-                        } else {
-                            Ok(())
-                        }
-                    },
-                    tokio::fs::remove_file(&enabled_path).map(|res| res
-                        .with_ctx(|_| (ErrorKind::Filesystem, enabled_path.display().to_string()))),
-                    tokio::fs::remove_file(&available_path).map(|res| res.with_ctx(|_| (
-                        ErrorKind::Filesystem,
-                        available_path.display().to_string()
-                    ))),
-                )?;
+                                    .await?;
+                                Ok(())
+                            } else {
+                                Ok(())
+                            }
+                        },
+                        tokio::fs::remove_file(&enabled_path).map(|res| res.with_ctx(|_| (
+                            ErrorKind::Filesystem,
+                            enabled_path.display().to_string()
+                        ))),
+                        tokio::fs::remove_file(&available_path).map(|res| res.with_ctx(|_| (
+                            ErrorKind::Filesystem,
+                            available_path.display().to_string()
+                        ))),
+                    )?;
+                }
             }
         }
         self.hup().await?;
@@ -214,7 +225,7 @@ impl NginxControllerInner {
     }
 }
 struct PackageNetInfo {
-    ip: Ipv4Addr,
+    _ip: Ipv4Addr,
     interfaces: BTreeMap<InterfaceId, InterfaceMetadata>,
 }
 pub struct InterfaceMetadata {
