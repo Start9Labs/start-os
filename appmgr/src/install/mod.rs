@@ -546,7 +546,6 @@ pub async fn install_s9pk_or_cleanup<R: AsyncRead + AsyncSeek + Unpin>(
         let mut tx = handle.begin().await?;
 
         if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id).await {
-            let mut tx = handle.begin().await?;
             tracing::error!(
                 "Failed to clean up {}@{}: {}: Adding to broken packages",
                 pkg_id,
@@ -554,13 +553,6 @@ pub async fn install_s9pk_or_cleanup<R: AsyncRead + AsyncSeek + Unpin>(
                 e
             );
             tracing::debug!("{:?}", e);
-            let mut broken = crate::db::DatabaseModel::new()
-                .broken_packages()
-                .get_mut(&mut tx)
-                .await?;
-            broken.push(pkg_id.clone());
-            broken.save(&mut tx).await?;
-            tx.commit(None).await?;
         } else {
             tx.commit(None).await?;
         }
