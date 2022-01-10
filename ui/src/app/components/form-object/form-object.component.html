@@ -10,13 +10,12 @@
         <ion-label>{{ unionSpec.tag.name }}</ion-label>
         <!-- class enter-click disables the enter click on the modal behind the select -->
         <ion-select
-          [interfaceOptions]="{ message: getWarningText(unionSpec.warning) }"
+          [interfaceOptions]="{ message: getWarningText(unionSpec.warning), cssClass: 'enter-click' }"
           slot="end"
           placeholder="Select"
           [formControlName]="unionSpec.tag.id"
           [selectedText]="unionSpec.tag['variant-names'][entry.value.value]"
           (ionChange)="updateUnion($event)"
-          cssClass="enter-click"
         >
           <ion-select-option *ngFor="let option of Object.keys(unionSpec.variants)" [value]="option">
             {{ unionSpec.tag['variant-names'][option] }}
@@ -61,12 +60,11 @@
           <ion-label>{{ spec.name }}</ion-label>
           <!-- class enter-click disables the enter click on the modal behind the select -->
           <ion-select
-            [interfaceOptions]="{ message: getWarningText(spec.warning) }"
+            [interfaceOptions]="{ message: getWarningText(spec.warning), cssClass: 'enter-click' }"
             slot="end"
             placeholder="Select"
             [formControlName]="entry.key"
             [selectedText]="spec['value-names'][formGroup.get(entry.key).value]"
-            cssClass="enter-click"
           >
             <ion-select-option *ngFor="let option of spec.values" [value]="option">
               {{ spec['value-names'][option] }}
