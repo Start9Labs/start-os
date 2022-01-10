@@ -8,8 +8,9 @@
           <ion-icon name="help-circle-outline"></ion-icon>
         </ion-button>
         <ion-label>{{ unionSpec.tag.name }}</ion-label>
+        <!-- class enter-click disables the enter click on the modal behind the select -->
         <ion-select
-          [interfaceOptions]="{ message: getWarningText(unionSpec.warning) }"
+          [interfaceOptions]="{ message: getWarningText(unionSpec.warning), cssClass: 'enter-click' }"
           slot="end"
           placeholder="Select"
           [formControlName]="unionSpec.tag.id"
@@ -57,8 +58,9 @@
         <!-- enum -->
         <ion-item *ngIf="spec.type === 'enum'">
           <ion-label>{{ spec.name }}</ion-label>
+          <!-- class enter-click disables the enter click on the modal behind the select -->
           <ion-select
-            [interfaceOptions]="{ message: getWarningText(spec.warning) }"
+            [interfaceOptions]="{ message: getWarningText(spec.warning), cssClass: 'enter-click' }"
             slot="end"
             placeholder="Select"
             [formControlName]="entry.key"
