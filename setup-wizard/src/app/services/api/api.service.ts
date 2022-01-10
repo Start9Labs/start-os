@@ -1,7 +1,7 @@
 export abstract class ApiService {
   // unencrypted
   abstract getStatus (): Promise<GetStatusRes> // setup.status
-  abstract getDrives (): Promise<DiskInfo[]> // setup.disk.list
+  abstract getDrives (): Promise<DiskListResponse> // setup.disk.list
   abstract set02XDrive (logicalname: string): Promise<void> // setup.recovery.v2.set
   abstract getRecoveryStatus (): Promise<RecoveryStatusRes> // setup.recovery.status
 
@@ -36,6 +36,11 @@ export interface EmbassyOSRecoveryInfo {
   full: boolean
   'password-hash': string | null
   'wrapped-key': string | null
+}
+
+export interface DiskListResponse {
+  disks: DiskInfo[]
+  reconnect: string[]
 }
 
 export interface DiskBackupTarget {

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { ApiService, CifsRecoverySource, DiskInfo, DiskRecoverySource, EmbassyOSRecoveryInfo, GetStatusRes, RecoveryStatusRes, SetupEmbassyReq, SetupEmbassyRes } from './api.service'
+import { ApiService, CifsRecoverySource, DiskInfo, DiskListResponse, DiskRecoverySource, EmbassyOSRecoveryInfo, GetStatusRes, RecoveryStatusRes, SetupEmbassyReq, SetupEmbassyRes } from './api.service'
 import { HttpService } from './http.service'
 
 @Injectable({
@@ -21,7 +21,7 @@ export class LiveApiService extends ApiService {
   }
 
   async getDrives () {
-    return this.http.rpcRequest<DiskInfo[]>({
+    return this.http.rpcRequest<DiskListResponse>({
       method: 'setup.disk.list',
       params: { },
     }, false)
