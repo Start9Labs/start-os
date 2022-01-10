@@ -8,6 +8,7 @@ import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { RR } from 'src/app/services/api/api.types'
 import { pauseFor } from 'src/app/util/misc.util'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'wifi',
@@ -27,6 +28,7 @@ export class WifiPage {
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
+    private readonly config: ConfigService,
   ) { }
 
   async ngOnInit () {
@@ -47,6 +49,23 @@ export class WifiPage {
   }
 
   async presentAlertCountry (): Promise<void> {
+    if (!this.config.isLan) {
+      const alert = await this.alertCtrl.create({
+        header: 'Cannot Complete Action',
+        message: 'You must be connected to your Emassy via LAN to change the country.',
+        buttons: [
+          {
+            text: 'OK',
+            role: 'cancel',
+          },
+
+        ],
+        cssClass: 'wide-alert enter-click',
+      })
+      await alert.present()
+      return
+    }
+
     const inputs: AlertInput[] = Object.entries(this.countries).map(([country, fullName]) => {
       return {
         name: fullName,
@@ -59,6 +78,7 @@ export class WifiPage {
 
     const alert = await this.alertCtrl.create({
       header: 'Select Country',
+      message: 'Warning: Changing the country will delete all saved networks from the Embassy.',
       inputs,
       buttons: [
         {
@@ -77,7 +97,8 @@ export class WifiPage {
     await alert.present()
   }
 
-  async presentModalAdd () {
+  async presentModalAdd (ssid?: string, needsPW: boolean = true) {
+    const wifiSpec = getWifiValueSpec(ssid, needsPW)
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
       componentProps: {
@@ -104,14 +125,14 @@ export class WifiPage {
     await modal.present()
   }
 
-  async presentAction (ssid: string, i: number) {
+  async presentAction (ssid: string) {
     const buttons: ActionSheetButton[] = [
       {
         text: 'Forget',
         icon: 'trash',
         role: 'destructive',
         handler: () => {
-          this.delete(ssid, i)
+          this.delete(ssid)
         },
       },
     ]
@@ -147,6 +168,7 @@ export class WifiPage {
 
     try {
       await this.api.setWifiCountry({ country })
+      await this.getWifi(4000)
       this.wifi.country = country
     } catch (e) {
       this.errToast.present(e)
@@ -164,7 +186,7 @@ export class WifiPage {
       if (attempts > maxAttempts) {
         this.presentToastFail()
         if (deleteOnFailure) {
-          this.wifi.ssids = this.wifi.ssids.filter(s => s !== ssid)
+          delete this.wifi.ssids[ssid]
         }
         break
       }
@@ -243,7 +265,7 @@ export class WifiPage {
     }
   }
 
-  private async delete (ssid: string, i: number): Promise<void> {
+  private async delete (ssid: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -253,7 +275,8 @@ export class WifiPage {
 
     try {
       await this.api.deleteWifi({ ssid })
-      this.wifi.ssids = this.wifi.ssids.filter((w, index) => index !== i)
+      await this.getWifi(4000)
+      delete this.wifi.ssids[ssid]
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -276,7 +299,7 @@ export class WifiPage {
         priority: 0,
         connect: false,
       })
-      await this.getWifi()
+      await this.getWifi(4000)
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -310,25 +333,29 @@ export class WifiPage {
   }
 }
 
-const wifiSpec: ValueSpecObject = {
-  type: 'object',
-  name: 'WiFi Credentials',
-  description: 'Enter the network SSID and password. You can connect now or save the network for later.',
-  'unique-by': null,
-  spec: {
-    ssid: {
-      type: 'string',
-      name: 'Network SSID',
-      nullable: false,
-      masked: false,
-      copyable: false,
+function getWifiValueSpec (ssid?: string, needsPW: boolean = true): ValueSpecObject {
+  return {
+    type: 'object',
+    name: 'WiFi Credentials',
+    description: 'Enter the network SSID and password. You can connect now or save the network for later.',
+    'unique-by': null,
+    spec: {
+      ssid: {
+        type: 'string',
+        name: 'Network SSID',
+        nullable: false,
+        masked: false,
+        copyable: false,
+        default: ssid,
+      },
+      password: {
+        type: 'string',
+        name: 'Password',
+        nullable: !needsPW,
+        masked: true,
+        copyable: false,
+      },
     },
-    password: {
-      type: 'string',
-      name: 'Password',
-      nullable: false,
-      masked: true,
-      copyable: false,
-    },
-  },
+  }
 }
+
