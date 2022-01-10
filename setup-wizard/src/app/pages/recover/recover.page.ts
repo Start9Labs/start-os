@@ -44,8 +44,8 @@ export class RecoverPage {
   async getDrives () {
     this.mappedDrives = []
     try {
-      const drives = await this.apiService.getDrives()
-      drives.filter(d => d.partitions.length).forEach(d => {
+      const { disks, reconnect } = await this.apiService.getDrives()
+      disks.filter(d => d.partitions.length).forEach(d => {
         d.partitions.forEach(p => {
           const drive: DiskBackupTarget = {
             vendor: d.vendor,
@@ -66,7 +66,22 @@ export class RecoverPage {
         })
       })
 
-      const importableDrive = drives.find(d => !!d.guid)
+      if (!this.mappedDrives.length && reconnect.length) {
+        const list = `<ul>${reconnect.map(recon => `<li>${recon}</li>`)}</ul>`
+        const alert = await this.alertCtrl.create({
+          header: 'Warning',
+          message: `One or more devices you connected had to be reconfigured to support the current hardware platform. Please unplug and replug in the following device(s):<br> ${list}`,
+          buttons: [
+            {
+              role: 'cancel',
+              text: 'OK',
+            },
+          ],
+        })
+        await alert.present()
+      }
+
+      const importableDrive = disks.find(d => !!d.guid)
       if (!!importableDrive && !this.hasShownGuidAlert) {
         const alert = await this.alertCtrl.create({
           header: 'Embassy Drive Detected',
