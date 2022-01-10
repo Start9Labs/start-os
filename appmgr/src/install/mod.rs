@@ -126,7 +126,7 @@ pub async fn install(
     match pde.take() {
         Some(PackageDataEntry::Installed {
             installed,
-            manifest,
+            manifest: _manifest,
             static_files,
         }) => {
             *pde = Some(PackageDataEntry::Updating {
@@ -1020,13 +1020,19 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?;
         update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
             .await?;
-    } else if let Some(recovered) = crate::db::DatabaseModel::new()
-        .recovered_packages()
-        .idx_model(pkg_id)
-        .get(&mut tx, true)
-        .await?
-        .into_owned()
-    {
+    } else if let Some(recovered) = {
+        // solve taxonomy escalation
+        crate::db::DatabaseModel::new()
+            .recovered_packages()
+            .lock(&mut tx, LockType::Write)
+            .await?;
+        crate::db::DatabaseModel::new()
+            .recovered_packages()
+            .idx_model(pkg_id)
+            .get(&mut tx, true)
+            .await?
+            .into_owned()
+    } {
         handle_recovered_package(recovered, manifest, ctx, pkg_id, version, &mut tx).await?;
         add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?;
         update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())

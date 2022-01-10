@@ -9,7 +9,7 @@ use std::time::Duration;
 use bollard::Docker;
 use color_eyre::eyre::eyre;
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{DbHandle, PatchDb, Revision};
+use patch_db::{DbHandle, LockType, PatchDb, Revision};
 use reqwest::Url;
 use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
@@ -301,6 +301,10 @@ impl RpcContext {
     #[instrument(skip(self))]
     pub async fn cleanup(&self) -> Result<(), Error> {
         let mut db = self.db.handle();
+        crate::db::DatabaseModel::new()
+            .package_data()
+            .lock(&mut db, LockType::Write)
+            .await?;
         for package_id in crate::db::DatabaseModel::new()
             .package_data()
             .keys(&mut db, true)
