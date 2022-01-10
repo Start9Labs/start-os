@@ -25,106 +25,10 @@ export class MockApiService extends ApiService {
 
   async getDrives () {
     await pauseFor(1000)
-    return [
-      {
-        vendor: 'Samsung',
-        model: 'SATA',
-        logicalname: '/dev/sda',
-        guid: 'theguid',
-        partitions: [
-          {
-            logicalname: 'sda1',
-            label: 'label 1',
-            capacity: 100000,
-            used: 200.1255312,
-            'embassy-os': null,
-          },
-          {
-            logicalname: 'sda2',
-            label: 'label 2',
-            capacity: 50000,
-            used: 200.1255312,
-            'embassy-os': null,
-          },
-        ],
-        capacity: 150000,
-      },
-      {
-        vendor: 'Samsung',
-        model: null,
-        logicalname: 'dev/sdb',
-        partitions: [],
-        capacity: 34359738369,
-        guid: null,
-      },
-      {
-        vendor: 'Crucial',
-        model: 'MX500',
-        logicalname: 'dev/sdc',
-        guid: null,
-        partitions: [
-          {
-            logicalname: 'sdc1',
-            label: 'label 1',
-            capacity: 0,
-            used: null,
-            'embassy-os': {
-              version: '0.3.3',
-              full: true,
-              'password-hash': 'asdfasdfasdf',
-              'wrapped-key': '',
-            },
-          },
-          {
-            logicalname: 'sdc1MOCKTESTER',
-            label: 'label 1',
-            capacity: 0,
-            used: null,
-            'embassy-os': {
-              version: '0.3.6',
-              full: true,
-              // password is 'asdfasdf'
-              'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': '',
-            },
-          },
-          {
-            logicalname: 'sdc1',
-            label: 'label 1',
-            capacity: 0,
-            used: null,
-            'embassy-os': {
-              version: '0.3.3',
-              full: false,
-              'password-hash': 'asdfasdfasdf',
-              'wrapped-key': '',
-            },
-          },
-        ],
-        capacity: 100000,
-      },
-      {
-        vendor: 'Sandisk',
-        model: null,
-        logicalname: '/dev/sdd',
-        guid: null,
-        partitions: [
-          {
-            logicalname: 'sdd1',
-            label: null,
-            capacity: 10000,
-            used: null,
-            'embassy-os': {
-              version: '0.2.7',
-              full: true,
-              'password-hash': 'asdfasdfasdf',
-              'wrapped-key': '',
-            },
-          },
-        ],
-        capacity: 10000,
-      },
-    ]
+    return {
+      disks: [],
+      reconnect: ['yolo'],
+    }
   }
 
   async set02XDrive () {
@@ -202,3 +106,104 @@ const setupRes = {
   'lan-address': 'https://embassy-abcdefgh.local',
   'root-ca': btoa(rootCA),
 }
+
+const disks = [
+  {
+    vendor: 'Samsung',
+    model: 'SATA',
+    logicalname: '/dev/sda',
+    guid: 'theguid',
+    partitions: [
+      {
+        logicalname: 'sda1',
+        label: 'label 1',
+        capacity: 100000,
+        used: 200.1255312,
+        'embassy-os': null,
+      },
+      {
+        logicalname: 'sda2',
+        label: 'label 2',
+        capacity: 50000,
+        used: 200.1255312,
+        'embassy-os': null,
+      },
+    ],
+    capacity: 150000,
+  },
+  {
+    vendor: 'Samsung',
+    model: null,
+    logicalname: 'dev/sdb',
+    partitions: [],
+    capacity: 34359738369,
+    guid: null,
+  },
+  {
+    vendor: 'Crucial',
+    model: 'MX500',
+    logicalname: 'dev/sdc',
+    guid: null,
+    partitions: [
+      {
+        logicalname: 'sdc1',
+        label: 'label 1',
+        capacity: 0,
+        used: null,
+        'embassy-os': {
+          version: '0.3.3',
+          full: true,
+          'password-hash': 'asdfasdfasdf',
+          'wrapped-key': '',
+        },
+      },
+      {
+        logicalname: 'sdc1MOCKTESTER',
+        label: 'label 1',
+        capacity: 0,
+        used: null,
+        'embassy-os': {
+          version: '0.3.6',
+          full: true,
+          // password is 'asdfasdf'
+          'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          'wrapped-key': '',
+        },
+      },
+      {
+        logicalname: 'sdc1',
+        label: 'label 1',
+        capacity: 0,
+        used: null,
+        'embassy-os': {
+          version: '0.3.3',
+          full: false,
+          'password-hash': 'asdfasdfasdf',
+          'wrapped-key': '',
+        },
+      },
+    ],
+    capacity: 100000,
+  },
+  {
+    vendor: 'Sandisk',
+    model: null,
+    logicalname: '/dev/sdd',
+    guid: null,
+    partitions: [
+      {
+        logicalname: 'sdd1',
+        label: null,
+        capacity: 10000,
+        used: null,
+        'embassy-os': {
+          version: '0.2.7',
+          full: true,
+          'password-hash': 'asdfasdfasdf',
+          'wrapped-key': '',
+        },
+      },
+    ],
+    capacity: 10000,
+  },
+]
