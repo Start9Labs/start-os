@@ -20,7 +20,7 @@ use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
 
-pub const NET_TLD: &'static str = "embassy";
+pub const NET_TLD: &str = "embassy";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -55,27 +55,29 @@ impl DockerAction {
         allow_inject: bool,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let mut cmd = tokio::process::Command::new("docker");
-        if self.inject && allow_inject {
-            cmd.arg("exec");
-        } else {
-            let container_name = Self::container_name(pkg_id, name);
-            cmd.arg("run")
-                .arg("--rm")
-                .arg("--network=start9")
-                .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
-                .arg("--name")
-                .arg(&container_name)
-                .arg("--no-healthcheck");
-            match ctx.docker.remove_container(&container_name, None).await {
-                Ok(()) | Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => Ok(()),
-                Err(e) => Err(e),
-            }?;
-        }
-        cmd.args(
-            self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
-                .await,
-        );
+        // let mut cmd = tokio::process::Command::new("docker");
+        // if self.inject && allow_inject {
+        //     cmd.arg("exec");
+        // } else {
+        //     let container_name = Self::container_name(pkg_id, name);
+        //     cmd.arg("run")
+        //         .arg("--rm")
+        //         .arg("--network=start9")
+        //         .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
+        //         .arg("--name")
+        //         .arg(&container_name)
+        //         .arg("--no-healthcheck");
+        //     match ctx.docker.remove_container(&container_name, None).await {
+        //         Ok(()) | Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => Ok(()),
+        //         Err(e) => Err(e),
+        //     }?;
+        // }
+        // cmd.args(
+        //     self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
+        //         .await,
+        // );
+        let mut cmd = tokio::process::Command::new("sleep");
+        cmd.arg("10000");
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -105,7 +107,7 @@ impl DockerAction {
                 tokio::time::sleep(
                     self.sigterm_timeout
                         .map(|a| *a)
-                        .unwrap_or(Duration::from_secs(30)),
+                        .unwrap_or_else(|| Duration::from_secs(30)),
                 )
                 .await;
 
@@ -130,7 +132,8 @@ impl DockerAction {
             res = handle.wait_with_output() => res.with_kind(crate::ErrorKind::Docker)?,
             res = timeout_fut => res?,
         };
-        Ok(if res.status.success() || res.status.code() == Some(143) {
+        let is_sigtermed = res.status.code() == Some(143);
+        Ok(if res.status.success() || is_sigtermed {
             Ok(if let Some(format) = &self.io_format {
                 match format.from_slice(&res.stdout) {
                     Ok(a) => a,
@@ -144,6 +147,9 @@ impl DockerAction {
                             .with_kind(crate::ErrorKind::Deserialization)?
                     }
                 }
+            } else if is_sigtermed && res.stdout.is_empty() {
+                /// TODO test this out with sleep 1000 or ping 0.0.0.0
+                return Ok(Err((143, "Timed out. Retrying soon...$".to_owned())));
             } else if res.stdout.is_empty() {
                 serde_json::from_value(Value::Null).with_kind(crate::ErrorKind::Deserialization)?
             } else {
@@ -230,9 +236,9 @@ impl DockerAction {
         }
     }
 
-    pub fn uncontainer_name<'a>(name: &'a str) -> Option<(PackageId<&'a str>, Option<&'a str>)> {
+    pub fn uncontainer_name(name: &str) -> Option<(PackageId<&'_ str>, Option<&'_ str>)> {
         let (pre_tld, _) = name.split_once(".")?;
-        if pre_tld.contains("_") {
+        if pre_tld.contains('_') {
             let (pkg, name) = name.split_once("_")?;
             Some((Id::try_from(pkg).ok()?.into(), Some(name)))
         } else {
@@ -240,14 +246,14 @@ impl DockerAction {
         }
     }
 
-    async fn docker_args<'a>(
-        &'a self,
+    async fn docker_args(
+        &self,
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
         allow_inject: bool,
-    ) -> Vec<Cow<'a, OsStr>> {
+    ) -> Vec<Cow<'_, OsStr>> {
         let mut res = Vec::with_capacity(
             (2 * self.mounts.len()) // --mount <MOUNT_ARG>
                 + (2 * self.shm_size_mb.is_some() as usize) // --shm-size <SHM_SIZE>
