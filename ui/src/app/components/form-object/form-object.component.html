@@ -8,6 +8,7 @@
           <ion-icon name="help-circle-outline"></ion-icon>
         </ion-button>
         <ion-label>{{ unionSpec.tag.name }}</ion-label>
+        <!-- class enter-click disables the enter click on the modal behind the select -->
         <ion-select
           [interfaceOptions]="{ message: getWarningText(unionSpec.warning) }"
           slot="end"
@@ -15,6 +16,7 @@
           [formControlName]="unionSpec.tag.id"
           [selectedText]="unionSpec.tag['variant-names'][entry.value.value]"
           (ionChange)="updateUnion($event)"
+          cssClass="enter-click"
         >
           <ion-select-option *ngFor="let option of Object.keys(unionSpec.variants)" [value]="option">
             {{ unionSpec.tag['variant-names'][option] }}
@@ -57,12 +59,14 @@
         <!-- enum -->
         <ion-item *ngIf="spec.type === 'enum'">
           <ion-label>{{ spec.name }}</ion-label>
+          <!-- class enter-click disables the enter click on the modal behind the select -->
           <ion-select
             [interfaceOptions]="{ message: getWarningText(spec.warning) }"
             slot="end"
             placeholder="Select"
             [formControlName]="entry.key"
             [selectedText]="spec['value-names'][formGroup.get(entry.key).value]"
+            cssClass="enter-click"
           >
             <ion-select-option *ngFor="let option of spec.values" [value]="option">
               {{ spec['value-names'][option] }}
