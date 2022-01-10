@@ -83,13 +83,15 @@ export module RR {
   export type SetWifiCountryRes = null
 
   export type GetWifiReq = { }
-  export type GetWifiRes = { // wifi.get
-    ethernet: boolean
-    ssids: string[]
-    connected: string | null
-    country: string | null
-    'signal-strength': number
-  }
+  export type GetWifiRes = {
+    ssids: {
+        [ssid: string]: number
+    },
+    connected?: string,
+    country: string,
+    ethernet: boolean,
+    'available-wifi': AvailableWifi[]
+}
 
   export type AddWifiReq = { // wifi.add
     ssid: string
@@ -441,4 +443,10 @@ export interface BackupReport {
       error: string | null
     }
   }
+}
+
+export interface AvailableWifi {
+  ssid: string
+  strength: number
+  security: string []
 }

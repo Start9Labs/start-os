@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
+use isocountry::CountryCode;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
@@ -44,6 +45,7 @@ impl Database {
                 id,
                 version: Current::new().semver().into(),
                 last_backup: None,
+                last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),
                 lan_address: format!("https://{}.local", hostname).parse().unwrap(),
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
@@ -85,6 +87,8 @@ pub struct ServerInfo {
     pub id: String,
     pub version: Version,
     pub last_backup: Option<DateTime<Utc>>,
+    /// Used in the wifi to determine the region to set the system to
+    pub last_wifi_region: Option<CountryCode>,
     pub eos_version_compat: VersionRange,
     pub lan_address: Url,
     pub tor_address: Url,

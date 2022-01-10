@@ -26,7 +26,8 @@ apt-get install -y \
 	ecryptfs-utils \
 	cifs-utils \
 	samba-common-bin \
-	ntp
+	ntp \
+	network-manager
 apt-get autoremove -y
 apt-get upgrade -y
 
@@ -60,5 +61,6 @@ EOF
 passwd -l ubuntu
 echo 'overlayroot="tmpfs":swap=1,recurse=0' > /etc/overlayroot.local.conf
 systemctl disable initialization.service
+sudo systemctl restart NetworkManager
 sync
 reboot

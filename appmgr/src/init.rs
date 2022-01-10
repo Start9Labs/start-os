@@ -59,12 +59,26 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
 
     crate::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
-
-    crate::net::wifi::synchronize_wpa_supplicant_conf(&cfg.datadir().join("main")).await?;
-    tracing::info!("Synchronized wpa_supplicant.conf");
-
     let db = cfg.db(&secret_store).await?;
+
     let mut handle = db.handle();
+
+    crate::net::wifi::synchronize_wpa_supplicant_conf(
+        &cfg.datadir().join("main"),
+        &*crate::db::DatabaseModel::new()
+            .server_info()
+            .last_wifi_region()
+            .get(&mut handle, false)
+            .await
+            .map_err(|_e| {
+                Error::new(
+                    color_eyre::eyre::eyre!("Could not find the last wifi region"),
+                    crate::ErrorKind::NotFound,
+                )
+            })?,
+    )
+    .await?;
+    tracing::info!("Synchronized wpa_supplicant.conf");
     let mut info = crate::db::DatabaseModel::new()
         .server_info()
         .get_mut(&mut handle)
