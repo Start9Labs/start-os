@@ -206,10 +206,7 @@ impl RpcContext {
             notification_manager,
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
-            wifi_manager: Arc::new(RwLock::new(WpaCli::init(
-                "wlan0".to_string(),
-                base.datadir().join("main"),
-            ))),
+            wifi_manager: Arc::new(RwLock::new(WpaCli::init("wlan0".to_string()))),
         });
         let metrics_seed = seed.clone();
         tokio::spawn(async move {
