@@ -983,10 +983,24 @@ export module Mock {
 
   export const Wifi: RR.GetWifiRes = {
     ethernet: true,
-    ssids: ['Goosers', 'Goosers5G'],
+    ssids: {
+      'Goosers': 50,
+      'Goosers5G': 0,
+    },
     connected: 'Goosers',
     country: 'US',
-    'signal-strength': 50,
+    'available-wifi': [
+      {
+        ssid: 'Goosers a billion',
+        strength: 40,
+        security: [],
+      },
+      {
+        ssid: 'Bill nye the wifi guy',
+        strength: 99,
+        security: ['1', '2', '3'],
+      },
+    ],
   }
 
   export const BackupTargets: RR.GetBackupTargetsRes = {

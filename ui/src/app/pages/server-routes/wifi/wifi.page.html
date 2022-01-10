@@ -4,6 +4,12 @@
       <ion-back-button defaultHref="embassy"></ion-back-button>
     </ion-buttons>
     <ion-title>WiFi Settings</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="getWifi()">
+        Refresh
+        <ion-icon slot="end" name="refresh"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -40,25 +46,43 @@
           <ion-skeleton-text animated style="width: 18%;"></ion-skeleton-text>
         </ion-label>
       </ion-item>
+
+      <ion-item-divider>Available Networks</ion-item-divider>
+      <ion-item *ngFor="let entry of ['', '']" class="skeleton-parts">
+        <ion-button slot="start" fill="clear">
+          <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
+        </ion-button>
+        <ion-label>
+          <ion-skeleton-text animated style="width: 18%;"></ion-skeleton-text>
+        </ion-label>
+      </ion-item>
     </ng-container>
 
     <!-- not loading -->
     <ng-container *ngIf="!loading && wifi.country">
       <ion-item-divider>Saved Networks</ion-item-divider>
+      <ion-item button detail="false" *ngFor="let ssid of wifi.ssids | keyvalue" (click)="presentAction(ssid.key)">
+        <div *ngIf="ssid.key !== wifi.connected" slot="start" style="padding-right: 32px;"></div>
+        <ion-icon *ngIf="ssid.key === wifi.connected" slot="start" size="large" name="checkmark" color="success"></ion-icon>
+        <ion-label>{{ ssid.key }}</ion-label>
+        <img *ngIf="ssid.value > 0 && ssid.value < 5" slot="end" src="assets/img/icons/wifi-1.png" style="max-width: 32px;" />
+        <img *ngIf="ssid.value >= 5 && ssid.value < 50" slot="end" src="assets/img/icons/wifi-1.png" style="max-width: 32px;" />
+        <img *ngIf="ssid.value >= 50 && ssid.value < 90" slot="end" src="assets/img/icons/wifi-2.png" style="max-width: 32px;" />
+        <img *ngIf="ssid.value >= 90" slot="end" src="assets/img/icons/wifi-3.png" style="max-width: 32px;" />
+      </ion-item>
+   
+      <ion-item-divider>Available Networks</ion-item-divider>
+      <ion-item button detail="false" *ngFor="let avWifi of wifi['available-wifi']" (click)="presentModalAdd(avWifi.ssid, !!avWifi.security.length)">
+        <ion-icon slot="start" name="add" size="large"></ion-icon>
+        <ion-label>{{ avWifi.ssid }}</ion-label>
+        <img *ngIf="avWifi.strength < 5" slot="end" src="assets/img/icons/wifi-1.png" style="max-width: 32px;" />
+        <img *ngIf="avWifi.strength >= 5 && avWifi.strength < 50" slot="end" src="assets/img/icons/wifi-1.png" style="max-width: 32px;" />
+        <img *ngIf="avWifi.strength >= 50 && avWifi.strength < 90" slot="end" src="assets/img/icons/wifi-2.png" style="max-width: 32px;" />
+        <img *ngIf="avWifi.strength >= 90" slot="end" src="assets/img/icons/wifi-3.png" style="max-width: 32px;" />
+      </ion-item>
       <ion-item button detail="false" (click)="presentModalAdd()">
         <ion-icon slot="start" name="add" size="large"></ion-icon>
-        <ion-label>Add new network</ion-label>
-      </ion-item>
-      <ion-item button detail="false" *ngFor="let ssid of wifi.ssids; let i = index;" (click)="presentAction(ssid, i)">
-        <div *ngIf="ssid !== wifi.connected" slot="start" style="padding-right: 32px;"></div>
-        <ion-icon *ngIf="ssid === wifi.connected" slot="start" size="large" name="checkmark" color="success"></ion-icon>
-        <ion-label>{{ ssid }}</ion-label>
-        <ng-container *ngIf="ssid === wifi.connected && wifi['signal-strength'] as strength">
-          <img *ngIf="strength < 5" slot="end" src="assets/img/icons/wifi-1.png" style="max-width: 32px;" />
-          <img *ngIf="strength >= 5 && strength < 50" slot="end" src="assets/img/icons/wifi-1.png" style="max-width: 32px;" />
-          <img *ngIf="strength >= 50 && strength < 90" slot="end" src="assets/img/icons/wifi-2.png" style="max-width: 32px;" />
-          <img *ngIf="strength >= 90" slot="end" src="assets/img/icons/wifi-3.png" style="max-width: 32px;" />
-        </ng-container>
+        <ion-label>Other</ion-label>
       </ion-item>
     </ng-container>
   </ion-item-group>
