@@ -38,7 +38,8 @@ path = "src/bin/embassy-cli.rs"
 
 [features]
 avahi = ["avahi-sys"]
-default = ["avahi", "sound", "metal"]
+beta = []
+default = ["avahi", "beta", "sound", "metal"]
 metal = []
 sound = []
 unstable = ["patch-db/unstable"]
