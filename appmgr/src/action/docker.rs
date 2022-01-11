@@ -130,8 +130,7 @@ impl DockerAction {
                 return Ok(Err((143, "Timed out. Retrying soon...$".to_owned())));
             }
         };
-        let is_sigtermed = res.status.code() == Some(143);
-        Ok(if res.status.success() || is_sigtermed {
+        Ok(if res.status.success() {
             Ok(if let Some(format) = self.io_format {
                 match format.from_slice(&res.stdout) {
                     Ok(a) => a,
