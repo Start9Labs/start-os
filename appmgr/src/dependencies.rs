@@ -110,9 +110,7 @@ impl DependencyError {
             | (_, DependencyError::HealthChecksFailed { failures }) => {
                 DependencyError::HealthChecksFailed { failures }
             }
-            (DependencyError::Transitive, _) | (_, DependencyError::Transitive) => {
-                DependencyError::Transitive
-            }
+            (DependencyError::Transitive, _) => DependencyError::Transitive,
         }
     }
     #[instrument(skip(ctx, db))]
