@@ -231,7 +231,7 @@ impl DockerAction {
         }
     }
 
-    pub fn uncontainer_name(name: &str) -> Option<(PackageId<&'_ str>, Option<&'_ str>)> {
+    pub fn uncontainer_name(name: &str) -> Option<(PackageId<&str>, Option<&str>)> {
         let (pre_tld, _) = name.split_once(".")?;
         if pre_tld.contains('_') {
             let (pkg, name) = name.split_once("_")?;
