@@ -32,8 +32,8 @@ use crate::db::model::{
 };
 use crate::db::util::WithRevision;
 use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, break_all_dependents_transitive, BreakageRes,
-    DependencyError, DependencyErrors,
+    add_dependent_to_current_dependents_lists, break_all_dependents_transitive,
+    reconfigure_dependents_with_live_pointers, BreakageRes, DependencyError, DependencyErrors,
 };
 use crate::install::cleanup::{cleanup, update_dependency_errors_of_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
@@ -899,6 +899,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
+
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {
@@ -1047,6 +1048,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .recovered_packages()
         .remove(&mut tx, pkg_id)
         .await?;
+
+    if let Some(installed) = pde.installed() {
+        reconfigure_dependents_with_live_pointers(ctx, &mut tx, installed).await?;
+    }
 
     sql_tx.commit().await?;
     tx.commit(None).await?;

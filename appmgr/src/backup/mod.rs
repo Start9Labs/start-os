@@ -14,6 +14,7 @@ use tracing::instrument;
 use self::target::PackageBackupInfo;
 use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
+use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
@@ -212,6 +213,20 @@ impl BackupActions {
             .interface_addresses()
             .put(db, &interfaces.install(&mut *secrets, pkg_id).await?)
             .await?;
+
+        let entry = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(pkg_id)
+            .expect(db)
+            .await?
+            .installed()
+            .expect(db)
+            .await?
+            .get(db, true)
+            .await?;
+
+        reconfigure_dependents_with_live_pointers(ctx, db, &entry).await?;
+
         Ok(())
     }
 }

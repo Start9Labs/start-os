@@ -1636,7 +1636,7 @@ impl ValueSpec for PackagePointerSpec {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct TorAddressPointer {
-    package_id: PackageId,
+    pub package_id: PackageId,
     interface: InterfaceId,
 }
 impl TorAddressPointer {
@@ -1667,7 +1667,7 @@ impl fmt::Display for TorAddressPointer {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct LanAddressPointer {
-    package_id: PackageId,
+    pub package_id: PackageId,
     interface: InterfaceId,
 }
 impl fmt::Display for LanAddressPointer {
