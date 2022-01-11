@@ -127,10 +127,10 @@ impl DockerAction {
                     signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
                         .with_kind(crate::ErrorKind::Docker)?;
                 }
-                return Ok(Err((143, "Timed out. Retrying soon...$".to_owned())));
+                return Ok(Err((143, "Timed out. Retrying soon...".to_owned())));
             }
         };
-        Ok(if res.status.success() {
+        Ok(if res.status.success() || res.status.code() == Some(143) {
             Ok(if let Some(format) = self.io_format {
                 match format.from_slice(&res.stdout) {
                     Ok(a) => a,
