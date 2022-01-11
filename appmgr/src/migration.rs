@@ -1,6 +1,6 @@
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::{Future, FutureExt, TryFutureExt};
+use futures::{Future, FutureExt};
 use indexmap::IndexMap;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
