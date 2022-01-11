@@ -115,6 +115,7 @@ impl TableOfContents {
                 )
             })
         }
+        #[allow(dead_code)]
         fn as_opt(fs: FileSection) -> Option<FileSection> {
             if fs.position | fs.length == 0 {
                 // 0/0 is not a valid file section
