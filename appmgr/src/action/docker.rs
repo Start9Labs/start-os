@@ -55,29 +55,27 @@ impl DockerAction {
         allow_inject: bool,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        // let mut cmd = tokio::process::Command::new("docker");
-        // if self.inject && allow_inject {
-        //     cmd.arg("exec");
-        // } else {
-        //     let container_name = Self::container_name(pkg_id, name);
-        //     cmd.arg("run")
-        //         .arg("--rm")
-        //         .arg("--network=start9")
-        //         .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
-        //         .arg("--name")
-        //         .arg(&container_name)
-        //         .arg("--no-healthcheck");
-        //     match ctx.docker.remove_container(&container_name, None).await {
-        //         Ok(()) | Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => Ok(()),
-        //         Err(e) => Err(e),
-        //     }?;
-        // }
-        // cmd.args(
-        //     self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
-        //         .await,
-        // );
-        let mut cmd = tokio::process::Command::new("sleep");
-        cmd.arg("10000");
+        let mut cmd = tokio::process::Command::new("docker");
+        if self.inject && allow_inject {
+            cmd.arg("exec");
+        } else {
+            let container_name = Self::container_name(pkg_id, name);
+            cmd.arg("run")
+                .arg("--rm")
+                .arg("--network=start9")
+                .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
+                .arg("--name")
+                .arg(&container_name)
+                .arg("--no-healthcheck");
+            match ctx.docker.remove_container(&container_name, None).await {
+                Ok(()) | Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => Ok(()),
+                Err(e) => Err(e),
+            }?;
+        }
+        cmd.args(
+            self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
+                .await,
+        );
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -99,24 +97,7 @@ impl DockerAction {
             EitherFuture::Right(async move {
                 tokio::time::sleep(timeout).await;
 
-                if let Some(id) = id {
-                    signal::kill(Pid::from_raw(id as i32), nix::sys::signal::SIGTERM)
-                        .with_kind(crate::ErrorKind::Docker)?;
-                }
-
-                tokio::time::sleep(
-                    self.sigterm_timeout
-                        .map(|a| *a)
-                        .unwrap_or_else(|| Duration::from_secs(30)),
-                )
-                .await;
-
-                if let Some(id) = id {
-                    signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
-                        .with_kind(crate::ErrorKind::Docker)?;
-                }
-
-                Ok(futures::future::pending().await)
+                Ok(())
             })
         } else {
             EitherFuture::Left(futures::future::pending::<Result<_, Error>>())
@@ -128,13 +109,30 @@ impl DockerAction {
                 .await
                 .with_kind(crate::ErrorKind::Docker)?;
         }
+        enum Race<T> {
+            Done(T),
+            TimedOut,
+        }
         let res = tokio::select! {
-            res = handle.wait_with_output() => res.with_kind(crate::ErrorKind::Docker)?,
-            res = timeout_fut => res?,
+            res = handle.wait_with_output() => Race::Done(res.with_kind(crate::ErrorKind::Docker)?),
+            res = timeout_fut => {
+                res?;
+                Race::TimedOut
+            },
+        };
+        let res = match res {
+            Race::Done(x) => x,
+            Race::TimedOut => {
+                if let Some(id) = id {
+                    signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
+                        .with_kind(crate::ErrorKind::Docker)?;
+                }
+                return Ok(Err((143, "Timed out. Retrying soon...$".to_owned())));
+            }
         };
         let is_sigtermed = res.status.code() == Some(143);
         Ok(if res.status.success() || is_sigtermed {
-            Ok(if let Some(format) = &self.io_format {
+            Ok(if let Some(format) = self.io_format {
                 match format.from_slice(&res.stdout) {
                     Ok(a) => a,
                     Err(e) => {
@@ -147,9 +145,6 @@ impl DockerAction {
                             .with_kind(crate::ErrorKind::Deserialization)?
                     }
                 }
-            } else if is_sigtermed && res.stdout.is_empty() {
-                /// TODO test this out with sleep 1000 or ping 0.0.0.0
-                return Ok(Err((143, "Timed out. Retrying soon...$".to_owned())));
             } else if res.stdout.is_empty() {
                 serde_json::from_value(Value::Null).with_kind(crate::ErrorKind::Deserialization)?
             } else {
