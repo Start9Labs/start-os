@@ -152,7 +152,6 @@ impl NginxControllerInner {
         match self.interfaces.get_mut(&package) {
             None => {
                 let info = PackageNetInfo {
-                    _ip: ipv4,
                     interfaces: interface_map,
                 };
                 self.interfaces.insert(package, info);
@@ -225,7 +224,6 @@ impl NginxControllerInner {
     }
 }
 struct PackageNetInfo {
-    _ip: Ipv4Addr,
     interfaces: BTreeMap<InterfaceId, InterfaceMetadata>,
 }
 pub struct InterfaceMetadata {

@@ -126,8 +126,8 @@ pub async fn install(
     match pde.take() {
         Some(PackageDataEntry::Installed {
             installed,
-            manifest: _manifest,
             static_files,
+            ..
         }) => {
             *pde = Some(PackageDataEntry::Updating {
                 install_progress: progress.clone(),
@@ -367,7 +367,7 @@ async fn cli_install(
     } else {
         let params = match (target.split_once("@"), version_spec) {
             (Some((pkg, v)), None) => serde_json::json!({ "id": pkg, "version-spec": v }),
-            (Some((pkg, v)), Some(_)) => {
+            (Some(_), Some(_)) => {
                 return Err(crate::Error::new(
                     eyre!("Invalid package id {}", target),
                     ErrorKind::InvalidRequest,

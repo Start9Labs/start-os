@@ -105,7 +105,7 @@ fn server_error() -> Response<Body> {
 }
 async fn file_send(
     _valid_session: HasValidSession,
-    ctx: &RpcContext,
+    _ctx: &RpcContext,
     path: impl AsRef<Path>,
 ) -> Result<Response<Body>, Error> {
     // Serve a file by asynchronously reading it by chunks using tokio-util crate.

@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use color_eyre::eyre::eyre;
 use futures::FutureExt;

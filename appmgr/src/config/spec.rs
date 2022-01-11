@@ -1869,12 +1869,14 @@ impl fmt::Display for TorKeyPointer {
 #[serde(tag = "target")]
 pub enum SystemPointerSpec {}
 impl fmt::Display for SystemPointerSpec {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "SYSTEM: {}", match *self {})
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        // write!(f, "SYSTEM: {}", match *self {})
+        Ok(())
     }
 }
 impl SystemPointerSpec {
-    async fn deref<Db: DbHandle>(&self, db: &mut Db) -> Result<Value, ConfigurationError> {
+    async fn deref<Db: DbHandle>(&self, _db: &mut Db) -> Result<Value, ConfigurationError> {
+        #[allow(unreachable_code)]
         Ok(match *self {})
     }
 }
@@ -1898,7 +1900,7 @@ impl ValueSpec for SystemPointerSpec {
     }
     async fn update<Db: DbHandle>(
         &self,
-        ctx: &RpcContext,
+        _ctx: &RpcContext,
         db: &mut Db,
         _manifest: &Manifest,
         _config_overrides: &BTreeMap<PackageId, Config>,
@@ -1907,9 +1909,10 @@ impl ValueSpec for SystemPointerSpec {
         *value = self.deref(db).await?;
         Ok(())
     }
-    fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
+    fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         let mut pointers = BTreeSet::new();
         pointers.insert(ValueSpecPointer::System(self.clone()));
+        #[allow(unreachable_code)]
         Ok(pointers)
     }
     fn requires(&self, _id: &PackageId, _value: &Value) -> bool {
@@ -1917,258 +1920,5 @@ impl ValueSpec for SystemPointerSpec {
     }
     fn eq(&self, _lhs: &Value, _rhs: &Value) -> bool {
         false
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use rand::SeedableRng;
-
-    use super::*;
-
-    #[test]
-    fn test_config() {
-        let spec = serde_json::json!({
-          "randomEnum": {
-            "name": "Random Enum",
-            "type": "enum",
-            "default": "null",
-            "description": "This is not even real.",
-            "changeWarning": "Be careful chnaging this!",
-            "values": [
-              "null",
-              "option1",
-              "option2",
-              "option3"
-            ]
-          },
-          "testnet": {
-            "name": "Testnet",
-            "type": "boolean",
-            "description": "determines whether your node is running ontestnet or mainnet",
-            "changeWarning": "Chain will have to resync!",
-            "default": false
-          },
-          "favoriteNumber": {
-            "name": "Favorite Number",
-            "type": "number",
-            "integral": false,
-            "description": "Your favorite number of all time",
-            "changeWarning": "Once you set this number, it can never be changed without severe consequences.",
-            "nullable": false,
-            "default": 7,
-            "range": "(-100,100]"
-          },
-          "secondaryNumbers": {
-            "name": "Unlucky Numbers",
-            "type": "list",
-            "subtype": "number",
-            "description": "Numbers that you like but are not your top favorite.",
-            "spec": {
-              "type": "number",
-              "integral": false,
-              "range": "[-100,200)"
-            },
-            "range": "[0,10]",
-            "default": [
-              2,
-              3
-            ]
-          },
-          "rpcsettings": {
-            "name": "RPC Settings",
-            "type": "object",
-            "description": "rpc username and password",
-            "changeWarning": "Adding RPC users gives them special permissions on your node.",
-            "nullable": false,
-            "nullByDefault": false,
-            "spec": {
-              "laws": {
-                "name": "Laws",
-                "type": "object",
-                "description": "the law of the realm",
-                "nullable": true,
-                "nullByDefault": true,
-                "spec": {
-                  "law1": {
-                    "name": "First Law",
-                    "type": "string",
-                    "description": "the first law",
-                    "nullable": true
-                  },
-                  "law2": {
-                    "name": "Second Law",
-                    "type": "string",
-                    "description": "the second law",
-                    "nullable": true
-                  }
-                }
-              },
-              "rulemakers": {
-                "name": "Rule Makers",
-                "type": "list",
-                "subtype": "object",
-                "description": "the people who make the rules",
-                "range": "[0,2]",
-                "default": [],
-                "spec": {
-                  "type": "object",
-                  "spec": {
-                    "rulemakername": {
-                      "name": "Rulemaker Name",
-                      "type": "string",
-                      "description": "the name of the rule maker",
-                      "nullable": false,
-                      "default": {
-                        "charset": "a-g,2-9",
-                        "len": 12
-                      }
-                    },
-                    "rulemakerip": {
-                      "name": "Rulemaker IP",
-                      "type": "string",
-                      "description": "the ip of the rule maker",
-                      "nullable": false,
-                      "default": "192.168.1.0",
-                      "pattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
-                      "patternDescription": "may only contain numbers and periods"
-                    }
-                  }
-                }
-              },
-              "rpcuser": {
-                "name": "RPC Username",
-                "type": "string",
-                "description": "rpc username",
-                "nullable": false,
-                "default": "defaultrpcusername",
-                "pattern": "^[a-zA-Z]+$",
-                "patternDescription": "must contain only letters."
-              },
-              "rpcpass": {
-                "name": "RPC User Password",
-                "type": "string",
-                "description": "rpc password",
-                "nullable": false,
-                "default": {
-                  "charset": "a-z,A-Z,2-9",
-                  "len": 20
-                }
-              }
-            }
-          },
-          "advanced": {
-            "name": "Advanced",
-            "type": "object",
-            "description": "Advanced settings",
-            "nullable": false,
-            "nullByDefault": false,
-            "spec": {
-              "notifications": {
-                "name": "Notification Preferences",
-                "type": "list",
-                "subtype": "enum",
-                "description": "how you want to be notified",
-                "range": "[1,3]",
-                "default": [
-                  "email"
-                ],
-                "spec": {
-                  "type": "enum",
-                  "values": [
-                    "email",
-                    "text",
-                    "call",
-                    "push",
-                    "webhook"
-                  ]
-                }
-              }
-            }
-          },
-          "bitcoinNode": {
-            "name": "Bitcoin Node Settings",
-            "type": "union",
-            "description": "The node settings",
-            "default": "internal",
-            "tag": {
-                "id": "type",
-                "name": "Type",
-                "variantNames": {}
-            },
-            "Variant": {
-              "internal": {
-                "lan-address": {
-                  "name": "LAN Address",
-                  "type": "pointer",
-                  "subtype": "package",
-                  "target": "lan-address",
-                  "package-id": "bitcoind",
-                  "description": "the lan address"
-                }
-              },
-              "external": {
-                "public-domain": {
-                  "name": "Public Domain",
-                  "type": "string",
-                  "description": "the public address of the node",
-                  "nullable": false,
-                  "default": "bitcoinnode.com",
-                  "pattern": ".*",
-                  "patternDescription": "anything"
-                }
-              }
-            }
-          },
-          "port": {
-            "name": "Port",
-            "type": "number",
-            "integral": true,
-            "description": "the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444",
-            "nullable": true,
-            "default": 8333,
-            "range": "[0, 9999]",
-            "units": "m/s"
-          },
-          "maxconnections": {
-            "name": "Max Connections",
-            "type": "string",
-            "description": "the maximum number of commections allowed to your Bitcoin node",
-            "nullable": true
-          },
-          "rpcallowip": {
-            "name": "RPC Allowed IPs",
-            "type": "list",
-            "subtype": "string",
-            "description": "external ip addresses that are authorized to access your Bitcoin node",
-            "changeWarning": "Any IP you allow here will have RPC access to your Bitcoin node.",
-            "range": "[1,10]",
-            "default": [
-              "192.168.1.1"
-            ],
-            "spec": {
-              "type": "string",
-              "pattern": "((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))",
-              "patternDescription": "must be a valid ipv4, ipv6, or domain name"
-            }
-          },
-          "rpcauth": {
-            "name": "RPC Auth",
-            "type": "list",
-            "subtype": "string",
-            "description": "api keys that are authorized to access your Bitcoin node.",
-            "range": "[0,*)",
-            "default": [],
-            "spec": {
-              "type": "string"
-            }
-          }
-        });
-        let spec: ConfigSpec = serde_json::from_value(spec).unwrap();
-        spec.validate(todo!()).unwrap();
-        let config = spec
-            .gen(&mut rand::rngs::StdRng::from_entropy(), &None)
-            .unwrap();
-        spec.matches(&config).unwrap();
     }
 }

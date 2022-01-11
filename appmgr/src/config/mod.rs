@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
-use bollard::container::KillContainerOptions;
 use color_eyre::eyre::eyre;
 use futures::future::{BoxFuture, FutureExt};
 use indexmap::IndexSet;
@@ -13,7 +12,6 @@ use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
 
-use crate::action::docker::DockerAction;
 use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
 use crate::db::util::WithRevision;
