@@ -20,7 +20,7 @@ use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
 
-pub const NET_TLD: &'static str = "embassy";
+pub const NET_TLD: &str = "embassy";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -97,24 +97,7 @@ impl DockerAction {
             EitherFuture::Right(async move {
                 tokio::time::sleep(timeout).await;
 
-                if let Some(id) = id {
-                    signal::kill(Pid::from_raw(id as i32), nix::sys::signal::SIGTERM)
-                        .with_kind(crate::ErrorKind::Docker)?;
-                }
-
-                tokio::time::sleep(
-                    self.sigterm_timeout
-                        .map(|a| *a)
-                        .unwrap_or(Duration::from_secs(30)),
-                )
-                .await;
-
-                if let Some(id) = id {
-                    signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
-                        .with_kind(crate::ErrorKind::Docker)?;
-                }
-
-                Ok(futures::future::pending().await)
+                Ok(())
             })
         } else {
             EitherFuture::Left(futures::future::pending::<Result<_, Error>>())
@@ -126,12 +109,29 @@ impl DockerAction {
                 .await
                 .with_kind(crate::ErrorKind::Docker)?;
         }
+        enum Race<T> {
+            Done(T),
+            TimedOut,
+        }
         let res = tokio::select! {
-            res = handle.wait_with_output() => res.with_kind(crate::ErrorKind::Docker)?,
-            res = timeout_fut => res?,
+            res = handle.wait_with_output() => Race::Done(res.with_kind(crate::ErrorKind::Docker)?),
+            res = timeout_fut => {
+                res?;
+                Race::TimedOut
+            },
+        };
+        let res = match res {
+            Race::Done(x) => x,
+            Race::TimedOut => {
+                if let Some(id) = id {
+                    signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
+                        .with_kind(crate::ErrorKind::Docker)?;
+                }
+                return Ok(Err((143, "Timed out. Retrying soon...".to_owned())));
+            }
         };
         Ok(if res.status.success() || res.status.code() == Some(143) {
-            Ok(if let Some(format) = &self.io_format {
+            Ok(if let Some(format) = self.io_format {
                 match format.from_slice(&res.stdout) {
                     Ok(a) => a,
                     Err(e) => {
@@ -230,9 +230,9 @@ impl DockerAction {
         }
     }
 
-    pub fn uncontainer_name<'a>(name: &'a str) -> Option<(PackageId<&'a str>, Option<&'a str>)> {
+    pub fn uncontainer_name(name: &str) -> Option<(PackageId<&str>, Option<&str>)> {
         let (pre_tld, _) = name.split_once(".")?;
-        if pre_tld.contains("_") {
+        if pre_tld.contains('_') {
             let (pkg, name) = name.split_once("_")?;
             Some((Id::try_from(pkg).ok()?.into(), Some(name)))
         } else {
@@ -240,14 +240,14 @@ impl DockerAction {
         }
     }
 
-    async fn docker_args<'a>(
-        &'a self,
+    async fn docker_args(
+        &self,
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
         allow_inject: bool,
-    ) -> Vec<Cow<'a, OsStr>> {
+    ) -> Vec<Cow<'_, OsStr>> {
         let mut res = Vec::with_capacity(
             (2 * self.mounts.len()) // --mount <MOUNT_ARG>
                 + (2 * self.shm_size_mb.is_some() as usize) // --shm-size <SHM_SIZE>
