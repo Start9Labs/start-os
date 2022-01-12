@@ -1,9 +1,17 @@
 import { NgModule } from '@angular/core'
-import { EmverComparesPipe, EmverSatisfiesPipe, EmverDisplayPipe } from '../pipes/emver.pipe'
+import {
+  EmverComparesPipe,
+  EmverSatisfiesPipe,
+  EmverDisplayPipe,
+} from '../pipes/emver.pipe'
 import { IncludesPipe } from '../pipes/includes.pipe'
 import { TypeofPipe } from '../pipes/typeof.pipe'
 import { MarkdownPipe } from '../pipes/markdown.pipe'
-import { TruncateCenterPipe, TruncateEndPipe, TruncateTailPipe } from '../pipes/truncate.pipe'
+import {
+  TruncateCenterPipe,
+  TruncateEndPipe,
+  TruncateTailPipe,
+} from '../pipes/truncate.pipe'
 import { MaskPipe } from '../pipes/mask.pipe'
 import { HasUiPipe, LaunchablePipe } from '../pipes/ui.pipe'
 import { EmptyPipe } from '../pipes/empty.pipe'
@@ -12,6 +20,7 @@ import { InstallState } from '../pipes/install-state.pipe'
 import { TextSpinnerComponentModule } from '../components/text-spinner/text-spinner.component.module'
 import { ConvertBytesPipe } from '../pipes/convert-bytes.pipe'
 import { DurationToSecondsPipe } from '../pipes/unit-conversion.pipe'
+import { InstallProgressPipe } from '../pipes/install-progress.pipe'
 
 @NgModule({
   declarations: [
@@ -19,6 +28,7 @@ import { DurationToSecondsPipe } from '../pipes/unit-conversion.pipe'
     EmverSatisfiesPipe,
     TypeofPipe,
     IncludesPipe,
+    InstallProgressPipe,
     InstallState,
     MarkdownPipe,
     TruncateCenterPipe,
@@ -33,9 +43,7 @@ import { DurationToSecondsPipe } from '../pipes/unit-conversion.pipe'
     ConvertBytesPipe,
     DurationToSecondsPipe,
   ],
-  imports: [
-    TextSpinnerComponentModule,
-  ],
+  imports: [TextSpinnerComponentModule],
   exports: [
     EmverComparesPipe,
     EmverSatisfiesPipe,
@@ -48,6 +56,7 @@ import { DurationToSecondsPipe } from '../pipes/unit-conversion.pipe'
     MaskPipe,
     EmverDisplayPipe,
     HasUiPipe,
+    InstallProgressPipe,
     InstallState,
     LaunchablePipe,
     EmptyPipe,
@@ -58,4 +67,4 @@ import { DurationToSecondsPipe } from '../pipes/unit-conversion.pipe'
     TextSpinnerComponentModule,
   ],
 })
-export class SharingModule { }
+export class SharingModule {}
