@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { InstallProgress } from '../services/patch-db/data-model'
+import { PackageDataEntry } from '../services/patch-db/data-model'
 import {
   packageLoadingProgress,
   ProgressData,
@@ -9,7 +9,7 @@ import {
   name: 'installState',
 })
 export class InstallState implements PipeTransform {
-  transform(loadData: InstallProgress): ProgressData | null {
-    return packageLoadingProgress(loadData)
+  transform(pkg: PackageDataEntry): ProgressData | null {
+    return packageLoadingProgress(pkg['install-progress'])
   }
 }
