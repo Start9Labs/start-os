@@ -31,7 +31,7 @@
     <!-- ** installing, updating, restoring ** -->
     <ion-content *ngIf="showProgress(pkg)">
       <app-show-progress
-        *ngIf="pkg['install-progress'] | installState as installProgress"
+        *ngIf="pkg | installState as installProgress"
         [pkg]="pkg"
         [installProgress]="installProgress"
       ></app-show-progress>

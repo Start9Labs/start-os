@@ -1,12 +1,6 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  Inject,
-  Input,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { UiLauncherService } from 'src/app/services/ui-launcher.service'
 import {
-  InstallProgress,
   InterfaceDef,
   PackageDataEntry,
   PackageState,
@@ -66,10 +60,6 @@ export class AppShowStatusComponent {
 
   get interfaces(): Record<string, InterfaceDef> {
     return this.pkg.manifest.interfaces
-  }
-
-  get progress(): InstallProgress | undefined {
-    return this.pkg['install-progress']
   }
 
   get pkgStatus(): Status {

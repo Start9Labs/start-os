@@ -2,7 +2,7 @@ import { Pipe, PipeTransform } from '@angular/core'
 import { NavigationExtras } from '@angular/router'
 import { NavController } from '@ionic/angular'
 import { combineLatest, Observable } from 'rxjs'
-import { filter, map } from 'rxjs/operators'
+import { filter, map, startWith } from 'rxjs/operators'
 import { DependentInfo, exists } from 'src/app/util/misc.util'
 import {
   DependencyError,
@@ -48,12 +48,13 @@ export class ToDependenciesPipe implements PipeTransform {
         'dependency-errors',
       ),
     ]).pipe(
-      filter(deps => deps.every(exists)),
+      filter(deps => deps.every(exists) && !!pkg.installed),
       map(([currentDeps, depErrors]) =>
         Object.keys(currentDeps)
           .filter(id => !!pkg.manifest.dependencies[id])
           .map(id => this.setDepValues(pkg, id, depErrors)),
       ),
+      startWith([]),
     )
   }
 

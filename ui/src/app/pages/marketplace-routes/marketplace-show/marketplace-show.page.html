@@ -32,9 +32,9 @@
                   </p>
                   <!-- installing, updating -->
                   <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state">
-                    <ion-text color="primary" *ngIf="(localPkg['install-progress'] | installState) as progress">
+                    <ion-text color="primary" *ngIf="(localPkg['install-progress'] | installProgress) as progress">
                       Installing
-                      <span class="loading-dots"></span>{{ progress.totalProgress < 99 ? progress.totalProgress + '%' : 'finalizing' }}
+                      <span class="loading-dots"></span>{{ progress }}
                     </ion-text>
                   </p>
                   <!-- removing -->
