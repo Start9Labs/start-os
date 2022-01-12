@@ -1,4 +1,5 @@
 .DS_Store
 /*.img
+/*.img.gz
 /ubuntu.img.xz
 /product_key.txt
