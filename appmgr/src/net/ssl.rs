@@ -15,6 +15,7 @@ use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
+use crate::s9pk::manifest::PackageId;
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
@@ -240,11 +241,15 @@ impl SslManager {
     pub async fn certificate_for(
         &self,
         dns_base: &str,
+        package_id: &PackageId,
     ) -> Result<(PKey<Private>, Vec<X509>), Error> {
         let (key, cert) = match self.store.load_certificate(dns_base).await? {
             None => {
                 let key = generate_key()?;
-                let cert = make_leaf_cert((&self.int_key, &self.int_cert), (&key, dns_base))?;
+                let cert = make_leaf_cert(
+                    (&self.int_key, &self.int_cert),
+                    (&key, dns_base, package_id),
+                )?;
                 self.store.save_certificate(&key, &cert, dns_base).await?;
                 Ok::<_, Error>((key, cert))
             }
@@ -253,7 +258,10 @@ impl SslManager {
                 let expiration = cert.not_after();
                 if expiration.compare(&window_end)? == Ordering::Less {
                     let key = generate_key()?;
-                    let cert = make_leaf_cert((&self.int_key, &self.int_cert), (&key, dns_base))?;
+                    let cert = make_leaf_cert(
+                        (&self.int_key, &self.int_cert),
+                        (&key, dns_base, package_id),
+                    )?;
                     self.store.update_certificate(&key, &cert, dns_base).await?;
                     Ok((key, cert))
                 } else {
@@ -414,7 +422,7 @@ fn make_int_cert(
 #[instrument]
 fn make_leaf_cert(
     signer: (&PKey<Private>, &X509),
-    applicant: (&PKey<Private>, &str),
+    applicant: (&PKey<Private>, &str, &PackageId),
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
@@ -467,8 +475,8 @@ fn make_leaf_cert(
         Some(&ctx),
         Nid::SUBJECT_ALT_NAME,
         &format!(
-            "DNS:{}.local,DNS:*.{}.local,DNS:{}.onion,DNS:*.{}.onion",
-            &applicant.1, &applicant.1, &applicant.1, &applicant.1
+            "DNS:{}.local,DNS:*.{}.local,DNS:{}.onion,DNS:*.{}.onion,DNS:{}.embassy,DNS:*.{}.embassy",
+            &applicant.1, &applicant.1, &applicant.1, &applicant.1, &applicant.2, &applicant.2,
         ),
     )?;
     builder.append_extension(subject_key_identifier)?;
@@ -514,8 +522,9 @@ async fn certificate_details_persist() -> Result<(), Error> {
         .execute(&pool)
         .await?;
     let mgr = SslManager::init(pool.clone()).await?;
-    let (key0, cert_chain0) = mgr.certificate_for("start9").await?;
-    let (key1, cert_chain1) = mgr.certificate_for("start9").await?;
+    let package_id = "bitcoind".parse().unwrap();
+    let (key0, cert_chain0) = mgr.certificate_for("start9", &package_id).await?;
+    let (key1, cert_chain1) = mgr.certificate_for("start9", &package_id).await?;
 
     assert_eq!(
         key0.private_key_to_pem_pkcs8()?,

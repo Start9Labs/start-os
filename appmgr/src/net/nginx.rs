@@ -58,7 +58,9 @@ impl NginxControllerInner {
             interfaces: BTreeMap::new(),
         };
         // write main ssl key/cert to fs location
-        let (key, cert) = ssl_manager.certificate_for(&get_hostname().await?).await?;
+        let (key, cert) = ssl_manager
+            .certificate_for(&get_hostname().await?, &"embassy".parse().unwrap())
+            .await?;
         let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
         let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
         tokio::try_join!(
@@ -102,7 +104,9 @@ impl NginxControllerInner {
                         }
                         let ssl_path_key = package_path.join(format!("{}.key.pem", id));
                         let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
-                        let (key, chain) = ssl_manager.certificate_for(&meta.dns_base).await?;
+                        let (key, chain) = ssl_manager
+                            .certificate_for(&meta.dns_base, &package)
+                            .await?;
                         tokio::try_join!(
                             crate::net::ssl::export_key(&key, &ssl_path_key),
                             crate::net::ssl::export_cert(&chain, &ssl_path_cert)

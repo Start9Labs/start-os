@@ -169,7 +169,7 @@ impl NetController {
             let dns_base = OnionAddressV3::from(&key.public()).get_address_without_dot_onion();
             let ssl_path_key = package_path.join(format!("{}.key.pem", id));
             let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
-            let (key, chain) = self.ssl.certificate_for(&dns_base).await?;
+            let (key, chain) = self.ssl.certificate_for(&dns_base, pkg_id).await?;
             tokio::try_join!(
                 crate::net::ssl::export_key(&key, &ssl_path_key),
                 crate::net::ssl::export_cert(&chain, &ssl_path_cert)
