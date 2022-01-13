@@ -1,5 +1,5 @@
-import * as Ajv from 'ajv'
 import { applyOperation } from 'fast-json-patch'
+import {Parser, shape, string, literal, number, boolean, arrayOf, object, any, some, deferred, dictionary, anyOf} from 'ts-matches';
 
 
 export type ValidVersion = 1 | 2
@@ -9,63 +9,61 @@ function has<Obj extends {}, K extends string>(obj: Obj, key: K): obj is (Obj & 
 }
 
 
-const ajv = new Ajv({ jsonPointers: true, allErrors: true, nullable: true })
-const ajvWithDefaults = new Ajv({ jsonPointers: true, allErrors: true, useDefaults: true, nullable: true, removeAdditional: 'failing' })
 
-const schemaV1 = {
-  'type': 'object',
-  'properties': {
-    'name': { 'type': 'string' },
-    'value': { 'type': 'string' },
-    'description': { 'type': 'string', 'nullable': true, 'default': null },
-    'copyable': { 'type': 'boolean', 'default': false },
-    'qr': { 'type': 'boolean', 'default': false },
+const matchPropertiesV1 = shape(
+  {
+    name: string,
+    value: string,
+    description: string,
+    copyable: boolean,
+    qr: boolean,
   },
-  'required': ['name', 'value', 'copyable', 'qr'],
-  'additionalProperties': false,
-}
-const schemaV1Compiled = ajv.compile(schemaV1)
-function isSchemaV1(properties: unknown): properties is PropertiesV1 {
-  return schemaV1Compiled(properties) as any
-}
-const schemaV1CompiledWithDefaults = ajvWithDefaults.compile(schemaV1)
-const schemaV2 = {
-  'anyOf': [
-    {
-      'type': 'object',
-      'properties': {
-        'type': { 'type': 'string', 'const': 'string' },
-        'value': { 'type': 'string' },
-        'description': { 'type': 'string', 'nullable': true, 'default': null },
-        'copyable': { 'type': 'boolean', 'default': false },
-        'qr': { 'type': 'boolean', 'default': false },
-        'masked': { 'type': 'boolean', 'default': false },
-      },
-      'required': ['type', 'value', 'description', 'copyable', 'qr', 'masked'],
-      'additionalProperties': false,
-    },
-    {
-      'type': 'object',
-      'properties': {
-        'type': { 'type': 'string', 'const': 'object' },
-        'value': {
-          'type': 'object',
-          'patternProperties': {
-            '^.*$': {
-              '$ref': '#',
-            },
-          },
-        },
-        'description': { 'type': 'string', 'nullable': true, 'default': null },
+  ['description', 'copyable', 'qr'],
+  { description: null as null, copyable: false, qr: false } as const,
+)
+type PropertiesV1 = typeof matchPropertiesV1._TYPE
 
-      },
-      'required': ['type', 'value', 'description'],
-      'additionalProperties': false,
-    },
-  ],
+
+type PackagePropertiesV2 = {
+  [name: string]: PackagePropertyString | PackagePropertyObject
 }
-const schemaV2Compiled = ajv.compile(schemaV2)
-const schemaV2CompiledWithDefaults = ajvWithDefaults.compile(schemaV2)
+
+const [matchPackagePropertiesV2, setPPV2] = deferred<PackagePropertiesV2>();
+const matchPackagePropertyString = shape(
+  {
+    type: literal('string'),
+    description: string,
+    value: string,
+    copyable: boolean,
+    qr: boolean,
+    masked: boolean,
+  },
+  ['description', 'copyable', 'qr', 'masked'],
+  {
+    description: null as null,
+    copyable: false,
+    qr: false,
+    masked: false,
+  } as const,
+)
+type PackagePropertyString = typeof matchPackagePropertyString._TYPE
+const matchPackagePropertyObject = shape(
+  {
+    type: literal('object'),
+    value: matchPackagePropertiesV2,
+    description: string.optional(),
+  },
+  ['description'],
+  { description: null as null },
+)
+type PackagePropertyObject = typeof matchPackagePropertyObject._TYPE
+setPPV2(
+  dictionary([
+    string,
+    anyOf(matchPackagePropertyString, matchPackagePropertyObject),
+  ]),
+)
+
 
 export function parsePropertiesPermissive (properties: unknown, errorCallback: (err: Error) => any = console.warn): PackageProperties {
   if (typeof properties !== 'object' || properties === null) {
@@ -118,65 +116,45 @@ function parsePropertiesV1Permissive (properties: unknown, errorCallback: (err: 
     return {}
   }
   return properties.reduce((prev: PackagePropertiesV2, cur: unknown, idx: number) => {
-    if(isSchemaV1(cur)) {
-      prev[cur.name] = {
+    
+      const result = matchPropertiesV1.enumParsed(cur);
+      if ('value' in result) {
+        const value = result.value
+      prev[value.name] = {
         type: 'string',
-        value: cur.value,
-        description: cur.description,
-        copyable: cur.copyable,
-        qr: cur.qr,
+        value: value.value,
+        description: value.description,
+        copyable: value.copyable,
+        qr: value.qr,
         masked: false,
       }
     }
-    else if (schemaV1Compiled.errors) {
-      for (let err of schemaV1Compiled.errors) {
-        errorCallback(new Error(`/data/${idx}${err.dataPath}: ${err.message}`))
-        if (err.dataPath) {
-          applyOperation(cur, { op: 'replace', path: err.dataPath, value: undefined })
-        }
-      }
-      if (!schemaV1CompiledWithDefaults(cur)) {
-        for (let err of schemaV1CompiledWithDefaults.errors) {
-          errorCallback(new Error(`/data/${idx}${err.dataPath}: ${err.message}`))
-        }
-        return prev
+    else {
+      const error = result.error;
+      const message = Parser.validatorErrorAsString(error)
+      let dataPath = error.keys.map(x => JSON.parse(x)).join('/')
+      errorCallback(new Error(`/data/${idx}: ${message}`))
+      if (dataPath) {
+        applyOperation(cur, { op: 'replace', path: dataPath, value: undefined })
       }
     }
     return prev
   }, { })
 }
-function parsePropertiesV2Permissive (properties: unknown, errorCallback: (err: Error) => any): PackageProperties {
-  if (typeof properties !== 'object' || properties === null) {
-    errorCallback(new TypeError(`${properties} is not an object`))
-    return {}
+function parsePropertiesV2Permissive (properties: unknown, errorCallback: (err: Error) => any): PackageProperties {    
+  const result = matchPackagePropertiesV2.enumParsed(properties);
+  if ('value' in result) {
+    return result.value
   }
-  return Object.entries(properties).reduce((prev, [name, value], idx) => {
-    schemaV2Compiled(value)
-    if (schemaV2Compiled.errors) {
-      for (let err of schemaV2Compiled.errors) {
-        errorCallback(new Error(`/data/${idx}${err.dataPath}: ${err.message}`))
-        if (err.dataPath) {
-          applyOperation(value, { op: 'replace', path: err.dataPath, value: undefined })
-        }
-      }
-      if (!schemaV2CompiledWithDefaults(value)) {
-        for (let err of schemaV2CompiledWithDefaults.errors) {
-          errorCallback(new Error(`/data/${idx}${err.dataPath}: ${err.message}`))
-        }
-        return prev
-      }
-    }
-    prev[name] = value
-    return prev
-  }, { })
+  const error = result.error;
+  const message = Parser.validatorErrorAsString(error)
+  let dataPath = error.keys.map(x => JSON.parse(x)).join('/')
+  errorCallback(new Error(`/data/: ${message}`))
+  if (dataPath) {
+    applyOperation(properties, { op: 'replace', path: dataPath, value: undefined })
+  }
 }
-interface PropertiesV1 {
-  name: string
-  value: string
-  description: string | null
-  copyable: boolean
-  qr: boolean
-}
+  
 
 type PackagePropertiesV1 = PropertiesV1[]
 export type PackageProperties = PackagePropertiesV2
@@ -191,25 +169,3 @@ export type PackagePropertiesVersionedData<T extends number> =
   T extends 2 ? PackagePropertiesV2 :
   never
 
-
-interface PackagePropertiesV2 {
-  [name: string]: PackagePropertyString | PackagePropertyObject
-}
-
-interface PackagePropertyBase {
-  type: 'string' | 'object'
-  description: string | null
-}
-
-interface PackagePropertyString extends PackagePropertyBase {
-  type: 'string'
-  value: string
-  copyable: boolean
-  qr: boolean
-  masked: boolean
-}
-
-interface PackagePropertyObject extends PackagePropertyBase {
-  type: 'object'
-  value: PackagePropertiesV2
-}
