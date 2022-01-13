@@ -1,5 +1,15 @@
 import { applyOperation } from 'fast-json-patch'
-import {Parser, shape, string, literal, number, boolean, arrayOf, object, any, some, deferred, dictionary, anyOf} from 'ts-matches';
+import {
+  Parser,
+  shape,
+  string,
+  literal,
+  boolean,
+  object,
+  deferred,
+  dictionary,
+  anyOf,
+} from 'ts-matches'
 
 
 export type ValidVersion = 1 | 2
