@@ -35,7 +35,7 @@ clean:
 
 eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar
 	! test -f eos.img || rm eos.img
-	if [ $(NO_KEY) = 1 ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
+	if [ "$(NO_KEY)" = "1" ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
 
 system-images/compat/compat.tar: $(COMPAT_SRC)
 	cd system-images/compat && ./build.sh
