@@ -4,6 +4,7 @@ import { SSHKey } from 'src/app/services/api/api.types'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GenericInputComponent, GenericInputOptions } from 'src/app/modals/generic-input/generic-input.component'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'ssh-keys',
@@ -21,6 +22,7 @@ export class SSHKeysPage {
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly embassyApi: ApiService,
+    public readonly patch: PatchDbService,
   ) { }
 
   async ngOnInit () {
@@ -66,8 +68,9 @@ export class SSHKeysPage {
     try {
       const key = await this.embassyApi.addSshKey({ key: pubkey })
       this.sshKeys.push(key)
-    } catch (e) {
-      throw new Error(e)
+      if (!this.patch.getData().ui['has-ssh-key']) {
+        await this.embassyApi.setDbValue({ pointer: '/has-ssh-key', value: true })
+      }
     } finally {
       loader.dismiss()
     }
