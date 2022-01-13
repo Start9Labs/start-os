@@ -70,7 +70,7 @@
             slot="start"
           ></ion-spinner>
           <ion-label>
-            <h2 class="bold">{{ health.key }}</h2>
+            <h2 class="bold">{{ pkg.manifest['health-checks'][health.key].name }}</h2>
             <p>Awaiting result...</p>
           </ion-label>
         </ng-template>
