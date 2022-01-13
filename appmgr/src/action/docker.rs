@@ -66,6 +66,7 @@ impl DockerAction {
                 .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
                 .arg("--name")
                 .arg(&container_name)
+                .arg(format!("--hostname={}", &container_name))
                 .arg("--no-healthcheck");
             match ctx.docker.remove_container(&container_name, None).await {
                 Ok(()) | Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => Ok(()),
