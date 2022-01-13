@@ -65,8 +65,6 @@ export class PreferencesPage {
 
     try {
       await this.api.setDbValue({ pointer: `/${key}`, value })
-    } catch (e) {
-      throw new Error(e)
     } finally {
       loader.dismiss()
     }

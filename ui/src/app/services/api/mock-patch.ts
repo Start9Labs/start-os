@@ -7,6 +7,7 @@ export const mockPatchData: DataModel = {
     'pkg-order': [],
     'ack-welcome': '1.0.0',
     'ack-share-stats': false,
+    'has-ssh-key': false,
   },
   'server-info': {
     'id': 'embassy-abcdefgh',

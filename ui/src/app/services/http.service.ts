@@ -32,7 +32,6 @@ export class HttpService {
     if (rpcOpts.timeout) httpOpts.timeout = rpcOpts.timeout
 
     const res = await this.httpRequest<RPCResponse<T>>(httpOpts)
-
     if (isRpcError(res)) {
       if (res.error.code === 34) this.auth.setUnverified()
       throw new RpcError(res.error)

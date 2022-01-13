@@ -91,7 +91,7 @@ export class ServerBackupPage {
         await this.createBackup(target.id, password)
       } catch (e) {
         if (oldPassword) {
-          throw new Error(e)
+          throw e
         } else {
           setTimeout(() => this.presentModalOldPassword(target, password), 500)
         }
@@ -133,8 +133,6 @@ export class ServerBackupPage {
         'old-password': oldPassword || null,
         password,
       })
-    } catch (e) {
-      throw new Error(e)
     } finally {
       loader.dismiss()
     }

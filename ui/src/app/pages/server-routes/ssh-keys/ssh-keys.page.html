@@ -13,7 +13,14 @@
     <!-- always -->
     <ion-item>
       <ion-label>
-        <h2>
+        <ion-item *ngIf="!patch.data.ui['has-ssh-key']">
+          <ion-icon slot="start" color="warning" name="warning-outline" size="large"></ion-icon>
+          <h2>
+            We highly recommend adding an SSH key to your Embassy. It can be useful for debugging should anything go wrong.  We <b>do not</b> recommend using your SSH key <b>unless</b> (1) you have advanced technical knowledge of the command line or (2) are following the guidance of a Start 9 support representitive.
+            <a [href]="docsUrl" target="_blank" rel="noreferrer">View instructions</a>
+          </h2>
+        </ion-item>
+        <h2 *ngIf="patch.data.ui['has-ssh-key']">
           Adding SSH keys to your Embassy is useful for command line access, as well as for debugging purposes.
           <a [href]="docsUrl" target="_blank" rel="noreferrer">View instructions</a>
         </h2>

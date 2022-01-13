@@ -112,6 +112,7 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
+        warning: of(false),
       },
       {
         title: 'Restore From Backup',
@@ -120,6 +121,7 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
         detail: true,
         disabled: this.patch.watch$('server-info', 'status').pipe(map(status => [ServerStatus.Updated, ServerStatus.BackingUp].includes(status))),
+        warning: of(false),
       },
     ],
     'Insights': [
@@ -130,6 +132,7 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
+        warning: of(false),
       },
       {
         title: 'Monitor',
@@ -138,6 +141,7 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
+        warning: of(false),
       },
       {
         title: 'Logs',
@@ -146,6 +150,7 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
+        warning: of(false),
       },
     ],
     'Settings': [
@@ -156,6 +161,7 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['preferences'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
+        warning: of(false),
       },
       {
         title: 'LAN',
@@ -164,6 +170,7 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
+        warning: of(false),
       },
       {
         title: 'SSH',
@@ -172,6 +179,8 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['ssh'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
+        warning: this.patch.watch$('ui', 'has-ssh-key').pipe(map(hasSSHKey => !hasSSHKey)),
+
       },
       {
         title: 'WiFi',
@@ -180,6 +189,7 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
+        warning: of(false),
       },
       {
         title: 'Active Sessions',
@@ -188,6 +198,7 @@ export class ServerShowPage {
         action: () => this.navCtrl.navigateForward(['sessions'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
+        warning: of(false),
       },
     ],
     'Power': [
@@ -198,6 +209,7 @@ export class ServerShowPage {
         action: () => this.presentAlertRestart(),
         detail: false,
         disabled: of(false),
+        warning: of(false),
       },
       {
         title: 'Shutdown',
@@ -206,6 +218,7 @@ export class ServerShowPage {
         action: () => this.presentAlertShutdown(),
         detail: false,
         disabled: of(false),
+        warning: of(false),
       },
     ],
   }
@@ -223,5 +236,6 @@ interface ServerSettings {
     action: Function
     detail: boolean
     disabled: Observable<boolean>
+    warning: Observable<boolean>
   }[]
 }
