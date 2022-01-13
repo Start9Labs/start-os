@@ -157,7 +157,7 @@
                 </ion-item>
                 <!-- nested body -->
                 <div
-                  [id]="getElementId(entry.key)"
+                  [id]="getElementId(entry.key, i)"
                   [ngStyle]="{
                     'max-height': objectListDisplay[entry.key][i].height,
                     'overflow': 'hidden',
@@ -175,6 +175,7 @@
                     [current]="current && current[entry.key] ? current[entry.key][i] : undefined"
                     [unionSpec]="spec.subtype === 'union' ? $any(spec.spec) : undefined"
                     (onInputChange)="updateLabel(entry.key, i, spec.spec['display-as'])"
+                    (onExpand)="resize(entry.key, i)"
                   ></form-object>
                   <div style="text-align: right; padding-top: 12px;">
                     <ion-button fill="clear" (click)="presentAlertDelete(entry.key, i)" color="danger">
