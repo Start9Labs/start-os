@@ -373,7 +373,7 @@ export class MockApiService extends ApiService {
 
   // package
 
-  async getPackageProperties (params: RR.GetPackagePropertiesReq): Promise<RR.GetPackagePropertiesRes<any>['data']> {
+  async getPackageProperties (params: RR.GetPackagePropertiesReq): Promise<RR.GetPackagePropertiesRes<2>['data']> {
     await pauseFor(2000)
     return parsePropertiesPermissive(Mock.PackageProperties)
   }

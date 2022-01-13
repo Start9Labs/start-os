@@ -1,8 +1,34 @@
 import * as Ajv from 'ajv'
 import { applyOperation } from 'fast-json-patch'
 
+
+export type ValidVersion = 1 | 2
+
+function has<Obj extends {}, K extends string>(obj: Obj, key: K): obj is (Obj & { [P in K]: unknown }) {
+  return key in obj
+}
+
+
 const ajv = new Ajv({ jsonPointers: true, allErrors: true, nullable: true })
 const ajvWithDefaults = new Ajv({ jsonPointers: true, allErrors: true, useDefaults: true, nullable: true, removeAdditional: 'failing' })
+
+const schemaV1 = {
+  'type': 'object',
+  'properties': {
+    'name': { 'type': 'string' },
+    'value': { 'type': 'string' },
+    'description': { 'type': 'string', 'nullable': true, 'default': null },
+    'copyable': { 'type': 'boolean', 'default': false },
+    'qr': { 'type': 'boolean', 'default': false },
+  },
+  'required': ['name', 'value', 'copyable', 'qr'],
+  'additionalProperties': false,
+}
+const schemaV1Compiled = ajv.compile(schemaV1)
+function isSchemaV1(properties: unknown): properties is PropertiesV1 {
+  return schemaV1Compiled(properties) as any
+}
+const schemaV1CompiledWithDefaults = ajvWithDefaults.compile(schemaV1)
 const schemaV2 = {
   'anyOf': [
     {
@@ -41,13 +67,13 @@ const schemaV2 = {
 const schemaV2Compiled = ajv.compile(schemaV2)
 const schemaV2CompiledWithDefaults = ajvWithDefaults.compile(schemaV2)
 
-export function parsePropertiesPermissive (properties: any, errorCallback: (err: Error) => any = console.warn): PackageProperties {
+export function parsePropertiesPermissive (properties: unknown, errorCallback: (err: Error) => any = console.warn): PackageProperties {
   if (typeof properties !== 'object' || properties === null) {
     errorCallback(new TypeError(`${properties} is not an object`))
-    return { }
+    return {}
   }
   // @TODO still need this conditional?
-  if (typeof properties.version !== 'number' || !properties.data) {
+  if (!has(properties, 'version') || !has(properties, 'data') || typeof properties.version !== 'number' || !properties.data) {
     return Object.entries(properties)
       .filter(([_, value]) => {
         if (typeof value === 'string') {
@@ -71,8 +97,11 @@ export function parsePropertiesPermissive (properties: any, errorCallback: (err:
         acc[name] = value
         return acc
       }, { })
+    
   }
   switch (properties.version) {
+    case 1:
+      return parsePropertiesV1Permissive(properties.data, errorCallback)
     case 2:
       return parsePropertiesV2Permissive(properties.data, errorCallback)
     default:
@@ -81,7 +110,46 @@ export function parsePropertiesPermissive (properties: any, errorCallback: (err:
   }
 }
 
-function parsePropertiesV2Permissive (properties: PackagePropertiesV2, errorCallback: (err: Error) => any): PackageProperties {
+
+
+function parsePropertiesV1Permissive (properties: unknown, errorCallback: (err: Error) => any): PackageProperties {
+  if (!Array.isArray(properties)) {
+    errorCallback(new TypeError(`${properties} is not an array`))
+    return {}
+  }
+  return properties.reduce((prev: PackagePropertiesV2, cur: unknown, idx: number) => {
+    if(isSchemaV1(cur)) {
+      prev[cur.name] = {
+        type: 'string',
+        value: cur.value,
+        description: cur.description,
+        copyable: cur.copyable,
+        qr: cur.qr,
+        masked: false,
+      }
+    }
+    else if (schemaV1Compiled.errors) {
+      for (let err of schemaV1Compiled.errors) {
+        errorCallback(new Error(`/data/${idx}${err.dataPath}: ${err.message}`))
+        if (err.dataPath) {
+          applyOperation(cur, { op: 'replace', path: err.dataPath, value: undefined })
+        }
+      }
+      if (!schemaV1CompiledWithDefaults(cur)) {
+        for (let err of schemaV1CompiledWithDefaults.errors) {
+          errorCallback(new Error(`/data/${idx}${err.dataPath}: ${err.message}`))
+        }
+        return prev
+      }
+    }
+    return prev
+  }, { })
+}
+function parsePropertiesV2Permissive (properties: unknown, errorCallback: (err: Error) => any): PackageProperties {
+  if (typeof properties !== 'object' || properties === null) {
+    errorCallback(new TypeError(`${properties} is not an object`))
+    return {}
+  }
   return Object.entries(properties).reduce((prev, [name, value], idx) => {
     schemaV2Compiled(value)
     if (schemaV2Compiled.errors) {
@@ -102,8 +170,16 @@ function parsePropertiesV2Permissive (properties: PackagePropertiesV2, errorCall
     return prev
   }, { })
 }
+interface PropertiesV1 {
+  name: string
+  value: string
+  description: string | null
+  copyable: boolean
+  qr: boolean
+}
 
-export type PackageProperties = PackagePropertiesV2 // change this type when updating versions
+type PackagePropertiesV1 = PropertiesV1[]
+export type PackageProperties = PackagePropertiesV2
 
 export type PackagePropertiesVersioned<T extends number> = {
   version: T,
@@ -111,8 +187,10 @@ export type PackagePropertiesVersioned<T extends number> = {
 }
 
 export type PackagePropertiesVersionedData<T extends number> =
+  T extends 1 ? PackagePropertiesV1 :
   T extends 2 ? PackagePropertiesV2 :
   never
+
 
 interface PackagePropertiesV2 {
   [name: string]: PackagePropertyString | PackagePropertyObject
