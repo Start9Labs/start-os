@@ -214,7 +214,7 @@ export class LiveApiService extends ApiService {
 
   // package
 
-  async getPackageProperties (params: RR.GetPackagePropertiesReq): Promise<RR.GetPackagePropertiesRes < any > ['data'] > {
+  async getPackageProperties (params: RR.GetPackagePropertiesReq): Promise<RR.GetPackagePropertiesRes < 2 > ['data'] > {
     return this.http.rpcRequest({ method: 'package.properties', params })
       .then(parsePropertiesPermissive)
   }
