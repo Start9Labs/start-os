@@ -70,7 +70,7 @@ export class RecoverPage {
         const list = `<ul>${reconnect.map(recon => `<li>${recon}</li>`)}</ul>`
         const alert = await this.alertCtrl.create({
           header: 'Warning',
-          message: `One or more devices you connected had to be reconfigured to support the current hardware platform. Please unplug and replug in the following device(s):<br> ${list}`,
+          message: `One or more devices you connected had to be reconfigured to support the current hardware platform. Please unplug and replug in the following device(s), then refresh the page:<br> ${list}`,
           buttons: [
             {
               role: 'cancel',
