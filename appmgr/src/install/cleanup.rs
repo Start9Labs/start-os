@@ -2,12 +2,13 @@ use std::collections::{BTreeMap, HashMap};
 
 use bollard::image::ListImagesOptions;
 use color_eyre::eyre::eyre;
-use patch_db::{DbHandle, PatchDbHandle};
+use patch_db::{DbHandle, LockType, PatchDbHandle};
 use tracing::instrument;
 
 use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry};
+use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::error::ErrorCollection;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Apply, Version};
@@ -235,6 +236,10 @@ pub async fn uninstall(
     id: &PackageId,
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .lock(&mut tx, LockType::Write)
+        .await?;
     let entry = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(id)
@@ -249,10 +254,15 @@ pub async fn uninstall(
             )
         })?;
     cleanup(ctx, &entry.manifest.id, &entry.manifest.version).await?;
+
     crate::db::DatabaseModel::new()
         .package_data()
         .remove(&mut tx, id)
         .await?;
+
+    // once we have removed the package entry, we can change all the dependent pointers to null
+    reconfigure_dependents_with_live_pointers(ctx, &mut tx, &entry).await?;
+
     remove_from_current_dependents_lists(
         &mut tx,
         &entry.manifest.id,

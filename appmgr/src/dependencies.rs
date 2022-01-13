@@ -14,9 +14,10 @@ use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
 use crate::config::action::ConfigRes;
+use crate::config::spec::PackagePointerSpec;
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
-use crate::db::model::CurrentDependencyInfo;
+use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry};
 use crate::error::ResultExt;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
@@ -875,4 +876,36 @@ pub fn heal_transitive<'a, Db: DbHandle>(
         Ok(())
     }
     .boxed()
+}
+
+pub async fn reconfigure_dependents_with_live_pointers(
+    ctx: &RpcContext,
+    mut tx: impl DbHandle,
+    pde: &InstalledPackageDataEntry,
+) -> Result<(), Error> {
+    let dependents = &pde.current_dependents;
+    let me = &pde.manifest.id;
+    for (dependent_id, dependency_info) in dependents {
+        if dependency_info.pointers.iter().any(|ptr| match ptr {
+            // dependency id matches the package being uninstalled
+            PackagePointerSpec::TorAddress(ptr) => &ptr.package_id == me && dependent_id != me,
+            PackagePointerSpec::LanAddress(ptr) => &ptr.package_id == me && dependent_id != me,
+            // we never need to retarget these
+            PackagePointerSpec::TorKey(_) => false,
+            PackagePointerSpec::Config(_) => false,
+        }) {
+            crate::config::configure(
+                ctx,
+                &mut tx,
+                dependent_id,
+                None,
+                &None,
+                false,
+                &mut BTreeMap::new(),
+                &mut BTreeMap::new(),
+            )
+            .await?;
+        }
+    }
+    Ok(())
 }
