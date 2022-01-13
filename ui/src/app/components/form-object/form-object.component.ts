@@ -89,9 +89,13 @@ export class FormObjectComponent {
     this.onExpand.emit()
   }
 
-  resize (key: string): void {
+  resize (key: string, i?: number): void {
     setTimeout(() => {
-      this.objectDisplay[key].height = this.getDocSize(key)
+      if (i !== undefined) {
+        this.objectListDisplay[key][i].height = this.getDocSize(key, i)
+      } else {
+        this.objectDisplay[key].height = this.getDocSize(key)
+      }
       this.onExpand.emit()
     }, 250) // 250 to match transition-duration, defined in html
   }
@@ -116,7 +120,7 @@ export class FormObjectComponent {
       })
 
       pauseFor(200).then(() => {
-        this.objectListDisplay[key][0].height = this.getDocSize(key)
+        this.objectListDisplay[key][0].height = this.getDocSize(key, 0)
       })
     }
   }
@@ -129,7 +133,7 @@ export class FormObjectComponent {
 
   toggleExpandListObject (key: string, i: number) {
     this.objectListDisplay[key][i].expanded = !this.objectListDisplay[key][i].expanded
-    this.objectListDisplay[key][i].height = this.objectListDisplay[key][i].expanded ? this.getDocSize(key) : '0px'
+    this.objectListDisplay[key][i].height = this.objectListDisplay[key][i].expanded ? this.getDocSize(key, i) : '0px'
   }
 
   updateLabel (key: string, i: number, displayAs: string) {
@@ -250,13 +254,13 @@ export class FormObjectComponent {
     })
   }
 
-  private getDocSize (key: string) {
-    const element = document.getElementById(this.getElementId(key))
+  private getDocSize (key: string, index = 0) {
+    const element = document.getElementById(this.getElementId(key, index))
     return `${element.scrollHeight}px`
   }
 
-  getElementId (key: string): string {
-    return `${key}-${this.objectId}`
+  getElementId (key: string, index = 0): string {
+    return `${key}-${index}-${this.objectId}`
   }
 
   async presentUnionTagDescription (name: string, description: string) {
