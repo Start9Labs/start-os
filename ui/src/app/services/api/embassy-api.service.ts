@@ -138,7 +138,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // package
 
-  abstract getPackageProperties (params: RR.GetPackagePropertiesReq): Promise<RR.GetPackagePropertiesRes<any>['data']>
+  abstract getPackageProperties (params: RR.GetPackagePropertiesReq): Promise<RR.GetPackagePropertiesRes<2>['data']>
 
   abstract getPackageLogs (params: RR.GetPackageLogsReq): Promise<RR.GetPackageLogsRes>
 
