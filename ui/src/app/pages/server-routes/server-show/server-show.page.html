@@ -39,6 +39,7 @@
               </ng-container>
             </p>
           </ion-label>
+          <ion-icon *ngIf="button.warning | async" slot="end" name="warning" color="warning" style="padding-right: 8px;"></ion-icon>
         </ion-item>
       </div>
     </ion-item-group>
