@@ -884,11 +884,12 @@ pub async fn reconfigure_dependents_with_live_pointers(
     pde: &InstalledPackageDataEntry,
 ) -> Result<(), Error> {
     let dependents = &pde.current_dependents;
+    let me = &pde.manifest.id;
     for (dependent_id, dependency_info) in dependents {
         if dependency_info.pointers.iter().any(|ptr| match ptr {
             // dependency id matches the package being uninstalled
-            PackagePointerSpec::TorAddress(ptr) => ptr.package_id == pde.manifest.id,
-            PackagePointerSpec::LanAddress(ptr) => ptr.package_id == pde.manifest.id,
+            PackagePointerSpec::TorAddress(ptr) => &ptr.package_id == me && dependent_id != me,
+            PackagePointerSpec::LanAddress(ptr) => &ptr.package_id == me && dependent_id != me,
             // we never need to retarget these
             PackagePointerSpec::TorKey(_) => false,
             PackagePointerSpec::Config(_) => false,

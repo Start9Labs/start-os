@@ -3,7 +3,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
-use patch_db::{DbHandle, HasModel};
+use patch_db::{DbHandle, HasModel, LockType};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use sqlx::{Executor, Sqlite};
@@ -202,6 +202,10 @@ impl BackupActions {
             .execute(&mut *secrets)
             .await?;
         }
+        crate::db::DatabaseModel::new()
+            .package_data()
+            .lock(db, LockType::Write)
+            .await?;
         crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(pkg_id)

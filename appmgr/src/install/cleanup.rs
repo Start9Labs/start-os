@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use bollard::image::ListImagesOptions;
 use color_eyre::eyre::eyre;
-use patch_db::{DbHandle, PatchDbHandle};
+use patch_db::{DbHandle, LockType, PatchDbHandle};
 use tracing::instrument;
 
 use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
@@ -236,6 +236,10 @@ pub async fn uninstall(
     id: &PackageId,
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .lock(&mut tx, LockType::Write)
+        .await?;
     let entry = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(id)
