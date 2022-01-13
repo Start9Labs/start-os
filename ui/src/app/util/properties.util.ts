@@ -56,11 +56,12 @@ const matchPackagePropertyObject = shape(
   ['description'],
   { description: null as null },
 )
+const matchPropertyV2 = anyOf(matchPackagePropertyString, matchPackagePropertyObject)
 type PackagePropertyObject = typeof matchPackagePropertyObject._TYPE
 setPPV2(
   dictionary([
     string,
-    anyOf(matchPackagePropertyString, matchPackagePropertyObject),
+    matchPropertyV2,
   ]),
 )
 
@@ -142,17 +143,33 @@ function parsePropertiesV1Permissive (properties: unknown, errorCallback: (err: 
   }, { })
 }
 function parsePropertiesV2Permissive (properties: unknown, errorCallback: (err: Error) => any): PackageProperties {    
-  const result = matchPackagePropertiesV2.enumParsed(properties);
-  if ('value' in result) {
-    return result.value
+  if (!object.test(properties)) {
+    return {}
   }
-  const error = result.error;
-  const message = Parser.validatorErrorAsString(error)
-  let dataPath = error.keys.map(x => JSON.parse(x)).join('/')
-  errorCallback(new Error(`/data/: ${message}`))
-  if (dataPath) {
-    applyOperation(properties, { op: 'replace', path: dataPath, value: undefined })
-  }
+  return Object.entries(properties).reduce(
+    (prev: PackageProperties, [name, value], idx) => {
+      const result = matchPropertyV2.enumParsed(value)
+      if ('value' in result) {
+        prev[name] = result.value
+      } else {
+        const error = result.error
+        const message = Parser.validatorErrorAsString(error)
+        let dataPath = error.keys.map(x => JSON.parse(x)).join('/')
+        errorCallback(new Error(`/data/${idx}: ${message}`))
+        if (dataPath) {
+          applyOperation(properties, {
+            op: 'replace',
+            path: dataPath,
+            value: undefined,
+          })
+        }
+      }
+      return prev
+    },
+
+    {},
+  )
+  
 }
   
 
