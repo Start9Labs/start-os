@@ -471,6 +471,37 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
     let db = ctx.db(&secret_store).await?;
     let mut handle = db.handle();
 
+    let root_ca_key_path = recovery_source
+        .as_ref()
+        .join("root")
+        .join("agent")
+        .join("ca")
+        .join("private")
+        .join("embassy-root-ca.key.pem");
+    let root_ca_cert_path = recovery_source
+        .as_ref()
+        .join("root")
+        .join("agent")
+        .join("ca")
+        .join("certs")
+        .join("embassy-root-ca.cert.pem");
+    let (root_ca_key_bytes, root_ca_cert_bytes) = tokio::try_join!(
+        tokio::fs::read(root_ca_key_path),
+        tokio::fs::read(root_ca_cert_path)
+    )?;
+    let root_ca_key = openssl::pkey::PKey::private_key_from_pem(&root_ca_key_bytes);
+    let root_ca_cert = openssl::x509::X509::from_pem(&root_ca_cert_bytes);
+    if let (Ok(root_ca_key), Ok(root_ca_cert)) = (root_ca_key, root_ca_cert) {
+        crate::net::ssl::SslManager::import_root_ca(
+            secret_store.clone(),
+            root_ca_key,
+            root_ca_cert,
+        )
+        .await?;
+    } else {
+        tracing::error!("Invalid CA Material, refusing to migrate");
+    }
+
     let apps_yaml_path = recovery_source
         .as_ref()
         .join("root")
