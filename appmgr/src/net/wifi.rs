@@ -78,7 +78,7 @@ pub async fn add(
     )
     .await
     {
-        tracing::error!("Failed to add new WiFi network '{}': {}", ssid, e);
+        tracing::error!("Failed to add new WiFi network '{}': {}", ssid, err);
         return Err(Error::new(
             color_eyre::eyre::eyre!("Failed adding {}", ssid),
             ErrorKind::Wifi,
