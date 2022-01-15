@@ -1,4 +1,6 @@
 use digest::Digest;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use tracing::instrument;
 
@@ -40,12 +42,23 @@ pub async fn get_product_key() -> Result<String, Error> {
 }
 
 #[instrument]
-pub async fn get_id() -> Result<String, Error> {
-    let key = get_product_key().await?;
+pub async fn set_product_key(key: &str) -> Result<(), Error> {
+    let mut pkey_file = File::create(PRODUCT_KEY_PATH).await?;
+    pkey_file.write_all(key.as_bytes()).await?;
+    Ok(())
+}
+
+pub fn derive_id(key: &str) -> String {
     let mut hasher = sha2::Sha256::new();
     hasher.update(key.as_bytes());
     let res = hasher.finalize();
-    Ok(hex::encode(&res[0..4]))
+    hex::encode(&res[0..4])
+}
+
+#[instrument]
+pub async fn get_id() -> Result<String, Error> {
+    let key = get_product_key().await?;
+    Ok(derive_id(&key))
 }
 
 // cat /embassy-os/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "embassy-"$1}' | xargs hostnamectl set-hostname && systemctl restart avahi-daemon
