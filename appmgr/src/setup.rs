@@ -28,7 +28,7 @@ use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::disk::util::{pvscan, recovery_info, DiskInfo, DiskListResponse, EmbassyOsRecoveryInfo};
+use crate::disk::util::{pvscan, recovery_info, DiskListResponse, EmbassyOsRecoveryInfo};
 use crate::hostname::PRODUCT_KEY_PATH;
 use crate::id::Id;
 use crate::init::init;
@@ -99,7 +99,10 @@ pub async fn attach(
     let (_, root_ca) = SslManager::init(secrets).await?.export_root_ca().await?;
     Ok(SetupResult {
         tor_address: format!("http://{}", tor_key.public().get_onion_address()),
-        lan_address: format!("https://embassy-{}.local", crate::hostname::get_id().await?),
+        lan_address: format!(
+            "https://embassy-{}.local",
+            crate::hostname::derive_id(&*ctx.product_key().await?)
+        ),
         root_ca: String::from_utf8(root_ca.to_pem()?)?,
     })
 }
@@ -186,7 +189,7 @@ pub async fn execute(
         recovery_source = Some(BackupTargetFS::Disk(BlockDev::new(v2_drive.clone())))
     }
     match execute_inner(
-        ctx,
+        ctx.clone(),
         embassy_logicalname,
         embassy_password,
         recovery_source,
@@ -198,7 +201,10 @@ pub async fn execute(
             tracing::info!("Setup Successful! Tor Address: {}", tor_addr);
             Ok(SetupResult {
                 tor_address: format!("http://{}", tor_addr),
-                lan_address: format!("https://embassy-{}.local", crate::hostname::get_id().await?),
+                lan_address: format!(
+                    "https://embassy-{}.local",
+                    crate::hostname::derive_id(&ctx.product_key().await?)
+                ),
                 root_ca: String::from_utf8(root_ca.to_pem()?)?,
             })
         }
@@ -222,12 +228,27 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<(), Error> {
         ));
     };
     if tokio::fs::metadata(PRODUCT_KEY_PATH).await.is_err() {
-        let mut pkey_file = File::create(PRODUCT_KEY_PATH).await?;
-        pkey_file
-            .write_all(ctx.product_key().await?.as_bytes())
-            .await?;
-        pkey_file.sync_all().await?;
+        crate::hostname::set_product_key(&*ctx.product_key().await?).await?;
+    } else {
+        let key_on_disk = crate::hostname::get_product_key().await?;
+        let key_in_cache = ctx.product_key().await?;
+        if *key_in_cache != key_on_disk {
+            crate::hostname::set_product_key(&*ctx.product_key().await?).await?;
+        }
     }
+    let mut db = ctx.db(&ctx.secret_store().await?).await?.handle();
+    let hostname = crate::hostname::get_hostname().await?;
+    let si = crate::db::DatabaseModel::new().server_info();
+    si.clone()
+        .lan_address()
+        .put(
+            &mut db,
+            &format!("https://{}.local", &hostname).parse().unwrap(),
+        )
+        .await?;
+    si.id()
+        .put(&mut db, &crate::hostname::get_id().await?)
+        .await?;
     let mut guid_file = File::create("/embassy-os/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
