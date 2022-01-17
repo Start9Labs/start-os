@@ -38,6 +38,7 @@ export class EmbassyPage {
   }
 
   async getDrives () {
+    this.loading = true
     try {
       const { disks, reconnect } = await this.apiService.getDrives()
       this.storageDrives = disks.filter(d => !d.partitions.map(p => p.logicalname).includes((this.stateService.recoverySource as DiskRecoverySource)?.logicalname))
