@@ -68,9 +68,6 @@ export class SSHKeysPage {
     try {
       const key = await this.embassyApi.addSshKey({ key: pubkey })
       this.sshKeys.push(key)
-      if (!this.patch.getData().ui['has-ssh-key']) {
-        await this.embassyApi.setDbValue({ pointer: '/has-ssh-key', value: true })
-      }
     } finally {
       loader.dismiss()
     }
