@@ -342,12 +342,7 @@ async fn recover(
         .map(|i| i.version.clone())
         .unwrap_or_else(|| emver::Version::new(0, 2, 0, 0).into());
     let res = if recovery_version.major() == 0 && recovery_version.minor() == 2 {
-        let (tor_addr, root_ca) = fresh_setup(&ctx, &embassy_password).await?;
-        (
-            tor_addr,
-            root_ca,
-            recover_v2(ctx.clone(), recovery_source).boxed(),
-        )
+        recover_v2(ctx.clone(), &embassy_password, recovery_source).await?
     } else if recovery_version.major() == 0 && recovery_version.minor() == 3 {
         recover_full_embassy(
             ctx.clone(),
@@ -466,11 +461,16 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
 }
 
 #[instrument(skip(ctx))]
-async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result<(), Error> {
+async fn recover_v2(
+    ctx: SetupContext,
+    embassy_password: &str,
+    recovery_source: TmpMountGuard,
+) -> Result<(OnionAddressV3, X509, BoxFuture<'static, Result<(), Error>>), Error> {
     let secret_store = ctx.secret_store().await?;
     let db = ctx.db(&secret_store).await?;
     let mut handle = db.handle();
 
+    // migrate the root CA
     let root_ca_key_path = recovery_source
         .as_ref()
         .join("root")
@@ -489,145 +489,174 @@ async fn recover_v2(ctx: SetupContext, recovery_source: TmpMountGuard) -> Result
         tokio::fs::read(root_ca_key_path),
         tokio::fs::read(root_ca_cert_path)
     )?;
-    let root_ca_key = openssl::pkey::PKey::private_key_from_pem(&root_ca_key_bytes);
-    let root_ca_cert = openssl::x509::X509::from_pem(&root_ca_cert_bytes);
-    if let (Ok(root_ca_key), Ok(root_ca_cert)) = (root_ca_key, root_ca_cert) {
-        crate::net::ssl::SslManager::import_root_ca(
-            secret_store.clone(),
-            root_ca_key,
-            root_ca_cert,
-        )
+    let root_ca_key = openssl::pkey::PKey::private_key_from_pem(&root_ca_key_bytes)?;
+    let root_ca_cert = openssl::x509::X509::from_pem(&root_ca_cert_bytes)?;
+    crate::net::ssl::SslManager::import_root_ca(secret_store.clone(), root_ca_key, root_ca_cert)
         .await?;
-    } else {
-        tracing::error!("Invalid CA Material, refusing to migrate");
-    }
 
-    let apps_yaml_path = recovery_source
+    // migrate the tor address
+    let tor_key_path = recovery_source
         .as_ref()
-        .join("root")
-        .join("appmgr")
-        .join("apps.yaml");
-    #[derive(Deserialize)]
-    struct LegacyAppInfo {
-        title: String,
-        version: Version,
-    }
-    let packages: BTreeMap<PackageId, LegacyAppInfo> =
-        from_yaml_async_reader(File::open(&apps_yaml_path).await.with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                apps_yaml_path.display().to_string(),
-            )
-        })?)
-        .await?;
+        .join("var")
+        .join("lib")
+        .join("tor")
+        .join("agent")
+        .join("hs_ed25519_secret_key");
+    let tor_key_bytes = tokio::fs::read(tor_key_path).await?;
+    let mut tor_key_array_tmp = [0u8; 64];
+    tor_key_array_tmp.clone_from_slice(&tor_key_bytes[32..]);
+    let tor_key: TorSecretKeyV3 = tor_key_array_tmp.into();
+    let key_vec = tor_key.as_bytes().to_vec();
+    let password = argon2::hash_encoded(
+        embassy_password.as_bytes(),
+        &rand::random::<[u8; 16]>()[..],
+        &argon2::Config::default(),
+    )
+    .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
+    let sqlite_pool = ctx.secret_store().await?;
+    sqlx::query!(
+        "REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+        0,
+        password,
+        key_vec
+    )
+    .execute(&mut sqlite_pool.acquire().await?)
+    .await?;
 
-    let volume_path = recovery_source.as_ref().join("root/volumes");
-    let mut total_bytes = 0;
-    for (pkg_id, _) in &packages {
-        let volume_src_path = volume_path.join(&pkg_id);
-        total_bytes += dir_size(&volume_src_path).await.with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                volume_src_path.display().to_string(),
-            )
-        })?;
-    }
-    *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
-        bytes_transferred: 0,
-        total_bytes,
-        complete: false,
-    }));
-    let bytes_transferred = AtomicU64::new(0);
-    let volume_id = VolumeId::Custom(Id::try_from("main".to_owned())?);
-    for (pkg_id, info) in packages {
-        let (src_id, dst_id) = rename_pkg_id(pkg_id);
-        let volume_src_path = volume_path.join(&src_id);
-        let volume_dst_path = data_dir(&ctx.datadir, &dst_id, &volume_id);
-        tokio::select!(
-            res = dir_copy(
-                &volume_src_path,
-                &volume_dst_path,
-                &bytes_transferred
-            ) => res?,
-            _ = async {
-                loop {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
-                        bytes_transferred: bytes_transferred.load(Ordering::Relaxed),
-                        total_bytes,
-                        complete: false
-                    }));
-                }
-            } => (),
-        );
-        let tor_src_path = recovery_source
+    // rest of migration as future
+    let fut = async move {
+        let apps_yaml_path = recovery_source
             .as_ref()
-            .join("var/lib/tor")
-            .join(format!("app-{}", src_id))
-            .join("hs_ed25519_secret_key");
-        let key_vec = tokio::fs::read(&tor_src_path).await.with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                tor_src_path.display().to_string(),
-            )
-        })?;
-        ensure_code!(
-            key_vec.len() == 96,
-            crate::ErrorKind::Tor,
-            "{} not 96 bytes",
-            tor_src_path.display()
-        );
-        let key_vec = key_vec[32..].to_vec();
-        sqlx::query!(
-            "REPLACE INTO tor (package, interface, key) VALUES (?, 'main', ?)",
-            *dst_id,
-            key_vec,
-        )
-        .execute(&mut secret_store.acquire().await?)
-        .await?;
-        let icon_leaf = AsRef::<Path>::as_ref(&dst_id)
-            .join(info.version.as_str())
-            .join("icon.png");
-        let icon_src_path = recovery_source
-            .as_ref()
-            .join("root/agent/icons")
-            .join(format!("{}.png", src_id));
-        let icon_dst_path = ctx.datadir.join(PKG_PUBLIC_DIR).join(&icon_leaf);
-        if let Some(parent) = icon_dst_path.parent() {
-            tokio::fs::create_dir_all(&parent)
-                .await
-                .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
+            .join("root")
+            .join("appmgr")
+            .join("apps.yaml");
+        #[derive(Deserialize)]
+        struct LegacyAppInfo {
+            title: String,
+            version: Version,
         }
-        tokio::fs::copy(&icon_src_path, &icon_dst_path)
-            .await
-            .with_ctx(|_| {
+        let packages: BTreeMap<PackageId, LegacyAppInfo> =
+            from_yaml_async_reader(File::open(&apps_yaml_path).await.with_ctx(|_| {
                 (
                     crate::ErrorKind::Filesystem,
-                    format!(
-                        "cp {} -> {}",
-                        icon_src_path.display(),
-                        icon_dst_path.display()
-                    ),
+                    apps_yaml_path.display().to_string(),
+                )
+            })?)
+            .await?;
+
+        let volume_path = recovery_source.as_ref().join("root/volumes");
+        let mut total_bytes = 0;
+        for (pkg_id, _) in &packages {
+            let volume_src_path = volume_path.join(&pkg_id);
+            total_bytes += dir_size(&volume_src_path).await.with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    volume_src_path.display().to_string(),
                 )
             })?;
-        let icon_url = Path::new("/public/package-data").join(&icon_leaf);
-        crate::db::DatabaseModel::new()
-            .recovered_packages()
-            .idx_model(&dst_id)
-            .put(
-                &mut handle,
-                &RecoveredPackageInfo {
-                    title: info.title,
-                    icon: icon_url.display().to_string(),
-                    version: info.version,
-                },
+        }
+        *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
+            bytes_transferred: 0,
+            total_bytes,
+            complete: false,
+        }));
+        let bytes_transferred = AtomicU64::new(0);
+        let volume_id = VolumeId::Custom(Id::try_from("main".to_owned())?);
+        for (pkg_id, info) in packages {
+            let (src_id, dst_id) = rename_pkg_id(pkg_id);
+            let volume_src_path = volume_path.join(&src_id);
+            let volume_dst_path = data_dir(&ctx.datadir, &dst_id, &volume_id);
+            tokio::select!(
+                res = dir_copy(
+                    &volume_src_path,
+                    &volume_dst_path,
+                    &bytes_transferred
+                ) => res?,
+                _ = async {
+                    loop {
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
+                            bytes_transferred: bytes_transferred.load(Ordering::Relaxed),
+                            total_bytes,
+                            complete: false
+                        }));
+                    }
+                } => (),
+            );
+            let tor_src_path = recovery_source
+                .as_ref()
+                .join("var/lib/tor")
+                .join(format!("app-{}", src_id))
+                .join("hs_ed25519_secret_key");
+            let key_vec = tokio::fs::read(&tor_src_path).await.with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    tor_src_path.display().to_string(),
+                )
+            })?;
+            ensure_code!(
+                key_vec.len() == 96,
+                crate::ErrorKind::Tor,
+                "{} not 96 bytes",
+                tor_src_path.display()
+            );
+            let key_vec = key_vec[32..].to_vec();
+            sqlx::query!(
+                "REPLACE INTO tor (package, interface, key) VALUES (?, 'main', ?)",
+                *dst_id,
+                key_vec,
             )
+            .execute(&mut secret_store.acquire().await?)
             .await?;
-    }
+            let icon_leaf = AsRef::<Path>::as_ref(&dst_id)
+                .join(info.version.as_str())
+                .join("icon.png");
+            let icon_src_path = recovery_source
+                .as_ref()
+                .join("root/agent/icons")
+                .join(format!("{}.png", src_id));
+            let icon_dst_path = ctx.datadir.join(PKG_PUBLIC_DIR).join(&icon_leaf);
+            if let Some(parent) = icon_dst_path.parent() {
+                tokio::fs::create_dir_all(&parent)
+                    .await
+                    .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
+            }
+            tokio::fs::copy(&icon_src_path, &icon_dst_path)
+                .await
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        format!(
+                            "cp {} -> {}",
+                            icon_src_path.display(),
+                            icon_dst_path.display()
+                        ),
+                    )
+                })?;
+            let icon_url = Path::new("/public/package-data").join(&icon_leaf);
+            crate::db::DatabaseModel::new()
+                .recovered_packages()
+                .idx_model(&dst_id)
+                .put(
+                    &mut handle,
+                    &RecoveredPackageInfo {
+                        title: info.title,
+                        icon: icon_url.display().to_string(),
+                        version: info.version,
+                    },
+                )
+                .await?;
+        }
 
-    secret_store.close().await;
-    recovery_source.unmount().await?;
-    Ok(())
+        secret_store.close().await;
+        recovery_source.unmount().await?;
+        Ok(())
+    };
+    Ok((
+        tor_key.public().get_onion_address(),
+        root_ca_cert,
+        fut.boxed(),
+    ))
 }
 
 fn rename_pkg_id(src_pkg_id: PackageId) -> (PackageId, PackageId) {
