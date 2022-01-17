@@ -131,6 +131,10 @@ pub async fn backup_all(
     if old_password.is_some() {
         backup_guard.change_password(&password)?;
     }
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .lock(&mut db, LockType::Write)
+        .await?;
     let revision = assure_backing_up(&mut db).await?;
     tokio::task::spawn(async move {
         match perform_backup(&ctx, &mut db, backup_guard).await {
