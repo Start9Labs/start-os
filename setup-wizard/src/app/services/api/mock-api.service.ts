@@ -27,7 +27,7 @@ export class MockApiService extends ApiService {
     await pauseFor(1000)
     return {
       disks: [],
-      reconnect: ['yolo'],
+      reconnect: [],
     }
   }
 
