@@ -112,6 +112,10 @@ ion-toast {
   --border-color: var(--ion-color-success);
 }
 
+.alert-message {
+  user-select: text !important;
+}
+
 .error-toast {
   --border-color: var(--ion-color-danger);
   width: 40%;
