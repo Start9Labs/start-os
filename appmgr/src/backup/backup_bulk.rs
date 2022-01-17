@@ -268,6 +268,7 @@ async fn perform_backup<Db: DbHandle>(
         let main_status_model = installed_model.clone().status().main();
 
         let mut tx = db.begin().await?; // for lock scope
+        main_status_model.lock(&mut tx, LockType::Write).await?;
         let (started, health) = match main_status_model.get(&mut tx, true).await?.into_owned() {
             MainStatus::Starting => (Some(Utc::now()), Default::default()),
             MainStatus::Running { started, health } => (Some(started), health.clone()),
