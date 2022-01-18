@@ -22,7 +22,6 @@ use config::{
 use embassy::config::action::ConfigRes;
 use serde_json::json;
 
-const CONFIG_FALLBACK_MESSAGE_ENV: &str = "CONFIG_FALLBACK_MESSAGE";
 const CONFIG_FALLBACK_MESSAGE: &str =
     "Could not find a configuration, might still be starting the service";
 pub enum CompatRes {
