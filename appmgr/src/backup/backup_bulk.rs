@@ -131,13 +131,16 @@ pub async fn backup_all(
     if old_password.is_some() {
         backup_guard.change_password(&password)?;
     }
-    // crate::db::DatabaseModel::new()
-    //     .package_data()
-    //     .lock(&mut db, LockType::Write)
-    //     .await?;
     let revision = assure_backing_up(&mut db).await?;
     tokio::task::spawn(async move {
-        match perform_backup(&ctx, &mut db, backup_guard).await {
+        let backup_res = perform_backup(&ctx, &mut db, backup_guard).await;
+        let status_model = crate::db::DatabaseModel::new().server_info().status();
+        status_model
+            .clone()
+            .lock(&mut db, LockType::Write)
+            .await
+            .expect("failed to lock server status");
+        match backup_res {
             Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => ctx
                 .notification_manager
                 .notify(
@@ -199,9 +202,7 @@ pub async fn backup_all(
                     .expect("failed to send notification");
             }
         }
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .status()
+        status_model
             .put(&mut db, &ServerStatus::Running)
             .await
             .expect("failed to change server status");
