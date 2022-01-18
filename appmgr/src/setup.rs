@@ -39,7 +39,7 @@ use crate::sound::BEETHOVEN;
 use crate::util::io::{dir_size, from_yaml_async_reader};
 use crate::util::Version;
 use crate::volume::{data_dir, VolumeId};
-use crate::{ensure_code, Error, ResultExt};
+use crate::{ensure_code, Error, ErrorKind, ResultExt};
 
 #[instrument(skip(secrets))]
 pub async fn password_hash<Ex>(secrets: &mut Ex) -> Result<String, Error>
@@ -93,6 +93,16 @@ pub async fn attach(
 ) -> Result<SetupResult, Error> {
     crate::disk::main::import(&*guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
     init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
+    let product_id_path = Path::new("/embassy-data/main/product_id.txt");
+    if tokio::fs::metadata(product_id_path).await.is_ok() {
+        let pid = tokio::fs::read_to_string(product_id_path).await?;
+        if pid != crate::hostname::derive_id(&*ctx.product_key().await?) {
+            return Err(Error::new(
+                eyre!("The EmbassyOS product key does not match the supplied drive"),
+                ErrorKind::ProductKeyMismatch,
+            ));
+        }
+    }
     *ctx.disk_guid.write().await = Some(guid.clone());
     let secrets = ctx.secret_store().await?;
     let tor_key = crate::net::tor::os_key(&mut secrets.acquire().await?).await?;
@@ -236,6 +246,11 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<(), Error> {
             crate::hostname::set_product_key(&*ctx.product_key().await?).await?;
         }
     }
+    tokio::fs::write(
+        Path::new("/embassy-data/main/product_id.txt"),
+        crate::hostname::derive_id(&*ctx.product_key().await?),
+    )
+    .await?;
     let mut db = ctx.db(&ctx.secret_store().await?).await?.handle();
     let hostname = crate::hostname::get_hostname().await?;
     let si = crate::db::DatabaseModel::new().server_info();
