@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { AlertController, LoadingController, ModalController, NavController } from '@ionic/angular'
+import { AlertController, IonicSafeString, LoadingController, ModalController, NavController } from '@ionic/angular'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
 import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -50,6 +50,7 @@ export class RecoverPage {
           const drive: DiskBackupTarget = {
             vendor: d.vendor,
             model: d.model,
+            guid: d.guid,
             logicalname: p.logicalname,
             label: p.label,
             capacity: p.capacity,
@@ -70,7 +71,7 @@ export class RecoverPage {
         const list = `<ul>${reconnect.map(recon => `<li>${recon}</li>`)}</ul>`
         const alert = await this.alertCtrl.create({
           header: 'Warning',
-          message: `One or more devices you connected had to be reconfigured to support the current hardware platform. Please unplug and replug in the following device(s), then refresh the page:<br> ${list}`,
+          message: `One or more devices you connected had to be reconfigured to support the current hardware platform. Please unplug and replug the following device(s), then refresh the page:<br> ${list}`,
           buttons: [
             {
               role: 'cancel',
@@ -81,11 +82,12 @@ export class RecoverPage {
         await alert.present()
       }
 
-      const importableDrive = disks.find(d => !!d.guid)
+      const importableDrive = this.mappedDrives.find(d => !!d.drive.guid)
       if (!!importableDrive && !this.hasShownGuidAlert) {
+        const nested = importableDrive.drive
         const alert = await this.alertCtrl.create({
-          header: 'Embassy Drive Detected',
-          message: 'A valid EmbassyOS data drive has been detected. To use this drive as-is, simply click "Use Drive" below.',
+          header: 'Embassy Data Drive Detected',
+          message: new IonicSafeString(`${nested.label || nested.logicalname} (${nested.vendor || 'Unknown Vendor'} - ${nested.model || 'Unknown Model' }) contains Embassy data. To use this drive and its data <i>as-is</i>, click "Use Drive". This will complete the setup process.<br /><br /><b>Important</b>. If you are trying to restore from backup or update from 0.2.x, DO NOT click "Use Drive". Instead, click "Cancel" and follow instructions.`),
           buttons: [
             {
               role: 'cancel',
@@ -94,7 +96,7 @@ export class RecoverPage {
             {
               text: 'Use Drive',
               handler: async () => {
-                await this.importDrive(importableDrive.guid)
+                await this.importDrive(nested.guid)
               },
             },
           ],
