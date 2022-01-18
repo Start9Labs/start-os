@@ -1,4 +1,5 @@
 use std::{
+    env,
     fs::File,
     io::{stdin, stdout},
     path::Path,
@@ -19,6 +20,11 @@ use config::{
     apply_dependency_configuration, validate_configuration, validate_dependency_configuration,
 };
 use embassy::config::action::ConfigRes;
+use serde_json::json;
+
+const CONFIG_FALLBACK_MESSAGE_ENV: &str = "CONFIG_FALLBACK_MESSAGE";
+const CONFIG_FALLBACK_MESSAGE: &str =
+    "Could not find a configuration, might still be starting the service";
 pub enum CompatRes {
     SetResult,
     ConfigRes,
@@ -155,6 +161,10 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 Arg::with_name("mountpoint")
                     .help("The data directory of the service to mount to.")
                     .required(true),
+            ).arg(
+                Arg::with_name("fallbackMessage")
+                    .help("The message to indicate that the startup is still working, or couldn't be found")
+                    .required(false),
             ),
         );
     let matches = app.get_matches();
@@ -295,7 +305,22 @@ fn inner_main() -> Result<(), anyhow::Error> {
             let stats: serde_json::Value = if stats_path.exists() {
                 serde_yaml::from_reader(File::open(stats_path).unwrap()).unwrap()
             } else {
-                serde_json::Value::from("{}")
+                let fallbackMessage: &str = sub_m
+                    .value_of("fallbackMessage")
+                    .unwrap_or_else(|| CONFIG_FALLBACK_MESSAGE);
+                json!({
+                    "version": 2i64,
+                    "data": {
+                        "Is Not Ready": {
+                            "type": "string",
+                            "value": fallbackMessage,
+                            "qr": false,
+                            "copyable": true,
+                            "masked": false,
+                            "description":"Fallback Message When Properties could not be found"
+                        }
+                    }
+                })
             };
             serde_json::to_writer(stdout(), &stats)?;
             Ok(())
