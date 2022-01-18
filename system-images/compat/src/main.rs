@@ -22,8 +22,8 @@ use config::{
 use embassy::config::action::ConfigRes;
 use serde_json::json;
 
-const CONFIG_FALLBACK_MESSAGE: &str =
-    "Could not find a configuration, might still be starting the service";
+const PROPERTIES_FALLBACK_MESSAGE: &str =
+    "Could not find properties. The service might still be starting";
 pub enum CompatRes {
     SetResult,
     ConfigRes,
@@ -162,7 +162,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     .required(true),
             ).arg(
                 Arg::with_name("fallbackMessage")
-                    .help("The message to indicate that the startup is still working, or couldn't be found")
+                    .help("The message to indicate that the startup is still working, or stats.yaml couldn't be found")
                     .required(false),
             ),
         );
@@ -306,15 +306,15 @@ fn inner_main() -> Result<(), anyhow::Error> {
             } else {
                 let fallbackMessage: &str = sub_m
                     .value_of("fallbackMessage")
-                    .unwrap_or_else(|| CONFIG_FALLBACK_MESSAGE);
+                    .unwrap_or_else(|| PROPERTIES_FALLBACK_MESSAGE);
                 json!({
                     "version": 2i64,
                     "data": {
-                        "Is Not Ready": {
+                        "Not Ready": {
                             "type": "string",
                             "value": fallbackMessage,
                             "qr": false,
-                            "copyable": true,
+                            "copyable": false,
                             "masked": false,
                             "description":"Fallback Message When Properties could not be found"
                         }
