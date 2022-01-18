@@ -55,14 +55,14 @@ export class AppRecoverSelectPage {
     this.hasSelection = this.options.some(o => o.checked)
   }
 
-  async recover (): Promise<void> {
+  async restore (): Promise<void> {
     const ids = this.options
     .filter(option => !!option.checked)
     .map(option => option.id)
 
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: 'Beginning service recovery...',
+      message: 'Beginning restoration...',
       cssClass: 'loader',
     })
     await loader.present()

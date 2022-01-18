@@ -22,7 +22,7 @@ v8.0.0
 
 `cd ui/`
 
-`npm --prefix . install @ionic/cli`
+`npm install -g @ionic/cli`
 
 `npm --prefix . install`
 

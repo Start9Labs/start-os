@@ -20,7 +20,7 @@ v8.0.0
 
 `cd setup-wizard/`
 
-`npm --prefix . install @ionic/cli`
+`npm install -g @ionic/cli`
 
 `npm --prefix . install`
 

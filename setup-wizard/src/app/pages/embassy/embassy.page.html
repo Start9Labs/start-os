@@ -26,8 +26,9 @@
             <!-- not loading -->
             <ng-template #loaded>
               <ng-container *ngIf="!storageDrives.length">
-                <ion-button fill="clear" color="light" (click)="getDrives()">
-                  <ion-icon color="primary" size="large" name='refresh' icon-start></ion-icon>
+                <ion-button fill="clear" color="primary" (click)="getDrives()">
+                  <ion-icon slot="start" name='refresh'></ion-icon>
+                  Refresh
                 </ion-button>
               </ng-container>
   
