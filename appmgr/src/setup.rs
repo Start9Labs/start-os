@@ -503,8 +503,6 @@ async fn recover_v2(
     recovery_source: TmpMountGuard,
 ) -> Result<(OnionAddressV3, X509, BoxFuture<'static, Result<(), Error>>), Error> {
     let secret_store = ctx.secret_store().await?;
-    let db = ctx.db(&secret_store).await?;
-    let mut handle = db.handle();
 
     // migrate the root CA
     let root_ca_key_path = recovery_source
@@ -562,6 +560,9 @@ async fn recover_v2(
     )
     .execute(&mut sqlite_pool.acquire().await?)
     .await?;
+
+    let db = ctx.db(&secret_store).await?;
+    let mut handle = db.handle();
 
     // rest of migration as future
     let fut = async move {
