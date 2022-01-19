@@ -11,7 +11,11 @@ pub const PRODUCT_KEY_PATH: &'static str = "/embassy-os/product_key.txt";
 
 #[instrument]
 pub async fn get_hostname() -> Result<String, Error> {
-    Ok(format!("embassy-{}", get_id().await?))
+    Ok(derive_hostname(&get_id().await?))
+}
+
+pub fn derive_hostname(id: &str) -> String {
+    format!("embassy-{}", id)
 }
 
 #[instrument]
