@@ -46,7 +46,6 @@ export interface DiskListResponse {
 export interface DiskBackupTarget {
   vendor: string | null
   model: string | null
-  guid: string | null
   logicalname: string | null
   label: string | null
   capacity: number
