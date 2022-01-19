@@ -1849,13 +1849,17 @@ impl TorKeyPointer {
             *self.package_id,
             *self.interface
         )
-        .fetch_one(secrets)
+        .fetch_optional(secrets)
         .await
         .map_err(|e| ConfigurationError::SystemError(e.into()))?;
-        Ok(Value::String(base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
-            &x.key,
-        )))
+        if let Some(x) = x {
+            Ok(Value::String(base32::encode(
+                base32::Alphabet::RFC4648 { padding: false },
+                &x.key,
+            )))
+        } else {
+            Ok(Value::Null)
+        }
     }
 }
 impl fmt::Display for TorKeyPointer {
