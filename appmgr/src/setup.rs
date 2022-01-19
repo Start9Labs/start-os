@@ -29,7 +29,7 @@ use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskListResponse, EmbassyOsRecoveryInfo};
-use crate::hostname::PRODUCT_KEY_PATH;
+use crate::hostname::{get_product_key, PRODUCT_KEY_PATH};
 use crate::id::Id;
 use crate::init::init;
 use crate::install::PKG_PUBLIC_DIR;
@@ -92,7 +92,11 @@ pub async fn attach(
     #[arg] guid: Arc<String>,
 ) -> Result<SetupResult, Error> {
     crate::disk::main::import(&*guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
-    init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
+    init(
+        &RpcContextConfig::load(ctx.config_path.as_ref()).await?,
+        &get_product_key().await?,
+    )
+    .await?;
     let product_id_path = Path::new("/embassy-data/main/product_id.txt");
     if tokio::fs::metadata(product_id_path).await.is_ok() {
         let pid = tokio::fs::read_to_string(product_id_path).await?;
@@ -305,7 +309,11 @@ pub async fn execute_inner(
             recovery_password,
         )
         .await?;
-        init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
+        init(
+            &RpcContextConfig::load(ctx.config_path.as_ref()).await?,
+            &ctx.product_key().await?,
+        )
+        .await?;
         tokio::spawn(async move {
             if let Err(e) = recover_fut
                 .and_then(|_| async {
@@ -326,7 +334,11 @@ pub async fn execute_inner(
         (tor_addr, root_ca)
     } else {
         let res = fresh_setup(&ctx, &embassy_password).await?;
-        init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
+        init(
+            &RpcContextConfig::load(ctx.config_path.as_ref()).await?,
+            &ctx.product_key().await?,
+        )
+        .await?;
         *ctx.disk_guid.write().await = Some(guid);
         res
     };

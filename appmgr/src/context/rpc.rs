@@ -23,7 +23,7 @@ use tracing::instrument;
 
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
-use crate::hostname::{get_hostname, get_id};
+use crate::hostname::{derive_hostname, derive_id, get_hostname, get_id, get_product_key};
 use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
@@ -72,7 +72,7 @@ impl RpcContextConfig {
             .as_deref()
             .unwrap_or_else(|| Path::new("/embassy-data"))
     }
-    pub async fn db(&self, secret_store: &SqlitePool) -> Result<PatchDb, Error> {
+    pub async fn db(&self, secret_store: &SqlitePool, product_key: &str) -> Result<PatchDb, Error> {
         let db_path = self.datadir().join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
@@ -81,8 +81,8 @@ impl RpcContextConfig {
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    get_id().await?,
-                    &get_hostname().await?,
+                    derive_id(product_key),
+                    &derive_hostname(product_key),
                     &os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
                 ),
@@ -159,7 +159,7 @@ impl RpcContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
         tracing::info!("Opened Sqlite DB");
-        let db = base.db(&secret_store).await?;
+        let db = base.db(&secret_store, &get_product_key().await?).await?;
         tracing::info!("Opened PatchDB");
         let share = crate::db::DatabaseModel::new()
             .server_info()

@@ -6,7 +6,7 @@ use crate::install::PKG_DOCKER_DIR;
 use crate::util::Invoke;
 use crate::Error;
 
-pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
+pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error> {
     let secret_store = cfg.secret_store().await?;
     let log_dir = cfg.datadir().join("main").join("logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
@@ -59,7 +59,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<(), Error> {
 
     crate::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
-    let db = cfg.db(&secret_store).await?;
+    let db = cfg.db(&secret_store, product_key).await?;
 
     let mut handle = db.handle();
 
