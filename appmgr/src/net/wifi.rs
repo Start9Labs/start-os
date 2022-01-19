@@ -69,22 +69,21 @@ pub async fn add(
         drop(wpa_supplicant);
         Ok(())
     }
-    tokio::spawn(async move {
-        match add_procedure(
-            &mut ctx.db.handle(),
-            ctx.wifi_manager.clone(),
-            &Ssid(ssid.clone()),
-            &Psk(password.clone()),
-            priority,
-        )
-        .await
-        {
-            Err(e) => {
-                tracing::info!("Failed to add new WiFi network '{}': {}", ssid, e);
-            }
-            Ok(_) => {}
-        }
-    });
+    if let Err(err) = add_procedure(
+        &mut ctx.db.handle(),
+        ctx.wifi_manager.clone(),
+        &Ssid(ssid.clone()),
+        &Psk(password.clone()),
+        priority,
+    )
+    .await
+    {
+        tracing::error!("Failed to add new WiFi network '{}': {}", ssid, err);
+        return Err(Error::new(
+            color_eyre::eyre::eyre!("Failed adding {}", ssid),
+            ErrorKind::Wifi,
+        ));
+    }
     Ok(())
 }
 
@@ -122,20 +121,20 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         }
         Ok(())
     }
-    tokio::spawn(async move {
-        match connect_procedure(
-            &mut ctx.db.handle(),
-            ctx.wifi_manager.clone(),
-            &Ssid(ssid.clone()),
-        )
-        .await
-        {
-            Err(e) => {
-                tracing::info!("Failed to connect to WiFi network '{}': {}", &ssid, e);
-            }
-            Ok(_) => {}
-        }
-    });
+
+    if let Err(err) = connect_procedure(
+        &mut ctx.db.handle(),
+        ctx.wifi_manager.clone(),
+        &Ssid(ssid.clone()),
+    )
+    .await
+    {
+        tracing::error!("Failed to connect to WiFi network '{}': {}", &ssid, err);
+        return Err(Error::new(
+            color_eyre::eyre::eyre!("Can't connect to {}", ssid),
+            ErrorKind::Wifi,
+        ));
+    }
     Ok(())
 }
 
