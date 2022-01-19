@@ -160,6 +160,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async hardRestartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   // marketplace URLs
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {

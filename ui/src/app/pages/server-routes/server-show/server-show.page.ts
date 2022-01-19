@@ -69,6 +69,29 @@ export class ServerShowPage {
     await alert.present()
   }
 
+  async presentAlertHardRestart () {
+    const minutes = Object.keys(this.patch.data['package-data']).length
+    const alert = await this.alertCtrl.create({
+      header: 'Warning',
+      message: `Do not hard restart unless your Embassy is in a corrupt state or you have been instructed by a Start9 support representitive.  This process may take up to ${minutes} minutes.`,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Hard Restart',
+          handler: () => {
+            this.hardRestart()
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+      cssClass: 'alert-error-message',
+    })
+    await alert.present()
+  }
+
   private async restart () {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
@@ -96,6 +119,23 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.shutdownServer({ })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async hardRestart () {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Hard Restarting...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.hardRestartServer({ })
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -205,6 +245,14 @@ export class ServerShowPage {
         description: '',
         icon: 'power',
         action: () => this.presentAlertShutdown(),
+        detail: false,
+        disabled: of(false),
+      },
+      {
+        title: 'Hard Restart',
+        description: '',
+        icon: 'alert-circle-outline',
+        action: () => this.presentAlertHardRestart(),
         detail: false,
         disabled: of(false),
       },
