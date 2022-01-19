@@ -80,6 +80,10 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'server.shutdown', params })
   }
 
+  async hardRestartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
+    return this.http.rpcRequest({ method: 'server.hard-restart', params })
+  }
+
   // marketplace URLs
 
   async getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes> {
