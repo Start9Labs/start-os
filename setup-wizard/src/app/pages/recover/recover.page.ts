@@ -50,7 +50,6 @@ export class RecoverPage {
           const drive: DiskBackupTarget = {
             vendor: d.vendor,
             model: d.model,
-            guid: d.guid,
             logicalname: p.logicalname,
             label: p.label,
             capacity: p.capacity,
@@ -82,12 +81,11 @@ export class RecoverPage {
         await alert.present()
       }
 
-      const importableDrive = this.mappedDrives.find(d => !!d.drive.guid)
+      const importableDrive = disks.find(d => !!d.guid)
       if (!!importableDrive && !this.hasShownGuidAlert) {
-        const nested = importableDrive.drive
         const alert = await this.alertCtrl.create({
           header: 'Embassy Data Drive Detected',
-          message: new IonicSafeString(`${nested.label || nested.logicalname} (${nested.vendor || 'Unknown Vendor'} - ${nested.model || 'Unknown Model' }) contains Embassy data. To use this drive and its data <i>as-is</i>, click "Use Drive". This will complete the setup process.<br /><br /><b>Important</b>. If you are trying to restore from backup or update from 0.2.x, DO NOT click "Use Drive". Instead, click "Cancel" and follow instructions.`),
+          message: new IonicSafeString(`${importableDrive.vendor || 'Unknown Vendor'} - ${importableDrive.model || 'Unknown Model' } contains Embassy data. To use this drive and its data <i>as-is</i>, click "Use Drive". This will complete the setup process.<br /><br /><b>Important</b>. If you are trying to restore from backup or update from 0.2.x, DO NOT click "Use Drive". Instead, click "Cancel" and follow instructions.`),
           buttons: [
             {
               role: 'cancel',
@@ -96,7 +94,7 @@ export class RecoverPage {
             {
               text: 'Use Drive',
               handler: async () => {
-                await this.importDrive(nested.guid)
+                await this.importDrive(importableDrive.guid)
               },
             },
           ],
