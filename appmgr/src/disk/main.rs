@@ -218,6 +218,10 @@ pub async fn import<P: AsRef<Path>>(guid: &str, datadir: P, password: &str) -> R
             crate::ErrorKind::IncorrectDisk,
         ));
     }
+    Command::new("dmsetup")
+        .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
     match Command::new("vgimport")
         .arg(guid)
         .invoke(crate::ErrorKind::DiskManagement)
