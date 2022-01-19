@@ -6,6 +6,9 @@
   </ion-card-header>
   <ion-card-content>
     <br />
+    <ng-template [ngIf]="stateService.recoverySource && stateService.recoverySource.type === 'disk'">
+      <h2>You can now safely unplug your backup drive.</h2>
+    </ng-template>
     <!-- Tor Instructions -->
     <div (click)="toggleTor()" class="toggle-label">
       <h2>Tor Instructions:</h2>
