@@ -956,12 +956,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             migration.or(prev_migration)
         };
 
-        let configured = prev_is_configured
-            && if let Some(f) = viable_migration {
-                f.await?.configured
-            } else {
-                false
-            };
+        let configured = if let Some(f) = viable_migration {
+            f.await?.configured && prev_is_configured
+        } else {
+            false
+        };
         if configured && manifest.config.is_some() {
             crate::config::configure(
                 ctx,
