@@ -42,6 +42,9 @@ export module RR {
   export type ShutdownServerReq = { } // server.shutdown
   export type ShutdownServerRes = null
 
+  export type HardRestartServerReq = { } // server.hard-restart
+  export type HardRestartServerRes = null
+
   // sessions
 
   export type GetSessionsReq = { } // sessions.list
