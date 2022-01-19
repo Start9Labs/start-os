@@ -6,6 +6,7 @@ use rpc_toolkit::command;
 
 use crate::context::RpcContext;
 use crate::disk::main::export;
+use crate::init::HARD_RESTART_PATH;
 use crate::sound::SHUTDOWN;
 use crate::util::{display_none, Invoke};
 use crate::Error;
@@ -107,4 +108,10 @@ pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
         .map_err(|_| ())
         .expect("receiver dropped");
     Ok(())
+}
+
+#[command(rename = "hard-restart", display(display_none))]
+pub async fn hard_restart(#[context] ctx: RpcContext) -> Result<(), Error> {
+    tokio::fs::write(HARD_RESTART_PATH, b"").await?;
+    restart(ctx).await
 }

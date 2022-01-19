@@ -76,6 +76,7 @@ pub fn main_api() -> Result<(), RpcError> {
     system::metrics,
     shutdown::shutdown,
     shutdown::restart,
+    shutdown::hard_restart,
     update::update_system,
     marketplace::set_eos_url,
 ))]
