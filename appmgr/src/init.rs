@@ -6,7 +6,10 @@ use crate::install::PKG_DOCKER_DIR;
 use crate::util::Invoke;
 use crate::Error;
 
+pub const HARD_RESTART_PATH: &str = "/embassy-os/hard-restart";
+
 pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error> {
+    let hard_restart = tokio::fs::metadata(HARD_RESTART_PATH).await.is_ok();
     let secret_store = cfg.secret_store().await?;
     let log_dir = cfg.datadir().join("main").join("logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
@@ -24,15 +27,17 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
     let tmp_docker = cfg.datadir().join("package-data/tmp/docker");
-    if tokio::fs::metadata(&tmp_docker).await.is_ok() {
-        tokio::fs::remove_dir_all(&tmp_docker).await?;
+    if hard_restart {
+        if tokio::fs::metadata(&tmp_docker).await.is_ok() {
+            tokio::fs::remove_dir_all(&tmp_docker).await?;
+        }
+        Command::new("cp")
+            .arg("-r")
+            .arg("/var/lib/docker")
+            .arg(&tmp_docker)
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
     }
-    Command::new("cp")
-        .arg("-r")
-        .arg("/var/lib/docker")
-        .arg(&tmp_docker)
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
     Command::new("systemctl")
         .arg("stop")
         .arg("docker")
@@ -51,11 +56,13 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         .await?;
     tracing::info!("Mounted Docker Data");
 
-    crate::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
-    tracing::info!("Loaded Package Docker Images");
-    // Loading system images
-    crate::install::load_images("/var/lib/embassy/system-images").await?;
-    tracing::info!("Loaded System Docker Images");
+    if hard_restart {
+        crate::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
+        tracing::info!("Loaded Package Docker Images");
+        // Loading system images
+        crate::install::load_images("/var/lib/embassy/system-images").await?;
+        tracing::info!("Loaded System Docker Images");
+    }
 
     crate::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
@@ -95,6 +102,10 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
     info.save(&mut handle).await?;
 
     crate::version::init(&mut handle).await?;
+
+    if hard_restart {
+        tokio::fs::remove_file(HARD_RESTART_PATH).await?;
+    }
 
     Ok(())
 }
