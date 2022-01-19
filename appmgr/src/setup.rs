@@ -561,11 +561,11 @@ async fn recover_v2(
     .execute(&mut sqlite_pool.acquire().await?)
     .await?;
 
-    let db = ctx.db(&secret_store).await?;
-    let mut handle = db.handle();
-
     // rest of migration as future
     let fut = async move {
+        let db = ctx.db(&secret_store).await?;
+        let mut handle = db.handle();
+
         let apps_yaml_path = recovery_source
             .as_ref()
             .join("root")
