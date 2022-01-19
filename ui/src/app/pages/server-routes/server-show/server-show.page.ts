@@ -70,7 +70,7 @@ export class ServerShowPage {
   }
 
   async presentAlertHardRestart () {
-    const minutes = Object.keys(this.patch.data['package-data']).length
+    const minutes = Object.keys(this.patch.data['package-data']).length * 2
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message: `Do not hard restart unless your Embassy is in a corrupt state or you have been instructed by a Start9 support representitive.  This process may take up to ${minutes} minutes.`,
