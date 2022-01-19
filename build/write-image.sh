@@ -21,6 +21,12 @@ sudo e2label ${OUTPUT_DEVICE}p4 blue
 mkdir -p /tmp/eos-mnt
 sudo mount ${OUTPUT_DEVICE}p1 /tmp/eos-mnt
 
+if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
+	sudo cp build/user-data-dev /tmp/eos-mnt/user-data
+else
+	sudo cp build/user-data /tmp/eos-mnt/user-data
+fi
+
 sudo sed -i 's/LABEL=writable/LABEL=green/g' /tmp/eos-mnt/cmdline.txt
 # create a copy of the cmdline *without* the quirk string, so that it can be easily amended
 sudo cp /tmp/eos-mnt/cmdline.txt /tmp/eos-mnt/cmdline.txt.orig
@@ -64,12 +70,7 @@ sudo cp -R diagnostic-ui/www /tmp/eos-mnt/var/www/html/diagnostic
 # Make the .ssh directory
 sudo mkdir -p /tmp/eos-mnt/root/.ssh
 
-if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
-	cat ./build/initialization.sh | grep -v "passwd -l ubuntu" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
-	sudo chmod +x /tmp/eos-mnt/usr/local/bin/initialization.sh
-else
-	sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
-fi
+sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
 
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
 sudo ln -s /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
