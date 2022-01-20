@@ -131,36 +131,51 @@ export class RecoverPage {
   }
 
   async select (target: DiskBackupTarget) {
-    if (target['embassy-os'].version.startsWith('0.2')) {
-      return this.selectRecoverySource(target.logicalname)
-    }
+    const is02x = target['embassy-os'].version.startsWith('0.2')
 
     if (this.stateService.hasProductKey) {
-      const modal = await this.modalController.create({
-        component: PasswordPage,
-        componentProps: { target },
-        cssClass: 'alertlike-modal',
-      })
-      modal.onDidDismiss().then(res => {
-        if (res.data && res.data.password) {
-          this.selectRecoverySource(target.logicalname, res.data.password)
-        }
-      })
-      await modal.present()
+      if (is02x) {
+        this.selectRecoverySource(target.logicalname)
+      } else {
+        const modal = await this.modalController.create({
+          component: PasswordPage,
+          componentProps: { target },
+          cssClass: 'alertlike-modal',
+        })
+        modal.onDidDismiss().then(res => {
+          if (res.data && res.data.password) {
+            this.selectRecoverySource(target.logicalname, res.data.password)
+          }
+        })
+        await modal.present()
+      }
       // if no product key, it means they are an upgrade kit user
     } else {
-      const modal = await this.modalController.create({
-        component: ProdKeyModal,
-        componentProps: { target },
-        cssClass: 'alertlike-modal',
-      })
-      modal.onDidDismiss().then(res => {
-        if (res.data && res.data.productKey) {
-          this.selectRecoverySource(target.logicalname)
-        }
-
-      })
-      await modal.present()
+      if (!is02x) {
+        const alert = await this.alertCtrl.create({
+          header: 'Error',
+          message: 'In order to use this image, you must select a drive containing a valid 0.2.x Embassy.',
+          buttons: [
+            {
+              role: 'cancel',
+              text: 'OK',
+            },
+          ],
+        })
+        await alert.present()
+      } else {
+        const modal = await this.modalController.create({
+          component: ProdKeyModal,
+          componentProps: { target },
+          cssClass: 'alertlike-modal',
+        })
+        modal.onDidDismiss().then(res => {
+          if (res.data && res.data.productKey) {
+            this.selectRecoverySource(target.logicalname)
+          }
+        })
+        await modal.present()
+      }
     }
   }
 

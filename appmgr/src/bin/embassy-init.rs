@@ -4,6 +4,7 @@ use std::sync::Arc;
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
 use embassy::disk::main::DEFAULT_PASSWORD;
+use embassy::hostname::get_product_key;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
 use embassy::middleware::encrypt::encrypt;
@@ -80,7 +81,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
         )
         .await?;
         tracing::info!("Loaded Disk");
-        embassy::init::init(&cfg).await?;
+        embassy::init::init(&cfg, &get_product_key().await?).await?;
     }
 
     Ok(())

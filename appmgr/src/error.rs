@@ -62,6 +62,7 @@ pub enum ErrorKind {
     MultipleErrors = 54,
     Incoherent = 55,
     InvalidBackupTargetId = 56,
+    ProductKeyMismatch = 57,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -123,6 +124,7 @@ impl ErrorKind {
             MultipleErrors => "Multiple Errors",
             Incoherent => "Incoherent",
             InvalidBackupTargetId => "Invalid Backup Target ID",
+            ProductKeyMismatch => "Incompatible Product Keys",
         }
     }
 }
