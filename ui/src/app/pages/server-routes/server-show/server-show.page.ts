@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController, NavController } from '@ionic/angular'
+import { AlertController, LoadingController, NavController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -69,25 +69,24 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertHardRestart () {
+  async presentAlertSystemRebuild () {
     const minutes = Object.keys(this.patch.data['package-data']).length * 2
     const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message: `Do not hard restart unless your Embassy is in a corrupt state or you have been instructed by a Start9 support representitive.  This process may take up to ${minutes} minutes.`,
+      header: 'System Rebuild',
+      message: new IonicSafeString(`<ion-text color="warning">Important:</ion-text> This will tear down all service containers and rebuild them from scratch. This may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`),
       buttons: [
         {
           text: 'Cancel',
           role: 'cancel',
         },
         {
-          text: 'Hard Restart',
+          text: 'Rebuild',
           handler: () => {
-            this.hardRestart()
+            this.systemRebuild()
           },
           cssClass: 'enter-click',
         },
       ],
-      cssClass: 'alert-error-message',
     })
     await alert.present()
   }
@@ -126,7 +125,7 @@ export class ServerShowPage {
     }
   }
 
-  private async hardRestart () {
+  private async systemRebuild () {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Hard Restarting...',
@@ -135,7 +134,7 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      await this.embassyApi.hardRestartServer({ })
+      await this.embassyApi.systemRebuild({ })
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -249,10 +248,10 @@ export class ServerShowPage {
         disabled: of(false),
       },
       {
-        title: 'Hard Restart',
+        title: 'System Rebuild',
         description: '',
-        icon: 'alert-circle-outline',
-        action: () => this.presentAlertHardRestart(),
+        icon: 'construct-outline',
+        action: () => this.presentAlertSystemRebuild(),
         detail: false,
         disabled: of(false),
       },

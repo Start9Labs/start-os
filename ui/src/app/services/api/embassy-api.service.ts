@@ -68,7 +68,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract shutdownServer (params: RR.ShutdownServerReq): Promise<RR.ShutdownServerRes>
 
-  abstract hardRestartServer (params: RR.HardRestartServerReq): Promise<RR.HardRestartServerRes>
+  abstract systemRebuild (params: RR.SystemRebuildReq): Promise<RR.SystemRebuildRes>
 
   // marketplace URLs
 
