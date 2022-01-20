@@ -132,6 +132,10 @@ pub async fn cleanup_failed<Db: DbHandle>(
     db: &mut Db,
     id: &PackageId,
 ) -> Result<(), Error> {
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .lock(db, LockType::Write)
+        .await?;
     let pde = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(id)
