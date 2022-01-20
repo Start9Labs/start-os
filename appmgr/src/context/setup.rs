@@ -18,7 +18,7 @@ use tracing::instrument;
 use url::Host;
 
 use crate::db::model::Database;
-use crate::hostname::{get_hostname, get_id, get_product_key};
+use crate::hostname::{derive_hostname, derive_id, get_hostname, get_id, get_product_key};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
 use crate::util::io::from_toml_async_reader;
@@ -91,11 +91,14 @@ impl SetupContext {
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
         if !db.exists(&<JsonPointer>::default()).await? {
+            let pkey = self.product_key().await?;
+            let sid = derive_id(&*pkey);
+            let hostname = derive_hostname(&sid);
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    get_id().await?,
-                    &get_hostname().await?,
+                    sid,
+                    &hostname,
                     &os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
                 ),
