@@ -73,6 +73,8 @@ impl RpcContextConfig {
             .unwrap_or_else(|| Path::new("/embassy-data"))
     }
     pub async fn db(&self, secret_store: &SqlitePool, product_key: &str) -> Result<PatchDb, Error> {
+        let sid = derive_id(product_key);
+        let hostname = derive_hostname(&sid);
         let db_path = self.datadir().join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
@@ -81,8 +83,8 @@ impl RpcContextConfig {
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    derive_id(product_key),
-                    &derive_hostname(product_key),
+                    sid,
+                    &hostname,
                     &os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
                 ),

@@ -93,7 +93,7 @@ impl SetupContext {
         if !db.exists(&<JsonPointer>::default()).await? {
             let pkey = self.product_key().await?;
             let sid = derive_id(&*pkey);
-            let hostname = derive_hostname(&*pkey);
+            let hostname = derive_hostname(&sid);
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(

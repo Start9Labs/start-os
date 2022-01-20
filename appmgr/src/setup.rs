@@ -255,18 +255,19 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<(), Error> {
         crate::hostname::derive_id(&*ctx.product_key().await?),
     )
     .await?;
-    let mut db = ctx.db(&ctx.secret_store().await?).await?.handle();
+    let secrets = ctx.secret_store().await?;
+    let mut db = ctx.db(&secrets).await?.handle();
     let hostname = crate::hostname::get_hostname().await?;
     let si = crate::db::DatabaseModel::new().server_info();
     si.clone()
-        .lan_address()
+        .id()
+        .put(&mut db, &crate::hostname::get_id().await?)
+        .await?;
+    si.lan_address()
         .put(
             &mut db,
             &format!("https://{}.local", &hostname).parse().unwrap(),
         )
-        .await?;
-    si.id()
-        .put(&mut db, &crate::hostname::get_id().await?)
         .await?;
     let mut guid_file = File::create("/embassy-os/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
