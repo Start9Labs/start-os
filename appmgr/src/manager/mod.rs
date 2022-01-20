@@ -112,8 +112,9 @@ impl ManagerMap {
         let res =
             futures::future::join_all(std::mem::take(&mut *self.0.write().await).into_iter().map(
                 |((id, version), man)| async move {
+                    tracing::debug!("Manager for {}@{} shutting down", id, version);
                     man.exit().await?;
-                    tracing::debug!("Manager for {}@{} shutdown", id, version);
+                    tracing::debug!("Manager for {}@{} is shutdown", id, version);
                     if let Err(e) = Arc::try_unwrap(man) {
                         tracing::trace!(
                             "Manager for {}@{} still has {} other open references",
@@ -151,6 +152,7 @@ pub enum Status {
     Running = 1,
     Stopped = 2,
     Paused = 3,
+    Shutdown = 4,
 }
 
 pub struct ManagerSharedState {
@@ -165,7 +167,7 @@ pub struct ManagerSharedState {
     commit_health_check_results: AtomicBool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum OnStop {
     Restart,
     Sleep,
@@ -336,6 +338,7 @@ impl Manager {
             synchronize_now: Notify::new(),
             commit_health_check_results: AtomicBool::new(true),
         });
+        shared.synchronize_now.notify_one();
         let thread_shared = shared.clone();
         let thread = tokio::spawn(async move {
             tokio::select! {
@@ -410,7 +413,7 @@ impl Manager {
             a => a?,
         };
         self.shared.status.store(
-            Status::Stopped as usize,
+            Status::Shutdown as usize,
             std::sync::atomic::Ordering::SeqCst,
         );
         if let Some(thread) = self.thread.take().await {
