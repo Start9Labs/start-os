@@ -57,11 +57,14 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
     tracing::info!("Mounted Docker Data");
 
     if should_rebuild {
-        crate::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
-        tracing::info!("Loaded Package Docker Images");
-        // Loading system images
+        tracing::info!("Loading System Docker Images");
         crate::install::load_images("/var/lib/embassy/system-images").await?;
         tracing::info!("Loaded System Docker Images");
+        
+        tracing::info!("Loading Package Docker Images");
+        crate::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
+        tracing::info!("Loaded Package Docker Images");
+
     }
 
     crate::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
