@@ -160,7 +160,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async hardRestartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
+  async systemRebuild (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
     await pauseFor(2000)
     return null
   }

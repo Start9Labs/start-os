@@ -80,8 +80,8 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'server.shutdown', params })
   }
 
-  async hardRestartServer (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
-    return this.http.rpcRequest({ method: 'server.hard-restart', params })
+  async systemRebuild (params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
+    return this.http.rpcRequest({ method: 'server.rebuild', params })
   }
 
   // marketplace URLs
