@@ -107,38 +107,43 @@ impl MdnsControllerInner {
                 std::ffi::CStr::from_ptr(self.hostname_raw)
             );
             for key in self.services.values() {
-                let lan_address = key
-                    .public()
-                    .get_onion_address()
-                    .get_address_without_dot_onion()
-                    + ".local";
-                tracing::debug!("Adding mdns CNAME entry for {}", &lan_address);
-                let lan_address_ptr = std::ffi::CString::new(lan_address)
-                    .expect("Could not cast lan address to c string");
-                res = avahi_sys::avahi_entry_group_add_record(
-                    self.entry_group,
-                    avahi_sys::AVAHI_IF_UNSPEC,
-                    avahi_sys::AVAHI_PROTO_UNSPEC,
-                    avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_USE_MULTICAST
-                        | avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_ALLOW_MULTIPLE,
-                    lan_address_ptr.as_ptr(),
-                    avahi_sys::AVAHI_DNS_CLASS_IN as u16,
-                    avahi_sys::AVAHI_DNS_TYPE_CNAME as u16,
-                    avahi_sys::AVAHI_DEFAULT_TTL,
-                    self.hostname.as_ptr().cast(),
-                    self.hostname.len(),
-                );
-                if res < avahi_sys::AVAHI_OK {
-                    let e_str = avahi_strerror(res);
-                    tracing::error!(
-                        "Could not add CNAME record to Avahi entry group: {:?}",
-                        std::ffi::CStr::from_ptr(e_str)
-                    );
-                    avahi_free(e_str as *mut c_void);
-                    panic!("Failed to load Avahi services");
-                }
-                tracing::info!("Published {:?}", lan_address_ptr);
+                self.load_one(key);
             }
+        }
+    }
+    fn load_one(&self, key: &TorSecretKeyV3) {
+        unsafe {
+            let lan_address = key
+                .public()
+                .get_onion_address()
+                .get_address_without_dot_onion()
+                + ".local";
+            tracing::debug!("Adding mdns CNAME entry for {}", &lan_address);
+            let lan_address_ptr = std::ffi::CString::new(lan_address)
+                .expect("Could not cast lan address to c string");
+            let res = avahi_sys::avahi_entry_group_add_record(
+                self.entry_group,
+                avahi_sys::AVAHI_IF_UNSPEC,
+                avahi_sys::AVAHI_PROTO_UNSPEC,
+                avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_USE_MULTICAST
+                    | avahi_sys::AvahiPublishFlags_AVAHI_PUBLISH_ALLOW_MULTIPLE,
+                lan_address_ptr.as_ptr(),
+                avahi_sys::AVAHI_DNS_CLASS_IN as u16,
+                avahi_sys::AVAHI_DNS_TYPE_CNAME as u16,
+                avahi_sys::AVAHI_DEFAULT_TTL,
+                self.hostname.as_ptr().cast(),
+                self.hostname.len(),
+            );
+            if res < avahi_sys::AVAHI_OK {
+                let e_str = avahi_strerror(res);
+                tracing::error!(
+                    "Could not add CNAME record to Avahi entry group: {:?}",
+                    std::ffi::CStr::from_ptr(e_str)
+                );
+                avahi_free(e_str as *mut c_void);
+                panic!("Failed to load Avahi services");
+            }
+            tracing::info!("Published {:?}", lan_address_ptr);
         }
     }
     fn init() -> Self {
@@ -210,18 +215,23 @@ impl MdnsControllerInner {
         pkg_id: &PackageId,
         interfaces: I,
     ) {
-        self.services.extend(
-            interfaces
-                .into_iter()
-                .map(|(interface_id, key)| ((pkg_id.clone(), interface_id), key)),
-        );
-        self.sync();
+        let mut diff = false;
+        for (interface_id, key) in interfaces {
+            let map_index = (pkg_id.clone(), interface_id);
+            if !self.services.contains_key(&map_index) {
+                self.load_one(&key);
+                self.services.insert(map_index, key);
+                diff = true
+            }
+        }
+        if diff {
+            unsafe {
+                avahi_entry_group_commit(self.entry_group);
+            }
+        }
     }
     fn remove<I: IntoIterator<Item = InterfaceId>>(&mut self, pkg_id: &PackageId, interfaces: I) {
-        for interface_id in interfaces {
-            self.services.remove(&(pkg_id.clone(), interface_id));
-        }
-        self.sync();
+        // intentionally empty
     }
 }
 impl Drop for MdnsControllerInner {
