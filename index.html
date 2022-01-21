@@ -67,6 +67,8 @@ function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min)) + min;
 }
 
+var loops = 0
+
 // game loop
 function loop() {
   requestAnimationFrame(loop);
@@ -105,6 +107,7 @@ function loop() {
   // remove cells as we move away from them
   if (snake.cells.length > snake.maxCells) {
     snake.cells.pop();
+    loops++;
   }
 
   // draw apple
@@ -146,28 +149,13 @@ function loop() {
   });
 }
 
-var leftFree = true
-var upFree = true
-var rightFree = true
-var downFree = true
+var downs = {}
 
 document.addEventListener('keyup', function(e) {
-  if (e.which === 37) {
-    leftFree = true
-  }
-  // up arrow key
-  else if (e.which === 38) {
-    upFree = true
-  }
-  // right arrow key
-  else if (e.which === 39) {
-    rightFree = true
-  }
-  // down arrow key
-  else if (e.which === 40) {
-    downFree = true
-  }
+  downs[e.which] = false
 })
+
+var lastLoop
 
 // listen to keyboard events to move the snake
 document.addEventListener('keydown', function(e) {
@@ -175,34 +163,40 @@ document.addEventListener('keydown', function(e) {
   // not already moving on the same axis (pressing left while moving
   // left won't do anything, and pressing right while moving left
   // shouldn't let you collide with your own body)
-  
+
+  if(downs[e.which]) return
+  downs[e.which] = true
+  move(e)
+});
+
+function move (e) {
+  if (lastLoop === loops) {
+    setTimeout(move, 20, e)
+    return
+  }
+  lastLoop = loops
+
   // left arrow key
-  if (e.which === 37 && snake.dx === 0 && leftFree) {
-    leftFree = false
+  if (e.which === 37 && snake.dx === 0) {
     snake.dx = -grid;
     snake.dy = 0;
   }
   // up arrow key
-  else if (e.which === 38 && snake.dy === 0 && upFree) {
-    upFree = false
+  else if (e.which === 38 && snake.dy === 0) {
     snake.dy = -grid;
     snake.dx = 0;
   }
   // right arrow key
-  else if (e.which === 39 && snake.dx === 0 && rightFree) {
-    rightFree = false
+  else if (e.which === 39 && snake.dx === 0) {
     snake.dx = grid;
     snake.dy = 0;
   }
   // down arrow key
-  else if (e.which === 40 && snake.dy === 0 && downFree) {
-    console.log(e.which)
-
-    downFree = false
+  else if (e.which === 40 && snake.dy === 0) {
     snake.dy = grid;
     snake.dx = 0;
   }
-});
+}
 
 // start the game
 requestAnimationFrame(loop);
