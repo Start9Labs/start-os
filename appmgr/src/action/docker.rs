@@ -109,6 +109,9 @@ impl DockerAction {
                 .write_all(input)
                 .await
                 .with_kind(crate::ErrorKind::Docker)?;
+            stdin.flush().await?;
+            stdin.shutdown().await?;
+            drop(stdin);
         }
         enum Race<T> {
             Done(T),

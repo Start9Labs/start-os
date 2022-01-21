@@ -23,8 +23,8 @@ pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
         .arg(src.as_ref())
         .arg(dst.as_ref())
         .arg("-o")
-        // for more information `man ecryptfs`
-        .arg(format!("key=passphrase,passwd={},ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y", key))
+        // for more information `man ecryptfs` 
+        .arg(format!("key=passphrase:passphrase_passwd={},ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y", key))
         .stdin(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
