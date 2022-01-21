@@ -133,7 +133,14 @@ pub async fn backup_all(
     }
     let revision = assure_backing_up(&mut db).await?;
     tokio::task::spawn(async move {
-        match perform_backup(&ctx, &mut db, backup_guard).await {
+        let backup_res = perform_backup(&ctx, &mut db, backup_guard).await;
+        let status_model = crate::db::DatabaseModel::new().server_info().status();
+        status_model
+            .clone()
+            .lock(&mut db, LockType::Write)
+            .await
+            .expect("failed to lock server status");
+        match backup_res {
             Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => ctx
                 .notification_manager
                 .notify(
@@ -195,9 +202,7 @@ pub async fn backup_all(
                     .expect("failed to send notification");
             }
         }
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .status()
+        status_model
             .put(&mut db, &ServerStatus::Running)
             .await
             .expect("failed to change server status");
@@ -268,6 +273,7 @@ async fn perform_backup<Db: DbHandle>(
         let main_status_model = installed_model.clone().status().main();
 
         let mut tx = db.begin().await?; // for lock scope
+        main_status_model.lock(&mut tx, LockType::Write).await?;
         let (started, health) = match main_status_model.get(&mut tx, true).await?.into_owned() {
             MainStatus::Starting => (Some(Utc::now()), Default::default()),
             MainStatus::Running { started, health } => (Some(started), health.clone()),

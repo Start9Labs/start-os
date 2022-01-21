@@ -426,7 +426,7 @@ impl Manager {
         }
         Ok(())
     }
-
+    /// this will depend on locks to main status. if you hold any locks when calling this function that conflict, this will deadlock
     pub async fn synchronize(&self) {
         self.shared.synchronize_now.notify_waiters();
         self.shared.synchronized.notified().await
