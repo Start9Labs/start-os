@@ -63,6 +63,7 @@ pub struct MdnsControllerInner {
     hostname_raw: *const libc::c_char,
     entry_group: *mut AvahiEntryGroup,
     services: BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>,
+    gc_counter: usize,
     client_error: std::pin::Pin<Box<i32>>,
 }
 unsafe impl Send for MdnsControllerInner {}
@@ -196,6 +197,7 @@ impl MdnsControllerInner {
                 hostname_raw,
                 entry_group: group,
                 services: BTreeMap::new(),
+                gc_counter: 0,
                 client_error: box_err,
             };
             res.load_services();
@@ -231,7 +233,14 @@ impl MdnsControllerInner {
         }
     }
     fn remove<I: IntoIterator<Item = InterfaceId>>(&mut self, pkg_id: &PackageId, interfaces: I) {
-        // intentionally empty
+        for interface_id in interfaces {
+            self.services.remove(&(pkg_id.clone(), interface_id));
+        }
+        self.gc_counter += 1;
+        if self.gc_counter >= 1000 {
+            self.sync();
+            self.gc_counter = 0;
+        }
     }
 }
 impl Drop for MdnsControllerInner {
