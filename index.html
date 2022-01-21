@@ -146,6 +146,29 @@ function loop() {
   });
 }
 
+var leftFree = true
+var upFree = true
+var rightFree = true
+var downFree = true
+
+document.addEventListener('keyup', function(e) {
+  if (e.which === 37) {
+    leftFree = true
+  }
+  // up arrow key
+  else if (e.which === 38) {
+    upFree = true
+  }
+  // right arrow key
+  else if (e.which === 39) {
+    rightFree = true
+  }
+  // down arrow key
+  else if (e.which === 40) {
+    downFree = true
+  }
+})
+
 // listen to keyboard events to move the snake
 document.addEventListener('keydown', function(e) {
   // prevent snake from backtracking on itself by checking that it's 
@@ -154,22 +177,28 @@ document.addEventListener('keydown', function(e) {
   // shouldn't let you collide with your own body)
   
   // left arrow key
-  if (e.which === 37 && snake.dx === 0) {
+  if (e.which === 37 && snake.dx === 0 && leftFree) {
+    leftFree = false
     snake.dx = -grid;
     snake.dy = 0;
   }
   // up arrow key
-  else if (e.which === 38 && snake.dy === 0) {
+  else if (e.which === 38 && snake.dy === 0 && upFree) {
+    upFree = false
     snake.dy = -grid;
     snake.dx = 0;
   }
   // right arrow key
-  else if (e.which === 39 && snake.dx === 0) {
+  else if (e.which === 39 && snake.dx === 0 && rightFree) {
+    rightFree = false
     snake.dx = grid;
     snake.dy = 0;
   }
   // down arrow key
-  else if (e.which === 40 && snake.dy === 0) {
+  else if (e.which === 40 && snake.dy === 0 && downFree) {
+    console.log(e.which)
+
+    downFree = false
     snake.dy = grid;
     snake.dx = 0;
   }
