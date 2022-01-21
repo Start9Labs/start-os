@@ -307,7 +307,6 @@ async fn perform_backup<Db: DbHandle>(
             .get(&mut db, true)
             .await?;
 
-        // suss
         ctx.managers
             .get(&(manifest.id.clone(), manifest.version.clone()))
             .await
