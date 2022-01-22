@@ -11,7 +11,7 @@
 
 ### _Welcome to the era of Sovereign Computing_ ###
 
-EmbassyOS is a browser-based, graphical operating system for a personal server. EmbassyOS facilitates the dicovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services. It is the most advanced, secure, reliable, and user friendly personal server OS in the world.
+EmbassyOS is a browser-based, graphical operating system for a personal server. EmbassyOS facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services. It is the most advanced, secure, reliable, and user friendly personal server OS in the world.
 
 ## Running EmbassyOS
 There are multiple ways to get your hands on EmbassyOS.
