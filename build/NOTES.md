@@ -104,7 +104,7 @@
 
 - `sudo mount /dev/mmcblk0p3 /mnt` to mount the writable filesystem
 
-- Build embassy-os (LINK OR UPDATE, this step ridic – PULL LATEST CODE!!!) (for now, `docker run --rm --privileged linuxkit/binfmt:v0.8`, get rust-arm-cross.img and `docker load < rust-arm-cross.img`, have latest dev branch for patch, yajrc, and master for rpc-toolkit, then from appmgr dir: `./build-prod.sh`), then, also from the appmgr dir:
+- Build embassy-os (LINK OR UPDATE, this step ridic – PULL LATEST CODE!!!) (for now, `docker run --rm --privileged linuxkit/binfmt:v0.8`, get rust-arm-cross.img and `docker load < rust-arm-cross.img`, have latest dev branch for patch, yajrc, and master for rpc-toolkit, then from backend dir: `./build-prod.sh`), then, also from the backend dir:
 
 (Can use `copy.sh` here)
 

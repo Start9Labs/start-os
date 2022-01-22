@@ -4,7 +4,7 @@ set -e
 shopt -s expand_aliases
 
 if [ "$0" != "./build-prod.sh" ]; then
-	>&2 echo "Must be run from appmgr directory"
+	>&2 echo "Must be run from backend directory"
 	exit 1
 fi
 
@@ -12,9 +12,9 @@ alias 'rust-arm64-builder'='docker run --rm -it -v "$HOME/.cargo/registry":/root
 
 cd ..
 if [[ "$ENVIRONMENT" =~ (^|-)unstable($|-) ]]; then
-	rust-arm64-builder sh -c "(cd appmgr && cargo build --release --features unstable)"
+	rust-arm64-builder sh -c "(cd backend && cargo build --release --features unstable)"
 else
-	rust-arm64-builder sh -c "(cd appmgr && cargo build --release)"
+	rust-arm64-builder sh -c "(cd backend && cargo build --release)"
 fi
-cd appmgr
+cd backend
 #rust-arm64-builder aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/embassyd
