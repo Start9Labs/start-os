@@ -1,4 +1,4 @@
--# EmbassyOS
+# EmbassyOS
 [![Version](https://img.shields.io/github/v/tag/Start9Labs/embassy-os?color=success)](https://github.com/Start9Labs/embassy-os/releases)
 [![community](https://img.shields.io/badge/community-matrix-yellow)](https://matrix.to/#/#community:matrix.start9labs.com)
 [![community](https://img.shields.io/badge/community-telegram-informational)](https://t.me/start9_labs)
@@ -20,7 +20,7 @@ There are multiple ways to obtain and begin using EmbassyOS.
 To contribute to the development of EmbassyOS, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
 
 ### :moneybag: Buy an Embassy
-This is the most convenient option. Simply [buy an Embassy](https://start9labs.com) from Start9 Labs and plug it in. Depending on where you live, shipping costs and import duties may vary.
+This is the most convenient option. Simply [buy an Embassy](https://start9.com) from Start9 Labs and plug it in. Depending on where you live, shipping costs and import duties may vary.
 
 ### :construction_worker: Build your own Embassy
 While not as convenient as buying an Embassy, this option is easier than you might imagine, and there are 4 reasons why you might prefer it:
@@ -29,12 +29,12 @@ While not as convenient as buying an Embassy, this option is easier than you mig
 1. You prefer not to divulge your physical shipping address.
 1. You just like building things.
 
-To pursue this option, follow this [guide](https://docs.start9labs.com/getting-started/diy.html).
+To pursue this option, follow this [guide](https://docs.start9.com/getting-started/diy.html).
 
 ### :hammer_and_wrench: Build EmbassyOS from Source
 
 EmbassyOS can be built from source, for personal use, for free.
-A detailed guide for doing so can be found [here](https://github.com/Start9Labs/embassy-os/blob/master/BuildGuide.md).
+A detailed guide for doing so can be found [here](https://github.com/Start9Labs/embassy-os/blob/master/build/README.md).
 
 ## UI Screenshots
 <img src="assets/EmbassyOS.png" alt="Embassy Services" width="100%">
