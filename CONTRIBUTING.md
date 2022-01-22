@@ -192,7 +192,7 @@ Contributions in the form of setup guides for integrations with external applica
 ## Styleguides
 ### Formatting
 Code must be formatted with the formatter designated for each component:
-- `ui`: [tslint](https://palantir.github.io/tslint/)
+- `ui`: [prettier](https://prettier.io/)
 - `backend`: [rustfmt](https://github.com/rust-lang/rustfmt)
 
 ### Atomic Commits
