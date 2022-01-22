@@ -28,7 +28,7 @@
 
 6. d) `sudo mount /dev/mmcblk0p3 /mnt` to mount the writable filesystem
 
-7. a) Build EmbassyOS: Move into the EmbassyOS directory with `cd embassy-os` and Build embassy-os (NEEDS UPDATE – PULL LATEST CODE!!!) (for now, `docker run --rm --privileged linuxkit/binfmt:v0.8`, get rust-arm-cross.img and `docker load < rust-arm-cross.img`, then from appmgr dir: `./build-prod.sh`)
+7. a) Build EmbassyOS: Move into the EmbassyOS directory with `cd embassy-os` and Build embassy-os (NEEDS UPDATE – PULL LATEST CODE!!!) (for now, `docker run --rm --privileged linuxkit/binfmt:v0.8`, get rust-arm-cross.img and `docker load < rust-arm-cross.img`, then from backend dir: `./build-prod.sh`)
 
 7. b) Build UI: First, make sure you have `git`, `node`, and `npm` installed.  Then, `cd ui` to enter ui dir, and run `npm i -g @ionic/cli` to install Ionic, `npm i` to install, then `cd ..` to return to the `embassy-os` directory
 
