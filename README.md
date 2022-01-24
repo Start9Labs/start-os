@@ -37,10 +37,13 @@ A detailed guide for doing so can be found [here](https://github.com/Start9Labs/
 There are multiple ways to contribute: work directly on EmbassyOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
 
 ## UI Screenshots
-<img src="assets/EmbassyOS.png" alt="EmbassyOS" width="60%">
-<br>
-<img src="assets/eos-services.png" alt="Embassy Services" width="60%"> | 
-<img src="assets/eos-preferences.png" alt="Embassy Preferences" width="60%">
---- | ---
-<img src="assets/eos-bitcoind-health-check.png" alt="Embassy Bitcoin Health Checks" width="60%"> |
-<img src="assets/eos-logs.png" alt="Embassy Logs" width="60%">
+<p align="center">
+<img src="assets/EmbassyOS.png" alt="EmbassyOS" width="65%">
+</p>
+<p align="center">
+<img src="assets/eos-services.png" alt="Embassy Services" width="45%">
+<img src="assets/eos-preferences.png" alt="Embassy Preferences" width="45%">
+</p>
+<p align="center">
+<img src="assets/eos-bitcoind-health-check.png" alt="Embassy Bitcoin Health Checks" width="45%"> <img src="assets/eos-logs.png" alt="Embassy Logs" width="45%">
+</p>
