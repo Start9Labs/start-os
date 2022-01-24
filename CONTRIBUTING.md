@@ -134,14 +134,15 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/Start9
 <!-- You might want to create an issue template for enhancement suggestions that can be used as a guide and that defines the structure of the information to be included. If you do so, reference it here in the description. -->
 
 ### Project Structure
-Embassy OS has 2 main components, `backend`, and `ui`, several peripheral components.
-- The `ui` (Typescript Ionic Angular) is the code that is deployed to the browser to provide the user interface for EmbassyOS.
-- `backend` (Rust) is a command line utility, daemon, and software development kit that sets up and manages services and their environments, provides the interface for the ui, manages system state, and provides utilities for packaging services for EmbassyOS. 
+EmbassyOS is composed of the following components. Please visit the README for each component to understand the dependency requirements and installation instructions.
+- [`ui`](ui/README.md) (Typescript Ionic Angular) is the code that is deployed to the browser to provide the user interface for EmbassyOS.
+- [`backend`] (backend/README.md) (Rust) is a command line utility, daemon, and software development kit that sets up and manages services and their environments, provides the interface for the ui, manages system state, and provides utilities for packaging services for EmbassyOS. 
 - `patch-db` - A diff based data store that is used to synchronize data between the front and backend
+  - Notably, `patch-db` has a [client](patch-db/client/README.md) with its own dependency and installation requirements. 
 - `rpc-toolkit` - A library for generating an rpc server with cli bindings from Rust functions
 - `system-images` - (Docker, Rust) A suite of utility Docker images that are preloaded with EmbassyOS to assist with functions relating to services (eg. configuration, backups, health checks)
-- `setup-wizard` - Code for the user interface that is displayed during the setup and recovery process for EmbassyOS.
-- `diagnostic-ui` - Code for the user interface that is displayed when something has gone wrong with starting up EmbassyOS, which provides helpful debugging tools.
+- [`setup-wizard`] (ui/README.md)- Code for the user interface that is displayed during the setup and recovery process for EmbassyOS.
+- [`diagnostic-ui`] (diagnostic-ui/README.md) - Code for the user interface that is displayed when something has gone wrong with starting up EmbassyOS, which provides helpful debugging tools.
 ### Your First Code Contribution
 
 #### Setting up your development environment
@@ -153,29 +154,11 @@ git clone https://github.com/Start9Labs/embassy-os.git
 git submodule update --init --recursive
 ```
 
-##### ui
-- Requirements
-  - [Install nodejs](https://nodejs.org/en/)
-  - [Install npm](https://www.npmjs.com/get-npm)
-  - [Install ionic cli](https://ionicframework.com/docs/intro/cli)
-- Installation: follow the setup instructions [here](ui/README.md)
-- Scripts (run within `./ui` directory)
-  - `npm --prefix ui install` installs ui node package dependencies
-  - `npm run build` compiles project, depositing build artifacts into ./ui/www
-  - `npm run build-deps` compiles dependent libraries, particularly the client for patch-db.
-  - `npm --prefix ui run build-prod` as above but customized for deployment to an Embassy
-  - `ionic serve` serves the ui on localhost:8100 for local development. Edit ./ui/use-mocks.json to 'true' to use mocks during local development
-
-##### backend
-  - [Install Rust](https://rustup.rs)
-  - Recommended: [rust-analyzer](https://rust-analyzer.github.io/)
-  - [Docker](https://docs.docker.com/get-docker/)
-  - [Rust ARM64 Build Container](https://github.com/Start9Labs/rust-arm-builder)
-  - Scripts (run withing the `./backend` directory)
-    - `build-prod.sh` - compiles a release build of the artifacts for running on ARM64
-    - `build-dev.sh` - compiles a development build of the artifacts for running on ARM64
+Depending on which component of the ecosystem you are interested in contributing to, follow the installation requirements listed in that component's README (linked [above](#project-structure))
 
 #### Building The Image
+This step is for setting up an environment in which to test your code changes if you do not yet have a EmbassyOS.
+
 - Requirements
   - `ext4fs` (available if running on the Linux kernel)
   - [Docker](https://docs.docker.com/get-docker/)
@@ -191,9 +174,7 @@ Contributions in the form of setup guides for integrations with external applica
 
 ## Styleguides
 ### Formatting
-Code must be formatted with the formatter designated for each component:
-- `ui`: [prettier](https://prettier.io/)
-- `backend`: [rustfmt](https://github.com/rust-lang/rustfmt)
+Each component of EmbassyOS contains its own style guide. Code must be formatted with the formatter designated for each component. These are outlined within each component folder's README.
 
 ### Atomic Commits
 Commits [should be atomic](https://en.wikipedia.org/wiki/Atomic_commit#Atomic_commit_convention) and diffs should be easy to read.
