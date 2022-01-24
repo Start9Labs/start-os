@@ -41,7 +41,7 @@ impl SoundInterface {
         while tokio::fs::metadata(&*PERIOD_FILE).await.is_err()
             && instant.elapsed() < Duration::from_secs(1)
         {
-            tokio::time::sleep(Duration::from_millis(1));
+            tokio::time::sleep(Duration::from_millis(1)).await;
         }
         Ok(SoundInterface(Some(guard)))
     }
