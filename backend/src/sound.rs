@@ -40,7 +40,9 @@ impl SoundInterface {
         let instant = Instant::now();
         while tokio::fs::metadata(&*PERIOD_FILE).await.is_err()
             && instant.elapsed() < Duration::from_secs(1)
-        {}
+        {
+            tokio::time::sleep(Duration::from_millis(1));
+        }
         Ok(SoundInterface(Some(guard)))
     }
     #[instrument(skip(self))]
