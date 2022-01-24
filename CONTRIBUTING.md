@@ -76,7 +76,7 @@ Depending on how large the project is, you may want to outsource the questioning
 A good bug report shouldn't leave others needing to chase you up for more information. Therefore, we ask you to investigate carefully, collect information and describe the issue in detail in your report. Please complete the following steps in advance to help us fix any potential bug as fast as possible.
 
 - Make sure that you are using the latest version.
-- Determine if your bug is really a bug and not an error on your side e.g. using incompatible environment components/versions (Make sure that you have read the [documentation](https://docs.start9labs.com). If you are looking for support, you might want to check [this section](#i-have-a-question)).
+- Determine if your bug is really a bug and not an error on your side e.g. using incompatible environment components/versions (Make sure that you have read the [documentation](https://docs.start9.com). If you are looking for support, you might want to check [this section](#i-have-a-question)).
 - To see if other users have experienced (and potentially already solved) the same issue you are having, check if there is not already a bug report existing for your bug or error in the [bug tracker](https://github.com/Start9Labs/embassy-os/issues?q=label%3Abug).
 - Also make sure to search the internet (including Stack Overflow) to see if users outside of the GitHub community have discussed the issue.
 - Collect information about the bug:
@@ -94,7 +94,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 
 We use GitHub issues to track bugs and errors. If you run into an issue with the project:
 
-- Open an [Issue](https://github.com/Start9Labs/embassy-os/issues/new). (Since we can't be sure at this point whether it is a bug or not, we ask you not to talk about a bug yet and not to label the issue.)
+- Open an [Issue](https://github.com/Start9Labs/embassy-os/issues/new/choose) selecting the appropriate type. 
 - Explain the behavior you would expect and the actual behavior.
 - Please provide as much context as possible and describe the *reproduction steps* that someone else can follow to recreate the issue on their own. This usually includes your code. For good bug reports you should isolate the problem and create a reduced test case.
 - Provide the information you collected in the previous section.
@@ -102,8 +102,8 @@ We use GitHub issues to track bugs and errors. If you run into an issue with the
 Once it's filed:
 
 - The project team will label the issue accordingly.
-- A team member will try to reproduce the issue with your provided steps. If there are no reproduction steps or no obvious way to reproduce the issue, the team will ask you for those steps and mark the issue as `needs-repro`. Bugs with the `needs-repro` tag will not be addressed until they are reproduced.
-- If the team is able to reproduce the issue, it will be marked `needs-fix`, as well as possibly other tags (such as `critical`), and the issue will be left to be [implemented by someone](#your-first-code-contribution).
+- A team member will try to reproduce the issue with your provided steps. If there are no reproduction steps or no obvious way to reproduce the issue, the team will ask you for those steps and mark the issue as `Question`. Bugs with the `Question` tag will not be addressed until they are answered.
+- If the team is able to reproduce the issue, it will be marked a scoping level tag, as well as possibly other tags (such as `Security`), and the issue will be left to be [implemented by someone](#your-first-code-contribution).
 
 <!-- You might want to create an issue template for bugs and errors that can be used as a guide and that defines the structure of the information to be included. If you do so, reference it here in the description. -->
 
@@ -116,7 +116,7 @@ This section guides you through submitting an enhancement suggestion for Embassy
 #### Before Submitting an Enhancement
 
 - Make sure that you are using the latest version.
-- Read the [documentation](https://docs.start9labs.com) carefully and find out if the functionality is already covered, maybe by an individual configuration.
+- Read the [documentation](https://docs.start9.com) carefully and find out if the functionality is already covered, maybe by an individual configuration.
 - Perform a [search](https://github.com/Start9Labs/embassy-os/issues) to see if the enhancement has already been suggested. If it has, add a comment to the existing issue instead of opening a new one.
 - Find out whether your idea fits with the scope and aims of the project. It's up to you to make a strong case to convince the project's developers of the merits of this feature. Keep in mind that we want features that will be useful to the majority of our users and not just a small subset. If you're just targeting a minority of users, consider writing an add-on/plugin library.
 
@@ -134,67 +134,38 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/Start9
 <!-- You might want to create an issue template for enhancement suggestions that can be used as a guide and that defines the structure of the information to be included. If you do so, reference it here in the description. -->
 
 ### Project Structure
-Embassy OS has 3 main components: `agent`, `appmgr`, and `ui`.
-- The `ui` (Typescript Ionic Angular) is the code that is deployed to the browser to provide the user interface for Embassy OS
-- The `agent` (Haskell) is a daemon that provides the interface for the `ui` to interact with the Embassy, as well as manage system state.
-- `appmgr` (Rust) is a command line utility and (soon to be) daemon that sets up and manages services and their environments.
-
+EmbassyOS is composed of the following components. Please visit the README for each component to understand the dependency requirements and installation instructions.
+- [`ui`](ui/README.md) (Typescript Ionic Angular) is the code that is deployed to the browser to provide the user interface for EmbassyOS.
+- [`backend`] (backend/README.md) (Rust) is a command line utility, daemon, and software development kit that sets up and manages services and their environments, provides the interface for the ui, manages system state, and provides utilities for packaging services for EmbassyOS. 
+- `patch-db` - A diff based data store that is used to synchronize data between the front and backend
+  - Notably, `patch-db` has a [client](patch-db/client/README.md) with its own dependency and installation requirements. 
+- `rpc-toolkit` - A library for generating an rpc server with cli bindings from Rust functions
+- `system-images` - (Docker, Rust) A suite of utility Docker images that are preloaded with EmbassyOS to assist with functions relating to services (eg. configuration, backups, health checks)
+- [`setup-wizard`] (ui/README.md)- Code for the user interface that is displayed during the setup and recovery process for EmbassyOS.
+- [`diagnostic-ui`] (diagnostic-ui/README.md) - Code for the user interface that is displayed when something has gone wrong with starting up EmbassyOS, which provides helpful debugging tools.
 ### Your First Code Contribution
 
 #### Setting up your development environment
-##### agent
-There are two main workflows to consider when developing on the agent. During the development process you will spend
-most of your time developing in an environment where you cannot actually run the agent. This is because we make heavy
-platform specific assumptions (by nature of the project) around what folders get used and what package management tools
-are used for the underlying system. If you are running this on a platform besides Linux you won't even be able to run
-the agent effectively on your dev machine. Even if you are on Linux you may not want to turn administrative control over
-to the software you are currently developing. So how do you know that anything you are doing is right? We make extensive
-use of Haskell's type system and surrounding tooling. For this you will want to make sure you are using the [haskell-language-server](https://github.com/haskell/haskell-language-server)
-and [stack](https://github.com/commercialhaskell/stack)
 
-At some point though you will want to build the agent for the target platform (Raspberry Pi 4). This is the second build
-flow that you will need to consider.
+First, clone the EmbassyOS repository and from the project root, pull in the submodules for dependent libraries.
 
-At Start9 we build the agent in two different ways. The primary way we have done it is on the Raspberry Pi itself. To do
-this you will need stack built for the Raspberry Pi. Unfortunately, however, FPComplete no longer
-distributes ARMv7 binaries for stack. Though hopefully soon we will be able to submit the binaries we've built for this
-project back to them and have them hosted more visibly. The way we bootstrap through this problem is by downloading version
-[2.1.3](https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-arm.tar.gz) and using that
-to compile v2.5.1. Before you can successfully compile anything with GHC on the Raspberry Pi. You will need to tweak the
-relevant GHC config. You will need to edit the file at `~/.stack/programs/arm-linux/ghc-8.10.2/lib/ghc-8.10.2/settings`
-and change the line `("C compiler flags", " -marm -fno-stack-protector -mcpu=cortex-a7")` to include `-mcpu=cortex-a7`.
-You will also need to make sure you've downloaded and installed LLVM 9.
+```
+git clone https://github.com/Start9Labs/embassy-os.git
+git submodule update --init --recursive
+```
 
-Once you have done these things, you simply need to `cd` into the embassy-os project and then run `make agent`.
-
-##### ui
-- Requirements
-  - [Install nodejs](https://nodejs.org/en/)
-  - [Install npm](https://www.npmjs.com/get-npm)
-  - [Install ionic cli](https://ionicframework.com/docs/intro/cli)
-- Scripts (run within ./ui directory)
-  - `npm i` installs ui node package dependencies
-  - `npm run build` compiles project, depositing build artifacts into ./ui/www
-  - `npm run build-prod` as above but customized for deployment to an Embassy
-  - `ionic serve` serves the ui on localhost:8100 for local development. Edit ./ui/use-mocks.json to 'true' to use mocks during local development
-  - `./build-send.sh <embassy .local address suffix>` builds the project and deploys it to the referenced Embassy
-    - Find your Embassy on the LAN using the Start9 Setup App or network tools. It's address will be of the form `start9-<suffix>.local`.
-    - For example `./build-send.sh abcdefgh` will deploy the ui to the Embassy with LAN address `start9-abcdefgh.local`.
-    - SSH keys must be installed on the Embassy prior to running this script.
-
-##### appmgr
-  - [Install Rust](https://rustup.rs)
-  - Recommended: [rust-analyzer](https://rust-analyzer.github.io/)
+Depending on which component of the ecosystem you are interested in contributing to, follow the installation requirements listed in that component's README (linked [above](#project-structure))
 
 #### Building The Image
+This step is for setting up an environment in which to test your code changes if you do not yet have a EmbassyOS.
+
 - Requirements
   - `ext4fs` (available if running on the Linux kernel)
   - [Docker](https://docs.docker.com/get-docker/)
   - GNU Make
 - Building
-  - build the [agent](#agent)
-    - make sure resulting artifact is agent/dist/agent
-  - run `make`
+  - see setup instructions [here](build/README.md)
+  - run `make` from the project root
 
 ### Improving The Documentation
 You can find the repository for Start9's documentation [here](https://github.com/Start9Labs/documentation). If there is something you would like to see added, let us know, or create an issue yourself. Welcome are contributions for lacking or incorrect information, broken links, requested additions, or general style improvements. 
@@ -203,17 +174,14 @@ Contributions in the form of setup guides for integrations with external applica
 
 ## Styleguides
 ### Formatting
-Code must be formatted with the formatter designated for each component:
-- `ui`: [tslint](https://palantir.github.io/tslint/)
-- `agent`: [brittany](https://github.com/lspitzner/brittany)
-- `appmgr`: [rustfmt](https://github.com/rust-lang/rustfmt)
+Each component of EmbassyOS contains its own style guide. Code must be formatted with the formatter designated for each component. These are outlined within each component folder's README.
 
 ### Atomic Commits
 Commits [should be atomic](https://en.wikipedia.org/wiki/Atomic_commit#Atomic_commit_convention) and diffs should be easy to read.
 Do not mix any formatting fixes or code moves with actual code changes.
 
 ### Commit Messages
-If a commit touches only 1 component, prefix the message with the affected component. i.e. `appmgr: update to tokio v0.3`.
+If a commit touches only 1 component, prefix the message with the affected component. i.e. `backend: update to tokio v0.3`.
 
 ### Pull Requests
 The body of a pull request should contain sufficient description of what the changes do, as well as a justification.
