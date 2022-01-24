@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use divrem::DivRem;
 use proptest_derive::Arbitrary;
@@ -37,6 +37,10 @@ impl SoundInterface {
                 }
             })
             .with_ctx(|_| (ErrorKind::SoundError, EXPORT_FILE.to_string_lossy()))?;
+        let instant = Instant::now();
+        while tokio::fs::metadata(&*PERIOD_FILE).await.is_err()
+            && instant.elapsed() < Duration::from_secs(1)
+        {}
         Ok(SoundInterface(Some(guard)))
     }
     #[instrument(skip(self))]
