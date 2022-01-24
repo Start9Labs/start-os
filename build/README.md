@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-1. Install dependences
+1. Install dependencies
 
 - Avahi
 	- `sudo apt install -y avahi-daemon`

@@ -2,7 +2,11 @@
 
 ## Development Environment Setup
 
-**Make sure you have git, nvm (node, npm), and rust installed**
+- Requirements
+  - [Install nodejs](https://nodejs.org/en/)
+  - [Install npm](https://www.npmjs.com/get-npm)
+  - [Install ionic cli](https://ionicframework.com/docs/intro/cli)
+  - Recommended: [Install nvm](https://github.com/nvm-sh/nvm)
 
 ```
 node --version
@@ -11,23 +15,38 @@ v16.11.0
 npm --version
 v8.0.0
 ```
+## Styleguide
 
-### Building Embassy UI
+This project utilizes [tslint](https://palantir.github.io/tslint/) for formatting.
+
+## Building Diagnostic UI
 
 `git clone https://github.com/Start9Labs/embassy-os.git`
 
 `cd embassy-os`
 
-`git submodule update --init --recursive`
+`git submodule update --init --recursive` - installs submodule projects
 
-`cd diagnostic-ui/`
+`cd diagnostic-ui/` -  installs node package dependencies
 
 `npm install -g @ionic/cli`
 
 `npm --prefix . install`
 
-Copy `config-sample.json` and contents to new file `config.json`
+Copy `config-sample.json` and contents to a new file `config.json`
 
-**Start the development server**
+### Start the development server
 
-`ionic serve`
+Serves the diagnostic-ui on `localhost:8100` for local development. 
+Edit `./diagnostic-ui/config.json` and set `useMocks: true` to use mocks during local development
+
+```
+ionic serve
+```
+
+### Production Build
+Before publishing a PR, please build for production and correct any errors. Run the following command, which compiles project customized for deployment to an Embassy, depositing build artifacts into `diagnostic-ui/www`.
+
+```
+npm --prefix ui run build-prod
+```

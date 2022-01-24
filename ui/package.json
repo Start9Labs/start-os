@@ -9,7 +9,7 @@
     "start": "ng serve",
     "build": "ng build",
     "build-prod": "ng build --configuration production && tsc postprocess.ts && node postprocess.js && git log | head -n1 > www/git-hash.txt",
-    "build-deps": "cd ../patch-db/client && npm install && npm run build",
+    "build-deps": "cd ../patch-db/client && npm --prefix . install && npm run build",
     "lint": "ng lint"
   },
   "dependencies": {
