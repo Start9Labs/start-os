@@ -93,3 +93,6 @@ if ! [[ "$(cat $INPUT_HASH)" == "$(cat $OUTPUT_HASH)" ]]; then
 fi
 rm $INPUT_HASH $OUTPUT_HASH
 echo "Verification Succeeded"
+
+sudo e2label update.img red
+echo "Image Relabeled to \"red\""

@@ -1,5 +1,5 @@
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,7 +10,7 @@ use digest::Digest;
 use emver::Version;
 use futures::Stream;
 use lazy_static::lazy_static;
-use patch_db::{DbHandle, Revision};
+use patch_db::{DbHandle, LockType, Revision};
 use regex::Regex;
 use reqwest::Url;
 use rpc_toolkit::command;
@@ -25,7 +25,7 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::db::model::{ServerStatus, UpdateProgress};
 use crate::db::util::WithRevision;
-use crate::disk::mount::filesystem::label::Label;
+use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::FileSystem;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::BOOT_RW_PATH;
@@ -98,11 +98,14 @@ impl WritableDrives {
             Self::Blue => "blue",
         }
     }
-    fn block_dev(&self) -> PathBuf {
-        Path::new("/dev/disk/by-label").join(self.label())
+    fn block_dev(&self) -> &'static Path {
+        Path::new(match self {
+            Self::Green => "/dev/mmcblk0p3",
+            Self::Blue => "/dev/mmcblk0p4",
+        })
     }
     fn as_fs(&self) -> impl FileSystem {
-        Label::new(self.label())
+        BlockDev::new(self.block_dev())
     }
 }
 
@@ -132,6 +135,10 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
     .await
     .with_kind(ErrorKind::Network)?
     .version;
+    crate::db::DatabaseModel::new()
+        .server_info()
+        .lock(&mut db, LockType::Write)
+        .await?;
     let current_version = crate::db::DatabaseModel::new()
         .server_info()
         .version()
