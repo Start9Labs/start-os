@@ -1,0 +1,17 @@
+#!/bin/sh
+printf "\n"
+printf "Welcome to\n"
+cat << "ASCII"
+,---.     |                        ,---.,---.
+|--- ,-.-.|---.,---.,---.,---.,   .|   |`---.
+|    | | ||   |,---|`---.`---.|   ||   |    |
+`---'` ' '`---'`---^`---'`---'`---|`---'`---'
+                              `---'
+ASCII
+printf "   %s (%s %s)\n" "$(uname -o)" "$(uname -r)" "$(uname -m)"
+printf "   EmbassyOS v$(embassy-cli --version) - $(embassy-cli git-info)\n"
+
+printf "\n"
+printf " * Documentation:  https://docs.start9.com\n"
+printf " * Management:     https://%s.local\n" "$(hostname)"
+printf " * Support:        https://t.me/start9_labs\n"
