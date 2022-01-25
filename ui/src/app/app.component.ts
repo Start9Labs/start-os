@@ -16,7 +16,6 @@ import { ConfigService } from './services/config.service'
 import { debounce, isEmptyObject, pauseFor } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
-import { Server } from 'http'
 
 @Component({
   selector: 'app-root',
@@ -236,7 +235,6 @@ export class AppComponent {
   private watchStatus (): Subscription {
     return this.patch.watch$('server-info', 'status')
     .subscribe(async status => {
-      console.log('server status', status)
       if (status === ServerStatus.Updating) {
         this.watchUpdateProgress()
       }
