@@ -1,0 +1,37 @@
+<div [hidden]="!control.dirty && !control.touched" class="validation-error">
+  <!-- primitive -->
+  <p *ngIf="control.hasError('required')">
+    {{ spec.name }} is required
+  </p>
+
+  <!-- string -->
+  <p *ngIf="control.hasError('pattern')">
+    {{ spec['pattern-description'] }}
+  </p>
+
+  <!-- number -->
+  <ng-container *ngIf="spec.type === 'number'">
+    <p *ngIf="control.hasError('numberNotInteger')">
+      {{ spec.name }} must be an integer
+    </p>
+    <p *ngIf="control.hasError('numberNotInRange')">
+      {{ control.errors['numberNotInRange'].value }}
+    </p>
+    <p *ngIf="control.hasError('notNumber')">
+      {{ spec.name }} must be a number
+    </p>
+  </ng-container>
+
+  <!-- list -->
+  <ng-container *ngIf="spec.type === 'list'">
+    <p *ngIf="control.hasError('listNotInRange')">
+     {{ control.errors['listNotInRange'].value }}
+    </p>
+    <p *ngIf="control.hasError('listNotUnique')">
+      {{ control.errors['listNotUnique'].value }}
+    </p>
+    <p *ngIf="control.hasError('listItemIssue')">
+      {{ control.errors['listItemIssue'].value }}
+    </p>
+  </ng-container>
+</div>
