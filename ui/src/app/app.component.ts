@@ -121,7 +121,10 @@ export class AppComponent {
         )
         .subscribe(_ => {
           this.subscriptions = this.subscriptions.concat([
+            // watch status to present toast for updated state
             this.watchStatus(),
+            // watch update-progress to present progress bar when server is updating
+            this.watchUpdateProgress(),
             // watch version to refresh browser window
             this.watchVersion(),
             // watch unread notification count to display toast
@@ -235,9 +238,6 @@ export class AppComponent {
   private watchStatus (): Subscription {
     return this.patch.watch$('server-info', 'status')
     .subscribe(status => {
-      if (status === ServerStatus.Updating) {
-        this.watchUpdateProgress()
-      }
       if (status === ServerStatus.Updated && !this.updateToast) {
         this.presentToastUpdated()
       }

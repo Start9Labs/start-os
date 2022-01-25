@@ -36,7 +36,6 @@ export interface ServerInfo {
 
 export enum ServerStatus {
   Running = 'running',
-  Updating = 'updating',
   Updated = 'updated',
   BackingUp = 'backing-up',
 }

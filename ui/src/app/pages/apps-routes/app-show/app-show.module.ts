@@ -7,7 +7,6 @@ import { StatusComponentModule } from 'src/app/components/status/status.componen
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
 import { AppConfigPageModule } from 'src/app/modals/app-config/app-config.module'
-import { MarkdownPageModule } from 'src/app/modals/markdown/markdown.module'
 import { AppShowHeaderComponent } from './components/app-show-header/app-show-header.component'
 import { AppShowProgressComponent } from './components/app-show-progress/app-show-progress.component'
 import { AppShowStatusComponent } from './components/app-show-status/app-show-status.component'
@@ -50,7 +49,6 @@ const routes: Routes = [
     InstallWizardComponentModule,
     AppConfigPageModule,
     SharingModule,
-    MarkdownPageModule,
   ],
 })
 export class AppShowPageModule {}

@@ -137,11 +137,6 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/status',
-        value: ServerStatus.Updating,
-      },
-      {
-        op: PatchOp.REPLACE,
         path: '/server-info/update-progress',
         value: initialProgress,
       },
