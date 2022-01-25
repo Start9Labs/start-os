@@ -16,6 +16,7 @@ import { ConfigService } from './services/config.service'
 import { debounce, isEmptyObject, pauseFor } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
+import { Server } from 'http'
 
 @Component({
   selector: 'app-root',
@@ -234,12 +235,24 @@ export class AppComponent {
 
   private watchStatus (): Subscription {
     return this.patch.watch$('server-info', 'status')
-    .subscribe(status => {
+    .subscribe(async status => {
+      console.log('server status', status)
       if (status === ServerStatus.Updating) {
         this.watchUpdateProgress()
       }
+
       if (status === ServerStatus.Updated && !this.updateToast) {
         this.presentToastUpdated()
+      }
+
+      if (status === ServerStatus.Updated && !!this.osUpdateProgress) {
+        this.osUpdateProgress.downloaded = this.osUpdateProgress.size
+        await pauseFor(200)
+        this.osUpdateProgress = undefined
+      }
+
+      if (status === ServerStatus.Running && !!this.osUpdateProgress) {
+        this.osUpdateProgress = undefined
       }
     })
   }
@@ -249,11 +262,6 @@ export class AppComponent {
     .pipe(
       filter(progress => !!progress),
       takeWhile(progress => progress.downloaded < progress.size),
-      finalize(async () => {
-        if (this.osUpdateProgress) this.osUpdateProgress.downloaded = this.osUpdateProgress.size
-        await pauseFor(200)
-        this.osUpdateProgress = undefined
-      }),
     )
     .subscribe(progress => {
       this.osUpdateProgress = progress
