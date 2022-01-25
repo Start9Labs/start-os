@@ -30,9 +30,9 @@ export class AppListRecComponent {
 
   // Installing package
   readonly installing$ = this.install$.pipe(
-    switchMap(({ id }) =>
+    switchMap(({ id, version }) =>
       // Mapping each installation to API request
-      from(this.api.installPackage({ id })).pipe(
+      from(this.api.installPackage({ id, 'version-spec': version })).pipe(
         // Mapping operation to true/false loading indication
         loading(this.errToast),
       ),
