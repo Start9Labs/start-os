@@ -71,6 +71,15 @@ sudo cp -R diagnostic-ui/www /tmp/eos-mnt/var/www/html/diagnostic
 # Make the .ssh directory
 sudo mkdir -p /tmp/eos-mnt/root/.ssh
 
+# Custom MOTD
+sudo sed -i 's/ENABLED=1/ENABLED=0/g' /tmp/eos-mnt/etc/default/motd-news
+sudo rm /tmp/eos-mnt/etc/update-motd.d/50-landscape-sysinfo
+sudo cp ./build/00-embassy /tmp/eos-mnt/etc/update-motd.d
+sudo chmod -x /tmp/eos-mnt/etc/update-motd.d/*
+sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/00-embassy
+sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/90-updates-available
+sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/95-hwe-eol
+
 sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
 
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
