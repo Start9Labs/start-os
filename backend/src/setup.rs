@@ -10,6 +10,7 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt, TryStreamExt};
 use nix::unistd::{Gid, Uid};
 use openssl::x509::X509;
+use patch_db::LockType;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
@@ -578,6 +579,10 @@ async fn recover_v2(
     let fut = async move {
         let db = ctx.db(&secret_store).await?;
         let mut handle = db.handle();
+        // lock everything to avoid issues with renamed packages (bitwarden)
+        crate::db::DatabaseModel::new()
+            .lock(&mut handle, LockType::Write)
+            .await?;
 
         let apps_yaml_path = recovery_source
             .as_ref()
