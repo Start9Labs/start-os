@@ -5,6 +5,7 @@ use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use bollard::container::RemoveContainerOptions;
 use futures::future::Either as EitherFuture;
 use nix::sys::signal;
 use nix::unistd::Pid;
@@ -68,7 +69,18 @@ impl DockerAction {
                 .arg(&container_name)
                 .arg(format!("--hostname={}", &container_name))
                 .arg("--no-healthcheck");
-            match ctx.docker.remove_container(&container_name, None).await {
+            match ctx
+                .docker
+                .remove_container(
+                    &container_name,
+                    Some(RemoveContainerOptions {
+                        v: false,
+                        force: true,
+                        link: false,
+                    }),
+                )
+                .await
+            {
                 Ok(()) | Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => Ok(()),
                 Err(e) => Err(e),
             }?;
