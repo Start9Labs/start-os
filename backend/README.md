@@ -19,7 +19,9 @@ The EmbassyOS backend is broken up into 4 different binaries:
 - embassy-cli: This is a CLI tool that will allow you to issue commands to embassyd and control it similarly to the UI
 - embassy-sdk: This is a CLI tool that aids in building and packaging services you wish to deploy to the Embassy
 
-Finally there is a library that supports all four of these tools.
+Finally there is a library `embassy` that supports all four of these tools.
+
+See [here](/backend/Cargo.toml) for details.
 
 ## Building
 
