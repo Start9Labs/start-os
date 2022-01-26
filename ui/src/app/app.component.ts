@@ -246,15 +246,6 @@ export class AppComponent {
 
   private watchUpdateProgress (): Subscription {
     return this.patch.watch$('server-info', 'update-progress')
-    .pipe(
-      filter(progress => !!progress),
-      takeWhile(progress => progress.downloaded < progress.size),
-      finalize(async () => {
-        if (this.osUpdateProgress) this.osUpdateProgress.downloaded = this.osUpdateProgress.size
-        await pauseFor(200)
-        this.osUpdateProgress = undefined
-      }),
-    )
     .subscribe(progress => {
       this.osUpdateProgress = progress
     })
