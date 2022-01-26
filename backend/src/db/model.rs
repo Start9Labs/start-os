@@ -52,7 +52,7 @@ impl Database {
                     .unwrap(),
                 status: ServerStatus::Running {},
                 #[cfg(not(feature = "beta"))]
-                eos_marketplace: "https://registry.start9.com".parse().unwrap(),
+                eos_marketplace: "https://marketplace.start9.com".parse().unwrap(),
                 #[cfg(feature = "beta")]
                 eos_marketplace: "https://beta-registry-0-3.start9labs.com".parse().unwrap(),
                 package_marketplace: None,
