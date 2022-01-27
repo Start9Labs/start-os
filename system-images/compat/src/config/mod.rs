@@ -34,18 +34,17 @@ pub fn validate_configuration(
     cfgs.insert(name, Cow::Borrowed(&config));
 
     let mut depends_on = BTreeMap::new();
-    if maybe_deps_path.is_some() {
-        let deps_path = Path::new(maybe_deps_path.unwrap());
+    if let Some(deps_path) = maybe_deps_path.map(Path::new) {
         if deps_path.exists() {
             let deps: DepInfo = serde_yaml::from_reader(std::fs::File::open(deps_path)?)?;
             // check if new config is set to depend on any optional dependencies
-            let _ = deps
-                .into_iter()
-                .filter(|(_, data)| (data.condition.compiled)(&config, &cfgs))
-                .map(|(pkg_id, data)| depends_on.insert(pkg_id, data.health_checks));
+            depends_on.extend(
+                deps.into_iter()
+                    .filter(|(_, data)| (data.condition.compiled)(&config, &cfgs))
+                    .map(|(pkg_id, data)| (pkg_id, data.health_checks)),
+            );
         };
     }
-    dbg!(&depends_on);
 
     // check that all configuration rules
     let rule_check = rules
