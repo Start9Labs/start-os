@@ -15,7 +15,7 @@
 The EmbassyOS backend is broken up into 4 different binaries:
 
 - embassyd: This is the main workhorse of EmbassyOS - any new functionality you want will likely go here
-- embassy-init: This is the component responsible for allowing you to set up your device
+- embassy-init: This is the component responsible for allowing you to set up your device, and handles system initialization on startup
 - embassy-cli: This is a CLI tool that will allow you to issue commands to embassyd and control it similarly to the UI
 - embassy-sdk: This is a CLI tool that aids in building and packaging services you wish to deploy to the Embassy
 
