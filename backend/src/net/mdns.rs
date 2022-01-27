@@ -63,6 +63,7 @@ pub struct MdnsControllerInner {
     hostname_raw: *const libc::c_char,
     entry_group: *mut AvahiEntryGroup,
     services: BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>,
+    _client_error: std::pin::Pin<Box<i32>>,
 }
 unsafe impl Send for MdnsControllerInner {}
 unsafe impl Sync for MdnsControllerInner {}
@@ -193,6 +194,7 @@ impl MdnsControllerInner {
                 hostname_raw,
                 entry_group: group,
                 services: BTreeMap::new(),
+                _client_error: box_err,
             };
             res.load_services();
             let commit_err = avahi_entry_group_commit(res.entry_group);
