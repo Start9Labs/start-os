@@ -137,10 +137,10 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/Start9
 EmbassyOS is composed of the following components. Please visit the README for each component to understand the dependency requirements and installation instructions.
 - [`ui`](ui/README.md) (Typescript Ionic Angular) is the code that is deployed to the browser to provide the user interface for EmbassyOS.
 - [`backend`] (backend/README.md) (Rust) is a command line utility, daemon, and software development kit that sets up and manages services and their environments, provides the interface for the ui, manages system state, and provides utilities for packaging services for EmbassyOS. 
-- `patch-db` - A diff based data store that is used to synchronize data between the front and backend
+- `patch-db` - A diff based data store that is used to synchronize data between the front and backend.
   - Notably, `patch-db` has a [client](patch-db/client/README.md) with its own dependency and installation requirements. 
-- `rpc-toolkit` - A library for generating an rpc server with cli bindings from Rust functions
-- `system-images` - (Docker, Rust) A suite of utility Docker images that are preloaded with EmbassyOS to assist with functions relating to services (eg. configuration, backups, health checks)
+- `rpc-toolkit` - A library for generating an rpc server with cli bindings from Rust functions.
+- `system-images` - (Docker, Rust) A suite of utility Docker images that are preloaded with EmbassyOS to assist with functions relating to services (eg. configuration, backups, health checks).
 - [`setup-wizard`] (ui/README.md)- Code for the user interface that is displayed during the setup and recovery process for EmbassyOS.
 - [`diagnostic-ui`] (diagnostic-ui/README.md) - Code for the user interface that is displayed when something has gone wrong with starting up EmbassyOS, which provides helpful debugging tools.
 ### Your First Code Contribution
