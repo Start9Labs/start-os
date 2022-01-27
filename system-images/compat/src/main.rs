@@ -203,6 +203,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     deps_path,
                 ) {
                     Ok(a) => {
+                        dbg!(&a);
                         serde_yaml::to_writer(stdout(), &a)?;
                         Ok(())
                     }

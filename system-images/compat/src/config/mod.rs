@@ -45,6 +45,7 @@ pub fn validate_configuration(
                 .map(|(pkg_id, data)| depends_on.insert(pkg_id, data.health_checks));
         };
     }
+    dbg!(&depends_on);
 
     // check that all configuration rules
     let rule_check = rules
