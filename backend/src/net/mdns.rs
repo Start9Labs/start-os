@@ -63,7 +63,7 @@ pub struct MdnsControllerInner {
     hostname_raw: *const libc::c_char,
     entry_group: *mut AvahiEntryGroup,
     services: BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>,
-    client_error: std::pin::Pin<Box<i32>>,
+    _client_error: std::pin::Pin<Box<i32>>,
 }
 unsafe impl Send for MdnsControllerInner {}
 unsafe impl Sync for MdnsControllerInner {}
@@ -151,7 +151,7 @@ impl MdnsControllerInner {
             let avahi_client = avahi_sys::avahi_client_new(
                 poll,
                 avahi_sys::AvahiClientFlags::AVAHI_CLIENT_NO_FAIL,
-                None,
+                Some(client_callback),
                 std::ptr::null_mut(),
                 err_c,
             );
@@ -164,8 +164,11 @@ impl MdnsControllerInner {
                 avahi_free(e_str as *mut c_void);
                 panic!("Failed to create Avahi Client");
             }
-            let group =
-                avahi_sys::avahi_entry_group_new(avahi_client, Some(noop), std::ptr::null_mut());
+            let group = avahi_sys::avahi_entry_group_new(
+                avahi_client,
+                Some(entry_group_callback),
+                std::ptr::null_mut(),
+            );
             if group == std::ptr::null_mut() {
                 let e_str = avahi_strerror(avahi_client_errno(avahi_client));
                 tracing::error!(
@@ -191,18 +194,46 @@ impl MdnsControllerInner {
                 hostname_raw,
                 entry_group: group,
                 services: BTreeMap::new(),
-                client_error: box_err,
+                _client_error: box_err,
             };
             res.load_services();
-            avahi_entry_group_commit(res.entry_group);
+            let commit_err = avahi_entry_group_commit(res.entry_group);
+            if commit_err < avahi_sys::AVAHI_OK {
+                let e_str = avahi_strerror(commit_err);
+                tracing::error!(
+                    "Could not reset Avahi entry group: {:?}",
+                    std::ffi::CStr::from_ptr(e_str)
+                );
+                avahi_free(e_str as *mut c_void);
+                panic!("Failed to load Avahi services: reset");
+            }
             res
         }
     }
     fn sync(&mut self) {
         unsafe {
-            avahi_entry_group_reset(self.entry_group);
+            let mut res;
+            res = avahi_entry_group_reset(self.entry_group);
+            if res < avahi_sys::AVAHI_OK {
+                let e_str = avahi_strerror(res);
+                tracing::error!(
+                    "Could not reset Avahi entry group: {:?}",
+                    std::ffi::CStr::from_ptr(e_str)
+                );
+                avahi_free(e_str as *mut c_void);
+                panic!("Failed to load Avahi services: reset");
+            }
             self.load_services();
-            avahi_entry_group_commit(self.entry_group);
+            res = avahi_entry_group_commit(self.entry_group);
+            if res < avahi_sys::AVAHI_OK {
+                let e_str = avahi_strerror(res);
+                tracing::error!(
+                    "Could not commit Avahi entry group: {:?}",
+                    std::ffi::CStr::from_ptr(e_str)
+                );
+                avahi_free(e_str as *mut c_void);
+                panic!("Failed to load Avahi services: commit");
+            }
         }
     }
     fn add<'a, I: IntoIterator<Item = (InterfaceId, TorSecretKeyV3)>>(
@@ -233,9 +264,56 @@ impl Drop for MdnsControllerInner {
     }
 }
 
-unsafe extern "C" fn noop(
+unsafe extern "C" fn entry_group_callback(
     _group: *mut avahi_sys::AvahiEntryGroup,
-    _state: avahi_sys::AvahiEntryGroupState,
+    state: avahi_sys::AvahiEntryGroupState,
     _userdata: *mut core::ffi::c_void,
 ) {
+    match state {
+        avahi_sys::AvahiEntryGroupState_AVAHI_ENTRY_GROUP_FAILURE => {
+            tracing::warn!("AvahiCallback: EntryGroupState = AVAHI_ENTRY_GROUP_FAILURE");
+        }
+        avahi_sys::AvahiEntryGroupState_AVAHI_ENTRY_GROUP_COLLISION => {
+            tracing::warn!("AvahiCallback: EntryGroupState = AVAHI_ENTRY_GROUP_COLLISION");
+        }
+        avahi_sys::AvahiEntryGroupState_AVAHI_ENTRY_GROUP_UNCOMMITED => {
+            tracing::warn!("AvahiCallback: EntryGroupState = AVAHI_ENTRY_GROUP_UNCOMMITED");
+        }
+        avahi_sys::AvahiEntryGroupState_AVAHI_ENTRY_GROUP_ESTABLISHED => {
+            tracing::warn!("AvahiCallback: EntryGroupState = AVAHI_ENTRY_GROUP_ESTABLISHED");
+        }
+        avahi_sys::AvahiEntryGroupState_AVAHI_ENTRY_GROUP_REGISTERING => {
+            tracing::warn!("AvahiCallback: EntryGroupState = AVAHI_ENTRY_GROUP_REGISTERING");
+        }
+        other => {
+            tracing::warn!("AvahiCallback: EntryGroupState = {}", other);
+        }
+    }
+}
+
+unsafe extern "C" fn client_callback(
+    _group: *mut avahi_sys::AvahiClient,
+    state: avahi_sys::AvahiClientState,
+    _userdata: *mut core::ffi::c_void,
+) {
+    match state {
+        avahi_sys::AvahiClientState_AVAHI_CLIENT_FAILURE => {
+            tracing::warn!("AvahiCallback: ClientState = AVAHI_CLIENT_FAILURE");
+        }
+        avahi_sys::AvahiClientState_AVAHI_CLIENT_S_RUNNING => {
+            tracing::warn!("AvahiCallback: ClientState = AVAHI_CLIENT_S_RUNNING");
+        }
+        avahi_sys::AvahiClientState_AVAHI_CLIENT_CONNECTING => {
+            tracing::warn!("AvahiCallback: ClientState = AVAHI_CLIENT_CONNECTING");
+        }
+        avahi_sys::AvahiClientState_AVAHI_CLIENT_S_COLLISION => {
+            tracing::warn!("AvahiCallback: ClientState = AVAHI_CLIENT_S_COLLISION");
+        }
+        avahi_sys::AvahiClientState_AVAHI_CLIENT_S_REGISTERING => {
+            tracing::warn!("AvahiCallback: ClientState = AVAHI_CLIENT_S_REGISTERING");
+        }
+        other => {
+            tracing::warn!("AvahiCallback: ClientState = {}", other);
+        }
+    }
 }
