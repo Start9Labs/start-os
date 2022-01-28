@@ -69,6 +69,7 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     disk::disk,
     notifications::notification,
     backup::backup,
+    marketplace::marketplace,
 ))]
 pub fn main_api() -> Result<(), RpcError> {
     Ok(())
