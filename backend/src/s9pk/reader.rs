@@ -4,6 +4,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use digest::Output;
+use ed25519_dalek::PublicKey;
 use sha2::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf, Take};
@@ -47,6 +48,7 @@ impl<'a, R: AsyncRead + AsyncSeek + Unpin> AsyncRead for ReadHandle<'a, R> {
 pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin = File> {
     hash: Option<Output<Sha512>>,
     hash_string: Option<String>,
+    developer_key: PublicKey,
     toc: TableOfContents,
     pos: u64,
     rdr: R,
@@ -105,6 +107,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
         Ok(S9pkReader {
             hash_string,
             hash,
+            developer_key: header.pubkey,
             toc: header.table_of_contents,
             pos,
             rdr,
@@ -117,6 +120,10 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
 
     pub fn hash_str(&self) -> Option<&str> {
         self.hash_string.as_ref().map(|s| s.as_str())
+    }
+
+    pub fn developer_key(&self) -> &PublicKey {
+        &self.developer_key
     }
 
     pub async fn reset(&mut self) -> Result<(), Error> {
