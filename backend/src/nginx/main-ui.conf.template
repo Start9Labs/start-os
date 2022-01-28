@@ -45,18 +45,6 @@ server {{
                 proxy_pass http://127.0.0.1:5961/;
         }}
 
-        location /marketplace/eos/ {{
-                # ns1.digitalocean.com, ns2.digitalocean.com, ns3.digitalocean.com
-                resolver 173.245.58.51 173.245.59.41 198.41.222.173;
-                proxy_pass {eos_marketplace}eos/;
-        }}
-
-        location /marketplace/package/ {{
-                # ns1.digitalocean.com, ns2.digitalocean.com, ns3.digitalocean.com
-                resolver 173.245.58.51 173.245.59.41 198.41.222.173;
-                proxy_pass {package_marketplace}package/;
-        }}
-
         location / {{
                 try_files $uri $uri/ =404;
         }}
@@ -109,18 +97,6 @@ server {{
 
         location /public/ {{
                 proxy_pass http://127.0.0.1:5961/;
-        }}
-
-        location /marketplace/eos/ {{
-                # ns1.digitalocean.com, ns2.digitalocean.com, ns3.digitalocean.com
-                resolver 173.245.58.51 173.245.59.41 198.41.222.173;
-                proxy_pass {eos_marketplace}eos/;
-        }}
-        
-        location /marketplace/package/ {{
-                # ns1.digitalocean.com, ns2.digitalocean.com, ns3.digitalocean.com
-                resolver 173.245.58.51 173.245.59.41 198.41.222.173;
-                proxy_pass {package_marketplace}package/;
         }}
 
         location / {{

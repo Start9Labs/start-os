@@ -18,7 +18,6 @@ use super::PackageBackupReport;
 use crate::auth::check_password_against_db;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
-use crate::db::model::ServerStatus;
 use crate::db::util::WithRevision;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
@@ -134,7 +133,10 @@ pub async fn backup_all(
     let revision = assure_backing_up(&mut db).await?;
     tokio::task::spawn(async move {
         let backup_res = perform_backup(&ctx, &mut db, backup_guard).await;
-        let status_model = crate::db::DatabaseModel::new().server_info().status();
+        let status_model = crate::db::DatabaseModel::new()
+            .server_info()
+            .status_info()
+            .backing_up();
         status_model
             .clone()
             .lock(&mut db, LockType::Write)
@@ -203,7 +205,7 @@ pub async fn backup_all(
             }
         }
         status_model
-            .put(&mut db, &ServerStatus::Running)
+            .put(&mut db, &false)
             .await
             .expect("failed to change server status");
     });
@@ -216,33 +218,21 @@ pub async fn backup_all(
 #[instrument(skip(db))]
 async fn assure_backing_up(db: &mut PatchDbHandle) -> Result<Option<Arc<Revision>>, Error> {
     let mut tx = db.begin().await?;
-    let mut info = crate::db::DatabaseModel::new()
+    let mut backing_up = crate::db::DatabaseModel::new()
         .server_info()
+        .status_info()
+        .backing_up()
         .get_mut(&mut tx)
         .await?;
-    match &info.status {
-        ServerStatus::Updating => {
-            return Err(Error::new(
-                eyre!("Server is updating!"),
-                crate::ErrorKind::InvalidRequest,
-            ))
-        }
-        ServerStatus::Updated => {
-            return Err(Error::new(
-                eyre!("Server is updated and needs to be reset"),
-                crate::ErrorKind::InvalidRequest,
-            ))
-        }
-        ServerStatus::BackingUp => {
-            return Err(Error::new(
-                eyre!("Server is already backing up!"),
-                crate::ErrorKind::InvalidRequest,
-            ))
-        }
-        ServerStatus::Running => (),
+
+    if *backing_up {
+        return Err(Error::new(
+            eyre!("Server is already backing up!"),
+            crate::ErrorKind::InvalidRequest,
+        ));
     }
-    info.status = ServerStatus::BackingUp;
-    info.save(&mut tx).await?;
+    *backing_up = true;
+    backing_up.save(&mut tx).await?;
     Ok(tx.commit(None).await?)
 }
 
