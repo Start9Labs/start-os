@@ -255,6 +255,7 @@ pub struct InstalledPackageDataEntry {
     pub status: Status,
     pub marketplace_url: Option<Url>,
     #[serde(default)]
+    #[serde(with = "crate::util::serde::ed25519_pubkey")]
     pub developer_key: ed25519_dalek::PublicKey,
     #[model]
     pub manifest: Manifest,
