@@ -96,6 +96,40 @@ pub fn serialize_display_opt<T: std::fmt::Display, S: Serializer>(
     Option::<String>::serialize(&t.as_ref().map(|t| t.to_string()), serializer)
 }
 
+pub mod ed25519_pubkey {
+    use ed25519_dalek::PublicKey;
+    use serde::de::{Error, Unexpected, Visitor};
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(pubkey: &PublicKey, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&base32::encode(
+            base32::Alphabet::RFC4648 { padding: true },
+            pubkey.as_bytes(),
+        ))
+    }
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<PublicKey, D::Error> {
+        struct PubkeyVisitor;
+        impl<'de> Visitor<'de> for PubkeyVisitor {
+            type Value = ed25519_dalek::PublicKey;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(formatter, "an RFC4648 encoded string")
+            }
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                PublicKey::from_bytes(
+                    &base32::decode(base32::Alphabet::RFC4648 { padding: true }, v).ok_or(
+                        Error::invalid_value(Unexpected::Str(v), &"an RFC4648 encoded string"),
+                    )?,
+                )
+                .map_err(Error::custom)
+            }
+        }
+        deserializer.deserialize_str(PubkeyVisitor)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum ValuePrimative {
