@@ -74,6 +74,10 @@ fn inner_main() -> Result<(), anyhow::Error> {
                             Arg::with_name("assets")
                                 .help("Path to the rules file")
                                 .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("dependencies")
+                                .help("Path to rules for optional dependency config")
                         ),
                 ),
         )
@@ -190,11 +194,13 @@ fn inner_main() -> Result<(), anyhow::Error> {
                 };
                 let rules_path = Path::new(sub_m.value_of("assets").unwrap());
                 let name = sub_m.value_of("package_id").unwrap();
+                let deps_path = sub_m.value_of("dependencies");
                 match validate_configuration(
                     &name,
                     config,
                     rules_path,
                     &cfg_path.join("config.yaml"),
+                    deps_path,
                 ) {
                     Ok(a) => {
                         serde_yaml::to_writer(stdout(), &a)?;
@@ -304,7 +310,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
             let stats: serde_json::Value = if stats_path.exists() {
                 serde_yaml::from_reader(File::open(stats_path).unwrap()).unwrap()
             } else {
-                let fallbackMessage: &str = sub_m
+                let fallback_message: &str = sub_m
                     .value_of("fallbackMessage")
                     .unwrap_or_else(|| PROPERTIES_FALLBACK_MESSAGE);
                 json!({
@@ -312,7 +318,7 @@ fn inner_main() -> Result<(), anyhow::Error> {
                     "data": {
                         "Not Ready": {
                             "type": "string",
-                            "value": fallbackMessage,
+                            "value": fallback_message,
                             "qr": false,
                             "copyable": false,
                             "masked": false,
