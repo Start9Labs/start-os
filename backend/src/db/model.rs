@@ -50,12 +50,11 @@ impl Database {
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()
                     .unwrap(),
-                status: ServerStatus::Running {},
-                #[cfg(not(feature = "beta"))]
-                eos_marketplace: "https://marketplace.start9.com".parse().unwrap(),
-                #[cfg(feature = "beta")]
-                eos_marketplace: "https://beta-registry-0-3.start9labs.com".parse().unwrap(),
-                package_marketplace: None,
+                status_info: ServerStatus {
+                    backing_up: false,
+                    updated: false,
+                    update_progress: None,
+                },
                 wifi: WifiInfo {
                     ssids: Vec::new(),
                     connected: None,
@@ -67,7 +66,6 @@ impl Database {
                     clearnet: Vec::new(),
                 },
                 share_stats: false,
-                update_progress: None,
                 password_hash,
             },
             package_data: AllPackageData::default(),
@@ -93,25 +91,23 @@ pub struct ServerInfo {
     pub eos_version_compat: VersionRange,
     pub lan_address: Url,
     pub tor_address: Url,
-    pub status: ServerStatus,
-    pub eos_marketplace: Url,
-    pub package_marketplace: Option<Url>, // None implies use eos_marketplace
+    #[model]
+    #[serde(default)]
+    pub status_info: ServerStatus,
     pub wifi: WifiInfo,
     pub unread_notification_count: u64,
     pub connection_addresses: ConnectionAddresses,
     pub share_stats: bool,
-    #[model]
-    pub update_progress: Option<UpdateProgress>,
     pub password_hash: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
-pub enum ServerStatus {
-    Running,
-    Updating,
-    Updated,
-    BackingUp,
+pub struct ServerStatus {
+    pub backing_up: bool,
+    pub updated: bool,
+    #[model]
+    pub update_progress: Option<UpdateProgress>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -257,6 +253,9 @@ impl PackageDataEntryModel {
 pub struct InstalledPackageDataEntry {
     #[model]
     pub status: Status,
+    pub marketplace_url: Option<Url>,
+    #[serde(default)]
+    pub developer_key: ed25519_dalek::PublicKey,
     #[model]
     pub manifest: Manifest,
     pub last_backup: Option<DateTime<Utc>>,

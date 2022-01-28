@@ -23,7 +23,7 @@ use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::{ServerStatus, UpdateProgress};
+use crate::db::model::UpdateProgress;
 use crate::db::util::WithRevision;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::FileSystem;
@@ -48,6 +48,7 @@ lazy_static! {
 #[instrument(skip(ctx))]
 pub async fn update_system(
     #[context] ctx: RpcContext,
+    #[arg(rename = "marketplace-url")] marketplace_url: Url,
 ) -> Result<WithRevision<UpdateResult>, Error> {
     let noop = WithRevision {
         response: UpdateResult::NoUpdates,
@@ -56,7 +57,7 @@ pub async fn update_system(
     if UPDATED.load(Ordering::SeqCst) {
         return Ok(noop);
     }
-    match maybe_do_update(ctx).await? {
+    match maybe_do_update(ctx, marketplace_url).await? {
         None => Ok(noop),
         Some(r) => Ok(WithRevision {
             response: UpdateResult::Updating,
@@ -127,11 +128,14 @@ lazy_static! {
 }
 
 #[instrument(skip(ctx))]
-async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error> {
+async fn maybe_do_update(
+    ctx: RpcContext,
+    marketplace_url: Url,
+) -> Result<Option<Arc<Revision>>, Error> {
     let mut db = ctx.db.handle();
     let latest_version = reqwest::get(format!(
         "{}/eos/latest?eos-version={}&arch={}",
-        ctx.eos_registry_url().await?,
+        marketplace_url,
         Current::new().semver(),
         platforms::TARGET_ARCH,
     ))
@@ -154,67 +158,58 @@ async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error
         return Ok(None);
     }
     let mut tx = db.begin().await?;
-    let mut info = crate::db::DatabaseModel::new()
+    let mut status = crate::db::DatabaseModel::new()
         .server_info()
+        .status_info()
         .get_mut(&mut tx)
         .await?;
-    match &info.status {
-        ServerStatus::Updating => {
-            return Err(Error::new(
-                eyre!("Server is already updating!"),
-                crate::ErrorKind::InvalidRequest,
-            ))
-        }
-        ServerStatus::Updated => {
-            return Ok(None);
-        }
-        ServerStatus::BackingUp => {
-            return Err(Error::new(
-                eyre!("Server is backing up!"),
-                crate::ErrorKind::InvalidRequest,
-            ))
-        }
-        ServerStatus::Running => (),
+    if status.update_progress.is_some() {
+        return Err(Error::new(
+            eyre!("Server is already updating!"),
+            crate::ErrorKind::InvalidRequest,
+        ));
+    }
+    if status.updated {
+        return Ok(None);
     }
 
     let (new_label, _current_label) = query_mounted_label().await?;
     let (size, download) = download_file(
         ctx.db.handle(),
         &EosUrl {
-            base: info.eos_marketplace.clone(),
+            base: marketplace_url,
             version: latest_version.clone(),
         },
         new_label,
     )
     .await?;
-    info.status = ServerStatus::Updating;
-    info.update_progress = Some(UpdateProgress {
+    status.update_progress = Some(UpdateProgress {
         size,
         downloaded: 0,
     });
-    info.save(&mut tx).await?;
+    status.save(&mut tx).await?;
     let rev = tx.commit(None).await?;
 
     tokio::spawn(async move {
         let mut db = ctx.db.handle();
         let res = do_update(download, new_label).await;
-        let mut info = crate::db::DatabaseModel::new()
+        let mut status = crate::db::DatabaseModel::new()
             .server_info()
+            .status_info()
             .get_mut(&mut db)
             .await
             .expect("could not access status");
-        info.update_progress = None;
+        status.update_progress = None;
         match res {
             Ok(()) => {
-                info.status = ServerStatus::Updated;
-                info.save(&mut db).await.expect("could not save status");
+                status.updated = true;
+                status.save(&mut db).await.expect("could not save status");
                 BEP.play().await.expect("could not bep");
                 BEP.play().await.expect("could not bep");
                 BEP.play().await.expect("could not bep");
             }
             Err(e) => {
-                info.status = ServerStatus::Running;
-                info.save(&mut db).await.expect("could not save status");
+                status.save(&mut db).await.expect("could not save status");
                 ctx.notification_manager
                     .notify(
                         &mut db,
@@ -365,6 +360,7 @@ async fn write_stream_to_label<Db: DbHandle>(
             last_progress_update = Instant::now();
             crate::db::DatabaseModel::new()
                 .server_info()
+                .status_info()
                 .update_progress()
                 .put(db, &UpdateProgress { size, downloaded })
                 .await?;
