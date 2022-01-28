@@ -11,11 +11,16 @@ pub const SYSTEM_REBUILD_PATH: &str = "/embassy-os/system-rebuild";
 pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error> {
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok();
     let secret_store = cfg.secret_store().await?;
-    let log_dir = cfg.datadir().join("main").join("logs");
+    let log_dir = cfg.datadir().join("main/log");
     if tokio::fs::metadata(&log_dir).await.is_err() {
-        tokio::fs::create_dir_all(&log_dir).await?;
+        Command::new("cp")
+            .arg("-r")
+            .arg("/var/log")
+            .arg(&log_dir)
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
     }
-    crate::disk::mount::util::bind(&log_dir, "/var/log/journal", false).await?;
+    crate::disk::mount::util::bind(&log_dir, "/var/log", false).await?;
     Command::new("systemctl")
         .arg("restart")
         .arg("systemd-journald")
@@ -60,11 +65,10 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         tracing::info!("Loading System Docker Images");
         crate::install::load_images("/var/lib/embassy/system-images").await?;
         tracing::info!("Loaded System Docker Images");
-        
+
         tracing::info!("Loading Package Docker Images");
         crate::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
         tracing::info!("Loaded Package Docker Images");
-
     }
 
     crate::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
