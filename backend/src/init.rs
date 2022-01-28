@@ -93,15 +93,11 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         .server_info()
         .get_mut(&mut handle)
         .await?;
-    match info.status {
-        ServerStatus::Running | ServerStatus::Updated | ServerStatus::BackingUp => {
-            info.status = ServerStatus::Running;
-        }
-        ServerStatus::Updating => {
-            info.update_progress = None;
-            info.status = ServerStatus::Running;
-        }
-    }
+    info.status_info = ServerStatus {
+        backing_up: false,
+        updated: false,
+        update_progress: None,
+    };
     info.save(&mut handle).await?;
 
     crate::version::init(&mut handle).await?;

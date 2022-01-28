@@ -15,6 +15,7 @@ use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::Body;
 use patch_db::{DbHandle, LockType};
+use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, Context};
 use tokio::fs::{File, OpenOptions};
@@ -85,18 +86,23 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
 pub async fn install(
     #[context] ctx: RpcContext,
     #[arg] id: String,
-    #[arg(rename = "version-spec")] version_spec: Option<String>,
+    #[arg(short = "m", long = "marketplace-url", rename = "marketplace-url")]
+    marketplace_url: Option<Url>,
+    #[arg(short = "v", long = "version-spec", rename = "version-spec")] version_spec: Option<
+        String,
+    >,
 ) -> Result<WithRevision<()>, Error> {
     let version_str = match &version_spec {
         None => "*",
         Some(v) => &*v,
     };
     let version: VersionRange = version_str.parse()?;
-    let reg_url = ctx.package_registry_url().await?;
+    let marketplace_url =
+        marketplace_url.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
     let (man_res, s9pk) = tokio::try_join!(
         reqwest::get(format!(
             "{}/package/manifest/{}?spec={}&eos-version-compat={}&arch={}",
-            reg_url,
+            marketplace_url,
             id,
             version,
             Current::new().compat(),
@@ -104,7 +110,7 @@ pub async fn install(
         )),
         reqwest::get(format!(
             "{}/package/{}.s9pk?spec={}&eos-version-compat={}&arch={}",
-            reg_url,
+            marketplace_url,
             id,
             version,
             Current::new().compat(),
@@ -112,7 +118,15 @@ pub async fn install(
         ))
     )
     .with_kind(crate::ErrorKind::Registry)?;
-    let man: Manifest = man_res.json().await.with_kind(crate::ErrorKind::Registry)?;
+    let man: Manifest = man_res
+        .error_for_status()
+        .with_kind(crate::ErrorKind::Registry)?
+        .json()
+        .await
+        .with_kind(crate::ErrorKind::Registry)?;
+    let s9pk = s9pk
+        .error_for_status()
+        .with_kind(crate::ErrorKind::Registry)?;
 
     if man.id.as_str() != id || !man.version.satisfies(&version) {
         return Err(Error::new(
@@ -166,6 +180,7 @@ pub async fn install(
         if let Err(e) = download_install_s9pk(
             &ctx,
             &man,
+            Some(marketplace_url),
             InstallProgress::new(s9pk.content_length()),
             tokio_util::io::StreamReader::new(s9pk.bytes_stream().map_err(|e| {
                 std::io::Error::new(
@@ -286,6 +301,7 @@ pub async fn sideload(
             download_install_s9pk(
                 &new_ctx,
                 &manifest,
+                None,
                 progress,
                 tokio_util::io::StreamReader::new(req.into_body().map_err(|e| {
                     std::io::Error::new(
@@ -330,6 +346,7 @@ pub async fn sideload(
 async fn cli_install(
     ctx: CliContext,
     target: String,
+    marketplace_url: Option<Url>,
     version_spec: Option<String>,
 ) -> Result<(), RpcError> {
     if target.ends_with(".s9pk") {
@@ -373,7 +390,9 @@ async fn cli_install(
         }
     } else {
         let params = match (target.split_once("@"), version_spec) {
-            (Some((pkg, v)), None) => serde_json::json!({ "id": pkg, "version-spec": v }),
+            (Some((pkg, v)), None) => {
+                serde_json::json!({ "id": pkg, "marketplace-url": marketplace_url, "version-spec": v })
+            }
             (Some(_), Some(_)) => {
                 return Err(crate::Error::new(
                     eyre!("Invalid package id {}", target),
@@ -381,8 +400,10 @@ async fn cli_install(
                 )
                 .into())
             }
-            (None, Some(v)) => serde_json::json!({ "id": target, "version-spec": v }),
-            (None, None) => serde_json::json!({ "id": target }),
+            (None, Some(v)) => {
+                serde_json::json!({ "id": target, "marketplace-url": marketplace_url, "version-spec": v })
+            }
+            (None, None) => serde_json::json!({ "id": target, "marketplace-url": marketplace_url }),
         };
         tracing::debug!("calling package.install");
         rpc_toolkit::command_helpers::call_remote(
@@ -489,6 +510,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
 pub async fn download_install_s9pk(
     ctx: &RpcContext,
     temp_manifest: &Manifest,
+    marketplace_url: Option<Url>,
     progress: Arc<InstallProgress>,
     mut s9pk: impl AsyncRead + Unpin,
 ) -> Result<(), Error> {
@@ -537,7 +559,15 @@ pub async fn download_install_s9pk(
             })
             .await?;
 
-        install_s9pk(&ctx, pkg_id, version, &mut s9pk_reader, progress).await?;
+        install_s9pk(
+            &ctx,
+            pkg_id,
+            version,
+            marketplace_url,
+            &mut s9pk_reader,
+            progress,
+        )
+        .await?;
 
         Ok(())
     }
@@ -563,11 +593,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     ctx: &RpcContext,
     pkg_id: &PackageId,
     version: &Version,
+    marketplace_url: Option<Url>,
     rdr: &mut S9pkReader<InstallProgressTracker<R>>,
     progress: Arc<InstallProgress>,
 ) -> Result<(), Error> {
     rdr.validate().await?;
     rdr.validated();
+    let developer_key = rdr.developer_key().clone();
     rdr.reset().await?;
     let model = crate::db::DatabaseModel::new()
         .package_data()
@@ -582,78 +614,97 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
 
     tracing::info!("Install {}@{}: Fetching Dependency Info", pkg_id, version);
     let mut dependency_info = BTreeMap::new();
-    let reg_url = ctx.package_registry_url().await?;
     for (dep, info) in &manifest.dependencies.0 {
-        let manifest: Option<Manifest> = match reqwest::get(format!(
-            "{}/package/manifest/{}?spec={}&eos-version-compat={}&arch={}",
-            reg_url,
-            dep,
-            info.version,
-            Current::new().compat(),
-            platforms::TARGET_ARCH,
-        ))
-        .await
-        .with_kind(crate::ErrorKind::Registry)?
-        .error_for_status()
+        let manifest: Option<Manifest> = if let Some(local_man) = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(dep)
+            .map::<_, Manifest>(|pde| pde.manifest())
+            .get(&mut ctx.db.handle(), false)
+            .await?
+            .into_owned()
         {
-            Ok(a) => Ok(Some(
-                a.json()
+            Some(local_man)
+        } else if let Some(marketplace_url) = &marketplace_url {
+            match reqwest::get(format!(
+                "{}/package/manifest/{}?spec={}&eos-version-compat={}&arch={}",
+                marketplace_url,
+                dep,
+                info.version,
+                Current::new().compat(),
+                platforms::TARGET_ARCH,
+            ))
+            .await
+            .with_kind(crate::ErrorKind::Registry)?
+            .error_for_status()
+            {
+                Ok(a) => Ok(Some(
+                    a.json()
+                        .await
+                        .with_kind(crate::ErrorKind::Deserialization)?,
+                )),
+                Err(e) if e.status() == Some(StatusCode::BAD_REQUEST) => Ok(None),
+                Err(e) => Err(e),
+            }
+            .with_kind(crate::ErrorKind::Registry)?
+        } else {
+            None
+        };
+
+        if let Some(marketplace_url) = &marketplace_url {
+            if let Some(manifest) = &manifest {
+                let dir = ctx
+                    .datadir
+                    .join(PKG_PUBLIC_DIR)
+                    .join(&manifest.id)
+                    .join(manifest.version.as_str());
+                let icon_path = dir.join(format!("icon.{}", manifest.assets.icon_type()));
+                if tokio::fs::metadata(&icon_path).await.is_err() {
+                    tokio::fs::create_dir_all(&dir).await?;
+                    let icon = reqwest::get(format!(
+                        "{}/package/icon/{}?spec={}&eos-version-compat={}&arch={}",
+                        marketplace_url,
+                        dep,
+                        info.version,
+                        Current::new().compat(),
+                        platforms::TARGET_ARCH,
+                    ))
                     .await
-                    .with_kind(crate::ErrorKind::Deserialization)?,
-            )),
-            Err(e) if e.status() == Some(StatusCode::BAD_REQUEST) => Ok(None),
-            Err(e) => Err(e),
-        }
-        .with_kind(crate::ErrorKind::Registry)?;
-        if let Some(manifest) = manifest {
-            let dir = ctx
-                .datadir
-                .join(PKG_PUBLIC_DIR)
-                .join(&manifest.id)
-                .join(manifest.version.as_str());
-            let icon_path = dir.join(format!("icon.{}", manifest.assets.icon_type()));
-            if tokio::fs::metadata(&icon_path).await.is_err() {
-                tokio::fs::create_dir_all(&dir).await?;
-                let icon = reqwest::get(format!(
-                    "{}/package/icon/{}?spec={}&eos-version-compat={}&arch={}",
-                    reg_url,
-                    dep,
-                    info.version,
-                    Current::new().compat(),
-                    platforms::TARGET_ARCH,
-                ))
-                .await
-                .with_kind(crate::ErrorKind::Registry)?;
-                let mut dst = File::create(&icon_path).await?;
-                tokio::io::copy(
-                    &mut tokio_util::io::StreamReader::new(icon.bytes_stream().map_err(|e| {
-                        std::io::Error::new(
-                            if e.is_connect() {
-                                std::io::ErrorKind::ConnectionRefused
-                            } else if e.is_timeout() {
-                                std::io::ErrorKind::TimedOut
-                            } else {
-                                std::io::ErrorKind::Other
-                            },
-                            e,
-                        )
-                    })),
-                    &mut dst,
-                )
-                .await?;
-                dst.sync_all().await?;
+                    .with_kind(crate::ErrorKind::Registry)?;
+                    let mut dst = File::create(&icon_path).await?;
+                    tokio::io::copy(
+                        &mut tokio_util::io::StreamReader::new(icon.bytes_stream().map_err(|e| {
+                            std::io::Error::new(
+                                if e.is_connect() {
+                                    std::io::ErrorKind::ConnectionRefused
+                                } else if e.is_timeout() {
+                                    std::io::ErrorKind::TimedOut
+                                } else {
+                                    std::io::ErrorKind::Other
+                                },
+                                e,
+                            )
+                        })),
+                        &mut dst,
+                    )
+                    .await?;
+                    dst.sync_all().await?;
+                }
             }
 
             dependency_info.insert(
                 dep.clone(),
                 StaticDependencyInfo {
-                    icon: format!(
-                        "/public/package-data/{}/{}/icon.{}",
-                        manifest.id,
-                        manifest.version,
-                        manifest.assets.icon_type()
-                    ),
-                    manifest: Some(manifest),
+                    icon: if let Some(manifest) = &manifest {
+                        format!(
+                            "/public/package-data/{}/{}/icon.{}",
+                            manifest.id,
+                            manifest.version,
+                            manifest.assets.icon_type()
+                        )
+                    } else {
+                        "/assets/img/package-icon.png".to_owned()
+                    },
+                    manifest,
                 },
             );
         }
@@ -842,13 +893,36 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         })
         .collect();
     let current_dependents = {
-        // search required dependencies
         let mut deps = BTreeMap::new();
         for package in crate::db::DatabaseModel::new()
             .package_data()
             .keys(&mut tx, true)
             .await?
         {
+            // update dependency_info on dependents
+            if let Some(dep_info_model) = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package)
+                .expect(&mut tx)
+                .await?
+                .installed()
+                .and_then(|i| i.dependency_info().idx_model(pkg_id))
+                .check(&mut tx)
+                .await?
+            {
+                let mut dep_info = dep_info_model.get_mut(&mut tx).await?;
+                *dep_info = StaticDependencyInfo {
+                    icon: format!(
+                        "/public/package-data/{}/{}/icon.{}",
+                        manifest.id,
+                        manifest.version,
+                        manifest.assets.icon_type()
+                    ),
+                    manifest: Some(manifest.clone()),
+                };
+            }
+
+            // search required dependencies
             if let Some(dep) = crate::db::DatabaseModel::new()
                 .package_data()
                 .idx_model(&package)
@@ -877,6 +951,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             main: MainStatus::Stopped,
             dependency_errors: DependencyErrors::default(),
         },
+        marketplace_url,
+        developer_key,
         manifest: manifest.clone(),
         last_backup: match &*pde {
             PackageDataEntry::Updating {

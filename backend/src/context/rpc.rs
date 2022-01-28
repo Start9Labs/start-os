@@ -23,7 +23,7 @@ use tracing::instrument;
 
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
-use crate::hostname::{derive_hostname, derive_id, get_hostname, get_id, get_product_key};
+use crate::hostname::{derive_hostname, derive_id, get_product_key};
 use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
@@ -230,31 +230,6 @@ impl RpcContext {
         tracing::info!("Initialized Package Managers");
         Ok(res)
     }
-    #[instrument(skip(self))]
-    pub async fn package_registry_url(&self) -> Result<Url, Error> {
-        Ok(
-            if let Some(market) = crate::db::DatabaseModel::new()
-                .server_info()
-                .package_marketplace()
-                .get(&mut self.db.handle(), false)
-                .await?
-                .to_owned()
-            {
-                market
-            } else {
-                self.eos_registry_url().await?
-            },
-        )
-    }
-    #[instrument(skip(self))]
-    pub async fn eos_registry_url(&self) -> Result<Url, Error> {
-        Ok(crate::db::DatabaseModel::new()
-            .server_info()
-            .eos_marketplace()
-            .get(&mut self.db.handle(), false)
-            .await?
-            .to_owned())
-    }
     #[instrument(skip(self, db))]
     pub async fn set_nginx_conf<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
         tokio::fs::write("/etc/nginx/sites-available/default", {
@@ -266,11 +241,6 @@ impl RpcContext {
                 include_str!("../nginx/main-ui.conf.template"),
                 lan_hostname = info.lan_address.host_str().unwrap(),
                 tor_hostname = info.tor_address.host_str().unwrap(),
-                eos_marketplace = info.eos_marketplace,
-                package_marketplace = info
-                    .package_marketplace
-                    .as_ref()
-                    .unwrap_or(&info.eos_marketplace),
             )
         })
         .await

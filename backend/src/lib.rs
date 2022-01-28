@@ -1,4 +1,8 @@
-pub const CONFIG_PATH: &'static str = "/etc/embassy/config.toml";
+pub const CONFIG_PATH: &str = "/etc/embassy/config.yaml";
+#[cfg(not(feature = "beta"))]
+pub const DEFAULT_MARKETPLACE: &str = "https://marketplace.start9.com";
+#[cfg(feature = "beta")]
+pub const DEFAULT_MARKETPLACE: &str = "https://beta-registry-0-3.start9labs.com";
 pub const BUFFER_SIZE: usize = 1024;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 
@@ -78,7 +82,6 @@ pub fn main_api() -> Result<(), RpcError> {
     shutdown::restart,
     shutdown::rebuild,
     update::update_system,
-    marketplace::set_eos_url,
 ))]
 pub fn server() -> Result<(), RpcError> {
     Ok(())
@@ -98,7 +101,6 @@ pub fn server() -> Result<(), RpcError> {
     properties::properties,
     dependencies::dependency,
     backup::package_backup,
-    marketplace::set_package_url,
 ))]
 pub fn package() -> Result<(), RpcError> {
     Ok(())
