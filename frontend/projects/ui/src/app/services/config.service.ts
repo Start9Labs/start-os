@@ -1,28 +1,8 @@
 import { Injectable } from '@angular/core'
 import { InterfaceDef, PackageDataEntry, PackageMainStatus, PackageState } from './patch-db/data-model'
+import { WorkspaceConfig } from '@shared/types'
 
-const { gitHash, patchDb, api, mocks } = require('../../../config.json') as UiConfig
-
-type UiConfig = {
-  gitHash: string
-  patchDb: {
-    poll: {
-      cooldown: number /* in ms */
-    }
-  }
-  api: {
-    url: string
-    version: string
-  }
-  mocks: {
-    enabled: boolean
-    connection: 'ws' | 'poll'
-    rpcPort: number
-    wsPort: number
-    maskAs: 'tor' | 'lan'
-    skipStartupAlerts: boolean
-  }
-}
+const { useMocks, ui: { gitHash, patchDb, api, mocks } } = require('../../../../../config.json') as WorkspaceConfig
 
 @Injectable({
   providedIn: 'root',
@@ -31,25 +11,23 @@ export class ConfigService {
   origin = removePort(removeProtocol(window.origin))
   version = require('../../../../../package.json').version
 
+  useMocks = useMocks
+  mocks = mocks
+
   gitHash = gitHash
   patchDb = patchDb
   api = api
-  mocks = mocks
 
-  skipStartupAlerts  = mocks.enabled && mocks.skipStartupAlerts
+  skipStartupAlerts  = useMocks && mocks.skipStartupAlerts
   isConsulate = window['platform'] === 'ios'
   supportsWebSockets = !!window.WebSocket || this.isConsulate
 
   isTor (): boolean {
-    return (mocks.enabled && mocks.maskAs === 'tor') || this.origin.endsWith('.onion')
+    return (useMocks && mocks.maskAs === 'tor') || this.origin.endsWith('.onion')
   }
 
   isLan (): boolean {
-    return (mocks.enabled && mocks.maskAs === 'lan') || this.origin.endsWith('.local')
-  }
-
-  usePoll (): boolean {
-    return !this.supportsWebSockets || (mocks.enabled && mocks.connection === 'poll')
+    return (useMocks && mocks.maskAs === 'lan') || this.origin.endsWith('.local')
   }
 
   isLaunchable (state: PackageState, status: PackageMainStatus, interfaces: { [id: string]: InterfaceDef }): boolean {

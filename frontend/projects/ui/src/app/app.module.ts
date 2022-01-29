@@ -22,8 +22,9 @@ import { AuthService } from './services/auth.service'
 import { GlobalErrorHandler } from './services/global-error-handler.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
+import { WorkspaceConfig } from '@shared/types'
 
-const { mocks } = require('../../config.json')
+const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
 @NgModule({
   declarations: [AppComponent],
@@ -56,7 +57,7 @@ const { mocks } = require('../../config.json')
     },
     {
       provide: ApiService,
-      useClass: mocks.enabled ? MockApiService : LiveApiService,
+      useClass: useMocks ? MockApiService : LiveApiService,
     },
     {
       provide: PatchDbService,

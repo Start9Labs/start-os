@@ -17,8 +17,9 @@ import { LoadingPageModule } from './pages/loading/loading.module'
 import { ProdKeyModalModule } from './modals/prod-key-modal/prod-key-modal.module'
 import { ProductKeyPageModule } from './pages/product-key/product-key.module'
 import { RecoverPageModule } from './pages/recover/recover.module'
+import { WorkspaceConfig } from '@shared/types'
 
-const useMocks = require('../../config.json').mocks.enabled as boolean
+const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
 @NgModule({
   declarations: [AppComponent],

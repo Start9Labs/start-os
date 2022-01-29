@@ -17,12 +17,10 @@ export function PatchDbServiceFactory (
   auth: AuthService,
   storage: Storage,
 ): PatchDbService {
-  const {
-    mocks,
-    patchDb: { poll },
-  } = config
 
-  if (mocks.enabled) {
+  const { useMocks, patchDb: { poll } } = config
+
+  if (useMocks) {
     const source = new MockSource<DataModel>(
       (embassyApi as MockApiService).mockPatch$.pipe(filter(exists)),
     )

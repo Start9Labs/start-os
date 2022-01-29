@@ -17,7 +17,7 @@ export class HttpService {
     private readonly config: ConfigService,
     private readonly auth: AuthService,
   ) {
-    const port = config.mocks.enabled ? this.config.mocks.rpcPort : window.location.port
+    const port = window.location.port
     this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}`
   }
 
@@ -42,7 +42,7 @@ export class HttpService {
 
   async httpRequest<T> (httpOpts: HttpOptions): Promise<T> {
     if (httpOpts.withCredentials !== false) {
-      httpOpts.withCredentials = this.config.mocks.enabled ? false : true
+      httpOpts.withCredentials = true
     }
 
     const urlIsRelative = httpOpts.url.startsWith('/')
