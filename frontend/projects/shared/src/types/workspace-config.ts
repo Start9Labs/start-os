@@ -1,5 +1,6 @@
 export type WorkspaceConfig = {
   useMocks: boolean
+  // each key corresponds to a project and values adjust settings for that project, eg: ui, setup-wizard, diagnostic-ui
   ui: {
     gitHash: string
     patchDb: {
