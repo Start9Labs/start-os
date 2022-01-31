@@ -1,14 +1,9 @@
 /* To learn more about this file see: https://angular.io/config/tsconfig. */
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "./",
-    "outDir": "../../dist/out-tsc/diagnostic-ui",
-    "paths": {
-      "@shared/*": ["../../dist/out-tsc/workspace/shared/*"]
-    },
+    "baseUrl": "./"
   },
-  "include": [
-    "./src/**/*.ts"
-  ]
+  "files": ["src/main.ts", "src/polyfills.ts"],
+  "include": ["src/**/*.d.ts"]
 }
