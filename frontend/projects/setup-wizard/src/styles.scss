@@ -1,0 +1,123 @@
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Montserrat/Montserrat-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Montserrat/Montserrat-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: thin;
+  src: url('/assets/fonts/Montserrat/Montserrat-Light.ttf');
+}
+
+@font-face {
+  font-family: 'Benton Sans';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Benton_Sans/BentonSans-Regular.otf');
+}
+
+/** Ionic CSS Variables overrides **/
+:root {
+  --ion-font-family: 'Benton Sans';
+}
+
+ion-content {
+  --background: var(--ion-color-medium);
+}
+
+ion-grid {
+  padding-top: 32px;
+  height: 100%;
+  max-width: 600px;
+}
+
+ion-row {
+  height: 100%;
+}
+
+ion-item {
+  --color: var(--ion-color-light);
+}
+
+ion-toolbar {
+  --ion-background-color: var(--ion-color-light);
+  ion-title {
+    color: var(--ion-color-dark);
+  }
+}
+
+ion-avatar {
+  width: 27px;
+  height: 27px;
+}
+
+ion-item {
+  --highlight-color-valid: transparent;
+  --highlight-color-invalid: transparent;
+
+  --border-radius: 4px;
+}
+
+ion-card-title {
+  margin: 16px 0;
+  font-family: 'Montserrat';
+  font-size: x-large;
+  --color: var(--ion-color-light);
+}
+
+ion-toast {
+  --background: var(--ion-color-light);
+  --button-color: var(--ion-color-dark);
+  --border-style: solid;
+  --border-width: 1px;
+  --color: white;
+}
+
+.center-spinner {
+  height: 20vh;
+  width: 100%;
+}
+
+.inline {
+  * {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
+.claim-button {
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+  margin-top: 24px;
+  min-width: 140px;
+}
+
+.error-toast {
+  --border-color: var(--ion-color-danger);
+  width: 40%;
+  min-width: 400px;
+  --end: 8px;
+  right: 8px;
+  left: unset;
+  top: 64px;
+}
+
+.error-border {
+  border: 2px solid var(--ion-color-danger);
+  border-radius: 4px;
+}
+
+.success-border {
+  border: 2px solid var(--ion-color-success);
+  border-radius: 4px;
+}

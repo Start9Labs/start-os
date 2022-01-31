@@ -1,0 +1,23 @@
+{
+  "projects": {
+    "ui": {
+      "name": "ui",
+      "integrations": {},
+      "type": "angular",
+      "root": "projects/ui"
+    },
+    "setup-wizard": {
+      "name": "setup-wizard",
+      "integrations": {},
+      "type": "angular",
+      "root": "projects/setup-wizard"
+    },
+    "diagnostic-ui": {
+      "name": "diagnostic-ui",
+      "integrations": {},
+      "type": "angular",
+      "root": "projects/diagnostic-ui"
+    }
+  },
+  "defaultProject": "ui"
+}

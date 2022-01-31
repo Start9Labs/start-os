@@ -1,0 +1,340 @@
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Montserrat/Montserrat-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Montserrat/Montserrat-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: thin;
+  src: url('/assets/fonts/Montserrat/Montserrat-Light.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/assets/fonts/Open_Sans/OpenSans-SemiBold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: thin;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
+}
+
+/** Ionic CSS Variables overrides **/
+:root {
+  --ion-font-family: 'Open Sans';
+  --ion-background-color: var(--ion-color-medium);
+  --ion-background-color-rgb: var(--ion-color-medium-rgb);
+  --ion-text-color: var(--ion-color-dark);
+  --ion-text-color-rgb: var(--ion-color-dark-rgb);
+}
+
+$subheader-height: 48px;
+
+.subheader-padding {
+  --padding-top: #{$subheader-height} + 10px;
+}
+
+.subheader {
+  --min-height: #{$subheader-height};
+}
+
+.select-warning .alert-sub-title {
+  color: var(--ion-color-warning);
+}
+
+.wide-alert {
+  --min-width: 400px;
+}
+
+.break-all {
+  word-break: break-all;
+}
+
+.input-label {
+  margin-bottom: 6px;
+  font-size: medium;
+  font-weight: 500;
+  * {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
+.item-subdivider {
+  padding: 0 16px;
+  margin-top: 0;
+}
+
+.loader {
+  --spinner-color: var(--ion-color-warning) !important;
+  z-index: 40000 !important;
+}
+
+.borderless {
+  border-style: none;
+}
+
+.item-interactive {
+  --highlight-background: var(--ion-color-light) !important;
+}
+
+.center {
+  display: block;
+  margin: auto;
+  height: 100%;
+}
+
+ion-action-sheet {
+  --button-color: var(--ion-color-dark) !important;
+}
+
+ion-toast {
+  --background: var(--ion-color-light);
+  --button-color: var(--ion-color-dark);
+  --border-style: solid;
+  --border-width: 1px;
+  --color: white;
+}
+
+.warning-toast {
+  --border-color: var(--ion-color-warning);
+}
+
+.success-toast {
+  --border-color: var(--ion-color-success);
+}
+
+.alert-message {
+  user-select: text !important;
+}
+
+.error-toast {
+  --border-color: var(--ion-color-danger);
+  width: 40%;
+  min-width: 400px;
+  --end: 8px;
+  right: 8px;
+  left: unset;
+  top: 64px;
+}
+
+.alert-radio-label.sc-ion-alert-md {
+  white-space: normal !important;
+}
+
+.alert-radio-label.sc-ion-alert-ios {
+  white-space: normal !important;
+}
+
+.inline {
+  * {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
+img {
+  border-radius: 100%;
+}
+
+ion-card-title {
+  font-family: 'Montserrat';
+}
+
+ion-title {
+  font-family: 'Montserrat';
+}
+
+ion-badge {
+  font-weight: bold;
+}
+
+ion-icon {
+  pointer-events: none;
+}
+
+ion-toolbar {
+  --min-height: 72px;
+  --background: var(--ion-color-light);
+}
+
+ion-infinite-scroll ion-infinite-scroll-content {
+  --color: var(--ion-color-warning) !important;
+}
+
+ion-alert {
+  .alert-button {
+    color: var(--ion-color-dark) !important;
+  }
+}
+
+ion-button {
+  --color: var(--ion-color-dark) !important;
+}
+
+.text-ellipses {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qr-modal {
+  &::part(content) {
+    width: 400px !important;
+    height: 400px !important;
+    top: unset !important;
+    left: unset !important;
+  }
+}
+
+.alert-error-message {
+  .alert-title {
+    color: var(--ion-color-danger);
+  }
+}
+
+.alert-success-message {
+  .alert-title {
+    color: var(--ion-color-success);
+  }
+}
+
+.wider-alert .alert-wrapper {
+  min-width: 60% !important;
+}
+
+ion-slides {
+  .slider-wrapper {
+    height: 100%;
+    width: 100%;
+  }
+}
+
+ion-back-button {
+  --background: var(--ion-color-light);
+  --color: var(--ion-color-dark);
+}
+
+ion-item-divider {
+  text-transform: uppercase;
+  --padding-top: 24px;
+  font-weight: 600;
+  --background: transparent;
+  --color: var(--ion-color-dark);
+  font-size: medium;
+  border-bottom: none;
+}
+
+ion-item {
+  border-radius: 6px;
+}
+
+ion-label {
+  white-space: normal !important;
+}
+
+ion-loading {
+  z-index: 100 !important;
+}
+
+.swiper-pagination {
+  position: fixed;
+  bottom: 0px;
+  padding-bottom: 3px;
+}
+
+.rec-item {
+  margin: 20px;
+  border-style: solid;
+  border-width: 1px;
+  border-style: groove;
+  border-color: dimgrey;
+  border-radius: 6px;
+  box-shadow: 4px 4px 16px var(--ion-color-primary);
+  --padding-start: 10px;
+}
+
+.divider {
+  background: linear-gradient(
+    90deg,
+    var(--ion-color-light) 0,
+    var(--ion-color-dark) 50%,
+    var(--ion-color-light) 100%
+  );
+  height: 1px;
+}
+
+h2 {
+  line-height: unset;
+}
+
+.loading-dots:after {
+  content: '...';
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: bottom;
+  animation: ellipsis-dot 1s infinite 0.3s;
+  animation-fill-mode: forwards;
+  width: 1em;
+}
+
+@keyframes ellipsis-dot {
+  25% {
+    content: '';
+  }
+  50% {
+    content: '.';
+  }
+  75% {
+    content: '..';
+  }
+  100% {
+    content: '...';
+  }
+}
+
+@keyframes flickerAnimation {
+  0% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0;
+  }
+  60% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+.fader {
+  animation: flickerAnimation 4s infinite;
+}

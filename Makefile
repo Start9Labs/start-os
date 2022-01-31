@@ -1,12 +1,10 @@
 EMBASSY_BINS := backend/target/aarch64-unknown-linux-gnu/release/embassyd backend/target/aarch64-unknown-linux-gnu/release/embassy-init backend/target/aarch64-unknown-linux-gnu/release/embassy-cli backend/target/aarch64-unknown-linux-gnu/release/embassy-sdk
-EMBASSY_UIS := ui/www setup-wizard/www diagnostic-ui/www
+EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
 EMBASSY_SRC := ubuntu.img product_key.txt $(EMBASSY_BINS) backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/src)
 UTILS_SRC := $(shell find system-images/utils/Dockerfile)
 APPMGR_SRC := $(shell find backend/src) $(shell find patch-db/*/src) $(shell find rpc-toolkit/*/src) backend/Cargo.toml backend/Cargo.lock
-UI_SRC := $(shell find ui/src)
-SETUP_WIZARD_SRC := $(shell find setup-wizard/src)
-DIAGNOSTIC_UI_SRC := $(shell find diagnostic-ui/src)
+FRONTEND_SRC := $(shell find frontend/)
 PATCH_DB_CLIENT_SRC = $(shell find patch-db/client -not -path patch-db/client/dist)
 GIT_REFS := $(shell find .git/refs/heads)
 TMP_FILE := $(shell mktemp)
@@ -24,12 +22,8 @@ clean:
 	rm -f product_key.txt
 	rm -f system-images/**/*.tar
 	sudo rm -f $(EMBASSY_BINS)
-	rm -rf ui/node_modules
-	rm -rf ui/www
-	rm -rf setup-wizard/node_modules
-	rm -rf setup-wizard/www
-	rm -rf diagnostic-ui/node_modules
-	rm -rf diagnostic-ui/www
+	rm -rf frontend/node_modules
+	rm -rf frontend/dist
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
 
@@ -57,33 +51,15 @@ product_key.txt:
 $(EMBASSY_BINS): $(APPMGR_SRC)
 	cd backend && ./build-prod.sh
 
-ui/node_modules: ui/package.json
-	npm --prefix ui install
+frontend/node_modules: frontend/package.json
+	npm --prefix frontend ci
 
-ui/www: $(UI_SRC) ui/node_modules patch-db/client patch-db/client/dist ui/config.json
-	npm --prefix ui run build-prod
+$(EMBASSY_UIS): $(FRONTEND_SRC) frontend/node_modules patch-db/client patch-db/client/dist frontend/config.json
+	npm --prefix frontend run build:all
 
-ui/config.json: .git/HEAD $(GIT_REFS)
-	jq '.mocks.enabled = false' ui/config-sample.json > ui/config.json
-	jq '.gitHash = "$(shell git rev-parse HEAD)"' ui/config.json > $(TMP_FILE) && mv $(TMP_FILE) ui/config.json
-
-setup-wizard/node_modules: setup-wizard/package.json
-	npm --prefix setup-wizard install
-
-setup-wizard/www: $(SETUP_WIZARD_SRC) setup-wizard/node_modules setup-wizard/config.json
-	npm --prefix setup-wizard run build-prod
-
-setup-wizard/config.json:
-	jq '.useMocks = false' setup-wizard/config-sample.json > setup-wizard/config.json
-
-diagnostic-ui/node_modules: diagnostic-ui/package.json
-	npm --prefix diagnostic-ui install
-
-diagnostic-ui/www: $(DIAGNOSTIC_UI_SRC) diagnostic-ui/node_modules diagnostic-ui/config.json
-	npm --prefix diagnostic-ui run build-prod
-
-diagnostic-ui/config.json:
-	jq '.useMocks = false' diagnostic-ui/config-sample.json > diagnostic-ui/config.json
+frontend/config.json: .git/HEAD $(GIT_REFS)
+	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
+	jq '.gitHash = "$(shell git rev-parse HEAD)"' frontend/config.json > $(TMP_FILE) && mv $(TMP_FILE) frontend/config.json
 
 patch-db/client/node_modules: patch-db/client/package.json
 	npm --prefix patch-db/client install
@@ -92,5 +68,5 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	! test -d patch-db/client/dist || rm -rf patch-db/client/dist
 	npm --prefix patch-db/client run build
 
-ui: $(EMBASSY_UIS)
-
+# this is a convenience step to build all frontends - it is not referenced elsewhere in this file
+frontend: frontend/node_modules $(EMBASSY_UIS) 
