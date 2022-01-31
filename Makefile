@@ -52,10 +52,10 @@ $(EMBASSY_BINS): $(APPMGR_SRC)
 	cd backend && ./build-prod.sh
 
 frontend/node_modules: frontend/package.json
-	npm ci
+	npm --prefix frontend ci
 
 frontend/dist: $(FRONTEND_SRC) frontend/node_modules patch-db/client patch-db/client/dist frontend/config.json
-	npm run build:all
+	npm --prefix frontend run build:all
 
 frontend/config.json: .git/HEAD $(GIT_REFS)
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
@@ -69,4 +69,4 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	npm --prefix patch-db/client run build
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
-frontend: $(EMBASSY_UIS)
+frontend: frontend/node_modules frontend/dist 
