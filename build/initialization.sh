@@ -27,9 +27,13 @@ apt-get install -y \
 	cifs-utils \
 	samba-common-bin \
 	ntp \
-	network-manager
+	network-manager \
+	linux-modules-extra-raspi
 apt-get autoremove -y
 apt-get upgrade -y
+if [[ "$(uname -r)" = "5.13.0-1008-raspi" ]]; then
+	reboot
+fi
 
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
