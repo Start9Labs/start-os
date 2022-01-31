@@ -20,6 +20,7 @@ const schemaV1 = {
     'description': { 'type': 'string', 'nullable': true, 'default': null },
     'copyable': { 'type': 'boolean', 'default': false },
     'qr': { 'type': 'boolean', 'default': false },
+    'masked': { 'type': 'boolean', 'default': false },
   },
   'required': ['name', 'value', 'copyable', 'qr'],
   'additionalProperties': false,
@@ -125,7 +126,7 @@ function parsePropertiesV1Permissive (properties: unknown, errorCallback: (err: 
         description: cur.description,
         copyable: cur.copyable,
         qr: cur.qr,
-        masked: false,
+        masked: cur.masked ?? false,
       }
     }
     else if (schemaV1Compiled.errors) {
@@ -176,6 +177,7 @@ interface PropertiesV1 {
   description: string | null
   copyable: boolean
   qr: boolean
+  masked?: boolean
 }
 
 type PackagePropertiesV1 = PropertiesV1[]
