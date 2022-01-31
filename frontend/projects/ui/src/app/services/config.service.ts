@@ -45,7 +45,7 @@ export class ConfigService {
   isLaunchable(
     state: PackageState,
     status: PackageMainStatus,
-    interfaces: { [id: string]: InterfaceDef },
+    interfaces: Record<string, InterfaceDef>,
   ): boolean {
     if (state !== PackageState.Installed) {
       return false
@@ -65,12 +65,12 @@ export class ConfigService {
   }
 }
 
-export function hasTorUi(interfaces: { [id: string]: InterfaceDef }): boolean {
+export function hasTorUi(interfaces: Record<string, InterfaceDef>): boolean {
   const int = getUiInterfaceValue(interfaces)
   return !!int?.['tor-config']
 }
 
-export function hasLanUi(interfaces: { [id: string]: InterfaceDef }): boolean {
+export function hasLanUi(interfaces: Record<string, InterfaceDef>): boolean {
   const int = getUiInterfaceValue(interfaces)
   return !!int?.['lan-config']
 }
@@ -85,7 +85,7 @@ export function lanUiAddress(pkg: PackageDataEntry): string {
   return pkg.installed['interface-addresses'][key]['lan-address']
 }
 
-export function hasUi(interfaces: { [id: string]: InterfaceDef }): boolean {
+export function hasUi(interfaces: Record<string, InterfaceDef>): boolean {
   return hasTorUi(interfaces) || hasLanUi(interfaces)
 }
 
@@ -99,14 +99,14 @@ export function removePort(str: string): string {
   return str.split(':')[0]
 }
 
-export function getUiInterfaceKey(interfaces: {
-  [id: string]: InterfaceDef
-}): string {
+export function getUiInterfaceKey(
+  interfaces: Record<string, InterfaceDef>,
+): string {
   return Object.keys(interfaces).find(key => interfaces[key].ui)
 }
 
-export function getUiInterfaceValue(interfaces: {
-  [id: string]: InterfaceDef
-}): InterfaceDef {
+export function getUiInterfaceValue(
+  interfaces: Record<string, InterfaceDef>,
+): InterfaceDef {
   return Object.values(interfaces).find(i => i.ui)
 }
