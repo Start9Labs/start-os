@@ -39,7 +39,7 @@ system-images/utils/utils.tar: $(UTILS_SRC)
 	cd system-images/utils && DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/x_system/utils --platform=linux/arm64 -o type=docker,dest=utils.tar .
 
 ubuntu.img:
-	wget -O ubuntu.img.xz https://cdimage.ubuntu.com/releases/21.04/release/ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz
+	wget -O ubuntu.img.xz https://cdimage.ubuntu.com/releases/21.10/release/ubuntu-21.10-preinstalled-server-arm64+raspi.img.xz
 	unxz ubuntu.img.xz
 
 product_key.txt:
