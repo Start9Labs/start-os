@@ -1,11 +1,11 @@
 # EmbassyOS Frontend
 
-EmbassyOS has three user interfaces:
+EmbassyOS has three user interfaces and a shared library, all written in Ionic/Angular/Typescript using an Angular workspace environment:
+
 1. **ui**: the main user interface
 1. **setup-wizard**: used to facilitate initial setup
 1. **diagnostic-ui**: used to display certain diagnostic information in the event EmbassyOS fails to initialize
-
-All three user interfaces are written in Ionic/Angular/Typescript using an Angular workspace environment.
+1. **shared**: contains components, types, and functions shared amongst the three UIs.
 
 ## Development Environment Setup
 
@@ -14,6 +14,7 @@ All three user interfaces are written in Ionic/Angular/Typescript using an Angul
   - [Install npm](https://www.npmjs.com/get-npm)
 
 Check your versions
+
 ```
 node --version
 v16.10.0
@@ -33,15 +34,10 @@ npm ci
 npm run build:deps
 ```
 
-Copy `config-sample.json` and its contents to a new file `config.json` in the same directory.
+Copy `config-sample.json` and its contents to a new file `config.json`.
 
-By default, mocks are enabled.
+By default, "useMocks" is set to `true`.
 Valid values for "maskAs" are `tor` and `lan`.
-
-Compile the code
-```
-tsc -b
-```
 
 **Start the development server(s)**
 
