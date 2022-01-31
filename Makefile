@@ -54,7 +54,7 @@ $(EMBASSY_BINS): $(APPMGR_SRC)
 frontend/node_modules: frontend/package.json
 	npm --prefix frontend ci
 
-frontend/dist: $(FRONTEND_SRC) frontend/node_modules patch-db/client patch-db/client/dist frontend/config.json
+$(EMBASSY_UIS): $(FRONTEND_SRC) frontend/node_modules patch-db/client patch-db/client/dist frontend/config.json
 	npm --prefix frontend run build:all
 
 frontend/config.json: .git/HEAD $(GIT_REFS)
@@ -69,4 +69,4 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	npm --prefix patch-db/client run build
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
-frontend: frontend/node_modules frontend/dist 
+frontend: frontend/node_modules $(EMBASSY_UIS) 

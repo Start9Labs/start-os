@@ -37,6 +37,5 @@ postprocess.js
 /node_modules
 /platforms
 /plugins
-/www
 
 config.json
