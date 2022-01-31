@@ -36,6 +36,10 @@ npm run build:deps
 
 Copy `config-sample.json` and its contents to a new file `config.json`.
 
+```
+cp config-sample.json config.json
+```
+
 By default, "useMocks" is set to `true`.
 Valid values for "maskAs" are `tor` and `lan`.
 

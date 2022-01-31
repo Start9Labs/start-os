@@ -5,19 +5,19 @@
   "homepage": "https://start9.com/",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
     "check": "npm run check:shared && npm run check:ui && npm run check:setup-wizard && npm run check:diagnostic-ui",
     "check:shared": "tsc --project projects/shared/tsconfig.lib.json --noEmit --skipLibCheck",
-    "check:ui": "tsc --project projects/ui/tsconfig.app.json --noEmit --skipLibCheck",
-    "check:setup-wizard": "tsc --project projects/setup-wizard/tsconfig.app.json --noEmit --skipLibCheck",
     "check:diagnostic-ui": "tsc --project projects/diagnostic-ui/tsconfig.app.json --noEmit --skipLibCheck",
-    "start:ui": "ionic serve --project ui",
-    "start:setup-wizard": "ionic serve --project setup-wizard",
-    "start:diagnostic-ui": "ionic serve --project diagnostic-ui",
+    "check:setup-wizard": "tsc --project projects/setup-wizard/tsconfig.app.json --noEmit --skipLibCheck",
+    "check:ui": "tsc --project projects/ui/tsconfig.app.json --noEmit --skipLibCheck",
     "build:deps": "cd ../patch-db/client && npm install && npm run build",
-    "build:ui": "ng run ui:build && tsc projects/ui/postprocess.ts && node projects/ui/postprocess.js && git log | head -n1 > dist/ui/git-hash.txt",
+    "build:diagnostic-ui": "ng run diagnostic-ui:build",
     "build:setup-wizard": "ng run setup-wizard:build",
-    "build:diagnostic-ui": "ng run diagnostic-ui:build"
+    "build:ui": "ng run ui:build && tsc projects/ui/postprocess.ts && node projects/ui/postprocess.js && git log | head -n1 > dist/ui/git-hash.txt",
+    "build:all": "npm run build:deps && npm run build:diagnostic-ui && npm run build:setup-wizard && npm run build:ui",
+    "start:diagnostic-ui": "ionic serve --project diagnostic-ui",
+    "start:setup-wizard": "ionic serve --project setup-wizard",
+    "start:ui": "ionic serve --project ui"
   },
   "dependencies": {
     "@angular/animations": "^13.2.0",
