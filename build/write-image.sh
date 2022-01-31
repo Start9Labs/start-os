@@ -65,9 +65,9 @@ sudo cp system-images/**/*.tar /tmp/eos-mnt/var/lib/embassy/system-images
 
 # after performing npm run build
 sudo mkdir -p /tmp/eos-mnt/var/www/html
-sudo cp -R ui/www /tmp/eos-mnt/var/www/html/main
-sudo cp -R setup-wizard/www /tmp/eos-mnt/var/www/html/setup
-sudo cp -R diagnostic-ui/www /tmp/eos-mnt/var/www/html/diagnostic
+sudo cp -R frontend/dist/diagnostic-ui /tmp/eos-mnt/var/www/html/diagnostic
+sudo cp -R frontend/dist/setup-wizard /tmp/eos-mnt/var/www/html/setup
+sudo cp -R frontend/dist/ui /tmp/eos-mnt/var/www/html/main
 
 # Make the .ssh directory
 sudo mkdir -p /tmp/eos-mnt/root/.ssh

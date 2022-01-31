@@ -1,0 +1,72 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "~@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "~@ionic/angular/css/normalize.css";
+@import "~@ionic/angular/css/structure.css";
+@import "~@ionic/angular/css/typography.css";
+@import '~@ionic/angular/css/display.css';
+
+/* Optional CSS utils that can be commented out */
+@import "~@ionic/angular/css/padding.css";
+@import "~@ionic/angular/css/float-elements.css";
+@import "~@ionic/angular/css/text-alignment.css";
+@import "~@ionic/angular/css/text-transformation.css";
+@import "~@ionic/angular/css/flex-utils.css";
+
+ion-input {
+  caret-color: gray;
+}
+
+ion-modal::part(content) {
+  position: absolute;
+  height: 90% !important;
+  top: 5%;
+  width: 90% !important;
+  left: 5%;
+  display: block;
+
+  border-radius: 6px;
+  border: 2px solid rgba(255,255,255,.03);
+  box-shadow: 0 0 70px 70px black;
+}
+
+@media (min-width:1000px) {
+  ion-modal::part(content) {
+    position: absolute;
+    height: 80% !important;
+    top: 10%;
+    width: 50% !important;
+    left: 25%;
+  }
+}
+
+.alertlike-modal {
+  &::part(content) {
+    max-height: 380px !important;
+    top: 25% !important;
+    width: 90% !important;
+    left: 5% !important;
+    --box-shadow: none !important;
+  }
+}
+
+@media (min-width:1000px) {
+  .alertlike-modal {
+    &::part(content) {
+      width: 60% !important;
+      left: 20% !important;
+    }
+  }
+}
