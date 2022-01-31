@@ -22,7 +22,7 @@ import { AuthService } from './services/auth.service'
 import { GlobalErrorHandler } from './services/global-error-handler.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
-import { WorkspaceConfig } from '@shared/types'
+import { WorkspaceConfig } from '@shared'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
@@ -62,7 +62,13 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     {
       provide: PatchDbService,
       useFactory: PatchDbServiceFactory,
-      deps: [ConfigService, ApiService, LocalStorageBootstrap, AuthService, Storage],
+      deps: [
+        ConfigService,
+        ApiService,
+        LocalStorageBootstrap,
+        AuthService,
+        Storage,
+      ],
     },
     {
       provide: ErrorHandler,
@@ -70,9 +76,6 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     },
   ],
   bootstrap: [AppComponent],
-  schemas: [ CUSTOM_ELEMENTS_SCHEMA ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class AppModule { }
-
-
-
+export class AppModule {}
