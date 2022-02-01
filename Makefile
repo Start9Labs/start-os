@@ -3,8 +3,8 @@ EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnos
 EMBASSY_SRC := ubuntu.img product_key.txt $(EMBASSY_BINS) backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/src)
 UTILS_SRC := $(shell find system-images/utils/Dockerfile)
-APPMGR_SRC := $(shell find backend/src) $(shell find patch-db/*/src) $(shell find rpc-toolkit/*/src) backend/Cargo.toml backend/Cargo.lock
-FRONTEND_SRC := $(shell find frontend/)
+BACKEND_SRC := $(shell find backend/src) $(shell find patch-db/*/src) $(shell find rpc-toolkit/*/src) backend/Cargo.toml backend/Cargo.lock
+FRONTEND_SRC := $(shell find frontend/projects) $(shell find frontend/styles) $(shell find frontend/assets)
 PATCH_DB_CLIENT_SRC = $(shell find patch-db/client -not -path patch-db/client/dist)
 GIT_REFS := $(shell find .git/refs/heads)
 TMP_FILE := $(shell mktemp)
@@ -48,7 +48,7 @@ product_key.txt:
 	if [ "$(KEY)" != "" ]; then $(shell which echo) -n "$(KEY)" > product_key.txt; fi
 	echo >> product_key.txt
 
-$(EMBASSY_BINS): $(APPMGR_SRC)
+$(EMBASSY_BINS): $(BACKEND_SRC)
 	cd backend && ./build-prod.sh
 
 frontend/node_modules: frontend/package.json
