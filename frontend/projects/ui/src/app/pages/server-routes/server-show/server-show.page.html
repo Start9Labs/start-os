@@ -39,7 +39,7 @@
             <h2>{{ button.title }}</h2>
             <p *ngIf="button.description">{{ button.description }}</p>
 
-            <!-- create backup button only -->
+            <!-- "Create Backup" button only -->
             <p *ngIf="button.title === 'Create Backup'">
               <ng-container *ngIf="patch.data['server-info'].status as status">
                 <ion-text
@@ -60,13 +60,19 @@
               </ng-container>
             </p>
 
-            <!-- software update button only -->
+            <!-- "Software Update" button only -->
             <p *ngIf="button.title === 'Software Update'">
               <ng-container
-                *ngIf="eosService.updateAvailable$ | async as available"
+                *ngIf="eosService.updateAvailable$ | async; else check"
               >
-                <ion-text color="success"> Update Available </ion-text>
+                <ion-text class="inline" color="success">
+                  <ion-icon name="repeat"></ion-icon>
+                  Update Available
+                </ion-text>
               </ng-container>
+              <ng-template #check>
+                <i>Check for updates</i>
+              </ng-template>
             </p>
           </ion-label>
         </ion-item>

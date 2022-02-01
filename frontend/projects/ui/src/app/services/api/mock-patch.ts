@@ -431,6 +431,8 @@ export const mockPatchData: DataModel = {
         },
         'current-dependencies': {},
         'dependency-info': {},
+        'marketplace-url': 'marketplace-url.com',
+        'developer-key': 'developer-key',
       },
     },
     lnd: {
@@ -636,6 +638,8 @@ export const mockPatchData: DataModel = {
             icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           },
         },
+        'marketplace-url': 'marketplace-url.com',
+        'developer-key': 'developer-key',
       },
     },
   },

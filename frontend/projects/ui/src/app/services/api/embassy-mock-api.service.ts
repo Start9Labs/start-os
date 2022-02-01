@@ -190,7 +190,6 @@ export class MockApiService extends ApiService {
 
   async getEos(
     params: RR.GetMarketplaceEOSReq,
-    url: string,
   ): Promise<RR.GetMarketplaceEOSRes> {
     await pauseFor(2000)
     return Mock.MarketplaceEos
@@ -228,28 +227,6 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return Mock.ReleaseNotes
   }
-
-  async getLatestVersion(
-    params: RR.GetLatestVersionReq,
-  ): Promise<RR.GetLatestVersionRes> {
-    await pauseFor(2000)
-    return params.ids.reduce((obj, id) => {
-      obj[id] = '1.3.0'
-      return obj
-    }, {})
-  }
-
-  // async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
-  //   await pauseFor(2000)
-  //   const patch = [
-  //     {
-  //       op: PatchOp.REPLACE,
-  //       path: '/server-info/package-marketplace',
-  //       value: params.url,
-  //     },
-  //   ]
-  //   return this.http.rpcRequest<WithRevision<null>>({ method: 'db.patch', params: { patch } })
-  // }
 
   // password
   // async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
