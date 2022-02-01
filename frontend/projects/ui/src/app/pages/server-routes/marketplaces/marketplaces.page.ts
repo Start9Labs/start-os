@@ -90,7 +90,7 @@ export class MarketplacesPage {
       this.patch.data.ui.marketplace.options[id].url ===
       this.config.eosMarketplaceUrl
     ) {
-      buttons.unshift()
+      buttons.shift()
     }
 
     const action = await this.actionCtrl.create({
