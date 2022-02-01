@@ -4,15 +4,22 @@ import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { PatchDbService } from '../patch-db/patch-db.service'
+import { ConfigService } from '../config.service'
 
 @Injectable()
 export class LiveApiService extends ApiService {
+  private marketplaceUrl: string
+
   constructor(
     private readonly http: HttpService,
     private readonly patch: PatchDbService,
+    private readonly config: ConfigService,
   ) {
     super()
     ;(window as any).rpcClient = this
+    this.patch.watch$('ui', 'marketplace', 'selected-id').subscribe(id => {
+      this.marketplaceUrl = id
+    })
   }
 
   async getStatic(url: string): Promise<string> {
@@ -106,10 +113,7 @@ export class LiveApiService extends ApiService {
     params: {},
     url?: string,
   ): Promise<T> {
-    if (!url) {
-      const id = this.patch.data.ui.marketplace['selected-id']
-      url = this.patch.data.ui.marketplace.options[id].url
-    }
+    url = url || this.marketplaceUrl
     const fullURL = `${url}${path}?${new URLSearchParams(params).toString()}`
     return this.http.rpcRequest({
       method: 'marketplace.get',
@@ -120,25 +124,25 @@ export class LiveApiService extends ApiService {
   async getEos(
     params: RR.GetMarketplaceEOSReq,
   ): Promise<RR.GetMarketplaceEOSRes> {
-    return this.http.httpRequest({
-      method: Method.GET,
-      url: '/marketplace/eos/latest',
+    return this.marketplaceProxy(
+      '/eos/latest',
       params,
-    })
+      this.config.eosMarketplaceUrl,
+    )
   }
 
   async getMarketplaceData(
     params: RR.GetMarketplaceDataReq,
     url?: string,
   ): Promise<RR.GetMarketplaceDataRes> {
-    return this.marketplaceProxy('/marketplace/package/data', params, url)
+    return this.marketplaceProxy('/package/data', params, url)
   }
 
   async getMarketplacePkgs(
     params: RR.GetMarketplacePackagesReq,
   ): Promise<RR.GetMarketplacePackagesRes> {
     if (params.query) params.category = undefined
-    return this.marketplaceProxy('/marketplace/package/index', {
+    return this.marketplaceProxy('/package/index', {
       ...params,
       ids: JSON.stringify(params.ids),
     })
@@ -147,26 +151,8 @@ export class LiveApiService extends ApiService {
   async getReleaseNotes(
     params: RR.GetReleaseNotesReq,
   ): Promise<RR.GetReleaseNotesRes> {
-    return this.http.httpRequest({
-      method: Method.GET,
-      url: '/marketplace/package/release-notes',
-      params,
-    })
+    return this.marketplaceProxy('/package/release-notes', params)
   }
-
-  async getLatestVersion(
-    params: RR.GetLatestVersionReq,
-  ): Promise<RR.GetLatestVersionRes> {
-    return this.http.httpRequest({
-      method: Method.GET,
-      url: '/marketplace/latest-version',
-      params,
-    })
-  }
-
-  // async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
-  //   return this.http.rpcRequest({ method: 'marketplace.package.set', params })
-  // }
 
   // password
   // async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {

@@ -1,17 +1,18 @@
 import { Component, ViewChild } from '@angular/core'
 import { MarketplacePkg } from 'src/app/services/api/api.types'
-import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
-import { AlertController, IonContent, ModalController } from '@ionic/angular'
-import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
+import { IonContent } from '@ionic/angular'
+import {
+  PackageDataEntry,
+  PackageState,
+} from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import Fuse from 'fuse.js/dist/fuse.min.js'
 import { exists, isEmptyObject } from 'src/app/util/misc.util'
-import { Router } from '@angular/router'
 import { filter, first } from 'rxjs/operators'
+import { DomSanitizer } from '@angular/platform-browser'
 
 const defaultOps = {
   isCaseSensitive: false,
@@ -45,145 +46,106 @@ export class MarketplaceListPage {
   @ViewChild(IonContent) content: IonContent
 
   pkgs: MarketplacePkg[] = []
-  hasRecoveredPackage: boolean
   categories: string[]
-  localPkgs: { [id: string]: PackageDataEntry } = { }
+  localPkgs: { [id: string]: PackageDataEntry } = {}
   category = 'featured'
   query: string
   loading = true
 
   subs: Subscription[] = []
 
-  constructor (
-    private readonly modalCtrl: ModalController,
+  constructor(
     private readonly errToast: ErrorToastService,
-    private readonly wizardBaker: WizardBaker,
-    private readonly alertCtrl: AlertController,
-    private readonly router: Router,
     public readonly patch: PatchDbService,
     public readonly marketplaceService: MarketplaceService,
-  ) { }
+    public readonly sanitizer: DomSanitizer,
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     this.subs = [
-      this.patch.watch$('package-data')
-      .pipe(
-        filter((data) => exists(data) && !isEmptyObject(data)),
-      ).subscribe(pkgs => {
-        this.localPkgs = pkgs
-        Object.values(this.localPkgs).forEach(pkg => {
-          pkg['install-progress'] = { ...pkg['install-progress'] }
-        })
-      }),
-      this.patch.watch$('recovered-packages').subscribe(rps => {
-        this.hasRecoveredPackage = !isEmptyObject(rps)
-      }),
+      this.patch
+        .watch$('package-data')
+        .pipe(filter(data => exists(data) && !isEmptyObject(data)))
+        .subscribe(pkgs => {
+          this.localPkgs = pkgs
+          Object.values(this.localPkgs).forEach(pkg => {
+            pkg['install-progress'] = { ...pkg['install-progress'] }
+          })
+        }),
     ]
 
-    this.patch.watch$('server-info')
-    .pipe(
-      filter((data) => exists(data) && !isEmptyObject(data)),
-      first(),
-    ).subscribe(async _ => {
-      try {
-        if (!this.marketplaceService.pkgs.length) {
-          await this.marketplaceService.load()
+    this.patch
+      .watch$('server-info')
+      .pipe(
+        filter(data => exists(data) && !isEmptyObject(data)),
+        first(),
+      )
+      .subscribe(async _ => {
+        try {
+          if (!this.marketplaceService.pkgs.length) {
+            await this.marketplaceService.load()
+          }
+
+          // category should start as first item in array
+          // remove here then add at beginning
+          const filterdCategories =
+            this.marketplaceService.data.categories.filter(
+              cat => this.category !== cat,
+            )
+          this.categories = [this.category, 'updates']
+            .concat(filterdCategories)
+            .concat(['all'])
+
+          this.filterPkgs()
+        } catch (e) {
+          this.errToast.present(e)
+        } finally {
+          this.loading = false
         }
-
-        // category should start as first item in array
-        // remove here then add at beginning
-        const filterdCategories = this.marketplaceService.data.categories.filter(cat => this.category !== cat)
-        this.categories = [this.category, 'updates'].concat(filterdCategories).concat(['all'])
-
-        this.filterPkgs()
-
-      } catch (e) {
-        this.errToast.present(e)
-      } finally {
-        this.loading = false
-      }
-    })
-
+      })
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  ngOnDestroy () {
+  ngOnDestroy() {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async search (): Promise<void> {
+  search(): void {
     if (this.query) {
       this.category = undefined
     }
-    await this.filterPkgs()
+    this.filterPkgs()
   }
 
-  async switchCategory (category: string): Promise<void> {
+  switchCategory(category: string): void {
     this.category = category
     this.query = undefined
     this.filterPkgs()
   }
 
-  async updateEos (): Promise<void> {
-    if (this.hasRecoveredPackage) {
-      const alert = await this.alertCtrl.create({
-        header: 'Cannot Update',
-        message: 'You cannot update EmbassyOS when you have unresolved recovered services.',
-        buttons: [
-          {
-            text: 'OK',
-            role: 'cancel',
-          },
-          {
-            text: 'Resolve',
-            handler: () => {
-              this.router.navigate(['/services/list'], { replaceUrl: true })
-            },
-            cssClass: 'enter-click',
-          },
-        ],
-      })
-      await alert.present()
-      return
-    }
-
-    const { version, headline, 'release-notes': releaseNotes } = this.marketplaceService.eos
-
-    await wizardModal(
-      this.modalCtrl,
-      this.wizardBaker.updateOS({
-        version,
-        headline,
-        releaseNotes,
-      }),
-    )
-  }
-
-  private async filterPkgs (): Promise<void> {
+  private filterPkgs(): void {
     if (this.category === 'updates') {
       this.pkgs = this.marketplaceService.pkgs.filter(pkg => {
         const { id, version } = pkg.manifest
-        return this.localPkgs[id] && version !== this.localPkgs[id].manifest.version
+        return (
+          this.localPkgs[id] && version !== this.localPkgs[id].manifest.version
+        )
       })
     } else if (this.query) {
       const fuse = new Fuse(this.marketplaceService.pkgs, defaultOps)
       this.pkgs = fuse.search(this.query).map(p => p.item)
-
     } else {
       const pkgsToSort = this.marketplaceService.pkgs.filter(p => {
         return this.category === 'all' || p.categories.includes(this.category)
       })
 
-      const opts = {
-        ...defaultOps,
-        threshold: 1,
-      }
-
       const fuse = new Fuse(pkgsToSort, { ...defaultOps, threshold: 1 })
-      this.pkgs = fuse.search(this.category !== 'all' ? this.category || '' : 'bit').map(p => p.item)
+      this.pkgs = fuse
+        .search(this.category !== 'all' ? this.category || '' : 'bit')
+        .map(p => p.item)
     }
   }
 }

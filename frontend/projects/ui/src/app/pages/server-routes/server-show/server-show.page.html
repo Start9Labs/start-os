@@ -1,7 +1,12 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title *ngIf="!patch.loaded">Loading<span class="loading-dots"></span></ion-title>
-    <ion-title *ngIf="patch.loaded">{{ patch.data.ui.name || "Embassy-" + patch.data['server-info'].id }}</ion-title>
+    <ion-title *ngIf="!patch.loaded"
+      >Loading<span class="loading-dots"></span
+    ></ion-title>
+    <ion-title *ngIf="patch.loaded"
+      >{{ patch.data.ui.name || "Embassy-" + patch.data['server-info'].id
+      }}</ion-title
+    >
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
@@ -19,24 +24,55 @@
   <ng-template #data>
     <ion-item-group>
       <div *ngFor="let cat of settings | keyvalue : asIsOrder">
-        <ion-item-divider><ion-text color="dark">{{ cat.key }}</ion-text></ion-item-divider>
-        <ion-item button *ngFor="let button of cat.value" [detail]="button.detail" [disabled]="button.disabled | async" (click)="button.action()">
+        <ion-item-divider
+          ><ion-text color="dark">{{ cat.key }}</ion-text></ion-item-divider
+        >
+        <ion-item
+          button
+          *ngFor="let button of cat.value"
+          [detail]="button.detail"
+          [disabled]="button.disabled | async"
+          (click)="button.action()"
+        >
           <ion-icon slot="start" [name]="button.icon"></ion-icon>
           <ion-label>
             <h2>{{ button.title }}</h2>
             <p *ngIf="button.description">{{ button.description }}</p>
+
+            <!-- "Create Backup" button only -->
             <p *ngIf="button.title === 'Create Backup'">
               <ng-container *ngIf="patch.data['server-info'].status as status">
-                <ion-text color="warning" *ngIf="status === ServerStatus.Running">
-                  Last Backup: {{ patch.data['server-info']['last-backup'] ? (patch.data['server-info']['last-backup'] | date: 'short') : 'never' }}
+                <ion-text
+                  color="warning"
+                  *ngIf="status === ServerStatus.Running"
+                >
+                  Last Backup: {{ patch.data['server-info']['last-backup'] ?
+                  (patch.data['server-info']['last-backup'] | date: 'short') :
+                  'never' }}
                 </ion-text>
                 <span *ngIf="status === ServerStatus.BackingUp" class="inline">
-                  <ion-spinner color="success" style="height: 12px; width: 12px; margin-right: 6px;"></ion-spinner>
-                  <ion-text color="success">
-                    Backing up
-                  </ion-text>
+                  <ion-spinner
+                    color="success"
+                    style="height: 12px; width: 12px; margin-right: 6px"
+                  ></ion-spinner>
+                  <ion-text color="success"> Backing up </ion-text>
                 </span>
               </ng-container>
+            </p>
+
+            <!-- "Software Update" button only -->
+            <p *ngIf="button.title === 'Software Update'">
+              <ng-container
+                *ngIf="eosService.updateAvailable$ | async; else check"
+              >
+                <ion-text class="inline" color="success">
+                  <ion-icon name="repeat"></ion-icon>
+                  Update Available
+                </ion-text>
+              </ng-container>
+              <ng-template #check>
+                <i>Check for updates</i>
+              </ng-template>
             </p>
           </ion-label>
         </ion-item>

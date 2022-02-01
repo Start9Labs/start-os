@@ -1,9 +1,5 @@
 import { Injectable } from '@angular/core'
-import {
-  MarketplaceData,
-  MarketplaceEOS,
-  MarketplacePkg,
-} from 'src/app/services/api/api.types'
+import { MarketplaceData, MarketplacePkg } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Emver } from 'src/app/services/emver.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -14,7 +10,6 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 })
 export class MarketplaceService {
   data: MarketplaceData
-  eos: MarketplaceEOS
   pkgs: MarketplacePkg[] = []
   releaseNotes: {
     [id: string]: {
@@ -28,31 +23,24 @@ export class MarketplaceService {
     private readonly patch: PatchDbService,
   ) {}
 
-  get eosUpdateAvailable() {
-    return (
-      this.emver.compare(
-        this.eos.version,
-        this.patch.data['server-info'].version,
-      ) === 1
-    )
-  }
-
   async load(): Promise<void> {
     try {
-      const [data, eos, pkgs] = await Promise.all([
+      const [data, pkgs] = await Promise.all([
         this.api.getMarketplaceData({}),
-        this.api.getEos({
-          'eos-version-compat':
-            this.patch.getData()['server-info']['eos-version-compat'],
-        }),
         this.getPkgs(1, 100),
       ])
       this.data = data
-      this.eos = eos
       this.pkgs = pkgs
+      const { 'selected-id': selectedId, 'known-hosts': knownHosts } =
+        this.patch.getData().ui.marketplace
+      if (knownHosts[selectedId].name !== this.data.name) {
+        this.api.setDbValue({
+          pointer: `/marketplace/known-hosts/${selectedId}/name`,
+          value: this.data.name,
+        })
+      }
     } catch (e) {
       this.data = undefined
-      this.eos = undefined
       this.pkgs = []
       throw e
     }
@@ -61,10 +49,18 @@ export class MarketplaceService {
   async getUpdates(localPkgs: {
     [id: string]: PackageDataEntry
   }): Promise<MarketplacePkg[]> {
-    const idAndCurrentVersions = Object.keys(localPkgs).map(key => ({
-      id: key,
-      version: localPkgs[key].manifest.version,
-    }))
+    const idAndCurrentVersions = Object.keys(localPkgs)
+      .map(key => ({
+        id: key,
+        version: localPkgs[key].manifest.version,
+        marketplaceUrl: localPkgs[key].installed['marketplace-url'],
+      }))
+      .filter(pkg => {
+        return (
+          pkg.marketplaceUrl ===
+          this.patch.getData().ui.marketplace['known-hosts']['selected-id'].url
+        )
+      })
     const latestPkgs = await this.api.getMarketplacePkgs({
       ids: idAndCurrentVersions,
       'eos-version-compat':
