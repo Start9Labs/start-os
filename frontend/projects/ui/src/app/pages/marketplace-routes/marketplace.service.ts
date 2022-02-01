@@ -38,17 +38,24 @@ export class MarketplaceService {
   }
 
   async load(): Promise<void> {
-    const [data, eos, pkgs] = await Promise.all([
-      this.api.getMarketplaceData({}),
-      this.api.getEos({
-        'eos-version-compat':
-          this.patch.getData()['server-info']['eos-version-compat'],
-      }),
-      this.getPkgs(1, 100),
-    ])
-    this.data = data
-    this.eos = eos
-    this.pkgs = pkgs
+    try {
+      const [data, eos, pkgs] = await Promise.all([
+        this.api.getMarketplaceData({}),
+        this.api.getEos({
+          'eos-version-compat':
+            this.patch.getData()['server-info']['eos-version-compat'],
+        }),
+        this.getPkgs(1, 100),
+      ])
+      this.data = data
+      this.eos = eos
+      this.pkgs = pkgs
+    } catch (e) {
+      this.data = undefined
+      this.eos = undefined
+      this.pkgs = []
+      throw e
+    }
   }
 
   async getUpdates(localPkgs: {
