@@ -17,8 +17,8 @@ export interface UIData {
 }
 
 export interface UIMarketplaceData {
-  'selected-id': string
-  options: {
+  'selected-id': string | null
+  'known-hosts': {
     [id: string]: {
       url: string
       name: string
@@ -94,6 +94,8 @@ export interface InstalledPackageDataEntry {
   'interface-addresses': {
     [id: string]: { 'tor-address': string; 'lan-address': string }
   }
+  'marketplace-url': string | null
+  'developer-key': string
 }
 
 export interface CurrentDependencyInfo {

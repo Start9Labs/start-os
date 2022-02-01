@@ -125,7 +125,7 @@ export class ServerShowPage {
     const alert = await this.alertCtrl.create({
       header: 'System Rebuild',
       message: new IonicSafeString(
-        `<ion-text color="warning">Important:</ion-text> This will tear down all service containers and rebuild them from scratch. This may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
+        `<ion-text color="warning">Warning:</ion-text> This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
       ),
       buttons: [
         {
@@ -195,6 +195,23 @@ export class ServerShowPage {
     }
   }
 
+  private async checkForEosUpdate(): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Checking for updates',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.eosService.getEOS()
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
   settings: ServerSettings = {
     Backups: [
       {
@@ -227,8 +244,11 @@ export class ServerShowPage {
         title: 'Software Update',
         description: 'Get the latest version of EmbassyOS',
         icon: 'cog-outline',
-        action: () => this.updateEos(),
-        detail: true,
+        action: () =>
+          this.eosService.updateAvailable$.getValue()
+            ? this.updateEos()
+            : this.checkForEosUpdate(),
+        detail: false,
         disabled: of(false),
       },
       {

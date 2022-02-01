@@ -41,10 +41,18 @@ export class MarketplaceService {
   async getUpdates(localPkgs: {
     [id: string]: PackageDataEntry
   }): Promise<MarketplacePkg[]> {
-    const idAndCurrentVersions = Object.keys(localPkgs).map(key => ({
-      id: key,
-      version: localPkgs[key].manifest.version,
-    }))
+    const idAndCurrentVersions = Object.keys(localPkgs)
+      .map(key => ({
+        id: key,
+        version: localPkgs[key].manifest.version,
+        marketplaceUrl: localPkgs[key].installed['marketplace-url'],
+      }))
+      .filter(pkg => {
+        return (
+          pkg.marketplaceUrl ===
+          this.patch.getData().ui.marketplace['known-hosts']['selected-id'].url
+        )
+      })
     const latestPkgs = await this.api.getMarketplacePkgs({
       ids: idAndCurrentVersions,
       'eos-version-compat':

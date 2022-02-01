@@ -4,7 +4,6 @@ import { MarketplaceEOS } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Emver } from 'src/app/services/emver.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { ConfigService } from './config.service'
 
 @Injectable({
   providedIn: 'root',
@@ -17,17 +16,13 @@ export class EOSService {
     private readonly api: ApiService,
     private readonly emver: Emver,
     private readonly patch: PatchDbService,
-    private readonly config: ConfigService,
   ) {}
 
   async getEOS(): Promise<void> {
-    this.eos = await this.api.getEos(
-      {
-        'eos-version-compat':
-          this.patch.getData()['server-info']['eos-version-compat'],
-      },
-      this.config.eosMarketplaceUrl,
-    )
+    this.eos = await this.api.getEos({
+      'eos-version-compat':
+        this.patch.getData()['server-info']['eos-version-compat'],
+    })
     const updateAvailable =
       this.emver.compare(
         this.eos.version,

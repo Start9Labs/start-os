@@ -19,7 +19,11 @@ import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { ToastButton } from '@ionic/core'
 import { PatchDbService } from './services/patch-db/patch-db.service'
-import { ServerStatus, UIData } from './services/patch-db/data-model'
+import {
+  ServerStatus,
+  UIData,
+  UIMarketplaceData,
+} from './services/patch-db/data-model'
 import {
   ConnectionFailure,
   ConnectionService,
@@ -30,6 +34,7 @@ import { debounce, isEmptyObject } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
 import { EOSService } from './services/eos.service'
+import { v4 } from 'uuid'
 
 @Component({
   selector: 'app-root',
@@ -135,7 +140,11 @@ export class AppComponent {
             take(1),
           )
           .subscribe(data => {
+            // check for updates to EOS
             this.checkForEosUpdate(data.ui)
+            // seed EOS marketplace as default for services too
+            this.seedMarketplace(data.ui.marketplace)
+
             this.subscriptions = this.subscriptions.concat([
               // watch status to present toast for updated state
               this.watchStatus(),
@@ -204,6 +213,26 @@ export class AppComponent {
   private async checkForEosUpdate(ui: UIData): Promise<void> {
     if (ui['auto-check-updates']) {
       await this.eosService.getEOS()
+    }
+  }
+
+  private async seedMarketplace(marketplace: UIMarketplaceData): Promise<void> {
+    if (
+      !marketplace ||
+      !marketplace['known-hosts'] ||
+      !marketplace['selected-id']
+    ) {
+      const uuid = v4()
+      const value = {
+        'selected-id': uuid,
+        options: {
+          [uuid]: {
+            url: this.config.eosMarketplaceUrl,
+            name: 'Start9 Embassy Marketplace',
+          },
+        },
+      }
+      await this.embassyApi.setDbValue({ pointer: '/marketplace', value })
     }
   }
 
