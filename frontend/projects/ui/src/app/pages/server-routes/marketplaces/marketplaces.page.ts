@@ -17,6 +17,7 @@ import {
   UIData,
   UIMarketplaceData,
 } from '../../../services/patch-db/data-model'
+import { ConfigService } from '../../../services/config.service'
 
 @Component({
   selector: 'marketplaces',
@@ -31,6 +32,7 @@ export class MarketplacesPage {
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
     private readonly marketplaceService: MarketplaceService,
+    private readonly config: ConfigService,
     public readonly patch: PatchDbService,
   ) {}
 
@@ -83,6 +85,13 @@ export class MarketplacesPage {
         },
       },
     ]
+
+    if (
+      this.patch.data.ui.marketplace.options[id].url ===
+      this.config.eosMarketplaceUrl
+    ) {
+      buttons.unshift()
+    }
 
     const action = await this.actionCtrl.create({
       header: id,

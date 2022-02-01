@@ -79,12 +79,12 @@ export class StartupAlertsService {
             'selected-id': uuid,
             options: {
               [uuid]: {
-                url: 'marketplaceurl.com',
+                url: this.config.eosMarketplaceUrl,
                 name: 'Start9',
               },
             },
           }
-          await this.api.setDbValue({ pointer: 'marketplace', value })
+          await this.api.setDbValue({ pointer: '/marketplace', value })
         }
         await this.checks
           .filter(c => !this.config.skipStartupAlerts && c.shouldRun())
