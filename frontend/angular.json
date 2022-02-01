@@ -18,7 +18,7 @@
             "index": "projects/ui/src/index.html",
             "main": "projects/ui/src/main.ts",
             "polyfills": "projects/ui/src/polyfills.ts",
-            "tsConfig": "projects/ui/tsconfig.app.json",
+            "tsConfig": "projects/ui/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
@@ -142,7 +142,7 @@
             "index": "projects/setup-wizard/src/index.html",
             "main": "projects/setup-wizard/src/main.ts",
             "polyfills": "projects/setup-wizard/src/polyfills.ts",
-            "tsConfig": "projects/setup-wizard/tsconfig.app.json",
+            "tsConfig": "projects/setup-wizard/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
@@ -261,7 +261,7 @@
             "index": "projects/diagnostic-ui/src/index.html",
             "main": "projects/diagnostic-ui/src/main.ts",
             "polyfills": "projects/diagnostic-ui/src/polyfills.ts",
-            "tsConfig": "projects/diagnostic-ui/tsconfig.app.json",
+            "tsConfig": "projects/diagnostic-ui/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {

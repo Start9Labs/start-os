@@ -228,16 +228,6 @@ export class MockApiService extends ApiService {
     return Mock.ReleaseNotes
   }
 
-  async getLatestVersion (
-    params: RR.GetLatestVersionReq,
-  ): Promise<RR.GetLatestVersionRes> {
-    await pauseFor(2000)
-    return params.ids.reduce((obj, id) => {
-      obj[id] = '1.3.0'
-      return obj
-    }, {})
-  }
-
   // password
   // async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
   //   await pauseFor(2000)

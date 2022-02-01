@@ -45,11 +45,17 @@
                 >
                   {{ page.title }}
                 </ion-label>
+                <ng-container *ngIf="page.url === '/embassy'">
+                  <ion-icon
+                    *ngIf="eosService.updateAvailable$ | async"
+                    color="success"
+                    name="repeat"
+                  ></ion-icon>
+                </ng-container>
                 <ion-badge
                   *ngIf="page.url === '/notifications' && unreadCount"
                   color="danger"
                   style="margin-right: 3%"
-                  [class.selected-badge]="selectedIndex == i"
                   >{{ unreadCount }}</ion-badge
                 >
               </ion-item>
@@ -117,6 +123,7 @@
       <ion-icon name="cloud-offline-outline"></ion-icon>
       <ion-icon name="cloud-upload-outline"></ion-icon>
       <ion-icon name="code-outline"></ion-icon>
+      <ion-icon name="cog-outline"></ion-icon>
       <ion-icon name="color-wand-outline"></ion-icon>
       <ion-icon name="construct-outline"></ion-icon>
       <ion-icon name="copy-outline"></ion-icon>
@@ -155,6 +162,7 @@
       <ion-icon name="reload"></ion-icon>
       <ion-icon name="remove"></ion-icon>
       <ion-icon name="remove-circle-outline"></ion-icon>
+      <ion-icon name="repeat"></ion-icon>
       <ion-icon name="save-outline"></ion-icon>
       <ion-icon name="shield-checkmark-outline"></ion-icon>
       <ion-icon name="storefront-outline"></ion-icon>

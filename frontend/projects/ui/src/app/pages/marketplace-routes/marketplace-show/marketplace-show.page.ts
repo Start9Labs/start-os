@@ -1,6 +1,12 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AlertController, IonContent, LoadingController, ModalController, NavController } from '@ionic/angular'
+import {
+  AlertController,
+  IonContent,
+  LoadingController,
+  ModalController,
+  NavController,
+} from '@ionic/angular'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Emver } from 'src/app/services/emver.service'
@@ -8,12 +14,16 @@ import { displayEmver } from 'src/app/pipes/emver.pipe'
 import { DependentInfo, pauseFor } from 'src/app/util/misc.util'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { PackageDataEntry, PackageState } from 'src/app/services/patch-db/data-model'
+import {
+  PackageDataEntry,
+  PackageState,
+} from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from '../marketplace.service'
 import { Subscription } from 'rxjs'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MarketplacePkg } from 'src/app/services/api/api.types'
+import { DomSanitizer } from '@angular/platform-browser'
 
 @Component({
   selector: 'marketplace-show',
@@ -30,7 +40,7 @@ export class MarketplaceShowPage {
   dependentInfo: DependentInfo
   subs: Subscription[] = []
 
-  constructor (
+  constructor(
     private readonly route: ActivatedRoute,
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
@@ -42,18 +52,21 @@ export class MarketplaceShowPage {
     private readonly patch: PatchDbService,
     private readonly embassyApi: ApiService,
     private readonly marketplaceService: MarketplaceService,
-  ) { }
+    public readonly sanitizer: DomSanitizer,
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-    this.dependentInfo = history.state && history.state.dependentInfo as DependentInfo
+    this.dependentInfo =
+      history.state && (history.state.dependentInfo as DependentInfo)
 
     this.subs = [
-      this.patch.watch$('package-data', this.pkgId)
-      .subscribe(pkg => {
+      this.patch.watch$('package-data', this.pkgId).subscribe(pkg => {
         if (!pkg) return
         this.localPkg = pkg
-        this.localPkg['install-progress'] = { ...this.localPkg['install-progress'] }
+        this.localPkg['install-progress'] = {
+          ...this.localPkg['install-progress'],
+        }
       }),
     ]
 
@@ -61,7 +74,9 @@ export class MarketplaceShowPage {
       if (!this.marketplaceService.pkgs.length) {
         await this.marketplaceService.load()
       }
-      this.pkg = this.marketplaceService.pkgs.find(pkg => pkg.manifest.id === this.pkgId)
+      this.pkg = this.marketplaceService.pkgs.find(
+        pkg => pkg.manifest.id === this.pkgId,
+      )
       if (!this.pkg) {
         throw new Error(`Service with ID "${this.pkgId}" not found.`)
       }
@@ -72,31 +87,34 @@ export class MarketplaceShowPage {
     }
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  ngOnDestroy () {
+  ngOnDestroy() {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async presentAlertVersions () {
+  async presentAlertVersions() {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
-      inputs: this.pkg.versions.sort((a, b) => -1 * this.emver.compare(a, b)).map(v => {
-        return {
-          name: v, // for CSS
-          type: 'radio',
-          label: displayEmver(v), // appearance on screen
-          value: v, // literal SEM version value
-          checked: this.pkg.manifest.version === v,
-        }
-      }),
+      inputs: this.pkg.versions
+        .sort((a, b) => -1 * this.emver.compare(a, b))
+        .map(v => {
+          return {
+            name: v, // for CSS
+            type: 'radio',
+            label: displayEmver(v), // appearance on screen
+            value: v, // literal SEM version value
+            checked: this.pkg.manifest.version === v,
+          }
+        }),
       buttons: [
         {
           text: 'Cancel',
           role: 'cancel',
-        }, {
+        },
+        {
           text: 'Ok',
           handler: (version: string) => {
             this.getPkg(version)
@@ -109,7 +127,7 @@ export class MarketplaceShowPage {
     await alert.present()
   }
 
-  async presentModalMd (title: string) {
+  async presentModalMd(title: string) {
     const modal = await this.modalCtrl.create({
       componentProps: {
         title,
@@ -121,7 +139,7 @@ export class MarketplaceShowPage {
     await modal.present()
   }
 
-  async tryInstall () {
+  async tryInstall() {
     const { id, title, version, alerts } = this.pkg.manifest
 
     if (!alerts.install) {
@@ -148,7 +166,7 @@ export class MarketplaceShowPage {
     }
   }
 
-  async presentModal (action: 'update' | 'downgrade') {
+  async presentModal(action: 'update' | 'downgrade') {
     const { id, title, version, dependencies, alerts } = this.pkg.manifest
     const value = {
       id,
@@ -160,9 +178,9 @@ export class MarketplaceShowPage {
 
     const { cancelled } = await wizardModal(
       this.modalCtrl,
-      action === 'update' ?
-        this.wizardBaker.update(value) :
-        this.wizardBaker.downgrade(value),
+      action === 'update'
+        ? this.wizardBaker.update(value)
+        : this.wizardBaker.downgrade(value),
     )
 
     if (cancelled) return
@@ -170,7 +188,7 @@ export class MarketplaceShowPage {
     this.navCtrl.back()
   }
 
-  private async getPkg (version?: string): Promise<void> {
+  private async getPkg(version?: string): Promise<void> {
     this.loading = true
     try {
       this.pkg = await this.marketplaceService.getPkg(this.pkgId, version)
@@ -182,7 +200,7 @@ export class MarketplaceShowPage {
     }
   }
 
-  private async install (id: string, version?: string): Promise<void> {
+  private async install(id: string, version?: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Beginning Installation',
@@ -191,7 +209,10 @@ export class MarketplaceShowPage {
     loader.present()
 
     try {
-      await this.embassyApi.installPackage({ id, 'version-spec': version ? `=${version}` : undefined })
+      await this.embassyApi.installPackage({
+        id,
+        'version-spec': version ? `=${version}` : undefined,
+      })
     } catch (e) {
       this.errToast.present(e)
     } finally {
