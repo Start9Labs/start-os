@@ -98,6 +98,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   abstract getEos(
     params: RR.GetMarketplaceEOSReq,
+    url: string,
   ): Promise<RR.GetMarketplaceEOSRes>
 
   abstract getMarketplaceData(
