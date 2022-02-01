@@ -16,5 +16,6 @@ export type WorkspaceConfig = {
       maskAs: 'tor' | 'lan'
       skipStartupAlerts: boolean
     }
+    eosMarketplaceURL: string
   }
 }
