@@ -190,6 +190,7 @@ export class MockApiService extends ApiService {
 
   async getEos(
     params: RR.GetMarketplaceEOSReq,
+    url: string,
   ): Promise<RR.GetMarketplaceEOSRes> {
     await pauseFor(2000)
     return Mock.MarketplaceEos

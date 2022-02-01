@@ -267,7 +267,6 @@ export module RR {
     query?: string
     page?: string
     'per-page'?: string
-    url?: string
   }
   export type GetMarketplacePackagesRes = MarketplacePkg[]
 

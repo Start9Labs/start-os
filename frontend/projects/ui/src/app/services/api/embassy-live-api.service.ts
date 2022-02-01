@@ -119,12 +119,9 @@ export class LiveApiService extends ApiService {
 
   async getEos(
     params: RR.GetMarketplaceEOSReq,
+    url: string,
   ): Promise<RR.GetMarketplaceEOSRes> {
-    return this.http.httpRequest({
-      method: Method.GET,
-      url: '/marketplace/eos/latest',
-      params,
-    })
+    return this.marketplaceProxy('/marketplace/eos/latest', params, url)
   }
 
   async getMarketplaceData(
@@ -163,10 +160,6 @@ export class LiveApiService extends ApiService {
       params,
     })
   }
-
-  // async setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes> {
-  //   return this.http.rpcRequest({ method: 'marketplace.package.set', params })
-  // }
 
   // password
   // async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
