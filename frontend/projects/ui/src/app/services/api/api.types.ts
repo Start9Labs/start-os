@@ -251,7 +251,7 @@ export module RR {
 
   // marketplace
 
-  export type GetMarketplaceDataReq = {}
+  export type GetMarketplaceDataReq = { url?: string }
   export type GetMarketplaceDataRes = MarketplaceData
 
   export type GetMarketplaceEOSReq = {
@@ -267,6 +267,7 @@ export module RR {
     query?: string
     page?: string
     'per-page'?: string
+    url?: string
   }
   export type GetMarketplacePackagesRes = MarketplacePkg[]
 
