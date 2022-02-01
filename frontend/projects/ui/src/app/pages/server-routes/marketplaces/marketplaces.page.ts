@@ -11,6 +11,12 @@ import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDbService } from '../../../services/patch-db/patch-db.service'
 import { v4 } from 'uuid'
+import { MarketplaceService } from '../../marketplace-routes/marketplace.service'
+import {
+  DataModel,
+  UIData,
+  UIMarketplaceData,
+} from '../../../services/patch-db/data-model'
 
 @Component({
   selector: 'marketplaces',
@@ -24,6 +30,7 @@ export class MarketplacesPage {
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
+    private readonly marketplaceService: MarketplaceService,
     public readonly patch: PatchDbService,
   ) {}
 
@@ -88,25 +95,56 @@ export class MarketplacesPage {
   }
 
   private async connect(id: string): Promise<void> {
+    const marketplace = JSON.parse(
+      JSON.stringify(this.patch.data.ui.marketplace),
+    )
+    const newMarketplace = marketplace.options[id]
+
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: 'Connecting...',
+      message: 'Validating Marketplace...',
       cssClass: 'loader',
     })
     await loader.present()
 
     try {
-      const marketplace = this.patch.data.ui.marketplace
+      await this.api.getMarketplaceData({}, newMarketplace.url)
+    } catch (e) {
+      this.errToast.present({
+        message: `Could not connect to ${newMarketplace.url}`,
+      } as any)
+      loader.dismiss()
+      return
+    }
+
+    loader.message = 'Changing Marketplace...'
+
+    try {
       marketplace['selected-id'] = id
-      await this.api.setDbValue({ pointer: `marketplace`, value: marketplace })
+      await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e) {
       this.errToast.present(e)
+      loader.dismiss()
+    }
+
+    loader.message = 'Syncing store...'
+
+    try {
+      await this.marketplaceService.load()
+    } catch (e) {
+      this.errToast.present({
+        message: `Error syncing marketplace data`,
+      } as any)
     } finally {
       loader.dismiss()
     }
   }
 
   private async delete(id: string): Promise<void> {
+    const marketplace = JSON.parse(
+      JSON.stringify(this.patch.data.ui.marketplace),
+    )
+
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -115,9 +153,8 @@ export class MarketplacesPage {
     await loader.present()
 
     try {
-      const marketplace = this.patch.data.ui.marketplace
       delete marketplace.options[id]
-      await this.api.setDbValue({ pointer: `marketplace`, value: marketplace })
+      await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -126,44 +163,92 @@ export class MarketplacesPage {
   }
 
   private async save(url: string): Promise<void> {
+    const marketplace = JSON.parse(
+      JSON.stringify(this.patch.data.ui.marketplace),
+    ) as UIMarketplaceData
+
+    // no-op on duplicates
+    const currentUrls = Object.values(marketplace.options).map(
+      u => new URL(u.url).hostname,
+    )
+    if (currentUrls.includes(new URL(url).hostname)) return
+
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: 'Saving...',
+      message: 'Validating Marketplace...',
       cssClass: 'loader',
     })
+
     await loader.present()
 
     try {
       const id = v4()
-      const { name } = await this.api.getMarketplaceData({})
-      const marketplace = this.patch.data.ui.marketplace
+      const { name } = await this.api.getMarketplaceData({}, url)
       marketplace.options[id] = { name, url }
+    } catch (e) {
+      this.errToast.present({ message: `Could not connect to ${url}` } as any)
+      loader.dismiss()
+      return
+    }
+
+    loader.message = 'Saving...'
+
+    try {
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e) {
-      this.errToast.present(e)
+      this.errToast.present({ message: `Error saving marketplace data` } as any)
     } finally {
       loader.dismiss()
     }
   }
 
   private async saveAndConnect(url: string): Promise<void> {
+    const marketplace = JSON.parse(
+      JSON.stringify(this.patch.data.ui.marketplace),
+    ) as UIMarketplaceData
+
+    // no-op on duplicates
+    const currentUrls = Object.values(marketplace.options).map(
+      u => new URL(u.url).hostname,
+    )
+    if (currentUrls.includes(new URL(url).hostname)) return
+
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: 'Connecting...',
+      message: 'Validating Marketplace...',
       cssClass: 'loader',
     })
     await loader.present()
 
     try {
       const id = v4()
-      const { name } = await this.api.getMarketplaceData({})
-      loader.message = 'Saving...'
-      const marketplace = this.patch.data.ui.marketplace
+      const { name } = await this.api.getMarketplaceData({}, url)
       marketplace.options[id] = { name, url }
       marketplace['selected-id'] = id
+    } catch (e) {
+      this.errToast.present({ message: `Could not connect to ${url}` } as any)
+      loader.dismiss()
+      return
+    }
+
+    loader.message = 'Saving...'
+
+    try {
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e) {
-      this.errToast.present(e)
+      this.errToast.present({ message: `Error saving marketplace data` } as any)
+      loader.dismiss()
+      return
+    }
+
+    loader.message = 'Syncing store...'
+
+    try {
+      await this.marketplaceService.load()
+    } catch (e) {
+      this.errToast.present({
+        message: `Error syncing marketplace data`,
+      } as any)
     } finally {
       loader.dismiss()
     }
@@ -183,6 +268,8 @@ function getMarketplaceValueSpec(): ValueSpecObject {
         nullable: false,
         masked: false,
         copyable: false,
+        pattern: `https?:\/\/[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}`,
+        'pattern-description': 'Must be a valid URL',
         placeholder: 'e.g. https://example.org',
       },
     },

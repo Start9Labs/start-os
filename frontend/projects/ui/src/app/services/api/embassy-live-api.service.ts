@@ -136,17 +136,12 @@ export class LiveApiService extends ApiService {
 
   async getMarketplacePkgs(
     params: RR.GetMarketplacePackagesReq,
-    url?: string,
   ): Promise<RR.GetMarketplacePackagesRes> {
     if (params.query) params.category = undefined
-    return this.marketplaceProxy(
-      '/marketplace/package/index',
-      {
-        ...params,
-        ids: JSON.stringify(params.ids),
-      },
-      url,
-    )
+    return this.marketplaceProxy('/marketplace/package/index', {
+      ...params,
+      ids: JSON.stringify(params.ids),
+    })
   }
 
   async getReleaseNotes(

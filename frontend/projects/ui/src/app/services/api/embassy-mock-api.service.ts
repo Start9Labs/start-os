@@ -197,6 +197,7 @@ export class MockApiService extends ApiService {
 
   async getMarketplaceData(
     params: RR.GetMarketplaceDataReq,
+    url?: string,
   ): Promise<RR.GetMarketplaceDataRes> {
     await pauseFor(2000)
     return {

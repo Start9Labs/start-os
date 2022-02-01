@@ -37,14 +37,14 @@ export class MarketplaceService {
     )
   }
 
-  async load(url?: string): Promise<void> {
+  async load(): Promise<void> {
     const [data, eos, pkgs] = await Promise.all([
-      this.api.getMarketplaceData({ url }),
+      this.api.getMarketplaceData({}),
       this.api.getEos({
         'eos-version-compat':
           this.patch.getData()['server-info']['eos-version-compat'],
       }),
-      this.getPkgs(1, 100, url),
+      this.getPkgs(1, 100),
     ])
     this.data = data
     this.eos = eos
@@ -93,10 +93,8 @@ export class MarketplaceService {
   private async getPkgs(
     page: number,
     perPage: number,
-    url?: string,
   ): Promise<MarketplacePkg[]> {
     const pkgs = await this.api.getMarketplacePkgs({
-      url,
       page: String(page),
       'per-page': String(perPage),
       'eos-version-compat':
