@@ -4,7 +4,6 @@ EMBASSY_SRC := ubuntu.img product_key.txt $(EMBASSY_BINS) backend/embassyd.servi
 COMPAT_SRC := $(shell find system-images/compat/src)
 UTILS_SRC := $(shell find system-images/utils/Dockerfile)
 APPMGR_SRC := $(shell find backend/src) $(shell find patch-db/*/src) $(shell find rpc-toolkit/*/src) backend/Cargo.toml backend/Cargo.lock
-FRONTEND_SRC := $(shell find frontend/)
 PATCH_DB_CLIENT_SRC = $(shell find patch-db/client -not -path patch-db/client/dist)
 GIT_REFS := $(shell find .git/refs/heads)
 TMP_FILE := $(shell mktemp)
@@ -54,7 +53,7 @@ $(EMBASSY_BINS): $(APPMGR_SRC)
 frontend/node_modules: frontend/package.json
 	npm --prefix frontend ci
 
-$(EMBASSY_UIS): $(FRONTEND_SRC) frontend/node_modules patch-db/client patch-db/client/dist frontend/config.json
+$(EMBASSY_UIS): frontend/node_modules patch-db/client patch-db/client/dist frontend/config.json
 	npm --prefix frontend run build:all
 
 frontend/config.json: .git/HEAD $(GIT_REFS)
