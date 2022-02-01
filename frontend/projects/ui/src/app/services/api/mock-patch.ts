@@ -16,6 +16,15 @@ export const mockPatchData: DataModel = {
     'pkg-order': [],
     'ack-welcome': '1.0.0',
     'ack-share-stats': false,
+    marketplace: {
+      'selected-id': 'asdfasdf',
+      options: {
+        asdfasdf: {
+          name: 'Start9',
+          url: 'start9marketplace.com',
+        },
+      },
+    },
   },
   'server-info': {
     id: 'embassy-abcdefgh',

@@ -1,5 +1,10 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController, NavController, IonicSafeString } from '@ionic/angular'
+import {
+  AlertController,
+  LoadingController,
+  NavController,
+  IonicSafeString,
+} from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -16,7 +21,7 @@ import { map } from 'rxjs/operators'
 export class ServerShowPage {
   ServerStatus = ServerStatus
 
-  constructor (
+  constructor(
     private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
@@ -24,12 +29,13 @@ export class ServerShowPage {
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
     public readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  async presentAlertRestart () {
+  async presentAlertRestart() {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
-      message: 'Are you sure you want to restart your Embassy? It can take several minutes to come back online.',
+      message:
+        'Are you sure you want to restart your Embassy? It can take several minutes to come back online.',
       buttons: [
         {
           text: 'Cancel',
@@ -47,11 +53,12 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertShutdown () {
+  async presentAlertShutdown() {
     const sts = this.patch.data['server-info'].status
     const alert = await this.alertCtrl.create({
       header: 'Warning',
-      message: 'Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in.',
+      message:
+        'Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in.',
       buttons: [
         {
           text: 'Cancel',
@@ -69,11 +76,13 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertSystemRebuild () {
+  async presentAlertSystemRebuild() {
     const minutes = Object.keys(this.patch.data['package-data']).length * 2
     const alert = await this.alertCtrl.create({
       header: 'System Rebuild',
-      message: new IonicSafeString(`<ion-text color="warning">Important:</ion-text> This will tear down all service containers and rebuild them from scratch. This may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`),
+      message: new IonicSafeString(
+        `<ion-text color="warning">Important:</ion-text> This will tear down all service containers and rebuild them from scratch. This may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
+      ),
       buttons: [
         {
           text: 'Cancel',
@@ -91,7 +100,7 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  private async restart () {
+  private async restart() {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Restarting...',
@@ -100,7 +109,7 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      await this.embassyApi.restartServer({ })
+      await this.embassyApi.restartServer({})
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -108,7 +117,7 @@ export class ServerShowPage {
     }
   }
 
-  private async shutdown () {
+  private async shutdown() {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Shutting down...',
@@ -117,7 +126,7 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      await this.embassyApi.shutdownServer({ })
+      await this.embassyApi.shutdownServer({})
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -125,7 +134,7 @@ export class ServerShowPage {
     }
   }
 
-  private async systemRebuild () {
+  private async systemRebuild() {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Hard Restarting...',
@@ -134,7 +143,7 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      await this.embassyApi.systemRebuild({ })
+      await this.embassyApi.systemRebuild({})
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -143,12 +152,13 @@ export class ServerShowPage {
   }
 
   settings: ServerSettings = {
-    'Backups': [
+    Backups: [
       {
         title: 'Create Backup',
         description: 'Back up your Embassy and all its services',
         icon: 'save-outline',
-        action: () => this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
       },
@@ -156,17 +166,25 @@ export class ServerShowPage {
         title: 'Restore From Backup',
         description: 'Restore one or more services from a prior backup',
         icon: 'color-wand-outline',
-        action: () => this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
         detail: true,
-        disabled: this.patch.watch$('server-info', 'status').pipe(map(status => [ServerStatus.Updated, ServerStatus.BackingUp].includes(status))),
+        disabled: this.patch
+          .watch$('server-info', 'status')
+          .pipe(
+            map(status =>
+              [ServerStatus.Updated, ServerStatus.BackingUp].includes(status),
+            ),
+          ),
       },
     ],
-    'Insights': [
+    Insights: [
       {
         title: 'About',
         description: 'Basic information about your Embassy',
         icon: 'information-circle-outline',
-        action: () => this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
       },
@@ -174,7 +192,8 @@ export class ServerShowPage {
         title: 'Monitor',
         description: 'CPU, disk, memory, and other useful metrics',
         icon: 'pulse',
-        action: () => this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
       },
@@ -182,17 +201,21 @@ export class ServerShowPage {
         title: 'Logs',
         description: 'Raw, unfiltered device logs',
         icon: 'newspaper-outline',
-        action: () => this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
       },
     ],
-    'Settings': [
+    Settings: [
       {
         title: 'Preferences',
         description: 'Device name, background tasks',
         icon: 'options-outline',
-        action: () => this.navCtrl.navigateForward(['preferences'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['preferences'], {
+            relativeTo: this.route,
+          }),
         detail: true,
         disabled: of(false),
       },
@@ -200,7 +223,8 @@ export class ServerShowPage {
         title: 'LAN',
         description: 'Access your Embassy on the Local Area Network',
         icon: 'home-outline',
-        action: () => this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
       },
@@ -208,16 +232,28 @@ export class ServerShowPage {
         title: 'SSH',
         description: 'Access your Embassy from the command line',
         icon: 'terminal-outline',
-        action: () => this.navCtrl.navigateForward(['ssh'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['ssh'], { relativeTo: this.route }),
         detail: true,
         disabled: of(false),
-
       },
       {
         title: 'WiFi',
         description: 'Add or remove WiFi networks',
         icon: 'wifi',
-        action: () => this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
+        detail: true,
+        disabled: of(false),
+      },
+      {
+        title: 'Marketplace Settings',
+        description: 'Add or remove marketplaces',
+        icon: 'storefront',
+        action: () =>
+          this.navCtrl.navigateForward(['marketplaces'], {
+            relativeTo: this.route,
+          }),
         detail: true,
         disabled: of(false),
       },
@@ -225,12 +261,15 @@ export class ServerShowPage {
         title: 'Active Sessions',
         description: 'View and manage device access',
         icon: 'desktop-outline',
-        action: () => this.navCtrl.navigateForward(['sessions'], { relativeTo: this.route }),
+        action: () =>
+          this.navCtrl.navigateForward(['sessions'], {
+            relativeTo: this.route,
+          }),
         detail: true,
         disabled: of(false),
       },
     ],
-    'Power': [
+    Power: [
       {
         title: 'Restart',
         description: '',
@@ -258,7 +297,7 @@ export class ServerShowPage {
     ],
   }
 
-  asIsOrder () {
+  asIsOrder() {
     return 0
   }
 }
