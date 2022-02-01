@@ -1,5 +1,13 @@
 import { Subject, Observable } from 'rxjs'
-import { Http, Update, Operation, Revision, Source, Store, RPCResponse } from 'patch-db-client'
+import {
+  Http,
+  Update,
+  Operation,
+  Revision,
+  Source,
+  Store,
+  RPCResponse,
+} from 'patch-db-client'
 import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { RequestError } from '../http.service'
@@ -10,53 +18,63 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   /** PatchDb Source interface. Post/Patch requests provide a source of patches to the db. */
   // sequenceStream '_' is not used by the live api, but is overridden by the mock
-  watch$ (_?: Store<DataModel>): Observable<RPCResponse<Update<DataModel>>> {
-    return this.sync$.asObservable().pipe(map( result => ({ result,
-      jsonrpc: '2.0'})))
+  watch$(_?: Store<DataModel>): Observable<RPCResponse<Update<DataModel>>> {
+    return this.sync$
+      .asObservable()
+      .pipe(map(result => ({ result, jsonrpc: '2.0' })))
   }
 
   // for getting static files: ex icons, instructions, licenses
-  abstract getStatic (url: string): Promise<string>
+  abstract getStatic(url: string): Promise<string>
 
   // db
 
-  abstract getRevisions (since: number): Promise<RR.GetRevisionsRes>
+  abstract getRevisions(since: number): Promise<RR.GetRevisionsRes>
 
-  abstract getDump (): Promise<RR.GetDumpRes>
+  abstract getDump(): Promise<RR.GetDumpRes>
 
-  protected abstract setDbValueRaw (params: RR.SetDBValueReq): Promise<RR.SetDBValueRes>
-  setDbValue = (params: RR.SetDBValueReq) => this.syncResponse(
-    () => this.setDbValueRaw(params),
-  )()
+  protected abstract setDbValueRaw(
+    params: RR.SetDBValueReq,
+  ): Promise<RR.SetDBValueRes>
+  setDbValue = (params: RR.SetDBValueReq) =>
+    this.syncResponse(() => this.setDbValueRaw(params))()
 
   // auth
 
-  abstract login (params: RR.LoginReq): Promise<RR.loginRes>
+  abstract login(params: RR.LoginReq): Promise<RR.loginRes>
 
-  abstract logout (params: RR.LogoutReq): Promise<RR.LogoutRes>
+  abstract logout(params: RR.LogoutReq): Promise<RR.LogoutRes>
 
-  abstract getSessions (params: RR.GetSessionsReq): Promise<RR.GetSessionsRes>
+  abstract getSessions(params: RR.GetSessionsReq): Promise<RR.GetSessionsRes>
 
-  abstract killSessions (params: RR.KillSessionsReq): Promise<RR.KillSessionsRes>
+  abstract killSessions(params: RR.KillSessionsReq): Promise<RR.KillSessionsRes>
 
   // server
 
-  protected abstract setShareStatsRaw (params: RR.SetShareStatsReq): Promise<RR.SetShareStatsRes>
-  setShareStats = (params: RR.SetShareStatsReq) => this.syncResponse(
-    () => this.setShareStatsRaw(params),
-  )()
+  protected abstract setShareStatsRaw(
+    params: RR.SetShareStatsReq,
+  ): Promise<RR.SetShareStatsRes>
+  setShareStats = (params: RR.SetShareStatsReq) =>
+    this.syncResponse(() => this.setShareStatsRaw(params))()
 
-  abstract getServerLogs (params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes>
+  abstract getServerLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes>
 
-  abstract getServerMetrics (params: RR.GetServerMetricsReq): Promise<RR.GetServerMetricsRes>
+  abstract getServerMetrics(
+    params: RR.GetServerMetricsReq,
+  ): Promise<RR.GetServerMetricsRes>
 
-  abstract getPkgMetrics (params: RR.GetPackageMetricsReq): Promise<RR.GetPackageMetricsRes>
+  abstract getPkgMetrics(
+    params: RR.GetPackageMetricsReq,
+  ): Promise<RR.GetPackageMetricsRes>
 
-  protected abstract updateServerRaw (params: RR.UpdateServerReq): Promise<RR.UpdateServerRes>
-  updateServer = (params: RR.UpdateServerReq) => this.syncResponse(
-    () => this.updateServerWrapper(params),
-  )()
-  async updateServerWrapper (params: RR.UpdateServerReq) {
+  protected abstract updateServerRaw(
+    params: RR.UpdateServerReq,
+  ): Promise<RR.UpdateServerRes>
+  updateServer = (params: RR.UpdateServerReq) =>
+    this.syncResponse(() => this.updateServerWrapper(params))()
+  async updateServerWrapper(params: RR.UpdateServerReq) {
     const res = await this.updateServerRaw(params)
     if (res.response === 'no-updates') {
       throw new Error('Could ont find a newer version of EmbassyOS')
@@ -64,23 +82,40 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     return res
   }
 
-  abstract restartServer (params: RR.UpdateServerReq): Promise<RR.RestartServerRes>
+  abstract restartServer(
+    params: RR.UpdateServerReq,
+  ): Promise<RR.RestartServerRes>
 
-  abstract shutdownServer (params: RR.ShutdownServerReq): Promise<RR.ShutdownServerRes>
+  abstract shutdownServer(
+    params: RR.ShutdownServerReq,
+  ): Promise<RR.ShutdownServerRes>
 
-  abstract systemRebuild (params: RR.SystemRebuildReq): Promise<RR.SystemRebuildRes>
+  abstract systemRebuild(
+    params: RR.SystemRebuildReq,
+  ): Promise<RR.SystemRebuildRes>
 
   // marketplace URLs
 
-  abstract getEos (params: RR.GetMarketplaceEOSReq): Promise<RR.GetMarketplaceEOSRes>
+  abstract getEos(
+    params: RR.GetMarketplaceEOSReq,
+  ): Promise<RR.GetMarketplaceEOSRes>
 
-  abstract getMarketplaceData (params: RR.GetMarketplaceDataReq): Promise<RR.GetMarketplaceDataRes>
+  abstract getMarketplaceData(
+    params: RR.GetMarketplaceDataReq,
+    url?: string,
+  ): Promise<RR.GetMarketplaceDataRes>
 
-  abstract getMarketplacePkgs (params: RR.GetMarketplacePackagesReq): Promise<RR.GetMarketplacePackagesRes>
+  abstract getMarketplacePkgs(
+    params: RR.GetMarketplacePackagesReq,
+  ): Promise<RR.GetMarketplacePackagesRes>
 
-  abstract getReleaseNotes (params: RR.GetReleaseNotesReq): Promise<RR.GetReleaseNotesRes>
+  abstract getReleaseNotes(
+    params: RR.GetReleaseNotesReq,
+  ): Promise<RR.GetReleaseNotesRes>
 
-  abstract getLatestVersion (params: RR.GetLatestVersionReq): Promise<RR.GetLatestVersionRes>
+  abstract getLatestVersion(
+    params: RR.GetLatestVersionReq,
+  ): Promise<RR.GetLatestVersionRes>
 
   // protected abstract setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes>
   // setPackageMarketplace = (params: RR.SetPackageMarketplaceReq) => this.syncResponse(
@@ -92,112 +127,162 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // notification
 
-  abstract getNotificationsRaw (params: RR.GetNotificationsReq): Promise<RR.GetNotificationsRes>
-  getNotifications = (params: RR.GetNotificationsReq) => this.syncResponse<RR.GetNotificationsRes['response'], any>(
-    () => this.getNotificationsRaw(params),
-  )()
+  abstract getNotificationsRaw(
+    params: RR.GetNotificationsReq,
+  ): Promise<RR.GetNotificationsRes>
+  getNotifications = (params: RR.GetNotificationsReq) =>
+    this.syncResponse<RR.GetNotificationsRes['response'], any>(() =>
+      this.getNotificationsRaw(params),
+    )()
 
-  abstract deleteNotification (params: RR.DeleteNotificationReq): Promise<RR.DeleteNotificationRes>
+  abstract deleteNotification(
+    params: RR.DeleteNotificationReq,
+  ): Promise<RR.DeleteNotificationRes>
 
-  abstract deleteAllNotifications (params: RR.DeleteAllNotificationsReq): Promise<RR.DeleteAllNotificationsRes>
+  abstract deleteAllNotifications(
+    params: RR.DeleteAllNotificationsReq,
+  ): Promise<RR.DeleteAllNotificationsRes>
 
   // wifi
 
-  abstract getWifi (params: RR.GetWifiReq, timeout: number): Promise<RR.GetWifiRes>
+  abstract getWifi(
+    params: RR.GetWifiReq,
+    timeout: number,
+  ): Promise<RR.GetWifiRes>
 
-  abstract setWifiCountry (params: RR.SetWifiCountryReq): Promise<RR.SetWifiCountryRes>
+  abstract setWifiCountry(
+    params: RR.SetWifiCountryReq,
+  ): Promise<RR.SetWifiCountryRes>
 
-  abstract addWifi (params: RR.AddWifiReq): Promise<RR.AddWifiRes>
+  abstract addWifi(params: RR.AddWifiReq): Promise<RR.AddWifiRes>
 
-  abstract connectWifi (params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes>
+  abstract connectWifi(params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes>
 
-  abstract deleteWifi (params: RR.DeleteWifiReq): Promise<RR.ConnectWifiRes>
+  abstract deleteWifi(params: RR.DeleteWifiReq): Promise<RR.ConnectWifiRes>
 
   // ssh
 
-  abstract getSshKeys (params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes>
+  abstract getSshKeys(params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes>
 
-  abstract addSshKey (params: RR.AddSSHKeyReq): Promise<RR.AddSSHKeyRes>
+  abstract addSshKey(params: RR.AddSSHKeyReq): Promise<RR.AddSSHKeyRes>
 
-  abstract deleteSshKey (params: RR.DeleteSSHKeyReq): Promise<RR.DeleteSSHKeyRes>
+  abstract deleteSshKey(params: RR.DeleteSSHKeyReq): Promise<RR.DeleteSSHKeyRes>
 
   // backup
 
-  abstract getBackupTargets (params: RR.GetBackupTargetsReq): Promise<RR.GetBackupTargetsRes>
+  abstract getBackupTargets(
+    params: RR.GetBackupTargetsReq,
+  ): Promise<RR.GetBackupTargetsRes>
 
-  abstract addBackupTarget (params: RR.AddBackupTargetReq): Promise<RR.AddBackupTargetRes>
+  abstract addBackupTarget(
+    params: RR.AddBackupTargetReq,
+  ): Promise<RR.AddBackupTargetRes>
 
-  abstract updateBackupTarget (params: RR.UpdateBackupTargetReq): Promise<RR.UpdateBackupTargetRes>
+  abstract updateBackupTarget(
+    params: RR.UpdateBackupTargetReq,
+  ): Promise<RR.UpdateBackupTargetRes>
 
-  abstract removeBackupTarget (params: RR.RemoveBackupTargetReq): Promise<RR.RemoveBackupTargetRes>
+  abstract removeBackupTarget(
+    params: RR.RemoveBackupTargetReq,
+  ): Promise<RR.RemoveBackupTargetRes>
 
-  abstract getBackupInfo (params: RR.GetBackupInfoReq): Promise<RR.GetBackupInfoRes>
+  abstract getBackupInfo(
+    params: RR.GetBackupInfoReq,
+  ): Promise<RR.GetBackupInfoRes>
 
-  protected abstract createBackupRaw (params: RR.CreateBackupReq): Promise<RR.CreateBackupRes>
-  createBackup = (params: RR.CreateBackupReq) => this.syncResponse(
-    () => this.createBackupRaw(params),
-  )()
+  protected abstract createBackupRaw(
+    params: RR.CreateBackupReq,
+  ): Promise<RR.CreateBackupRes>
+  createBackup = (params: RR.CreateBackupReq) =>
+    this.syncResponse(() => this.createBackupRaw(params))()
 
   // package
 
-  abstract getPackageProperties (params: RR.GetPackagePropertiesReq): Promise<RR.GetPackagePropertiesRes<2>['data']>
+  abstract getPackageProperties(
+    params: RR.GetPackagePropertiesReq,
+  ): Promise<RR.GetPackagePropertiesRes<2>['data']>
 
-  abstract getPackageLogs (params: RR.GetPackageLogsReq): Promise<RR.GetPackageLogsRes>
+  abstract getPackageLogs(
+    params: RR.GetPackageLogsReq,
+  ): Promise<RR.GetPackageLogsRes>
 
-  protected abstract installPackageRaw (params: RR.InstallPackageReq): Promise<RR.InstallPackageRes>
-  installPackage = (params: RR.InstallPackageReq) => this.syncResponse(
-    () => this.installPackageRaw(params),
-  )()
+  protected abstract installPackageRaw(
+    params: RR.InstallPackageReq,
+  ): Promise<RR.InstallPackageRes>
+  installPackage = (params: RR.InstallPackageReq) =>
+    this.syncResponse(() => this.installPackageRaw(params))()
 
-  abstract dryUpdatePackage (params: RR.DryUpdatePackageReq): Promise<RR.DryUpdatePackageRes>
+  abstract dryUpdatePackage(
+    params: RR.DryUpdatePackageReq,
+  ): Promise<RR.DryUpdatePackageRes>
 
-  abstract getPackageConfig (params: RR.GetPackageConfigReq): Promise<RR.GetPackageConfigRes>
+  abstract getPackageConfig(
+    params: RR.GetPackageConfigReq,
+  ): Promise<RR.GetPackageConfigRes>
 
-  abstract drySetPackageConfig (params: RR.DrySetPackageConfigReq): Promise<RR.DrySetPackageConfigRes>
+  abstract drySetPackageConfig(
+    params: RR.DrySetPackageConfigReq,
+  ): Promise<RR.DrySetPackageConfigRes>
 
-  protected abstract setPackageConfigRaw (params: RR.SetPackageConfigReq): Promise<RR.SetPackageConfigRes>
-  setPackageConfig = (params: RR.SetPackageConfigReq) => this.syncResponse(
-    () => this.setPackageConfigRaw(params),
-  )()
+  protected abstract setPackageConfigRaw(
+    params: RR.SetPackageConfigReq,
+  ): Promise<RR.SetPackageConfigRes>
+  setPackageConfig = (params: RR.SetPackageConfigReq) =>
+    this.syncResponse(() => this.setPackageConfigRaw(params))()
 
-  protected abstract restorePackagesRaw (params: RR.RestorePackagesReq): Promise<RR.RestorePackagesRes>
-  restorePackages = (params: RR.RestorePackagesReq) => this.syncResponse(
-    () => this.restorePackagesRaw(params),
-  )()
+  protected abstract restorePackagesRaw(
+    params: RR.RestorePackagesReq,
+  ): Promise<RR.RestorePackagesRes>
+  restorePackages = (params: RR.RestorePackagesReq) =>
+    this.syncResponse(() => this.restorePackagesRaw(params))()
 
-  abstract executePackageAction (params: RR.ExecutePackageActionReq): Promise<RR.ExecutePackageActionRes>
+  abstract executePackageAction(
+    params: RR.ExecutePackageActionReq,
+  ): Promise<RR.ExecutePackageActionRes>
 
-  protected abstract startPackageRaw (params: RR.StartPackageReq): Promise<RR.StartPackageRes>
-  startPackage = (params: RR.StartPackageReq) => this.syncResponse(
-    () => this.startPackageRaw(params),
-  )()
+  protected abstract startPackageRaw(
+    params: RR.StartPackageReq,
+  ): Promise<RR.StartPackageRes>
+  startPackage = (params: RR.StartPackageReq) =>
+    this.syncResponse(() => this.startPackageRaw(params))()
 
-  abstract dryStopPackage (params: RR.DryStopPackageReq): Promise<RR.DryStopPackageRes>
+  abstract dryStopPackage(
+    params: RR.DryStopPackageReq,
+  ): Promise<RR.DryStopPackageRes>
 
-  protected abstract stopPackageRaw (params: RR.StopPackageReq): Promise<RR.StopPackageRes>
-  stopPackage = (params: RR.StopPackageReq) => this.syncResponse(
-    () => this.stopPackageRaw(params),
-  )()
+  protected abstract stopPackageRaw(
+    params: RR.StopPackageReq,
+  ): Promise<RR.StopPackageRes>
+  stopPackage = (params: RR.StopPackageReq) =>
+    this.syncResponse(() => this.stopPackageRaw(params))()
 
-  abstract dryUninstallPackage (params: RR.DryUninstallPackageReq): Promise<RR.DryUninstallPackageRes>
+  abstract dryUninstallPackage(
+    params: RR.DryUninstallPackageReq,
+  ): Promise<RR.DryUninstallPackageRes>
 
-  protected abstract uninstallPackageRaw (params: RR.UninstallPackageReq): Promise<RR.UninstallPackageRes>
-  uninstallPackage = (params: RR.UninstallPackageReq) => this.syncResponse(
-    () => this.uninstallPackageRaw(params),
-  )()
+  protected abstract uninstallPackageRaw(
+    params: RR.UninstallPackageReq,
+  ): Promise<RR.UninstallPackageRes>
+  uninstallPackage = (params: RR.UninstallPackageReq) =>
+    this.syncResponse(() => this.uninstallPackageRaw(params))()
 
-  abstract dryConfigureDependency (params: RR.DryConfigureDependencyReq): Promise<RR.DryConfigureDependencyRes>
+  abstract dryConfigureDependency(
+    params: RR.DryConfigureDependencyReq,
+  ): Promise<RR.DryConfigureDependencyRes>
 
-  protected abstract deleteRecoveredPackageRaw (params: RR.UninstallPackageReq): Promise<RR.UninstallPackageRes>
-  deleteRecoveredPackage = (params: RR.UninstallPackageReq) => this.syncResponse(
-    () => this.deleteRecoveredPackageRaw(params),
-  )()
-
+  protected abstract deleteRecoveredPackageRaw(
+    params: RR.UninstallPackageReq,
+  ): Promise<RR.UninstallPackageRes>
+  deleteRecoveredPackage = (params: RR.UninstallPackageReq) =>
+    this.syncResponse(() => this.deleteRecoveredPackageRaw(params))()
 
   // Helper allowing quick decoration to sync the response patch and return the response contents.
   // Pass in a tempUpdate function which returns a UpdateTemp corresponding to a temporary
   // state change you'd like to enact prior to request and expired when request terminates.
-  private syncResponse<T, F extends (...args: any[]) => Promise<{ response: T, revision?: Revision }>> (f: F, temp?: Operation): (...args: Parameters<F>) => Promise<T> {
+  private syncResponse<
+    T,
+    F extends (...args: any[]) => Promise<{ response: T; revision?: Revision }>,
+  >(f: F, temp?: Operation): (...args: Parameters<F>) => Promise<T> {
     return (...a) => {
       // let expireId = undefined
       // if (temp) {

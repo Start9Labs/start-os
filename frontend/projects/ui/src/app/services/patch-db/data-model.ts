@@ -13,13 +13,15 @@ export interface UIData {
   'pkg-order': string[]
   'ack-welcome': string // EOS version
   'ack-share-stats': boolean
-  marketplace: {
-    'selected-id': string
-    options: {
-      [id: string]: {
-        url: string
-        name: string
-      }
+  marketplace: UIMarketplaceData
+}
+
+export interface UIMarketplaceData {
+  'selected-id': string
+  options: {
+    [id: string]: {
+      url: string
+      name: string
     }
   }
 }
