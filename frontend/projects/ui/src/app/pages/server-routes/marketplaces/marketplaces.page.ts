@@ -1,20 +1,14 @@
 import { Component } from '@angular/core'
 import {
   ActionSheetController,
-  AlertController,
   LoadingController,
   ModalController,
-  ToastController,
 } from '@ionic/angular'
-import { AlertInput } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
-import { RR } from 'src/app/services/api/api.types'
-import { pauseFor } from 'src/app/util/misc.util'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { ConfigService } from 'src/app/services/config.service'
 import { PatchDbService } from '../../../services/patch-db/patch-db.service'
 import { v4 } from 'uuid'
 
@@ -26,13 +20,10 @@ import { v4 } from 'uuid'
 export class MarketplacesPage {
   constructor(
     private readonly api: ApiService,
-    private readonly toastCtrl: ToastController,
-    private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
-    private readonly config: ConfigService,
     public readonly patch: PatchDbService,
   ) {}
 
@@ -46,19 +37,20 @@ export class MarketplacesPage {
         buttons: [
           {
             text: 'Save for Later',
-            handler: async (value: { url: string }) => {
-              await this.save(value.url)
+            handler: (value: { url: string }) => {
+              this.save(value.url)
             },
           },
           {
-            text: 'Save and Use',
-            handler: async (value: { url: string }) => {
-              await this.saveAndUse(value.url)
+            text: 'Save and Connect',
+            handler: (value: { url: string }) => {
+              this.saveAndConnect(value.url)
             },
             isSubmit: true,
           },
         ],
       },
+      cssClass: 'alertlike-modal',
     })
 
     await modal.present()
@@ -78,8 +70,7 @@ export class MarketplacesPage {
         },
       },
       {
-        text: 'Use Marketplace',
-        icon: 'storefront',
+        text: 'Connect to marketplace',
         handler: () => {
           this.connect(id)
         },
@@ -99,7 +90,7 @@ export class MarketplacesPage {
   private async connect(id: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: 'Verifying marketplace',
+      message: 'Connecting...',
       cssClass: 'loader',
     })
     await loader.present()
@@ -147,7 +138,7 @@ export class MarketplacesPage {
       const { name } = await this.api.getMarketplaceData({})
       const marketplace = this.patch.data.ui.marketplace
       marketplace.options[id] = { name, url }
-      await this.api.setDbValue({ pointer: `marketplace`, value: marketplace })
+      await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -155,10 +146,10 @@ export class MarketplacesPage {
     }
   }
 
-  private async saveAndUse(url: string): Promise<void> {
+  private async saveAndConnect(url: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: 'Connecting. This could take a while...',
+      message: 'Connecting...',
       cssClass: 'loader',
     })
     await loader.present()
@@ -166,10 +157,11 @@ export class MarketplacesPage {
     try {
       const id = v4()
       const { name } = await this.api.getMarketplaceData({})
+      loader.message = 'Saving...'
       const marketplace = this.patch.data.ui.marketplace
       marketplace.options[id] = { name, url }
       marketplace['selected-id'] = id
-      await this.api.setDbValue({ pointer: `marketplace`, value: marketplace })
+      await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -182,15 +174,16 @@ function getMarketplaceValueSpec(): ValueSpecObject {
   return {
     type: 'object',
     name: 'Add Marketplace',
-    description: 'Enter marketplace info.',
     'unique-by': null,
     spec: {
       url: {
         type: 'string',
         name: 'URL',
+        description: 'The fully-qualified URL of the alternative marketplace.',
         nullable: false,
         masked: false,
         copyable: false,
+        placeholder: 'e.g. https://example.org',
       },
     },
   }
