@@ -7,12 +7,17 @@ import { PatchDbService } from '../patch-db/patch-db.service'
 
 @Injectable()
 export class LiveApiService extends ApiService {
+  private selectedMarketplaceId: string
+
   constructor(
     private readonly http: HttpService,
     private readonly patch: PatchDbService,
   ) {
     super()
     ;(window as any).rpcClient = this
+    patch.watch$('ui', 'marketplace', 'selected-id').subscribe(id => {
+      this.selectedMarketplaceId = id
+    })
   }
 
   async getStatic(url: string): Promise<string> {
@@ -107,8 +112,8 @@ export class LiveApiService extends ApiService {
     url?: string,
   ): Promise<T> {
     if (!url) {
-      const id = this.patch.data.ui.marketplace['selected-id']
-      url = this.patch.data.ui.marketplace.options[id].url
+      url =
+        this.patch.data.ui.marketplace.options[this.selectedMarketplaceId].url
     }
     const fullURL = `${url}${path}?${new URLSearchParams(params).toString()}`
     return this.http.rpcRequest({
