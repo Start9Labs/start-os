@@ -1,5 +1,11 @@
 import { Component } from '@angular/core'
-import { ActionSheetController, AlertController, LoadingController, ModalController, ToastController } from '@ionic/angular'
+import {
+  ActionSheetController,
+  AlertController,
+  LoadingController,
+  ModalController,
+  ToastController,
+} from '@ionic/angular'
 import { AlertInput } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
@@ -17,10 +23,12 @@ import { ConfigService } from 'src/app/services/config.service'
 })
 export class WifiPage {
   loading = true
-  wifi: RR.GetWifiRes = { } as any
-  countries = require('../../../util/countries.json') as { [key: string]: string }
+  wifi: RR.GetWifiRes = {} as any
+  countries = require('../../../util/countries.json') as {
+    [key: string]: string
+  }
 
-  constructor (
+  constructor(
     private readonly api: ApiService,
     private readonly toastCtrl: ToastController,
     private readonly alertCtrl: AlertController,
@@ -29,9 +37,9 @@ export class WifiPage {
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
     private readonly config: ConfigService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     try {
       await this.getWifi()
     } catch (e) {
@@ -41,24 +49,24 @@ export class WifiPage {
     }
   }
 
-  async getWifi (timeout?: number): Promise<void> {
-    this.wifi = await this.api.getWifi({ }, timeout)
+  async getWifi(timeout?: number): Promise<void> {
+    this.wifi = await this.api.getWifi({}, timeout)
     if (!this.wifi.country) {
       await this.presentAlertCountry()
     }
   }
 
-  async presentAlertCountry (): Promise<void> {
+  async presentAlertCountry(): Promise<void> {
     if (!this.config.isLan) {
       const alert = await this.alertCtrl.create({
         header: 'Cannot Complete Action',
-        message: 'You must be connected to your Emassy via LAN to change the country.',
+        message:
+          'You must be connected to your Emassy via LAN to change the country.',
         buttons: [
           {
             text: 'OK',
             role: 'cancel',
           },
-
         ],
         cssClass: 'wide-alert enter-click',
       })
@@ -66,19 +74,22 @@ export class WifiPage {
       return
     }
 
-    const inputs: AlertInput[] = Object.entries(this.countries).map(([country, fullName]) => {
-      return {
-        name: fullName,
-        type: 'radio',
-        label: `${country} - ${fullName}`,
-        value: country,
-        checked: country === this.wifi.country,
-      }
-    })
+    const inputs: AlertInput[] = Object.entries(this.countries).map(
+      ([country, fullName]) => {
+        return {
+          name: fullName,
+          type: 'radio',
+          label: `${country} - ${fullName}`,
+          value: country,
+          checked: country === this.wifi.country,
+        }
+      },
+    )
 
     const alert = await this.alertCtrl.create({
       header: 'Select Country',
-      message: 'Warning: Changing the country will delete all saved networks from the Embassy.',
+      subHeader:
+        'Warning: Changing the country will delete all saved networks from the Embassy.',
       inputs,
       buttons: [
         {
@@ -92,12 +103,12 @@ export class WifiPage {
           },
         },
       ],
-      cssClass: 'wide-alert enter-click',
+      cssClass: 'wide-alert enter-click select-warning',
     })
     await alert.present()
   }
 
-  async presentModalAdd (ssid?: string, needsPW: boolean = true) {
+  async presentModalAdd(ssid?: string, needsPW: boolean = true) {
     const wifiSpec = getWifiValueSpec(ssid, needsPW)
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
@@ -107,13 +118,13 @@ export class WifiPage {
         buttons: [
           {
             text: 'Save for Later',
-            handler: async (value: { ssid: string, password: string }) => {
+            handler: async (value: { ssid: string; password: string }) => {
               await this.save(value.ssid, value.password)
             },
           },
           {
             text: 'Save and Connect',
-            handler: async (value: { ssid: string, password: string }) => {
+            handler: async (value: { ssid: string; password: string }) => {
               await this.saveAndConnect(value.ssid, value.password)
             },
             isSubmit: true,
@@ -125,7 +136,7 @@ export class WifiPage {
     await modal.present()
   }
 
-  async presentAction (ssid: string) {
+  async presentAction(ssid: string) {
     const buttons: ActionSheetButton[] = [
       {
         text: 'Forget',
@@ -138,15 +149,13 @@ export class WifiPage {
     ]
 
     if (ssid !== this.wifi.connected) {
-      buttons.unshift(
-        {
-          text: 'Connect',
-          icon: 'wifi',
-          handler: () => {
-            this.connect(ssid)
-          },
+      buttons.unshift({
+        text: 'Connect',
+        icon: 'wifi',
+        handler: () => {
+          this.connect(ssid)
         },
-      )
+      })
     }
 
     const action = await this.actionCtrl.create({
@@ -159,7 +168,7 @@ export class WifiPage {
     await action.present()
   }
 
-  private async setCountry (country: string): Promise<void> {
+  private async setCountry(country: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       cssClass: 'loader',
@@ -177,7 +186,10 @@ export class WifiPage {
     }
   }
 
-  private async confirmWifi (ssid: string, deleteOnFailure = false): Promise<void> {
+  private async confirmWifi(
+    ssid: string,
+    deleteOnFailure = false,
+  ): Promise<void> {
     const timeout = 4000
     const maxAttempts = 5
     let attempts = 0
@@ -210,10 +222,11 @@ export class WifiPage {
     }
   }
 
-  private async presentAlertSuccess (ssid: string): Promise<void> {
+  private async presentAlertSuccess(ssid: string): Promise<void> {
     const alert = await this.alertCtrl.create({
       header: `Connected to "${ssid}"`,
-      message: 'Note. It may take several minutes to an hour for your Embassy to reconnect over Tor.',
+      message:
+        'Note. It may take several minutes to an hour for your Embassy to reconnect over Tor.',
       buttons: [
         {
           text: 'Ok',
@@ -226,7 +239,7 @@ export class WifiPage {
     await alert.present()
   }
 
-  private async presentToastFail (): Promise<void> {
+  private async presentToastFail(): Promise<void> {
     const toast = await this.toastCtrl.create({
       header: 'Failed to connect:',
       message: `Check credentials and try again`,
@@ -247,7 +260,7 @@ export class WifiPage {
     await toast.present()
   }
 
-  private async connect (ssid: string): Promise<void> {
+  private async connect(ssid: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Connecting. This could take a while...',
@@ -265,7 +278,7 @@ export class WifiPage {
     }
   }
 
-  private async delete (ssid: string): Promise<void> {
+  private async delete(ssid: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -284,7 +297,7 @@ export class WifiPage {
     }
   }
 
-  private async save (ssid: string, password: string): Promise<void> {
+  private async save(ssid: string, password: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
@@ -307,7 +320,7 @@ export class WifiPage {
     }
   }
 
-  private async saveAndConnect (ssid: string, password: string): Promise<void> {
+  private async saveAndConnect(ssid: string, password: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Connecting. This could take a while...',
@@ -324,7 +337,6 @@ export class WifiPage {
       })
 
       await this.confirmWifi(ssid, true)
-
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -333,11 +345,15 @@ export class WifiPage {
   }
 }
 
-function getWifiValueSpec (ssid?: string, needsPW: boolean = true): ValueSpecObject {
+function getWifiValueSpec(
+  ssid?: string,
+  needsPW: boolean = true,
+): ValueSpecObject {
   return {
     type: 'object',
     name: 'WiFi Credentials',
-    description: 'Enter the network SSID and password. You can connect now or save the network for later.',
+    description:
+      'Enter the network SSID and password. You can connect now or save the network for later.',
     'unique-by': null,
     spec: {
       ssid: {
@@ -358,4 +374,3 @@ function getWifiValueSpec (ssid?: string, needsPW: boolean = true): ValueSpecObj
     },
   }
 }
-

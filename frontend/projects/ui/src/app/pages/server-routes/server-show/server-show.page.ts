@@ -247,7 +247,7 @@ export class ServerShowPage {
         disabled: of(false),
       },
       {
-        title: 'Marketplaces',
+        title: 'Marketplace Settings',
         description: 'Add or remove marketplaces',
         icon: 'storefront',
         action: () =>
