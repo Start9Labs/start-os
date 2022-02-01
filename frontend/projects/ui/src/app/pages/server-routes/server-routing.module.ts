@@ -4,11 +4,17 @@ import { Routes, RouterModule } from '@angular/router'
 const routes: Routes = [
   {
     path: '',
-    loadChildren: () => import('./server-show/server-show.module').then(m => m.ServerShowPageModule),
+    loadChildren: () =>
+      import('./server-show/server-show.module').then(
+        m => m.ServerShowPageModule,
+      ),
   },
   {
     path: 'backup',
-    loadChildren: () => import('./server-backup/server-backup.module').then(m => m.ServerBackupPageModule),
+    loadChildren: () =>
+      import('./server-backup/server-backup.module').then(
+        m => m.ServerBackupPageModule,
+      ),
   },
   {
     path: 'lan',
@@ -16,35 +22,60 @@ const routes: Routes = [
   },
   {
     path: 'logs',
-    loadChildren: () => import('./server-logs/server-logs.module').then(m => m.ServerLogsPageModule),
+    loadChildren: () =>
+      import('./server-logs/server-logs.module').then(
+        m => m.ServerLogsPageModule,
+      ),
+  },
+  {
+    path: 'marketplaces',
+    loadChildren: () =>
+      import('./marketplaces/marketplaces.module').then(
+        m => m.MarketplacesPageModule,
+      ),
   },
   {
     path: 'metrics',
-    loadChildren: () => import('./server-metrics/server-metrics.module').then(m => m.ServerMetricsPageModule),
+    loadChildren: () =>
+      import('./server-metrics/server-metrics.module').then(
+        m => m.ServerMetricsPageModule,
+      ),
   },
   {
     path: 'preferences',
-    loadChildren: () => import('./preferences/preferences.module').then( m => m.PreferencesPageModule),
+    loadChildren: () =>
+      import('./preferences/preferences.module').then(
+        m => m.PreferencesPageModule,
+      ),
   },
   {
     path: 'restore',
-    loadChildren: () => import('./restore/restore.component.module').then( m => m.RestorePageModule),
+    loadChildren: () =>
+      import('./restore/restore.component.module').then(
+        m => m.RestorePageModule,
+      ),
   },
   {
     path: 'sessions',
-    loadChildren: () => import('./sessions/sessions.module').then( m => m.SessionsPageModule),
+    loadChildren: () =>
+      import('./sessions/sessions.module').then(m => m.SessionsPageModule),
   },
   {
     path: 'specs',
-    loadChildren: () => import('./server-specs/server-specs.module').then(m => m.ServerSpecsPageModule),
+    loadChildren: () =>
+      import('./server-specs/server-specs.module').then(
+        m => m.ServerSpecsPageModule,
+      ),
   },
   {
     path: 'ssh',
-    loadChildren: () => import('./ssh-keys/ssh-keys.module').then( m => m.SSHKeysPageModule),
+    loadChildren: () =>
+      import('./ssh-keys/ssh-keys.module').then(m => m.SSHKeysPageModule),
   },
   {
     path: 'wifi',
-    loadChildren: () => import('./wifi/wifi.module').then(m => m.WifiPageModule),
+    loadChildren: () =>
+      import('./wifi/wifi.module').then(m => m.WifiPageModule),
   },
 ]
 
@@ -52,4 +83,4 @@ const routes: Routes = [
   imports: [RouterModule.forChild(routes)],
   exports: [RouterModule],
 })
-export class ServerRoutingModule { }
+export class ServerRoutingModule {}

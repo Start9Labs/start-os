@@ -1,5 +1,10 @@
 import { Injectable } from '@angular/core'
-import { AlertController, IonicSafeString, ModalController, NavController } from '@ionic/angular'
+import {
+  AlertController,
+  IonicSafeString,
+  ModalController,
+  NavController,
+} from '@ionic/angular'
 import { wizardModal } from '../components/install-wizard/install-wizard.component'
 import { WizardBaker } from '../components/install-wizard/prebaked-wizards'
 import { OSWelcomePage } from '../modals/os-welcome/os-welcome.page'
@@ -15,6 +20,7 @@ import { isEmptyObject } from '../util/misc.util'
 import { ApiService } from './api/embassy-api.service'
 import { Subscription } from 'rxjs'
 import { ServerConfigService } from './server-config.service'
+import { v4 } from 'uuid'
 
 @Injectable({
   providedIn: 'root',
@@ -22,7 +28,7 @@ import { ServerConfigService } from './server-config.service'
 export class StartupAlertsService {
   private checks: Check<any>[]
 
-  constructor (
+  constructor(
     private readonly alertCtrl: AlertController,
     private readonly navCtrl: NavController,
     private readonly config: ConfigService,
@@ -52,69 +58,74 @@ export class StartupAlertsService {
       check: () => this.osUpdateCheck(),
       display: pkg => this.displayOsUpdateCheck(pkg),
     }
-    const pkgsUpdate: Check<boolean> = {
-      name: 'pkgsUpdate',
-      shouldRun: () => this.shouldRunAppsCheck(),
-      check: () => this.appsCheck(),
-      display: () => this.displayAppsCheck(),
-    }
-    this.checks = [osWelcome, shareStats, osUpdate, pkgsUpdate]
+    this.checks = [osWelcome, shareStats, osUpdate]
   }
 
   // This takes our three checks and filters down to those that should run.
   // Then, the reduce fires, quickly iterating through yielding a promise (previousDisplay) to the next element
   // Each promise fires more or less concurrently, so each c.check(server) is run concurrently
   // Then, since we await previousDisplay before c.display(res), each promise executing gets hung awaiting the display of the previous run
-  runChecks (): Subscription {
-    return this.patch.watch$()
-    .pipe(
-      filter(data => !isEmptyObject(data)),
-      take(1),
-    )
-    .subscribe(async () => {
-      await this.checks
-      .filter(c => !this.config.skipStartupAlerts && c.shouldRun())
-      // returning true in the below block means to continue to next modal
-      // returning false means to skip all subsequent modals
-      .reduce(async (previousDisplay, c) => {
-        let checkRes: any
-        try {
-          checkRes = await c.check()
-        } catch (e) {
-          console.error(`Exception in ${c.name} check:`, e)
-          return true
+  runChecks(): Subscription {
+    return this.patch
+      .watch$()
+      .pipe(
+        filter(data => !isEmptyObject(data)),
+        take(1),
+      )
+      .subscribe(async data => {
+        if (!data.ui.marketplace) {
+          const uuid = v4()
+          const value = {
+            'selected-id': uuid,
+            options: {
+              [uuid]: {
+                url: 'marketplaceurl.com',
+                name: 'Start9',
+              },
+            },
+          }
+          await this.api.setDbValue({ pointer: 'marketplace', value })
         }
+        await this.checks
+          .filter(c => !this.config.skipStartupAlerts && c.shouldRun())
+          // returning true in the below block means to continue to next modal
+          // returning false means to skip all subsequent modals
+          .reduce(async (previousDisplay, c) => {
+            let checkRes: any
+            try {
+              checkRes = await c.check()
+            } catch (e) {
+              console.error(`Exception in ${c.name} check:`, e)
+              return true
+            }
 
-        const displayRes = await previousDisplay
+            const displayRes = await previousDisplay
 
-        if (!checkRes) return true
-        if (displayRes) return c.display(checkRes)
-      }, Promise.resolve(true))
-    })
+            if (!checkRes) return true
+            if (displayRes) return c.display(checkRes)
+          }, Promise.resolve(true))
+      })
   }
 
   // ** should run **
 
-  private shouldRunOsWelcome (): boolean {
+  private shouldRunOsWelcome(): boolean {
     return this.patch.getData().ui['ack-welcome'] !== this.config.version
   }
-  private shouldRunShareStats (): boolean {
+  private shouldRunShareStats(): boolean {
     return !this.patch.getData().ui['ack-share-stats']
   }
 
-  private shouldRunOsUpdateCheck (): boolean {
-    return this.patch.getData().ui['auto-check-updates']
-  }
-
-  private shouldRunAppsCheck (): boolean {
+  private shouldRunOsUpdateCheck(): boolean {
     return this.patch.getData().ui['auto-check-updates']
   }
 
   // ** check **
 
-  private async osUpdateCheck (): Promise<RR.GetMarketplaceEOSRes | undefined> {
+  private async osUpdateCheck(): Promise<RR.GetMarketplaceEOSRes | undefined> {
     const res = await this.api.getEos({
-      'eos-version-compat': this.patch.getData()['server-info']['eos-version-compat'],
+      'eos-version-compat':
+        this.patch.getData()['server-info']['eos-version-compat'],
     })
 
     if (this.emver.compare(this.config.version, res.version) === -1) {
@@ -124,14 +135,9 @@ export class StartupAlertsService {
     }
   }
 
-  private async appsCheck (): Promise<boolean> {
-    const updates = await this.marketplaceService.getUpdates(this.patch.getData()['package-data'])
-    return !!updates.length
-  }
-
   // ** display **
 
-  private async displayOsWelcome (): Promise<boolean> {
+  private async displayOsWelcome(): Promise<boolean> {
     return new Promise(async resolve => {
       const modal = await this.modalCtrl.create({
         component: OSWelcomePage,
@@ -141,27 +147,37 @@ export class StartupAlertsService {
         },
       })
       modal.onWillDismiss().then(() => {
-        this.api.setDbValue({ pointer: '/ack-welcome', value: this.config.version })
-        .catch()
+        this.api
+          .setDbValue({ pointer: '/ack-welcome', value: this.config.version })
+          .catch()
         return resolve(true)
       })
       await modal.present()
     })
   }
 
-  private async displayShareStats (): Promise<boolean> {
+  private async displayShareStats(): Promise<boolean> {
     return new Promise(async resolve => {
-      const alert = await this.serverConfig.presentAlert('share-stats', this.patch.getData()['server-info']['share-stats'])
+      const alert = await this.serverConfig.presentAlert(
+        'share-stats',
+        this.patch.getData()['server-info']['share-stats'],
+      )
 
       alert.onDidDismiss().then(() => {
-        this.api.setDbValue({ pointer: '/ack-share-stats', value: this.config.version })
+        this.api
+          .setDbValue({
+            pointer: '/ack-share-stats',
+            value: this.config.version,
+          })
           .catch()
         return resolve(true)
       })
     })
   }
 
-  private async displayOsUpdateCheck (eos: RR.GetMarketplaceEOSRes): Promise<boolean> {
+  private async displayOsUpdateCheck(
+    eos: RR.GetMarketplaceEOSRes,
+  ): Promise<boolean> {
     const { update } = await this.presentAlertNewOS(eos.version)
     if (update) {
       const { cancelled } = await wizardModal(
@@ -178,46 +194,19 @@ export class StartupAlertsService {
     return true
   }
 
-  private async displayAppsCheck (): Promise<boolean> {
-    return new Promise(async resolve => {
-      const alert = await this.alertCtrl.create({
-        header: 'Updates Available!',
-        message: new IonicSafeString(
-          `<div style="display: flex; flex-direction: column; justify-content: space-around; min-height: 100px">
-            <div>New service updates are available in the Marketplace.</div>
-            <div style="font-size:x-small">You can disable these checks in your Embassy Config</div>
-          </div>
-          `,
-        ),
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            handler: () => resolve(true),
-          },
-          {
-            text: 'View in Marketplace',
-            handler: () => {
-              this.navCtrl.navigateForward('/marketplace').then(() => resolve(false))
-            },
-            cssClass: 'enter-click',
-          },
-        ],
-      })
-
-      await alert.present()
-    })
-  }
-
   // more
 
-  private async presentAlertNewOS (versionLatest: string): Promise<{ cancel?: true, update?: true }> {
+  private async presentAlertNewOS(
+    versionLatest: string,
+  ): Promise<{ cancel?: true; update?: true }> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
         header: 'New EmbassyOS Version!',
         message: new IonicSafeString(
           `<div style="display: flex; flex-direction: column; justify-content: space-around; min-height: 100px">
-            <div>Update EmbassyOS to version ${displayEmver(versionLatest)}?</div>
+            <div>Update EmbassyOS to version ${displayEmver(
+              versionLatest,
+            )}?</div>
             <div style="font-size:x-small">You can disable these checks in your Embassy Config</div>
           </div>
           `,
