@@ -113,15 +113,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     params: RR.GetReleaseNotesReq,
   ): Promise<RR.GetReleaseNotesRes>
 
-  abstract getLatestVersion(
-    params: RR.GetLatestVersionReq,
-  ): Promise<RR.GetLatestVersionRes>
-
-  // protected abstract setPackageMarketplaceRaw (params: RR.SetPackageMarketplaceReq): Promise<RR.SetPackageMarketplaceRes>
-  // setPackageMarketplace = (params: RR.SetPackageMarketplaceReq) => this.syncResponse(
-  //   () => this.setPackageMarketplaceRaw(params),
-  // )()
-
   // password
   // abstract updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes>
 

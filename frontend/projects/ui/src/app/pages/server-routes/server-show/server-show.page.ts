@@ -4,6 +4,7 @@ import {
   LoadingController,
   NavController,
   IonicSafeString,
+  ModalController,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
@@ -11,7 +12,11 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ServerStatus } from 'src/app/services/patch-db/data-model'
 import { Observable, of } from 'rxjs'
-import { map } from 'rxjs/operators'
+import { filter, map, take } from 'rxjs/operators'
+import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
+import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
+import { exists, isEmptyObject } from 'src/app/util/misc.util'
+import { EOSService } from 'src/app/services/eos.service'
 
 @Component({
   selector: 'server-show',
@@ -20,16 +25,56 @@ import { map } from 'rxjs/operators'
 })
 export class ServerShowPage {
   ServerStatus = ServerStatus
+  hasRecoveredPackage: boolean
 
   constructor(
     private readonly alertCtrl: AlertController,
+    private readonly modalCtrl: ModalController,
+    private readonly wizardBaker: WizardBaker,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
+    public readonly eosService: EOSService,
     public readonly patch: PatchDbService,
   ) {}
+
+  ngOnInit() {
+    this.patch
+      .watch$('recovered-packages')
+      .pipe(filter(exists), take(1))
+      .subscribe(rps => {
+        this.hasRecoveredPackage = !isEmptyObject(rps)
+      })
+  }
+
+  async updateEos(): Promise<void> {
+    if (this.hasRecoveredPackage) {
+      const alert = await this.alertCtrl.create({
+        header: 'Cannot Update',
+        message:
+          'You cannot update EmbassyOS when you have unresolved recovered services.',
+        buttons: ['OK'],
+      })
+      await alert.present()
+    } else {
+      const {
+        version,
+        headline,
+        'release-notes': releaseNotes,
+      } = this.eosService.eos
+
+      await wizardModal(
+        this.modalCtrl,
+        this.wizardBaker.updateOS({
+          version,
+          headline,
+          releaseNotes,
+        }),
+      )
+    }
+  }
 
   async presentAlertRestart() {
     const alert = await this.alertCtrl.create({
@@ -54,7 +99,6 @@ export class ServerShowPage {
   }
 
   async presentAlertShutdown() {
-    const sts = this.patch.data['server-info'].status
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
@@ -81,7 +125,7 @@ export class ServerShowPage {
     const alert = await this.alertCtrl.create({
       header: 'System Rebuild',
       message: new IonicSafeString(
-        `<ion-text color="warning">Important:</ion-text> This will tear down all service containers and rebuild them from scratch. This may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
+        `<ion-text color="warning">Warning:</ion-text> This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
       ),
       buttons: [
         {
@@ -151,6 +195,23 @@ export class ServerShowPage {
     }
   }
 
+  private async checkForEosUpdate(): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Checking for updates',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.eosService.getEOS()
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
   settings: ServerSettings = {
     Backups: [
       {
@@ -179,6 +240,17 @@ export class ServerShowPage {
       },
     ],
     Insights: [
+      {
+        title: 'Software Update',
+        description: 'Get the latest version of EmbassyOS',
+        icon: 'cog-outline',
+        action: () =>
+          this.eosService.updateAvailable$.getValue()
+            ? this.updateEos()
+            : this.checkForEosUpdate(),
+        detail: false,
+        disabled: of(false),
+      },
       {
         title: 'About',
         description: 'Basic information about your Embassy',
@@ -303,12 +375,14 @@ export class ServerShowPage {
 }
 
 interface ServerSettings {
-  [key: string]: {
-    title: string
-    description: string
-    icon: string
-    action: Function
-    detail: boolean
-    disabled: Observable<boolean>
-  }[]
+  [key: string]: SettingBtn[]
+}
+
+interface SettingBtn {
+  title: string
+  description: string
+  icon: string
+  action: Function
+  detail: boolean
+  disabled: Observable<boolean>
 }

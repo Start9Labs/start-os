@@ -22,7 +22,7 @@
     <ion-item
       [button]="mp.key !== patch.data.ui.marketplace['selected-id']"
       detail="false"
-      *ngFor="let mp of patch.data.ui.marketplace.options | keyvalue"
+      *ngFor="let mp of patch.data.ui.marketplace['known-hosts'] | keyvalue"
       (click)="presentAction(mp.key)"
     >
       <div

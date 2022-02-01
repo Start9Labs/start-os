@@ -64,14 +64,6 @@ export module RR {
   export type KillSessionsReq = WithExpire<{ ids: string[] }> // sessions.kill
   export type KillSessionsRes = WithRevision<null>
 
-  // marketplace URLs
-
-  export type SetEosMarketplaceReq = WithExpire<{ url: string }> // marketplace.eos.set
-  export type SetEosMarketplaceRes = WithRevision<null>
-
-  export type SetPackageMarketplaceReq = WithExpire<{ url: string }> // marketplace.package.set
-  export type SetPackageMarketplaceRes = WithRevision<null>
-
   // password
 
   export type UpdatePasswordReq = { password: string } // password.set
@@ -267,15 +259,11 @@ export module RR {
     query?: string
     page?: string
     'per-page'?: string
-    url?: string
   }
   export type GetMarketplacePackagesRes = MarketplacePkg[]
 
   export type GetReleaseNotesReq = { id: string }
   export type GetReleaseNotesRes = { [version: string]: string }
-
-  export type GetLatestVersionReq = { ids: string[] }
-  export type GetLatestVersionRes = { [id: string]: string }
 }
 
 export type WithExpire<T> = { 'expire-id'?: string } & T

@@ -19,7 +19,11 @@ import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { ToastButton } from '@ionic/core'
 import { PatchDbService } from './services/patch-db/patch-db.service'
-import { ServerStatus } from './services/patch-db/data-model'
+import {
+  ServerStatus,
+  UIData,
+  UIMarketplaceData,
+} from './services/patch-db/data-model'
 import {
   ConnectionFailure,
   ConnectionService,
@@ -30,6 +34,8 @@ import { debounce, isEmptyObject } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
 import { LocalStorageService } from './services/local-storage.service'
+import { EOSService } from './services/eos.service'
+import { v4 } from 'uuid'
 
 @Component({
   selector: 'app-root',
@@ -39,7 +45,7 @@ import { LocalStorageService } from './services/local-storage.service'
 export class AppComponent {
   @HostListener('document:keydown.enter', ['$event'])
   @debounce()
-  handleKeyboardEvent() {
+  handleKeyboardEvent () {
     const elems = document.getElementsByClassName('enter-click')
     const elem = elems[elems.length - 1] as HTMLButtonElement
     if (!elem || elem.classList.contains('no-click') || elem.disabled) return
@@ -84,7 +90,7 @@ export class AppComponent {
     },
   ]
 
-  constructor(
+  constructor (
     private readonly storage: Storage,
     private readonly authService: AuthService,
     private readonly router: Router,
@@ -101,11 +107,12 @@ export class AppComponent {
     public readonly splitPane: SplitPaneTracker,
     public readonly patch: PatchDbService,
     public readonly localStorageService: LocalStorageService,
+    public readonly eosService: EOSService,
   ) {
     this.init()
   }
 
-  async init() {
+  async init () {
     await this.storage.create()
     await this.authService.init()
     await this.localStorageService.init()
@@ -140,7 +147,12 @@ export class AppComponent {
             filter(obj => !isEmptyObject(obj)),
             take(1),
           )
-          .subscribe(_ => {
+          .subscribe(data => {
+            // check for updates to EOS
+            this.checkForEosUpdate(data.ui)
+            // seed EOS marketplace as default for services too
+            this.seedMarketplace(data.ui.marketplace)
+
             this.subscriptions = this.subscriptions.concat([
               // watch status to present toast for updated state
               this.watchStatus(),
@@ -172,7 +184,7 @@ export class AppComponent {
     })
   }
 
-  async goToWebsite(): Promise<void> {
+  async goToWebsite (): Promise<void> {
     let url: string
     if (this.config.isTor()) {
       url =
@@ -183,7 +195,7 @@ export class AppComponent {
     window.open(url, '_blank', 'noreferrer')
   }
 
-  async presentAlertLogout() {
+  async presentAlertLogout () {
     const alert = await this.alertCtrl.create({
       header: 'Caution',
       message:
@@ -206,13 +218,39 @@ export class AppComponent {
     await alert.present()
   }
 
+  private async checkForEosUpdate (ui: UIData): Promise<void> {
+    if (ui['auto-check-updates']) {
+      await this.eosService.getEOS()
+    }
+  }
+
+  private async seedMarketplace(marketplace: UIMarketplaceData): Promise<void> {
+    if (
+      !marketplace ||
+      !marketplace['known-hosts'] ||
+      !marketplace['selected-id']
+    ) {
+      const uuid = v4()
+      const value: UIMarketplaceData = {
+        'selected-id': uuid,
+        'known-hosts': {
+          [uuid]: {
+            url: this.config.eosMarketplaceUrl,
+            name: 'Start9 Embassy Marketplace',
+          },
+        },
+      }
+      await this.embassyApi.setDbValue({ pointer: '/marketplace', value })
+    }
+  }
+
   // should wipe cache independant of actual BE logout
-  private async logout() {
+  private async logout () {
     this.embassyApi.logout({})
     this.authService.setUnverified()
   }
 
-  private watchConnection(): Subscription {
+  private watchConnection (): Subscription {
     return this.connectionService
       .watchFailure$()
       .pipe(distinctUntilChanged(), debounceTime(500))
@@ -245,7 +283,7 @@ export class AppComponent {
       })
   }
 
-  private watchRouter(): Subscription {
+  private watchRouter (): Subscription {
     return this.router.events
       .pipe(filter((e: RoutesRecognized) => !!e.urlAfterRedirects))
       .subscribe(e => {
@@ -256,7 +294,7 @@ export class AppComponent {
       })
   }
 
-  private watchStatus(): Subscription {
+  private watchStatus (): Subscription {
     return this.patch.watch$('server-info', 'status').subscribe(status => {
       if (status === ServerStatus.Updated && !this.updateToast) {
         this.presentToastUpdated()
@@ -264,7 +302,7 @@ export class AppComponent {
     })
   }
 
-  private watchUpdateProgress(): Subscription {
+  private watchUpdateProgress (): Subscription {
     return this.patch
       .watch$('server-info', 'update-progress')
       .subscribe(progress => {
@@ -272,7 +310,7 @@ export class AppComponent {
       })
   }
 
-  private watchVersion(): Subscription {
+  private watchVersion (): Subscription {
     return this.patch.watch$('server-info', 'version').subscribe(version => {
       if (this.emver.compare(this.config.version, version) !== 0) {
         this.presentAlertRefreshNeeded()
@@ -280,7 +318,7 @@ export class AppComponent {
     })
   }
 
-  private watchNotifications(): Subscription {
+  private watchNotifications (): Subscription {
     let previous: number
     return this.patch
       .watch$('server-info', 'unread-notification-count')
@@ -292,7 +330,7 @@ export class AppComponent {
       })
   }
 
-  private async presentAlertRefreshNeeded() {
+  private async presentAlertRefreshNeeded () {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Refresh Needed',
@@ -311,7 +349,7 @@ export class AppComponent {
     await alert.present()
   }
 
-  private async presentToastUpdated() {
+  private async presentToastUpdated () {
     if (this.updateToast) return
 
     this.updateToast = await this.toastCtrl.create({
@@ -341,7 +379,7 @@ export class AppComponent {
     await this.updateToast.present()
   }
 
-  private async presentToastNotifications() {
+  private async presentToastNotifications () {
     if (this.notificationToast) return
 
     this.notificationToast = await this.toastCtrl.create({
@@ -371,7 +409,7 @@ export class AppComponent {
     await this.notificationToast.present()
   }
 
-  private async presentToastOffline(
+  private async presentToastOffline (
     message: string | IonicSafeString,
     link?: string,
   ) {
@@ -412,7 +450,7 @@ export class AppComponent {
     await this.offlineToast.present()
   }
 
-  private async restart(): Promise<void> {
+  private async restart (): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Restarting...',
@@ -429,7 +467,7 @@ export class AppComponent {
     }
   }
 
-  splitPaneVisible(e: any) {
+  splitPaneVisible (e: any) {
     this.splitPane.sidebarOpen$.next(e.detail.visible)
   }
 }

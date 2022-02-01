@@ -12,11 +12,8 @@ import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDbService } from '../../../services/patch-db/patch-db.service'
 import { v4 } from 'uuid'
 import { MarketplaceService } from '../../marketplace-routes/marketplace.service'
-import {
-  DataModel,
-  UIData,
-  UIMarketplaceData,
-} from '../../../services/patch-db/data-model'
+import { UIMarketplaceData } from '../../../services/patch-db/data-model'
+import { ConfigService } from '../../../services/config.service'
 
 @Component({
   selector: 'marketplaces',
@@ -31,6 +28,7 @@ export class MarketplacesPage {
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
     private readonly marketplaceService: MarketplaceService,
+    private readonly config: ConfigService,
     public readonly patch: PatchDbService,
   ) {}
 
@@ -95,10 +93,10 @@ export class MarketplacesPage {
   }
 
   private async connect(id: string): Promise<void> {
-    const marketplace = JSON.parse(
+    const marketplace: UIMarketplaceData = JSON.parse(
       JSON.stringify(this.patch.data.ui.marketplace),
     )
-    const newMarketplace = marketplace.options[id]
+    const newMarketplace = marketplace['known-hosts'][id]
 
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
@@ -141,7 +139,7 @@ export class MarketplacesPage {
   }
 
   private async delete(id: string): Promise<void> {
-    const marketplace = JSON.parse(
+    const marketplace: UIMarketplaceData = JSON.parse(
       JSON.stringify(this.patch.data.ui.marketplace),
     )
 
@@ -153,7 +151,7 @@ export class MarketplacesPage {
     await loader.present()
 
     try {
-      delete marketplace.options[id]
+      delete marketplace['known-hosts'][id]
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e) {
       this.errToast.present(e)
@@ -168,7 +166,7 @@ export class MarketplacesPage {
     ) as UIMarketplaceData
 
     // no-op on duplicates
-    const currentUrls = Object.values(marketplace.options).map(
+    const currentUrls = Object.values(marketplace['known-hosts']).map(
       u => new URL(u.url).hostname,
     )
     if (currentUrls.includes(new URL(url).hostname)) return
@@ -184,7 +182,7 @@ export class MarketplacesPage {
     try {
       const id = v4()
       const { name } = await this.api.getMarketplaceData({}, url)
-      marketplace.options[id] = { name, url }
+      marketplace['known-hosts'][id] = { name, url }
     } catch (e) {
       this.errToast.present({ message: `Could not connect to ${url}` } as any)
       loader.dismiss()
@@ -208,7 +206,7 @@ export class MarketplacesPage {
     ) as UIMarketplaceData
 
     // no-op on duplicates
-    const currentUrls = Object.values(marketplace.options).map(
+    const currentUrls = Object.values(marketplace['known-hosts']).map(
       u => new URL(u.url).hostname,
     )
     if (currentUrls.includes(new URL(url).hostname)) return
@@ -223,7 +221,7 @@ export class MarketplacesPage {
     try {
       const id = v4()
       const { name } = await this.api.getMarketplaceData({}, url)
-      marketplace.options[id] = { name, url }
+      marketplace['known-hosts'][id] = { name, url }
       marketplace['selected-id'] = id
     } catch (e) {
       this.errToast.present({ message: `Could not connect to ${url}` } as any)

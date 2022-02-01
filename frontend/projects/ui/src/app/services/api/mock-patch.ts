@@ -16,15 +16,7 @@ export const mockPatchData: DataModel = {
     'pkg-order': [],
     'ack-welcome': '1.0.0',
     'ack-share-stats': false,
-    marketplace: {
-      'selected-id': 'asdfasdf',
-      options: {
-        asdfasdf: {
-          name: 'Start9',
-          url: 'start9marketplace.com',
-        },
-      },
-    },
+    marketplace: undefined,
   },
   'server-info': {
     id: 'embassy-abcdefgh',
@@ -439,6 +431,8 @@ export const mockPatchData: DataModel = {
         },
         'current-dependencies': {},
         'dependency-info': {},
+        'marketplace-url': 'marketplace-url.com',
+        'developer-key': 'developer-key',
       },
     },
     lnd: {
@@ -644,6 +638,8 @@ export const mockPatchData: DataModel = {
             icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           },
         },
+        'marketplace-url': 'marketplace-url.com',
+        'developer-key': 'developer-key',
       },
     },
   },
