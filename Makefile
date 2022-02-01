@@ -48,7 +48,7 @@ product_key.txt:
 	if [ "$(KEY)" != "" ]; then $(shell which echo) -n "$(KEY)" > product_key.txt; fi
 	echo >> product_key.txt
 
-$(EMBASSY_BINS): $(APPMGR_SRC)
+$(EMBASSY_BINS): $(BACKEND_SRC)
 	cd backend && ./build-prod.sh
 
 frontend/node_modules: frontend/package.json
