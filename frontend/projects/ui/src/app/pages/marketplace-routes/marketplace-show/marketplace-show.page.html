@@ -200,7 +200,7 @@
               <ion-item [routerLink]="['/marketplace', dep.key]">
                 <ion-thumbnail slot="start">
                   <img
-                    [src]="'/marketplace' + pkg['dependency-metadata'][dep.key].icon"
+                    [src]="sanitizer.bypassSecurityTrustResourceUrl('data:image/png;base64,' + pkg['dependency-metadata'][dep.key].icon)"
                   />
                 </ion-thumbnail>
                 <ion-label>
