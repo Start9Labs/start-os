@@ -8,18 +8,24 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-
-  <text-spinner *ngIf="loading; else loaded" text="Loading Package"></text-spinner>
+  <text-spinner
+    *ngIf="loading; else loaded"
+    text="Loading Package"
+  ></text-spinner>
 
   <ng-template #loaded>
     <ion-grid>
       <ion-row>
         <ion-col sizeXs="12" sizeSm="12" sizeMd="9" sizeLg="9" sizeXl="9">
           <div class="header">
-            <img [src]="'/marketplace' + pkg.icon" />
+            <img
+              [src]="sanitizer.bypassSecurityTrustResourceUrl('data:image/png;base64,' + pkg.icon)"
+            />
             <div class="header-text">
               <h1 class="header-title">{{ pkg.manifest.title }}</h1>
-              <p class="header-version">{{ pkg.manifest.version | displayEmver }}</p>
+              <p class="header-version">
+                {{ pkg.manifest.version | displayEmver }}
+              </p>
               <div class="header-status">
                 <!-- no localPkg -->
                 <p *ngIf="!localPkg; else local">Not Installed</p>
@@ -27,12 +33,25 @@
                 <ng-template #local>
                   <!-- installed -->
                   <p *ngIf="localPkg.state === PackageState.Installed">
-                    <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 0" color="success">Installed</ion-text>
-                    <ion-text *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1" color="warning">Update Available</ion-text>
+                    <ion-text
+                      *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 0"
+                      color="success"
+                      >Installed</ion-text
+                    >
+                    <ion-text
+                      *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1"
+                      color="warning"
+                      >Update Available</ion-text
+                    >
                   </p>
                   <!-- installing, updating -->
-                  <p *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state">
-                    <ion-text color="primary" *ngIf="(localPkg['install-progress'] | installProgress) as progress">
+                  <p
+                    *ngIf="[PackageState.Installing, PackageState.Updating] | includes : localPkg.state"
+                  >
+                    <ion-text
+                      color="primary"
+                      *ngIf="(localPkg['install-progress'] | installProgress) as progress"
+                    >
                       Installing
                       <span class="loading-dots"></span>{{ progress }}
                     </ion-text>
@@ -49,7 +68,14 @@
             </div>
           </div>
         </ion-col>
-        <ion-col sizeXl="3" sizeLg="3" sizeMd="3" sizeSm="12" sizeXs="12" class="ion-align-self-center">
+        <ion-col
+          sizeXl="3"
+          sizeLg="3"
+          sizeMd="3"
+          sizeSm="12"
+          sizeXs="12"
+          class="ion-align-self-center"
+        >
           <!-- no localPkg -->
           <ion-button *ngIf="!localPkg" expand="block" (click)="tryInstall()">
             Install
@@ -58,10 +84,19 @@
           <ng-container *ngIf="localPkg">
             <!-- not installing, updating, or removing -->
             <ng-container *ngIf="localPkg.state === PackageState.Installed">
-              <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === -1" expand="block" (click)="presentModal('update')">
+              <ion-button
+                *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === -1"
+                expand="block"
+                (click)="presentModal('update')"
+              >
                 Update
               </ion-button>
-              <ion-button *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === 1" expand="block" color="warning" (click)="presentModal('downgrade')">
+              <ion-button
+                *ngIf="(localPkg.manifest.version | compareEmver : pkg.manifest.version) === 1"
+                expand="block"
+                color="warning"
+                (click)="presentModal('downgrade')"
+              >
                 Downgrade
               </ion-button>
             </ng-container>
@@ -69,8 +104,20 @@
         </ion-col>
       </ion-row>
       <ion-row *ngIf="localPkg">
-        <ion-col sizeXl="3" sizeLg="3" sizeMd="3" sizeSm="12" sizeXs="12" class="ion-align-self-center">
-          <ion-button expand="block" fill="outline" color="primary" [routerLink]="['/services', pkg.manifest.id]">
+        <ion-col
+          sizeXl="3"
+          sizeLg="3"
+          sizeMd="3"
+          sizeSm="12"
+          sizeXs="12"
+          class="ion-align-self-center"
+        >
+          <ion-button
+            expand="block"
+            fill="outline"
+            color="primary"
+            [routerLink]="['/services', pkg.manifest.id]"
+          >
             View Service
           </ion-button>
         </ion-col>
@@ -80,16 +127,30 @@
     <!-- auto-config -->
     <ion-item lines="none" *ngIf="dependentInfo" class="rec-item">
       <ion-label>
-        <h2 style="display: flex; align-items: center;">
-          <ion-text style="margin: 5px; font-family: 'Montserrat'; font-size: 18px;">{{ pkg.manifest.title }}</ion-text>
+        <h2 style="display: flex; align-items: center">
+          <ion-text
+            style="margin: 5px; font-family: 'Montserrat'; font-size: 18px"
+            >{{ pkg.manifest.title }}</ion-text
+          >
         </h2>
         <p>
           <ion-text color="dark">
-            {{ dependentInfo.title }} requires an install of {{ pkg.manifest.title }} satisfying {{ dependentInfo.version }}.
+            {{ dependentInfo.title }} requires an install of {{
+            pkg.manifest.title }} satisfying {{ dependentInfo.version }}.
             <br />
             <br />
-            <span *ngIf="pkg.manifest.version | satisfiesEmver: dependentInfo.version" class="recommendation-text">{{ pkg.manifest.title }} version {{ pkg.manifest.version | displayEmver }} is compatible.</span>
-            <span *ngIf="!(pkg.manifest.version | satisfiesEmver: dependentInfo.version)" class="recommendation-text recommendation-error">{{ pkg.manifest.title }} version {{ pkg.manifest.version | displayEmver }} is NOT compatible.</span>
+            <span
+              *ngIf="pkg.manifest.version | satisfiesEmver: dependentInfo.version"
+              class="recommendation-text"
+              >{{ pkg.manifest.title }} version {{ pkg.manifest.version |
+              displayEmver }} is compatible.</span
+            >
+            <span
+              *ngIf="!(pkg.manifest.version | satisfiesEmver: dependentInfo.version)"
+              class="recommendation-text recommendation-error"
+              >{{ pkg.manifest.title }} version {{ pkg.manifest.version |
+              displayEmver }} is NOT compatible.</span
+            >
           </ion-text>
         </p>
       </ion-label>
@@ -99,47 +160,71 @@
       <!-- release notes -->
       <ion-item-divider>
         New in {{ pkg.manifest.version | displayEmver }}
-        <ion-button [routerLink]="['notes']" style="position: absolute; right: 10px;" fill="clear" color="dark">
+        <ion-button
+          [routerLink]="['notes']"
+          style="position: absolute; right: 10px"
+          fill="clear"
+          color="dark"
+        >
           All Release Notes
           <ion-icon slot="end" name="arrow-forward-outline"></ion-icon>
         </ion-button>
       </ion-item-divider>
       <ion-item lines="none" color="transparent">
         <ion-label>
-          <div id='release-notes' [innerHTML]="pkg.manifest['release-notes'] | markdown"></div>
+          <div
+            id="release-notes"
+            [innerHTML]="pkg.manifest['release-notes'] | markdown"
+          ></div>
         </ion-label>
       </ion-item>
       <!-- description -->
       <ion-item-divider>Description</ion-item-divider>
       <ion-item lines="none" color="transparent">
         <ion-label>
-          <div id="release-notes" class="release-notes">{{ pkg.manifest.description.long }}</div>
+          <div id="release-notes" class="release-notes">
+            {{ pkg.manifest.description.long }}
+          </div>
         </ion-label>
       </ion-item>
       <!-- dependencies -->
       <ng-container *ngIf="!(pkg.manifest.dependencies | empty)">
         <ion-item-divider>Dependencies</ion-item-divider>
-          <ion-grid>
-            <ion-row>
-              <ion-col *ngFor="let dep of pkg.manifest.dependencies | keyvalue" sizeSm="12" sizeMd="6">
-                <ion-item [routerLink]="['/marketplace', dep.key]">
-                  <ion-thumbnail slot="start">
-                    <img [src]="'/marketplace' + pkg['dependency-metadata'][dep.key].icon" />
-                  </ion-thumbnail>
-                  <ion-label>
-                    <h2>
-                      {{ pkg['dependency-metadata'][dep.key].title }}
-                      <span *ngIf="dep.value.requirement.type === 'required'"> (required)</span>
-                      <span *ngIf="dep.value.requirement.type === 'opt-out'"> (required by default)</span>
-                      <span *ngIf="dep.value.requirement.type === 'opt-in'"> (optional)</span>
-                    </h2>
-                    <p style="font-size: small">{{ dep.value.version | displayEmver }}</p>
-                    <p>{{ dep.value.description }}</p>
-                  </ion-label>
-                </ion-item>
-              </ion-col>
-            </ion-row>
-          </ion-grid>
+        <ion-grid>
+          <ion-row>
+            <ion-col
+              *ngFor="let dep of pkg.manifest.dependencies | keyvalue"
+              sizeSm="12"
+              sizeMd="6"
+            >
+              <ion-item [routerLink]="['/marketplace', dep.key]">
+                <ion-thumbnail slot="start">
+                  <img
+                    [src]="'/marketplace' + pkg['dependency-metadata'][dep.key].icon"
+                  />
+                </ion-thumbnail>
+                <ion-label>
+                  <h2>
+                    {{ pkg['dependency-metadata'][dep.key].title }}
+                    <span *ngIf="dep.value.requirement.type === 'required'">
+                      (required)</span
+                    >
+                    <span *ngIf="dep.value.requirement.type === 'opt-out'">
+                      (required by default)</span
+                    >
+                    <span *ngIf="dep.value.requirement.type === 'opt-in'">
+                      (optional)</span
+                    >
+                  </h2>
+                  <p style="font-size: small">
+                    {{ dep.value.version | displayEmver }}
+                  </p>
+                  <p>{{ dep.value.description }}</p>
+                </ion-label>
+              </ion-item>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
       </ng-container>
     </ion-item-group>
 
@@ -156,14 +241,22 @@
                 </ion-label>
                 <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
               </ion-item>
-              <ion-item button detail="false" (click)="presentModalMd('license')">
+              <ion-item
+                button
+                detail="false"
+                (click)="presentModalMd('license')"
+              >
                 <ion-label>
                   <h2>License</h2>
                   <p>{{ pkg.manifest.license }}</p>
                 </ion-label>
                 <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
               </ion-item>
-              <ion-item button detail="false" (click)="presentModalMd('instructions')">
+              <ion-item
+                button
+                detail="false"
+                (click)="presentModalMd('instructions')"
+              >
                 <ion-label>
                   <h2>Instructions</h2>
                   <p>Click to view instructions</p>
@@ -174,21 +267,36 @@
           </ion-col>
           <ion-col sizeSm="12" sizeMd="6">
             <ion-item-group>
-              <ion-item [href]="pkg.manifest['upstream-repo']" target="_blank" rel="noreferrer" detail="false">
+              <ion-item
+                [href]="pkg.manifest['upstream-repo']"
+                target="_blank"
+                rel="noreferrer"
+                detail="false"
+              >
                 <ion-label>
                   <h2>Source Repository</h2>
                   <p>{{ pkg.manifest['upstream-repo'] }}</p>
                 </ion-label>
                 <ion-icon slot="end" name="open-outline"></ion-icon>
               </ion-item>
-              <ion-item [href]="pkg.manifest['wrapper-repo']" target="_blank" rel="noreferrer" detail="false">
+              <ion-item
+                [href]="pkg.manifest['wrapper-repo']"
+                target="_blank"
+                rel="noreferrer"
+                detail="false"
+              >
                 <ion-label>
                   <h2>Wrapper Repository</h2>
                   <p>{{ pkg.manifest['wrapper-repo'] }}</p>
                 </ion-label>
                 <ion-icon slot="end" name="open-outline"></ion-icon>
               </ion-item>
-              <ion-item [href]="pkg.manifest['support-site']" target="_blank" rel="noreferrer" detail="false">
+              <ion-item
+                [href]="pkg.manifest['support-site']"
+                target="_blank"
+                rel="noreferrer"
+                detail="false"
+              >
                 <ion-label>
                   <h2>Support Site</h2>
                   <p>{{ pkg.manifest['support-site'] }}</p>
