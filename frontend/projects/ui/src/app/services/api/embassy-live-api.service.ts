@@ -17,8 +17,13 @@ export class LiveApiService extends ApiService {
   ) {
     super()
     ;(window as any).rpcClient = this
-    this.patch.watch$('ui', 'marketplace', 'selected-id').subscribe(id => {
-      this.marketplaceUrl = id
+    this.patch.watch$('ui', 'marketplace').subscribe(marketplace => {
+      if (!marketplace || !marketplace['selected-id']) {
+        this.marketplaceUrl = this.config.marketplace.url
+      } else {
+        this.marketplaceUrl =
+          marketplace['known-hosts'][marketplace['selected-id']].url
+      }
     })
   }
 
@@ -127,7 +132,7 @@ export class LiveApiService extends ApiService {
     return this.marketplaceProxy(
       '/eos/latest',
       params,
-      this.config.eosMarketplaceUrl,
+      this.config.marketplace.url,
     )
   }
 
