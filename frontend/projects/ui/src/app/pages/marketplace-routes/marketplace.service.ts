@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
 import { MarketplaceData, MarketplacePkg } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConfigService } from 'src/app/services/config.service'
 import { Emver } from 'src/app/services/emver.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -21,6 +22,7 @@ export class MarketplaceService {
     private readonly api: ApiService,
     private readonly emver: Emver,
     private readonly patch: PatchDbService,
+    private config: ConfigService,
   ) {}
 
   async load(): Promise<void> {
@@ -31,13 +33,15 @@ export class MarketplaceService {
       ])
       this.data = data
       this.pkgs = pkgs
-      const { 'selected-id': selectedId, 'known-hosts': knownHosts } =
-        this.patch.getData().ui.marketplace
-      if (knownHosts[selectedId].name !== this.data.name) {
-        this.api.setDbValue({
-          pointer: `/marketplace/known-hosts/${selectedId}/name`,
-          value: this.data.name,
-        })
+      if (this.patch.getData().ui.marketplace?.['selected-id']) {
+        const { 'selected-id': selectedId, 'known-hosts': knownHosts } =
+          this.patch.getData().ui.marketplace
+        if (knownHosts[selectedId].name !== this.data.name) {
+          this.api.setDbValue({
+            pointer: `/marketplace/known-hosts/${selectedId}/name`,
+            value: this.data.name,
+          })
+        }
       }
     } catch (e) {
       this.data = undefined
@@ -49,6 +53,11 @@ export class MarketplaceService {
   async getUpdates(localPkgs: {
     [id: string]: PackageDataEntry
   }): Promise<MarketplacePkg[]> {
+    const id = this.patch.getData().ui.marketplace?.['selected-id']
+    const url = id
+      ? this.patch.getData().ui.marketplace['known-hosts'][id].url
+      : this.config.marketplace.url
+
     const idAndCurrentVersions = Object.keys(localPkgs)
       .map(key => ({
         id: key,
@@ -56,10 +65,7 @@ export class MarketplaceService {
         marketplaceUrl: localPkgs[key].installed['marketplace-url'],
       }))
       .filter(pkg => {
-        return (
-          pkg.marketplaceUrl ===
-          this.patch.getData().ui.marketplace['known-hosts']['selected-id'].url
-        )
+        return pkg.marketplaceUrl === url
       })
     const latestPkgs = await this.api.getMarketplacePkgs({
       ids: idAndCurrentVersions,

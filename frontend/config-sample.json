@@ -15,6 +15,9 @@
       "maskAs": "tor",
       "skipStartupAlerts": true
     },
-    "eosMarketplaceURL": "https://beta-registry-0-3.start9labs.com "
+    "marketplace": {
+      "url": "https://beta-registry-0-3.start9labs.com",
+      "name": "Start9"
+    }
   }
 }
