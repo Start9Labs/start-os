@@ -18,9 +18,7 @@
       <ion-row>
         <ion-col sizeXs="12" sizeSm="12" sizeMd="9" sizeLg="9" sizeXl="9">
           <div class="header">
-            <img
-              [src]="sanitizer.bypassSecurityTrustResourceUrl('data:image/png;base64,' + pkg.icon)"
-            />
+            <img [src]="('data:image/png;base64,' + pkg.icon) | sanitize" />
             <div class="header-text">
               <h1 class="header-title">{{ pkg.manifest.title }}</h1>
               <p class="header-version">
@@ -200,7 +198,7 @@
               <ion-item [routerLink]="['/marketplace', dep.key]">
                 <ion-thumbnail slot="start">
                   <img
-                    [src]="'/marketplace' + pkg['dependency-metadata'][dep.key].icon"
+                    [src]="('data:image/png;base64,' + pkg['dependency-metadata'][dep.key].icon) | sanitize"
                   />
                 </ion-thumbnail>
                 <ion-label>

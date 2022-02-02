@@ -96,22 +96,15 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // marketplace URLs
 
+  abstract marketplaceProxy<T>(
+    path: string,
+    params: {},
+    url: string,
+  ): Promise<T>
+
   abstract getEos(
     params: RR.GetMarketplaceEOSReq,
   ): Promise<RR.GetMarketplaceEOSRes>
-
-  abstract getMarketplaceData(
-    params: RR.GetMarketplaceDataReq,
-    url?: string,
-  ): Promise<RR.GetMarketplaceDataRes>
-
-  abstract getMarketplacePkgs(
-    params: RR.GetMarketplacePackagesReq,
-  ): Promise<RR.GetMarketplacePackagesRes>
-
-  abstract getReleaseNotes(
-    params: RR.GetReleaseNotesReq,
-  ): Promise<RR.GetReleaseNotesRes>
 
   // password
   // abstract updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes>

@@ -188,44 +188,34 @@ export class MockApiService extends ApiService {
 
   // marketplace URLs
 
+  async marketplaceProxy (path: string, params: {}, url: string): Promise<any> {
+    await pauseFor(2000)
+
+    if (path === '/package/data') {
+      return {
+        name: 'Dark9',
+        categories: [
+          'featured',
+          'bitcoin',
+          'lightning',
+          'data',
+          'messaging',
+          'social',
+          'alt coin',
+        ],
+      }
+    } else if (path === '/package/index') {
+      return Mock.MarketplacePkgsList
+    } else if (path === '/package/release-notes') {
+      return Mock.ReleaseNotes
+    }
+  }
+
   async getEos (
     params: RR.GetMarketplaceEOSReq,
   ): Promise<RR.GetMarketplaceEOSRes> {
     await pauseFor(2000)
     return Mock.MarketplaceEos
-  }
-
-  async getMarketplaceData (
-    params: RR.GetMarketplaceDataReq,
-    url?: string,
-  ): Promise<RR.GetMarketplaceDataRes> {
-    await pauseFor(2000)
-    return {
-      name: 'Dark9',
-      categories: [
-        'featured',
-        'bitcoin',
-        'lightning',
-        'data',
-        'messaging',
-        'social',
-        'alt coin',
-      ],
-    }
-  }
-
-  async getMarketplacePkgs (
-    params: RR.GetMarketplacePackagesReq,
-  ): Promise<RR.GetMarketplacePackagesRes> {
-    await pauseFor(2000)
-    return Mock.MarketplacePkgsList
-  }
-
-  async getReleaseNotes (
-    params: RR.GetReleaseNotesReq,
-  ): Promise<RR.GetReleaseNotesRes> {
-    await pauseFor(2000)
-    return Mock.ReleaseNotes
   }
 
   // password
