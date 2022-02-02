@@ -322,7 +322,7 @@ async fn perform_backup<Db: DbHandle>(
                 &manifest.volumes,
             )
             .await;
-        drop(guard);
+        guard.unmount().await?;
         backup_report.insert(
             package_id.clone(),
             PackageBackupReport {
