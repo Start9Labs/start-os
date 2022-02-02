@@ -15,18 +15,18 @@ export class AppReleaseNotes {
   pkgId: string
   loading = true
 
-  constructor (
+  constructor(
     private readonly route: ActivatedRoute,
     public marketplaceService: MarketplaceService,
     public errToast: ErrorToastService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     try {
       const promises = []
       if (!this.marketplaceService.releaseNotes[this.pkgId]) {
-        promises.push(this.marketplaceService.getReleaseNotes(this.pkgId))
+        promises.push(this.marketplaceService.cacheReleaseNotes(this.pkgId))
       }
       if (!this.marketplaceService.pkgs.length) {
         promises.push(this.marketplaceService.load())
@@ -39,11 +39,11 @@ export class AppReleaseNotes {
     }
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  setSelected (selected: string) {
+  setSelected(selected: string) {
     if (this.selected === selected) {
       this.selected = null
     } else {
@@ -51,12 +51,12 @@ export class AppReleaseNotes {
     }
   }
 
-  getDocSize (selected: string) {
+  getDocSize(selected: string) {
     const element = document.getElementById(selected)
     return `${element.scrollHeight}px`
   }
 
-  asIsOrder (a: any, b: any) {
+  asIsOrder(a: any, b: any) {
     return 0
   }
 }

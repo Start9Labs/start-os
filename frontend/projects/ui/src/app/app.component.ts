@@ -150,8 +150,6 @@ export class AppComponent {
           .subscribe(data => {
             // check for updates to EOS
             this.checkForEosUpdate(data.ui)
-            // seed EOS marketplace as default for services too
-            this.seedMarketplace(data.ui.marketplace)
 
             this.subscriptions = this.subscriptions.concat([
               // watch status to present toast for updated state
@@ -221,26 +219,6 @@ export class AppComponent {
   private async checkForEosUpdate (ui: UIData): Promise<void> {
     if (ui['auto-check-updates']) {
       await this.eosService.getEOS()
-    }
-  }
-
-  private async seedMarketplace(marketplace: UIMarketplaceData): Promise<void> {
-    if (
-      !marketplace ||
-      !marketplace['known-hosts'] ||
-      !marketplace['selected-id']
-    ) {
-      const uuid = v4()
-      const value: UIMarketplaceData = {
-        'selected-id': uuid,
-        'known-hosts': {
-          [uuid]: {
-            url: this.config.eosMarketplaceUrl,
-            name: 'Start9 Embassy Marketplace',
-          },
-        },
-      }
-      await this.embassyApi.setDbValue({ pointer: '/marketplace', value })
     }
   }
 
