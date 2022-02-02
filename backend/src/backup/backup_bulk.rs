@@ -306,7 +306,9 @@ async fn perform_backup<Db: DbHandle>(
             .synchronize()
             .await;
 
-        installed_model.lock(&mut db, LockType::Write).await?;
+        let mut tx = db.begin().await?;
+
+        installed_model.lock(&mut tx, LockType::Write).await?;
 
         let guard = backup_guard.mount_package_backup(&package_id).await?;
         let res = manifest
@@ -328,7 +330,6 @@ async fn perform_backup<Db: DbHandle>(
             },
         );
 
-        let mut tx = db.begin().await?;
         if let Ok(pkg_meta) = res {
             installed_model
                 .last_backup()
