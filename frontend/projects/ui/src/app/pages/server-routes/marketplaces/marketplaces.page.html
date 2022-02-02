@@ -20,31 +20,28 @@
     </ion-item>
 
     <ion-item
-      [button]="mp.key !== patch.data.ui.marketplace['selected-id']"
+      [button]="mp.id !== selectedId"
       detail="false"
-      *ngFor="let mp of patch.data.ui.marketplace['known-hosts'] | keyvalue"
-      (click)="presentAction(mp.key)"
+      *ngFor="let mp of marketplaces"
+      (click)="presentAction(mp.id)"
     >
       <div
-        *ngIf="mp.key !== patch.data.ui.marketplace['selected-id']"
+        *ngIf="mp.id !== selectedId"
         slot="start"
         style="padding-right: 32px"
       ></div>
       <ion-icon
-        *ngIf="mp.key === patch.data.ui.marketplace['selected-id']"
+        *ngIf="mp.id === selectedId"
         slot="start"
         size="large"
         name="checkmark"
         color="success"
       ></ion-icon>
       <ion-label>
-        <h2>{{ mp.value.name }}</h2>
-        <p>{{ mp.value.url }}</p>
+        <h2>{{ mp.name }}</h2>
+        <p>{{ mp.url }}</p>
       </ion-label>
-      <ion-note
-        *ngIf="mp.key === patch.data.ui.marketplace['selected-id']"
-        slot="end"
-      >
+      <ion-note *ngIf="mp.id === selectedId" slot="end">
         <ion-text color="success">Selected</ion-text>
       </ion-note>
     </ion-item>

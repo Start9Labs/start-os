@@ -21,6 +21,9 @@ import { ConfigService } from '../../../services/config.service'
   styleUrls: ['marketplaces.page.scss'],
 })
 export class MarketplacesPage {
+  selectedId: string | undefined
+  marketplaces: { id: string | undefined; name: string; url: string }[] = []
+
   constructor(
     private readonly api: ApiService,
     private readonly loadingCtrl: LoadingController,
@@ -31,6 +34,30 @@ export class MarketplacesPage {
     private readonly config: ConfigService,
     public readonly patch: PatchDbService,
   ) {}
+
+  ngOnInit() {
+    this.patch.watch$('ui', 'marketplace').subscribe(mp => {
+      const marketplaces = [
+        {
+          id: undefined,
+          name: this.config.marketplace.name,
+          url: this.config.marketplace.url,
+        },
+      ]
+      if (mp) {
+        this.selectedId = mp['selected-id']
+        const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
+          return {
+            id: k,
+            name: v.name,
+            url: v.url,
+          }
+        })
+        marketplaces.push.apply(marketplaces, alts)
+      }
+      this.marketplaces = marketplaces
+    })
+  }
 
   async presentModalAdd() {
     const marketplaceSpec = getMarketplaceValueSpec()
@@ -82,6 +109,10 @@ export class MarketplacesPage {
       },
     ]
 
+    if (!id) {
+      buttons.shift()
+    }
+
     const action = await this.actionCtrl.create({
       header: id,
       subHeader: 'Manage marketplaces',
@@ -96,7 +127,10 @@ export class MarketplacesPage {
     const marketplace: UIMarketplaceData = JSON.parse(
       JSON.stringify(this.patch.data.ui.marketplace),
     )
-    const newMarketplace = marketplace['known-hosts'][id]
+
+    const url = id
+      ? marketplace['known-hosts'][id].url
+      : this.config.marketplace.url
 
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
@@ -106,10 +140,10 @@ export class MarketplacesPage {
     await loader.present()
 
     try {
-      await this.api.getMarketplaceData({}, newMarketplace.url)
+      await this.marketplaceService.getMarketplaceData({}, url)
     } catch (e) {
       this.errToast.present({
-        message: `Could not connect to ${newMarketplace.url}`,
+        message: `Could not connect to ${url}`,
       } as any)
       loader.dismiss()
       return
@@ -139,6 +173,7 @@ export class MarketplacesPage {
   }
 
   private async delete(id: string): Promise<void> {
+    if (!id) return
     const marketplace: UIMarketplaceData = JSON.parse(
       JSON.stringify(this.patch.data.ui.marketplace),
     )
@@ -161,14 +196,14 @@ export class MarketplacesPage {
   }
 
   private async save(url: string): Promise<void> {
-    const marketplace = JSON.parse(
-      JSON.stringify(this.patch.data.ui.marketplace),
-    ) as UIMarketplaceData
+    const marketplace = this.patch.data.ui.marketplace
+      ? (JSON.parse(
+          JSON.stringify(this.patch.data.ui.marketplace),
+        ) as UIMarketplaceData)
+      : { 'selected-id': undefined, 'known-hosts': {} }
 
     // no-op on duplicates
-    const currentUrls = Object.values(marketplace['known-hosts']).map(
-      u => new URL(u.url).hostname,
-    )
+    const currentUrls = this.marketplaces.map(mp => mp.url)
     if (currentUrls.includes(new URL(url).hostname)) return
 
     const loader = await this.loadingCtrl.create({
@@ -181,7 +216,7 @@ export class MarketplacesPage {
 
     try {
       const id = v4()
-      const { name } = await this.api.getMarketplaceData({}, url)
+      const { name } = await this.marketplaceService.getMarketplaceData({}, url)
       marketplace['known-hosts'][id] = { name, url }
     } catch (e) {
       this.errToast.present({ message: `Could not connect to ${url}` } as any)
@@ -201,14 +236,14 @@ export class MarketplacesPage {
   }
 
   private async saveAndConnect(url: string): Promise<void> {
-    const marketplace = JSON.parse(
-      JSON.stringify(this.patch.data.ui.marketplace),
-    ) as UIMarketplaceData
+    const marketplace = this.patch.data.ui.marketplace
+      ? (JSON.parse(
+          JSON.stringify(this.patch.data.ui.marketplace),
+        ) as UIMarketplaceData)
+      : { 'selected-id': undefined, 'known-hosts': {} }
 
     // no-op on duplicates
-    const currentUrls = Object.values(marketplace['known-hosts']).map(
-      u => new URL(u.url).hostname,
-    )
+    const currentUrls = this.marketplaces.map(mp => mp.url)
     if (currentUrls.includes(new URL(url).hostname)) return
 
     const loader = await this.loadingCtrl.create({
@@ -220,7 +255,7 @@ export class MarketplacesPage {
 
     try {
       const id = v4()
-      const { name } = await this.api.getMarketplaceData({}, url)
+      const { name } = await this.marketplaceService.getMarketplaceData({}, url)
       marketplace['known-hosts'][id] = { name, url }
       marketplace['selected-id'] = id
     } catch (e) {

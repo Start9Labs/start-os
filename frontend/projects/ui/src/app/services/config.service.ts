@@ -9,7 +9,7 @@ import { WorkspaceConfig } from '@shared'
 
 const {
   useMocks,
-  ui: { gitHash, patchDb, api, mocks, eosMarketplaceURL },
+  ui: { gitHash, patchDb, api, mocks, marketplace },
 } = require('../../../../../config.json') as WorkspaceConfig
 
 @Injectable({
@@ -25,7 +25,7 @@ export class ConfigService {
   gitHash = gitHash
   patchDb = patchDb
   api = api
-  eosMarketplaceUrl = eosMarketplaceURL
+  marketplace = marketplace
 
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
   isConsulate = window['platform'] === 'ios'
