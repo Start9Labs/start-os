@@ -31,6 +31,14 @@ export class MarketplaceService {
       ])
       this.data = data
       this.pkgs = pkgs
+      const { 'selected-id': selectedId, 'known-hosts': knownHosts } =
+        this.patch.getData().ui.marketplace
+      if (knownHosts[selectedId].name !== this.data.name) {
+        this.api.setDbValue({
+          pointer: `/marketplace/known-hosts/${selectedId}/name`,
+          value: this.data.name,
+        })
+      }
     } catch (e) {
       this.data = undefined
       this.pkgs = []

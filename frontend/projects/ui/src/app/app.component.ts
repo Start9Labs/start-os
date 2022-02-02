@@ -223,9 +223,9 @@ export class AppComponent {
       !marketplace['selected-id']
     ) {
       const uuid = v4()
-      const value = {
+      const value: UIMarketplaceData = {
         'selected-id': uuid,
-        options: {
+        'known-hosts': {
           [uuid]: {
             url: this.config.eosMarketplaceUrl,
             name: 'Start9 Embassy Marketplace',

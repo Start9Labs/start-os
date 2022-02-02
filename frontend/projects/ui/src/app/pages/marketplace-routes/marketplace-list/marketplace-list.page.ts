@@ -111,20 +111,20 @@ export class MarketplaceListPage {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async search(): Promise<void> {
+  search(): void {
     if (this.query) {
       this.category = undefined
     }
-    await this.filterPkgs()
+    this.filterPkgs()
   }
 
-  async switchCategory(category: string): Promise<void> {
+  switchCategory(category: string): void {
     this.category = category
     this.query = undefined
     this.filterPkgs()
   }
 
-  private async filterPkgs(): Promise<void> {
+  private filterPkgs(): void {
     if (this.category === 'updates') {
       this.pkgs = this.marketplaceService.pkgs.filter(pkg => {
         const { id, version } = pkg.manifest
@@ -139,11 +139,6 @@ export class MarketplaceListPage {
       const pkgsToSort = this.marketplaceService.pkgs.filter(p => {
         return this.category === 'all' || p.categories.includes(this.category)
       })
-
-      const opts = {
-        ...defaultOps,
-        threshold: 1,
-      }
 
       const fuse = new Fuse(pkgsToSort, { ...defaultOps, threshold: 1 })
       this.pkgs = fuse
