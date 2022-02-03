@@ -12,7 +12,6 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import Fuse from 'fuse.js/dist/fuse.min.js'
 import { exists, isEmptyObject } from 'src/app/util/misc.util'
 import { filter, first } from 'rxjs/operators'
-import { DomSanitizer } from '@angular/platform-browser'
 
 const defaultOps = {
   isCaseSensitive: false,
@@ -58,7 +57,6 @@ export class MarketplaceListPage {
     private readonly errToast: ErrorToastService,
     public readonly patch: PatchDbService,
     public readonly marketplaceService: MarketplaceService,
-    public readonly sanitizer: DomSanitizer,
   ) {}
 
   async ngOnInit() {
