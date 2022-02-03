@@ -31,7 +31,6 @@ export class MarketplaceService {
   ) {}
 
   async init() {
-    console.log('initing')
     this.patch.watch$('ui', 'marketplace').subscribe(marketplace => {
       if (!marketplace || !marketplace['selected-id']) {
         this.marketplaceUrl = this.config.marketplace.url
