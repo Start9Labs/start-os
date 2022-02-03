@@ -1,0 +1,19 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
+    <ion-title>Developer Tools</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-item-divider>Components</ion-item-divider>
+  <ion-item button detail (click)="navToConfig()">
+    <ion-icon slot="start" name="construct-outline"></ion-icon>
+    <ion-label>
+      <h2>Config</h2>
+      <p>Edit the config with YAML in real time</p>
+    </ion-label>
+  </ion-item>
+</ion-content>

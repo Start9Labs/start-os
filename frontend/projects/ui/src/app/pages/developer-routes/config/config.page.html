@@ -1,0 +1,24 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
+    <ion-title>Config</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <h1>@ngstack/code-editor (Angular 6)</h1>
+  <p>
+    The component might need a few seconds to load typings. You should be able
+    to see auto-completion for the imported types.
+  </p>
+
+  <ngs-code-editor
+    [theme]="theme"
+    [codeModel]="model"
+    [options]="options"
+    (valueChanged)="onCodeChanged($event)"
+  >
+  </ngs-code-editor>
+</ion-content>
