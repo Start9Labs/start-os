@@ -140,7 +140,7 @@ export class MarketplacesPage {
     await loader.present()
 
     try {
-      await this.api.getMarketplaceData({}, url)
+      await this.marketplaceService.getMarketplaceData({}, url)
     } catch (e) {
       this.errToast.present({
         message: `Could not connect to ${url}`,
@@ -216,7 +216,7 @@ export class MarketplacesPage {
 
     try {
       const id = v4()
-      const { name } = await this.api.getMarketplaceData({}, url)
+      const { name } = await this.marketplaceService.getMarketplaceData({}, url)
       marketplace['known-hosts'][id] = { name, url }
     } catch (e) {
       this.errToast.present({ message: `Could not connect to ${url}` } as any)
@@ -255,7 +255,7 @@ export class MarketplacesPage {
 
     try {
       const id = v4()
-      const { name } = await this.api.getMarketplaceData({}, url)
+      const { name } = await this.marketplaceService.getMarketplaceData({}, url)
       marketplace['known-hosts'][id] = { name, url }
       marketplace['selected-id'] = id
     } catch (e) {

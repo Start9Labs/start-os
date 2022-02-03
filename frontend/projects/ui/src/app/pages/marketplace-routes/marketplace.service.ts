@@ -1,5 +1,9 @@
 import { Injectable } from '@angular/core'
-import { MarketplaceData, MarketplacePkg } from 'src/app/services/api/api.types'
+import {
+  MarketplaceData,
+  MarketplacePkg,
+  RR,
+} from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { Emver } from 'src/app/services/emver.service'
@@ -17,6 +21,7 @@ export class MarketplaceService {
       [version: string]: string
     }
   } = {}
+  marketplaceUrl: string
 
   constructor(
     private readonly api: ApiService,
@@ -25,10 +30,22 @@ export class MarketplaceService {
     private readonly config: ConfigService,
   ) {}
 
+  async init() {
+    console.log('initing')
+    this.patch.watch$('ui', 'marketplace').subscribe(marketplace => {
+      if (!marketplace || !marketplace['selected-id']) {
+        this.marketplaceUrl = this.config.marketplace.url
+      } else {
+        this.marketplaceUrl =
+          marketplace['known-hosts'][marketplace['selected-id']].url
+      }
+    })
+  }
+
   async load(): Promise<void> {
     try {
       const [data, pkgs] = await Promise.all([
-        this.api.getMarketplaceData({}),
+        this.getMarketplaceData({}),
         this.getPkgs(1, 100),
       ])
       this.data = data
@@ -67,7 +84,7 @@ export class MarketplaceService {
       .filter(pkg => {
         return pkg.marketplaceUrl === url
       })
-    const latestPkgs = await this.api.getMarketplacePkgs({
+    const latestPkgs = await this.getMarketplacePkgs({
       ids: idAndCurrentVersions,
       'eos-version-compat':
         this.patch.getData()['server-info']['eos-version-compat'],
@@ -81,7 +98,7 @@ export class MarketplaceService {
   }
 
   async getPkg(id: string, version = '*'): Promise<MarketplacePkg> {
-    const pkgs = await this.api.getMarketplacePkgs({
+    const pkgs = await this.getMarketplacePkgs({
       ids: [{ id, version }],
       'eos-version-compat':
         this.patch.getData()['server-info']['eos-version-compat'],
@@ -95,15 +112,15 @@ export class MarketplaceService {
     }
   }
 
-  async getReleaseNotes(id: string): Promise<void> {
-    this.releaseNotes[id] = await this.api.getReleaseNotes({ id })
+  async cacheReleaseNotes(id: string): Promise<void> {
+    this.releaseNotes[id] = await this.getReleaseNotes({ id })
   }
 
   private async getPkgs(
     page: number,
     perPage: number,
   ): Promise<MarketplacePkg[]> {
-    const pkgs = await this.api.getMarketplacePkgs({
+    const pkgs = await this.getMarketplacePkgs({
       page: String(page),
       'per-page': String(perPage),
       'eos-version-compat':
@@ -111,5 +128,37 @@ export class MarketplaceService {
     })
 
     return pkgs
+  }
+
+  async getMarketplaceData(
+    params: RR.GetMarketplaceDataReq,
+    url?: string,
+  ): Promise<RR.GetMarketplaceDataRes> {
+    url = url || this.marketplaceUrl
+    return this.api.marketplaceProxy('/package/data', params, url)
+  }
+
+  async getMarketplacePkgs(
+    params: RR.GetMarketplacePackagesReq,
+  ): Promise<RR.GetMarketplacePackagesRes> {
+    if (params.query) params.category = undefined
+    return this.api.marketplaceProxy(
+      '/package/index',
+      {
+        ...params,
+        ids: JSON.stringify(params.ids),
+      },
+      this.marketplaceUrl,
+    )
+  }
+
+  async getReleaseNotes(
+    params: RR.GetReleaseNotesReq,
+  ): Promise<RR.GetReleaseNotesRes> {
+    return this.api.marketplaceProxy(
+      '/package/release-notes',
+      params,
+      this.marketplaceUrl,
+    )
   }
 }

@@ -3,7 +3,6 @@ import { HttpService, Method } from '../http.service'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
-import { PatchDbService } from '../patch-db/patch-db.service'
 import { ConfigService } from '../config.service'
 
 @Injectable()
@@ -12,19 +11,10 @@ export class LiveApiService extends ApiService {
 
   constructor(
     private readonly http: HttpService,
-    private readonly patch: PatchDbService,
     private readonly config: ConfigService,
   ) {
     super()
     ;(window as any).rpcClient = this
-    this.patch.watch$('ui', 'marketplace').subscribe(marketplace => {
-      if (!marketplace || !marketplace['selected-id']) {
-        this.marketplaceUrl = this.config.marketplace.url
-      } else {
-        this.marketplaceUrl =
-          marketplace['known-hosts'][marketplace['selected-id']].url
-      }
-    })
   }
 
   async getStatic(url: string): Promise<string> {
@@ -113,12 +103,7 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  private async marketplaceProxy<T>(
-    path: string,
-    params: {},
-    url?: string,
-  ): Promise<T> {
-    url = url || this.marketplaceUrl
+  async marketplaceProxy<T>(path: string, params: {}, url: string): Promise<T> {
     const fullURL = `${url}${path}?${new URLSearchParams(params).toString()}`
     return this.http.rpcRequest({
       method: 'marketplace.get',
@@ -134,29 +119,6 @@ export class LiveApiService extends ApiService {
       params,
       this.config.marketplace.url,
     )
-  }
-
-  async getMarketplaceData(
-    params: RR.GetMarketplaceDataReq,
-    url?: string,
-  ): Promise<RR.GetMarketplaceDataRes> {
-    return this.marketplaceProxy('/package/data', params, url)
-  }
-
-  async getMarketplacePkgs(
-    params: RR.GetMarketplacePackagesReq,
-  ): Promise<RR.GetMarketplacePackagesRes> {
-    if (params.query) params.category = undefined
-    return this.marketplaceProxy('/package/index', {
-      ...params,
-      ids: JSON.stringify(params.ids),
-    })
-  }
-
-  async getReleaseNotes(
-    params: RR.GetReleaseNotesReq,
-  ): Promise<RR.GetReleaseNotesRes> {
-    return this.marketplaceProxy('/package/release-notes', params)
   }
 
   // password
