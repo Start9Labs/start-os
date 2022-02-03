@@ -142,7 +142,6 @@ export class AppComponent {
           .subscribe(data => {
             // check for updates to EOS
             this.checkForEosUpdate(data.ui)
-            // seed EOS marketplace as default for services too
 
             this.subscriptions = this.subscriptions.concat([
               // watch status to present toast for updated state

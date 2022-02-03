@@ -13,7 +13,7 @@ import {
   TruncateTailPipe,
 } from '../pipes/truncate.pipe'
 import { MaskPipe } from '../pipes/mask.pipe'
-import { HasUiPipe, LaunchablePipe } from '../pipes/ui.pipe'
+import { HasUiPipe, LaunchablePipe, SanitizePipe } from '../pipes/ui.pipe'
 import { EmptyPipe } from '../pipes/empty.pipe'
 import { NotificationColorPipe } from '../pipes/notification-color.pipe'
 import { InstallState } from '../pipes/install-state.pipe'
@@ -42,6 +42,7 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
     NotificationColorPipe,
     ConvertBytesPipe,
     DurationToSecondsPipe,
+    SanitizePipe,
   ],
   imports: [TextSpinnerComponentModule],
   exports: [
@@ -65,6 +66,7 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
     DurationToSecondsPipe,
     // components
     TextSpinnerComponentModule,
+    SanitizePipe,
   ],
 })
 export class SharingModule {}

@@ -22,7 +22,7 @@ export class MarketplaceService {
     private readonly api: ApiService,
     private readonly emver: Emver,
     private readonly patch: PatchDbService,
-    private config: ConfigService,
+    private readonly config: ConfigService,
   ) {}
 
   async load(): Promise<void> {
