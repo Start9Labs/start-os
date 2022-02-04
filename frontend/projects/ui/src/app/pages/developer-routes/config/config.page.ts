@@ -24,10 +24,7 @@ export class ConfigPage {
     try {
       doc = yaml.load(this.code)
     } catch (e) {
-      this.errToast.present({
-        message: `Error parsing YAML on line ${findError(this.code)}`,
-      } as any)
-      throw e
+      this.errToast.present(e)
     }
 
     const modal = await this.modalCtrl.create({
@@ -82,26 +79,4 @@ function camelToKabab(obj: {}) {
     }
   })
   return ret
-}
-
-function findError(y: string, prevMin = 0, prevMax: number = 0): number {
-  if (prevMax - prevMin === 1) return prevMax
-
-  const lines = y.split(/\r\n|\r|\n/)
-  if (!prevMax) prevMax = lines.length
-
-  const length = Math.ceil((prevMin + prevMax) / 2)
-  const testYaml = lines.slice(0, length).join('\n')
-
-  let newMin = length
-  let newMax = prevMax
-
-  try {
-    yaml.load(testYaml)
-  } catch (e) {
-    newMin = prevMin
-    newMax = length
-  }
-
-  return findError(y, newMin, newMax)
 }
