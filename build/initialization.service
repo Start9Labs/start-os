@@ -4,6 +4,8 @@ After=network-online.target systemd-time-wait-sync.service
 
 [Service]
 Type=oneshot
+Restart=on-failure
+RestartSec=5s
 ExecStart=/usr/local/bin/initialization.sh
 RemainAfterExit=true
 
