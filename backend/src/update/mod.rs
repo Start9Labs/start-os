@@ -104,6 +104,12 @@ impl WritableDrives {
             Self::Blue => "/dev/mmcblk0p4",
         })
     }
+    fn part_uuid(&self) -> &'static str {
+        match self {
+            Self::Green => "cb15ae4d-03",
+            Self::Blue => "cb15ae4d-04",
+        }
+    }
     fn as_fs(&self) -> impl FileSystem {
         BlockDev::new(self.block_dev())
     }
@@ -391,17 +397,22 @@ async fn swap_boot_label(new_label: NewLabel) -> Result<(), Error> {
         .invoke(crate::ErrorKind::BlockDevice)
         .await?;
     let mounted = TmpMountGuard::mount(&new_label.0.as_fs()).await?;
-    let sedcmd = format!("s/LABEL=\\(blue\\|green\\)/LABEL={}/g", new_label.0.label());
     Command::new("sed")
         .arg("-i")
-        .arg(&sedcmd)
+        .arg(&format!(
+            "s/LABEL=\\(blue\\|green\\)/LABEL={}/g",
+            new_label.0.label()
+        ))
         .arg(mounted.as_ref().join("etc/fstab"))
         .output()
         .await?;
     mounted.unmount().await?;
     Command::new("sed")
         .arg("-i")
-        .arg(&sedcmd)
+        .arg(&format!(
+            "s/PARTUUID=cb15ae4d-\\(03\\|04\\)/PARTUUID={}/g",
+            new_label.0.part_uuid()
+        ))
         .arg(Path::new(BOOT_RW_PATH).join("cmdline.txt"))
         .output()
         .await?;

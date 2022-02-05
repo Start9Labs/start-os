@@ -1,5 +1,6 @@
 [Unit]
 Description=Boot process for system initialization.
+After=network.target systemd-time-wait-sync.service
 
 [Service]
 Type=oneshot

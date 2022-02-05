@@ -1,6 +1,6 @@
 EMBASSY_BINS := backend/target/aarch64-unknown-linux-gnu/release/embassyd backend/target/aarch64-unknown-linux-gnu/release/embassy-init backend/target/aarch64-unknown-linux-gnu/release/embassy-cli backend/target/aarch64-unknown-linux-gnu/release/embassy-sdk
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
-EMBASSY_SRC := ubuntu.img product_key.txt $(EMBASSY_BINS) backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
+EMBASSY_SRC := raspios.img product_key.txt $(EMBASSY_BINS) backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/src)
 UTILS_SRC := $(shell find system-images/utils/Dockerfile)
 BACKEND_SRC := $(shell find backend/src) $(shell find patch-db/*/src) $(shell find rpc-toolkit/*/src) backend/Cargo.toml backend/Cargo.lock
@@ -38,9 +38,10 @@ system-images/compat/compat.tar: $(COMPAT_SRC)
 system-images/utils/utils.tar: $(UTILS_SRC)
 	cd system-images/utils && DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/x_system/utils --platform=linux/arm64 -o type=docker,dest=utils.tar .
 
-ubuntu.img:
-	wget -O ubuntu.img.xz https://cdimage.ubuntu.com/releases/21.10/release/ubuntu-21.10-preinstalled-server-arm64+raspi.img.xz
-	unxz ubuntu.img.xz
+raspios.img:
+	wget https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2022-01-28/2022-01-28-raspios-bullseye-arm64-lite.zip
+	unzip 2022-01-28-raspios-bullseye-arm64-lite.zip
+	mv 2022-01-28-raspios-bullseye-arm64-lite.img raspios.img
 
 product_key.txt:
 	$(shell which echo) -n "X" > product_key.txt
