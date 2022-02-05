@@ -4,14 +4,12 @@
 set -e
 
 ! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
-mount -o remount,rw /boot/firmware
+mount -o remount,rw /boot
+
+curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
 
 apt-get update
-apt-get purge -y \
-	bluez \
-	unattended-upgrades
 apt-get install -y \
-	docker.io \
 	tor \
 	nginx \
 	libavahi-client3 \
@@ -19,6 +17,8 @@ apt-get install -y \
 	avahi-utils \
 	iotop \
 	bmon \
+	lvm2 \
+	cryptsetup \
 	exfat-utils \
 	sqlite3 \
 	wireless-tools \
@@ -27,13 +27,9 @@ apt-get install -y \
 	cifs-utils \
 	samba-common-bin \
 	ntp \
-	network-manager \
-	linux-modules-extra-raspi
+	network-manager
 apt-get autoremove -y
 apt-get upgrade -y
-if [[ "$(uname -r)" = "5.13.0-1008-raspi" ]]; then
-	reboot
-fi
 
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
@@ -62,9 +58,10 @@ ControlPort 9051
 CookieAuthentication 1
 EOF
 
-echo 'overlayroot="tmpfs":swap=1,recurse=0' > /etc/overlayroot.local.conf
+raspi-config nonint enable_overlayfs
 systemctl disable initialization.service
 sudo systemctl restart NetworkManager
 sync
 
-cloud-init clean --reboot
+# TODO: clean out ssh host keys
+reboot

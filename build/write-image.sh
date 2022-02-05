@@ -27,7 +27,8 @@ else
 	sudo cp build/user-data /tmp/eos-mnt/user-data
 fi
 
-sudo sed -i 's/LABEL=writable/LABEL=green/g' /tmp/eos-mnt/cmdline.txt
+sudo sed -i 's/PARTUUID=cb15ae4d-02/PARTUUID=cb15ae4d-03/g' /tmp/eos-mnt/cmdline.txt
+sudo sed -i 's/ init=\/usr\/lib\/raspi-config\/init_resize.sh//g' /tmp/eos-mnt/cmdline.txt
 # create a copy of the cmdline *without* the quirk string, so that it can be easily amended
 sudo cp /tmp/eos-mnt/cmdline.txt /tmp/eos-mnt/cmdline.txt.orig
 sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /tmp/eos-mnt/cmdline.txt
@@ -35,6 +36,7 @@ sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /tmp/eos-mnt/cmdline.txt
 cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp
 echo "dtoverlay=pwm-2chan,disable-bt" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
+sudo touch /tmp/eos-mnt/ssh
 
 # Unmount the boot partition and mount embassy partition
 sudo umount /tmp/eos-mnt
@@ -72,13 +74,13 @@ sudo cp -R frontend/dist/ui /tmp/eos-mnt/var/www/html/main
 sudo mkdir -p /tmp/eos-mnt/root/.ssh
 
 # Custom MOTD
-sudo sed -i 's/ENABLED=1/ENABLED=0/g' /tmp/eos-mnt/etc/default/motd-news
-sudo rm /tmp/eos-mnt/etc/update-motd.d/50-landscape-sysinfo
-sudo cp ./build/00-embassy /tmp/eos-mnt/etc/update-motd.d
-sudo chmod -x /tmp/eos-mnt/etc/update-motd.d/*
-sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/00-embassy
-sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/90-updates-available
-sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/95-hwe-eol
+#sudo sed -i 's/ENABLED=1/ENABLED=0/g' /tmp/eos-mnt/etc/default/motd-news
+#sudo rm /tmp/eos-mnt/etc/update-motd.d/50-landscape-sysinfo
+#sudo cp ./build/00-embassy /tmp/eos-mnt/etc/update-motd.d
+#sudo chmod -x /tmp/eos-mnt/etc/update-motd.d/*
+#sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/00-embassy
+#sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/90-updates-available
+#sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/95-hwe-eol
 
 sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
 

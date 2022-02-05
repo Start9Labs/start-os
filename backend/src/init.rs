@@ -57,7 +57,7 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         .await?;
     tracing::info!("Mounted Docker Data");
 
-    if should_rebuild {
+    if should_rebuild || !tmp_docker_exists {
         tracing::info!("Loading System Docker Images");
         crate::install::load_images("/var/lib/embassy/system-images").await?;
         tracing::info!("Loaded System Docker Images");
