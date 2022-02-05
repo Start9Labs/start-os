@@ -15,6 +15,8 @@ truncate --size=$[(31116287+1)*512] eos.img
 if [ -z "$OUTPUT_DEVICE" ]; then
   export OUTPUT_DEVICE=$(sudo losetup --show -fP eos.img)
   export DETACH_OUTPUT_DEVICE=1
+else
+  export DETACH_OUTPUT_DEVICE=0
 fi
 export LOOPDEV=$(sudo losetup --show -fP raspios.img)
 ./build/partitioning.sh
