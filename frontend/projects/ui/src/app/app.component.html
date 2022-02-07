@@ -29,10 +29,7 @@
                 [routerLink]="[page.url]"
                 lines="none"
                 detail="false"
-                *ngIf="
-                  page.url !== '/developer' ||
-                  patch.data.ui['show-developer-tools']
-                "
+                *ngIf="page.url !== '/developer' || localStorage.showDevTools"
               >
                 <ion-icon
                   slot="start"

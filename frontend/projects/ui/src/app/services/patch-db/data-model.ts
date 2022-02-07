@@ -13,7 +13,6 @@ export interface UIData {
   'pkg-order': string[]
   'ack-welcome': string // EOS version
   'ack-share-stats': boolean
-  'show-developer-tools': boolean
 }
 
 export interface ServerInfo {

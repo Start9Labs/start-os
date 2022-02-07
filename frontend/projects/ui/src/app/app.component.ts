@@ -31,6 +31,7 @@ import { ConfigService } from './services/config.service'
 import { debounce, isEmptyObject, pauseFor } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
+import { LocalStorageService } from './services/local-storage.service'
 
 @Component({
   selector: 'app-root',
@@ -101,6 +102,7 @@ export class AppComponent {
     private readonly zone: NgZone,
     public readonly splitPane: SplitPaneTracker,
     public readonly patch: PatchDbService,
+    public readonly localStorage: LocalStorageService,
   ) {
     this.init()
   }
@@ -108,6 +110,7 @@ export class AppComponent {
   async init() {
     await this.storage.create()
     await this.authService.init()
+    await this.localStorage.init()
 
     this.router.initialNavigation()
 

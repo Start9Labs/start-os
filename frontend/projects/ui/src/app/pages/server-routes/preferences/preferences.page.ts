@@ -1,6 +1,11 @@
 import { Component, ViewChild } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { IonContent, LoadingController, ModalController } from '@ionic/angular'
+import {
+  IonContent,
+  LoadingController,
+  ModalController,
+  ToastController,
+} from '@ionic/angular'
 import {
   GenericInputComponent,
   GenericInputOptions,
@@ -9,6 +14,8 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerConfigService } from 'src/app/services/server-config.service'
 import { take } from 'rxjs/operators'
+import { toastController } from '@ionic/core'
+import { LocalStorageService } from '../../../services/local-storage.service'
 
 @Component({
   selector: 'preferences',
@@ -26,6 +33,8 @@ export class PreferencesPage {
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
     public readonly serverConfig: ServerConfigService,
+    private readonly toastCtrl: ToastController,
+    private readonly localStorage: LocalStorageService,
     public readonly patch: PatchDbService,
   ) {}
 
@@ -79,14 +88,28 @@ export class PreferencesPage {
   async addClick() {
     this.clicks++
     if (this.clicks >= 5) {
-      this.patch
-        .watch$('ui', 'show-developer-tools')
-        .pipe(take(1))
-        .subscribe(async showingTools => {
-          await this.setDbValue('show-developer-tools', !showingTools)
-        })
+      this.clicks = 0
+      await this.localStorage.toggleShowDevTools()
+      console.log('TOOLS', this.localStorage.showDevTools)
+      const toast = await this.toastCtrl.create({
+        header: this.localStorage.showDevTools
+          ? 'Dev tools unlocked!'
+          : 'Dev tools hidden :(',
+        message: this.localStorage.showDevTools
+          ? 'Dev tools are now accessable in the main menu'
+          : 'Say goodbye to dev tools forever',
+        position: 'bottom',
+        cssClass: this.localStorage.showDevTools
+          ? 'success-toast'
+          : 'warning-toast',
+        duration: 1000,
+      })
+
+      await toast.present()
     }
-    setTimeout(() => (this.clicks = Math.max(this.clicks - 1, 0)), 10000)
+    setTimeout(() => {
+      this.clicks = Math.max(this.clicks - 1, 0)
+    }, 10000)
   }
 }
 
