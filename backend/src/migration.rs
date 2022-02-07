@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::{Future, FutureExt};
@@ -8,10 +10,11 @@ use tracing::instrument;
 
 use crate::action::ActionImplementation;
 use crate::context::RpcContext;
+use crate::id::ImageId;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::Error;
+use crate::{Error, ResultExt};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -20,6 +23,27 @@ pub struct Migrations {
     pub to: IndexMap<VersionRange, ActionImplementation>,
 }
 impl Migrations {
+    #[instrument]
+    pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {
+        for (version, migration) in &self.from {
+            migration.validate(volumes, image_ids, true).with_ctx(|_| {
+                (
+                    crate::ErrorKind::ValidateS9pk,
+                    format!("Migration from {}", version),
+                )
+            })?;
+        }
+        for (version, migration) in &self.to {
+            migration.validate(volumes, image_ids, true).with_ctx(|_| {
+                (
+                    crate::ErrorKind::ValidateS9pk,
+                    format!("Migration to {}", version),
+                )
+            })?;
+        }
+        Ok(())
+    }
+
     #[instrument(skip(ctx))]
     pub fn from<'a>(
         &'a self,

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
@@ -7,12 +7,12 @@ use tracing::instrument;
 
 use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
-use crate::id::Id;
+use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Duration;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::Error;
+use crate::{Error, ResultExt};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct HealthCheckId<S: AsRef<str> = String>(Id<S>);
@@ -47,6 +47,21 @@ impl<S: AsRef<str>> AsRef<Path> for HealthCheckId<S> {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HealthChecks(pub BTreeMap<HealthCheckId, HealthCheck>);
 impl HealthChecks {
+    #[instrument]
+    pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {
+        for (_, check) in &self.0 {
+            check
+                .implementation
+                .validate(&volumes, image_ids, false)
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::ValidateS9pk,
+                        format!("Health Check {}", check.name),
+                    )
+                })?;
+        }
+        Ok(())
+    }
     pub async fn check_all(
         &self,
         ctx: &RpcContext,

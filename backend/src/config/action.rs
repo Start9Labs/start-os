@@ -10,11 +10,12 @@ use super::{Config, ConfigSpec};
 use crate::action::ActionImplementation;
 use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
+use crate::id::ImageId;
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::Error;
+use crate::{Error, ResultExt};
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -29,6 +30,16 @@ pub struct ConfigActions {
     pub set: ActionImplementation,
 }
 impl ConfigActions {
+    #[instrument]
+    pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {
+        self.get
+            .validate(volumes, image_ids, true)
+            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Get"))?;
+        self.set
+            .validate(volumes, image_ids, true)
+            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Set"))?;
+        Ok(())
+    }
     #[instrument(skip(ctx))]
     pub async fn get(
         &self,
