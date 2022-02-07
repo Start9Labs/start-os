@@ -1,19 +1,25 @@
+use std::collections::BTreeSet;
 use std::io::SeekFrom;
 use std::path::Path;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::task::{Context, Poll};
 
+use color_eyre::eyre::eyre;
 use digest::Output;
 use ed25519_dalek::PublicKey;
+use futures::TryStreamExt;
 use sha2::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf, Take};
 use tracing::instrument;
 
 use super::header::{FileSection, Header, TableOfContents};
-use super::manifest::Manifest;
+use super::manifest::{Manifest, PackageId};
 use super::SIG_CONTEXT;
+use crate::id::ImageId;
 use crate::install::progress::InstallProgressTracker;
+use crate::util::Version;
 use crate::{Error, ResultExt};
 
 #[pin_project::pin_project]
@@ -45,6 +51,66 @@ impl<'a, R: AsyncRead + AsyncSeek + Unpin> AsyncRead for ReadHandle<'a, R> {
     }
 }
 
+#[derive(Debug)]
+pub struct ImageTag {
+    pub package_id: PackageId,
+    pub image_id: ImageId,
+    pub version: Version,
+}
+impl ImageTag {
+    #[instrument]
+    pub fn validate(&self, id: &PackageId, version: &Version) -> Result<(), Error> {
+        if id != &self.package_id {
+            return Err(Error::new(
+                eyre!(
+                    "Contains image for incorrect package: id {}",
+                    self.package_id,
+                ),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
+        if id != &self.package_id {
+            return Err(Error::new(
+                eyre!(
+                    "Contains image with incorrect version: expected {} received {}",
+                    version,
+                    self.version,
+                ),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
+        Ok(())
+    }
+}
+impl FromStr for ImageTag {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let rest = s.strip_prefix("start9/").ok_or_else(|| {
+            Error::new(
+                eyre!("Invalid image tag prefix: expected start9/"),
+                crate::ErrorKind::ValidateS9pk,
+            )
+        })?;
+        let (package, rest) = rest.split_once("/").ok_or_else(|| {
+            Error::new(
+                eyre!("Image tag missing image id"),
+                crate::ErrorKind::ValidateS9pk,
+            )
+        })?;
+        let (image, version) = rest.split_once(":").ok_or_else(|| {
+            Error::new(
+                eyre!("Image tag missing version"),
+                crate::ErrorKind::ValidateS9pk,
+            )
+        })?;
+        Ok(ImageTag {
+            package_id: package.parse()?,
+            image_id: image.parse()?,
+            version: version.parse()?,
+        })
+    }
+}
+
 pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin = File> {
     hash: Option<Output<Sha512>>,
     hash_string: Option<String>,
@@ -71,7 +137,65 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<InstallProgressTracker<R>> {
 impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
     #[instrument(skip(self))]
     pub async fn validate(&mut self) -> Result<(), Error> {
+        let image_tags = self.image_tags().await?;
+        let man = self.manifest().await?;
+        let validated_image_ids = image_tags
+            .into_iter()
+            .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
+            .collect::<Result<BTreeSet<ImageId>, _>>()?;
+        man.actions
+            .0
+            .iter()
+            .map(|(_, action)| action.validate(&man.volumes, &validated_image_ids))
+            .collect::<Result<(), Error>>()?;
+        man.backup.validate(&man.volumes, &validated_image_ids)?;
+        if let Some(cfg) = &man.config {
+            cfg.validate(&man.volumes, &validated_image_ids)?;
+        }
+        man.health_checks
+            .validate(&man.volumes, &validated_image_ids)?;
+        man.interfaces.validate()?;
+        man.main
+            .validate(&man.volumes, &validated_image_ids, false)
+            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
+        man.migrations
+            .validate(&man.volumes, &validated_image_ids)?;
+        if let Some(props) = &man.properties {
+            props
+                .validate(&man.volumes, &validated_image_ids, true)
+                .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Properties"))?;
+        }
+        man.volumes.validate(&man.interfaces)?;
+
         Ok(())
+    }
+    #[instrument(skip(self))]
+    pub async fn image_tags(&mut self) -> Result<Vec<ImageTag>, Error> {
+        let mut tar = tokio_tar::Archive::new(self.docker_images().await?);
+        let mut entries = tar.entries()?;
+        while let Some(mut entry) = entries.try_next().await? {
+            if &*entry.path()? != Path::new("manifest.json") {
+                continue;
+            }
+            let mut buf = Vec::with_capacity(entry.header().size()? as usize);
+            entry.read_to_end(&mut buf).await?;
+            #[derive(serde::Deserialize)]
+            struct ManEntry {
+                #[serde(rename = "RepoTags")]
+                tags: Vec<String>,
+            }
+            let man_entries = serde_json::from_slice::<Vec<ManEntry>>(&buf)
+                .with_ctx(|_| (crate::ErrorKind::Deserialization, "manifest.json"))?;
+            return man_entries
+                .iter()
+                .flat_map(|e| &e.tags)
+                .map(|t| t.parse())
+                .collect();
+        }
+        Err(Error::new(
+            eyre!("image.tar missing manifest.json"),
+            crate::ErrorKind::ParseS9pk,
+        ))
     }
     #[instrument(skip(rdr))]
     pub async fn from_reader(mut rdr: R, check_sig: bool) -> Result<Self, Error> {

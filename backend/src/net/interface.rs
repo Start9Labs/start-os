@@ -14,12 +14,24 @@ use crate::db::model::{InterfaceAddressMap, InterfaceAddresses};
 use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
-use crate::Error;
+use crate::{Error, ResultExt};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Interfaces(pub BTreeMap<InterfaceId, Interface>); // TODO
 impl Interfaces {
+    #[instrument]
+    pub fn validate(&self) -> Result<(), Error> {
+        for (_, interface) in &self.0 {
+            interface.validate().with_ctx(|_| {
+                (
+                    crate::ErrorKind::ValidateS9pk,
+                    format!("Interface {}", interface.name),
+                )
+            })?;
+        }
+        Ok(())
+    }
     #[instrument(skip(secrets))]
     pub async fn install<Ex>(
         &self,
@@ -151,6 +163,21 @@ pub struct Interface {
     pub lan_config: Option<BTreeMap<Port, LanPortConfig>>,
     pub ui: bool,
     pub protocols: IndexSet<String>,
+}
+impl Interface {
+    #[instrument]
+    pub fn validate(&self) -> Result<(), color_eyre::eyre::Report> {
+        if self.tor_config.is_some() && !self.protocols.contains("tcp") {
+            color_eyre::eyre::bail!("must support tcp to set up a tor hidden service");
+        }
+        if self.lan_config.is_some() && !self.protocols.contains("http") {
+            color_eyre::eyre::bail!("must support http to set up a lan service");
+        }
+        if self.ui && !(self.protocols.contains("http") || self.protocols.contains("https")) {
+            color_eyre::eyre::bail!("must support http or https to serve a ui");
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]

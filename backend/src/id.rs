@@ -1,5 +1,6 @@
 use std::borrow::{Borrow, Cow};
 use std::fmt::Debug;
+use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -156,6 +157,12 @@ impl<S: AsRef<str>> ImageId<S> {
             self.0,
             pkg_version.map(|v| { v.as_str() }).unwrap_or("latest")
         )
+    }
+}
+impl FromStr for ImageId {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(ImageId(Id::try_from(s.to_owned())?))
     }
 }
 impl<'de, S> Deserialize<'de> for ImageId<S>

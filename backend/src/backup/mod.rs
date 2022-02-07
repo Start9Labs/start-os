@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
@@ -15,6 +15,7 @@ use self::target::PackageBackupInfo;
 use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::dependencies::reconfigure_dependents_with_live_pointers;
+use crate::id::ImageId;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
@@ -67,6 +68,16 @@ pub struct BackupActions {
     pub restore: ActionImplementation,
 }
 impl BackupActions {
+    pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {
+        self.create
+            .validate(volumes, image_ids, false)
+            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Create"))?;
+        self.restore
+            .validate(volumes, image_ids, false)
+            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Restore"))?;
+        Ok(())
+    }
+
     #[instrument(skip(ctx))]
     pub async fn create(
         &self,
