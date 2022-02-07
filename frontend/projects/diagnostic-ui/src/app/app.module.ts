@@ -10,7 +10,7 @@ import { MockApiService } from './services/api/mock-api.service'
 import { LiveApiService } from './services/api/live-api.service'
 import { HttpService } from './services/http.service'
 import { GlobalErrorHandler } from './services/global-error-handler.service'
-import { WorkspaceConfig } from '@shared'
+import { WorkspaceConfig } from '@start9labs/shared'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 

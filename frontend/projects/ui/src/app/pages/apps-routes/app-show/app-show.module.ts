@@ -3,10 +3,11 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppShowPage } from './app-show.page'
-import { StatusComponentModule } from 'src/app/components/status/status.component.module'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { SharedPipesModule, StatusComponentModule } from '@start9labs/shared'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
 import { AppConfigPageModule } from 'src/app/modals/app-config/app-config.module'
+import { LaunchablePipeModule } from 'src/app/pipes/launchable/launchable.module'
+import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 import { AppShowHeaderComponent } from './components/app-show-header/app-show-header.component'
 import { AppShowProgressComponent } from './components/app-show-progress/app-show-progress.component'
 import { AppShowStatusComponent } from './components/app-show-status/app-show-status.component'
@@ -18,6 +19,7 @@ import { ToHealthChecksPipe } from './pipes/to-health-checks.pipe'
 import { ToButtonsPipe } from './pipes/to-buttons.pipe'
 import { ToDependenciesPipe } from './pipes/to-dependencies.pipe'
 import { ToStatusPipe } from './pipes/to-status.pipe'
+import { InstallStatePipe } from './pipes/install-state.pipe'
 
 const routes: Routes = [
   {
@@ -30,6 +32,7 @@ const routes: Routes = [
   declarations: [
     AppShowPage,
     HealthColorPipe,
+    InstallStatePipe,
     ToHealthChecksPipe,
     ToButtonsPipe,
     ToDependenciesPipe,
@@ -48,7 +51,9 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     InstallWizardComponentModule,
     AppConfigPageModule,
-    SharingModule,
+    SharedPipesModule,
+    LaunchablePipeModule,
+    UiPipeModule,
   ],
 })
 export class AppShowPageModule {}

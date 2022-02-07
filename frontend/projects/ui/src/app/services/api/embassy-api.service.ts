@@ -9,7 +9,7 @@ import {
   RPCResponse,
 } from 'patch-db-client'
 import { RR } from './api.types'
-import { DataModel } from 'src/app/services/patch-db/data-model'
+import { DataModel } from '@start9labs/shared'
 import { RequestError } from '../http.service'
 import { map } from 'rxjs/operators'
 

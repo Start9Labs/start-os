@@ -3,9 +3,13 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { MarketplaceShowPage } from './marketplace-show.page'
-import { SharingModule } from 'src/app/modules/sharing.module'
-import { StatusComponentModule } from 'src/app/components/status/status.component.module'
+import {
+  SharedPipesModule,
+  TextSpinnerComponentModule,
+  StatusComponentModule,
+} from '@start9labs/shared'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
+import { MarketplacePipesModule } from '../pipes/marketplace-pipes.module'
 
 const routes: Routes = [
   {
@@ -20,9 +24,11 @@ const routes: Routes = [
     IonicModule,
     StatusComponentModule,
     RouterModule.forChild(routes),
-    SharingModule,
+    TextSpinnerComponentModule,
+    SharedPipesModule,
+    MarketplacePipesModule,
     InstallWizardComponentModule,
   ],
   declarations: [MarketplaceShowPage],
 })
-export class MarketplaceShowPageModule { }
+export class MarketplaceShowPageModule {}

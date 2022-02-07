@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { BackupReport } from 'src/app/services/api/api.types'
+import { BackupReport } from '@start9labs/shared'
 
 @Component({
   selector: 'backup-report',
@@ -16,11 +16,9 @@ export class BackupReportPage {
     color: 'dark' | 'danger' | 'success'
   }
 
-  constructor (
-    private readonly modalCtrl: ModalController,
-  ) { }
+  constructor(private readonly modalCtrl: ModalController) {}
 
-  ngOnInit () {
+  ngOnInit() {
     if (!this.report.server.attempted) {
       this.system = {
         result: 'Not Attempted',
@@ -42,7 +40,7 @@ export class BackupReportPage {
     }
   }
 
-  async dismiss () {
+  async dismiss() {
     return this.modalCtrl.dismiss(true)
   }
 }

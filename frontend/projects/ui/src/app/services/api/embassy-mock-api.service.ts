@@ -1,16 +1,15 @@
 import { Injectable } from '@angular/core'
-import { pauseFor } from '../../util/misc.util'
+import { InstallProgress, pauseFor } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { PatchOp, Update, Operation, RemoveOperation } from 'patch-db-client'
 import {
   DataModel,
   DependencyErrorType,
-  InstallProgress,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
   ServerStatus,
-} from 'src/app/services/patch-db/data-model'
+} from '@start9labs/shared'
 import { CifsBackupTarget, Log, RR, WithRevision } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'

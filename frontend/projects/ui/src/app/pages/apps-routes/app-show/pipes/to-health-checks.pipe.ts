@@ -1,10 +1,11 @@
-import { Inject, Pipe, PipeTransform } from '@angular/core'
+import { Pipe, PipeTransform } from '@angular/core'
 import {
+  exists,
+  isEmptyObject,
   HealthCheckResult,
   PackageDataEntry,
   PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
-import { exists, isEmptyObject } from 'src/app/util/misc.util'
+} from '@start9labs/shared'
 import { filter, map, startWith } from 'rxjs/operators'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Observable } from 'rxjs'
@@ -30,7 +31,8 @@ export class ToHealthChecksPipe implements PipeTransform {
         map(main => {
           // Question: is this ok or do we have to use Object.keys
           // to maintain order and the keys initially present in pkg?
-          return main.status === PackageMainStatus.Running && !isEmptyObject(main.health)
+          return main.status === PackageMainStatus.Running &&
+            !isEmptyObject(main.health)
             ? main.health
             : healthChecks
         }),

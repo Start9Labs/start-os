@@ -2,7 +2,7 @@ import { Inject, Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { DOCUMENT } from '@angular/common'
 import { AlertController, ModalController, NavController } from '@ionic/angular'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from '@start9labs/shared'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
 import { ModalService } from 'src/app/services/modal.service'
 
@@ -84,7 +84,8 @@ export class ToButtonsPipe implements PipeTransform {
       },
       // view in marketplace
       {
-        action: () => this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`]),
+        action: () =>
+          this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`]),
         title: 'Marketplace',
         description: 'View service in marketplace',
         icon: 'storefront-outline',

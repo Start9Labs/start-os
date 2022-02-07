@@ -2,11 +2,15 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { MarketplaceListPage } from './marketplace-list.page'
-import { SharingModule } from '../../../modules/sharing.module'
+import {
+  SharedPipesModule,
+  TextSpinnerComponentModule,
+  StatusComponentModule,
+} from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
-import { StatusComponentModule } from 'src/app/components/status/status.component.module'
 import { FormsModule } from '@angular/forms'
+import { MarketplacePipesModule } from '../pipes/marketplace-pipes.module'
+import { MarketplaceListPage } from './marketplace-list.page'
 
 const routes: Routes = [
   {
@@ -22,9 +26,11 @@ const routes: Routes = [
     FormsModule,
     RouterModule.forChild(routes),
     StatusComponentModule,
-    SharingModule,
+    TextSpinnerComponentModule,
+    SharedPipesModule,
+    MarketplacePipesModule,
     BadgeMenuComponentModule,
   ],
   declarations: [MarketplaceListPage],
 })
-export class MarketplaceListPageModule { }
+export class MarketplaceListPageModule {}

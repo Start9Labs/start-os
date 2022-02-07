@@ -24,7 +24,7 @@ export class PreferencesPage {
   defaultName: string
   clicks = 0
 
-  constructor(
+  constructor (
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
@@ -32,17 +32,17 @@ export class PreferencesPage {
     private readonly localStorageService: LocalStorageService,
     public readonly serverConfig: ServerConfigService,
     public readonly patch: PatchDbService,
-  ) {}
+  ) { }
 
-  ngOnInit() {
+  ngOnInit () {
     this.defaultName = `Embassy-${this.patch.getData()['server-info'].id}`
   }
 
-  ngAfterViewInit() {
+  ngAfterViewInit () {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  async presentModalName(): Promise<void> {
+  async presentModalName (): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Edit Device Name',
       message: 'This is for your reference only.',
@@ -66,7 +66,7 @@ export class PreferencesPage {
     await modal.present()
   }
 
-  async setDbValue(key: string, value: any): Promise<void> {
+  private async setDbValue (key: string, value: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
@@ -81,7 +81,7 @@ export class PreferencesPage {
     }
   }
 
-  async addClick() {
+  async addClick () {
     this.clicks++
     if (this.clicks >= 5) {
       this.clicks = 0

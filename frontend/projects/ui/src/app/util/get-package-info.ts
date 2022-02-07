@@ -1,16 +1,15 @@
-import { PackageDataEntry } from '../services/patch-db/data-model'
 import {
   DependencyStatus,
   HealthStatus,
-  PrimaryRendering,
   renderPkgStatus,
-  StatusRendering,
 } from '../services/pkg-status-rendering.service'
-import { isEmptyObject } from './misc.util'
 import {
   packageLoadingProgress,
+  PackageDataEntry,
   ProgressData,
-} from './package-loading-progress'
+  PrimaryRendering,
+  StatusRendering,
+} from '@start9labs/shared'
 import { Subscription } from 'rxjs'
 
 export function getPackageInfo(entry: PackageDataEntry): PkgInfo {

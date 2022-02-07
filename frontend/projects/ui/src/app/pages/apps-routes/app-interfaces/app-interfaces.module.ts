@@ -2,8 +2,11 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { AppInterfacesItemComponent, AppInterfacesPage } from './app-interfaces.page'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import {
+  AppInterfacesItemComponent,
+  AppInterfacesPage,
+} from './app-interfaces.page'
+import { SharedPipesModule } from '@start9labs/shared'
 
 const routes: Routes = [
   {
@@ -17,11 +20,8 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    SharingModule,
+    SharedPipesModule,
   ],
-  declarations: [
-    AppInterfacesPage,
-    AppInterfacesItemComponent,
-  ],
+  declarations: [AppInterfacesPage, AppInterfacesItemComponent],
 })
-export class AppInterfacesPageModule { }
+export class AppInterfacesPageModule {}

@@ -2,7 +2,7 @@ import { Component } from '@angular/core'
 import { Metrics } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { pauseFor } from 'src/app/util/misc.util'
+import { pauseFor } from '@start9labs/shared'
 
 @Component({
   selector: 'server-metrics',
@@ -12,14 +12,14 @@ import { pauseFor } from 'src/app/util/misc.util'
 export class ServerMetricsPage {
   loading = true
   going = false
-  metrics: Metrics = { }
+  metrics: Metrics = {}
 
-  constructor (
+  constructor(
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     await this.getMetrics()
     let headersCount = 0
     let rowsCount = 0
@@ -36,11 +36,11 @@ export class ServerMetricsPage {
     this.loading = false
   }
 
-  ngOnDestroy () {
+  ngOnDestroy() {
     this.stopDaemon()
   }
 
-  private async startDaemon (): Promise<void> {
+  private async startDaemon(): Promise<void> {
     this.going = true
     while (this.going) {
       const startTime = Date.now()
@@ -49,20 +49,20 @@ export class ServerMetricsPage {
     }
   }
 
-  private stopDaemon () {
+  private stopDaemon() {
     this.going = false
   }
 
-  private async getMetrics (): Promise<void> {
+  private async getMetrics(): Promise<void> {
     try {
-      this.metrics = await this.embassyApi.getServerMetrics({ })
+      this.metrics = await this.embassyApi.getServerMetrics({})
     } catch (e) {
       this.errToast.present(e)
       this.stopDaemon()
     }
   }
 
-  asIsOrder (a: any, b: any) {
+  asIsOrder(a: any, b: any) {
     return 0
   }
 }

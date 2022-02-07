@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { Breakages } from 'src/app/services/api/api.types'
-import { exists } from 'src/app/util/misc.util'
+import { exists, PackageDataEntry } from '@start9labs/shared'
 import { ApiService } from '../../services/api/embassy-api.service'
 import {
   InstallWizardComponent,
@@ -12,12 +11,12 @@ import { ConfigService } from 'src/app/services/config.service'
 
 @Injectable({ providedIn: 'root' })
 export class WizardBaker {
-  constructor(
+  constructor (
     private readonly embassyApi: ApiService,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
 
-  update(values: {
+  update (values: {
     id: string
     title: string
     version: string
@@ -31,21 +30,21 @@ export class WizardBaker {
     const slideDefinitions: SlideDefinition[] = [
       installAlert
         ? {
-            slide: {
-              selector: 'alert',
-              params: {
-                title: 'Warning',
-                message: installAlert,
-                titleColor: 'warning',
-              },
+          slide: {
+            selector: 'alert',
+            params: {
+              title: 'Warning',
+              message: installAlert,
+              titleColor: 'warning',
             },
-            bottomBar: {
-              cancel: {
-                afterLoading: { text: 'Cancel' },
-              },
-              next: 'Next',
+          },
+          bottomBar: {
+            cancel: {
+              afterLoading: { text: 'Cancel' },
             },
-          }
+            next: 'Next',
+          },
+        }
         : undefined,
       {
         slide: {
@@ -90,7 +89,7 @@ export class WizardBaker {
     return { toolbar, slideDefinitions: slideDefinitions.filter(exists) }
   }
 
-  updateOS(values: {
+  updateOS (values: {
     version: string
     releaseNotes: { [version: string]: string }
     headline: string
@@ -141,7 +140,7 @@ export class WizardBaker {
     return { toolbar, slideDefinitions: slideDefinitions.filter(exists) }
   }
 
-  downgrade(values: {
+  downgrade (values: {
     id: string
     title: string
     version: string
@@ -155,21 +154,21 @@ export class WizardBaker {
     const slideDefinitions: SlideDefinition[] = [
       installAlert
         ? {
-            slide: {
-              selector: 'alert',
-              params: {
-                title: 'Warning',
-                message: installAlert,
-                titleColor: 'warning',
-              },
+          slide: {
+            selector: 'alert',
+            params: {
+              title: 'Warning',
+              message: installAlert,
+              titleColor: 'warning',
             },
-            bottomBar: {
-              cancel: {
-                afterLoading: { text: 'Cancel' },
-              },
-              next: 'Next',
+          },
+          bottomBar: {
+            cancel: {
+              afterLoading: { text: 'Cancel' },
             },
-          }
+            next: 'Next',
+          },
+        }
         : undefined,
       {
         slide: {
@@ -215,7 +214,7 @@ export class WizardBaker {
     return { toolbar, slideDefinitions: slideDefinitions.filter(exists) }
   }
 
-  uninstall(values: {
+  uninstall (values: {
     id: string
     title: string
     version: string
@@ -285,7 +284,7 @@ export class WizardBaker {
     return { toolbar, slideDefinitions: slideDefinitions.filter(exists) }
   }
 
-  stop(values: {
+  stop (values: {
     id: string
     title: string
     version: string
@@ -338,7 +337,7 @@ export class WizardBaker {
     return { toolbar, slideDefinitions }
   }
 
-  configure(values: {
+  configure (values: {
     pkg: PackageDataEntry
     breakages: Breakages
   }): InstallWizardComponent['params'] {

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { GenericInputComponent } from './generic-input.component'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule } from '@angular/router'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { SharedPipesModule } from '@start9labs/shared'
 import { FormsModule } from '@angular/forms'
 
 @NgModule({
@@ -13,8 +13,8 @@ import { FormsModule } from '@angular/forms'
     IonicModule,
     FormsModule,
     RouterModule.forChild([]),
-    SharingModule,
+    SharedPipesModule,
   ],
   exports: [GenericInputComponent],
 })
-export class GenericInputComponentModule { }
+export class GenericInputComponentModule {}

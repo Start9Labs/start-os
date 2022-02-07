@@ -4,11 +4,9 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   PackageDataEntry,
   PackageState,
-} from 'src/app/services/patch-db/data-model'
-import {
-  PackageStatus,
   PrimaryStatus,
-} from 'src/app/services/pkg-status-rendering.service'
+} from '@start9labs/shared'
+import { PackageStatus } from 'src/app/services/pkg-status-rendering.service'
 import {
   ConnectionFailure,
   ConnectionService,
@@ -70,4 +68,3 @@ export class AppShowPage {
     return STATES.includes(state)
   }
 }
-

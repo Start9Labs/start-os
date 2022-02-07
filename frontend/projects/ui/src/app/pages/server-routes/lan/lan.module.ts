@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { LANPage } from './lan.page'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { SharedPipesModule } from '@start9labs/shared'
 
 const routes: Routes = [
   {
@@ -17,8 +17,8 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    SharingModule,
+    SharedPipesModule,
   ],
   declarations: [LANPage],
 })
-export class LANPageModule { }
+export class LANPageModule {}

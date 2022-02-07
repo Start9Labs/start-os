@@ -6,7 +6,7 @@
   "scripts": {
     "ng": "ng",
     "check": "npm run check:shared && npm run check:ui && npm run check:setup-wizard && npm run check:diagnostic-ui",
-    "check:shared": "tsc --project projects/shared/tsconfig.lib.json --noEmit --skipLibCheck",
+    "check:shared": "tsc --project projects/shared/tsconfig.json --noEmit --skipLibCheck",
     "check:diagnostic-ui": "tsc --project projects/diagnostic-ui/tsconfig.json --noEmit --skipLibCheck",
     "check:setup-wizard": "tsc --project projects/setup-wizard/tsconfig.json --noEmit --skipLibCheck",
     "check:ui": "tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck",
@@ -49,6 +49,7 @@
     "patch-db-client": "file: ../../../patch-db/client",
     "pbkdf2": "^3.1.2",
     "rxjs": "^6.6.7",
+    "src": "^1.1.2",
     "tslib": "^2.3.0",
     "uuid": "^8.3.2",
     "zone.js": "^0.11.4"

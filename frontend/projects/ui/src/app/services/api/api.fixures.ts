@@ -1,20 +1,15 @@
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
+  ConfigSpec,
   DependencyErrorType,
   DockerIoFormat,
   Manifest,
+  NotificationLevel,
+  ServerNotifications,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
-} from 'src/app/services/patch-db/data-model'
-import {
-  Log,
-  MarketplacePkg,
-  Metric,
-  NotificationLevel,
-  RR,
-  ServerNotifications,
-} from './api.types'
+} from '@start9labs/shared'
+import { Log, MarketplacePkg, Metric, RR } from './api.types'
 
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 
@@ -479,7 +474,7 @@ export module Mock {
           'As long as Bitcoin is pruned, LND needs Bitcoin Proxy to fetch block over the P2P network.',
         requirement: {
           type: 'opt-in',
-          how: "To use Proxy's user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.",
+          how: `To use Proxy's user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.`,
         },
         config: null,
       },

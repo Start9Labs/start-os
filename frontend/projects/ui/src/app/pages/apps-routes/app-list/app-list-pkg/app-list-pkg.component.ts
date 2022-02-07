@@ -1,14 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  Inject,
-  Input,
-} from '@angular/core'
-import {
-  PackageMainStatus,
-  PackageDataEntry,
-  Manifest,
-} from 'src/app/services/patch-db/data-model'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { PackageMainStatus, Manifest } from '@start9labs/shared'
 import { PkgInfo } from 'src/app/util/get-package-info'
 import { UiLauncherService } from 'src/app/services/ui-launcher.service'
 

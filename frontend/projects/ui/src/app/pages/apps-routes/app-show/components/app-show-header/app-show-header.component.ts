@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from '@start9labs/shared'
 
 @Component({
   selector: 'app-show-header',

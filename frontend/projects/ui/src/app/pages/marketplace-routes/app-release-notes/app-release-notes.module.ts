@@ -2,8 +2,12 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
+import {
+  SharedPipesModule,
+  TextSpinnerComponentModule,
+} from '@start9labs/shared'
 import { AppReleaseNotes } from './app-release-notes.page'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { MarketplacePipesModule } from '../pipes/marketplace-pipes.module'
 
 const routes: Routes = [
   {
@@ -17,8 +21,10 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    SharingModule,
+    TextSpinnerComponentModule,
+    SharedPipesModule,
+    MarketplacePipesModule,
   ],
   declarations: [AppReleaseNotes],
 })
-export class ReleaseNotesModule { }
+export class ReleaseNotesModule {}

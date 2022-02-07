@@ -16,17 +16,21 @@ import {
   ModalController,
   ToastController,
 } from '@ionic/angular'
-import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { ToastButton } from '@ionic/core'
 import { PatchDbService } from './services/patch-db/patch-db.service'
-import { ServerStatus, UIData } from './services/patch-db/data-model'
 import {
   ConnectionFailure,
   ConnectionService,
 } from './services/connection.service'
 import { ConfigService } from './services/config.service'
-import { debounce, isEmptyObject } from './util/misc.util'
+import {
+  debounce,
+  isEmptyObject,
+  Emver,
+  ServerStatus,
+  UIData,
+} from '@start9labs/shared'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
 import { LocalStorageService } from './services/local-storage.service'

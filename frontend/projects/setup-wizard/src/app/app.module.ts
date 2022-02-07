@@ -21,7 +21,7 @@ import { LoadingPageModule } from './pages/loading/loading.module'
 import { ProdKeyModalModule } from './modals/prod-key-modal/prod-key-modal.module'
 import { ProductKeyPageModule } from './pages/product-key/product-key.module'
 import { RecoverPageModule } from './pages/recover/recover.module'
-import { WorkspaceConfig } from '@shared'
+import { WorkspaceConfig } from '@start9labs/shared'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 

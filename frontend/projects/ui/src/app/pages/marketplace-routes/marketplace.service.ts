@@ -7,8 +7,7 @@ import {
 } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
-import { Emver } from 'src/app/services/emver.service'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { Emver, PackageDataEntry } from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Injectable({

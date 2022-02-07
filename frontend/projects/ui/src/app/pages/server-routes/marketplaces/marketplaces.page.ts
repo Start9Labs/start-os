@@ -7,12 +7,11 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDbService } from '../../../services/patch-db/patch-db.service'
 import { v4 } from 'uuid'
 import { MarketplaceService } from '../../marketplace-routes/marketplace.service'
-import { UIMarketplaceData } from '../../../services/patch-db/data-model'
+import { UIMarketplaceData, ValueSpecObject } from '@start9labs/shared'
 import { ConfigService } from '../../../services/config.service'
 
 @Component({

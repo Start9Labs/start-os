@@ -1,9 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { AlertController } from '@ionic/angular'
-import {
-  HealthResult,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { HealthResult, PackageDataEntry } from '@start9labs/shared'
 
 @Component({
   selector: 'app-show-health-checks',

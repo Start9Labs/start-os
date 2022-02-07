@@ -389,10 +389,10 @@
           },
           "configurations": {
             "production": {
-              "tsConfig": "projects/shared/tsconfig.lib.prod.json"
+              "tsConfig": "projects/shared/tsconfig.prod.json"
             },
             "development": {
-              "tsConfig": "projects/shared/tsconfig.lib.json"
+              "tsConfig": "projects/shared/tsconfig.json"
             }
           },
           "defaultConfiguration": "production"
