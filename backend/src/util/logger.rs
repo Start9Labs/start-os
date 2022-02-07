@@ -74,12 +74,13 @@ impl<S: Subscriber> Layer<S> for SharingLayer {
                     log_message: message.0,
                 };
                 // we don't care about the result and need it to be fast
-                tokio::spawn(
-                    self.tor_proxy
-                        .post(format!("{}/support/error-logs", &self.share_dest))
-                        .json(&body)
-                        .send(),
-                );
+                // TODO uncomment when we properly think this through
+                // tokio::spawn(
+                //     self.tor_proxy
+                //         .post(format!("{}/support/error-logs", &self.share_dest))
+                //         .json(&body)
+                //         .send(),
+                // );
             }
         }
     }
