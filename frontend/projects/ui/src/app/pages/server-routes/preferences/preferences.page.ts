@@ -8,6 +8,7 @@ import {
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerConfigService } from 'src/app/services/server-config.service'
+import { take } from 'rxjs/operators'
 
 @Component({
   selector: 'preferences',
@@ -18,6 +19,7 @@ export class PreferencesPage {
   @ViewChild(IonContent) content: IonContent
   fields = fields
   defaultName: string
+  clicks = 0
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -72,6 +74,20 @@ export class PreferencesPage {
     } finally {
       loader.dismiss()
     }
+  }
+
+  async addClick() {
+    this.clicks++
+    if (this.clicks >= 5) {
+      this.clicks = 0
+      this.patch
+        .watch$('ui', 'show-developer-tools')
+        .pipe(take(1))
+        .subscribe(async showingTools => {
+          await this.setDbValue('show-developer-tools', !showingTools)
+        })
+    }
+    setTimeout(() => (this.clicks = Math.max(this.clicks - 1, 0)), 10000)
   }
 }
 

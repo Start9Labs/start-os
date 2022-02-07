@@ -3,7 +3,7 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="embassy"></ion-back-button>
     </ion-buttons>
-    <ion-title>Preferences</ion-title>
+    <ion-title (click)="addClick()">Preferences</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -22,17 +22,6 @@
       <ion-label>Auto Report Bugs</ion-label>
       <ion-note slot="end"
         >{{ server['share-stats'] ? 'Enabled' : 'Disabled' }}</ion-note
-      >
-    </ion-item>
-
-    <ion-item
-      button
-      (click)="setDbValue('show-developer-tools', !patch.data.ui['show-developer-tools'])"
-    >
-      <ion-label>Show Developer Tools (Beta)</ion-label>
-      <ion-note slot="end"
-        >{{ patch.data.ui['show-developer-tools'] ? 'Enabled' : 'Disabled'
-        }}</ion-note
       >
     </ion-item>
 
