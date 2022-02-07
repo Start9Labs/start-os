@@ -14,6 +14,13 @@ const routes: Routes = [
     loadChildren: () =>
       import('./config/config.module').then(m => m.ConfigPageModule),
   },
+  {
+    path: 'instructions',
+    loadChildren: () =>
+      import('./instructions/instructions.module').then(
+        m => m.InstructionsPageModule,
+      ),
+  },
 ]
 
 @NgModule({

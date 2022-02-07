@@ -16,4 +16,8 @@ export class DeveloperPage {
   navToConfig() {
     this.navCtrl.navigateForward(['config'], { relativeTo: this.route })
   }
+
+  navToInstructions() {
+    this.navCtrl.navigateForward(['instructions'], { relativeTo: this.route })
+  }
 }

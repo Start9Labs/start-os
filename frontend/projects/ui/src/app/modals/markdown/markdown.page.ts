@@ -9,20 +9,22 @@ import { getErrorMessage } from 'src/app/services/error-toast.service'
   styleUrls: ['./markdown.page.scss'],
 })
 export class MarkdownPage {
-  @Input() contentUrl: string
+  @Input() contentUrl?: string
+  @Input() content?: string
   @Input() title: string
-  content: string
   loading = true
   loadingError: string | IonicSafeString
 
-  constructor (
+  constructor(
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     try {
-      this.content = await this.embassyApi.getStatic(this.contentUrl)
+      if (!this.content) {
+        this.content = await this.embassyApi.getStatic(this.contentUrl)
+      }
       const links = document.links
       for (let i = 0, linksLength = links.length; i < linksLength; i++) {
         if (links[i].hostname != window.location.hostname) {
@@ -38,7 +40,7 @@ export class MarkdownPage {
     }
   }
 
-  async dismiss () {
+  async dismiss() {
     return this.modalCtrl.dismiss(true)
   }
 }
