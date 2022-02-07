@@ -174,9 +174,12 @@ impl StaticFiles {
     }
     pub fn remote(id: &PackageId, version: &Version) -> Self {
         StaticFiles {
-            license: format!("/marketplace/package/license/{}?spec=={}", id, version),
-            instructions: format!("/marketplace/package/instructions/{}?spec=={}", id, version),
-            icon: format!("/marketplace/package/icon/{}?spec=={}", id, version),
+            license: format!("/marketplace/package/v0/license/{}?spec=={}", id, version),
+            instructions: format!(
+                "/marketplace/package/v0/instructions/{}?spec=={}",
+                id, version
+            ),
+            icon: format!("/marketplace/package/v0/icon/{}?spec=={}", id, version),
         }
     }
 }

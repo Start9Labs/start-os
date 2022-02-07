@@ -124,7 +124,7 @@ lazy_static! {
 async fn maybe_do_update(ctx: RpcContext) -> Result<Option<Arc<Revision>>, Error> {
     let mut db = ctx.db.handle();
     let latest_version = reqwest::get(format!(
-        "{}/eos/latest?eos-version={}&arch={}",
+        "{}/eos/v0/latest?eos-version={}&arch={}",
         ctx.eos_registry_url().await?,
         Current::new().semver(),
         platforms::TARGET_ARCH,
@@ -294,7 +294,7 @@ impl std::fmt::Display for EosUrl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}/eos/eos.img?spec=={}&eos-version={}&arch={}",
+            "{}/eos/v0/eos.img?spec=={}&eos-version={}&arch={}",
             self.base,
             self.version,
             Current::new().semver(),
