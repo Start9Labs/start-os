@@ -3,15 +3,17 @@ use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
+use color_eyre::eyre::eyre;
 use patch_db::{HasModel, Map, MapModel};
 use serde::{Deserialize, Deserializer, Serialize};
+use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::id::{Id, IdUnchecked};
-use crate::net::interface::InterfaceId;
+use crate::net::interface::{InterfaceId, Interfaces};
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
-use crate::Error;
+use crate::{Error, ResultExt};
 
 pub const PKG_VOLUME_DIR: &'static str = "package-data/volumes";
 pub const BACKUP_DIR: &'static str = "/media/embassy-os/backups";
@@ -75,6 +77,16 @@ impl<S: AsRef<str>> Serialize for VolumeId<S> {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Volumes(BTreeMap<VolumeId, Volume>);
 impl Volumes {
+    #[instrument]
+    pub fn validate(&self, interfaces: &Interfaces) -> Result<(), Error> {
+        for (id, volume) in &self.0 {
+            volume
+                .validate(interfaces)
+                .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, format!("Volume {}", id)))?;
+        }
+        Ok(())
+    }
+    #[instrument(skip(ctx))]
     pub async fn install(
         &self,
         ctx: &RpcContext,
@@ -180,6 +192,18 @@ pub enum Volume {
     Backup { readonly: bool },
 }
 impl Volume {
+    #[instrument]
+    pub fn validate(&self, interfaces: &Interfaces) -> Result<(), color_eyre::eyre::Report> {
+        match self {
+            Volume::Certificate { interface_id } => {
+                if !interfaces.0.contains_key(interface_id) {
+                    color_eyre::eyre::bail!("unknown interface: {}", interface_id);
+                }
+            }
+            _ => (),
+        }
+        Ok(())
+    }
     pub async fn install(
         &self,
         ctx: &RpcContext,

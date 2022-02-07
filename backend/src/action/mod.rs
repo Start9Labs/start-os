@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
@@ -14,7 +14,7 @@ use tracing::instrument;
 use self::docker::DockerAction;
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
-use crate::id::{Id, InvalidId};
+use crate::id::{Id, ImageId, InvalidId};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::util::Version;
@@ -109,6 +109,18 @@ pub struct Action {
     pub input_spec: ConfigSpec,
 }
 impl Action {
+    #[instrument]
+    pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {
+        self.implementation
+            .validate(volumes, image_ids, true)
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::ValidateS9pk,
+                    format!("Action {}", self.name),
+                )
+            })
+    }
+
     #[instrument(skip(ctx))]
     pub async fn execute(
         &self,
@@ -147,6 +159,20 @@ pub enum ActionImplementation {
     Docker(DockerAction),
 }
 impl ActionImplementation {
+    #[instrument]
+    pub fn validate(
+        &self,
+        volumes: &Volumes,
+        image_ids: &BTreeSet<ImageId>,
+        expected_io: bool,
+    ) -> Result<(), color_eyre::eyre::Report> {
+        match self {
+            ActionImplementation::Docker(action) => {
+                action.validate(volumes, image_ids, expected_io)
+            }
+        }
+    }
+
     #[instrument(skip(ctx, input))]
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,

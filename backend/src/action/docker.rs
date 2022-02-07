@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
@@ -23,6 +23,17 @@ use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &str = "embassy";
 
+lazy_static::lazy_static! {
+    pub static ref SYSTEM_IMAGES: BTreeSet<ImageId> = {
+        let mut set = BTreeSet::new();
+
+        set.insert("compat".parse().unwrap());
+        set.insert("utils".parse().unwrap());
+
+        set
+    };
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DockerAction {
@@ -44,6 +55,32 @@ pub struct DockerAction {
     pub sigterm_timeout: Option<SerdeDuration>,
 }
 impl DockerAction {
+    pub fn validate(
+        &self,
+        volumes: &Volumes,
+        image_ids: &BTreeSet<ImageId>,
+        expected_io: bool,
+    ) -> Result<(), color_eyre::eyre::Report> {
+        for (volume, _) in &self.mounts {
+            if !volumes.contains_key(volume) {
+                color_eyre::eyre::bail!("unknown volume: {}", volume);
+            }
+        }
+        if self.system {
+            if !SYSTEM_IMAGES.contains(&self.image) {
+                color_eyre::eyre::bail!("unknown system image: {}", self.image);
+            }
+        } else {
+            if !image_ids.contains(&self.image) {
+                color_eyre::eyre::bail!("image for {} not contained in package", self.image);
+            }
+        }
+        if expected_io && self.io_format.is_none() {
+            color_eyre::eyre::bail!("expected io-format");
+        }
+        Ok(())
+    }
+
     #[instrument(skip(ctx, input))]
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
