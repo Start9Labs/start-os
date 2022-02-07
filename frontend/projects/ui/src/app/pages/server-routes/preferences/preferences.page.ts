@@ -1,7 +1,10 @@
 import { Component, ViewChild } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { IonContent, LoadingController, ModalController } from '@ionic/angular'
-import { GenericInputComponent, GenericInputOptions } from 'src/app/modals/generic-input/generic-input.component'
+import {
+  GenericInputComponent,
+  GenericInputOptions,
+} from 'src/app/modals/generic-input/generic-input.component'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerConfigService } from 'src/app/services/server-config.service'
@@ -16,23 +19,23 @@ export class PreferencesPage {
   fields = fields
   defaultName: string
 
-  constructor (
+  constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
     public readonly serverConfig: ServerConfigService,
     public readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.defaultName = `Embassy-${this.patch.getData()['server-info'].id}`
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  async presentModalName (): Promise<void> {
+  async presentModalName(): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Edit Device Name',
       message: 'This is for your reference only.',
@@ -42,7 +45,8 @@ export class PreferencesPage {
       nullable: true,
       initialValue: this.patch.getData().ui.name,
       buttonText: 'Save',
-      submitFn: (value: string) => this.setDbValue('name', value || this.defaultName),
+      submitFn: (value: string) =>
+        this.setDbValue('name', value || this.defaultName),
     }
 
     const modal = await this.modalCtrl.create({
@@ -55,7 +59,7 @@ export class PreferencesPage {
     await modal.present()
   }
 
-  private async setDbValue (key: string, value: string): Promise<void> {
+  async setDbValue(key: string, value: any): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
@@ -72,7 +76,7 @@ export class PreferencesPage {
 }
 
 const fields: ConfigSpec = {
-  'name': {
+  name: {
     name: 'Device Name',
     type: 'string',
     nullable: false,

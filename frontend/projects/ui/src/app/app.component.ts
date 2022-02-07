@@ -97,10 +97,10 @@ export class AppComponent {
     private readonly startupAlertsService: StartupAlertsService,
     private readonly toastCtrl: ToastController,
     private readonly errToast: ErrorToastService,
-    private readonly patch: PatchDbService,
     private readonly config: ConfigService,
     private readonly zone: NgZone,
-    readonly splitPane: SplitPaneTracker,
+    public readonly splitPane: SplitPaneTracker,
+    public readonly patch: PatchDbService,
   ) {
     this.init()
   }

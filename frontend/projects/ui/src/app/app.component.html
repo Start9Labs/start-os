@@ -29,6 +29,10 @@
                 [routerLink]="[page.url]"
                 lines="none"
                 detail="false"
+                *ngIf="
+                  page.url !== '/developer' ||
+                  patch.data.ui['show-developer-tools']
+                "
               >
                 <ion-icon
                   slot="start"
