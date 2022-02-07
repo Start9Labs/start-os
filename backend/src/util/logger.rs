@@ -74,7 +74,12 @@ impl<S: Subscriber> Layer<S> for SharingLayer {
                     log_message: message.0,
                 };
                 // we don't care about the result and need it to be fast
-                tokio::spawn(self.tor_proxy.post(&self.share_dest).json(&body).send());
+                tokio::spawn(
+                    self.tor_proxy
+                        .post(format!("{}/support/error-logs", &self.share_dest))
+                        .json(&body)
+                        .send(),
+                );
             }
         }
     }
@@ -122,7 +127,10 @@ impl EmbassyLogger {
             let log_epoch = Arc::new(AtomicU64::new(rand::random()));
             let sharing = Arc::new(AtomicBool::new(share_errors));
             let share_dest = match share_dest {
-                None => "http://registry.privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion/support/error-logs".to_owned(),
+                None => {
+                    "http://registry.privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion"
+                        .to_owned()
+                }
                 Some(a) => a.to_string(),
             };
             let tor_proxy = Client::builder()
