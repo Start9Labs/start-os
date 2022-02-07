@@ -79,7 +79,6 @@ export class PreferencesPage {
   async addClick() {
     this.clicks++
     if (this.clicks >= 5) {
-      this.clicks = 0
       this.patch
         .watch$('ui', 'show-developer-tools')
         .pipe(take(1))
