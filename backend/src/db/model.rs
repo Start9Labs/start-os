@@ -168,13 +168,6 @@ impl StaticFiles {
             icon: format!("/public/package-data/{}/{}/icon.{}", id, version, icon_type),
         }
     }
-    pub fn remote(id: &PackageId, version: &Version) -> Self {
-        StaticFiles {
-            license: format!("/marketplace/package/license/{}?spec=={}", id, version),
-            instructions: format!("/marketplace/package/instructions/{}?spec=={}", id, version),
-            icon: format!("/marketplace/package/icon/{}?spec=={}", id, version),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]

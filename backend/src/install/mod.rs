@@ -42,7 +42,7 @@ use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
-use crate::util::io::copy_and_shutdown;
+use crate::util::io::{copy_and_shutdown, response_to_reader};
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
@@ -101,7 +101,7 @@ pub async fn install(
         marketplace_url.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
     let (man_res, s9pk) = tokio::try_join!(
         reqwest::get(format!(
-            "{}/package/manifest/{}?spec={}&eos-version-compat={}&arch={}",
+            "{}/package/v0/manifest/{}?spec={}&eos-version-compat={}&arch={}",
             marketplace_url,
             id,
             version,
@@ -109,7 +109,7 @@ pub async fn install(
             platforms::TARGET_ARCH,
         )),
         reqwest::get(format!(
-            "{}/package/{}.s9pk?spec={}&eos-version-compat={}&arch={}",
+            "{}/package/v0/{}.s9pk?spec={}&eos-version-compat={}&arch={}",
             marketplace_url,
             id,
             version,
@@ -135,8 +135,82 @@ pub async fn install(
         ));
     }
 
+    let public_dir_path = ctx
+        .datadir
+        .join(PKG_PUBLIC_DIR)
+        .join(&man.id)
+        .join(man.version.as_str());
+    tokio::fs::create_dir_all(&public_dir_path).await?;
+
+    let icon_type = man.assets.icon_type();
+    let (license_res, instructions_res, icon_res) = tokio::join!(
+        async {
+            tokio::io::copy(
+                &mut response_to_reader(
+                    reqwest::get(format!(
+                        "{}/package/v0/license/{}?spec={}&eos-version-compat={}&arch={}",
+                        marketplace_url,
+                        id,
+                        version,
+                        Current::new().compat(),
+                        platforms::TARGET_ARCH,
+                    ))
+                    .await?,
+                ),
+                &mut File::create(public_dir_path.join("LICENSE.md")).await?,
+            )
+            .await?;
+            Ok::<_, color_eyre::eyre::Report>(())
+        },
+        async {
+            tokio::io::copy(
+                &mut response_to_reader(
+                    reqwest::get(format!(
+                        "{}/package/v0/instructions/{}?spec={}&eos-version-compat={}&arch={}",
+                        marketplace_url,
+                        id,
+                        version,
+                        Current::new().compat(),
+                        platforms::TARGET_ARCH,
+                    ))
+                    .await?,
+                ),
+                &mut File::create(public_dir_path.join("INSTRUCTIONS.md")).await?,
+            )
+            .await?;
+            Ok::<_, color_eyre::eyre::Report>(())
+        },
+        async {
+            tokio::io::copy(
+                &mut response_to_reader(
+                    reqwest::get(format!(
+                        "{}/package/v0/icon/{}?spec={}&eos-version-compat={}&arch={}",
+                        marketplace_url,
+                        id,
+                        version,
+                        Current::new().compat(),
+                        platforms::TARGET_ARCH,
+                    ))
+                    .await?,
+                ),
+                &mut File::create(public_dir_path.join(format!("icon.{}", icon_type))).await?,
+            )
+            .await?;
+            Ok::<_, color_eyre::eyre::Report>(())
+        },
+    );
+    if let Err(e) = license_res {
+        tracing::warn!("Failed to pre-download license: {}", e);
+    }
+    if let Err(e) = instructions_res {
+        tracing::warn!("Failed to pre-download instructions: {}", e);
+    }
+    if let Err(e) = icon_res {
+        tracing::warn!("Failed to pre-download icon: {}", e);
+    }
+
     let progress = InstallProgress::new(s9pk.content_length());
-    let static_files = StaticFiles::remote(&man.id, &man.version);
+    let static_files = StaticFiles::local(&man.id, &man.version, icon_type);
     let mut db_handle = ctx.db.handle();
     let mut tx = db_handle.begin().await?;
     let mut pde = crate::db::DatabaseModel::new()
@@ -182,18 +256,7 @@ pub async fn install(
             &man,
             Some(marketplace_url),
             InstallProgress::new(s9pk.content_length()),
-            tokio_util::io::StreamReader::new(s9pk.bytes_stream().map_err(|e| {
-                std::io::Error::new(
-                    if e.is_connect() {
-                        std::io::ErrorKind::ConnectionRefused
-                    } else if e.is_timeout() {
-                        std::io::ErrorKind::TimedOut
-                    } else {
-                        std::io::ErrorKind::Other
-                    },
-                    e,
-                )
-            })),
+            response_to_reader(s9pk),
         )
         .await
         {
@@ -626,7 +689,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             Some(local_man)
         } else if let Some(marketplace_url) = &marketplace_url {
             match reqwest::get(format!(
-                "{}/package/manifest/{}?spec={}&eos-version-compat={}&arch={}",
+                "{}/package/v0/manifest/{}?spec={}&eos-version-compat={}&arch={}",
                 marketplace_url,
                 dep,
                 info.version,
@@ -661,7 +724,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 if tokio::fs::metadata(&icon_path).await.is_err() {
                     tokio::fs::create_dir_all(&dir).await?;
                     let icon = reqwest::get(format!(
-                        "{}/package/icon/{}?spec={}&eos-version-compat={}&arch={}",
+                        "{}/package/v0/icon/{}?spec={}&eos-version-compat={}&arch={}",
                         marketplace_url,
                         dep,
                         info.version,
@@ -671,22 +734,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                     .await
                     .with_kind(crate::ErrorKind::Registry)?;
                     let mut dst = File::create(&icon_path).await?;
-                    tokio::io::copy(
-                        &mut tokio_util::io::StreamReader::new(icon.bytes_stream().map_err(|e| {
-                            std::io::Error::new(
-                                if e.is_connect() {
-                                    std::io::ErrorKind::ConnectionRefused
-                                } else if e.is_timeout() {
-                                    std::io::ErrorKind::TimedOut
-                                } else {
-                                    std::io::ErrorKind::Other
-                                },
-                                e,
-                            )
-                        })),
-                        &mut dst,
-                    )
-                    .await?;
+                    tokio::io::copy(&mut response_to_reader(icon), &mut dst).await?;
                     dst.sync_all().await?;
                 }
             }

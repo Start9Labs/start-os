@@ -122,7 +122,7 @@ impl EmbassyLogger {
             let log_epoch = Arc::new(AtomicU64::new(rand::random()));
             let sharing = Arc::new(AtomicBool::new(share_errors));
             let share_dest = match share_dest {
-                None => "http://registry.privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion/support/error-logs".to_owned(),
+                None => "http://registry.privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion/support/v0/error-logs".to_owned(),
                 Some(a) => a.to_string(),
             };
             let tor_proxy = Client::builder()
