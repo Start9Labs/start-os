@@ -29,7 +29,10 @@
                 [routerLink]="[page.url]"
                 lines="none"
                 detail="false"
-                *ngIf="page.url !== '/developer' || localStorage.showDevTools"
+                *ngIf="
+                  page.url !== '/developer' ||
+                  (localStorage.showDevTools$ | async)
+                "
               >
                 <ion-icon
                   slot="start"

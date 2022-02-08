@@ -89,19 +89,14 @@ export class PreferencesPage {
     this.clicks++
     if (this.clicks >= 5) {
       this.clicks = 0
-      await this.localStorage.toggleShowDevTools()
-      console.log('TOOLS', this.localStorage.showDevTools)
+      const newVal = await this.localStorage.toggleShowDevTools()
       const toast = await this.toastCtrl.create({
-        header: this.localStorage.showDevTools
-          ? 'Dev tools unlocked!'
-          : 'Dev tools hidden :(',
-        message: this.localStorage.showDevTools
+        header: newVal ? 'Dev tools unlocked!' : 'Dev tools hidden :(',
+        message: newVal
           ? 'Dev tools are now accessable in the main menu'
           : 'Say goodbye to dev tools forever',
         position: 'bottom',
-        cssClass: this.localStorage.showDevTools
-          ? 'success-toast'
-          : 'warning-toast',
+        cssClass: newVal ? 'success-toast' : 'warning-toast',
         duration: 1000,
       })
 
