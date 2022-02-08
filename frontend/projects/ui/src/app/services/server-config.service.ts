@@ -9,15 +9,14 @@ import { ErrorToastService } from './error-toast.service'
   providedIn: 'root',
 })
 export class ServerConfigService {
-
-  constructor (
+  constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly embassyApi: ApiService,
-  ) { }
+  ) {}
 
-  async presentAlert (key: string, current?: any): Promise<HTMLIonAlertElement> {
+  async presentAlert(key: string, current?: any): Promise<HTMLIonAlertElement> {
     const spec = serverConfig[key]
 
     let inputs: AlertInput[]
@@ -100,14 +99,11 @@ export class ServerConfigService {
 
   saveFns: { [key: string]: (val: any) => Promise<any> } = {
     'auto-check-updates': async (enabled: boolean) => {
-      return this.embassyApi.setDbValue({ pointer: '/auto-check-updates', value: enabled })
+      return this.embassyApi.setDbValue({
+        pointer: '/auto-check-updates',
+        value: enabled,
+      })
     },
-    // 'eos-marketplace': async () => {
-    //   return this.embassyApi.setEosMarketplace()
-    // },
-    // 'package-marketplace': async (url: string) => {
-    //   return this.embassyApi.setPackageMarketplace({ url })
-    // },
     'share-stats': async (enabled: boolean) => {
       return this.embassyApi.setShareStats({ value: enabled })
     },
@@ -121,31 +117,16 @@ export const serverConfig: ConfigSpec = {
   'auto-check-updates': {
     type: 'boolean',
     name: 'Auto Check for Updates',
-    description: 'If enabled, EmbassyOS will automatically check for updates of itself and any installed services. Updating will still require your approval and action. Updates will never be performed automatically.',
+    description:
+      'If enabled, EmbassyOS will automatically check for updates of itself and any installed services. Updating will still require your approval and action. Updates will never be performed automatically.',
     default: true,
   },
-  // 'eos-marketplace': {
-  //   type: 'boolean',
-  //   name: 'Tor Only Marketplace',
-  //   description: `Use Start9's Tor (instead of clearnet) Marketplace.`,
-  //   warning: 'This will result in higher latency and slower download times.',
-  //   default: false,
-  // },
-  // 'package-marketplace': {
-  //   type: 'string',
-  //   name: 'Package Marketplace',
-  //   description: `Use for alternative embassy marketplace. Leave empty to use start9's marketplace.`,
-  //   nullable: true,
-  //   // @TODO regex for URL
-  //   // pattern: '',
-  //   'pattern-description': 'Must be a valid URL.',
-  //   masked: false,
-  //   copyable: false,
-  // },
   'share-stats': {
     type: 'boolean',
     name: 'Report Bugs',
-    description: new IonicSafeString(`If enabled, generic error codes will be anonymously transmitted over Tor to the Start9 team. This helps us identify and fix bugs quickly. <a href="https://docs.start9.com/user-manual/general/user-preferences/report-bugs.html" target="_blank" rel="noreferrer">Read more</a> `) as any,
+    description: new IonicSafeString(
+      `If enabled, generic error codes will be anonymously transmitted over Tor to the Start9 team. This helps us identify and fix bugs quickly. <a href="https://docs.start9.com/user-manual/general/user-preferences/report-bugs.html" target="_blank" rel="noreferrer">Read more</a> `,
+    ) as any,
     default: false,
   },
   // password: {

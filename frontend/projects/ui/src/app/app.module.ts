@@ -23,6 +23,7 @@ import { GlobalErrorHandler } from './services/global-error-handler.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
 import { WorkspaceConfig } from '@shared'
+import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
@@ -47,6 +48,7 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     MarkdownPageModule,
     GenericInputComponentModule,
     SharingModule,
+    MonacoEditorModule,
   ],
   providers: [
     FormBuilder,
