@@ -191,7 +191,7 @@ export class MockApiService extends ApiService {
   async marketplaceProxy (path: string, params: {}, url: string): Promise<any> {
     await pauseFor(2000)
 
-    if (path === '/package/data') {
+    if (path === '/package/v0/data') {
       return {
         name: 'Dark9',
         categories: [
@@ -204,9 +204,9 @@ export class MockApiService extends ApiService {
           'alt coin',
         ],
       }
-    } else if (path === '/package/index') {
+    } else if (path === '/package/v0/index') {
       return Mock.MarketplacePkgsList
-    } else if (path === '/package/release-notes') {
+    } else if (path === '/package/v0/release-notes') {
       return Mock.ReleaseNotes
     }
   }
