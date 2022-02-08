@@ -46,7 +46,7 @@ export class MarketplaceService {
     try {
       const [data, pkgs] = await Promise.all([
         this.getMarketplaceData({}),
-        this.getPkgs(1, 100),
+        this.getMarketplacePkgs({ page: 1, 'per-page': 100 }),
       ])
       this.data = data
       this.pkgs = pkgs
@@ -86,8 +86,6 @@ export class MarketplaceService {
       })
     const latestPkgs = await this.getMarketplacePkgs({
       ids: idAndCurrentVersions,
-      'eos-version-compat':
-        this.patch.getData()['server-info']['eos-version-compat'],
     })
 
     return latestPkgs.filter(latestPkg => {
@@ -100,8 +98,6 @@ export class MarketplaceService {
   async getPkg(id: string, version = '*'): Promise<MarketplacePkg> {
     const pkgs = await this.getMarketplacePkgs({
       ids: [{ id, version }],
-      'eos-version-compat':
-        this.patch.getData()['server-info']['eos-version-compat'],
     })
     const pkg = pkgs.find(pkg => pkg.manifest.id == id)
 
@@ -116,20 +112,6 @@ export class MarketplaceService {
     this.releaseNotes[id] = await this.getReleaseNotes({ id })
   }
 
-  private async getPkgs(
-    page: number,
-    perPage: number,
-  ): Promise<MarketplacePkg[]> {
-    const pkgs = await this.getMarketplacePkgs({
-      page: String(page),
-      'per-page': String(perPage),
-      'eos-version-compat':
-        this.patch.getData()['server-info']['eos-version-compat'],
-    })
-
-    return pkgs
-  }
-
   async getMarketplaceData(
     params: RR.GetMarketplaceDataReq,
     url?: string,
@@ -139,15 +121,20 @@ export class MarketplaceService {
   }
 
   async getMarketplacePkgs(
-    params: RR.GetMarketplacePackagesReq,
+    params: Omit<RR.GetMarketplacePackagesReq, 'eos-version-compat'>,
   ): Promise<RR.GetMarketplacePackagesRes> {
-    if (params.query) params.category = undefined
+    if (params.query) delete params.category
+    if (params.ids) params.ids = JSON.stringify(params.ids) as any
+
+    const qp: RR.GetMarketplacePackagesReq = {
+      ...params,
+      'eos-version-compat':
+        this.patch.getData()['server-info']['eos-version-compat'],
+    }
+
     return this.api.marketplaceProxy(
       '/package/v0/index',
-      {
-        ...params,
-        ids: JSON.stringify(params.ids),
-      },
+      qp,
       this.marketplaceUrl,
     )
   }
