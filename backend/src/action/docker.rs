@@ -18,7 +18,7 @@ use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
-use crate::volume::{VolumeId, Volumes};
+use crate::volume::{Volume, VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &str = "embassy";
@@ -62,7 +62,7 @@ impl DockerAction {
         expected_io: bool,
     ) -> Result<(), color_eyre::eyre::Report> {
         for (volume, _) in &self.mounts {
-            if !volumes.contains_key(volume) {
+            if !volumes.contains_key(volume) && !matches!(&volume, &VolumeId::Backup) {
                 color_eyre::eyre::bail!("unknown volume: {}", volume);
             }
         }
