@@ -10,7 +10,7 @@ function has<Obj extends {}, K extends string>(obj: Obj, key: K): obj is (Obj & 
 
 
 const ajv = new Ajv({ jsonPointers: true, allErrors: true, nullable: true })
-const ajvWithDefaults = new Ajv({ jsonPointers: true, allErrors: true, useDefaults: true, nullable: true, removeAdditional: 'failing' })
+const ajvWithDefaults = new Ajv({ jsonPointers: true, allErrors: true, useDefaults: true, nullable: true, removeAdditional:true })
 
 const schemaV1 = {
   'type': 'object',
@@ -28,7 +28,10 @@ const schemaV1Compiled = ajv.compile(schemaV1)
 function isSchemaV1(properties: unknown): properties is PropertiesV1 {
   return schemaV1Compiled(properties) as any
 }
-const schemaV1CompiledWithDefaults = ajvWithDefaults.compile(schemaV1)
+const _schemaV1CompiledWithDefaults = ajvWithDefaults.compile(schemaV1)
+function schemaV1CompiledWithDefaults(properties: unknown): properties is PropertiesV1 {
+  return _schemaV1CompiledWithDefaults(properties) as any
+}
 const schemaV2 = {
   'anyOf': [
     {
@@ -117,9 +120,11 @@ function parsePropertiesV1Permissive (properties: unknown, errorCallback: (err: 
     errorCallback(new TypeError(`${properties} is not an array`))
     return {}
   }
-  return properties.reduce((prev: PackagePropertiesV2, cur: unknown, idx: number) => {
+  const parsedProperties : PackagePropertiesV2 = {};
+  for(const idx in properties) {
+    const cur:unknown = properties[idx]
     if(isSchemaV1(cur)) {
-      prev[cur.name] = {
+      parsedProperties[cur.name] = {
         type: 'string',
         value: cur.value,
         description: cur.description,
@@ -136,14 +141,24 @@ function parsePropertiesV1Permissive (properties: unknown, errorCallback: (err: 
         }
       }
       if (!schemaV1CompiledWithDefaults(cur)) {
-        for (let err of schemaV1CompiledWithDefaults.errors) {
+        for (let err of _schemaV1CompiledWithDefaults.errors) {
           errorCallback(new Error(`/data/${idx}${err.dataPath}: ${err.message}`))
         }
-        return prev
+        continue
+      }
+      parsedProperties[cur.name] = {
+
+        type: 'string',
+        value: cur.value,
+        description: cur.description,
+        copyable: cur.copyable,
+        qr: cur.qr,
+        masked: false,
       }
     }
-    return prev
-  }, { })
+    
+  }
+  return parsedProperties
 }
 function parsePropertiesV2Permissive (properties: unknown, errorCallback: (err: Error) => any): PackageProperties {
   if (typeof properties !== 'object' || properties === null) {
@@ -213,3 +228,4 @@ interface PackagePropertyObject extends PackagePropertyBase {
   type: 'object'
   value: PackagePropertiesV2
 }
+
