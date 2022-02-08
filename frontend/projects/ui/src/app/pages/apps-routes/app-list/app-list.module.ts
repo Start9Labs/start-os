@@ -4,7 +4,7 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppListPage } from './app-list.page'
 import {
-  SharedPipesModule,
+  EmverPipesModule,
   TextSpinnerComponentModule,
   StatusComponentModule,
 } from '@start9labs/shared'
@@ -29,7 +29,7 @@ const routes: Routes = [
   imports: [
     CommonModule,
     StatusComponentModule,
-    SharedPipesModule,
+    EmverPipesModule,
     TextSpinnerComponentModule,
     LaunchablePipeModule,
     UiPipeModule,

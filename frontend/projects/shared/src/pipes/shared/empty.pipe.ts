@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { isEmptyObject } from '../util/misc.util'
+import { isEmptyObject } from '../../util/misc.util'
 
 @Pipe({
   name: 'empty',

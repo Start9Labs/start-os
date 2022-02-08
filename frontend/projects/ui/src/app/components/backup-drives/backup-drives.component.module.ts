@@ -7,7 +7,7 @@ import {
   BackupDrivesStatusComponent,
 } from './backup-drives.component'
 import {
-  SharedPipesModule,
+  UnitConversionPipesModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
 import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.module'
@@ -21,7 +21,7 @@ import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.
   imports: [
     CommonModule,
     IonicModule,
-    SharedPipesModule,
+    UnitConversionPipesModule,
     TextSpinnerComponentModule,
     GenericFormPageModule,
   ],

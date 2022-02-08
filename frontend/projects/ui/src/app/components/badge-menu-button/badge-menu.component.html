@@ -1,4 +1,11 @@
-<div style="position: relative; margin-right: 1vh;">
-  <ion-badge mode="md" class="md-badge" *ngIf="unreadCount && !sidebarOpen" color="danger">{{ unreadCount }}</ion-badge>
+<div class="wrapper">
+  <ion-badge
+    *ngIf="unreadCount && !sidebarOpen"
+    mode="md"
+    class="md-badge"
+    color="danger"
+  >
+    {{ unreadCount }}
+  </ion-badge>
   <ion-menu-button color="dark"></ion-menu-button>
 </div>

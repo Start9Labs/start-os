@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { ServerSpecsPage } from './server-specs.page'
-import { SharedPipesModule } from '@start9labs/shared'
+import { EmverPipesModule } from '@start9labs/shared'
 
 const routes: Routes = [
   {
@@ -17,7 +17,7 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    SharedPipesModule,
+    EmverPipesModule,
   ],
   declarations: [ServerSpecsPage],
 })

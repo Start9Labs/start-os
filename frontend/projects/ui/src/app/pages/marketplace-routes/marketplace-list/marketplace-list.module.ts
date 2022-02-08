@@ -1,14 +1,15 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
+import { FormsModule } from '@angular/forms'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import {
   SharedPipesModule,
+  EmverPipesModule,
   TextSpinnerComponentModule,
   StatusComponentModule,
 } from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
-import { FormsModule } from '@angular/forms'
 import { MarketplacePipesModule } from '../pipes/marketplace-pipes.module'
 import { MarketplaceListPage } from './marketplace-list.page'
 
@@ -28,6 +29,7 @@ const routes: Routes = [
     StatusComponentModule,
     TextSpinnerComponentModule,
     SharedPipesModule,
+    EmverPipesModule,
     MarketplacePipesModule,
     BadgeMenuComponentModule,
   ],

@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { BackupReport } from '@start9labs/shared'
+import { BackupReport } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'backup-report',

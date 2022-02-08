@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import {
-  SharedPipesModule,
+  EmverPipesModule,
+  MarkdownPipeModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
 import { AppReleaseNotes } from './app-release-notes.page'
@@ -22,7 +23,8 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     TextSpinnerComponentModule,
-    SharedPipesModule,
+    EmverPipesModule,
+    MarkdownPipeModule,
     MarketplacePipesModule,
   ],
   declarations: [AppReleaseNotes],

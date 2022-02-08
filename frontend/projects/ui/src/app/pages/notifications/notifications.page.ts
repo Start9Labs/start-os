@@ -1,6 +1,10 @@
 import { Component } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ServerNotification, ServerNotifications } from '@start9labs/shared'
+import {
+  ServerNotifications,
+  NotificationLevel,
+  ServerNotification,
+} from 'src/app/services/api/api.types'
 import {
   AlertController,
   LoadingController,
@@ -128,6 +132,25 @@ export class NotificationsPage {
       ],
     })
     await alert.present()
+  }
+
+  truncate(message: string): string {
+    return message.length <= 1000 ? message : '...' + message.substr(-1000)
+  }
+
+  getColor({ level }: ServerNotification<number>): string {
+    switch (level) {
+      case NotificationLevel.Info:
+        return 'primary'
+      case NotificationLevel.Success:
+        return 'success'
+      case NotificationLevel.Warning:
+        return 'warning'
+      case NotificationLevel.Error:
+        return 'danger'
+      default:
+        return ''
+    }
   }
 
   private async deleteAll(): Promise<void> {

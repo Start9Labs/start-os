@@ -2,11 +2,11 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { StatusComponent } from './status.component'
-import { SharedPipesModule } from '../../pipes/pipes.module'
+import { UnitConversionPipesModule } from '../../pipes/unit-conversion/unit-conversion.module'
 
 @NgModule({
   declarations: [StatusComponent],
-  imports: [CommonModule, IonicModule, SharedPipesModule],
+  imports: [CommonModule, IonicModule, UnitConversionPipesModule],
   exports: [StatusComponent],
 })
 export class StatusComponentModule {}

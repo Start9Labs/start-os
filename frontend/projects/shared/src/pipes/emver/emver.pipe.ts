@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { Emver } from '../services/emver.service'
+import { Emver } from '../../services/emver.service'
 
 @Pipe({
   name: 'satisfiesEmver',

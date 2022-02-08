@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { MarkdownPage } from './markdown.page'
 import {
-  SharedPipesModule,
+  MarkdownPipeModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
 
@@ -12,7 +12,7 @@ import {
   imports: [
     CommonModule,
     IonicModule,
-    SharedPipesModule,
+    MarkdownPipeModule,
     TextSpinnerComponentModule,
   ],
   exports: [MarkdownPage],

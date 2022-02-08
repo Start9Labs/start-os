@@ -2,7 +2,6 @@ import { Dump, Revision } from 'patch-db-client'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import {
   ConfigSpec,
-  ServerNotification,
   DataModel,
   DependencyError,
   Manifest,
@@ -447,6 +446,44 @@ export interface SSHKey {
   alg: string
   hostname: string
   fingerprint: string
+}
+
+export type ServerNotifications = ServerNotification<any>[]
+
+export interface ServerNotification<T extends number> {
+  id: number
+  'package-id': string | null
+  'created-at': string
+  code: T
+  level: NotificationLevel
+  title: string
+  message: string
+  data: NotificationData<T>
+}
+
+export enum NotificationLevel {
+  Success = 'success',
+  Info = 'info',
+  Warning = 'warning',
+  Error = 'error',
+}
+
+export type NotificationData<T> = T extends 0
+  ? null
+  : T extends 1
+  ? BackupReport
+  : any
+
+export interface BackupReport {
+  server: {
+    attempted: boolean
+    error: string | null
+  }
+  packages: {
+    [id: string]: {
+      error: string | null
+    }
+  }
 }
 
 export interface AvailableWifi {

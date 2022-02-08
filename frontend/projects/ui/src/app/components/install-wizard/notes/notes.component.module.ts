@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { NotesComponent } from './notes.component'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule } from '@angular/router'
-import { SharedPipesModule } from '@start9labs/shared'
+import { MarkdownPipeModule } from '@start9labs/shared'
 
 @NgModule({
   declarations: [NotesComponent],
@@ -11,7 +11,7 @@ import { SharedPipesModule } from '@start9labs/shared'
     CommonModule,
     IonicModule,
     RouterModule.forChild([]),
-    SharedPipesModule,
+    MarkdownPipeModule,
   ],
   exports: [NotesComponent],
 })

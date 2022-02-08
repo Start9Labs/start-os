@@ -5,6 +5,8 @@ import { IonicModule } from '@ionic/angular'
 import { MarketplaceShowPage } from './marketplace-show.page'
 import {
   SharedPipesModule,
+  EmverPipesModule,
+  MarkdownPipeModule,
   TextSpinnerComponentModule,
   StatusComponentModule,
 } from '@start9labs/shared'
@@ -26,6 +28,8 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     TextSpinnerComponentModule,
     SharedPipesModule,
+    EmverPipesModule,
+    MarkdownPipeModule,
     MarketplacePipesModule,
     InstallWizardComponentModule,
   ],
