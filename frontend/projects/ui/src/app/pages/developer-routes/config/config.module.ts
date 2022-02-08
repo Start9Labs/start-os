@@ -7,7 +7,6 @@ import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/b
 import { SharingModule } from 'src/app/modules/sharing.module'
 import { BackupReportPageModule } from 'src/app/modals/backup-report/backup-report.module'
 import { FormsModule } from '@angular/forms'
-import { CodeEditorModule } from '@ngstack/code-editor'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 
 const routes: Routes = [
@@ -26,7 +25,6 @@ const routes: Routes = [
     SharingModule,
     BackupReportPageModule,
     FormsModule,
-    CodeEditorModule.forRoot(),
     MonacoEditorModule,
   ],
   declarations: [ConfigPage],
