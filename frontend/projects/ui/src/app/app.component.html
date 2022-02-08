@@ -31,7 +31,7 @@
                 detail="false"
                 *ngIf="
                   page.url !== '/developer' ||
-                  (localStorage.showDevTools$ | async)
+                  (localStorageService.showDevTools$ | async)
                 "
               >
                 <ion-icon

@@ -11,7 +11,8 @@ export class LocalStorageService {
   constructor(private readonly storage: Storage) {}
 
   async init() {
-    this.showDevTools$.next(!!(await this.storage.get(SHOW_DEV_TOOLS)))
+    const val = await this.storage.get(SHOW_DEV_TOOLS)
+    this.showDevTools$.next(!!val)
   }
 
   async toggleShowDevTools(): Promise<boolean> {

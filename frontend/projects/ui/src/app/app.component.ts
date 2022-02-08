@@ -100,7 +100,7 @@ export class AppComponent {
     private readonly zone: NgZone,
     public readonly splitPane: SplitPaneTracker,
     public readonly patch: PatchDbService,
-    public readonly localStorage: LocalStorageService,
+    public readonly localStorageService: LocalStorageService,
   ) {
     this.init()
   }
@@ -108,7 +108,7 @@ export class AppComponent {
   async init() {
     await this.storage.create()
     await this.authService.init()
-    await this.localStorage.init()
+    await this.localStorageService.init()
 
     this.router.initialNavigation()
 

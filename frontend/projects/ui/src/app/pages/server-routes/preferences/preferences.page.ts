@@ -30,7 +30,7 @@ export class PreferencesPage {
     private readonly api: ApiService,
     public readonly serverConfig: ServerConfigService,
     private readonly toastCtrl: ToastController,
-    private readonly localStorage: LocalStorageService,
+    private readonly localStorageService: LocalStorageService,
     public readonly patch: PatchDbService,
   ) {}
 
@@ -85,7 +85,7 @@ export class PreferencesPage {
     this.clicks++
     if (this.clicks >= 5) {
       this.clicks = 0
-      const newVal = await this.localStorage.toggleShowDevTools()
+      const newVal = await this.localStorageService.toggleShowDevTools()
       const toast = await this.toastCtrl.create({
         header: newVal ? 'Dev tools unlocked' : 'Dev tools hidden',
         position: 'bottom',
