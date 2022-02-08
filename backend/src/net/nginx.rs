@@ -112,16 +112,12 @@ impl NginxControllerInner {
                             crate::net::ssl::export_cert(&chain, &ssl_path_cert)
                         )?;
                         (
-                            format!("{} ssl", lan_port_config.mapping),
+                            format!("{} ssl", port.0),
                             format!("ssl_certificate {};", ssl_path_cert.to_str().unwrap()),
                             format!("ssl_certificate_key {};", ssl_path_key.to_str().unwrap()),
                         )
                     } else {
-                        (
-                            format!("{}", lan_port_config.mapping),
-                            String::from(""),
-                            String::from(""),
-                        )
+                        (format!("{}", port.0), String::from(""), String::from(""))
                     };
                 // write nginx configs
                 let nginx_conf_path = nginx_root.join(format!(
@@ -138,7 +134,7 @@ impl NginxControllerInner {
                         ssl_certificate_line = ssl_certificate_line,
                         ssl_certificate_key_line = ssl_certificate_key_line,
                         app_ip = ipv4,
-                        internal_port = port.0,
+                        internal_port = lan_port_config.internal,
                     ),
                 )
                 .await
