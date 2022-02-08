@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core'
+import { Subscription } from 'rxjs'
 import {
   MarketplaceData,
   MarketplacePkg,
@@ -23,15 +24,15 @@ export class MarketplaceService {
   } = {}
   marketplaceUrl: string
 
-  constructor (
+  constructor(
     private readonly api: ApiService,
     private readonly emver: Emver,
     private readonly patch: PatchDbService,
     private readonly config: ConfigService,
-  ) { }
+  ) {}
 
-  async init () {
-    this.patch.watch$('ui', 'marketplace').subscribe(marketplace => {
+  init(): Subscription {
+    return this.patch.watch$('ui', 'marketplace').subscribe(marketplace => {
       if (!marketplace || !marketplace['selected-id']) {
         this.marketplaceUrl = this.config.marketplace.url
       } else {
@@ -41,7 +42,7 @@ export class MarketplaceService {
     })
   }
 
-  async load (): Promise<void> {
+  async load(): Promise<void> {
     try {
       const [data, pkgs] = await Promise.all([
         this.getMarketplaceData({}),
@@ -66,7 +67,7 @@ export class MarketplaceService {
     }
   }
 
-  async getUpdates (localPkgs: {
+  async getUpdates(localPkgs: {
     [id: string]: PackageDataEntry
   }): Promise<MarketplacePkg[]> {
     const id = this.patch.getData().ui.marketplace?.['selected-id']
@@ -96,7 +97,7 @@ export class MarketplaceService {
     })
   }
 
-  async getPkg (id: string, version = '*'): Promise<MarketplacePkg> {
+  async getPkg(id: string, version = '*'): Promise<MarketplacePkg> {
     const pkgs = await this.getMarketplacePkgs({
       ids: [{ id, version }],
       'eos-version-compat':
@@ -111,11 +112,11 @@ export class MarketplaceService {
     }
   }
 
-  async cacheReleaseNotes (id: string): Promise<void> {
+  async cacheReleaseNotes(id: string): Promise<void> {
     this.releaseNotes[id] = await this.getReleaseNotes({ id })
   }
 
-  private async getPkgs (
+  private async getPkgs(
     page: number,
     perPage: number,
   ): Promise<MarketplacePkg[]> {
@@ -129,7 +130,7 @@ export class MarketplaceService {
     return pkgs
   }
 
-  async getMarketplaceData (
+  async getMarketplaceData(
     params: RR.GetMarketplaceDataReq,
     url?: string,
   ): Promise<RR.GetMarketplaceDataRes> {
@@ -137,7 +138,7 @@ export class MarketplaceService {
     return this.api.marketplaceProxy('/package/v0/data', params, url)
   }
 
-  async getMarketplacePkgs (
+  async getMarketplacePkgs(
     params: RR.GetMarketplacePackagesReq,
   ): Promise<RR.GetMarketplacePackagesRes> {
     if (params.query) params.category = undefined
@@ -151,7 +152,7 @@ export class MarketplaceService {
     )
   }
 
-  async getReleaseNotes (
+  async getReleaseNotes(
     params: RR.GetReleaseNotesReq,
   ): Promise<RR.GetReleaseNotesRes> {
     return this.api.marketplaceProxy(
