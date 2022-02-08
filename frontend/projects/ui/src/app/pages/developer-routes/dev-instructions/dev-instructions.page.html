@@ -1,0 +1,18 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/developer"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Instructions</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="submit()">Preview</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ngx-monaco-editor
+    [options]="editorOptions"
+    [(ngModel)]="code"
+  ></ngx-monaco-editor>
+</ion-content>

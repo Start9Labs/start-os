@@ -3,19 +3,33 @@ import { Storage } from '@ionic/storage-angular'
 import { AuthService, AuthState } from './services/auth.service'
 import { ApiService } from './services/api/embassy-api.service'
 import { Router, RoutesRecognized } from '@angular/router'
-import { debounceTime, distinctUntilChanged, filter, finalize, take, takeWhile } from 'rxjs/operators'
-import { AlertController, IonicSafeString, LoadingController, ToastController } from '@ionic/angular'
+import {
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  take,
+} from 'rxjs/operators'
+import {
+  AlertController,
+  IonicSafeString,
+  LoadingController,
+  ToastController,
+} from '@ionic/angular'
 import { Emver } from './services/emver.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { ToastButton } from '@ionic/core'
 import { PatchDbService } from './services/patch-db/patch-db.service'
 import { ServerStatus } from './services/patch-db/data-model'
-import { ConnectionFailure, ConnectionService } from './services/connection.service'
+import {
+  ConnectionFailure,
+  ConnectionService,
+} from './services/connection.service'
 import { StartupAlertsService } from './services/startup-alerts.service'
 import { ConfigService } from './services/config.service'
-import { debounce, isEmptyObject, pauseFor } from './util/misc.util'
+import { debounce, isEmptyObject } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
+import { LocalStorageService } from './services/local-storage.service'
 
 @Component({
   selector: 'app-root',
@@ -25,7 +39,7 @@ import { Subscription } from 'rxjs'
 export class AppComponent {
   @HostListener('document:keydown.enter', ['$event'])
   @debounce()
-  handleKeyboardEvent () {
+  handleKeyboardEvent() {
     const elems = document.getElementsByClassName('enter-click')
     const elem = elems[elems.length - 1] as HTMLButtonElement
     if (!elem || elem.classList.contains('no-click') || elem.disabled) return
@@ -41,7 +55,7 @@ export class AppComponent {
   serverName: string
   unreadCount: number
   subscriptions: Subscription[] = []
-  osUpdateProgress: { size: number, downloaded: number }
+  osUpdateProgress: { size: number; downloaded: number }
   appPages = [
     {
       title: 'Services',
@@ -63,9 +77,14 @@ export class AppComponent {
       url: '/notifications',
       icon: 'notifications-outline',
     },
+    {
+      title: 'Developer Tools',
+      url: '/developer',
+      icon: 'hammer-outline',
+    },
   ]
 
-  constructor (
+  constructor(
     private readonly storage: Storage,
     private readonly authService: AuthService,
     private readonly router: Router,
@@ -77,23 +96,24 @@ export class AppComponent {
     private readonly startupAlertsService: StartupAlertsService,
     private readonly toastCtrl: ToastController,
     private readonly errToast: ErrorToastService,
-    private readonly patch: PatchDbService,
     private readonly config: ConfigService,
     private readonly zone: NgZone,
-    readonly splitPane: SplitPaneTracker,
+    public readonly splitPane: SplitPaneTracker,
+    public readonly patch: PatchDbService,
+    public readonly localStorageService: LocalStorageService,
   ) {
-      this.init()
+    this.init()
   }
 
-  async init () {
+  async init() {
     await this.storage.create()
     await this.authService.init()
+    await this.localStorageService.init()
 
     this.router.initialNavigation()
 
     // watch auth
-    this.authService.watch$()
-    .subscribe(async auth => {
+    this.authService.watch$().subscribe(async auth => {
       // VERIFIED
       if (auth === AuthState.VERIFIED) {
         await this.patch.start()
@@ -114,26 +134,27 @@ export class AppComponent {
           // watch status to display/hide maintenance page
         ])
 
-        this.patch.watch$()
-        .pipe(
-          filter(obj => !isEmptyObject(obj)),
-          take(1),
-        )
-        .subscribe(_ => {
-          this.subscriptions = this.subscriptions.concat([
-            // watch status to present toast for updated state
-            this.watchStatus(),
-            // watch update-progress to present progress bar when server is updating
-            this.watchUpdateProgress(),
-            // watch version to refresh browser window
-            this.watchVersion(),
-            // watch unread notification count to display toast
-            this.watchNotifications(),
-            // run startup alerts
-            this.startupAlertsService.runChecks(),
-          ])
-        })
-      // UNVERIFIED
+        this.patch
+          .watch$()
+          .pipe(
+            filter(obj => !isEmptyObject(obj)),
+            take(1),
+          )
+          .subscribe(_ => {
+            this.subscriptions = this.subscriptions.concat([
+              // watch status to present toast for updated state
+              this.watchStatus(),
+              // watch update-progress to present progress bar when server is updating
+              this.watchUpdateProgress(),
+              // watch version to refresh browser window
+              this.watchVersion(),
+              // watch unread notification count to display toast
+              this.watchNotifications(),
+              // run startup alerts
+              this.startupAlertsService.runChecks(),
+            ])
+          })
+        // UNVERIFIED
       } else if (auth === AuthState.UNVERIFIED) {
         this.subscriptions.forEach(sub => sub.unsubscribe())
         this.subscriptions = []
@@ -151,20 +172,22 @@ export class AppComponent {
     })
   }
 
-  async goToWebsite (): Promise<void> {
+  async goToWebsite(): Promise<void> {
     let url: string
     if (this.config.isTor()) {
-      url = 'http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion'
+      url =
+        'http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion'
     } else {
       url = 'https://start9.com'
     }
     window.open(url, '_blank', 'noreferrer')
   }
 
-  async presentAlertLogout () {
+  async presentAlertLogout() {
     const alert = await this.alertCtrl.create({
       header: 'Caution',
-      message: 'Do you know your password? If you log out and forget your password, you may permanently lose access to your Embassy.',
+      message:
+        'Do you know your password? If you log out and forget your password, you may permanently lose access to your Embassy.',
       buttons: [
         {
           text: 'Cancel',
@@ -184,97 +207,97 @@ export class AppComponent {
   }
 
   // should wipe cache independant of actual BE logout
-  private async logout () {
-    this.embassyApi.logout({ })
+  private async logout() {
+    this.embassyApi.logout({})
     this.authService.setUnverified()
   }
 
-  private watchConnection (): Subscription {
-    return this.connectionService.watchFailure$()
-    .pipe(
-      distinctUntilChanged(),
-      debounceTime(500),
-    )
-    .subscribe(async connectionFailure => {
-      if (connectionFailure === ConnectionFailure.None) {
-        if (this.offlineToast) {
-          await this.offlineToast.dismiss()
-          this.offlineToast = undefined
+  private watchConnection(): Subscription {
+    return this.connectionService
+      .watchFailure$()
+      .pipe(distinctUntilChanged(), debounceTime(500))
+      .subscribe(async connectionFailure => {
+        if (connectionFailure === ConnectionFailure.None) {
+          if (this.offlineToast) {
+            await this.offlineToast.dismiss()
+            this.offlineToast = undefined
+          }
+        } else {
+          let message: string | IonicSafeString
+          let link: string
+          switch (connectionFailure) {
+            case ConnectionFailure.Network:
+              message = 'Phone or computer has no network connection.'
+              break
+            case ConnectionFailure.Tor:
+              message = 'Browser unable to connect over Tor.'
+              link =
+                'https://docs.start9.com/support/FAQ/troubleshooting.html#tor-failure'
+              break
+            case ConnectionFailure.Lan:
+              message = 'Embassy not found on Local Area Network.'
+              link =
+                'https://docs.start9.com/support/FAQ/troubleshooting.html#lan-failure'
+              break
+          }
+          await this.presentToastOffline(message, link)
         }
-      } else {
-        let message: string | IonicSafeString
-        let link: string
-        switch (connectionFailure) {
-          case ConnectionFailure.Network:
-            message = 'Phone or computer has no network connection.'
-            break
-          case ConnectionFailure.Tor:
-            message = 'Browser unable to connect over Tor.'
-            link = 'https://docs.start9.com/support/FAQ/troubleshooting.html#tor-failure'
-            break
-          case ConnectionFailure.Lan:
-            message = 'Embassy not found on Local Area Network.'
-            link = 'https://docs.start9.com/support/FAQ/troubleshooting.html#lan-failure'
-            break
-        }
-        await this.presentToastOffline(message, link)
-      }
-    })
+      })
   }
 
-  private watchRouter (): Subscription {
+  private watchRouter(): Subscription {
     return this.router.events
-    .pipe(
-      filter((e: RoutesRecognized) => !!e.urlAfterRedirects),
-    )
-    .subscribe(e => {
-      const appPageIndex = this.appPages.findIndex(
-        appPage => e.urlAfterRedirects.startsWith(appPage.url),
-      )
-      if (appPageIndex > -1) this.selectedIndex = appPageIndex
-    })
+      .pipe(filter((e: RoutesRecognized) => !!e.urlAfterRedirects))
+      .subscribe(e => {
+        const appPageIndex = this.appPages.findIndex(appPage =>
+          e.urlAfterRedirects.startsWith(appPage.url),
+        )
+        if (appPageIndex > -1) this.selectedIndex = appPageIndex
+      })
   }
 
-  private watchStatus (): Subscription {
-    return this.patch.watch$('server-info', 'status')
-    .subscribe(status => {
+  private watchStatus(): Subscription {
+    return this.patch.watch$('server-info', 'status').subscribe(status => {
       if (status === ServerStatus.Updated && !this.updateToast) {
         this.presentToastUpdated()
       }
     })
   }
 
-  private watchUpdateProgress (): Subscription {
-    return this.patch.watch$('server-info', 'update-progress')
-    .subscribe(progress => {
-      this.osUpdateProgress = progress
-    })
+  private watchUpdateProgress(): Subscription {
+    return this.patch
+      .watch$('server-info', 'update-progress')
+      .subscribe(progress => {
+        this.osUpdateProgress = progress
+      })
   }
 
-  private watchVersion (): Subscription {
-    return this.patch.watch$('server-info', 'version')
-    .subscribe(version => {
+  private watchVersion(): Subscription {
+    return this.patch.watch$('server-info', 'version').subscribe(version => {
       if (this.emver.compare(this.config.version, version) !== 0) {
         this.presentAlertRefreshNeeded()
       }
     })
   }
 
-  private watchNotifications (): Subscription {
+  private watchNotifications(): Subscription {
     let previous: number
-    return this.patch.watch$('server-info', 'unread-notification-count')
-    .subscribe(count => {
-      this.unreadCount = count
-      if (previous !== undefined && count > previous) this.presentToastNotifications()
-      previous = count
-    })
+    return this.patch
+      .watch$('server-info', 'unread-notification-count')
+      .subscribe(count => {
+        this.unreadCount = count
+        if (previous !== undefined && count > previous)
+          this.presentToastNotifications()
+        previous = count
+      })
   }
 
-  private async presentAlertRefreshNeeded () {
+  private async presentAlertRefreshNeeded() {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Refresh Needed',
-      message: 'Your user interface is cached and out of date. Hard refresh the page to get the latest UI.',
+      message:
+        'Your user interface is cached and out of date. Hard refresh the page to get the latest UI.',
       buttons: [
         {
           text: 'Refresh Page',
@@ -288,12 +311,13 @@ export class AppComponent {
     await alert.present()
   }
 
-  private async presentToastUpdated () {
+  private async presentToastUpdated() {
     if (this.updateToast) return
 
     this.updateToast = await this.toastCtrl.create({
       header: 'EOS download complete!',
-      message: 'Restart your Embassy for these updates to take effect. It can take several minutes to come back online.',
+      message:
+        'Restart your Embassy for these updates to take effect. It can take several minutes to come back online.',
       position: 'bottom',
       duration: 0,
       cssClass: 'success-toast',
@@ -317,7 +341,7 @@ export class AppComponent {
     await this.updateToast.present()
   }
 
-  private async presentToastNotifications () {
+  private async presentToastNotifications() {
     if (this.notificationToast) return
 
     this.notificationToast = await this.toastCtrl.create({
@@ -337,7 +361,9 @@ export class AppComponent {
           side: 'end',
           text: 'View',
           handler: () => {
-            this.router.navigate(['/notifications'], { queryParams: { toast: true } })
+            this.router.navigate(['/notifications'], {
+              queryParams: { toast: true },
+            })
           },
         },
       ],
@@ -345,7 +371,10 @@ export class AppComponent {
     await this.notificationToast.present()
   }
 
-  private async presentToastOffline (message: string | IonicSafeString, link?: string) {
+  private async presentToastOffline(
+    message: string | IonicSafeString,
+    link?: string,
+  ) {
     if (this.offlineToast) {
       this.offlineToast.message = message
       return
@@ -362,16 +391,14 @@ export class AppComponent {
     ]
 
     if (link) {
-      buttons.push(
-        {
-          side: 'end',
-          text: 'View solutions',
-          handler: () => {
-            window.open(link, '_blank', 'noreferrer')
-            return false
-          },
+      buttons.push({
+        side: 'end',
+        text: 'View solutions',
+        handler: () => {
+          window.open(link, '_blank', 'noreferrer')
+          return false
         },
-      )
+      })
     }
 
     this.offlineToast = await this.toastCtrl.create({
@@ -385,7 +412,7 @@ export class AppComponent {
     await this.offlineToast.present()
   }
 
-  private async restart (): Promise<void> {
+  private async restart(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Restarting...',
@@ -394,7 +421,7 @@ export class AppComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.restartServer({ })
+      await this.embassyApi.restartServer({})
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -402,7 +429,7 @@ export class AppComponent {
     }
   }
 
-  splitPaneVisible (e: any) {
+  splitPaneVisible(e: any) {
     this.splitPane.sidebarOpen$.next(e.detail.visible)
   }
 }

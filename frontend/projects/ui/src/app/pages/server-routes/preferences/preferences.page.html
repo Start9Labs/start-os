@@ -3,22 +3,26 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="embassy"></ion-back-button>
     </ion-buttons>
-    <ion-title>Preferences</ion-title>
+    <ion-title (click)="addClick()">Preferences</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding-top">
-
   <ion-item-group *ngIf="patch.data['server-info'] as server">
     <ion-item-divider>General</ion-item-divider>
     <ion-item button (click)="presentModalName()">
-      <ion-label>{{ fields['name'].name }}</ion-label>
+      <ion-label>Device Name</ion-label>
       <ion-note slot="end">{{ patch.data.ui.name || defaultName }}</ion-note>
     </ion-item>
 
-    <ion-item button (click)="serverConfig.presentAlert('share-stats', server['share-stats'])">
+    <ion-item
+      button
+      (click)="serverConfig.presentAlert('share-stats', server['share-stats'])"
+    >
       <ion-label>Auto Report Bugs</ion-label>
-      <ion-note slot="end">{{ server['share-stats'] ? 'Enabled' : 'Disabled' }}</ion-note>
+      <ion-note slot="end"
+        >{{ server['share-stats'] ? 'Enabled' : 'Disabled' }}</ion-note
+      >
     </ion-item>
 
     <!-- <ion-item button (click)="presentModalValueEdit('password')">
@@ -27,15 +31,15 @@
     </ion-item> -->
 
     <ion-item-divider>Marketplace</ion-item-divider>
-    <ion-item button (click)="serverConfig.presentAlert('auto-check-updates', patch.data.ui['auto-check-updates'])">
+    <ion-item
+      button
+      (click)="serverConfig.presentAlert('auto-check-updates', patch.data.ui['auto-check-updates'])"
+    >
       <ion-label>Auto Check for Updates</ion-label>
-      <ion-note slot="end">{{ patch.data.ui['auto-check-updates'] ? 'Enabled' : 'Disabled' }}</ion-note>
+      <ion-note slot="end"
+        >{{ patch.data.ui['auto-check-updates'] ? 'Enabled' : 'Disabled'
+        }}</ion-note
+      >
     </ion-item>
-
-    <!-- <ion-item button (click)="presentModalValueEdit('packageMarketplace', server['package-marketplace'])">
-      <ion-label>Package Marketplace</ion-label>
-      <ion-note slot="end">{{ server['package-marketplace'] }}</ion-note>
-    </ion-item> -->
   </ion-item-group>
-
 </ion-content>

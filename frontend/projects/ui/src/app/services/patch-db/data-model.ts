@@ -40,9 +40,9 @@ export enum ServerStatus {
   BackingUp = 'backing-up',
 }
 export interface RecoveredPackageDataEntry {
-  title: string,
-  icon: URL,
-  version: string,
+  title: string
+  icon: URL
+  version: string
 }
 
 export interface PackageDataEntry {
@@ -53,8 +53,8 @@ export interface PackageDataEntry {
     icon: URL
   }
   manifest: Manifest
-  installed?: InstalledPackageDataEntry, // exists when: installed, updating
-  'install-progress'?: InstallProgress, // exists when: installing, updating
+  installed?: InstalledPackageDataEntry // exists when: installed, updating
+  'install-progress'?: InstallProgress // exists when: installing, updating
 }
 
 export interface InstallProgress {
@@ -69,7 +69,7 @@ export interface InstallProgress {
 
 export interface InstalledPackageDataEntry {
   status: Status
-  manifest: Manifest,
+  manifest: Manifest
   'last-backup': string | null
   'system-pointers': any[]
   'current-dependents': { [id: string]: CurrentDependencyInfo }
@@ -81,7 +81,7 @@ export interface InstalledPackageDataEntry {
     }
   }
   'interface-addresses': {
-    [id: string]: { 'tor-address': string, 'lan-address': string }
+    [id: string]: { 'tor-address': string; 'lan-address': string }
   }
 }
 
@@ -121,7 +121,10 @@ export interface Manifest {
     stop: string | null
   }
   main: ActionImpl
-  'health-checks': Record<string, ActionImpl & { name: string, description: string }>
+  'health-checks': Record<
+    string,
+    ActionImpl & { name: string; description: string }
+  >
   config: ConfigActions | null
   volumes: Record<string, Volume>
   'min-os-version': string
@@ -209,7 +212,7 @@ export interface TorConfig {
 }
 
 export type LanConfig = {
-  [port: number]: { ssl: boolean, mapping: number }
+  [port: number]: { ssl: boolean; mapping: number }
 }
 
 export interface BackupActions {
@@ -237,7 +240,12 @@ export interface Status {
   'dependency-errors': { [id: string]: DependencyError | null }
 }
 
-export type MainStatus = MainStatusStopped | MainStatusStopping | MainStatusStarting | MainStatusRunning | MainStatusBackingUp
+export type MainStatus =
+  | MainStatusStopped
+  | MainStatusStopping
+  | MainStatusStarting
+  | MainStatusRunning
+  | MainStatusBackingUp
 
 export interface MainStatusStopped {
   status: PackageMainStatus.Stopped
@@ -270,11 +278,12 @@ export enum PackageMainStatus {
   BackingUp = 'backing-up',
 }
 
-export type HealthCheckResult = HealthCheckResultStarting |
-                                HealthCheckResultLoading |
-                                HealthCheckResultDisabled |
-                                HealthCheckResultSuccess |
-                                HealthCheckResultFailure
+export type HealthCheckResult =
+  | HealthCheckResultStarting
+  | HealthCheckResultLoading
+  | HealthCheckResultDisabled
+  | HealthCheckResultSuccess
+  | HealthCheckResultFailure
 
 export enum HealthResult {
   Starting = 'starting',
@@ -306,12 +315,13 @@ export interface HealthCheckResultFailure {
   error: string
 }
 
-export type DependencyError = DependencyErrorNotInstalled |
-                              DependencyErrorNotRunning |
-                              DependencyErrorIncorrectVersion |
-                              DependencyErrorConfigUnsatisfied |
-                              DependencyErrorHealthChecksFailed |
-                              DependencyErrorTransitive
+export type DependencyError =
+  | DependencyErrorNotInstalled
+  | DependencyErrorNotRunning
+  | DependencyErrorIncorrectVersion
+  | DependencyErrorConfigUnsatisfied
+  | DependencyErrorHealthChecksFailed
+  | DependencyErrorTransitive
 
 export enum DependencyErrorType {
   NotInstalled = 'not-installed',
@@ -357,18 +367,21 @@ export interface DependencyInfo {
 
 export interface DependencyEntry {
   version: string
-  requirement: {
-    type: 'opt-in'
-    how: string
-  } | {
-    type: 'opt-out'
-    how: string
-  } | {
-    type: 'required'
-  }
+  requirement:
+    | {
+        type: 'opt-in'
+        how: string
+      }
+    | {
+        type: 'opt-out'
+        how: string
+      }
+    | {
+        type: 'required'
+      }
   description: string | null
   config: {
-    check: ActionImpl,
+    check: ActionImpl
     'auto-configure': ActionImpl
   }
 }

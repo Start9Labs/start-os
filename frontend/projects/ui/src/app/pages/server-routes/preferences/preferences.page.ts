@@ -1,10 +1,18 @@
 import { Component, ViewChild } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { IonContent, LoadingController, ModalController } from '@ionic/angular'
-import { GenericInputComponent, GenericInputOptions } from 'src/app/modals/generic-input/generic-input.component'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
+import {
+  IonContent,
+  LoadingController,
+  ModalController,
+  ToastController,
+} from '@ionic/angular'
+import {
+  GenericInputComponent,
+  GenericInputOptions,
+} from 'src/app/modals/generic-input/generic-input.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerConfigService } from 'src/app/services/server-config.service'
+import { LocalStorageService } from '../../../services/local-storage.service'
 
 @Component({
   selector: 'preferences',
@@ -13,26 +21,28 @@ import { ServerConfigService } from 'src/app/services/server-config.service'
 })
 export class PreferencesPage {
   @ViewChild(IonContent) content: IonContent
-  fields = fields
   defaultName: string
+  clicks = 0
 
-  constructor (
+  constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
     public readonly serverConfig: ServerConfigService,
+    private readonly toastCtrl: ToastController,
+    private readonly localStorageService: LocalStorageService,
     public readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.defaultName = `Embassy-${this.patch.getData()['server-info'].id}`
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  async presentModalName (): Promise<void> {
+  async presentModalName(): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Edit Device Name',
       message: 'This is for your reference only.',
@@ -42,7 +52,8 @@ export class PreferencesPage {
       nullable: true,
       initialValue: this.patch.getData().ui.name,
       buttonText: 'Save',
-      submitFn: (value: string) => this.setDbValue('name', value || this.defaultName),
+      submitFn: (value: string) =>
+        this.setDbValue('name', value || this.defaultName),
     }
 
     const modal = await this.modalCtrl.create({
@@ -55,7 +66,7 @@ export class PreferencesPage {
     await modal.present()
   }
 
-  private async setDbValue (key: string, value: string): Promise<void> {
+  async setDbValue(key: string, value: any): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
@@ -69,14 +80,22 @@ export class PreferencesPage {
       loader.dismiss()
     }
   }
-}
 
-const fields: ConfigSpec = {
-  'name': {
-    name: 'Device Name',
-    type: 'string',
-    nullable: false,
-    masked: false,
-    copyable: false,
-  },
+  async addClick() {
+    this.clicks++
+    if (this.clicks >= 5) {
+      this.clicks = 0
+      const newVal = await this.localStorageService.toggleShowDevTools()
+      const toast = await this.toastCtrl.create({
+        header: newVal ? 'Dev tools unlocked' : 'Dev tools hidden',
+        position: 'bottom',
+        duration: 1000,
+      })
+
+      await toast.present()
+    }
+    setTimeout(() => {
+      this.clicks = Math.max(this.clicks - 1, 0)
+    }, 10000)
+  }
 }
