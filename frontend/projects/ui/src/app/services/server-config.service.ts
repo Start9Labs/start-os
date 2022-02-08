@@ -107,9 +107,6 @@ export class ServerConfigService {
     'share-stats': async (enabled: boolean) => {
       return this.embassyApi.setShareStats({ value: enabled })
     },
-    // password: async (password: string) => {
-    //   return this.embassyApi.updatePassword({ password })
-    // },
   }
 }
 
@@ -129,16 +126,4 @@ export const serverConfig: ConfigSpec = {
     ) as any,
     default: false,
   },
-  // password: {
-  //   type: 'string',
-  //   name: 'Change Password',
-  //   description: `Your Embassy's master password, used for authentication and disk encryption.`,
-  //   nullable: false,
-  //   // @TODO regex for 12 chars
-  //   // pattern: '',
-  //   'pattern-description': 'Must contain at least 12 characters.',
-  //   warning: 'If you forget your master password, there is absolutely no way to recover your data. This can result in loss of money! Keep in mind, old backups will still be encrypted by the password used to encrypt them.',
-  //   masked: false,
-  //   copyable: false,
-  // },
 }
