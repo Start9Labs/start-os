@@ -257,8 +257,8 @@ export module RR {
     // iff !ids
     category?: string
     query?: string
-    page?: string
-    'per-page'?: string
+    page?: number
+    'per-page'?: number
   }
   export type GetMarketplacePackagesRes = MarketplacePkg[]
 
