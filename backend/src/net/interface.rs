@@ -186,9 +186,32 @@ pub struct TorConfig {
     pub port_mapping: BTreeMap<Port, Port>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct LanPortConfig {
     pub ssl: bool,
-    pub mapping: u16,
+    pub internal: u16,
+}
+impl<'de> Deserialize<'de> for LanPortConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "kebab-case")]
+        struct PermissiveLanPortConfig {
+            ssl: bool,
+            internal: Option<u16>,
+            mapping: Option<u16>,
+        }
+
+        let config = PermissiveLanPortConfig::deserialize(deserializer)?;
+        Ok(LanPortConfig {
+            ssl: config.ssl,
+            internal: config
+                .internal
+                .or(config.mapping)
+                .ok_or_else(|| serde::de::Error::missing_field("internal"))?,
+        })
+    }
 }
