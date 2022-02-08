@@ -218,3 +218,18 @@ pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
     }
     .boxed()
 }
+
+pub fn response_to_reader(response: reqwest::Response) -> impl AsyncRead + Unpin {
+    tokio_util::io::StreamReader::new(response.bytes_stream().map_err(|e| {
+        std::io::Error::new(
+            if e.is_connect() {
+                std::io::ErrorKind::ConnectionRefused
+            } else if e.is_timeout() {
+                std::io::ErrorKind::TimedOut
+            } else {
+                std::io::ErrorKind::Other
+            },
+            e,
+        )
+    }))
+}
