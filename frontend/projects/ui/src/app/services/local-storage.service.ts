@@ -15,9 +15,9 @@ export class LocalStorageService {
   }
 
   async toggleShowDevTools(): Promise<boolean> {
-    const val = !(await this.storage.get(SHOW_DEV_TOOLS))
-    this.showDevTools$.next(val)
-    await this.storage.set(SHOW_DEV_TOOLS, val)
-    return val
+    const newVal = !(await this.storage.get(SHOW_DEV_TOOLS))
+    await this.storage.set(SHOW_DEV_TOOLS, newVal)
+    this.showDevTools$.next(newVal)
+    return newVal
   }
 }

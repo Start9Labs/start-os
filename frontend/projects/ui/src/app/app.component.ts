@@ -7,9 +7,7 @@ import {
   debounceTime,
   distinctUntilChanged,
   filter,
-  finalize,
   take,
-  takeWhile,
 } from 'rxjs/operators'
 import {
   AlertController,
@@ -28,7 +26,7 @@ import {
 } from './services/connection.service'
 import { StartupAlertsService } from './services/startup-alerts.service'
 import { ConfigService } from './services/config.service'
-import { debounce, isEmptyObject, pauseFor } from './util/misc.util'
+import { debounce, isEmptyObject } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
 import { Subscription } from 'rxjs'
 import { LocalStorageService } from './services/local-storage.service'

@@ -10,11 +10,8 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerConfigService } from 'src/app/services/server-config.service'
-import { take } from 'rxjs/operators'
-import { toastController } from '@ionic/core'
 import { LocalStorageService } from '../../../services/local-storage.service'
 
 @Component({
@@ -24,7 +21,6 @@ import { LocalStorageService } from '../../../services/local-storage.service'
 })
 export class PreferencesPage {
   @ViewChild(IonContent) content: IonContent
-  fields = fields
   defaultName: string
   clicks = 0
 
@@ -91,12 +87,8 @@ export class PreferencesPage {
       this.clicks = 0
       const newVal = await this.localStorage.toggleShowDevTools()
       const toast = await this.toastCtrl.create({
-        header: newVal ? 'Dev tools unlocked!' : 'Dev tools hidden :(',
-        message: newVal
-          ? 'Dev tools are now accessable in the main menu'
-          : 'Say goodbye to dev tools forever',
+        header: newVal ? 'Dev tools unlocked' : 'Dev tools hidden',
         position: 'bottom',
-        cssClass: newVal ? 'success-toast' : 'warning-toast',
         duration: 1000,
       })
 
@@ -106,14 +98,4 @@ export class PreferencesPage {
       this.clicks = Math.max(this.clicks - 1, 0)
     }, 10000)
   }
-}
-
-const fields: ConfigSpec = {
-  name: {
-    name: 'Device Name',
-    type: 'string',
-    nullable: false,
-    masked: false,
-    copyable: false,
-  },
 }

@@ -11,7 +11,7 @@
   <ion-item-group *ngIf="patch.data['server-info'] as server">
     <ion-item-divider>General</ion-item-divider>
     <ion-item button (click)="presentModalName()">
-      <ion-label>{{ fields['name'].name }}</ion-label>
+      <ion-label>Device Name</ion-label>
       <ion-note slot="end">{{ patch.data.ui.name || defaultName }}</ion-note>
     </ion-item>
 
@@ -41,10 +41,5 @@
         }}</ion-note
       >
     </ion-item>
-
-    <!-- <ion-item button (click)="presentModalValueEdit('packageMarketplace', server['package-marketplace'])">
-      <ion-label>Package Marketplace</ion-label>
-      <ion-note slot="end">{{ server['package-marketplace'] }}</ion-note>
-    </ion-item> -->
   </ion-item-group>
 </ion-content>
