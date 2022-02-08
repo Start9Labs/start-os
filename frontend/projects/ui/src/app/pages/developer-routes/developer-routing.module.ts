@@ -12,13 +12,13 @@ const routes: Routes = [
   {
     path: 'config',
     loadChildren: () =>
-      import('./config/config.module').then(m => m.ConfigPageModule),
+      import('./dev-config/dev-config.module').then(m => m.DevConfigPageModule),
   },
   {
     path: 'instructions',
     loadChildren: () =>
-      import('./instructions/instructions.module').then(
-        m => m.InstructionsPageModule,
+      import('./dev-instructions/dev-instructions.module').then(
+        m => m.DevInstructionsPageModule,
       ),
   },
 ]

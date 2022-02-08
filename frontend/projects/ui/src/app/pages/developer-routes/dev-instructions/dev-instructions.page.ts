@@ -3,11 +3,11 @@ import { ModalController } from '@ionic/angular'
 import { MarkdownPage } from '../../../modals/markdown/markdown.page'
 
 @Component({
-  selector: 'instructions',
-  templateUrl: 'instructions.page.html',
-  styleUrls: ['instructions.page.scss'],
+  selector: 'dev-instructions',
+  templateUrl: 'dev-instructions.page.html',
+  styleUrls: ['dev-instructions.page.scss'],
 })
-export class InstructionsPage {
+export class DevInstructionsPage {
   editorOptions = { theme: 'vs-dark', language: 'markdown' }
   code: string = `# Create Instructions using Markdown! :)`
 
