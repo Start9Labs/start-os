@@ -28,3 +28,8 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[command(subcommands(crate::s9pk::verify, crate::config::verify_spec))]
+pub fn verify() -> Result<(), Error> {
+    Ok(())
+}

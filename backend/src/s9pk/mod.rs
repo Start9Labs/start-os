@@ -107,7 +107,7 @@ pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<
     Ok(())
 }
 
-#[command(cli_only, display(display_none))]
+#[command(rename = "s9pk", cli_only, display(display_none))]
 pub async fn verify(#[arg] path: PathBuf) -> Result<(), Error> {
     let mut s9pk = S9pkReader::open(path, true).await?;
     s9pk.validate().await?;

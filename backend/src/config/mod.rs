@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
@@ -135,6 +136,26 @@ pub enum MatchError {
     InvalidKey(String),
     #[error("Value In List Is Not Unique")]
     ListUniquenessViolation,
+}
+
+#[command(rename = "config-spec", cli_only, blocking, display(display_none))]
+pub fn verify_spec(#[arg] path: PathBuf) -> Result<(), Error> {
+    let mut file = std::fs::File::open(&path)?;
+    let format = match path.extension().and_then(|s| s.to_str()) {
+        Some("yaml") | Some("yml") => IoFormat::Yaml,
+        Some("json") => IoFormat::Json,
+        Some("toml") => IoFormat::Toml,
+        Some("cbor") => IoFormat::Cbor,
+        _ => {
+            return Err(Error::new(
+                eyre!("Unknown file format. Expected one of yaml, json, toml, cbor."),
+                crate::ErrorKind::Deserialization,
+            ));
+        }
+    };
+    let _: ConfigSpec = format.from_reader(&mut file)?;
+
+    Ok(())
 }
 
 #[command(subcommands(get, set))]
