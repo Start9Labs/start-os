@@ -1,51 +1,63 @@
 <ion-item-divider>Status</ion-item-divider>
-<ion-item>
-  <ion-label class="label">
-    <status
-      size="x-large"
-      weight="500"
-      [disconnected]="connectionFailure"
-      [installProgress]="(pkg | installState)?.totalProgress"
-      [rendering]="PR[status.primary]"
-      [sigtermTimeout]="pkg.manifest.main['sigterm-timeout']"
-    ></status>
-  </ion-label>
-  <ng-container *ngIf="isInstalled">
-    <ion-button
-      *ngIf="interfaces | hasUi"
-      slot="end"
-      class="action-button"
-      [disabled]="!(pkg.state | isLaunchable: pkgStatus.main.status:interfaces)"
-      (click)="launchUi()"
-    >
-      Launch UI
-      <ion-icon slot="end" name="open-outline"></ion-icon>
-    </ion-button>
-    <ion-button
-      *ngIf="!pkgStatus.configured"
-      slot="end"
-      class="action-button"
-      (click)="presentModalConfig()"
-    >
-      Configure
-    </ion-button>
-    <ion-button
-      *ngIf="isRunning"
-      slot="end"
-      class="action-button"
-      color="danger"
-      (click)="stop()"
-    >
-      Stop
-    </ion-button>
-    <ion-button
-      *ngIf="isStopped"
-      slot="end"
-      class="action-button"
-      color="success"
-      (click)="tryStart()"
-    >
-      Start
-    </ion-button>
-  </ng-container>
-</ion-item>
+<ion-grid>
+  <ion-row>
+    <ion-col sizeXs="12" sizeSm="3">
+      <ion-item>
+        <ion-label class="label">
+          <status
+            size="x-large"
+            weight="500"
+            [disconnected]="connectionFailure"
+            [installProgress]="(pkg | installState)?.totalProgress"
+            [rendering]="PR[status.primary]"
+            [sigtermTimeout]="pkg.manifest.main['sigterm-timeout']"
+          ></status>
+        </ion-label>
+      </ion-item>
+    </ion-col>
+    <ion-col sizeXs="12" sizeSm="9">
+      <ion-item>
+        <ng-container *ngIf="isInstalled">
+          <ion-button
+            *ngIf="interfaces | hasUi"
+            slot="end"
+            class="action-button"
+            [disabled]="
+              !(pkg.state | isLaunchable: pkgStatus.main.status:interfaces)
+            "
+            (click)="launchUi()"
+          >
+            Launch UI
+            <ion-icon slot="end" name="open-outline"></ion-icon>
+          </ion-button>
+          <ion-button
+            *ngIf="!pkgStatus.configured"
+            slot="end"
+            class="action-button"
+            (click)="presentModalConfig()"
+          >
+            Configure
+          </ion-button>
+          <ion-button
+            *ngIf="isRunning"
+            slot="end"
+            class="action-button"
+            color="danger"
+            (click)="stop()"
+          >
+            Stop
+          </ion-button>
+          <ion-button
+            *ngIf="isStopped"
+            slot="end"
+            class="action-button"
+            color="success"
+            (click)="tryStart()"
+          >
+            Start
+          </ion-button>
+        </ng-container>
+      </ion-item>
+    </ion-col>
+  </ion-row>
+</ion-grid>
