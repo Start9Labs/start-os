@@ -191,7 +191,7 @@ export class MockApiService extends ApiService {
   async marketplaceProxy (path: string, params: {}, url: string): Promise<any> {
     await pauseFor(2000)
 
-    if (path === '/package/v0/data') {
+    if (path === '/package/v0/info') {
       return {
         name: 'Dark9',
         categories: [
