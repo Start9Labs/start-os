@@ -15,7 +15,6 @@ export const mockPatchData: DataModel = {
     'auto-check-updates': true,
     'pkg-order': [],
     'ack-welcome': '1.0.0',
-    'ack-share-stats': false,
     marketplace: undefined,
   },
   'server-info': {
@@ -25,9 +24,6 @@ export const mockPatchData: DataModel = {
     status: ServerStatus.Running,
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
-    'eos-marketplace': 'https://beta-registry-0-3.start9labs.com',
-    'package-marketplace': null,
-    'share-stats': false,
     'unread-notification-count': 4,
     'password-hash':
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',

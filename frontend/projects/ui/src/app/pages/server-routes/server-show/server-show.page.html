@@ -59,19 +59,21 @@
                 </span>
               </ng-container>
             </p>
-
             <!-- "Software Update" button only -->
             <p *ngIf="button.title === 'Software Update'">
               <ng-container
                 *ngIf="eosService.updateAvailable$ | async; else check"
               >
                 <ion-text class="inline" color="success">
-                  <ion-icon name="repeat"></ion-icon>
+                  <ion-icon name="rocket-outline"></ion-icon>
                   Update Available
                 </ion-text>
               </ng-container>
               <ng-template #check>
-                <i>Check for updates</i>
+                <ion-text class="inline" color="dark">
+                  <ion-icon name="refresh"></ion-icon>
+                  Check for updates
+                </ion-text>
               </ng-template>
             </p>
           </ion-label>
