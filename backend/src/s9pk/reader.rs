@@ -31,7 +31,7 @@ pub struct ReadHandle<'a, R: AsyncRead + AsyncSeek + Unpin = File> {
 impl<'a, R: AsyncRead + AsyncSeek + Unpin> ReadHandle<'a, R> {
     pub async fn to_vec(mut self) -> std::io::Result<Vec<u8>> {
         let mut buf = vec![0; self.rdr.limit() as usize];
-        self.rdr.read_exact(&mut buf).await?;
+        self.read_exact(&mut buf).await?;
         Ok(buf)
     }
 }
@@ -44,10 +44,9 @@ impl<'a, R: AsyncRead + AsyncSeek + Unpin> AsyncRead for ReadHandle<'a, R> {
         let start = buf.filled().len();
         let this = self.project();
         let pos = this.pos;
-        AsyncRead::poll_read(this.rdr, cx, buf).map(|res| {
-            **pos += (buf.filled().len() - start) as u64;
-            res
-        })
+        let res = AsyncRead::poll_read(this.rdr, cx, buf);
+        **pos += (buf.filled().len() - start) as u64;
+        res
     }
 }
 
