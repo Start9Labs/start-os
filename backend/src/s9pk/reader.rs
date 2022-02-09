@@ -136,6 +136,13 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<InstallProgressTracker<R>> {
 impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
     #[instrument(skip(self))]
     pub async fn validate(&mut self) -> Result<(), Error> {
+        if self.toc.icon.length > 102_400 {
+            // 100 KiB
+            return Err(Error::new(
+                eyre!("icon must be less than 100KiB"),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
         let image_tags = self.image_tags().await?;
         let man = self.manifest().await?;
         let validated_image_ids = image_tags
