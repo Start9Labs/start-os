@@ -11,47 +11,61 @@
 </ion-header>
 
 <ion-content>
-
   <!-- loading -->
   <ion-item-group *ngIf="loading">
     <ion-item-divider>
       <ion-button slot="end" fill="clear">
-        <ion-skeleton-text style="width: 90px; height: 14px; border-radius: 0;" animated></ion-skeleton-text>
+        <ion-skeleton-text
+          style="width: 90px; height: 14px; border-radius: 0"
+          animated
+        ></ion-skeleton-text>
       </ion-button>
     </ion-item-divider>
     <ion-item *ngFor="let entry of ['', '', '', '']">
       <ion-label>
-        <ion-skeleton-text animated style="width: 15%; height: 20px; margin-bottom: 12px;"></ion-skeleton-text>
-        <ion-skeleton-text animated style="width: 50%; margin-bottom: 18px;"></ion-skeleton-text>
-        <ion-skeleton-text animated style="width: 20%;"></ion-skeleton-text>
+        <ion-skeleton-text
+          animated
+          style="width: 15%; height: 20px; margin-bottom: 12px"
+        ></ion-skeleton-text>
+        <ion-skeleton-text
+          animated
+          style="width: 50%; margin-bottom: 18px"
+        ></ion-skeleton-text>
+        <ion-skeleton-text animated style="width: 20%"></ion-skeleton-text>
       </ion-label>
       <ion-button slot="end" fill="clear">
-        <ion-skeleton-text animated style="width: 20px; height: 20px; border-radius: 0"></ion-skeleton-text>
+        <ion-skeleton-text
+          animated
+          style="width: 20px; height: 20px; border-radius: 0"
+        ></ion-skeleton-text>
       </ion-button>
     </ion-item>
   </ion-item-group>
 
   <!-- not loading -->
   <ng-container *ngIf="!loading">
-
     <!-- no notifications -->
     <ion-item-group *ngIf="!notifications.length">
-      <div 
+      <div
         style="
           text-align: center;
           position: absolute;
           top: 50%;
           left: 50%;
-          transform: translate(-50%, -50%);"
+          transform: translate(-50%, -50%);
+        "
       >
-      <ion-icon style="font-size: 84px; color: #595959" name="mail-outline"></ion-icon>
-      <h4 style="color: #595959; margin-top: 0px">Inbox Empty</h4>
+        <ion-icon
+          style="font-size: 84px; color: #595959"
+          name="mail-outline"
+        ></ion-icon>
+        <h4 style="color: #595959; margin-top: 0px">Inbox Empty</h4>
       </div>
     </ion-item-group>
-  
+
     <!-- has notifications  -->
     <ng-container *ngIf="notifications.length">
-      <ion-item-group style="margin-bottom: 16px;">
+      <ion-item-group style="margin-bottom: 16px">
         <ion-item-divider>
           <ion-button slot="end" fill="clear" (click)="presentAlertDeleteAll()">
             Delete All
@@ -61,26 +75,45 @@
           <ion-label>
             <h2>
               <b>
-                <span *ngIf="not['package-id']">{{ not['package-id'] }} - </span>
-                <ion-text [color]="not | notificationColor">{{ not.title }}</ion-text>
+                <span *ngIf="not['package-id']"
+                  >{{ not['package-id'] }} -
+                </span>
+                <ion-text [color]="not | notificationColor"
+                  >{{ not.title }}</ion-text
+                >
               </b>
             </h2>
             <h2 class="notification-message">
-              {{ not.message | truncateTail: 1000 }}
+              {{ not.message | truncateTail: 240 }}
             </h2>
             <p class="view-message-tag">
-              <a class="view-message-tag" *ngIf="not.message.length > 1000" color="dark" (click)="viewFullMessage(not.title, not.message)">
+              <a
+                class="view-message-tag"
+                *ngIf="not.message.length > 240"
+                color="dark"
+                (click)="viewFullMessage(not.title, not.message)"
+              >
                 View Full Message
               </a>
             </p>
-            <p>
-              {{ not['created-at'] | date: 'short' }}
-            </p>
+            <p>{{ not['created-at'] | date: 'short' }}</p>
           </ion-label>
-          <ion-button *ngIf="not.code === 1" slot="end" fill="clear" color="dark" (click)="viewBackupReport(not)">
+          <ion-button
+            *ngIf="not.code === 1"
+            slot="end"
+            fill="clear"
+            color="dark"
+            (click)="viewBackupReport(not)"
+          >
             View Report
           </ion-button>
-          <ion-button *ngIf="not['package-id']" slot="end" fill="clear" color="dark" [routerLink]="['/services', not['package-id']]">
+          <ion-button
+            *ngIf="not['package-id']"
+            slot="end"
+            fill="clear"
+            color="dark"
+            [routerLink]="['/services', not['package-id']]"
+          >
             View Service
           </ion-button>
           <ion-button slot="end" fill="clear" (click)="delete(not.id, i)">
@@ -88,11 +121,15 @@
           </ion-button>
         </ion-item>
       </ion-item-group>
-    
-      <ion-infinite-scroll [disabled]="!needInfinite" (ionInfinite)="doInfinite($event)">
-        <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
+
+      <ion-infinite-scroll
+        [disabled]="!needInfinite"
+        (ionInfinite)="doInfinite($event)"
+      >
+        <ion-infinite-scroll-content
+          loadingSpinner="lines"
+        ></ion-infinite-scroll-content>
       </ion-infinite-scroll>
     </ng-container>
   </ng-container>
-
 </ion-content>
