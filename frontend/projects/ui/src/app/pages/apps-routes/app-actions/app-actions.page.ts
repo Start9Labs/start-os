@@ -1,9 +1,19 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { AlertController, IonContent, LoadingController, ModalController, NavController } from '@ionic/angular'
+import {
+  AlertController,
+  IonContent,
+  LoadingController,
+  ModalController,
+  NavController,
+} from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { Action, PackageDataEntry, PackageMainStatus } from 'src/app/services/patch-db/data-model'
+import {
+  Action,
+  PackageDataEntry,
+  PackageMainStatus,
+} from 'src/app/services/patch-db/data-model'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
@@ -23,7 +33,7 @@ export class AppActionsPage {
   pkg: PackageDataEntry
   subs: Subscription[]
 
-  constructor (
+  constructor(
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
     private readonly modalCtrl: ModalController,
@@ -33,29 +43,32 @@ export class AppActionsPage {
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.subs = [
-      this.patch.watch$('package-data', this.pkgId)
-      .subscribe(pkg => {
+      this.patch.watch$('package-data', this.pkgId).subscribe(pkg => {
         this.pkg = pkg
       }),
     ]
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  ngOnDestroy () {
+  ngOnDestroy() {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async handleAction (action: { key: string, value: Action }) {
+  async handleAction(action: { key: string; value: Action }) {
     const status = this.pkg.installed.status
-    if ((action.value['allowed-statuses'] as PackageMainStatus[]).includes(status.main.status)) {
+    if (
+      (action.value['allowed-statuses'] as PackageMainStatus[]).includes(
+        status.main.status,
+      )
+    ) {
       if (!isEmptyObject(action.value['input-spec'])) {
         const modal = await this.modalCtrl.create({
           component: GenericFormPage,
@@ -77,7 +90,9 @@ export class AppActionsPage {
       } else {
         const alert = await this.alertCtrl.create({
           header: 'Confirm',
-          message: `Are you sure you want to execute action "${action.value.name}"? ${action.value.warning || ''}`,
+          message: `Are you sure you want to execute action "${
+            action.value.name
+          }"? ${action.value.warning || ''}`,
           buttons: [
             {
               text: 'Cancel',
@@ -88,7 +103,7 @@ export class AppActionsPage {
               handler: () => {
                 this.executeAction(action.key)
               },
-              cssClass: 'enter-click',
+              cssClass: 'wide-alert enter-click',
             },
           ],
         })
@@ -100,7 +115,8 @@ export class AppActionsPage {
       let statusesStr = statuses.join(', ')
       let error = null
       if (statuses.length) {
-        if (statuses.length > 1) { // oxford comma
+        if (statuses.length > 1) {
+          // oxford comma
           statusesStr += ','
         }
         statusesStr += ` or ${last}`
@@ -111,7 +127,9 @@ export class AppActionsPage {
       }
       const alert = await this.alertCtrl.create({
         header: 'Forbidden',
-        message: error || `Action "${action.value.name}" can only be executed when service is ${statusesStr}`,
+        message:
+          error ||
+          `Action "${action.value.name}" can only be executed when service is ${statusesStr}`,
         buttons: ['OK'],
         cssClass: 'alert-error-message enter-click',
       })
@@ -119,7 +137,7 @@ export class AppActionsPage {
     }
   }
 
-  async uninstall () {
+  async uninstall() {
     const { id, title, version, alerts } = this.pkg.manifest
     const data = await wizardModal(
       this.modalCtrl,
@@ -135,7 +153,10 @@ export class AppActionsPage {
     return this.navCtrl.navigateRoot('/services')
   }
 
-  private async executeAction (actionId: string, input?: object): Promise<boolean> {
+  private async executeAction(
+    actionId: string,
+    input?: object,
+  ): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Executing action...',
@@ -158,7 +179,6 @@ export class AppActionsPage {
       })
 
       setTimeout(() => successModal.present(), 400)
-
     } catch (e) {
       this.errToast.present(e)
       return false
@@ -167,7 +187,7 @@ export class AppActionsPage {
     }
   }
 
-  asIsOrder () {
+  asIsOrder() {
     return 0
   }
 }
