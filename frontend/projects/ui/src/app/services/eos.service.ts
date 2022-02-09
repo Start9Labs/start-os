@@ -18,7 +18,7 @@ export class EOSService {
     private readonly patch: PatchDbService,
   ) {}
 
-  async getEOS(): Promise<void> {
+  async getEOS(): Promise<boolean> {
     this.eos = await this.api.getEos({
       'eos-version-compat':
         this.patch.getData()['server-info']['eos-version-compat'],
@@ -29,5 +29,6 @@ export class EOSService {
         this.patch.data['server-info'].version,
       ) === 1
     this.updateAvailable$.next(updateAvailable)
+    return updateAvailable
   }
 }

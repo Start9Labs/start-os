@@ -204,7 +204,10 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      await this.eosService.getEOS()
+      const updateAvailable = await this.eosService.getEOS()
+      if (updateAvailable) {
+        this.updateEos()
+      }
     } catch (e) {
       this.errToast.present(e)
     } finally {

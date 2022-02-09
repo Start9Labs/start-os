@@ -13,6 +13,7 @@ import {
   AlertController,
   IonicSafeString,
   LoadingController,
+  ModalController,
   ToastController,
 } from '@ionic/angular'
 import { Emver } from './services/emver.service'
@@ -24,7 +25,6 @@ import {
   ConnectionFailure,
   ConnectionService,
 } from './services/connection.service'
-import { StartupAlertsService } from './services/startup-alerts.service'
 import { ConfigService } from './services/config.service'
 import { debounce, isEmptyObject } from './util/misc.util'
 import { ErrorToastService } from './services/error-toast.service'
@@ -32,6 +32,7 @@ import { Subscription } from 'rxjs'
 import { LocalStorageService } from './services/local-storage.service'
 import { EOSService } from './services/eos.service'
 import { MarketplaceService } from './pages/marketplace-routes/marketplace.service'
+import { OSWelcomePage } from './modals/os-welcome/os-welcome.page'
 
 @Component({
   selector: 'app-root',
@@ -41,7 +42,7 @@ import { MarketplaceService } from './pages/marketplace-routes/marketplace.servi
 export class AppComponent {
   @HostListener('document:keydown.enter', ['$event'])
   @debounce()
-  handleKeyboardEvent () {
+  handleKeyboardEvent() {
     const elems = document.getElementsByClassName('enter-click')
     const elem = elems[elems.length - 1] as HTMLButtonElement
     if (!elem || elem.classList.contains('no-click') || elem.disabled) return
@@ -86,7 +87,7 @@ export class AppComponent {
     },
   ]
 
-  constructor (
+  constructor(
     private readonly storage: Storage,
     private readonly authService: AuthService,
     private readonly router: Router,
@@ -95,7 +96,7 @@ export class AppComponent {
     private readonly loadingCtrl: LoadingController,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
-    private readonly startupAlertsService: StartupAlertsService,
+    private readonly modalCtrl: ModalController,
     private readonly marketplaceService: MarketplaceService,
     private readonly toastCtrl: ToastController,
     private readonly errToast: ErrorToastService,
@@ -109,7 +110,7 @@ export class AppComponent {
     this.init()
   }
 
-  async init () {
+  async init() {
     await this.storage.create()
     await this.authService.init()
     await this.localStorageService.init()
@@ -146,6 +147,8 @@ export class AppComponent {
           .subscribe(data => {
             // check for updates to EOS
             this.checkForEosUpdate(data.ui)
+            // show eos welcome message
+            this.showEosWelcome(data.ui['ack-welcome'])
 
             this.subscriptions = this.subscriptions.concat([
               // watch status to present toast for updated state
@@ -158,8 +161,6 @@ export class AppComponent {
               this.watchNotifications(),
               // watch marketplace URL for changes
               this.marketplaceService.init(),
-              // run startup alerts
-              this.startupAlertsService.runChecks(),
             ])
           })
         // UNVERIFIED
@@ -180,7 +181,7 @@ export class AppComponent {
     })
   }
 
-  async goToWebsite (): Promise<void> {
+  async goToWebsite(): Promise<void> {
     let url: string
     if (this.config.isTor()) {
       url =
@@ -191,7 +192,7 @@ export class AppComponent {
     window.open(url, '_blank', 'noreferrer')
   }
 
-  async presentAlertLogout () {
+  async presentAlertLogout() {
     const alert = await this.alertCtrl.create({
       header: 'Caution',
       message:
@@ -214,19 +215,37 @@ export class AppComponent {
     await alert.present()
   }
 
-  private async checkForEosUpdate (ui: UIData): Promise<void> {
+  private checkForEosUpdate(ui: UIData): void {
     if (ui['auto-check-updates']) {
-      await this.eosService.getEOS()
+      this.eosService.getEOS()
+    }
+  }
+
+  private async showEosWelcome(ackVersion: string): Promise<void> {
+    if (!this.config.skipStartupAlerts && ackVersion !== this.config.version) {
+      const modal = await this.modalCtrl.create({
+        component: OSWelcomePage,
+        presentingElement: await this.modalCtrl.getTop(),
+        componentProps: {
+          version: this.config.version,
+        },
+      })
+      modal.onWillDismiss().then(() => {
+        this.embassyApi
+          .setDbValue({ pointer: '/ack-welcome', value: this.config.version })
+          .catch()
+      })
+      modal.present()
     }
   }
 
   // should wipe cache independant of actual BE logout
-  private async logout () {
+  private async logout() {
     this.embassyApi.logout({})
     this.authService.setUnverified()
   }
 
-  private watchConnection (): Subscription {
+  private watchConnection(): Subscription {
     return this.connectionService
       .watchFailure$()
       .pipe(distinctUntilChanged(), debounceTime(500))
@@ -259,7 +278,7 @@ export class AppComponent {
       })
   }
 
-  private watchRouter (): Subscription {
+  private watchRouter(): Subscription {
     return this.router.events
       .pipe(filter((e: RoutesRecognized) => !!e.urlAfterRedirects))
       .subscribe(e => {
@@ -270,7 +289,7 @@ export class AppComponent {
       })
   }
 
-  private watchStatus (): Subscription {
+  private watchStatus(): Subscription {
     return this.patch.watch$('server-info', 'status').subscribe(status => {
       if (status === ServerStatus.Updated && !this.updateToast) {
         this.presentToastUpdated()
@@ -278,7 +297,7 @@ export class AppComponent {
     })
   }
 
-  private watchUpdateProgress (): Subscription {
+  private watchUpdateProgress(): Subscription {
     return this.patch
       .watch$('server-info', 'update-progress')
       .subscribe(progress => {
@@ -286,7 +305,7 @@ export class AppComponent {
       })
   }
 
-  private watchVersion (): Subscription {
+  private watchVersion(): Subscription {
     return this.patch.watch$('server-info', 'version').subscribe(version => {
       if (this.emver.compare(this.config.version, version) !== 0) {
         this.presentAlertRefreshNeeded()
@@ -294,7 +313,7 @@ export class AppComponent {
     })
   }
 
-  private watchNotifications (): Subscription {
+  private watchNotifications(): Subscription {
     let previous: number
     return this.patch
       .watch$('server-info', 'unread-notification-count')
@@ -306,7 +325,7 @@ export class AppComponent {
       })
   }
 
-  private async presentAlertRefreshNeeded () {
+  private async presentAlertRefreshNeeded() {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Refresh Needed',
@@ -325,7 +344,7 @@ export class AppComponent {
     await alert.present()
   }
 
-  private async presentToastUpdated () {
+  private async presentToastUpdated() {
     if (this.updateToast) return
 
     this.updateToast = await this.toastCtrl.create({
@@ -355,7 +374,7 @@ export class AppComponent {
     await this.updateToast.present()
   }
 
-  private async presentToastNotifications () {
+  private async presentToastNotifications() {
     if (this.notificationToast) return
 
     this.notificationToast = await this.toastCtrl.create({
@@ -385,7 +404,7 @@ export class AppComponent {
     await this.notificationToast.present()
   }
 
-  private async presentToastOffline (
+  private async presentToastOffline(
     message: string | IonicSafeString,
     link?: string,
   ) {
@@ -426,7 +445,7 @@ export class AppComponent {
     await this.offlineToast.present()
   }
 
-  private async restart (): Promise<void> {
+  private async restart(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Restarting...',
@@ -443,7 +462,7 @@ export class AppComponent {
     }
   }
 
-  splitPaneVisible (e: any) {
+  splitPaneVisible(e: any) {
     this.splitPane.sidebarOpen$.next(e.detail.visible)
   }
 }
