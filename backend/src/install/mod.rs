@@ -359,9 +359,8 @@ pub async fn sideload(
             }
             pde.save(&mut tx).await?;
             tx.commit(None).await?;
-            drop(hdl);
 
-            download_install_s9pk(
+            if let Err(e) = download_install_s9pk(
                 &new_ctx,
                 &manifest,
                 None,
@@ -377,7 +376,32 @@ pub async fn sideload(
                     )
                 })),
             )
-            .await?;
+            .await
+            {
+                let err_str = format!(
+                    "Install of {}@{} Failed: {}",
+                    manifest.id, manifest.version, e
+                );
+                tracing::error!("{}", err_str);
+                tracing::debug!("{:?}", e);
+                if let Err(e) = new_ctx
+                    .notification_manager
+                    .notify(
+                        &mut hdl,
+                        Some(manifest.id),
+                        NotificationLevel::Error,
+                        String::from("Install Failed"),
+                        err_str,
+                        (),
+                        None,
+                    )
+                    .await
+                {
+                    tracing::error!("Failed to issue Notification: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
+            }
+
             Response::builder()
                 .status(StatusCode::OK)
                 .body(Body::empty())

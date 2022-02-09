@@ -110,7 +110,7 @@ pub fn package() -> Result<(), RpcError> {
 #[command(subcommands(
     version::git_info,
     s9pk::pack,
-    s9pk::verify,
+    developer::verify,
     developer::init,
     inspect::inspect
 ))]
