@@ -6,7 +6,7 @@ const routes: Routes = [
     path: '',
     loadChildren: () =>
       import('./developer-list/developer-list.module').then(
-        m => m.DeveloperPageModule,
+        m => m.DeveloperListPageModule,
       ),
   },
   {

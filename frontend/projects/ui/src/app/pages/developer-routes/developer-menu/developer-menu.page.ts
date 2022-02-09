@@ -3,11 +3,11 @@ import { ActivatedRoute } from '@angular/router'
 import { NavController } from '@ionic/angular'
 
 @Component({
-  selector: 'developer-list',
-  templateUrl: 'developer-list.page.html',
-  styleUrls: ['developer-list.page.scss'],
+  selector: 'developer-menu',
+  templateUrl: 'developer-menu.page.html',
+  styleUrls: ['developer-menu.page.scss'],
 })
-export class DeveloperListPage {
+export class DeveloperMenuPage {
   constructor(
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,

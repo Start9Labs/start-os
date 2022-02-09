@@ -15,6 +15,7 @@ export const mockPatchData: DataModel = {
     'pkg-order': [],
     'ack-welcome': '1.0.0',
     marketplace: undefined,
+    dev: undefined,
   },
   'server-info': {
     id: 'embassy-abcdefgh',
