@@ -28,9 +28,9 @@ export class PreferencesPage {
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
-    public readonly serverConfig: ServerConfigService,
     private readonly toastCtrl: ToastController,
     private readonly localStorageService: LocalStorageService,
+    public readonly serverConfig: ServerConfigService,
     public readonly patch: PatchDbService,
   ) {}
 

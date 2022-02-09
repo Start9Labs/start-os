@@ -12,7 +12,6 @@ export interface UIData {
   'auto-check-updates': boolean
   'pkg-order': string[]
   'ack-welcome': string // EOS version
-  'ack-share-stats': boolean
   marketplace: UIMarketplaceData
 }
 
@@ -33,9 +32,6 @@ export interface ServerInfo {
   'lan-address': URL
   'tor-address': URL
   status: ServerStatus
-  'eos-marketplace': URL
-  'package-marketplace': URL | null // uses EOS marketplace if null
-  'share-stats': boolean
   'unread-notification-count': number
   'update-progress'?: {
     size: number

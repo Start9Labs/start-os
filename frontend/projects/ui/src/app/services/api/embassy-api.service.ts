@@ -51,12 +51,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   // server
 
-  protected abstract setShareStatsRaw(
-    params: RR.SetShareStatsReq,
-  ): Promise<RR.SetShareStatsRes>
-  setShareStats = (params: RR.SetShareStatsReq) =>
-    this.syncResponse(() => this.setShareStatsRaw(params))()
-
   abstract getServerLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>

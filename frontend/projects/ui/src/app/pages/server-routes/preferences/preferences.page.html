@@ -15,16 +15,6 @@
       <ion-note slot="end">{{ patch.data.ui.name || defaultName }}</ion-note>
     </ion-item>
 
-    <ion-item
-      button
-      (click)="serverConfig.presentAlert('share-stats', server['share-stats'])"
-    >
-      <ion-label>Auto Report Bugs</ion-label>
-      <ion-note slot="end"
-        >{{ server['share-stats'] ? 'Enabled' : 'Disabled' }}</ion-note
-      >
-    </ion-item>
-
     <ion-item-divider>Marketplace</ion-item-divider>
     <ion-item
       button
