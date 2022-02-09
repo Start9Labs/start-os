@@ -301,7 +301,7 @@ function getMarketplaceValueSpec(): ValueSpecObject {
         nullable: false,
         masked: false,
         copyable: false,
-        pattern: `https?:\/\/[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}`,
+        pattern: `https?:\/\/[a-zA-Z0-9][a-zA-Z0-9-\.]+[a-zA-Z0-9]\.[^\s]{2,}`,
         'pattern-description': 'Must be a valid URL',
         placeholder: 'e.g. https://example.org',
       },
