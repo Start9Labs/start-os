@@ -242,7 +242,7 @@ export class ServerShowPage {
           ),
       },
     ],
-    Insights: [
+    Settings: [
       {
         title: 'Software Update',
         description: 'Get the latest version of EmbassyOS',
@@ -254,35 +254,6 @@ export class ServerShowPage {
         detail: false,
         disabled: of(false),
       },
-      {
-        title: 'About',
-        description: 'Basic information about your Embassy',
-        icon: 'information-circle-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
-        detail: true,
-        disabled: of(false),
-      },
-      {
-        title: 'Monitor',
-        description: 'CPU, disk, memory, and other useful metrics',
-        icon: 'pulse',
-        action: () =>
-          this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
-        detail: true,
-        disabled: of(false),
-      },
-      {
-        title: 'Logs',
-        description: 'Raw, unfiltered device logs',
-        icon: 'newspaper-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
-        detail: true,
-        disabled: of(false),
-      },
-    ],
-    Settings: [
       {
         title: 'Preferences',
         description: 'Device name, background tasks',
@@ -332,6 +303,26 @@ export class ServerShowPage {
         detail: true,
         disabled: of(false),
       },
+    ],
+    Insights: [
+      {
+        title: 'About',
+        description: 'Basic information about your Embassy',
+        icon: 'information-circle-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
+        detail: true,
+        disabled: of(false),
+      },
+      {
+        title: 'Monitor',
+        description: 'CPU, disk, memory, and other useful metrics',
+        icon: 'pulse',
+        action: () =>
+          this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
+        detail: true,
+        disabled: of(false),
+      },
       {
         title: 'Active Sessions',
         description: 'View and manage device access',
@@ -340,6 +331,43 @@ export class ServerShowPage {
           this.navCtrl.navigateForward(['sessions'], {
             relativeTo: this.route,
           }),
+        detail: true,
+        disabled: of(false),
+      },
+      {
+        title: 'Logs',
+        description: 'Raw, unfiltered device logs',
+        icon: 'newspaper-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
+        detail: true,
+        disabled: of(false),
+      },
+    ],
+    Support: [
+      {
+        title: 'User Manual',
+        description: 'View the Embassy user manual and FAQ',
+        icon: 'map-outline',
+        action: () =>
+          window.open(
+            'https://docs.start9.com/user-manual/',
+            '_blank',
+            'noreferrer',
+          ),
+        detail: true,
+        disabled: of(false),
+      },
+      {
+        title: 'Contact Support',
+        description: 'Get help from the Start9 team and community',
+        icon: 'chatbubbles-outline',
+        action: () =>
+          window.open(
+            'https://docs.start9.com/support/contact/',
+            '_blank',
+            'noreferrer',
+          ),
         detail: true,
         disabled: of(false),
       },
