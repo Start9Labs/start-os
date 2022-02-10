@@ -155,9 +155,7 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      await this.embassyApi.restartServer({
-        'marketplace-url': this.config.marketplace.url,
-      })
+      await this.embassyApi.restartServer({})
     } catch (e) {
       this.errToast.present(e)
     } finally {
