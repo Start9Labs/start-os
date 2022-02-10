@@ -1,5 +1,11 @@
 import { Component, Input, ViewChild } from '@angular/core'
-import { AlertController, ModalController, IonContent, LoadingController, IonicSafeString } from '@ionic/angular'
+import {
+  AlertController,
+  ModalController,
+  IonContent,
+  LoadingController,
+  IonicSafeString,
+} from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DependentInfo, isEmptyObject, isObject } from 'src/app/util/misc.util'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
@@ -7,9 +13,15 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { ErrorToastService, getErrorMessage } from 'src/app/services/error-toast.service'
+import {
+  ErrorToastService,
+  getErrorMessage,
+} from 'src/app/services/error-toast.service'
 import { FormGroup } from '@angular/forms'
-import { convertValuesRecursive, FormService } from 'src/app/services/form.service'
+import {
+  convertValuesRecursive,
+  FormService,
+} from 'src/app/services/form.service'
 import { compare, Operation, getValueByPointer } from 'fast-json-patch'
 
 @Component({
@@ -31,7 +43,7 @@ export class AppConfigPage {
   saving = false
   loadingError: string | IonicSafeString
 
-  constructor (
+  constructor(
     private readonly wizardBaker: WizardBaker,
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
@@ -40,9 +52,9 @@ export class AppConfigPage {
     private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
     private readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     this.pkg = this.patch.getData()['package-data'][this.pkgId]
     this.hasConfig = !!this.pkg.manifest.config
 
@@ -55,21 +67,33 @@ export class AppConfigPage {
       let patch: Operation[]
       if (this.dependentInfo) {
         this.loadingText = `Setting properties to accommodate ${this.dependentInfo.title}`
-        const { 'old-config': oc, 'new-config': nc, spec: s } = await this.embassyApi.dryConfigureDependency({ 'dependency-id': this.pkgId, 'dependent-id': this.dependentInfo.id })
+        const {
+          'old-config': oc,
+          'new-config': nc,
+          spec: s,
+        } = await this.embassyApi.dryConfigureDependency({
+          'dependency-id': this.pkgId,
+          'dependent-id': this.dependentInfo.id,
+        })
         oldConfig = oc
         newConfig = nc
         spec = s
         patch = compare(oldConfig, newConfig)
       } else {
         this.loadingText = 'Loading Config'
-        const { config: c, spec: s } = await this.embassyApi.getPackageConfig({ id: this.pkgId })
+        const { config: c, spec: s } = await this.embassyApi.getPackageConfig({
+          id: this.pkgId,
+        })
         oldConfig = c
         spec = s
       }
 
       this.original = oldConfig
       this.configSpec = spec
-      this.configForm = this.formService.createForm(spec, newConfig || oldConfig)
+      this.configForm = this.formService.createForm(
+        spec,
+        newConfig || oldConfig,
+      )
       this.configForm.markAllAsTouched()
 
       if (patch) {
@@ -83,17 +107,17 @@ export class AppConfigPage {
     }
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  resetDefaults () {
+  resetDefaults() {
     this.configForm = this.formService.createForm(this.configSpec)
     const patch = compare(this.original, this.configForm.value)
     this.markDirty(patch)
   }
 
-  async dismiss () {
+  async dismiss() {
     if (this.configForm?.dirty) {
       await this.presentAlertUnsaved()
     } else {
@@ -101,17 +125,19 @@ export class AppConfigPage {
     }
   }
 
-  async save () {
+  async save() {
     convertValuesRecursive(this.configSpec, this.configForm)
 
     if (this.configForm.invalid) {
-      document.getElementsByClassName('validation-error')[0].parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
+      document
+        .getElementsByClassName('validation-error')[0]
+        .parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
       return
     }
 
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: `Saving config...`,
+      message: `Saving config. This could take a while...`,
       cssClass: 'loader',
     })
     await loader.present()
@@ -150,7 +176,7 @@ export class AppConfigPage {
     }
   }
 
-  private getDiff (patch: Operation[]): string[] {
+  private getDiff(patch: Operation[]): string[] {
     return patch.map(op => {
       let message: string
       switch (op.op) {
@@ -161,7 +187,9 @@ export class AppConfigPage {
           message = `Removed ${this.getOldValue(op.path)}`
           break
         case 'replace':
-          message = `Changed from ${this.getOldValue(op.path)} to ${this.getNewValue(op.value)}`
+          message = `Changed from ${this.getOldValue(
+            op.path,
+          )} to ${this.getNewValue(op.value)}`
           break
         default:
           message = `Unknown operation`
@@ -169,12 +197,13 @@ export class AppConfigPage {
 
       let displayPath: string
 
-      const arrPath = op.path.substring(1)
-      .split('/')
-      .map(node => {
-        const num = Number(node)
-        return isNaN(num) ? node : num
-      })
+      const arrPath = op.path
+        .substring(1)
+        .split('/')
+        .map(node => {
+          const num = Number(node)
+          return isNaN(num) ? node : num
+        })
 
       if (typeof arrPath[arrPath.length - 1] === 'number') {
         arrPath.pop()
@@ -186,7 +215,7 @@ export class AppConfigPage {
     })
   }
 
-  private getOldValue (path: any): string {
+  private getOldValue(path: any): string {
     const val = getValueByPointer(this.original, path)
     if (['string', 'number', 'boolean'].includes(typeof val)) {
       return val
@@ -197,7 +226,7 @@ export class AppConfigPage {
     }
   }
 
-  private getNewValue (val: any): string {
+  private getNewValue(val: any): string {
     if (['string', 'number', 'boolean'].includes(typeof val)) {
       return val
     } else if (isObject(val)) {
@@ -207,14 +236,15 @@ export class AppConfigPage {
     }
   }
 
-  private markDirty (patch: Operation[]) {
+  private markDirty(patch: Operation[]) {
     patch.forEach(op => {
-      const arrPath = op.path.substring(1)
-      .split('/')
-      .map(node => {
-        const num = Number(node)
-        return isNaN(num) ? node : num
-      })
+      const arrPath = op.path
+        .substring(1)
+        .split('/')
+        .map(node => {
+          const num = Number(node)
+          return isNaN(num) ? node : num
+        })
 
       if (op.op !== 'remove') this.configForm.get(arrPath).markAsDirty()
 
@@ -225,7 +255,7 @@ export class AppConfigPage {
     })
   }
 
-  private async presentAlertUnsaved () {
+  private async presentAlertUnsaved() {
     const alert = await this.alertCtrl.create({
       header: 'Unsaved Changes',
       message: 'You have unsaved changes. Are you sure you want to leave?',
@@ -246,4 +276,3 @@ export class AppConfigPage {
     await alert.present()
   }
 }
-
