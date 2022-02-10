@@ -1,5 +1,11 @@
 import { Injectable } from '@angular/core'
-import { BehaviorSubject, combineLatest, fromEvent, merge, Subscription } from 'rxjs'
+import {
+  BehaviorSubject,
+  combineLatest,
+  fromEvent,
+  merge,
+  Subscription,
+} from 'rxjs'
 import { PatchConnection, PatchDbService } from './patch-db/patch-db.service'
 import { distinctUntilChanged } from 'rxjs/operators'
 import { ConfigService } from './config.service'
@@ -9,41 +15,37 @@ import { ConfigService } from './config.service'
 })
 export class ConnectionService {
   private readonly networkState$ = new BehaviorSubject<boolean>(true)
-  private readonly connectionFailure$ = new BehaviorSubject<ConnectionFailure>(ConnectionFailure.None)
+  private readonly connectionFailure$ = new BehaviorSubject<ConnectionFailure>(
+    ConnectionFailure.None,
+  )
 
-  constructor (
+  constructor(
     private readonly configService: ConfigService,
     private readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  watchFailure$ () {
+  watchFailure$() {
     return this.connectionFailure$.asObservable()
   }
 
-  start (): Subscription[] {
-    const sub1 = merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))
-    .subscribe(event => {
+  start(): Subscription[] {
+    const sub1 = merge(
+      fromEvent(window, 'online'),
+      fromEvent(window, 'offline'),
+    ).subscribe(event => {
       this.networkState$.next(event.type === 'online')
     })
 
     const sub2 = combineLatest([
       // 1
-      this.networkState$
-      .pipe(
-        distinctUntilChanged(),
-      ),
+      this.networkState$.pipe(distinctUntilChanged()),
       // 2
-      this.patch.watchPatchConnection$()
-      .pipe(
-        distinctUntilChanged(),
-      ),
+      this.patch.watchPatchConnection$().pipe(distinctUntilChanged()),
       // 3
-      this.patch.watch$('server-info', 'update-progress')
-      .pipe(
-        distinctUntilChanged(),
-      ),
-    ])
-    .subscribe(async ([network, patchConnection, progress]) => {
+      this.patch
+        .watch$('server-info', 'status-info', 'update-progress')
+        .pipe(distinctUntilChanged()),
+    ]).subscribe(async ([network, patchConnection, progress]) => {
       if (!network) {
         this.connectionFailure$.next(ConnectionFailure.Network)
       } else if (patchConnection !== PatchConnection.Disconnected) {

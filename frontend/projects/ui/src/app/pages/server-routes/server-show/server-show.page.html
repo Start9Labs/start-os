@@ -41,16 +41,18 @@
 
             <!-- "Create Backup" button only -->
             <p *ngIf="button.title === 'Create Backup'">
-              <ng-container *ngIf="patch.data['server-info'].status as status">
+              <ng-container
+                *ngIf="patch.data['server-info']['status-info'] as statusInfo"
+              >
                 <ion-text
                   color="warning"
-                  *ngIf="status === ServerStatus.Running"
+                  *ngIf="!statusInfo['backing-up'] && !statusInfo['update-progress']"
                 >
                   Last Backup: {{ patch.data['server-info']['last-backup'] ?
                   (patch.data['server-info']['last-backup'] | date: 'short') :
                   'never' }}
                 </ion-text>
-                <span *ngIf="status === ServerStatus.BackingUp" class="inline">
+                <span *ngIf="!!statusInfo['update-progress']" class="inline">
                   <ion-spinner
                     color="success"
                     style="height: 12px; width: 12px; margin-right: 6px"

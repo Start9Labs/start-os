@@ -17,7 +17,6 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { exists, isEmptyObject } from 'src/app/util/misc.util'
 import { EOSService } from 'src/app/services/eos.service'
-import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'server-show',
@@ -37,7 +36,6 @@ export class ServerShowPage {
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
-    private readonly config: ConfigService,
     public readonly eosService: EOSService,
     public readonly patch: PatchDbService,
   ) {}
@@ -236,11 +234,9 @@ export class ServerShowPage {
           this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
         detail: true,
         disabled: this.patch
-          .watch$('server-info', 'status')
+          .watch$('server-info', 'status-info')
           .pipe(
-            map(status =>
-              [ServerStatus.Updated, ServerStatus.BackingUp].includes(status),
-            ),
+            map(status => status['backing-up'] || !!status['update-progress']),
           ),
       },
     ],
