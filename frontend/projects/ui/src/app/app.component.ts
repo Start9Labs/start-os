@@ -298,6 +298,7 @@ export class AppComponent {
         }
       })
   }
+  m
 
   private watchUpdateProgress (): Subscription {
     return this.patch
