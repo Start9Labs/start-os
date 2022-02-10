@@ -42,7 +42,7 @@ import { OSWelcomePage } from './modals/os-welcome/os-welcome.page'
 export class AppComponent {
   @HostListener('document:keydown.enter', ['$event'])
   @debounce()
-  handleKeyboardEvent() {
+  handleKeyboardEvent () {
     const elems = document.getElementsByClassName('enter-click')
     const elem = elems[elems.length - 1] as HTMLButtonElement
     if (!elem || elem.classList.contains('no-click') || elem.disabled) return
@@ -87,7 +87,7 @@ export class AppComponent {
     },
   ]
 
-  constructor(
+  constructor (
     private readonly storage: Storage,
     private readonly authService: AuthService,
     private readonly router: Router,
@@ -110,7 +110,7 @@ export class AppComponent {
     this.init()
   }
 
-  async init() {
+  async init () {
     await this.storage.create()
     await this.authService.init()
     await this.localStorageService.init()
@@ -181,7 +181,7 @@ export class AppComponent {
     })
   }
 
-  async goToWebsite(): Promise<void> {
+  async goToWebsite (): Promise<void> {
     let url: string
     if (this.config.isTor()) {
       url =
@@ -192,7 +192,7 @@ export class AppComponent {
     window.open(url, '_blank', 'noreferrer')
   }
 
-  async presentAlertLogout() {
+  async presentAlertLogout () {
     const alert = await this.alertCtrl.create({
       header: 'Caution',
       message:
@@ -215,13 +215,13 @@ export class AppComponent {
     await alert.present()
   }
 
-  private checkForEosUpdate(ui: UIData): void {
+  private checkForEosUpdate (ui: UIData): void {
     if (ui['auto-check-updates']) {
       this.eosService.getEOS()
     }
   }
 
-  private async showEosWelcome(ackVersion: string): Promise<void> {
+  private async showEosWelcome (ackVersion: string): Promise<void> {
     if (!this.config.skipStartupAlerts && ackVersion !== this.config.version) {
       const modal = await this.modalCtrl.create({
         component: OSWelcomePage,
@@ -240,12 +240,12 @@ export class AppComponent {
   }
 
   // should wipe cache independant of actual BE logout
-  private async logout() {
+  private async logout () {
     this.embassyApi.logout({})
     this.authService.setUnverified()
   }
 
-  private watchConnection(): Subscription {
+  private watchConnection (): Subscription {
     return this.connectionService
       .watchFailure$()
       .pipe(distinctUntilChanged(), debounceTime(500))
@@ -278,7 +278,7 @@ export class AppComponent {
       })
   }
 
-  private watchRouter(): Subscription {
+  private watchRouter (): Subscription {
     return this.router.events
       .pipe(filter((e: RoutesRecognized) => !!e.urlAfterRedirects))
       .subscribe(e => {
@@ -289,7 +289,7 @@ export class AppComponent {
       })
   }
 
-  private watchStatus(): Subscription {
+  private watchStatus (): Subscription {
     return this.patch.watch$('server-info', 'status').subscribe(status => {
       if (status === ServerStatus.Updated && !this.updateToast) {
         this.presentToastUpdated()
@@ -297,7 +297,7 @@ export class AppComponent {
     })
   }
 
-  private watchUpdateProgress(): Subscription {
+  private watchUpdateProgress (): Subscription {
     return this.patch
       .watch$('server-info', 'update-progress')
       .subscribe(progress => {
@@ -305,7 +305,7 @@ export class AppComponent {
       })
   }
 
-  private watchVersion(): Subscription {
+  private watchVersion (): Subscription {
     return this.patch.watch$('server-info', 'version').subscribe(version => {
       if (this.emver.compare(this.config.version, version) !== 0) {
         this.presentAlertRefreshNeeded()
@@ -313,7 +313,7 @@ export class AppComponent {
     })
   }
 
-  private watchNotifications(): Subscription {
+  private watchNotifications (): Subscription {
     let previous: number
     return this.patch
       .watch$('server-info', 'unread-notification-count')
@@ -325,7 +325,7 @@ export class AppComponent {
       })
   }
 
-  private async presentAlertRefreshNeeded() {
+  private async presentAlertRefreshNeeded () {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Refresh Needed',
@@ -344,7 +344,7 @@ export class AppComponent {
     await alert.present()
   }
 
-  private async presentToastUpdated() {
+  private async presentToastUpdated () {
     if (this.updateToast) return
 
     this.updateToast = await this.toastCtrl.create({
@@ -374,7 +374,7 @@ export class AppComponent {
     await this.updateToast.present()
   }
 
-  private async presentToastNotifications() {
+  private async presentToastNotifications () {
     if (this.notificationToast) return
 
     this.notificationToast = await this.toastCtrl.create({
@@ -404,7 +404,7 @@ export class AppComponent {
     await this.notificationToast.present()
   }
 
-  private async presentToastOffline(
+  private async presentToastOffline (
     message: string | IonicSafeString,
     link?: string,
   ) {
@@ -445,7 +445,7 @@ export class AppComponent {
     await this.offlineToast.present()
   }
 
-  private async restart(): Promise<void> {
+  private async restart (): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Restarting...',
@@ -454,7 +454,9 @@ export class AppComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.restartServer({})
+      await this.embassyApi.restartServer({
+        'marketplace-url': this.config.marketplace.url,
+      })
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -462,7 +464,7 @@ export class AppComponent {
     }
   }
 
-  splitPaneVisible(e: any) {
+  splitPaneVisible (e: any) {
     this.splitPane.sidebarOpen$.next(e.detail.visible)
   }
 }
