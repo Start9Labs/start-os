@@ -1,7 +1,9 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="/developer"></ion-back-button>
+      <ion-back-button
+        [defaultHref]="'/developer/projects/' + projectId"
+      ></ion-back-button>
     </ion-buttons>
     <ion-title>Config</ion-title>
     <ion-buttons slot="end">
@@ -11,7 +13,13 @@
 </ion-header>
 
 <ion-content>
+  <ion-spinner
+    *ngIf="!code"
+    class="center-spinner centered"
+    name="lines"
+  ></ion-spinner>
   <ngx-monaco-editor
+    *ngIf="code"
     [options]="editorOptions"
     [(ngModel)]="code"
   ></ngx-monaco-editor>
