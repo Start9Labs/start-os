@@ -3,43 +3,28 @@
     <ion-buttons slot="start">
       <ion-back-button></ion-back-button>
     </ion-buttons>
-    <ion-title>Projects</ion-title>
+    <ion-title>Developer Tools</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
   <ion-item-divider>Projects</ion-item-divider>
-  <ion-item button detail="false" (click)="presentModalAdd()">
+
+  <ion-item button detail="false" (click)="openAddProjectModal()">
     <ion-icon slot="start" name="add" size="large"></ion-icon>
-    <ion-label>Add new key</ion-label>
+    <ion-label>Add project</ion-label>
   </ion-item>
 
-  <!-- loading  -->
-  <ng-container *ngIf="loading">
-    <ion-item *ngFor="let entry of ['', '']">
-      <ion-avatar slot="start" style="margin-right: 30px">
-        <ion-skeleton-text
-          animated
-          style="width: 30px; height: 30px; border-radius: 0"
-        ></ion-skeleton-text>
-      </ion-avatar>
-      <ion-label>
-        <ion-skeleton-text
-          animated
-          style="width: 100px; height: 20px; margin-bottom: 12px"
-        ></ion-skeleton-text>
-        <ion-skeleton-text
-          animated
-          style="width: 150px; margin-bottom: 18px"
-        ></ion-skeleton-text>
-        <ion-skeleton-text animated style="width: 300px"></ion-skeleton-text>
-      </ion-label>
-      <ion-button slot="end" fill="clear">
-        <ion-skeleton-text
-          animated
-          style="width: 60px; border-radius: 0"
-        ></ion-skeleton-text>
-      </ion-button>
-    </ion-item>
-  </ng-container>
+  <ion-item
+    button
+    *ngFor="let entry of devData | keyvalue"
+    [routerLink]="entry.key"
+  >
+    <p>{{ entry.value.name }}</p>
+    <!-- @TODO use when remove available -->
+    <!-- <ion-button slot="end" fill="clear" color="danger" (click)="presentAlertDelete(entry.key)">
+      <ion-icon slot="start" name="close"></ion-icon>
+      Remove
+    </ion-button> -->
+  </ion-item>
 </ion-content>
