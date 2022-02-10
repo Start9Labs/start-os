@@ -31,11 +31,11 @@ export interface ServerInfo {
   'last-backup': string | null
   'lan-address': URL
   'tor-address': URL
-  status: ServerStatus
   'unread-notification-count': number
-  'update-progress'?: {
-    size: number
-    downloaded: number
+  'status-info': {
+    'backing-up': boolean
+    updated: boolean
+    'update-progress': { size: number | null; downloaded: number } | null
   }
   'eos-version-compat': string
   'password-hash': string
@@ -377,17 +377,17 @@ export interface DependencyInfo {
 export interface DependencyEntry {
   version: string
   requirement:
-    | {
-        type: 'opt-in'
-        how: string
-      }
-    | {
-        type: 'opt-out'
-        how: string
-      }
-    | {
-        type: 'required'
-      }
+  | {
+    type: 'opt-in'
+    how: string
+  }
+  | {
+    type: 'opt-out'
+    how: string
+  }
+  | {
+    type: 'required'
+  }
   description: string | null
   config: {
     check: ActionImpl

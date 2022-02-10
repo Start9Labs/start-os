@@ -290,16 +290,18 @@ export class AppComponent {
   }
 
   private watchStatus (): Subscription {
-    return this.patch.watch$('server-info', 'status').subscribe(status => {
-      if (status === ServerStatus.Updated && !this.updateToast) {
-        this.presentToastUpdated()
-      }
-    })
+    return this.patch
+      .watch$('server-info', 'status-info', 'updated')
+      .subscribe(isUpdated => {
+        if (isUpdated && !this.updateToast) {
+          this.presentToastUpdated()
+        }
+      })
   }
 
   private watchUpdateProgress (): Subscription {
     return this.patch
-      .watch$('server-info', 'update-progress')
+      .watch$('server-info', 'status-info', 'update-progress')
       .subscribe(progress => {
         this.osUpdateProgress = progress
       })
@@ -454,9 +456,7 @@ export class AppComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.restartServer({
-        'marketplace-url': this.config.marketplace.url,
-      })
+      await this.embassyApi.restartServer({})
     } catch (e) {
       this.errToast.present(e)
     } finally {
