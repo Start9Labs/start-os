@@ -63,19 +63,30 @@
             </p>
             <!-- "Software Update" button only -->
             <p *ngIf="button.title === 'Software Update'">
-              <ng-container
-                *ngIf="eosService.updateAvailable$ | async; else check"
-              >
-                <ion-text class="inline" color="success">
-                  <ion-icon name="rocket-outline"></ion-icon>
-                  Update Available
+              <ng-container *ngIf="button.disabled | async; else enabled">
+                <ion-text
+                  *ngIf="patch.data['server-info']['status-info'].updated"
+                  class="inline"
+                  color="warning"
+                >
+                  Update Complete, Restart to apply changes
                 </ion-text>
               </ng-container>
-              <ng-template #check>
-                <ion-text class="inline" color="dark">
-                  <ion-icon name="refresh"></ion-icon>
-                  Check for updates
-                </ion-text>
+              <ng-template #enabled>
+                <ng-container
+                  *ngIf="eosService.updateAvailable$ | async; else check"
+                >
+                  <ion-text class="inline" color="success">
+                    <ion-icon name="rocket-outline"></ion-icon>
+                    Update Available
+                  </ion-text>
+                </ng-container>
+                <ng-template #check>
+                  <ion-text class="inline" color="dark">
+                    <ion-icon name="refresh"></ion-icon>
+                    Check for updates
+                  </ion-text>
+                </ng-template>
               </ng-template>
             </p>
           </ion-label>

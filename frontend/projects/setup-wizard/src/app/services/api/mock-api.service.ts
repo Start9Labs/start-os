@@ -8,14 +8,13 @@ let tries = 0
   providedIn: 'root',
 })
 export class MockApiService extends ApiService {
-
-  constructor () {
+  constructor() {
     super()
   }
 
   // ** UNENCRYPTED **
 
-  async getStatus () {
+  async getStatus() {
     await pauseFor(1000)
     return {
       'product-key': true,
@@ -23,7 +22,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getDrives () {
+  async getDrives() {
     await pauseFor(1000)
     return {
       disks: [
@@ -43,22 +42,22 @@ export class MockApiService extends ApiService {
                 'password-hash': null,
                 'wrapped-key': null,
               },
-            }
+            },
           ],
           capacity: 123456789123,
           guid: 'uuid-uuid-uuid-uuid',
-        }
+        },
       ],
       reconnect: [],
     }
   }
 
-  async set02XDrive () {
+  async set02XDrive() {
     await pauseFor(1000)
     return
   }
 
-  async getRecoveryStatus () {
+  async getRecoveryStatus() {
     tries = Math.min(tries + 1, 4)
     return {
       'bytes-transferred': tries,
@@ -69,38 +68,38 @@ export class MockApiService extends ApiService {
 
   // ** ENCRYPTED **
 
-  async verifyCifs (params: CifsRecoverySource) {
+  async verifyCifs(params: CifsRecoverySource) {
     await pauseFor(1000)
     return {
       version: '0.3.0',
       full: true,
-      'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+      'password-hash':
+        '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
       'wrapped-key': '',
     }
   }
 
-  async verifyProductKey () {
+  async verifyProductKey() {
     await pauseFor(1000)
     return
   }
 
-  async importDrive (guid: string) {
+  async importDrive(guid: string) {
     await pauseFor(3000)
     return setupRes
   }
 
-  async setupEmbassy (setupInfo: SetupEmbassyReq) {
+  async setupEmbassy(setupInfo: SetupEmbassyReq) {
     await pauseFor(3000)
     return setupRes
   }
 
-  async setupComplete () {
+  async setupComplete() {
     await pauseFor(1000)
   }
 }
 
-const rootCA =
-  `-----BEGIN CERTIFICATE-----
+const rootCA = `-----BEGIN CERTIFICATE-----
 MIIDpzCCAo+gAwIBAgIRAIIuOarlQETlUQEOZJGZYdIwDQYJKoZIhvcNAQELBQAw
 bTELMAkGA1UEBhMCVVMxFTATBgNVBAoMDEV4YW1wbGUgQ29ycDEOMAwGA1UECwwF
 U2FsZXMxCzAJBgNVBAgMAldBMRgwFgYDVQQDDA93d3cuZXhhbXBsZS5jb20xEDAO
@@ -188,7 +187,8 @@ const disks = [
           version: '0.3.6',
           full: true,
           // password is 'asdfasdf'
-          'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          'password-hash':
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
           'wrapped-key': '',
         },
       },

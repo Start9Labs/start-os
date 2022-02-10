@@ -236,7 +236,10 @@ export class ServerShowPage {
         disabled: this.patch
           .watch$('server-info', 'status-info')
           .pipe(
-            map(status => status['backing-up'] || !!status['update-progress']),
+            map(
+              status =>
+                status && (status['backing-up'] || !!status['update-progress']),
+            ),
           ),
       },
     ],
@@ -250,7 +253,17 @@ export class ServerShowPage {
             ? this.updateEos()
             : this.checkForEosUpdate(),
         detail: false,
-        disabled: of(false),
+        disabled: this.patch
+          .watch$('server-info', 'status-info')
+          .pipe(
+            map(
+              status =>
+                status &&
+                (status['backing-up'] ||
+                  !!status['update-progress'] ||
+                  status.updated),
+            ),
+          ),
       },
       {
         title: 'Preferences',
