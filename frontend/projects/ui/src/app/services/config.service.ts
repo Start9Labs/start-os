@@ -8,8 +8,9 @@ import {
 import { WorkspaceConfig } from '@shared'
 
 const {
+  gitHash,
   useMocks,
-  ui: { gitHash, patchDb, api, mocks, marketplace },
+  ui: { patchDb, api, mocks, marketplace },
 } = require('../../../../../config.json') as WorkspaceConfig
 
 @Injectable({
