@@ -38,7 +38,7 @@ export module RR {
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = Metrics
 
-  export type UpdateServerReq = WithExpire<{}> // server.update
+  export type UpdateServerReq = WithExpire<{ 'marketplace-url': string }> // server.update
   export type UpdateServerRes = WithRevision<'updating' | 'no-updates'>
 
   export type RestartServerReq = {} // server.restart
