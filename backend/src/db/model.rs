@@ -65,7 +65,6 @@ impl Database {
                     tor: Vec::new(),
                     clearnet: Vec::new(),
                 },
-                share_stats: false,
                 password_hash,
             },
             package_data: AllPackageData::default(),
@@ -97,7 +96,6 @@ pub struct ServerInfo {
     pub wifi: WifiInfo,
     pub unread_notification_count: u64,
     pub connection_addresses: ConnectionAddresses,
-    pub share_stats: bool,
     pub password_hash: String,
 }
 

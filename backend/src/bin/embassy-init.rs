@@ -195,7 +195,7 @@ fn main() {
         )
         .get_matches();
 
-    EmbassyLogger::no_sharing();
+    EmbassyLogger::init();
 
     let cfg_path = matches.value_of("config");
     let res = {

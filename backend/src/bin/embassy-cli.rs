@@ -20,7 +20,7 @@ fn inner_main() -> Result<(), Error> {
             .arg(Arg::with_name("host").long("host").short("h").takes_value(true))
             .arg(Arg::with_name("proxy").long("proxy").short("p").takes_value(true)),
         context: matches => {
-            EmbassyLogger::no_sharing();
+            EmbassyLogger::init();
             CliContext::init(matches)?
         },
         exit: |e: RpcError| {
