@@ -52,7 +52,7 @@
                   (patch.data['server-info']['last-backup'] | date: 'short') :
                   'never' }}
                 </ion-text>
-                <span *ngIf="!!statusInfo['update-progress']" class="inline">
+                <span *ngIf="!!statusInfo['backing-up']" class="inline">
                   <ion-spinner
                     color="success"
                     style="height: 12px; width: 12px; margin-right: 6px"
