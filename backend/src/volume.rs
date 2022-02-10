@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
-use color_eyre::eyre::eyre;
 use patch_db::{HasModel, Map, MapModel};
 use serde::{Deserialize, Deserializer, Serialize};
 use tracing::instrument;

@@ -18,7 +18,7 @@ use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
-use crate::volume::{Volume, VolumeId, Volumes};
+use crate::volume::{VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &str = "embassy";
