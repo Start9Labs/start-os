@@ -605,25 +605,20 @@ async fn get_mem_info() -> Result<MetricsMemory, Error> {
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
     let package_used_task = get_used("/embassy-data/package-data");
     let package_available_task = get_available("/embassy-data/package-data");
-    let package_percentage_task = get_percentage("/embassy-data/package-data");
     let os_used_task = get_used("/embassy-data/main");
     let os_available_task = get_available("/embassy-data/main");
-    let os_percentage_task = get_percentage("/embassy-data/main");
 
-    let (package_used, package_available, package_percentage, os_used, os_available, os_percentage) =
-        futures::try_join!(
-            package_used_task,
-            package_available_task,
-            package_percentage_task,
-            os_used_task,
-            os_available_task,
-            os_percentage_task,
-        )?;
+    let (package_used, package_available, os_used, os_available) = futures::try_join!(
+        package_used_task,
+        package_available_task,
+        os_used_task,
+        os_available_task,
+    )?;
 
     let total_used = package_used + os_used;
     let total_available = package_available + os_available;
-    let total_percentage = package_percentage + os_percentage;
     let total_size = total_used + total_available;
+    let total_percentage = total_used as f64 / total_size as f64 * 100.0f64;
 
     Ok(MetricsDisk {
         size: GigaBytes(total_size as f64 / 1_000_000_000.0),
