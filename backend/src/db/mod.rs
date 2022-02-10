@@ -27,7 +27,6 @@ use self::util::WithRevision;
 use crate::context::RpcContext;
 use crate::middleware::auth::{HasValidSession, HashSessionToken};
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::util::GeneralGuard;
 use crate::{Error, ResultExt};
 
 #[instrument(skip(ctx, ws_fut))]
