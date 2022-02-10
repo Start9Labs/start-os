@@ -129,7 +129,6 @@ pub struct RpcContextSeed {
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub websocket_count: AtomicUsize,
     pub logger: EmbassyLogger,
-    pub log_epoch: Arc<AtomicU64>,
     pub tor_socks: SocketAddr,
     pub notification_manager: NotificationManager,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
@@ -151,24 +150,13 @@ impl RpcContext {
             Ipv4Addr::new(127, 0, 0, 1),
             9050,
         )));
-        let logger = EmbassyLogger::init(
-            base.log_server.clone(),
-            false,
-            tor_proxy.ip(),
-            tor_proxy.port(),
-        )?;
+        let logger = EmbassyLogger::init();
         tracing::info!("Set Logger");
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
         tracing::info!("Opened Sqlite DB");
         let db = base.db(&secret_store, &get_product_key().await?).await?;
         tracing::info!("Opened PatchDB");
-        let share = crate::db::DatabaseModel::new()
-            .server_info()
-            .share_stats()
-            .get(&mut db.handle(), true)
-            .await?;
-        logger.set_sharing(*share);
         let docker = Docker::connect_with_unix_defaults()?;
         tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
@@ -202,7 +190,6 @@ impl RpcContext {
             metrics_cache,
             shutdown,
             websocket_count: AtomicUsize::new(0),
-            log_epoch: logger.epoch(),
             logger,
             tor_socks: tor_proxy,
             notification_manager,

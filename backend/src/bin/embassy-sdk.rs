@@ -17,7 +17,7 @@ fn inner_main() -> Result<(), Error> {
                     .takes_value(true),
             ),
         context: matches => {
-            EmbassyLogger::no_sharing();
+            EmbassyLogger::init();
             SdkContext::init(matches)?
         },
         exit: |e: RpcError| {
