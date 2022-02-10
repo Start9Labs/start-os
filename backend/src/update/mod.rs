@@ -130,7 +130,7 @@ struct NewLabel(WritableDrives);
 struct CurrentLabel(WritableDrives);
 
 lazy_static! {
-    static ref PARSE_COLOR: Regex = Regex::new("#LABEL=(\\w+) /media/root-ro/").unwrap();
+    static ref PARSE_COLOR: Regex = Regex::new("LABEL=(\\w+)[ \t]+/").unwrap();
 }
 
 #[instrument(skip(ctx))]
@@ -480,18 +480,12 @@ async fn swap_boot_label(new_label: NewLabel) -> Result<(), Error> {
 #[test]
 fn test_capture() {
     let output = r#"
-#
-#  This fstab is for overlayroot. The real one can be found at
-#  /media/root-ro/etc/fstab
-#  The original entry for '/' and other mounts have been updated to be placed
-#  under /media/root-ro.
-#  To permanently modify this (or any other file), you should change-root into
-#  a writable view of the underlying filesystem using:
-#      sudo overlayroot-chroot
-#
-#LABEL=blue /media/root-ro/ ext4 ro,discard,errors=remount-ro,noauto 0 1
-/media/root-ro/ / overlay lowerdir=/media/root-ro/,upperdir=/media/root-rw/overlay/,workdir=/media/root-rw/overlay-workdir/_ 0 1
-LABEL=system-boot /boot/firmware vfat defaults 0 1 # overlayroot:fs-unsupported
+LABEL=blue       /       ext4    discard,errors=remount-ro       0       1
+LABEL=system-boot       /media/boot-rw  vfat    defaults        0       1
+/media/boot-rw  /boot   none    defaults,bind,ro        0       0
+LABEL=EMBASSY   /embassy-os     vfat    defaults        0       1
+# a swapfile is not a swap partition, no line here
+# use dphys-swapfile swap[on|off] for that
 "#;
     assert_eq!(&PARSE_COLOR.captures(&output).unwrap()[1], "blue");
 }
