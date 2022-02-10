@@ -21,13 +21,13 @@ export const mockPatchData: DataModel = {
     id: 'embassy-abcdefgh',
     version: '0.3.0',
     'last-backup': null,
-    status: ServerStatus.Running,
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
     'unread-notification-count': 4,
     'password-hash':
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
     'eos-version-compat': '>=0.3.0',
+    'status-info': null,
   },
   'recovered-packages': {
     'btc-rpc-proxy': {
