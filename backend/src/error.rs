@@ -63,6 +63,7 @@ pub enum ErrorKind {
     Incoherent = 55,
     InvalidBackupTargetId = 56,
     ProductKeyMismatch = 57,
+    LanPortConflict = 58,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -125,6 +126,7 @@ impl ErrorKind {
             Incoherent => "Incoherent",
             InvalidBackupTargetId => "Invalid Backup Target ID",
             ProductKeyMismatch => "Incompatible Product Keys",
+            LanPortConflict => "Incompatible LAN port configuration",
         }
     }
 }
