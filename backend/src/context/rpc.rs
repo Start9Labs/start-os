@@ -15,7 +15,7 @@ use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::SqlitePool;
+use sqlx::{Acquire, SqlitePool};
 use tokio::fs::File;
 use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
@@ -287,7 +287,13 @@ impl RpcContext {
                         cleanup_failed(self, &mut db, &package_id).await?;
                     }
                     PackageDataEntry::Removing { .. } => {
-                        uninstall(self, &mut db, &package_id).await?;
+                        uninstall(
+                            self,
+                            &mut db,
+                            &mut self.secret_store.acquire().await?,
+                            &package_id,
+                        )
+                        .await?;
                     }
                     PackageDataEntry::Installed {
                         installed:
