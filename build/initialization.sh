@@ -60,9 +60,12 @@ EOF
 
 cat /embassy-os/product_key.txt | tr -d '\n' | sha256sum | head -c 32 | sed 's/$/\n/' > /etc/machine-id
 
+passwd -l pi
+
 raspi-config nonint enable_overlayfs
 systemctl disable initialization.service
 sudo systemctl restart NetworkManager
+
 sync
 
 # TODO: clean out ssh host keys
