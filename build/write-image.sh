@@ -82,7 +82,12 @@ sudo mkdir -p /tmp/eos-mnt/root/.ssh
 #sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/90-updates-available
 #sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/95-hwe-eol
 
-sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
+if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
+	cat ./build/initialization.sh | grep -v "passwd -l pi" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
+	sudo chmod +x /tmp/eos-mnt/usr/local/bin/initialization.sh
+else
+	sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
+fi
 
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
 sudo ln -s /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
