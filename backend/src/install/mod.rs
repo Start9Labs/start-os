@@ -125,11 +125,6 @@ pub async fn install(
         .await
         .with_kind(crate::ErrorKind::Registry)?;
     let mut db_handle = ctx.db.handle();
-    // TODO: Ask Aiden why this didn't work
-    // let manifests = stream::iter(crate::db::package::get_packages(&mut db_handle).await?)
-    //     .then(move |pkg| crate::db::package::get_manifest(&mut db_handle, &pkg))
-    //     .try_filter_map(|a| async { Ok(a) })
-    //     .try_collect::<Vec<Manifest>>();
     // Build set of existing manifests
     let mut manifests = Vec::new();
     for pkg in crate::db::package::get_packages(&mut db_handle).await? {
