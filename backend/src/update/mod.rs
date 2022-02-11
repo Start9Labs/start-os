@@ -394,52 +394,44 @@ async fn check_download(hash_from_header: &str, file_digest: Vec<u8>) -> Result<
 
 async fn copy_machine_id(new_label: NewLabel) -> Result<(), Error> {
     let new_guard = TmpMountGuard::mount(&new_label.0.as_fs()).await?;
-    let old_guard = TmpMountGuard::mount(&new_label.0.invert().as_fs()).await?;
-    tokio::fs::copy(
-        old_guard.as_ref().join("etc/machine-id"),
-        new_guard.as_ref().join("etc/machine-id"),
-    )
-    .await?;
+    tokio::fs::copy("/etc/machine-id", new_guard.as_ref().join("etc/machine-id")).await?;
     new_guard.unmount().await?;
-    old_guard.unmount().await?;
     Ok(())
 }
 
 async fn copy_ssh_host_keys(new_label: NewLabel) -> Result<(), Error> {
     let new_guard = TmpMountGuard::mount(&new_label.0.as_fs()).await?;
-    let old_guard = TmpMountGuard::mount(&new_label.0.invert().as_fs()).await?;
     tokio::fs::copy(
-        old_guard.as_ref().join("etc/ssh/ssh_host_rsa_key"),
+        "/etc/ssh/ssh_host_rsa_key",
         new_guard.as_ref().join("etc/ssh/ssh_host_rsa_key"),
     )
     .await?;
     tokio::fs::copy(
-        old_guard.as_ref().join("etc/ssh/ssh_host_rsa_key.pub"),
+        "/etc/ssh/ssh_host_rsa_key.pub",
         new_guard.as_ref().join("etc/ssh/ssh_host_rsa_key.pub"),
     )
     .await?;
     tokio::fs::copy(
-        old_guard.as_ref().join("etc/ssh/ssh_host_ecdsa_key"),
+        "/etc/ssh/ssh_host_ecdsa_key",
         new_guard.as_ref().join("etc/ssh/ssh_host_ecdsa_key"),
     )
     .await?;
     tokio::fs::copy(
-        old_guard.as_ref().join("etc/ssh/ssh_host_ecdsa_key.pub"),
+        "/etc/ssh/ssh_host_ecdsa_key.pub",
         new_guard.as_ref().join("etc/ssh/ssh_host_ecdsa_key.pub"),
     )
     .await?;
     tokio::fs::copy(
-        old_guard.as_ref().join("etc/ssh/ssh_host_ed25519_key"),
+        "/etc/ssh/ssh_host_ed25519_key",
         new_guard.as_ref().join("etc/ssh/ssh_host_ed25519_key"),
     )
     .await?;
     tokio::fs::copy(
-        old_guard.as_ref().join("etc/ssh/ssh_host_ed25519_key.pub"),
+        "/etc/ssh/ssh_host_ed25519_key.pub",
         new_guard.as_ref().join("etc/ssh/ssh_host_ed25519_key.pub"),
     )
     .await?;
     new_guard.unmount().await?;
-    old_guard.unmount().await?;
     Ok(())
 }
 
