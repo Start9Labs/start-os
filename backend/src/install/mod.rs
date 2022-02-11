@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::future::BoxFuture;
-use futures::{FutureExt, StreamExt, TryStreamExt};
+use futures::future::{self, BoxFuture};
+use futures::{stream, FutureExt, StreamExt, TryStreamExt};
 use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::Body;
@@ -43,7 +43,7 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
 use crate::util::io::{copy_and_shutdown, response_to_reader};
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::{display_serializable, IoFormat, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::asset_dir;
@@ -124,6 +124,52 @@ pub async fn install(
         .json()
         .await
         .with_kind(crate::ErrorKind::Registry)?;
+    let mut db_handle = ctx.db.handle();
+    // TODO: Ask Aiden why this didn't work
+    // let manifests = stream::iter(crate::db::package::get_packages(&mut db_handle).await?)
+    //     .then(move |pkg| crate::db::package::get_manifest(&mut db_handle, &pkg))
+    //     .try_filter_map(|a| async { Ok(a) })
+    //     .try_collect::<Vec<Manifest>>();
+    // Build set of existing manifests
+    let mut manifests = Vec::new();
+    for pkg in crate::db::package::get_packages(&mut db_handle).await? {
+        match crate::db::package::get_manifest(&mut db_handle, &pkg).await? {
+            Some(m) => {
+                manifests.push(m);
+            }
+            None => {}
+        }
+    }
+    // Build map of current port -> ssl mappings
+    let port_map = ssl_port_status(manifests);
+
+    // if any of the requested interface lan configs conflict with current state, fail the install
+    for (id, iface) in &man.interfaces.0 {
+        if let Some(cfg) = &iface.lan_config {
+            for (p, lan) in cfg {
+                if p.0 == 80 && lan.ssl || p.0 == 443 && !lan.ssl {
+                    return Err(Error::new(
+                        eyre!("SSL Conflict with EmbassyOS"),
+                        ErrorKind::LanPortConflict,
+                    ));
+                }
+                match port_map.get(&p) {
+                    Some((ssl, pkg)) => {
+                        if *ssl != lan.ssl {
+                            return Err(Error::new(
+                                eyre!("SSL Conflict with package: {}", pkg),
+                                ErrorKind::LanPortConflict,
+                            ));
+                        }
+                    }
+                    None => {
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
     let s9pk = s9pk
         .error_for_status()
         .with_kind(crate::ErrorKind::Registry)?;
@@ -1298,4 +1344,21 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
         }
     }
     .boxed()
+}
+
+fn ssl_port_status(manifests: Vec<Manifest>) -> BTreeMap<Port, (bool, PackageId)> {
+    let mut ret = BTreeMap::new();
+    for m in manifests {
+        for (id, iface) in m.interfaces.0 {
+            match iface.lan_config {
+                None => {}
+                Some(cfg) => {
+                    for (p, lan) in cfg {
+                        ret.insert(p, (lan.ssl, m.id))
+                    }
+                }
+            }
+        }
+    }
+    ret
 }
