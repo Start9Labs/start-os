@@ -223,6 +223,15 @@ impl PackageDataEntry {
             Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
         }
     }
+    pub fn manifest(self) -> Manifest {
+        match self {
+            PackageDataEntry::Installing { manifest, .. } => manifest,
+            PackageDataEntry::Updating { manifest, .. } => manifest,
+            PackageDataEntry::Restoring { manifest, .. } => manifest,
+            PackageDataEntry::Removing { manifest, .. } => manifest,
+            PackageDataEntry::Installed { manifest, .. } => manifest,
+        }
+    }
 }
 impl PackageDataEntryModel {
     pub fn installed(self) -> OptionModel<InstalledPackageDataEntry> {
