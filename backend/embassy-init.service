@@ -2,7 +2,7 @@
 Description=Embassy Init
 After=network.target systemd-time-wait-sync.service
 Requires=network.target
-Wants=avahi-daemon.service nginx.service tor.service
+Wants=avahi-daemon.service nginx.service tor.service systemd-time-wait-sync.service
 
 [Service]
 Type=oneshot
