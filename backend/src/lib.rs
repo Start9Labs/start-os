@@ -92,6 +92,7 @@ pub fn server() -> Result<(), RpcError> {
     install::install,
     install::sideload,
     install::uninstall,
+    install::delete_recovered,
     install::list,
     install::update::update,
     config::config,
