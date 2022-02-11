@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use bollard::image::ListImagesOptions;
 use color_eyre::eyre::eyre;
 use patch_db::{DbHandle, LockType, PatchDbHandle};
+use sqlx::{Executor, Sqlite};
 use tracing::instrument;
 
 use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
@@ -233,12 +234,16 @@ pub async fn remove_from_current_dependents_lists<
     Ok(())
 }
 
-#[instrument(skip(ctx, db))]
-pub async fn uninstall(
+#[instrument(skip(ctx, secrets, db))]
+pub async fn uninstall<Ex>(
     ctx: &RpcContext,
     db: &mut PatchDbHandle,
+    secrets: &mut Ex,
     id: &PackageId,
-) -> Result<(), Error> {
+) -> Result<(), Error>
+where
+    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+{
     let mut tx = db.begin().await?;
     crate::db::DatabaseModel::new()
         .package_data()
@@ -288,5 +293,18 @@ pub async fn uninstall(
         tokio::fs::remove_dir_all(&volumes).await?;
     }
     tx.commit(None).await?;
+    remove_tor_keys(secrets, &entry.manifest.id).await?;
+    Ok(())
+}
+
+#[instrument(skip(secrets))]
+pub async fn remove_tor_keys<Ex>(secrets: &mut Ex, id: &PackageId) -> Result<(), Error>
+where
+    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+{
+    let id_str = id.as_str();
+    sqlx::query!("DELETE FROM tor WHERE package = ?", id_str)
+        .execute(secrets)
+        .await?;
     Ok(())
 }

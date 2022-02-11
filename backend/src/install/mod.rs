@@ -564,7 +564,17 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
     drop(handle);
 
     tokio::spawn(async move {
-        if let Err(e) = cleanup::uninstall(&ctx, &mut ctx.db.handle(), &id).await {
+        if let Err(e) = async {
+            cleanup::uninstall(
+                &ctx,
+                &mut ctx.db.handle(),
+                &mut ctx.secret_store.acquire().await?,
+                &id,
+            )
+            .await
+        }
+        .await
+        {
             let err_str = format!("Uninstall of {} Failed: {}", id, e);
             tracing::error!("{}", err_str);
             tracing::debug!("{:?}", e);
@@ -586,6 +596,42 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
             }
         }
     });
+
+    Ok(WithRevision {
+        revision: res,
+        response: (),
+    })
+}
+
+#[command(rename = "delete-recovered", display(display_none))]
+pub async fn delete_recovered(
+    #[context] ctx: RpcContext,
+    #[arg] id: PackageId,
+) -> Result<WithRevision<()>, Error> {
+    let mut handle = ctx.db.handle();
+    let mut tx = handle.begin().await?;
+    let mut sql_tx = ctx.secret_store.begin().await?;
+
+    let mut recovered_packages = crate::db::DatabaseModel::new()
+        .recovered_packages()
+        .get_mut(&mut tx)
+        .await?;
+    recovered_packages.remove(&id).ok_or_else(|| {
+        Error::new(
+            eyre!("{} not in recovered-packages", id),
+            crate::ErrorKind::NotFound,
+        )
+    })?;
+    recovered_packages.save(&mut tx).await?;
+
+    let volumes = ctx.datadir.join(crate::volume::PKG_VOLUME_DIR).join(&id);
+    if tokio::fs::metadata(&volumes).await.is_ok() {
+        tokio::fs::remove_dir_all(&volumes).await?;
+    }
+    cleanup::remove_tor_keys(&mut sql_tx, &id).await?;
+
+    let res = tx.commit(None).await?;
+    sql_tx.commit().await?;
 
     Ok(WithRevision {
         revision: res,

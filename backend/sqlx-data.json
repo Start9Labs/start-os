@@ -162,6 +162,16 @@
       "nullable": []
     }
   },
+  "56b986f2a2b7091d9c3acdd78f75d9842242de1f4da8f3672f2793d9fb256928": {
+    "query": "DELETE FROM tor WHERE package = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
   "5b114c450073f77f466c980a2541293f30087b57301c379630326e5e5c2fb792": {
     "query": "REPLACE INTO tor (package, interface, key) VALUES (?, ?, ?)",
     "describe": {
