@@ -29,6 +29,8 @@ use crate::util::{display_none, AtomicFile};
 use crate::version::VersionT;
 use crate::Error;
 
+use tokio::sync::oneshot::Sender;
+
 #[derive(Debug)]
 pub struct OsBackup {
     pub tor_key: TorSecretKeyV3,
@@ -51,10 +53,12 @@ impl<'de> Deserialize<'de> for OsBackup {
         }
         let int = OsBackupDe::deserialize(deserializer)?;
         let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, &int.tor_key)
-            .ok_or(serde::de::Error::invalid_value(
-                serde::de::Unexpected::Str(&int.tor_key),
-                &"an RFC4648 encoded string",
-            ))?;
+            .ok_or_else(|| {
+                serde::de::Error::invalid_value(
+                    serde::de::Unexpected::Str(&int.tor_key),
+                    &"an RFC4648 encoded string",
+                )
+            })?;
         if key_vec.len() != 64 {
             return Err(serde::de::Error::invalid_value(
                 serde::de::Unexpected::Str(&int.tor_key),
@@ -246,7 +250,7 @@ async fn perform_backup<Db: DbHandle>(
 
     for package_id in crate::db::DatabaseModel::new()
         .package_data()
-        .keys(&mut db, true)
+        .keys(&mut db, false)
         .await?
     {
         let installed_model = if let Some(installed_model) = crate::db::DatabaseModel::new()
@@ -284,7 +288,7 @@ async fn perform_backup<Db: DbHandle>(
             .put(
                 &mut tx,
                 &MainStatus::BackingUp {
-                    started: started.clone(),
+                    started,
                     health: health.clone(),
                 },
             )
@@ -294,7 +298,7 @@ async fn perform_backup<Db: DbHandle>(
         let manifest = installed_model
             .clone()
             .manifest()
-            .get(&mut db, true)
+            .get(&mut db, false)
             .await?;
 
         ctx.managers
@@ -314,7 +318,7 @@ async fn perform_backup<Db: DbHandle>(
         let res = manifest
             .backup
             .create(
-                &ctx,
+                ctx,
                 &package_id,
                 &manifest.title,
                 &manifest.version,
