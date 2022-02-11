@@ -10,6 +10,7 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::oneshot::Sender;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
@@ -28,8 +29,6 @@ use crate::util::serde::IoFormat;
 use crate::util::{display_none, AtomicFile};
 use crate::version::VersionT;
 use crate::Error;
-
-use tokio::sync::oneshot::Sender;
 
 #[derive(Debug)]
 pub struct OsBackup {
@@ -253,11 +252,12 @@ async fn perform_backup<Db: DbHandle>(
         .keys(&mut db, false)
         .await?
     {
+        let mut tx = db.begin().await?; // for lock scope
         let installed_model = if let Some(installed_model) = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(&package_id)
             .and_then(|m| m.installed())
-            .check(&mut db)
+            .check(&mut tx)
             .await?
         {
             installed_model
@@ -266,7 +266,6 @@ async fn perform_backup<Db: DbHandle>(
         };
         let main_status_model = installed_model.clone().status().main();
 
-        let mut tx = db.begin().await?; // for lock scope
         main_status_model.lock(&mut tx, LockType::Write).await?;
         let (started, health) = match main_status_model.get(&mut tx, true).await?.into_owned() {
             MainStatus::Starting => (Some(Utc::now()), Default::default()),
