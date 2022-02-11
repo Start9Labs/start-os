@@ -10,6 +10,7 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::oneshot::Sender;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
@@ -51,10 +52,12 @@ impl<'de> Deserialize<'de> for OsBackup {
         }
         let int = OsBackupDe::deserialize(deserializer)?;
         let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, &int.tor_key)
-            .ok_or(serde::de::Error::invalid_value(
-                serde::de::Unexpected::Str(&int.tor_key),
-                &"an RFC4648 encoded string",
-            ))?;
+            .ok_or_else(|| {
+                serde::de::Error::invalid_value(
+                    serde::de::Unexpected::Str(&int.tor_key),
+                    &"an RFC4648 encoded string",
+                )
+            })?;
         if key_vec.len() != 64 {
             return Err(serde::de::Error::invalid_value(
                 serde::de::Unexpected::Str(&int.tor_key),
@@ -246,14 +249,15 @@ async fn perform_backup<Db: DbHandle>(
 
     for package_id in crate::db::DatabaseModel::new()
         .package_data()
-        .keys(&mut db, true)
+        .keys(&mut db, false)
         .await?
     {
+        let mut tx = db.begin().await?; // for lock scope
         let installed_model = if let Some(installed_model) = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(&package_id)
             .and_then(|m| m.installed())
-            .check(&mut db)
+            .check(&mut tx)
             .await?
         {
             installed_model
@@ -262,7 +266,6 @@ async fn perform_backup<Db: DbHandle>(
         };
         let main_status_model = installed_model.clone().status().main();
 
-        let mut tx = db.begin().await?; // for lock scope
         main_status_model.lock(&mut tx, LockType::Write).await?;
         let (started, health) = match main_status_model.get(&mut tx, true).await?.into_owned() {
             MainStatus::Starting => (Some(Utc::now()), Default::default()),
@@ -284,7 +287,7 @@ async fn perform_backup<Db: DbHandle>(
             .put(
                 &mut tx,
                 &MainStatus::BackingUp {
-                    started: started.clone(),
+                    started,
                     health: health.clone(),
                 },
             )
@@ -294,7 +297,7 @@ async fn perform_backup<Db: DbHandle>(
         let manifest = installed_model
             .clone()
             .manifest()
-            .get(&mut db, true)
+            .get(&mut db, false)
             .await?;
 
         ctx.managers
@@ -306,13 +309,15 @@ async fn perform_backup<Db: DbHandle>(
             .synchronize()
             .await;
 
-        installed_model.lock(&mut db, LockType::Write).await?;
+        let mut tx = db.begin().await?;
+
+        installed_model.lock(&mut tx, LockType::Write).await?;
 
         let guard = backup_guard.mount_package_backup(&package_id).await?;
         let res = manifest
             .backup
             .create(
-                &ctx,
+                ctx,
                 &package_id,
                 &manifest.title,
                 &manifest.version,
@@ -320,7 +325,7 @@ async fn perform_backup<Db: DbHandle>(
                 &manifest.volumes,
             )
             .await;
-        drop(guard);
+        guard.unmount().await?;
         backup_report.insert(
             package_id.clone(),
             PackageBackupReport {
@@ -328,7 +333,6 @@ async fn perform_backup<Db: DbHandle>(
             },
         );
 
-        let mut tx = db.begin().await?;
         if let Ok(pkg_meta) = res {
             installed_model
                 .last_backup()
