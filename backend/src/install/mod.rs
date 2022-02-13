@@ -1389,7 +1389,6 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
 
 fn ssl_port_status(manifests: Vec<Manifest>) -> BTreeMap<Port, (bool, PackageId)> {
     let mut ret = BTreeMap::new();
-
     for m in manifests {
         for (id, iface) in &m.interfaces.0 {
             match &iface.lan_config {
