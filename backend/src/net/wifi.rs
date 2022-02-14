@@ -105,7 +105,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         let current = wpa_supplicant.get_current_network().await?;
         drop(wpa_supplicant);
         let mut wpa_supplicant = wifi_manager.write().await;
-        let connected = wpa_supplicant.select_network(&mut db, &ssid).await?;
+        let connected = wpa_supplicant.select_network(&mut db, ssid).await?;
         if connected {
             tracing::info!("Successfully connected to WiFi: '{}'", ssid.0);
         } else {
@@ -205,13 +205,13 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
         &info
             .connected
             .as_ref()
-            .map_or("[N/A]".to_owned(), |c| format!("{}", c.0)),
+            .map_or("[N/A]".to_owned(), |c| c.0.clone()),
         &info
             .connected
             .as_ref()
             .and_then(|x| info.ssids.get(x))
             .map_or("[N/A]".to_owned(), |ss| format!("{}", ss.0)),
-        &format!("{}", info.country.alpha2()),
+        &info.country.alpha2(),
         &format!("{}", info.ethernet)
     ]);
     table_global.print_tty(false);
@@ -244,7 +244,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
         table_global.add_row(row![
             &table_info.ssid.0,
             &format!("{}", table_info.strength.0),
-            &format!("{}", table_info.security.join(" "))
+            &table_info.security.join(" ")
         ]);
     }
 
@@ -268,7 +268,7 @@ fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches<'_>) {
         table_global.add_row(row![
             &table_info.ssid.0,
             &format!("{}", table_info.strength.0),
-            &format!("{}", table_info.security.join(" "))
+            &table_info.security.join(" ")
         ]);
     }
 
@@ -321,7 +321,7 @@ pub async fn get(
     let current = current_res?;
     Ok(WiFiInfo {
         ssids,
-        connected: current.map(|x| x),
+        connected: current,
         country: country_res?,
         ethernet: ethernet_res?,
         available_wifi,
@@ -394,7 +394,17 @@ pub struct Ssid(String);
 
 /// So a signal strength is a number between 0-100, I want the null option to be 0 since there is no signal
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 pub struct SignalStrength(u8);
 
@@ -411,11 +421,6 @@ impl SignalStrength {
     }
 }
 
-impl Default for SignalStrength {
-    fn default() -> Self {
-        Self(0)
-    }
-}
 #[derive(Clone, Debug)]
 pub struct Psk(String);
 impl WpaCli {
@@ -492,26 +497,24 @@ impl WpaCli {
         lazy_static! {
             static ref RE: Regex = Regex::new("country (\\w+):").unwrap();
         }
-        let first_country = r
-            .lines()
-            .filter(|s| s.contains("country"))
-            .next()
-            .ok_or_else(|| {
-                Error::new(
-                    color_eyre::eyre::eyre!("Could not find a country config lines"),
-                    ErrorKind::Wifi,
-                )
-            })?;
+        let first_country = r.lines().find(|s| s.contains("country")).ok_or_else(|| {
+            Error::new(
+                color_eyre::eyre::eyre!("Could not find a country config lines"),
+                ErrorKind::Wifi,
+            )
+        })?;
         let country = &RE.captures(first_country).ok_or_else(|| {
             Error::new(
                 color_eyre::eyre::eyre!("Could not find a country config with regex"),
                 ErrorKind::Wifi,
             )
         })?[1];
-        Ok(CountryCode::for_alpha2(country).or(Err(Error::new(
-            color_eyre::eyre::eyre!("Invalid Country Code: {}", country),
-            ErrorKind::Wifi,
-        )))?)
+        Ok(CountryCode::for_alpha2(country).map_err(|_| {
+            Error::new(
+                color_eyre::eyre::eyre!("Invalid Country Code: {}", country),
+                ErrorKind::Wifi,
+            )
+        })?)
     }
     pub async fn remove_network_low(&mut self, id: NetworkId) -> Result<(), Error> {
         let _ = Command::new("nmcli")
@@ -533,11 +536,14 @@ impl WpaCli {
         Ok(String::from_utf8(r)?
             .lines()
             .filter_map(|l| {
-                let mut cs = l.split(":");
+                let mut cs = l.split(':');
                 let name = Ssid(cs.next()?.to_owned());
                 let uuid = NetworkId(cs.next()?.to_owned());
-                let _connection_type = cs.next()?;
-                let _device = cs.next()?;
+                let connection_type = cs.next()?;
+                let device = cs.next()?;
+                if !device.contains("wlan0") || !connection_type.contains("wireless") {
+                    return None;
+                }
                 Some((name, uuid))
             })
             .collect::<BTreeMap<Ssid, NetworkId>>())
@@ -556,11 +562,11 @@ impl WpaCli {
         Ok(String::from_utf8(r)?
             .lines()
             .filter_map(|l| {
-                let mut values = l.split(":");
+                let mut values = l.split(':');
                 let ssid = Ssid(values.next()?.to_owned());
                 let signal = SignalStrength::new(std::str::FromStr::from_str(values.next()?).ok());
                 let security: Vec<String> =
-                    values.next()?.split(" ").map(|x| x.to_owned()).collect();
+                    values.next()?.split(' ').map(|x| x.to_owned()).collect();
                 Some((
                     ssid,
                     WifiListInfo {
@@ -618,12 +624,9 @@ impl WpaCli {
                     let mut current;
                     loop {
                         current = self.get_current_network().await;
-                        match &current {
-                            Ok(Some(ssid)) => {
-                                tracing::debug!("Connected to: {}", ssid.0);
-                                break;
-                            }
-                            _ => {}
+                        if let Ok(Some(ssid)) = &current {
+                            tracing::debug!("Connected to: {}", ssid.0);
+                            break;
                         }
                         tokio::time::sleep(Duration::from_millis(500)).await;
                         tracing::debug!("Retrying...");
@@ -677,7 +680,7 @@ impl WpaCli {
         psk: &Psk,
         priority: isize,
     ) -> Result<(), Error> {
-        self.set_add_network_low(&ssid, &psk).await?;
+        self.set_add_network_low(ssid, psk).await?;
         self.save_config(db).await?;
         Ok(())
     }
@@ -689,7 +692,7 @@ impl WpaCli {
         psk: &Psk,
         priority: isize,
     ) -> Result<(), Error> {
-        self.add_network_low(&ssid, &psk).await?;
+        self.add_network_low(ssid, psk).await?;
         self.save_config(db).await?;
         Ok(())
     }
@@ -703,16 +706,17 @@ pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
         .await?;
     let v = std::str::from_utf8(&out)?
         .lines()
-        .filter(|s| s.contains("inet"))
-        .next();
-    Ok(!v.is_none())
+        .find(|s| s.contains("inet"));
+    Ok(v.is_some())
 }
 
 pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<CountryCode, Error> {
-    CountryCode::for_alpha2(code).or(Err(Error::new(
-        color_eyre::eyre::eyre!("Invalid Country Code: {}", code),
-        ErrorKind::Wifi,
-    )))
+    CountryCode::for_alpha2(code).map_err(|_| {
+        Error::new(
+            color_eyre::eyre::eyre!("Invalid Country Code: {}", code),
+            ErrorKind::Wifi,
+        )
+    })
 }
 
 #[instrument(skip(main_datadir))]
@@ -722,16 +726,16 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
 ) -> Result<(), Error> {
     let persistent = main_datadir.as_ref().join("system-connections");
     tracing::debug!("persistent: {:?}", persistent);
-    let supplicant = Path::new("/etc/wpa_supplicant.conf");
+    // let supplicant = Path::new("/etc/wpa_supplicant.conf");
 
     if tokio::fs::metadata(&persistent).await.is_err() {
         tokio::fs::create_dir_all(&persistent).await?;
     }
     crate::disk::mount::util::bind(&persistent, "/etc/NetworkManager/system-connections", false)
         .await?;
-    if tokio::fs::metadata(&supplicant).await.is_err() {
-        tokio::fs::write(&supplicant, include_str!("wpa_supplicant.conf.base")).await?;
-    }
+    // if tokio::fs::metadata(&supplicant).await.is_err() {
+    //     tokio::fs::write(&supplicant, include_str!("wpa_supplicant.conf.base")).await?;
+    // }
 
     Command::new("systemctl")
         .arg("restart")
@@ -750,6 +754,14 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
             .arg("reg")
             .arg("set")
             .arg(last_country_code.alpha2())
+            .invoke(ErrorKind::Wifi)
+            .await?;
+    } else {
+        tracing::info!("Setting the region fallback");
+        let _ = Command::new("iw")
+            .arg("reg")
+            .arg("set")
+            .arg("US")
             .invoke(ErrorKind::Wifi)
             .await?;
     }
