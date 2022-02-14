@@ -74,13 +74,10 @@ sudo cp -R frontend/dist/ui /tmp/eos-mnt/var/www/html/main
 sudo mkdir -p /tmp/eos-mnt/root/.ssh
 
 # Custom MOTD
-#sudo sed -i 's/ENABLED=1/ENABLED=0/g' /tmp/eos-mnt/etc/default/motd-news
-#sudo rm /tmp/eos-mnt/etc/update-motd.d/50-landscape-sysinfo
-#sudo cp ./build/00-embassy /tmp/eos-mnt/etc/update-motd.d
-#sudo chmod -x /tmp/eos-mnt/etc/update-motd.d/*
-#sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/00-embassy
-#sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/90-updates-available
-#sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/95-hwe-eol
+sudo rm /tmp/eos-mnt/etc/motd
+sudo cp ./build/00-embassy /tmp/eos-mnt/etc/update-motd.d
+sudo chmod -x /tmp/eos-mnt/etc/update-motd.d/*
+sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/00-embassy
 
 if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 	cat ./build/initialization.sh | grep -v "passwd -l pi" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
