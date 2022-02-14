@@ -1,8 +1,8 @@
 [Unit]
 Description=Embassy Init
-After=network.target systemd-time-wait-sync.service
+After=network.target ntp.service
 Requires=network.target
-Wants=avahi-daemon.service nginx.service tor.service systemd-time-wait-sync.service
+Wants=avahi-daemon.service nginx.service tor.service ntp.service
 
 [Service]
 Type=oneshot
