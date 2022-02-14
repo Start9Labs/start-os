@@ -93,21 +93,22 @@ pub async fn attach(
     #[arg] guid: Arc<String>,
 ) -> Result<SetupResult, Error> {
     crate::disk::main::import(&*guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
-    init(
-        &RpcContextConfig::load(ctx.config_path.as_ref()).await?,
-        &get_product_key().await?,
-    )
-    .await?;
-    let product_id_path = Path::new("/embassy-data/main/product_id.txt");
-    if tokio::fs::metadata(product_id_path).await.is_ok() {
-        let pid = tokio::fs::read_to_string(product_id_path).await?;
-        if pid != crate::hostname::derive_id(&*ctx.product_key().await?) {
+    let product_key_path = Path::new("/embassy-data/main/product_key.txt");
+    if tokio::fs::metadata(product_key_path).await.is_ok() {
+        let pkey = tokio::fs::read_to_string(product_key_path).await?;
+        if pkey.trim() != &*ctx.product_key().await? {
+            crate::disk::main::export(&*guid, &ctx.datadir).await?;
             return Err(Error::new(
                 eyre!("The EmbassyOS product key does not match the supplied drive"),
                 ErrorKind::ProductKeyMismatch,
             ));
         }
     }
+    init(
+        &RpcContextConfig::load(ctx.config_path.as_ref()).await?,
+        &*ctx.product_key().await?,
+    )
+    .await?;
     *ctx.disk_guid.write().await = Some(guid.clone());
     let secrets = ctx.secret_store().await?;
     let tor_key = crate::net::tor::os_key(&mut secrets.acquire().await?).await?;
@@ -252,8 +253,8 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<(), Error> {
         }
     }
     tokio::fs::write(
-        Path::new("/embassy-data/main/product_id.txt"),
-        crate::hostname::derive_id(&*ctx.product_key().await?),
+        Path::new("/embassy-data/main/product_key.txt"),
+        &*ctx.product_key().await?,
     )
     .await?;
     let secrets = ctx.secret_store().await?;
