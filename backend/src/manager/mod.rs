@@ -495,6 +495,7 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
                     Ok(()) => {}
                 }
                 tracing::error!("service crashed: {}: {}", e.0, e.1);
+                tokio::time::sleep(Duration::from_secs(15)).await;
             }
             Err(e) => {
                 tracing::error!("failed to start service: {}", e);
@@ -572,24 +573,16 @@ async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
 
 #[instrument(skip(shared))]
 async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
-    let mut res = Ok(());
-    for _retry in 0..5 {
-        res = shared
-            .ctx
-            .docker
-            .pause_container(&shared.container_name)
-            .await;
-        if !matches!(
-            res,
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 500,
-                ..
-            }),
-        ) {
-            break;
-        }
+    if let Err(e) = shared
+        .ctx
+        .docker
+        .pause_container(&shared.container_name)
+        .await
+    {
+        tracing::error!("failed to pause container. stopping instead. {}", e);
+        tracing::debug!("{:?}", e);
+        return stop(shared).await;
     }
-    res?;
     shared
         .status
         .store(Status::Paused as usize, std::sync::atomic::Ordering::SeqCst);
