@@ -17,6 +17,7 @@ if [ -z "$OUTPUT_DEVICE" ]; then
   export DETACH_OUTPUT_DEVICE=1
 else
   export DETACH_OUTPUT_DEVICE=0
+  sudo dd if=/dev/zero of=$OUTPUT_DEVICE bs=1M count=1
 fi
 export LOOPDEV=$(sudo losetup --show -fP raspios.img)
 ./build/partitioning.sh

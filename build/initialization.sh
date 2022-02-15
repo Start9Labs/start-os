@@ -6,8 +6,6 @@ set -e
 ! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
 mount -o remount,rw /boot
 
-curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
-
 apt-get update
 apt-get install -y \
 	tor \
@@ -28,9 +26,12 @@ apt-get install -y \
 	samba-common-bin \
 	ntp \
 	network-manager
+
+curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
+
 apt-get purge openresolv dhcpcd5 -y
-echo "#" > /etc/network/interfaces
 systemctl disable wpa_supplicant.service 
+
 apt-get autoremove -y
 apt-get upgrade -y
 
@@ -39,6 +40,7 @@ sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \
 sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
 # sed -i 's/ExecStart=\/sbin\/wpa_supplicant -u -s -O \/run\/wpa_supplicant/ExecStart=\/sbin\/wpa_supplicant -u -s -O \/run\/wpa_supplicant -c \/etc\/wpa_supplicant.conf -i wlan0/g' /lib/systemd/system/wpa_supplicant.service
 sed -i 's/#allow-interfaces=eth0/allow-interfaces=eth0,wlan0/g' /etc/avahi/avahi-daemon.conf
+echo "#" > /etc/network/interfaces
 mkdir -p /etc/nginx/ssl
 
 # fix to suppress docker warning, fixed in 21.xx release of docker cli: https://github.com/docker/cli/pull/2934
