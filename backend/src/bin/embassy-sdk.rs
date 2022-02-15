@@ -1,5 +1,6 @@
 use embassy::context::SdkContext;
 use embassy::util::logger::EmbassyLogger;
+use embassy::version::{Current, VersionT};
 use embassy::Error;
 use rpc_toolkit::run_cli;
 use rpc_toolkit::yajrc::RpcError;
@@ -10,6 +11,7 @@ fn inner_main() -> Result<(), Error> {
         command: embassy::portable_api,
         app: app => app
             .name("Embassy SDK")
+            .version(Current::new().semver().to_string().as_str())
             .arg(
                 clap::Arg::with_name("config")
                     .short("c")
