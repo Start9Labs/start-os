@@ -1,9 +1,13 @@
 import { Component, Input } from '@angular/core'
-import { LoadingController, ModalController, IonicSafeString } from '@ionic/angular'
+import {
+  LoadingController,
+  ModalController,
+  IonicSafeString,
+} from '@ionic/angular'
 import { BackupInfo, PackageBackupInfo } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
-import { Emver } from 'src/app/services/emver.service'
+import { Emver } from '@start9labs/shared'
 import { getErrorMessage } from 'src/app/services/error-toast.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
@@ -26,39 +30,43 @@ export class AppRecoverSelectPage {
   hasSelection = false
   error: string | IonicSafeString
 
-  constructor (
+  constructor(
     private readonly modalCtrl: ModalController,
     private readonly loadingCtrl: LoadingController,
     private readonly embassyApi: ApiService,
     private readonly config: ConfigService,
     private readonly emver: Emver,
     private readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.options = Object.keys(this.backupInfo['package-backups']).map(id => {
       return {
         ...this.backupInfo['package-backups'][id],
         id,
         checked: false,
         installed: !!this.patch.getData()['package-data'][id],
-        'newer-eos': this.emver.compare(this.backupInfo['package-backups'][id]['os-version'], this.config.version) === 1,
+        'newer-eos':
+          this.emver.compare(
+            this.backupInfo['package-backups'][id]['os-version'],
+            this.config.version,
+          ) === 1,
       }
     })
   }
 
-  dismiss () {
+  dismiss() {
     this.modalCtrl.dismiss()
   }
 
-  handleChange () {
+  handleChange() {
     this.hasSelection = this.options.some(o => o.checked)
   }
 
-  async restore (): Promise<void> {
+  async restore(): Promise<void> {
     const ids = this.options
-    .filter(option => !!option.checked)
-    .map(option => option.id)
+      .filter(option => !!option.checked)
+      .map(option => option.id)
 
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',

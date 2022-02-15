@@ -1,7 +1,15 @@
 import { Component } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ServerNotification, ServerNotifications } from 'src/app/services/api/api.types'
-import { AlertController, LoadingController, ModalController } from '@ionic/angular'
+import {
+  ServerNotifications,
+  NotificationLevel,
+  ServerNotification,
+} from 'src/app/services/api/api.types'
+import {
+  AlertController,
+  LoadingController,
+  ModalController,
+} from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
@@ -19,31 +27,34 @@ export class NotificationsPage {
   fromToast = false
   readonly perPage = 40
 
-  constructor (
+  constructor(
     private readonly embassyApi: ApiService,
     private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly route: ActivatedRoute,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     this.fromToast = !!this.route.snapshot.queryParamMap.get('toast')
     this.notifications = await this.getNotifications()
     this.loading = false
   }
 
-  async doInfinite (e: any) {
+  async doInfinite(e: any) {
     const notifications = await this.getNotifications()
     this.notifications = this.notifications.concat(notifications)
     e.target.complete()
   }
 
-  async getNotifications (): Promise<ServerNotifications> {
+  async getNotifications(): Promise<ServerNotifications> {
     let notifications: ServerNotifications = []
     try {
-      notifications = await this.embassyApi.getNotifications({ before: this.beforeCursor, limit: this.perPage })
+      notifications = await this.embassyApi.getNotifications({
+        before: this.beforeCursor,
+        limit: this.perPage,
+      })
       this.beforeCursor = notifications[notifications.length - 1]?.id
       this.needInfinite = notifications.length >= this.perPage
     } catch (e) {
@@ -53,7 +64,7 @@ export class NotificationsPage {
     }
   }
 
-  async delete (id: number, index: number): Promise<void> {
+  async delete(id: number, index: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -72,7 +83,7 @@ export class NotificationsPage {
     }
   }
 
-  async presentAlertDeleteAll () {
+  async presentAlertDeleteAll() {
     const alert = await this.alertCtrl.create({
       backdropDismiss: false,
       header: 'Delete All?',
@@ -94,7 +105,7 @@ export class NotificationsPage {
     await alert.present()
   }
 
-  async viewBackupReport (notification: ServerNotification<1>) {
+  async viewBackupReport(notification: ServerNotification<1>) {
     const modal = await this.modalCtrl.create({
       component: BackupReportPage,
       componentProps: {
@@ -105,7 +116,7 @@ export class NotificationsPage {
     await modal.present()
   }
 
-  async viewFullMessage (title: string, message: string) {
+  async viewFullMessage(title: string, message: string) {
     const alert = await this.alertCtrl.create({
       header: title,
       message: message,
@@ -123,7 +134,26 @@ export class NotificationsPage {
     await alert.present()
   }
 
-  private async deleteAll (): Promise<void> {
+  truncate(message: string): string {
+    return message.length <= 240 ? message : '...' + message.substr(-240)
+  }
+
+  getColor({ level }: ServerNotification<number>): string {
+    switch (level) {
+      case NotificationLevel.Info:
+        return 'primary'
+      case NotificationLevel.Success:
+        return 'success'
+      case NotificationLevel.Warning:
+        return 'warning'
+      case NotificationLevel.Error:
+        return 'danger'
+      default:
+        return ''
+    }
+  }
+
+  private async deleteAll(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -132,7 +162,9 @@ export class NotificationsPage {
     await loader.present()
 
     try {
-      await this.embassyApi.deleteAllNotifications({ before: this.notifications[0].id })
+      await this.embassyApi.deleteAllNotifications({
+        before: this.notifications[0].id,
+      })
       this.notifications = []
       this.beforeCursor = undefined
     } catch (e) {
@@ -142,4 +174,3 @@ export class NotificationsPage {
     }
   }
 }
-

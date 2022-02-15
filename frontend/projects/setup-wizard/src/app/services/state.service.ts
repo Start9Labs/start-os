@@ -1,8 +1,12 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs'
-import { ApiService, CifsRecoverySource, DiskRecoverySource } from './api/api.service'
+import {
+  ApiService,
+  CifsRecoverySource,
+  DiskRecoverySource,
+} from './api/api.service'
 import { ErrorToastService } from './error-toast.service'
-import { pauseFor } from '../util/misc.util'
+import { pauseFor } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',
@@ -17,7 +21,11 @@ export class StateService {
   recoverySource: CifsRecoverySource | DiskRecoverySource
   recoveryPassword: string
 
-  dataTransferProgress: { bytesTransferred: number, totalBytes: number, complete: boolean } | null
+  dataTransferProgress: {
+    bytesTransferred: number
+    totalBytes: number
+    complete: boolean
+  } | null
   dataProgress = 0
   dataCompletionSubject = new BehaviorSubject(false)
 
@@ -25,28 +33,27 @@ export class StateService {
   lanAddress: string
   cert: string
 
-  constructor (
+  constructor(
     private readonly apiService: ApiService,
     private readonly errorToastService: ErrorToastService,
-  ) { }
+  ) {}
 
-  async pollDataTransferProgress () {
+  async pollDataTransferProgress() {
     this.polling = true
     await pauseFor(500)
 
-    if (
-      this.dataTransferProgress?.complete
-    ) {
+    if (this.dataTransferProgress?.complete) {
       this.dataCompletionSubject.next(true)
       return
     }
-
 
     let progress
     try {
       progress = await this.apiService.getRecoveryStatus()
     } catch (e) {
-      this.errorToastService.present(`${e.message}: ${e.details}.\nRestart Embassy to try again.`)
+      this.errorToastService.present(
+        `${e.message}: ${e.details}.\nRestart Embassy to try again.`,
+      )
     }
     if (progress) {
       this.dataTransferProgress = {
@@ -55,20 +62,25 @@ export class StateService {
         complete: progress.complete,
       }
       if (this.dataTransferProgress.totalBytes) {
-        this.dataProgress = this.dataTransferProgress.bytesTransferred / this.dataTransferProgress.totalBytes
+        this.dataProgress =
+          this.dataTransferProgress.bytesTransferred /
+          this.dataTransferProgress.totalBytes
       }
     }
     setTimeout(() => this.pollDataTransferProgress(), 0) // prevent call stack from growing
   }
 
-  async importDrive (guid: string): Promise<void> {
+  async importDrive(guid: string): Promise<void> {
     const ret = await this.apiService.importDrive(guid)
     this.torAddress = ret['tor-address']
     this.lanAddress = ret['lan-address']
     this.cert = ret['root-ca']
   }
 
-  async setupEmbassy (storageLogicalname: string, password: string): Promise<void> {
+  async setupEmbassy(
+    storageLogicalname: string,
+    password: string,
+  ): Promise<void> {
     const ret = await this.apiService.setupEmbassy({
       'embassy-logicalname': storageLogicalname,
       'embassy-password': password,

@@ -12,7 +12,7 @@ import { ActionSheetButton } from '@ionic/core'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { RR } from 'src/app/services/api/api.types'
-import { pauseFor } from 'src/app/util/misc.util'
+import { pauseFor } from '@start9labs/shared'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ConfigService } from 'src/app/services/config.service'
 

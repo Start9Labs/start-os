@@ -9,15 +9,16 @@ import {
 } from '@ionic/angular'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { Emver } from 'src/app/services/emver.service'
-import { displayEmver } from 'src/app/pipes/emver.pipe'
-import { DependentInfo, pauseFor } from 'src/app/util/misc.util'
+import {
+  displayEmver,
+  Emver,
+  DependentInfo,
+  pauseFor,
+  PackageState,
+} from '@start9labs/shared'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import {
-  PackageDataEntry,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from '../marketplace.service'
 import { Subscription } from 'rxjs'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'

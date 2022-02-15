@@ -1,24 +1,26 @@
 import { MockSource, PollSource, WebsocketSource } from 'patch-db-client'
 import { ConfigService } from 'src/app/services/config.service'
-import { DataModel } from './data-model'
 import { LocalStorageBootstrap } from './local-storage-bootstrap'
 import { PatchDbService } from './patch-db.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from '../auth.service'
 import { MockApiService } from '../api/embassy-mock-api.service'
 import { filter } from 'rxjs/operators'
-import { exists } from 'src/app/util/misc.util'
+import { exists } from '@start9labs/shared'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Storage } from '@ionic/storage-angular'
 
-export function PatchDbServiceFactory (
+export function PatchDbServiceFactory(
   config: ConfigService,
   embassyApi: ApiService,
   bootstrapper: LocalStorageBootstrap,
   auth: AuthService,
   storage: Storage,
 ): PatchDbService {
-
-  const { useMocks, patchDb: { poll } } = config
+  const {
+    useMocks,
+    patchDb: { poll },
+  } = config
 
   if (useMocks) {
     const source = new MockSource<DataModel>(

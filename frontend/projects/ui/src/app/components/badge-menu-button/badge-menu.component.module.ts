@@ -1,18 +1,11 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { BadgeMenuComponent } from './badge-menu.component'
 import { IonicModule } from '@ionic/angular'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { BadgeMenuComponent } from './badge-menu.component'
 
 @NgModule({
-  declarations: [
-    BadgeMenuComponent,
-  ],
-  imports: [
-    CommonModule,
-    IonicModule,
-    SharingModule,
-  ],
+  declarations: [BadgeMenuComponent],
+  imports: [CommonModule, IonicModule],
   exports: [BadgeMenuComponent],
 })
-export class BadgeMenuComponentModule { }
+export class BadgeMenuComponentModule {}

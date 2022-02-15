@@ -4,7 +4,7 @@ import { IonicModule } from '@ionic/angular'
 import { ServerBackupPage } from './server-backup.page'
 import { RouterModule, Routes } from '@angular/router'
 import { BackupDrivesComponentModule } from 'src/app/components/backup-drives/backup-drives.component.module'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { SharedPipesModule } from '@start9labs/shared'
 
 const routes: Routes = [
   {
@@ -18,11 +18,9 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    SharingModule,
+    SharedPipesModule,
     BackupDrivesComponentModule,
   ],
-  declarations: [
-    ServerBackupPage,
-  ],
+  declarations: [ServerBackupPage],
 })
-export class ServerBackupPageModule { }
+export class ServerBackupPageModule {}

@@ -1,39 +1,50 @@
-import { Injectable } from "@angular/core"
-import { pauseFor } from "../../util/misc.util"
-import { ApiService, GetErrorRes, GetLogsReq, GetLogsRes, Log } from "./api.service"
+import { Injectable } from '@angular/core'
+import { pauseFor } from '@start9labs/shared'
+import {
+  ApiService,
+  GetErrorRes,
+  GetLogsReq,
+  GetLogsRes,
+  Log,
+} from './api.service'
 
 @Injectable()
 export class MockApiService extends ApiService {
+  constructor() {
+    super()
+  }
 
-  constructor () { super() }
-
-  async getError (): Promise<GetErrorRes> {
+  async getError(): Promise<GetErrorRes> {
     await pauseFor(1000)
     return {
       code: 15,
       message: 'Unknown Embassy',
-      data: { details: 'Some details about the error here' }
+      data: { details: 'Some details about the error here' },
     }
   }
 
-  async restart (): Promise<void> {
+  async restart(): Promise<void> {
     await pauseFor(1000)
     return null
   }
 
-  async forgetDrive (): Promise<void> {
+  async forgetDrive(): Promise<void> {
     await pauseFor(1000)
     return null
   }
 
-  async getLogs (params: GetLogsReq): Promise<GetLogsRes> {
+  async getLogs(params: GetLogsReq): Promise<GetLogsRes> {
     await pauseFor(1000)
     let entries: Log[]
-    if (Math.random() < .2) {
+    if (Math.random() < 0.2) {
       entries = packageLogs
     } else {
-      const arrLength = params.limit ? Math.ceil(params.limit / packageLogs.length) : 10
-      entries = new Array(arrLength).fill(packageLogs).reduce((acc, val) => acc.concat(val), [])
+      const arrLength = params.limit
+        ? Math.ceil(params.limit / packageLogs.length)
+        : 10
+      entries = new Array(arrLength)
+        .fill(packageLogs)
+        .reduce((acc, val) => acc.concat(val), [])
     }
     return {
       entries,

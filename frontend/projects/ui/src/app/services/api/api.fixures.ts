@@ -1,3 +1,4 @@
+import { PackageState } from '@start9labs/shared'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
   DependencyErrorType,
@@ -5,14 +6,13 @@ import {
   Manifest,
   PackageDataEntry,
   PackageMainStatus,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import {
   Log,
   MarketplacePkg,
   Metric,
-  NotificationLevel,
   RR,
+  NotificationLevel,
   ServerNotifications,
 } from './api.types'
 
@@ -479,7 +479,7 @@ export module Mock {
           'As long as Bitcoin is pruned, LND needs Bitcoin Proxy to fetch block over the P2P network.',
         requirement: {
           type: 'opt-in',
-          how: "To use Proxy's user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.",
+          how: `To use Proxy's user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.`,
         },
         config: null,
       },

@@ -1,6 +1,13 @@
-import { Component, Input, NgZone, QueryList, ViewChild, ViewChildren } from '@angular/core'
+import {
+  Component,
+  Input,
+  NgZone,
+  QueryList,
+  ViewChild,
+  ViewChildren,
+} from '@angular/core'
 import { IonContent, IonSlides, ModalController } from '@ionic/angular'
-import { capitalizeFirstLetter, pauseFor } from 'src/app/util/misc.util'
+import { capitalizeFirstLetter, pauseFor } from '@start9labs/shared'
 import { CompleteComponent } from './complete/complete.component'
 import { DependentsComponent } from './dependents/dependents.component'
 import { AlertComponent } from './alert/alert.component'
@@ -30,54 +37,70 @@ export class InstallWizardComponent {
   //a slide component gives us hook into a slide. Allows us to call load when slide comes into view
   @ViewChildren('components')
   slideComponentsQL: QueryList<Loadable>
-  get slideComponents (): Loadable[] { return this.slideComponentsQL.toArray() }
+  get slideComponents(): Loadable[] {
+    return this.slideComponentsQL.toArray()
+  }
 
   private slideIndex = 0
-  get currentSlide (): Loadable {
+  get currentSlide(): Loadable {
     return this.slideComponents[this.slideIndex]
   }
-  get currentBottomBar (): SlideDefinition['bottomBar'] {
+  get currentBottomBar(): SlideDefinition['bottomBar'] {
     return this.params.slideDefinitions[this.slideIndex].bottomBar
   }
 
   initializing = true
   error = ''
 
-  constructor (
+  constructor(
     private readonly modalController: ModalController,
     private readonly zone: NgZone,
-  ) { }
+  ) {}
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.currentSlide.load()
     this.slideContainer.update()
     this.slideContainer.lockSwipes(true)
   }
 
-  ionViewDidEnter () {
+  ionViewDidEnter() {
     this.initializing = false
   }
 
   // process bottom bar buttons
-  private transition = (info: { next: any } | { error: Error } | { cancelled: true } | { final: true }) => {
-    const i = info as { next?: any, error?: Error, cancelled?: true, final?: true }
+  private transition = (
+    info:
+      | { next: any }
+      | { error: Error }
+      | { cancelled: true }
+      | { final: true },
+  ) => {
+    const i = info as {
+      next?: any
+      error?: Error
+      cancelled?: true
+      final?: true
+    }
     if (i.cancelled) this.currentSlide.cancel$.next()
     if (i.final || i.cancelled) return this.modalController.dismiss(i)
-    if (i.error) return this.error = capitalizeFirstLetter(i.error.message)
+    if (i.error) return (this.error = capitalizeFirstLetter(i.error.message))
 
     this.moveToNextSlide(i.next)
   }
 
   // bottom bar button callbacks. Pass this into components if they need to trigger slide transitions independent of the bottom bar clicks
   transitions = {
-    next: (prevResult: any) => this.transition({ next: prevResult || this.currentSlide.result }),
+    next: (prevResult: any) =>
+      this.transition({ next: prevResult || this.currentSlide.result }),
     cancel: () => this.transition({ cancelled: true }),
     final: () => this.transition({ final: true }),
     error: (e: Error) => this.transition({ error: e }),
   }
 
-  private async moveToNextSlide (prevResult?: any) {
-    if (this.slideComponents[this.slideIndex + 1] === undefined) { return this.transition({ final: true }) }
+  private async moveToNextSlide(prevResult?: any) {
+    if (this.slideComponents[this.slideIndex + 1] === undefined) {
+      return this.transition({ final: true })
+    }
     this.zone.run(async () => {
       this.slideComponents[this.slideIndex + 1].load(prevResult)
       await pauseFor(50) // give the load ^ opportunity to propogate into slide before sliding it into view
@@ -89,7 +112,7 @@ export class InstallWizardComponent {
     })
   }
 
-  async callTransition (transition: Function) {
+  async callTransition(transition: Function) {
     this.transitioning = true
     await transition()
     this.transitioning = false
@@ -98,14 +121,14 @@ export class InstallWizardComponent {
 
 export interface SlideDefinition {
   slide:
-    { selector: 'dependents', params: DependentsComponent['params'] } |
-    { selector: 'complete', params: CompleteComponent['params'] } |
-    { selector: 'alert', params: AlertComponent['params'] } |
-    { selector: 'notes', params: NotesComponent['params'] }
+    | { selector: 'dependents'; params: DependentsComponent['params'] }
+    | { selector: 'complete'; params: CompleteComponent['params'] }
+    | { selector: 'alert'; params: AlertComponent['params'] }
+    | { selector: 'notes'; params: NotesComponent['params'] }
   bottomBar: {
     cancel: {
       // indicates the existence of a cancel button, and whether to have text or an icon 'x' by default.
-      afterLoading?: { text?: string },
+      afterLoading?: { text?: string }
       whileLoading?: { text?: string }
     }
     // indicates the existence of next or finish buttons (should only have one)
@@ -114,11 +137,16 @@ export interface SlideDefinition {
   }
 }
 
-export type TopbarParams = { action: WizardAction, title: string, version: string }
+export type TopbarParams = {
+  action: WizardAction
+  title: string
+  version: string
+}
 
-export async function wizardModal (
-  modalController: ModalController, params: InstallWizardComponent['params'],
-): Promise<{ cancelled?: true, final?: true, modal: HTMLIonModalElement }> {
+export async function wizardModal(
+  modalController: ModalController,
+  params: InstallWizardComponent['params'],
+): Promise<{ cancelled?: true; final?: true; modal: HTMLIonModalElement }> {
   const modal = await modalController.create({
     backdropDismiss: false,
     cssClass: 'wizard-modal',

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppMetricsPage } from './app-metrics.page'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { SharedPipesModule } from '@start9labs/shared'
 import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
 
 const routes: Routes = [
@@ -18,9 +18,9 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    SharingModule,
+    SharedPipesModule,
     SkeletonListComponentModule,
   ],
   declarations: [AppMetricsPage],
 })
-export class AppMetricsPageModule { }
+export class AppMetricsPageModule {}

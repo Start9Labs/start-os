@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { PreferencesPage } from './preferences.page'
 import { Routes, RouterModule } from '@angular/router'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { SharedPipesModule } from '@start9labs/shared'
 
 const routes: Routes = [
   {
@@ -17,10 +17,8 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    SharingModule,
+    SharedPipesModule,
   ],
-  declarations: [
-    PreferencesPage,
-  ],
+  declarations: [PreferencesPage],
 })
-export class PreferencesPageModule { }
+export class PreferencesPageModule {}

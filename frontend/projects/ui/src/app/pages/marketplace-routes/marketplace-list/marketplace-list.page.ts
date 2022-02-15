@@ -1,16 +1,13 @@
 import { Component, ViewChild } from '@angular/core'
 import { MarketplacePkg } from 'src/app/services/api/api.types'
 import { IonContent } from '@ionic/angular'
-import {
-  PackageDataEntry,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import Fuse from 'fuse.js/dist/fuse.min.js'
-import { exists, isEmptyObject } from 'src/app/util/misc.util'
+import { exists, isEmptyObject, PackageState } from '@start9labs/shared'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { filter, first } from 'rxjs/operators'
 
 const defaultOps = {
@@ -46,7 +43,7 @@ export class MarketplaceListPage {
 
   pkgs: MarketplacePkg[] = []
   categories: string[]
-  localPkgs: { [id: string]: PackageDataEntry } = {}
+  localPkgs: Record<string, PackageDataEntry> = {}
   category = 'featured'
   query: string
   loading = true

@@ -16,11 +16,9 @@ export class BackupReportPage {
     color: 'dark' | 'danger' | 'success'
   }
 
-  constructor (
-    private readonly modalCtrl: ModalController,
-  ) { }
+  constructor(private readonly modalCtrl: ModalController) {}
 
-  ngOnInit () {
+  ngOnInit() {
     if (!this.report.server.attempted) {
       this.system = {
         result: 'Not Attempted',
@@ -42,7 +40,7 @@ export class BackupReportPage {
     }
   }
 
-  async dismiss () {
+  async dismiss() {
     return this.modalCtrl.dismiss(true)
   }
 }

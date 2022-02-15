@@ -84,7 +84,8 @@ export class ToButtonsPipe implements PipeTransform {
       },
       // view in marketplace
       {
-        action: () => this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`]),
+        action: () =>
+          this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`]),
         title: 'Marketplace',
         description: 'View service in marketplace',
         icon: 'storefront-outline',

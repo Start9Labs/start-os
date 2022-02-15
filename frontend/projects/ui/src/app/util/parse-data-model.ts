@@ -2,11 +2,11 @@ import {
   DataModel,
   PackageDataEntry,
   RecoveredPackageDataEntry,
-} from '../services/patch-db/data-model'
+} from 'src/app/services/patch-db/data-model'
 
-export function parseDataModel (data: DataModel): ParsedData {
+export function parseDataModel(data: DataModel): ParsedData {
   const all = JSON.parse(JSON.stringify(data['package-data'])) as {
-    [id: string]: PackageDataEntry;
+    [id: string]: PackageDataEntry
   }
 
   const order = [...(data.ui['pkg-order'] || [])]
@@ -19,7 +19,7 @@ export function parseDataModel (data: DataModel): ParsedData {
     }))
 
   // add known packages in preferential order
-  order.forEach((id) => {
+  order.forEach(id => {
     if (all[id]) {
       pkgs.push(all[id])
 
@@ -28,7 +28,7 @@ export function parseDataModel (data: DataModel): ParsedData {
   })
 
   // unshift unknown packages
-  Object.values(all).forEach((pkg) => {
+  Object.values(all).forEach(pkg => {
     pkgs.unshift(pkg)
   })
 

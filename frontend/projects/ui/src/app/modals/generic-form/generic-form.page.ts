@@ -1,7 +1,10 @@
 import { Component, Input } from '@angular/core'
 import { FormGroup } from '@angular/forms'
 import { ModalController } from '@ionic/angular'
-import { convertValuesRecursive, FormService } from 'src/app/services/form.service'
+import {
+  convertValuesRecursive,
+  FormService,
+} from 'src/app/services/form.service'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 
 export interface ActionButton {
@@ -19,16 +22,16 @@ export class GenericFormPage {
   @Input() title: string
   @Input() spec: ConfigSpec
   @Input() buttons: ActionButton[]
-  @Input() initialValue: object = { }
+  @Input() initialValue: object = {}
   submitBtn: ActionButton
   formGroup: FormGroup
 
-  constructor (
+  constructor(
     private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.formGroup = this.formService.createForm(this.spec, this.initialValue)
     this.submitBtn = this.buttons.find(btn => btn.isSubmit) || {
       text: '',
@@ -36,16 +39,18 @@ export class GenericFormPage {
     }
   }
 
-  async dismiss (): Promise<void> {
+  async dismiss(): Promise<void> {
     this.modalCtrl.dismiss()
   }
 
-  async handleClick (handler: ActionButton['handler']): Promise<void> {
+  async handleClick(handler: ActionButton['handler']): Promise<void> {
     convertValuesRecursive(this.spec, this.formGroup)
 
     if (this.formGroup.invalid) {
       this.formGroup.markAllAsTouched()
-      document.getElementsByClassName('validation-error')[0].parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
+      document
+        .getElementsByClassName('validation-error')[0]
+        .parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
       return
     }
 

@@ -3,12 +3,12 @@ import { NavigationExtras } from '@angular/router'
 import { NavController } from '@ionic/angular'
 import { combineLatest, Observable } from 'rxjs'
 import { filter, map, startWith } from 'rxjs/operators'
-import { DependentInfo, exists } from 'src/app/util/misc.util'
 import {
   DependencyError,
   DependencyErrorType,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
+import { DependentInfo, exists } from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ModalService } from 'src/app/services/modal.service'
 

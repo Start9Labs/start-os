@@ -34,16 +34,16 @@ export class AppListReorderComponent {
 
   readonly connectionFailure$ = this.connectionService
     .watchFailure$()
-    .pipe(map((failure) => failure !== ConnectionFailure.None))
+    .pipe(map(failure => failure !== ConnectionFailure.None))
 
-  constructor (private readonly connectionService: ConnectionService) { }
+  constructor(private readonly connectionService: ConnectionService) {}
 
-  toggle () {
+  toggle() {
     this.reordering = !this.reordering
     this.reorderingChange.emit(this.reordering)
   }
 
-  reorder ({ detail }: CustomEvent<ItemReorderEventDetail>): void {
+  reorder({ detail }: CustomEvent<ItemReorderEventDetail>): void {
     this.pkgs = detail.complete([...this.pkgs])
     this.pkgsChange.emit(this.pkgs)
   }

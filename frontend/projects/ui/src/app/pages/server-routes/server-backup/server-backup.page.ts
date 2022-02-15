@@ -10,14 +10,13 @@ import {
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { Subscription } from 'rxjs'
+import { take } from 'rxjs/operators'
+import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import {
   PackageDataEntry,
   PackageMainStatus,
-  ServerStatus,
 } from 'src/app/services/patch-db/data-model'
-import { Subscription } from 'rxjs'
-import { take } from 'rxjs/operators'
-import { MappedBackupTarget } from 'src/app/util/misc.util'
 import * as argon2 from '@start9labs/argon2'
 import {
   CifsBackupTarget,

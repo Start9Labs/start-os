@@ -1,3 +1,4 @@
+import { PackageState } from '@start9labs/shared'
 import {
   DataModel,
   DependencyErrorType,
@@ -5,13 +6,11 @@ import {
   HealthResult,
   Manifest,
   PackageMainStatus,
-  PackageState,
-  ServerStatus,
 } from 'src/app/services/patch-db/data-model'
 
 export const mockPatchData: DataModel = {
   ui: {
-    name: "Matt's Embassy",
+    name: `Matt's Embassy`,
     'auto-check-updates': true,
     'pkg-order': [],
     'ack-welcome': '1.0.0',
@@ -86,13 +85,11 @@ export const mockPatchData: DataModel = {
           },
           'ephemeral-health-check': {
             name: 'Ephemeral Health Check',
-            description:
-              "Checks to see if your new user registrations are on. If they are but you're not expecting any new user signups, you should disable this in Config, as anyone who knows your onion URL can create accounts on your server.",
+            description: `Checks to see if your new user registrations are on. If they are but you're not expecting any new user signups, you should disable this in Config, as anyone who knows your onion URL can create accounts on your server.`,
           },
           'p2p-interface': {
             name: 'P2P Interface',
-            description:
-              "Checks to see if your new user registrations are on. If they are but you're not expecting any new user signups, you should disable this in Config, as anyone who knows your onion URL can create accounts on your server.",
+            description: `Checks to see if your new user registrations are on. If they are but you're not expecting any new user signups, you should disable this in Config, as anyone who knows your onion URL can create accounts on your server.`,
           },
           'rpc-interface': {
             name: 'RPC Interface',
@@ -577,7 +574,7 @@ export const mockPatchData: DataModel = {
               'As long as Bitcoin is pruned, LND needs Bitcoin Proxy to fetch block over the P2P network.',
             requirement: {
               type: 'opt-in',
-              how: "To use Proxy's user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.",
+              how: `To use Proxy's user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.`,
             },
             config: null,
           },

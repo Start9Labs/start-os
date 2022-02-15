@@ -1,12 +1,21 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 import { BackupService } from './backup.service'
-import { CifsBackupTarget, DiskBackupTarget, RR } from 'src/app/services/api/api.types'
-import { ActionSheetController, AlertController, LoadingController, ModalController } from '@ionic/angular'
+import {
+  CifsBackupTarget,
+  DiskBackupTarget,
+  RR,
+} from 'src/app/services/api/api.types'
+import {
+  ActionSheetController,
+  AlertController,
+  LoadingController,
+  ModalController,
+} from '@ionic/angular'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { MappedBackupTarget } from 'src/app/util/misc.util'
+import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 
 @Component({
   selector: 'backup-drives',
@@ -15,10 +24,12 @@ import { MappedBackupTarget } from 'src/app/util/misc.util'
 })
 export class BackupDrivesComponent {
   @Input() type: 'create' | 'restore'
-  @Output() onSelect: EventEmitter<MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>> = new EventEmitter()
+  @Output() onSelect: EventEmitter<
+    MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
+  > = new EventEmitter()
   loadingText: string
 
-  constructor (
+  constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly actionCtrl: ActionSheetController,
     private readonly alertCtrl: AlertController,
@@ -26,22 +37,30 @@ export class BackupDrivesComponent {
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
     public readonly backupService: BackupService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
-    this.loadingText = this.type === 'create' ? 'Fetching Backup Targets' : 'Fetching Backup Sources'
+  ngOnInit() {
+    this.loadingText =
+      this.type === 'create'
+        ? 'Fetching Backup Targets'
+        : 'Fetching Backup Sources'
     this.backupService.getBackupTargets()
   }
 
-  select (target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>): void {
+  select(
+    target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
+  ): void {
     if (target.entry.type === 'cifs' && !target.entry.mountable) {
-      const message = 'Unable to connect to shared folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
+      const message =
+        'Unable to connect to shared folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
       this.presentAlertError(message)
       return
     }
 
     if (this.type === 'restore' && !target.hasValidBackup) {
-      const message = `${target.entry.type === 'cifs' ? 'Shared folder' : 'Drive partition'} does not contain a valid Embassy backup.`
+      const message = `${
+        target.entry.type === 'cifs' ? 'Shared folder' : 'Drive partition'
+      } does not contain a valid Embassy backup.`
       this.presentAlertError(message)
       return
     }
@@ -49,7 +68,7 @@ export class BackupDrivesComponent {
     this.onSelect.emit(target)
   }
 
-  async presentModalAddCifs (): Promise<void> {
+  async presentModalAddCifs(): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
       componentProps: {
@@ -69,7 +88,10 @@ export class BackupDrivesComponent {
     await modal.present()
   }
 
-  async presentActionCifs (target: MappedBackupTarget<CifsBackupTarget>, index: number): Promise<void> {
+  async presentActionCifs(
+    target: MappedBackupTarget<CifsBackupTarget>,
+    index: number,
+  ): Promise<void> {
     const entry = target.entry as CifsBackupTarget
 
     const action = await this.actionCtrl.create({
@@ -93,8 +115,12 @@ export class BackupDrivesComponent {
           },
         },
         {
-          text: this.type === 'create' ? 'Create Backup' : 'Restore From Backup',
-          icon: this.type === 'create' ? 'cloud-upload-outline' : 'cloud-download-outline',
+          text:
+            this.type === 'create' ? 'Create Backup' : 'Restore From Backup',
+          icon:
+            this.type === 'create'
+              ? 'cloud-upload-outline'
+              : 'cloud-download-outline',
           handler: () => {
             this.select(target)
           },
@@ -105,7 +131,7 @@ export class BackupDrivesComponent {
     await action.present()
   }
 
-  private async presentAlertError (message: string): Promise<void> {
+  private async presentAlertError(message: string): Promise<void> {
     const alert = await this.alertCtrl.create({
       header: 'Error',
       message,
@@ -114,7 +140,7 @@ export class BackupDrivesComponent {
     await alert.present()
   }
 
-  private async addCifs (value: RR.AddBackupTargetReq): Promise<boolean> {
+  private async addCifs(value: RR.AddBackupTargetReq): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Testing connectivity to shared folder...',
@@ -139,7 +165,11 @@ export class BackupDrivesComponent {
     }
   }
 
-  private async presentModalEditCifs (id: string, entry: CifsBackupTarget, index: number): Promise<void> {
+  private async presentModalEditCifs(
+    id: string,
+    entry: CifsBackupTarget,
+    index: number,
+  ): Promise<void> {
     const { hostname, path, username } = entry
 
     const modal = await this.modalCtrl.create({
@@ -166,7 +196,10 @@ export class BackupDrivesComponent {
     await modal.present()
   }
 
-  private async editCifs (value: RR.UpdateBackupTargetReq, index: number): Promise<void> {
+  private async editCifs(
+    value: RR.UpdateBackupTargetReq,
+    index: number,
+  ): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Testing connectivity to shared folder...',
@@ -185,7 +218,7 @@ export class BackupDrivesComponent {
     }
   }
 
-  private async deleteCifs (id: string, index: number): Promise<void> {
+  private async deleteCifs(id: string, index: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Removing...',
@@ -204,7 +237,6 @@ export class BackupDrivesComponent {
   }
 }
 
-
 @Component({
   selector: 'backup-drives-header',
   templateUrl: './backup-drives-header.component.html',
@@ -214,15 +246,12 @@ export class BackupDrivesHeaderComponent {
   @Input() title: string
   @Output() onClose: EventEmitter<void> = new EventEmitter()
 
-  constructor (
-    public readonly backupService: BackupService,
-  ) { }
+  constructor(public readonly backupService: BackupService) {}
 
-  refresh () {
+  refresh() {
     this.backupService.getBackupTargets()
   }
 }
-
 
 @Component({
   selector: 'backup-drives-status',
@@ -238,7 +267,8 @@ const CifsSpec: ConfigSpec = {
   hostname: {
     type: 'string',
     name: 'Hostname',
-    description: 'The hostname of your target device on the Local Area Network.',
+    description:
+      'The hostname of your target device on the Local Area Network.',
     placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
     pattern: '^[a-zA-Z0-9._-]+( [a-zA-Z0-9]+)*$',
     'pattern-description': `Must be a valid hostname. e.g. 'My Computer' OR 'my-computer.local'`,
@@ -249,7 +279,8 @@ const CifsSpec: ConfigSpec = {
   path: {
     type: 'string',
     name: 'Path',
-    description: 'The directory path to the shared folder on your target device.',
+    description:
+      'The directory path to the shared folder on your target device.',
     placeholder: 'e.g. /Desktop/my-folder',
     nullable: false,
     masked: false,

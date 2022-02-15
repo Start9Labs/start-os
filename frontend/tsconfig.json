@@ -21,8 +21,8 @@
       "stream": ["./node_modules/stream-browserify"],
       "crypto": ["./node_modules/crypto-browserify"],
       "vm": ["./node_modules/vm-browserify"],
-      /* This path is relative to each app base folder */
-      "@shared": ["../shared/src/public-api"]
+      /* These paths are relative to each app base folder */
+      "@start9labs/shared": ["../shared/src/public-api"]
     },
     "typeRoots": ["node_modules/@types"],
     "types": ["node"]

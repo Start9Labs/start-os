@@ -3,18 +3,16 @@ import { CommonModule } from '@angular/common'
 import { DependentsComponent } from './dependents.component'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule } from '@angular/router'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { SharedPipesModule } from '@start9labs/shared'
 
 @NgModule({
-  declarations: [
-    DependentsComponent,
-  ],
+  declarations: [DependentsComponent],
   imports: [
     CommonModule,
     IonicModule,
     RouterModule.forChild([]),
-    SharingModule,
+    SharedPipesModule,
   ],
   exports: [DependentsComponent],
 })
-export class DependentsComponentModule { }
+export class DependentsComponentModule {}

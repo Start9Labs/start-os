@@ -6,7 +6,7 @@
   "scripts": {
     "ng": "ng",
     "check": "npm run check:shared && npm run check:ui && npm run check:setup-wizard && npm run check:diagnostic-ui",
-    "check:shared": "tsc --project projects/shared/tsconfig.lib.json --noEmit --skipLibCheck",
+    "check:shared": "tsc --project projects/shared/tsconfig.json --noEmit --skipLibCheck",
     "check:diagnostic-ui": "tsc --project projects/diagnostic-ui/tsconfig.json --noEmit --skipLibCheck",
     "check:setup-wizard": "tsc --project projects/setup-wizard/tsconfig.json --noEmit --skipLibCheck",
     "check:ui": "tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck",

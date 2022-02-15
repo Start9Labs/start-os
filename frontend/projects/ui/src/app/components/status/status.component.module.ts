@@ -1,18 +1,12 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { StatusComponent } from './status.component'
 import { IonicModule } from '@ionic/angular'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { UnitConversionPipesModule } from '@start9labs/shared'
+import { StatusComponent } from './status.component'
 
 @NgModule({
-  declarations: [
-    StatusComponent,
-  ],
-  imports: [
-    CommonModule,
-    IonicModule,
-    SharingModule,
-  ],
+  declarations: [StatusComponent],
+  imports: [CommonModule, IonicModule, UnitConversionPipesModule],
   exports: [StatusComponent],
 })
-export class StatusComponentModule { }
+export class StatusComponentModule {}

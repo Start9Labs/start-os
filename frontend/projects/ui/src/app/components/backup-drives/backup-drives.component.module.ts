@@ -1,8 +1,15 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
-import { BackupDrivesComponent, BackupDrivesHeaderComponent, BackupDrivesStatusComponent } from './backup-drives.component'
-import { SharingModule } from '../../modules/sharing.module'
+import {
+  BackupDrivesComponent,
+  BackupDrivesHeaderComponent,
+  BackupDrivesStatusComponent,
+} from './backup-drives.component'
+import {
+  UnitConversionPipesModule,
+  TextSpinnerComponentModule,
+} from '@start9labs/shared'
 import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.module'
 
 @NgModule({
@@ -14,7 +21,8 @@ import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.
   imports: [
     CommonModule,
     IonicModule,
-    SharingModule,
+    UnitConversionPipesModule,
+    TextSpinnerComponentModule,
     GenericFormPageModule,
   ],
   exports: [
@@ -23,4 +31,4 @@ import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.
     BackupDrivesStatusComponent,
   ],
 })
-export class BackupDrivesComponentModule { }
+export class BackupDrivesComponentModule {}

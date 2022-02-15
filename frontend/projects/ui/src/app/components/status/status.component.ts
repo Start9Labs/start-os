@@ -1,5 +1,9 @@
 import { Component, Input } from '@angular/core'
-import { PrimaryRendering, PrimaryStatus, StatusRendering } from 'src/app/services/pkg-status-rendering.service'
+import {
+  PrimaryRendering,
+  PrimaryStatus,
+  StatusRendering,
+} from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
   selector: 'status',
@@ -18,4 +22,3 @@ export class StatusComponent {
   @Input() installProgress?: number
   @Input() sigtermTimeout?: string
 }
-

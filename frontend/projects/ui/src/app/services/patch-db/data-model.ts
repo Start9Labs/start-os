@@ -1,4 +1,5 @@
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
+import { InstallProgress, PackageState } from '@start9labs/shared'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -64,16 +65,6 @@ export interface PackageDataEntry {
   'install-progress'?: InstallProgress // exists when: installing, updating
 }
 
-export interface InstallProgress {
-  size: number | null
-  downloaded: number
-  'download-complete': boolean
-  validated: number
-  'validation-complete': boolean
-  unpacked: number
-  'unpack-complete': boolean
-}
-
 export interface InstalledPackageDataEntry {
   status: Status
   manifest: Manifest
@@ -97,14 +88,6 @@ export interface InstalledPackageDataEntry {
 export interface CurrentDependencyInfo {
   pointers: any[]
   'health-checks': string[] // array of health check IDs
-}
-
-export enum PackageState {
-  Installing = 'installing',
-  Installed = 'installed',
-  Updating = 'updating',
-  Removing = 'removing',
-  Restoring = 'restoring',
 }
 
 export interface Manifest {
@@ -377,17 +360,17 @@ export interface DependencyInfo {
 export interface DependencyEntry {
   version: string
   requirement:
-  | {
-    type: 'opt-in'
-    how: string
-  }
-  | {
-    type: 'opt-out'
-    how: string
-  }
-  | {
-    type: 'required'
-  }
+    | {
+        type: 'opt-in'
+        how: string
+      }
+    | {
+        type: 'opt-out'
+        how: string
+      }
+    | {
+        type: 'required'
+      }
   description: string | null
   config: {
     check: ActionImpl

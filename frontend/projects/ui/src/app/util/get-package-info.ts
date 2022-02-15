@@ -6,11 +6,7 @@ import {
   renderPkgStatus,
   StatusRendering,
 } from '../services/pkg-status-rendering.service'
-import { isEmptyObject } from './misc.util'
-import {
-  packageLoadingProgress,
-  ProgressData,
-} from './package-loading-progress'
+import { packageLoadingProgress, ProgressData } from '@start9labs/shared'
 import { Subscription } from 'rxjs'
 
 export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
