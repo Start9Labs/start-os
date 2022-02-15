@@ -32,7 +32,7 @@ export class AppListRecComponent {
   readonly installing$ = this.install$.pipe(
     switchMap(({ id, version }) =>
       // Mapping each installation to API request
-      from(this.api.installPackage({ id, 'version-spec': `=${version}` })).pipe(
+      from(this.api.installPackage({ id, 'version-spec': `>=${version}`, 'version-priority': 'min' })).pipe(
         // Mapping operation to true/false loading indication
         loading(this.errToast),
       ),
