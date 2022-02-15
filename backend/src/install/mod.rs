@@ -151,10 +151,10 @@ pub async fn install(
     .await
     .with_kind(crate::ErrorKind::Registry)?;
     let s9pk = reqwest::get(format!(
-        "{}/package/v0/{}.s9pk?spec={}&version-priority={}&eos-version-compat={}&arch={}",
+        "{}/package/v0/{}.s9pk?spec=={}&version-priority={}&eos-version-compat={}&arch={}",
         marketplace_url,
         id,
-        version,
+        man.version,
         version_priority,
         Current::new().compat(),
         platforms::TARGET_ARCH,
