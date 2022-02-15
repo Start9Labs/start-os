@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { BehaviorSubject, from, Subject } from 'rxjs'
 import { takeUntil } from 'rxjs/operators'
-import { capitalizeFirstLetter } from 'src/app/util/misc.util'
+import { capitalizeFirstLetter } from '@start9labs/shared'
 import { markAsLoadingDuring$ } from '../loadable'
 import { WizardAction } from '../wizard-types'
 
@@ -30,16 +30,21 @@ export class CompleteComponent {
 
   message: string
 
-  load () {
-    markAsLoadingDuring$(this.loading$, from(this.params.executeAction())).pipe(takeUntil(this.cancel$)).subscribe(
-      {
-        error: e => this.transitions.error(new Error(`${this.params.action} failed: ${e.message || e}`)),
+  load() {
+    markAsLoadingDuring$(this.loading$, from(this.params.executeAction()))
+      .pipe(takeUntil(this.cancel$))
+      .subscribe({
+        error: e =>
+          this.transitions.error(
+            new Error(`${this.params.action} failed: ${e.message || e}`),
+          ),
         complete: () => this.transitions.final(),
-      },
-    )
+      })
   }
 
-  ngOnInit () {
-    this.message = `${capitalizeFirstLetter(this.params.verb)} ${this.params.title}...`
+  ngOnInit() {
+    this.message = `${capitalizeFirstLetter(this.params.verb)} ${
+      this.params.title
+    }...`
   }
 }

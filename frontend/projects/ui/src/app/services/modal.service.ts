@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
-import { DependentInfo } from 'src/app/util/misc.util'
+import { DependentInfo } from '@start9labs/shared'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
 
 @Injectable({

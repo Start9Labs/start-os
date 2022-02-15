@@ -15,15 +15,14 @@ import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
 import { MarkdownPageModule } from './modals/markdown/markdown.module'
 import { PatchDbService } from './services/patch-db/patch-db.service'
 import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstrap'
-import { SharingModule } from './modules/sharing.module'
 import { FormBuilder } from '@angular/forms'
 import { GenericInputComponentModule } from './modals/generic-input/generic-input.component.module'
 import { AuthService } from './services/auth.service'
 import { GlobalErrorHandler } from './services/global-error-handler.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
-import { WorkspaceConfig } from '@shared'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
+import { SharedPipesModule, WorkspaceConfig } from '@start9labs/shared'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
@@ -47,8 +46,8 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     OSWelcomePageModule,
     MarkdownPageModule,
     GenericInputComponentModule,
-    SharingModule,
     MonacoEditorModule,
+    SharedPipesModule,
   ],
   providers: [
     FormBuilder,
@@ -80,4 +79,4 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
   bootstrap: [AppComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class AppModule {}
+export class AppModule { }

@@ -1,10 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import {
-  PackageDataEntry,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PackageState } from '@start9labs/shared'
 import {
   PackageStatus,
   PrimaryStatus,
@@ -70,4 +68,3 @@ export class AppShowPage {
     return STATES.includes(state)
   }
 }
-

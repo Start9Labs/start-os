@@ -122,7 +122,7 @@
           <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeSm="12" sizeMd="6">
             <ion-item [routerLink]="['/marketplace', pkg.manifest.id]">
               <ion-thumbnail slot="start">
-                <img [src]="('data:image/png;base64,' + pkg.icon) | sanitize" />
+                <img [src]="('data:image/png;base64,' + pkg.icon) | trust" />
               </ion-thumbnail>
               <ion-label>
                 <h2 style="font-family: 'Montserrat'; font-weight: bold">

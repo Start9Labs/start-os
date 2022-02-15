@@ -1,11 +1,10 @@
 import { Injectable } from '@angular/core'
+import { WorkspaceConfig, PackageState } from '@start9labs/shared'
 import {
   InterfaceDef,
   PackageDataEntry,
   PackageMainStatus,
-  PackageState,
-} from './patch-db/data-model'
-import { WorkspaceConfig } from '@shared'
+} from 'src/app/services/patch-db/data-model'
 
 const {
   gitHash,

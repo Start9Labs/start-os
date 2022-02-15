@@ -1,10 +1,9 @@
-import { isEmptyObject } from '../util/misc.util'
+import { isEmptyObject, PackageState } from '@start9labs/shared'
 import {
   PackageDataEntry,
   PackageMainStatus,
-  PackageState,
   Status,
-} from './patch-db/data-model'
+} from 'src/app/services/patch-db/data-model'
 
 export interface PackageStatus {
   primary: PrimaryStatus
@@ -95,25 +94,61 @@ export enum HealthStatus {
   Healthy = 'healthy',
 }
 
-export const PrimaryRendering: { [key: string]: StatusRendering } = {
-  [PrimaryStatus.Installing]: { display: 'Installing', color: 'primary', showDots: true },
-  [PrimaryStatus.Updating]: { display: 'Updating', color: 'primary', showDots: true },
-  [PrimaryStatus.Removing]: { display: 'Removing', color: 'danger', showDots: true },
-  [PrimaryStatus.Restoring]: { display: 'Restoring', color: 'primary', showDots: true },
-  [PrimaryStatus.Stopping]: { display: 'Stopping', color: 'dark-shade', showDots: true },
-  [PrimaryStatus.Stopped]: { display: 'Stopped', color: 'dark-shade', showDots: false },
-  [PrimaryStatus.BackingUp]: { display: 'Backing Up', color: 'primary', showDots: true },
-  [PrimaryStatus.Starting]: { display: 'Starting', color: 'primary', showDots: true },
-  [PrimaryStatus.Running]: { display: 'Running', color: 'success', showDots: false },
+export const PrimaryRendering: Record<string, StatusRendering> = {
+  [PrimaryStatus.Installing]: {
+    display: 'Installing',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Updating]: {
+    display: 'Updating',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Removing]: {
+    display: 'Removing',
+    color: 'danger',
+    showDots: true,
+  },
+  [PrimaryStatus.Restoring]: {
+    display: 'Restoring',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Stopping]: {
+    display: 'Stopping',
+    color: 'dark-shade',
+    showDots: true,
+  },
+  [PrimaryStatus.Stopped]: {
+    display: 'Stopped',
+    color: 'dark-shade',
+    showDots: false,
+  },
+  [PrimaryStatus.BackingUp]: {
+    display: 'Backing Up',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Starting]: {
+    display: 'Starting',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Running]: {
+    display: 'Running',
+    color: 'success',
+    showDots: false,
+  },
   [PrimaryStatus.NeedsConfig]: { display: 'Needs Config', color: 'warning' },
 }
 
-export const DependencyRendering: { [key: string]: StatusRendering }  = {
+export const DependencyRendering: Record<string, StatusRendering> = {
   [DependencyStatus.Warning]: { display: 'Issue', color: 'warning' },
   [DependencyStatus.Satisfied]: { display: 'Satisfied', color: 'success' },
 }
 
-export const HealthRendering: { [key: string]: StatusRendering } = {
+export const HealthRendering: Record<string, StatusRendering> = {
   [HealthStatus.Failure]: { display: 'Failure', color: 'danger' },
   [HealthStatus.Starting]: { display: 'Starting', color: 'primary' },
   [HealthStatus.Loading]: { display: 'Loading', color: 'primary' },

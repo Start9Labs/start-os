@@ -2,7 +2,10 @@ import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent, ToastController } from '@ionic/angular'
 import { getUiInterfaceKey } from 'src/app/services/config.service'
-import { InstalledPackageDataEntry, InterfaceDef } from 'src/app/services/patch-db/data-model'
+import {
+  InstalledPackageDataEntry,
+  InterfaceDef,
+} from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 
@@ -22,12 +25,12 @@ export class AppInterfacesPage {
   other: LocalInterface[] = []
   pkgId: string
 
-  constructor (
+  constructor(
     private readonly route: ActivatedRoute,
     public readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     const pkg = this.patch.getData()['package-data'][this.pkgId]
     const interfaces = pkg.manifest.interfaces
@@ -40,8 +43,12 @@ export class AppInterfacesPage {
       this.ui = {
         def: interfaces[uiKey],
         addresses: {
-          'lan-address': uiAddresses['lan-address'] ? 'https://' + uiAddresses['lan-address'] : null,
-          'tor-address': uiAddresses['tor-address'] ? 'http://' + uiAddresses['tor-address'] : null,
+          'lan-address': uiAddresses['lan-address']
+            ? 'https://' + uiAddresses['lan-address']
+            : null,
+          'tor-address': uiAddresses['tor-address']
+            ? 'http://' + uiAddresses['tor-address']
+            : null,
         },
       }
     }
@@ -53,18 +60,22 @@ export class AppInterfacesPage {
         return {
           def: interfaces[key],
           addresses: {
-            'lan-address': addresses['lan-address'] ? 'https://' + addresses['lan-address'] : null,
-            'tor-address': addresses['tor-address'] ? 'http://' + addresses['tor-address'] : null,
+            'lan-address': addresses['lan-address']
+              ? 'https://' + addresses['lan-address']
+              : null,
+            'tor-address': addresses['tor-address']
+              ? 'http://' + addresses['tor-address']
+              : null,
           },
         }
       })
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  asIsOrder () {
+  asIsOrder() {
     return 0
   }
 }
@@ -77,18 +88,17 @@ export class AppInterfacesPage {
 export class AppInterfacesItemComponent {
   @Input() interface: LocalInterface
 
-  constructor (
-    private readonly toastCtrl: ToastController,
-  ) { }
+  constructor(private readonly toastCtrl: ToastController) {}
 
-  launch (url: string): void {
+  launch(url: string): void {
     window.open(url, '_blank', 'noreferrer')
   }
 
-  async copy (address: string): Promise<void> {
+  async copy(address: string): Promise<void> {
     let message = ''
-    await copyToClipboard(address || '')
-      .then(success => { message = success ? 'copied to clipboard!' : 'failed to copy' })
+    await copyToClipboard(address || '').then(success => {
+      message = success ? 'copied to clipboard!' : 'failed to copy'
+    })
 
     const toast = await this.toastCtrl.create({
       header: message,

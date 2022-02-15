@@ -7,7 +7,7 @@ import {
   IonicSafeString,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { DependentInfo, isEmptyObject, isObject } from 'src/app/util/misc.util'
+import { DependentInfo, isEmptyObject, isObject } from '@start9labs/shared'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'

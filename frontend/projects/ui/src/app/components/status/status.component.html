@@ -1,13 +1,21 @@
 <p
-  [style.color]="disconnected ? 'gray' : 'var(--ion-color-' + rendering.color + ')'"
+  [style.color]="
+    disconnected ? 'gray' : 'var(--ion-color-' + rendering.color + ')'
+  "
   [style.font-size]="size"
   [style.font-style]="style"
   [style.font-weight]="weight"
 >
-  <span *ngIf= "!installProgress">
+  <span *ngIf="!installProgress">
     {{ disconnected ? 'Unknown' : rendering.display }}
     <span *ngIf="rendering.showDots" class="loading-dots"></span>
-    <span *ngIf="rendering.display === PR[PS.Stopping].display && (sigtermTimeout | durationToSeconds) > 30">This may take a while.</span>
+    <span
+      *ngIf="
+        rendering.display === PR[PS.Stopping].display &&
+        (sigtermTimeout | durationToSeconds) > 30
+      "
+      >This may take a while.</span
+    >
   </span>
   <span *ngIf="installProgress">
     <span *ngIf="installProgress < 99">
@@ -19,5 +27,4 @@
       <span class="loading-dots"></span>
     </span>
   </span>
-
 </p>

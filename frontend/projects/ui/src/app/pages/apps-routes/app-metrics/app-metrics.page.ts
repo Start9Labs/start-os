@@ -6,7 +6,7 @@ import { Metric } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MainStatus } from 'src/app/services/patch-db/data-model'
-import { pauseFor } from 'src/app/util/misc.util'
+import { pauseFor } from '@start9labs/shared'
 
 @Component({
   selector: 'app-metrics',
@@ -23,26 +23,26 @@ export class AppMetricsPage {
 
   @ViewChild(IonContent) content: IonContent
 
-  constructor (
+  constructor(
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.startDaemon()
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  ngOnDestroy () {
+  ngOnDestroy() {
     this.stopDaemon()
   }
 
-  async startDaemon (): Promise<void> {
+  async startDaemon(): Promise<void> {
     this.going = true
     while (this.going) {
       const startTime = Date.now()
@@ -51,13 +51,13 @@ export class AppMetricsPage {
     }
   }
 
-  stopDaemon () {
+  stopDaemon() {
     this.going = false
   }
 
-  async getMetrics (): Promise<void> {
+  async getMetrics(): Promise<void> {
     try {
-      this.metrics = await this.embassyApi.getPkgMetrics({ id: this.pkgId})
+      this.metrics = await this.embassyApi.getPkgMetrics({ id: this.pkgId })
     } catch (e) {
       this.errToast.present(e)
       this.stopDaemon()
@@ -66,7 +66,7 @@ export class AppMetricsPage {
     }
   }
 
-  asIsOrder (a: any, b: any) {
+  asIsOrder(a: any, b: any) {
     return 0
   }
 }

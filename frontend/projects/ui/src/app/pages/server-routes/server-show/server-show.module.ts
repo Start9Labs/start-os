@@ -3,9 +3,8 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
 import { ServerShowPage } from './server-show.page'
-import { StatusComponentModule } from 'src/app/components/status/status.component.module'
 import { FormsModule } from '@angular/forms'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { TextSpinnerComponentModule } from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 
 const routes: Routes = [
@@ -19,12 +18,11 @@ const routes: Routes = [
   imports: [
     CommonModule,
     FormsModule,
-    StatusComponentModule,
     IonicModule,
     RouterModule.forChild(routes),
-    SharingModule,
+    TextSpinnerComponentModule,
     BadgeMenuComponentModule,
   ],
   declarations: [ServerShowPage],
 })
-export class ServerShowPageModule { }
+export class ServerShowPageModule {}

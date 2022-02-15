@@ -1,6 +1,4 @@
-export interface ConfigSpec {
-  [key: string]: ValueSpec
-}
+export type ConfigSpec = Record<string, ValueSpec>
 
 export type ValueType =
   | 'string'

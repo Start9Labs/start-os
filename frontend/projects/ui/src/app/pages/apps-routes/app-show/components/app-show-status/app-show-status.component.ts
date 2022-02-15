@@ -1,17 +1,16 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { UiLauncherService } from 'src/app/services/ui-launcher.service'
 import {
-  InterfaceDef,
-  PackageDataEntry,
-  PackageState,
-  Status,
-} from 'src/app/services/patch-db/data-model'
-import {
   PackageStatus,
   PrimaryRendering,
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
-import { isEmptyObject } from 'src/app/util/misc.util'
+import {
+  InterfaceDef,
+  PackageDataEntry,
+  Status,
+} from 'src/app/services/patch-db/data-model'
+import { isEmptyObject, PackageState } from '@start9labs/shared'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import {
   AlertController,

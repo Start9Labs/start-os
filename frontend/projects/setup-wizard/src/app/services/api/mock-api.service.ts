@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { pauseFor } from 'src/app/util/misc.util'
+import { pauseFor } from '@start9labs/shared'
 import { ApiService, CifsRecoverySource, SetupEmbassyReq } from './api.service'
 
 let tries = 0

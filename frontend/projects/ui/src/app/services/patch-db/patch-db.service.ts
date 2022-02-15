@@ -10,10 +10,10 @@ import {
   tap,
   withLatestFrom,
 } from 'rxjs/operators'
-import { isEmptyObject, pauseFor } from 'src/app/util/misc.util'
+import { isEmptyObject, pauseFor } from '@start9labs/shared'
+import { DataModel } from './data-model'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
-import { DataModel } from './data-model'
 
 export const PATCH_HTTP = new InjectionToken<Source<DataModel>>('')
 export const PATCH_SOURCE = new InjectionToken<Source<DataModel>>('')
@@ -44,15 +44,18 @@ export class PatchDbService {
   data: DataModel
   errors = 0
 
-  getData () {
+  getData() {
     return this.patchDb.store.cache.data
   }
 
-  get loaded (): boolean {
-    return this.patchDb?.store?.cache?.data && !isEmptyObject(this.patchDb.store.cache.data)
+  get loaded(): boolean {
+    return (
+      this.patchDb?.store?.cache?.data &&
+      !isEmptyObject(this.patchDb.store.cache.data)
+    )
   }
 
-  constructor (
+  constructor(
     @Inject(PATCH_SOURCE) private readonly wsSource: Source<DataModel>,
     @Inject(PATCH_SOURCE) private readonly pollSource: Source<DataModel>,
     @Inject(PATCH_HTTP) private readonly http: ApiService,
@@ -60,9 +63,9 @@ export class PatchDbService {
     private readonly bootstrapper: Bootstrapper<DataModel>,
     @Inject(AUTH) private readonly auth: AuthService,
     @Inject(STORAGE) private readonly storage: Storage,
-  ) { }
+  ) {}
 
-  async init (): Promise<void> {
+  async init(): Promise<void> {
     const cache = await this.bootstrapper.init()
     this.sources$.next([this.wsSource, this.http])
 
@@ -72,7 +75,7 @@ export class PatchDbService {
     this.data = this.patchDb.store.cache.data
   }
 
-  async start (): Promise<void> {
+  async start(): Promise<void> {
     await this.init()
 
     this.subs.push(
@@ -156,26 +159,27 @@ export class PatchDbService {
     )
   }
 
-  stop (): void {
+  stop(): void {
     if (this.patchDb) {
       console.log('patchDB: STOPPING')
       this.patchConnection$.next(PatchConnection.Initializing)
       this.patchDb.store.reset()
     }
-    this.subs.forEach((x) => x.unsubscribe())
+    this.subs.forEach(x => x.unsubscribe())
     this.subs = []
   }
 
-  watchPatchConnection$ (): Observable<PatchConnection> {
+  watchPatchConnection$(): Observable<PatchConnection> {
     return this.patchConnection$.asObservable()
   }
 
+  // prettier-ignore
   watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
     const argsString = '/' + args.join('/')
     console.log('patchDB: WATCHING ', argsString)
     return this.patchDb.store.watch$(...(args as [])).pipe(
-      tap((data) => console.log('patchDB: NEW VALUE', argsString, data)),
-      catchError((e) => {
+      tap(data => console.log('patchDB: NEW VALUE', argsString, data)),
+      catchError(e => {
         console.error('patchDB: WATCH ERROR', e)
         return of(e.message)
       }),

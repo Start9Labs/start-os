@@ -3,7 +3,7 @@ import { RouterModule, Routes } from '@angular/router'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RestorePage } from './restore.component'
-import { SharingModule } from 'src/app/modules/sharing.module'
+import { SharedPipesModule } from '@start9labs/shared'
 import { BackupDrivesComponentModule } from 'src/app/components/backup-drives/backup-drives.component.module'
 import { AppRecoverSelectPageModule } from 'src/app/modals/app-recover-select/app-recover-select.module'
 
@@ -19,12 +19,10 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    SharingModule,
+    SharedPipesModule,
     BackupDrivesComponentModule,
     AppRecoverSelectPageModule,
   ],
-  declarations: [
-    RestorePage,
-  ],
+  declarations: [RestorePage],
 })
-export class RestorePageModule { }
+export class RestorePageModule {}
