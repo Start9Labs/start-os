@@ -10,7 +10,7 @@
 	- `sudo apt install -y avahi-daemon`
 	- Installed by default on most Debian systems - https://avahi.org
 - Docker
-	- `sudo apt install -y docker.io`
+	- `curl -fsSL https://get.docker.com | sh`
 	- https://docs.docker.com/get-docker
 	- Add your user to the docker group: `sudo usermod -a -G docker $USER`
 	- Reload user environment `exec sudo su -l $USER`
