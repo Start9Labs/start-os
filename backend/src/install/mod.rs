@@ -78,6 +78,39 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
         .collect())
 }
 
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[serde(rename = "kebab-case")]
+pub enum MinMax {
+    Min,
+    Max,
+}
+impl Default for MinMax {
+    fn default() -> Self {
+        MinMax::Max
+    }
+}
+impl std::str::FromStr for MinMax {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "min" => Ok(MinMax::Min),
+            "max" => Ok(MinMax::Max),
+            _ => Err(Error::new(
+                eyre!("Must be one of \"min\", \"max\"."),
+                crate::ErrorKind::ParseVersion,
+            )),
+        }
+    }
+}
+impl std::fmt::Display for MinMax {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MinMax::Min => write!(f, "min"),
+            MinMax::Max => write!(f, "max"),
+        }
+    }
+}
+
 #[command(
     custom_cli(cli_install(async, context(CliContext))),
     display(display_none)
@@ -91,6 +124,7 @@ pub async fn install(
     #[arg(short = "v", long = "version-spec", rename = "version-spec")] version_spec: Option<
         String,
     >,
+    #[arg(long = "version-priority", rename = "version-priority")] version_priority: Option<MinMax>,
 ) -> Result<WithRevision<()>, Error> {
     let version_str = match &version_spec {
         None => "*",
@@ -99,35 +133,36 @@ pub async fn install(
     let version: VersionRange = version_str.parse()?;
     let marketplace_url =
         marketplace_url.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
-    let (man_res, s9pk) = tokio::try_join!(
-        reqwest::get(format!(
-            "{}/package/v0/manifest/{}?spec={}&eos-version-compat={}&arch={}",
-            marketplace_url,
-            id,
-            version,
-            Current::new().compat(),
-            platforms::TARGET_ARCH,
-        )),
-        reqwest::get(format!(
-            "{}/package/v0/{}.s9pk?spec={}&eos-version-compat={}&arch={}",
-            marketplace_url,
-            id,
-            version,
-            Current::new().compat(),
-            platforms::TARGET_ARCH,
-        ))
-    )
+    let version_priority = version_priority.unwrap_or_default();
+    let man: Manifest = reqwest::get(format!(
+        "{}/package/v0/manifest/{}?spec={}&version-priority={}&eos-version-compat={}&arch={}",
+        marketplace_url,
+        id,
+        version,
+        version_priority,
+        Current::new().compat(),
+        platforms::TARGET_ARCH,
+    ))
+    .await
+    .with_kind(crate::ErrorKind::Registry)?
+    .error_for_status()
+    .with_kind(crate::ErrorKind::Registry)?
+    .json()
+    .await
     .with_kind(crate::ErrorKind::Registry)?;
-    let man: Manifest = man_res
-        .error_for_status()
-        .with_kind(crate::ErrorKind::Registry)?
-        .json()
-        .await
-        .with_kind(crate::ErrorKind::Registry)?;
-
-    let s9pk = s9pk
-        .error_for_status()
-        .with_kind(crate::ErrorKind::Registry)?;
+    let s9pk = reqwest::get(format!(
+        "{}/package/v0/{}.s9pk?spec={}&version-priority={}&eos-version-compat={}&arch={}",
+        marketplace_url,
+        id,
+        version,
+        version_priority,
+        Current::new().compat(),
+        platforms::TARGET_ARCH,
+    ))
+    .await
+    .with_kind(crate::ErrorKind::Registry)?
+    .error_for_status()
+    .with_kind(crate::ErrorKind::Registry)?;
 
     if man.id.as_str() != id || !man.version.satisfies(&version) {
         return Err(Error::new(
@@ -149,10 +184,10 @@ pub async fn install(
             tokio::io::copy(
                 &mut response_to_reader(
                     reqwest::get(format!(
-                        "{}/package/v0/license/{}?spec={}&eos-version-compat={}&arch={}",
+                        "{}/package/v0/license/{}?spec=={}&eos-version-compat={}&arch={}",
                         marketplace_url,
                         id,
-                        version,
+                        man.version,
                         Current::new().compat(),
                         platforms::TARGET_ARCH,
                     ))
@@ -167,10 +202,10 @@ pub async fn install(
             tokio::io::copy(
                 &mut response_to_reader(
                     reqwest::get(format!(
-                        "{}/package/v0/instructions/{}?spec={}&eos-version-compat={}&arch={}",
+                        "{}/package/v0/instructions/{}?spec=={}&eos-version-compat={}&arch={}",
                         marketplace_url,
                         id,
-                        version,
+                        man.version,
                         Current::new().compat(),
                         platforms::TARGET_ARCH,
                     ))
@@ -185,10 +220,10 @@ pub async fn install(
             tokio::io::copy(
                 &mut response_to_reader(
                     reqwest::get(format!(
-                        "{}/package/v0/icon/{}?spec={}&eos-version-compat={}&arch={}",
+                        "{}/package/v0/icon/{}?spec=={}&eos-version-compat={}&arch={}",
                         marketplace_url,
                         id,
-                        version,
+                        man.version,
                         Current::new().compat(),
                         platforms::TARGET_ARCH,
                     ))
@@ -436,6 +471,7 @@ async fn cli_install(
     target: String,
     marketplace_url: Option<Url>,
     version_spec: Option<String>,
+    version_priority: Option<MinMax>,
 ) -> Result<(), RpcError> {
     if target.ends_with(".s9pk") {
         let path = PathBuf::from(target);
@@ -479,7 +515,7 @@ async fn cli_install(
     } else {
         let params = match (target.split_once("@"), version_spec) {
             (Some((pkg, v)), None) => {
-                serde_json::json!({ "id": pkg, "marketplace-url": marketplace_url, "version-spec": v })
+                serde_json::json!({ "id": pkg, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
             }
             (Some(_), Some(_)) => {
                 return Err(crate::Error::new(
@@ -489,9 +525,11 @@ async fn cli_install(
                 .into())
             }
             (None, Some(v)) => {
-                serde_json::json!({ "id": target, "marketplace-url": marketplace_url, "version-spec": v })
+                serde_json::json!({ "id": target, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
             }
-            (None, None) => serde_json::json!({ "id": target, "marketplace-url": marketplace_url }),
+            (None, None) => {
+                serde_json::json!({ "id": target, "marketplace-url": marketplace_url, "version-priority": version_priority })
+            }
         };
         tracing::debug!("calling package.install");
         rpc_toolkit::command_helpers::call_remote(

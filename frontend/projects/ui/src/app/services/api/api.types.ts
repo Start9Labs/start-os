@@ -179,6 +179,7 @@ export module RR {
   export type InstallPackageReq = WithExpire<{
     id: string
     'version-spec'?: string
+    'version-priority'?: 'min' | 'max'
   }> // package.install
   export type InstallPackageRes = WithRevision<null>
 
