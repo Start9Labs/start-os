@@ -26,7 +26,7 @@ apt-get install -y \
 	samba-common-bin \
 	ntp \
 	network-manager \
-	vim \ 
+	vim \
 	jq \
 	ncdu
 
