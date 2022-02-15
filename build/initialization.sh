@@ -27,7 +27,8 @@ apt-get install -y \
 	ntp \
 	network-manager \
 	vim \ 
-	jq
+	jq \
+	ncdu
 
 curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
 
