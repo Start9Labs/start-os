@@ -25,7 +25,10 @@ apt-get install -y \
 	cifs-utils \
 	samba-common-bin \
 	ntp \
-	network-manager
+	network-manager \
+	vim \
+	jq \
+	ncdu
 
 curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
 
