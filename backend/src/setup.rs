@@ -459,12 +459,18 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
                     let len = m.len();
-                    tokio::fs::copy(&src_path, &dst_path).await.with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            format!("cp {} -> {}", src_path.display(), dst_path.display()),
-                        )
-                    })?;
+                    let mut cp_res = Ok(());
+                    for _ in 0..10 {
+                        cp_res = tokio::fs::copy(&src_path, &dst_path).await.with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("cp {} -> {}", src_path.display(), dst_path.display()),
+                            )
+                        });
+                        if cp_res.is_ok() {
+                            break;
+                        }
+                    }
                     let tmp_dst_path = dst_path.clone();
                     tokio::task::spawn_blocking(move || {
                         nix::unistd::chown(
