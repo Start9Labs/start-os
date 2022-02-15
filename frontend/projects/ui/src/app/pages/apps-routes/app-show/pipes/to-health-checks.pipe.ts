@@ -1,11 +1,10 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import {
-  exists,
-  isEmptyObject,
   HealthCheckResult,
   PackageDataEntry,
   PackageMainStatus,
-} from '@start9labs/shared'
+} from 'src/app/services/patch-db/data-model'
+import { exists, isEmptyObject } from '@start9labs/shared'
 import { filter, map, startWith } from 'rxjs/operators'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Observable } from 'rxjs'

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@angular/core'
 import { DOCUMENT } from '@angular/common'
-import { PackageDataEntry } from '@start9labs/shared'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from './config.service'
 
 @Injectable({

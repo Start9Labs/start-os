@@ -12,11 +12,11 @@ import {
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Subscription } from 'rxjs'
 import { take } from 'rxjs/operators'
+import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import {
-  MappedBackupTarget,
   PackageDataEntry,
   PackageMainStatus,
-} from '@start9labs/shared'
+} from 'src/app/services/patch-db/data-model'
 import * as argon2 from '@start9labs/argon2'
 import {
   CifsBackupTarget,
@@ -33,15 +33,15 @@ export class ServerBackupPage {
   pkgs: PkgInfo[] = []
   subs: Subscription[]
 
-  constructor (
+  constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly patch: PatchDbService,
     private readonly navCtrl: NavController,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.subs = [
       this.patch
         .watch$('server-info', 'status-info', 'backing-up')
@@ -63,12 +63,12 @@ export class ServerBackupPage {
     ]
   }
 
-  ngOnDestroy () {
+  ngOnDestroy() {
     this.subs.forEach(sub => sub.unsubscribe())
     this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
   }
 
-  async presentModalPassword (
+  async presentModalPassword(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
   ): Promise<void> {
     let message =
@@ -98,7 +98,7 @@ export class ServerBackupPage {
     await m.present()
   }
 
-  private async test (
+  private async test(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
     password: string,
     oldPassword?: string,
@@ -125,7 +125,7 @@ export class ServerBackupPage {
     }
   }
 
-  private async presentModalOldPassword (
+  private async presentModalOldPassword(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
     password: string,
   ): Promise<void> {
@@ -150,7 +150,7 @@ export class ServerBackupPage {
     await m.present()
   }
 
-  private async createBackup (
+  private async createBackup(
     id: string,
     password: string,
     oldPassword?: string,
@@ -173,7 +173,7 @@ export class ServerBackupPage {
     }
   }
 
-  private subscribeToBackup () {
+  private subscribeToBackup() {
     this.patch
       .watch$('package-data')
       .pipe(take(1))

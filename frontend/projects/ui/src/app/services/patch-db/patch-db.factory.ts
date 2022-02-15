@@ -6,7 +6,8 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from '../auth.service'
 import { MockApiService } from '../api/embassy-mock-api.service'
 import { filter } from 'rxjs/operators'
-import { exists, DataModel } from '@start9labs/shared'
+import { exists } from '@start9labs/shared'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Storage } from '@ionic/storage-angular'
 
 export function PatchDbServiceFactory(

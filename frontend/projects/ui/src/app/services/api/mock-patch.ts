@@ -1,3 +1,4 @@
+import { PackageState } from '@start9labs/shared'
 import {
   DataModel,
   DependencyErrorType,
@@ -5,9 +6,7 @@ import {
   HealthResult,
   Manifest,
   PackageMainStatus,
-  PackageState,
-  ServerStatus,
-} from '@start9labs/shared'
+} from 'src/app/services/patch-db/data-model'
 
 export const mockPatchData: DataModel = {
   ui: {

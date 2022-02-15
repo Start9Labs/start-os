@@ -78,14 +78,10 @@
                 <span *ngIf="not['package-id']"
                   >{{ not['package-id'] }} -
                 </span>
-                <ion-text [color]="not | notificationColor"
-                  >{{ not.title }}</ion-text
-                >
+                <ion-text [color]="getColor(not)"> {{ not.title }} </ion-text>
               </b>
             </h2>
-            <h2 class="notification-message">
-              {{ not.message | truncateTail: 240 }}
-            </h2>
+            <h2 class="notification-message">{{ truncate(not.message) }}</h2>
             <p class="view-message-tag">
               <a
                 class="view-message-tag"

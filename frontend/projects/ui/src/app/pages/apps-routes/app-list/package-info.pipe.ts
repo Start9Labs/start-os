@@ -1,7 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { Observable } from 'rxjs'
 import { filter, map, startWith } from 'rxjs/operators'
-import { PackageDataEntry } from '@start9labs/shared'
+import { PackageDataEntry } from '../../../services/patch-db/data-model'
 import { getPackageInfo, PkgInfo } from '../../../util/get-package-info'
 import { PatchDbService } from '../../../services/patch-db/patch-db.service'
 

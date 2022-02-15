@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { PackageDataEntry } from '@start9labs/shared'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import {
   PackageStatus,
   renderPkgStatus,

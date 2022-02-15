@@ -10,11 +10,7 @@ import {
   IonicSafeString,
   ModalController,
 } from '@ionic/angular'
-import { FormService } from 'src/app/services/form.service'
-import { Range } from 'src/app/pkg-config/config-utilities'
-import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
 import {
-  pauseFor,
   ConfigSpec,
   ListValueSpecOf,
   ValueSpec,
@@ -22,7 +18,11 @@ import {
   ValueSpecList,
   ValueSpecListOf,
   ValueSpecUnion,
-} from '@start9labs/shared'
+} from 'src/app/pkg-config/config-types'
+import { FormService } from 'src/app/services/form.service'
+import { Range } from 'src/app/pkg-config/config-utilities'
+import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
+import { pauseFor } from '@start9labs/shared'
 import { v4 } from 'uuid'
 const Mustache = require('mustache')
 

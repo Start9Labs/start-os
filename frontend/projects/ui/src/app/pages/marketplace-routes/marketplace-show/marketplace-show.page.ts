@@ -14,9 +14,9 @@ import {
   Emver,
   DependentInfo,
   pauseFor,
-  PackageDataEntry,
   PackageState,
 } from '@start9labs/shared'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'

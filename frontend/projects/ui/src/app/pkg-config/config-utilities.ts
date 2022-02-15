@@ -1,4 +1,4 @@
-import { ValueSpec, DefaultString } from '@start9labs/shared'
+import { ValueSpec, DefaultString } from './config-types'
 
 export class Range {
   min?: number

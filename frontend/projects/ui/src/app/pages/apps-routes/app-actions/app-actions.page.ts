@@ -9,17 +9,17 @@ import {
   NavController,
 } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import {
+  Action,
+  PackageDataEntry,
+  PackageMainStatus,
+} from 'src/app/services/patch-db/data-model'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
-import {
-  Action,
-  PackageDataEntry,
-  PackageMainStatus,
-  isEmptyObject,
-} from '@start9labs/shared'
+import { isEmptyObject } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 
 @Component({
@@ -33,7 +33,7 @@ export class AppActionsPage {
   pkg: PackageDataEntry
   subs: Subscription[]
 
-  constructor (
+  constructor(
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
     private readonly modalCtrl: ModalController,
@@ -43,9 +43,9 @@ export class AppActionsPage {
     private readonly wizardBaker: WizardBaker,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.subs = [
       this.patch.watch$('package-data', this.pkgId).subscribe(pkg => {
@@ -54,15 +54,15 @@ export class AppActionsPage {
     ]
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  ngOnDestroy () {
+  ngOnDestroy() {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 
-  async handleAction (action: { key: string; value: Action }) {
+  async handleAction(action: { key: string; value: Action }) {
     const status = this.pkg.installed.status
     if (
       (action.value['allowed-statuses'] as PackageMainStatus[]).includes(
@@ -90,8 +90,9 @@ export class AppActionsPage {
       } else {
         const alert = await this.alertCtrl.create({
           header: 'Confirm',
-          message: `Are you sure you want to execute action "${action.value.name
-            }"? ${action.value.warning || ''}`,
+          message: `Are you sure you want to execute action "${
+            action.value.name
+          }"? ${action.value.warning || ''}`,
           buttons: [
             {
               text: 'Cancel',
@@ -136,7 +137,7 @@ export class AppActionsPage {
     }
   }
 
-  async uninstall () {
+  async uninstall() {
     const { id, title, version, alerts } = this.pkg.manifest
     const data = await wizardModal(
       this.modalCtrl,
@@ -152,7 +153,7 @@ export class AppActionsPage {
     return this.navCtrl.navigateRoot('/services')
   }
 
-  private async executeAction (
+  private async executeAction(
     actionId: string,
     input?: object,
   ): Promise<boolean> {
@@ -186,7 +187,7 @@ export class AppActionsPage {
     }
   }
 
-  asIsOrder () {
+  asIsOrder() {
     return 0
   }
 }

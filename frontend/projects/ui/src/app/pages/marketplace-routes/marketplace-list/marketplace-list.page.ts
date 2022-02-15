@@ -6,12 +6,8 @@ import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MarketplaceService } from '../marketplace.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import Fuse from 'fuse.js/dist/fuse.min.js'
-import {
-  exists,
-  isEmptyObject,
-  PackageDataEntry,
-  PackageState,
-} from '@start9labs/shared'
+import { exists, isEmptyObject, PackageState } from '@start9labs/shared'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { filter, first } from 'rxjs/operators'
 
 const defaultOps = {
@@ -47,7 +43,7 @@ export class MarketplaceListPage {
 
   pkgs: MarketplacePkg[] = []
   categories: string[]
-  localPkgs: { [id: string]: PackageDataEntry } = {}
+  localPkgs: Record<string, PackageDataEntry> = {}
   category = 'featured'
   query: string
   loading = true

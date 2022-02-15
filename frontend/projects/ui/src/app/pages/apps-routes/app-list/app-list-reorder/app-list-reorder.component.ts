@@ -6,7 +6,7 @@ import {
   Output,
 } from '@angular/core'
 import { ItemReorderEventDetail } from '@ionic/core'
-import { PackageDataEntry } from '@start9labs/shared'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { map } from 'rxjs/operators'
 import {
   ConnectionFailure,

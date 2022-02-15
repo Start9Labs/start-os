@@ -4,10 +4,7 @@ import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
 import { ServerShowPage } from './server-show.page'
 import { FormsModule } from '@angular/forms'
-import {
-  TextSpinnerComponentModule,
-  StatusComponentModule,
-} from '@start9labs/shared'
+import { TextSpinnerComponentModule } from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 
 const routes: Routes = [
@@ -21,7 +18,6 @@ const routes: Routes = [
   imports: [
     CommonModule,
     FormsModule,
-    StatusComponentModule,
     IonicModule,
     RouterModule.forChild(routes),
     TextSpinnerComponentModule,

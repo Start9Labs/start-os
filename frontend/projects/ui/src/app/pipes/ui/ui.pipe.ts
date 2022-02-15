@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { InterfaceDef } from '@start9labs/shared'
+import { InterfaceDef } from '../../services/patch-db/data-model'
 import { hasUi } from '../../services/config.service'
 
 @Pipe({

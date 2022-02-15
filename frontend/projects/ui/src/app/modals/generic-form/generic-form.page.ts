@@ -5,7 +5,7 @@ import {
   convertValuesRecursive,
   FormService,
 } from 'src/app/services/form.service'
-import { ConfigSpec } from '@start9labs/shared'
+import { ConfigSpec } from 'src/app/pkg-config/config-types'
 
 export interface ActionButton {
   text: string

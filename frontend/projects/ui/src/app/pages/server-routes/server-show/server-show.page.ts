@@ -14,8 +14,9 @@ import { Observable, of } from 'rxjs'
 import { filter, map, take } from 'rxjs/operators'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
-import { exists, isEmptyObject, ServerStatus } from '@start9labs/shared'
+import { exists, isEmptyObject } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
+import { ServerStatus } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'server-show',

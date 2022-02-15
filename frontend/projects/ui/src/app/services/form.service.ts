@@ -25,7 +25,7 @@ import {
   ValueSpecObject,
   ValueSpecString,
   ValueSpecUnion,
-} from '@start9labs/shared'
+} from 'src/app/pkg-config/config-types'
 import { getDefaultString, Range } from '../pkg-config/config-utilities'
 const Mustache = require('mustache')
 

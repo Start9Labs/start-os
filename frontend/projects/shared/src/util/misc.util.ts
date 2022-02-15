@@ -1,26 +1,6 @@
 import { OperatorFunction } from 'rxjs'
 import { map } from 'rxjs/operators'
 
-export type Omit<ObjectType, KeysType extends keyof ObjectType> = Pick<
-  ObjectType,
-  Exclude<keyof ObjectType, KeysType>
->
-export type PromiseRes<T> =
-  | { result: 'resolve'; value: T }
-  | { result: 'reject'; value: Error }
-
-export interface MappedBackupTarget<T> {
-  id: string
-  hasValidBackup: boolean
-  entry: T
-}
-
-export interface DependentInfo {
-  id: string
-  title: string
-  version?: string
-}
-
 export function trace<T>(t: T): T {
   console.log(`TRACE`, t)
   return t
@@ -45,21 +25,6 @@ export function traceThrowDesc<T>(description: string, t: T | undefined): T {
   return t
 }
 
-export function thenReturn<T>(act1: () => Promise<any>, t: T): Promise<T> {
-  return act1().then(() => t)
-}
-
-export function modulateTime(
-  ts: Date,
-  count: number,
-  unit: 'days' | 'hours' | 'minutes' | 'seconds',
-) {
-  const ms = inMs(count, unit)
-  const toReturn = new Date(ts)
-  toReturn.setMilliseconds(toReturn.getMilliseconds() + ms)
-  return toReturn
-}
-
 export function inMs(
   count: number,
   unit: 'days' | 'hours' | 'minutes' | 'seconds',
@@ -76,21 +41,6 @@ export function inMs(
   }
 }
 
-export async function tryAll<T1, T2>(
-  promises: [Promise<T1>, Promise<T2>],
-): Promise<[PromiseRes<T1>, PromiseRes<T2>]>
-export async function tryAll(
-  promises: Promise<any>[],
-): Promise<PromiseRes<any>[]> {
-  return Promise.all(
-    promises.map(p =>
-      p
-        .then(r => ({ result: 'resolve' as 'resolve', value: r }))
-        .catch(e => ({ result: 'reject' as 'reject', value: e })),
-    ),
-  )
-}
-
 // arr1 - arr2
 export function diff<T>(arr1: T[], arr2: T[]): T[] {
   return arr1.filter(x => !arr2.includes(x))
@@ -99,15 +49,6 @@ export function diff<T>(arr1: T[], arr2: T[]): T[] {
 // arr1 & arr2
 export function both<T>(arr1: T[], arr2: T[]): T[] {
   return arr1.filter(x => arr2.includes(x))
-}
-
-export async function doForAtLeast(
-  promises: Promise<any>[],
-  minTime: number,
-): Promise<any[]> {
-  const returned = await Promise.all(promises.concat(pauseFor(minTime)))
-  returned.pop()
-  return returned
 }
 
 export function isObject(val: any): boolean {
@@ -123,29 +64,18 @@ export function pauseFor(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-export type Valued<T> = { [s: string]: T }
-
-export function toObject<T>(t: T[], map: (t0: T) => string): Valued<T> {
+export function toObject<T>(t: T[], map: (t0: T) => string): Record<string, T> {
   return t.reduce((acc, next) => {
     acc[map(next)] = next
     return acc
-  }, {} as Valued<T>)
+  }, {} as Record<string, T>)
 }
 
-export function toDedupObject<T>(
-  t: T[],
-  t2: T[],
-  map: (t0: T) => string,
-): Valued<T> {
-  return toObject(t.concat(t2), map)
-}
-
-export function update<T>(t: Valued<T>, u: Valued<T>): Valued<T> {
+export function update<T>(
+  t: Record<string, T>,
+  u: Record<string, T>,
+): Record<string, T> {
   return { ...t, ...u }
-}
-
-export function fromObject<T>(o: Valued<T>): T[] {
-  return Object.values(o)
 }
 
 export function deepCloneUnknown<T>(value: T): T {
@@ -213,10 +143,6 @@ export function capitalizeFirstLetter(string: string): string {
 
 export const exists = (t: any) => {
   return t !== undefined
-}
-
-export type DeepPartial<T> = {
-  [k in keyof T]?: DeepPartial<T[k]>
 }
 
 export function debounce(delay: number = 300): MethodDecorator {

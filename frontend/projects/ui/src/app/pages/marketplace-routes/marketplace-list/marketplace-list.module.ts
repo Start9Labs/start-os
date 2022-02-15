@@ -7,7 +7,6 @@ import {
   SharedPipesModule,
   EmverPipesModule,
   TextSpinnerComponentModule,
-  StatusComponentModule,
 } from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { MarketplacePipesModule } from '../pipes/marketplace-pipes.module'
@@ -26,7 +25,6 @@ const routes: Routes = [
     IonicModule,
     FormsModule,
     RouterModule.forChild(routes),
-    StatusComponentModule,
     TextSpinnerComponentModule,
     SharedPipesModule,
     EmverPipesModule,

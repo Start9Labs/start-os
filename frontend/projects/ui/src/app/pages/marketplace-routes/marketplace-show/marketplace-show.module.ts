@@ -8,7 +8,6 @@ import {
   EmverPipesModule,
   MarkdownPipeModule,
   TextSpinnerComponentModule,
-  StatusComponentModule,
 } from '@start9labs/shared'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
 import { MarketplacePipesModule } from '../pipes/marketplace-pipes.module'
@@ -24,7 +23,6 @@ const routes: Routes = [
   imports: [
     CommonModule,
     IonicModule,
-    StatusComponentModule,
     RouterModule.forChild(routes),
     TextSpinnerComponentModule,
     SharedPipesModule,

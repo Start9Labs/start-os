@@ -1,15 +1,12 @@
+import { PackageDataEntry } from '../services/patch-db/data-model'
 import {
   DependencyStatus,
   HealthStatus,
-  renderPkgStatus,
-} from '../services/pkg-status-rendering.service'
-import {
-  packageLoadingProgress,
-  PackageDataEntry,
-  ProgressData,
   PrimaryRendering,
+  renderPkgStatus,
   StatusRendering,
-} from '@start9labs/shared'
+} from '../services/pkg-status-rendering.service'
+import { packageLoadingProgress, ProgressData } from '@start9labs/shared'
 import { Subscription } from 'rxjs'
 
 export function getPackageInfo(entry: PackageDataEntry): PkgInfo {

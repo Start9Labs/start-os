@@ -2,7 +2,10 @@ import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent, ToastController } from '@ionic/angular'
 import { getUiInterfaceKey } from 'src/app/services/config.service'
-import { InstalledPackageDataEntry, InterfaceDef } from '@start9labs/shared'
+import {
+  InstalledPackageDataEntry,
+  InterfaceDef,
+} from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 

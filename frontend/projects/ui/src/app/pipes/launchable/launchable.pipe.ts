@@ -1,9 +1,9 @@
 import { Pipe, PipeTransform } from '@angular/core'
+import { PackageState } from '@start9labs/shared'
 import {
   InterfaceDef,
   PackageMainStatus,
-  PackageState,
-} from '@start9labs/shared'
+} from 'src/app/services/patch-db/data-model'
 import { ConfigService } from '../../services/config.service'
 
 @Pipe({

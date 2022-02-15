@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { HealthResult } from '@start9labs/shared'
+import { HealthResult } from 'src/app/services/patch-db/data-model'
 
 @Pipe({
   name: 'healthColor',

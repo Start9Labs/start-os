@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PackageState } from '@start9labs/shared'
 import {
-  PackageDataEntry,
-  PackageState,
+  PackageStatus,
   PrimaryStatus,
-} from '@start9labs/shared'
-import { PackageStatus } from 'src/app/services/pkg-status-rendering.service'
+} from 'src/app/services/pkg-status-rendering.service'
 import {
   ConnectionFailure,
   ConnectionService,

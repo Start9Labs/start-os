@@ -1,6 +1,9 @@
 import { Component, Input } from '@angular/core'
-import { PrimaryRendering } from '../../const/primary-rendering'
-import { PrimaryStatus, StatusRendering } from '../../types/status'
+import {
+  PrimaryRendering,
+  PrimaryStatus,
+  StatusRendering,
+} from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
   selector: 'status',

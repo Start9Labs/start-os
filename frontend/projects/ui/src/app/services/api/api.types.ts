@@ -1,12 +1,12 @@
 import { Dump, Revision } from 'patch-db-client'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
+import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
-  ConfigSpec,
   DataModel,
   DependencyError,
   Manifest,
   URL,
-} from '@start9labs/shared'
+} from 'src/app/services/patch-db/data-model'
 
 export module RR {
   // DB

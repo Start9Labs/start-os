@@ -135,7 +135,7 @@ export class NotificationsPage {
   }
 
   truncate(message: string): string {
-    return message.length <= 1000 ? message : '...' + message.substr(-1000)
+    return message.length <= 240 ? message : '...' + message.substr(-240)
   }
 
   getColor({ level }: ServerNotification<number>): string {

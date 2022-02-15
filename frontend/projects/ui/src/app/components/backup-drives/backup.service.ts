@@ -7,7 +7,8 @@ import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
-import { Emver, MappedBackupTarget } from '@start9labs/shared'
+import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
+import { Emver } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',

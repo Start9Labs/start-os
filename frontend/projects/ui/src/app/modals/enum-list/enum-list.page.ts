@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { ValueSpecListOf } from '@start9labs/shared'
+import { ValueSpecListOf } from 'src/app/pkg-config/config-types'
 
 @Component({
   selector: 'enum-list',

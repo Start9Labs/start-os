@@ -1,12 +1,12 @@
+import { PackageState } from '@start9labs/shared'
+import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
-  ConfigSpec,
   DependencyErrorType,
   DockerIoFormat,
   Manifest,
   PackageDataEntry,
   PackageMainStatus,
-  PackageState,
-} from '@start9labs/shared'
+} from 'src/app/services/patch-db/data-model'
 import {
   Log,
   MarketplacePkg,

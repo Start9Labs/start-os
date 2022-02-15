@@ -10,7 +10,8 @@ import {
   tap,
   withLatestFrom,
 } from 'rxjs/operators'
-import { isEmptyObject, DataModel, pauseFor } from '@start9labs/shared'
+import { isEmptyObject, pauseFor } from '@start9labs/shared'
+import { DataModel } from './data-model'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
 

@@ -1,5 +1,5 @@
 import { isEmptyObject } from './misc.util'
-import { InstallProgress } from '../types/patch-db'
+import { InstallProgress } from '../types/install-progress'
 import { ProgressData } from '../types/progress-data'
 
 export function packageLoadingProgress(

@@ -1,8 +1,8 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
+import { UnitConversionPipesModule } from '@start9labs/shared'
 import { StatusComponent } from './status.component'
-import { UnitConversionPipesModule } from '../../pipes/unit-conversion/unit-conversion.module'
 
 @NgModule({
   declarations: [StatusComponent],

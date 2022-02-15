@@ -1,13 +1,9 @@
 import { Component } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { Observable } from 'rxjs'
 import { filter, map, switchMapTo, take, takeUntil, tap } from 'rxjs/operators'
-import {
-  isEmptyObject,
-  exists,
-  DestroyService,
-  PackageDataEntry,
-} from '@start9labs/shared'
+import { isEmptyObject, exists, DestroyService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { parseDataModel, RecoveredInfo } from 'src/app/util/parse-data-model'
 

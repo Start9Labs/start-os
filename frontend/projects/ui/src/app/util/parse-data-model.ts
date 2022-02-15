@@ -2,7 +2,7 @@ import {
   DataModel,
   PackageDataEntry,
   RecoveredPackageDataEntry,
-} from '@start9labs/shared'
+} from 'src/app/services/patch-db/data-model'
 
 export function parseDataModel(data: DataModel): ParsedData {
   const all = JSON.parse(JSON.stringify(data['package-data'])) as {

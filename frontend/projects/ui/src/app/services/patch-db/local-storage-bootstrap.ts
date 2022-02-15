@@ -1,5 +1,5 @@
 import { Bootstrapper, DBCache } from 'patch-db-client'
-import { DataModel } from '@start9labs/shared'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Injectable } from '@angular/core'
 import { Storage } from '@ionic/storage-angular'
 

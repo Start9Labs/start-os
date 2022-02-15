@@ -5,7 +5,7 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
-import { MappedBackupTarget } from '@start9labs/shared'
+import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import {
   BackupInfo,
   CifsBackupTarget,

@@ -1,12 +1,9 @@
+import { isEmptyObject, PackageState } from '@start9labs/shared'
 import {
-  isEmptyObject,
   PackageDataEntry,
   PackageMainStatus,
-  PackageState,
-  PrimaryStatus,
-  StatusRendering,
   Status,
-} from '@start9labs/shared'
+} from 'src/app/services/patch-db/data-model'
 
 export interface PackageStatus {
   primary: PrimaryStatus
@@ -63,6 +60,28 @@ function getHealthStatus(status: Status): HealthStatus {
   }
 }
 
+export interface StatusRendering {
+  display: string
+  color: string
+  showDots?: boolean
+}
+
+export enum PrimaryStatus {
+  // state
+  Installing = 'installing',
+  Updating = 'updating',
+  Removing = 'removing',
+  Restoring = 'restoring',
+  // status
+  Starting = 'starting',
+  Running = 'running',
+  Stopping = 'stopping',
+  Stopped = 'stopped',
+  BackingUp = 'backing-up',
+  // config
+  NeedsConfig = 'needs-config',
+}
+
 export enum DependencyStatus {
   Warning = 'warning',
   Satisfied = 'satisfied',
@@ -73,6 +92,55 @@ export enum HealthStatus {
   Starting = 'starting',
   Loading = 'loading',
   Healthy = 'healthy',
+}
+
+export const PrimaryRendering: Record<string, StatusRendering> = {
+  [PrimaryStatus.Installing]: {
+    display: 'Installing',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Updating]: {
+    display: 'Updating',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Removing]: {
+    display: 'Removing',
+    color: 'danger',
+    showDots: true,
+  },
+  [PrimaryStatus.Restoring]: {
+    display: 'Restoring',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Stopping]: {
+    display: 'Stopping',
+    color: 'dark-shade',
+    showDots: true,
+  },
+  [PrimaryStatus.Stopped]: {
+    display: 'Stopped',
+    color: 'dark-shade',
+    showDots: false,
+  },
+  [PrimaryStatus.BackingUp]: {
+    display: 'Backing Up',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Starting]: {
+    display: 'Starting',
+    color: 'primary',
+    showDots: true,
+  },
+  [PrimaryStatus.Running]: {
+    display: 'Running',
+    color: 'success',
+    showDots: false,
+  },
+  [PrimaryStatus.NeedsConfig]: { display: 'Needs Config', color: 'warning' },
 }
 
 export const DependencyRendering: Record<string, StatusRendering> = {

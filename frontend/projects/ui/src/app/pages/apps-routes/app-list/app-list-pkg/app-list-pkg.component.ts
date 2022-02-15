@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { PackageMainStatus, Manifest } from '@start9labs/shared'
+import {
+  PackageMainStatus,
+  Manifest,
+} from 'src/app/services/patch-db/data-model'
 import { PkgInfo } from 'src/app/util/get-package-info'
 import { UiLauncherService } from 'src/app/services/ui-launcher.service'
 
