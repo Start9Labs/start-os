@@ -9,7 +9,7 @@ cat << "ASCII"
                               `---'
 ASCII
 printf "   %s (%s %s)\n" "$(uname -o)" "$(uname -r)" "$(uname -m)"
-printf "   EmbassyOS v$(embassy-cli --version) - $(embassy-cli git-info)\n"
+printf "   $(embassy-cli --version | sed 's/Embassy CLI /EmbassyOS v/g') - $(embassy-cli git-info)\n"
 
 printf "\n"
 printf " * Documentation:  https://docs.start9.com\n"
