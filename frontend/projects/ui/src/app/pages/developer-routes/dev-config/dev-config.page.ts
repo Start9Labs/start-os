@@ -3,9 +3,10 @@ import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
 import * as yaml from 'js-yaml'
 import { take } from 'rxjs/operators'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { debounce } from '../../../../../../shared/src/util/misc.util'
 import { GenericFormPage } from '../../../modals/generic-form/generic-form.page'
-import { ConfigSpec } from '../../../pkg-config/config-types'
 import { ErrorToastService } from '../../../services/error-toast.service'
 
 @Component({
@@ -17,12 +18,14 @@ export class DevConfigPage {
   projectId: string
   editorOptions = { theme: 'vs-dark', language: 'yaml' }
   code: string
+  saving: boolean = false
 
   constructor(
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
     private readonly modalCtrl: ModalController,
     private readonly patchDb: PatchDbService,
+    private readonly api: ApiService,
   ) {}
 
   ngOnInit() {
@@ -36,7 +39,7 @@ export class DevConfigPage {
       })
   }
 
-  async submit() {
+  async preview() {
     let doc: any
     try {
       doc = yaml.load(this.code)
@@ -61,5 +64,22 @@ export class DevConfigPage {
       },
     })
     await modal.present()
+  }
+
+  @debounce(1000)
+  async save() {
+    this.saving = true
+    try {
+      await this.api.setDbValue({
+        pointer: `/dev/${this.projectId}/config`,
+        value: this.code,
+      })
+    } catch (e) {
+      this.errToast.present({
+        message: 'Auto save error:  Your changes are not saved.',
+      } as any)
+    } finally {
+      this.saving = false
+    }
   }
 }

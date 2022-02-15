@@ -5,9 +5,15 @@
         [defaultHref]="'/developer/projects/' + projectId"
       ></ion-back-button>
     </ion-buttons>
-    <ion-title>Config</ion-title>
+    <ion-title
+      >Config<ion-spinner
+        *ngIf="saving"
+        name="crescent"
+        style="transform: translateY(6px) scale(0.55)"
+      ></ion-spinner
+    ></ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="submit()">Preview</ion-button>
+      <ion-button (click)="preview()">Preview</ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
@@ -19,6 +25,7 @@
     name="lines"
   ></ion-spinner>
   <ngx-monaco-editor
+    (keyup)="save()"
     *ngIf="code"
     [options]="editorOptions"
     [(ngModel)]="code"
