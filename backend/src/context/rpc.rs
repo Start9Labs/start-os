@@ -127,8 +127,6 @@ pub struct RpcContextSeed {
     pub revision_cache: RwLock<VecDeque<Arc<Revision>>>,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
-    pub websocket_count: AtomicUsize,
-    pub logger: EmbassyLogger,
     pub tor_socks: SocketAddr,
     pub notification_manager: NotificationManager,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
@@ -150,8 +148,6 @@ impl RpcContext {
             Ipv4Addr::new(127, 0, 0, 1),
             9050,
         )));
-        let logger = EmbassyLogger::init();
-        tracing::info!("Set Logger");
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
         tracing::info!("Opened Sqlite DB");
@@ -189,8 +185,6 @@ impl RpcContext {
             revision_cache: RwLock::new(VecDeque::new()),
             metrics_cache,
             shutdown,
-            websocket_count: AtomicUsize::new(0),
-            logger,
             tor_socks: tor_proxy,
             notification_manager,
             open_authed_websockets: Mutex::new(BTreeMap::new()),

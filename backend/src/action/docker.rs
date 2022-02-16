@@ -152,7 +152,7 @@ impl DockerAction {
         } else {
             EitherFuture::Left(futures::future::pending::<Result<_, Error>>())
         };
-        if let (Some(input), Some(stdin)) = (&input_buf, &mut handle.stdin) {
+        if let (Some(input), Some(mut stdin)) = (&input_buf, handle.stdin.take()) {
             use tokio::io::AsyncWriteExt;
             stdin
                 .write_all(input)
