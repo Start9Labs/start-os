@@ -18,13 +18,17 @@
   <ion-item
     button
     *ngFor="let entry of devData | keyvalue"
-    [routerLink]="entry.key"
+    (click)="goToProject(entry.key)"
   >
     <p>{{ entry.value.name }}</p>
-    <!-- @TODO use when remove available -->
-    <!-- <ion-button slot="end" fill="clear" color="danger" (click)="presentAlertDelete(entry.key)">
+    <ion-button
+      slot="end"
+      fill="clear"
+      color="danger"
+      (click)="presentAlertDelete(entry.key, $event)"
+    >
       <ion-icon slot="start" name="close"></ion-icon>
       Remove
-    </ion-button> -->
+    </ion-button>
   </ion-item>
 </ion-content>

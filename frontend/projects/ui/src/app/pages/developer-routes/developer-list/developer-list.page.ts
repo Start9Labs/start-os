@@ -3,6 +3,7 @@ import {
   AlertController,
   LoadingController,
   ModalController,
+  NavController,
 } from '@ionic/angular'
 import {
   GenericInputComponent,
@@ -16,6 +17,7 @@ import { v4 } from 'uuid'
 import { DevData } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ActivatedRoute } from '@angular/router'
 
 @Component({
   selector: 'developer-list',
@@ -32,6 +34,8 @@ export class DeveloperListPage {
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
+    private readonly navCtrl: NavController,
+    private readonly route: ActivatedRoute,
     public readonly patch: PatchDbService,
   ) {}
 
@@ -104,31 +108,50 @@ export class DeveloperListPage {
     }
   }
 
-  // @TODO use when you can delete from UI
-  // async presentAlertDelete (id: string) {
-  //   const alert = await this.alertCtrl.create({
-  //     header: 'Caution',
-  //     message: `Are you sure you want to delete this project?`,
-  //     buttons: [
-  //       {
-  //         text: 'Cancel',
-  //         role: 'cancel',
-  //       },
-  //       {
-  //         text: 'Delete',
-  //         handler: () => {
-  //           this.delete(id)
-  //         },
-  //         cssClass: 'enter-click',
-  //       },
-  //     ],
-  //   })
-  //   await alert.present()
-  // }
+  async presentAlertDelete(id: string, event: Event) {
+    event.stopPropagation()
+    const alert = await this.alertCtrl.create({
+      header: 'Caution',
+      message: `Are you sure you want to delete this project?`,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Delete',
+          handler: () => {
+            this.delete(id)
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
+  }
 
-  // async delete(id: string) {
-  //   await this.api.removeDbValue({ pointer: `/dev/${id}` })
-  // }
+  async delete(id: string) {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Removing Project...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      const devDataToSave: DevData = JSON.parse(JSON.stringify(this.devData))
+      delete devDataToSave[id]
+      await this.api.setDbValue({ pointer: `/dev`, value: devDataToSave })
+    } catch (e) {
+      this.errToast.present({ message: `Error deleting project data` } as any)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  async goToProject(id: string) {
+    await this.navCtrl.navigateForward([id], { relativeTo: this.route })
+  }
 }
 
 const SAMPLE_INSTUCTIONS = `# Create Instructions using Markdown! :)`
