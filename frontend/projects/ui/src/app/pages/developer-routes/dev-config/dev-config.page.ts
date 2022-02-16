@@ -17,7 +17,7 @@ import { ErrorToastService } from '../../../services/error-toast.service'
 export class DevConfigPage {
   projectId: string
   editorOptions = { theme: 'vs-dark', language: 'yaml' }
-  code: string
+  code: string = ''
   saving: boolean = false
 
   constructor(

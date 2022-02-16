@@ -16,7 +16,7 @@ import { MarkdownPage } from '../../../modals/markdown/markdown.page'
 export class DevInstructionsPage {
   projectId: string
   editorOptions = { theme: 'vs-dark', language: 'markdown' }
-  code: string
+  code: string = ''
   saving: boolean = false
 
   constructor(

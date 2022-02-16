@@ -20,14 +20,8 @@
 </ion-header>
 
 <ion-content>
-  <ion-spinner
-    *ngIf="!code"
-    class="center-spinner centered"
-    name="lines"
-  ></ion-spinner>
   <ngx-monaco-editor
     (keyup)="save()"
-    *ngIf="code"
     [options]="editorOptions"
     [(ngModel)]="code"
   ></ngx-monaco-editor>
