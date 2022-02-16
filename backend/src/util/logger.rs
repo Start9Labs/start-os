@@ -20,7 +20,7 @@ impl EmbassyLogger {
     }
     pub fn init() -> Self {
         Self::base_subscriber().init();
-        color_eyre::install().expect("Color Eyre Init");
+        color_eyre::install().unwrap_or_else(|_| tracing::warn!("tracing too many times"));
 
         EmbassyLogger {}
     }
