@@ -69,6 +69,11 @@ cat /embassy-os/product_key.txt | tr -d '\n' | sha256sum | head -c 32 | sed 's/$
 passwd -l pi
 
 raspi-config nonint enable_overlayfs
+
+# create a copy of the cmdline *without* the quirk string, so that it can be easily amended
+sudo cp /boot/cmdline.txt /boot/cmdline.txt.orig
+sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /boot/cmdline.txt
+
 systemctl disable initialization.service
 sudo systemctl restart NetworkManager
 
