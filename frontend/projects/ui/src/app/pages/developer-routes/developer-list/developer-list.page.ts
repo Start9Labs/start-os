@@ -18,14 +18,16 @@ import { DevData } from 'src/app/services/patch-db/data-model'
 import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ActivatedRoute } from '@angular/router'
+import { DestroyService } from '@start9labs/shared'
+import { takeUntil } from 'rxjs/operators'
 
 @Component({
   selector: 'developer-list',
   templateUrl: 'developer-list.page.html',
   styleUrls: ['developer-list.page.scss'],
+  providers: [DestroyService],
 })
 export class DeveloperListPage {
-  devSub: Subscription
   devData: DevData
 
   constructor(
@@ -36,17 +38,17 @@ export class DeveloperListPage {
     private readonly alertCtrl: AlertController,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
-    public readonly patch: PatchDbService,
+    private readonly destroy$: DestroyService,
+    private readonly patch: PatchDbService,
   ) {}
 
   ngOnInit() {
-    this.devSub = this.patch.watch$('ui', 'dev').subscribe(dd => {
-      this.devData = dd
-    })
-  }
-
-  ngOnDestroy() {
-    this.devSub.unsubscribe()
+    this.patch
+      .watch$('ui', 'dev')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(dd => {
+        this.devData = dd
+      })
   }
 
   async openCreateProjectModal() {
