@@ -49,8 +49,8 @@ export class DeveloperListPage {
     this.devSub.unsubscribe()
   }
 
-  async openAddProjectModal() {
-    const projNumber = Object.keys(this.devData).length + 1
+  async openCreateProjectModal() {
+    const projNumber = Object.keys(this.devData || {}).length + 1
     const options: GenericInputOptions = {
       title: 'Add new project',
       message: 'Create a new dev project.',
