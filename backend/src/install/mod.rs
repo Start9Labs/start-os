@@ -79,7 +79,7 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
 }
 
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub enum MinMax {
     Min,
     Max,
