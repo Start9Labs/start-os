@@ -15,7 +15,7 @@ use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::{Acquire, SqlitePool};
+use sqlx::SqlitePool;
 use tokio::fs::File;
 use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};

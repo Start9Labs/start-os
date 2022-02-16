@@ -356,6 +356,10 @@ async fn perform_backup<Db: DbHandle>(
         tx.save().await?;
     }
 
+    crate::db::DatabaseModel::new()
+        .lock(&mut db, LockType::Write)
+        .await?;
+
     let (root_ca_key, root_ca_cert) = ctx.net_controller.ssl.export_root_ca().await?;
     let mut os_backup_file = AtomicFile::new(backup_guard.as_ref().join("os-backup.cbor")).await?;
     os_backup_file
