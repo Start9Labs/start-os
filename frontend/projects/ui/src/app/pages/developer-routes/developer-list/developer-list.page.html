@@ -4,23 +4,36 @@
       <ion-back-button></ion-back-button>
     </ion-buttons>
     <ion-title>Developer Tools</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
-  <ion-item-divider>Components</ion-item-divider>
-  <ion-item button detail (click)="navToInstructions()">
-    <ion-icon slot="start" name="list-outline"></ion-icon>
+  <ion-item-divider>Projects</ion-item-divider>
+
+  <ion-item button detail="false" (click)="openCreateProjectModal()">
+    <ion-icon slot="start" name="add" color="dark"></ion-icon>
     <ion-label>
-      <h2>Instructions Generator</h2>
-      <p>Create instructions and see how they will appear to the end user</p>
+      <ion-text color="dark">Create project</ion-text>
     </ion-label>
   </ion-item>
-  <ion-item button detail (click)="navToConfig()">
-    <ion-icon slot="start" name="construct-outline"></ion-icon>
-    <ion-label>
-      <h2>Config Generator</h2>
-      <p>Edit the config with YAML and see it in real time</p>
-    </ion-label>
+
+  <ion-item
+    button
+    *ngFor="let entry of devData | keyvalue"
+    (click)="goToProject(entry.key)"
+  >
+    <p>{{ entry.value.name }}</p>
+    <ion-button
+      slot="end"
+      fill="clear"
+      color="danger"
+      (click)="presentAlertDelete(entry.key, $event)"
+    >
+      <ion-icon slot="start" name="close"></ion-icon>
+      Delete
+    </ion-button>
   </ion-item>
 </ion-content>

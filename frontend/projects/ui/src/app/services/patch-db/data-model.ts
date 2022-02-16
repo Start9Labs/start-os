@@ -14,6 +14,7 @@ export interface UIData {
   'pkg-order': string[]
   'ack-welcome': string // EOS version
   marketplace: UIMarketplaceData
+  dev: DevData
 }
 
 export interface UIMarketplaceData {
@@ -23,6 +24,14 @@ export interface UIMarketplaceData {
       url: string
       name: string
     }
+  }
+}
+
+export interface DevData {
+  [id: string]: {
+    name: string
+    instructions?: string
+    config?: string
   }
 }
 

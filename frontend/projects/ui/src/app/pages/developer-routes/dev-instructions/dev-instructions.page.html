@@ -1,17 +1,27 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="/developer"></ion-back-button>
+      <ion-back-button
+        [defaultHref]="'/developer/projects/' + projectId"
+      ></ion-back-button>
     </ion-buttons>
-    <ion-title>Instructions</ion-title>
+    <ion-title
+      >Instructions
+      <ion-spinner
+        *ngIf="saving"
+        name="crescent"
+        style="transform: scale(0.55); position: absolute"
+      ></ion-spinner
+    ></ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="submit()">Preview</ion-button>
+      <ion-button (click)="preview()">Preview</ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
   <ngx-monaco-editor
+    (keyup)="save()"
     [options]="editorOptions"
     [(ngModel)]="code"
   ></ngx-monaco-editor>

@@ -1,8 +1,12 @@
 import { Component } from '@angular/core'
+import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
 import * as yaml from 'js-yaml'
+import { take } from 'rxjs/operators'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { debounce } from '../../../../../../shared/src/util/misc.util'
 import { GenericFormPage } from '../../../modals/generic-form/generic-form.page'
-import { ConfigSpec } from '../../../pkg-config/config-types'
 import { ErrorToastService } from '../../../services/error-toast.service'
 
 @Component({
@@ -11,21 +15,31 @@ import { ErrorToastService } from '../../../services/error-toast.service'
   styleUrls: ['dev-config.page.scss'],
 })
 export class DevConfigPage {
+  projectId: string
   editorOptions = { theme: 'vs-dark', language: 'yaml' }
-  code: string
+  code: string = ''
+  saving: boolean = false
 
   constructor(
+    private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
     private readonly modalCtrl: ModalController,
+    private readonly patchDb: PatchDbService,
+    private readonly api: ApiService,
   ) {}
 
   ngOnInit() {
-    this.code = yaml
-      .dump(SAMPLE_CODE)
-      .replace(/warning:/g, '# Optional\n  warning:')
+    this.projectId = this.route.snapshot.paramMap.get('projectId')
+
+    this.patchDb
+      .watch$('ui', 'dev', this.projectId, 'config')
+      .pipe(take(1))
+      .subscribe(config => {
+        this.code = config
+      })
   }
 
-  async submit() {
+  async preview() {
     let doc: any
     try {
       doc = yaml.load(this.code)
@@ -51,56 +65,21 @@ export class DevConfigPage {
     })
     await modal.present()
   }
-}
 
-const SAMPLE_CODE: ConfigSpec = {
-  'sample-string': {
-    type: 'string',
-    name: 'Example String Input',
-    nullable: false,
-    masked: false,
-    copyable: false,
-    // optional
-    warning: null,
-    description: 'Example description for required string input.',
-    default: null,
-    placeholder: 'Enter string value',
-    pattern: '^[a-zA-Z0-9! _]+$',
-    'pattern-description': 'Must be alphanumeric (may contain underscore).',
-  },
-  'sample-number': {
-    type: 'number',
-    name: 'Example Number Input',
-    nullable: false,
-    range: '[5,1000000]',
-    integral: true,
-    // optional
-    warning: 'Example warning to display when changing this number value.',
-    units: 'ms',
-    description: 'Example description for optional number input.',
-    default: null,
-    placeholder: 'Enter number value',
-  },
-  'sample-boolean': {
-    type: 'boolean',
-    name: 'Example Boolean Toggle',
-    // optional
-    warning: null,
-    description: 'Example description for boolean toggle',
-    default: true,
-  },
-  'sample-enum': {
-    type: 'enum',
-    name: 'Example Enum Select',
-    values: ['red', 'blue', 'green'],
-    'value-names': {
-      red: 'Red',
-      blue: 'Blue',
-      green: 'Green',
-    },
-    // optional
-    warning: 'Example warning to display when changing this enum value.',
-    description: 'Example description for enum select',
-    default: 'red',
-  },
+  @debounce(1000)
+  async save() {
+    this.saving = true
+    try {
+      await this.api.setDbValue({
+        pointer: `/dev/${this.projectId}/config`,
+        value: this.code,
+      })
+    } catch (e) {
+      this.errToast.present({
+        message: 'Auto save error:  Your changes are not saved.',
+      } as any)
+    } finally {
+      this.saving = false
+    }
+  }
 }
