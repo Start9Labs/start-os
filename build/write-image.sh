@@ -2,24 +2,32 @@
 
 set -e
 
+function partition_for () {
+        if [[ "$1" =~ [0-9]+$ ]]; then
+                echo "$1p$2"
+        else
+                echo "$1$2"
+        fi
+}
+
 # Write contents of LOOPDEV (Ubuntu image) to sd card and make filesystems, then detach the loop device
 echo USING $LOOPDEV TO IMAGE $OUTPUT_DEVICE
-sudo dd if=${LOOPDEV}p1 of=${OUTPUT_DEVICE}p1 bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
-sudo mkfs.vfat -F 32 ${OUTPUT_DEVICE}p2
-sudo dd if=${LOOPDEV}p2 of=${OUTPUT_DEVICE}p3 bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
-sudo mkfs.ext4 ${OUTPUT_DEVICE}p4
+sudo dd if=${LOOPDEV}p1 of=`partition_for ${OUTPUT_DEVICE} 1` bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
+sudo mkfs.vfat -F 32 `partition_for ${OUTPUT_DEVICE} 2`
+sudo dd if=${LOOPDEV}p2 of=`partition_for ${OUTPUT_DEVICE} 3` bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
+sudo mkfs.ext4 `partition_for ${OUTPUT_DEVICE} 4`
 
 sudo losetup -d $LOOPDEV
 
 # Label the filesystems
-sudo fatlabel ${OUTPUT_DEVICE}p1 system-boot
-sudo fatlabel ${OUTPUT_DEVICE}p2 EMBASSY
-sudo e2label ${OUTPUT_DEVICE}p3 green
-sudo e2label ${OUTPUT_DEVICE}p4 blue
+sudo fatlabel `partition_for ${OUTPUT_DEVICE} 1` system-boot
+sudo fatlabel `partition_for ${OUTPUT_DEVICE} 2` EMBASSY
+sudo e2label `partition_for ${OUTPUT_DEVICE} 3` green
+sudo e2label `partition_for ${OUTPUT_DEVICE} 4` blue
 
 # Mount the boot partition and config
 mkdir -p /tmp/eos-mnt
-sudo mount ${OUTPUT_DEVICE}p1 /tmp/eos-mnt
+sudo mount `partition_for ${OUTPUT_DEVICE} 1` /tmp/eos-mnt
 
 if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 	sudo cp build/user-data-dev /tmp/eos-mnt/user-data
@@ -40,11 +48,11 @@ sudo touch /tmp/eos-mnt/ssh
 
 # Unmount the boot partition and mount embassy partition
 sudo umount /tmp/eos-mnt
-sudo mount ${OUTPUT_DEVICE}p2 /tmp/eos-mnt
+sudo mount `partition_for ${OUTPUT_DEVICE} 2` /tmp/eos-mnt
 if [ "$NO_KEY" != "1" ]; then sudo cp product_key.txt /tmp/eos-mnt; else echo "This image is being written with no product key"; fi
 sudo umount /tmp/eos-mnt
 
-sudo mount ${OUTPUT_DEVICE}p3 /tmp/eos-mnt
+sudo mount `partition_for ${OUTPUT_DEVICE} 3` /tmp/eos-mnt
 
 sudo mkdir  /tmp/eos-mnt/media/boot-rw
 sudo mkdir  /tmp/eos-mnt/embassy-os

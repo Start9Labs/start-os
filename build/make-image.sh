@@ -2,6 +2,14 @@
 
 set -e
 
+function partition_for () {
+        if [[ "$1" =~ [0-9]+$ ]]; then
+                echo "$1p$2"
+        else
+                echo "$1$2"
+        fi
+}
+
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
   DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
@@ -22,9 +30,9 @@ fi
 export LOOPDEV=$(sudo losetup --show -fP raspios.img)
 ./build/partitioning.sh
 ./build/write-image.sh
-sudo e2fsck -f ${OUTPUT_DEVICE}p3
-sudo resize2fs -M ${OUTPUT_DEVICE}p3
-BLOCK_INFO=$(sudo dumpe2fs ${OUTPUT_DEVICE}p3)
+sudo e2fsck -f 	`partition_for ${OUTPUT_DEVICE} 3`
+sudo resize2fs -M `partition_for ${OUTPUT_DEVICE} 3`
+BLOCK_INFO=$(sudo dumpe2fs `partition_for ${OUTPUT_DEVICE} 3`)
 BLOCK_COUNT=$(echo "$BLOCK_INFO" | grep "Block count:" | sed 's/Block count:\s\+//g')
 BLOCK_SIZE=$(echo "$BLOCK_INFO" | grep "Block size:" | sed 's/Block size:\s\+//g')
 echo "YOUR GREEN FILESYSTEM is '$[$BLOCK_COUNT*$BLOCK_SIZE]' BYTES"
