@@ -4,18 +4,30 @@ import { Routes, RouterModule } from '@angular/router'
 const routes: Routes = [
   {
     path: '',
+    redirectTo: 'projects',
+    pathMatch: 'full',
+  },
+  {
+    path: 'projects',
     loadChildren: () =>
       import('./developer-list/developer-list.module').then(
-        m => m.DeveloperPageModule,
+        m => m.DeveloperListPageModule,
       ),
   },
   {
-    path: 'config',
+    path: 'projects/:projectId',
+    loadChildren: () =>
+      import('./developer-menu/developer-menu.module').then(
+        m => m.DeveloperMenuPageModule,
+      ),
+  },
+  {
+    path: 'projects/:projectId/config',
     loadChildren: () =>
       import('./dev-config/dev-config.module').then(m => m.DevConfigPageModule),
   },
   {
-    path: 'instructions',
+    path: 'projects/:projectId/instructions',
     loadChildren: () =>
       import('./dev-instructions/dev-instructions.module').then(
         m => m.DevInstructionsPageModule,
