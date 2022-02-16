@@ -38,7 +38,7 @@ export class DevInstructionsPage {
       })
   }
 
-  async submit() {
+  async preview() {
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Instructions Sample',
