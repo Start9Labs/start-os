@@ -17,7 +17,6 @@ use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
-use crate::auth::check_password_against_db;
 use crate::backup::backup_bulk::OsBackup;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, StaticFiles};
@@ -34,10 +33,11 @@ use crate::util::display_none;
 use crate::util::io::dir_size;
 use crate::util::serde::IoFormat;
 use crate::volume::{backup_dir, BACKUP_DIR, PKG_VOLUME_DIR};
+use crate::{auth::check_password_against_db, notifications::NotificationLevel};
 use crate::{Error, ResultExt};
 
 fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<PackageId>, Error> {
-    arg.split(",")
+    arg.split(',')
         .map(|s| s.trim().parse().map_err(Error::from))
         .collect()
 }
@@ -124,18 +124,18 @@ impl ProgressInfo {
         let mut total_bytes = 0;
         let mut bytes_transferred = 0;
 
-        for (_, progress) in &self.package_installs {
+        for progress in self.package_installs.values() {
             total_bytes += ((progress.size.unwrap_or(0) as f64) * 2.2) as u64;
             bytes_transferred += progress.downloaded.load(Ordering::SeqCst);
             bytes_transferred += ((progress.validated.load(Ordering::SeqCst) as f64) * 0.2) as u64;
             bytes_transferred += progress.unpacked.load(Ordering::SeqCst);
         }
 
-        for (_, size) in &self.src_volume_size {
+        for size in self.src_volume_size.values() {
             total_bytes += *size;
         }
 
-        for (_, size) in &self.target_volume_size {
+        for size in self.target_volume_size.values() {
             bytes_transferred += *size;
         }
 
@@ -221,7 +221,39 @@ pub async fn recover_full_embassy(
             .await?;
 
             tokio::select! {
-                res = futures::future::join_all(tasks) => res.into_iter().map(|res| res.with_kind(crate::ErrorKind::Unknown).and_then(|a|a)).collect::<Result<(), Error>>()?,
+                res = futures::future::join_all(tasks) => {
+                    for res in res {
+                        match res.with_kind(crate::ErrorKind::Unknown) {
+                            Ok((Ok(_), _)) => (),
+                            Ok((Err(err), package_id)) => {
+                                if let Err(err) = rpc_ctx.notification_manager.notify(
+                                    &mut db,
+                                    Some(package_id.clone()),
+                                    NotificationLevel::Error, 
+                                    "Restoration Failure".to_string(), format!("Error restoring package {}: {}", package_id,err), (), None).await{
+                                    tracing::error!("Failed to notify: {}", err);
+                                    tracing::debug!("{:?}", err);
+                                    };
+                                tracing::error!("Error restoring package {}: {}", package_id, err);
+                                tracing::debug!("{:?}", err);
+                            },
+                            Err(e) => {
+                                if let Err(err) = rpc_ctx.notification_manager.notify(
+                                    &mut db,
+                                    None,
+                                    NotificationLevel::Error, 
+                                    "Restoration Failure".to_string(), format!("Error restoring ?: {}", e), (), None).await {
+
+                                    tracing::error!("Failed to notify: {}", err);
+                                    tracing::debug!("{:?}", err);
+                                }
+                                tracing::error!("Error restoring packages: {}", e);
+                                tracing::debug!("{:?}", e);
+                            },
+
+                        }
+                    }
+                },
                 _ = approximate_progress_loop(&ctx, &rpc_ctx, progress_info) => unreachable!(concat!(module_path!(), "::approximate_progress_loop should not terminate")),
             }
 
@@ -240,12 +272,12 @@ async fn restore_packages(
     (
         Option<Arc<Revision>>,
         BackupMountGuard<TmpMountGuard>,
-        Vec<JoinHandle<Result<(), Error>>>,
+        Vec<JoinHandle<(Result<(), Error>, PackageId)>>,
         ProgressInfo,
     ),
     Error,
 > {
-    let (revision, guards) = assure_restoring(&ctx, db, ids, &backup_guard).await?;
+    let (revision, guards) = assure_restoring(ctx, db, ids, &backup_guard).await?;
 
     let mut progress_info = ProgressInfo::default();
 
@@ -258,15 +290,19 @@ async fn restore_packages(
             .src_volume_size
             .insert(id.clone(), dir_size(backup_dir(&id)).await?);
         progress_info.target_volume_size.insert(id.clone(), 0);
-        tasks.push(tokio::spawn(async move {
-            if let Err(e) = task.await {
-                tracing::error!("Error restoring package {}: {}", id, e);
-                tracing::debug!("{:?}", e);
-                Err(e)
-            } else {
-                Ok(())
+        let package_id = id.clone();
+        tasks.push(tokio::spawn(
+            async move {
+                if let Err(e) = task.await {
+                    tracing::error!("Error restoring package {}: {}", id, e);
+                    tracing::debug!("{:?}", e);
+                    Err(e)
+                } else {
+                    Ok(())
+                }
             }
-        }));
+            .map(|x| (x, package_id)),
+        ));
     }
 
     Ok((revision, backup_guard, tasks, progress_info))
