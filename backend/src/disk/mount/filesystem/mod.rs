@@ -14,6 +14,10 @@ pub mod label;
 
 #[async_trait]
 pub trait FileSystem {
-    async fn mount<P: AsRef<Path> + Send + Sync>(&self, mountpoint: P) -> Result<(), Error>;
+    async fn mount<P: AsRef<Path> + Send + Sync>(
+        &self,
+        mountpoint: P,
+        readonly: bool,
+    ) -> Result<(), Error>;
     async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error>;
 }

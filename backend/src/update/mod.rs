@@ -114,12 +114,6 @@ impl WritableDrives {
     fn as_fs(&self) -> impl FileSystem {
         BlockDev::new(self.block_dev())
     }
-    fn invert(&self) -> WritableDrives {
-        match self {
-            Self::Green => Self::Blue,
-            Self::Blue => Self::Green,
-        }
-    }
 }
 
 /// This will be where we are going to be putting the new update
@@ -393,14 +387,14 @@ async fn check_download(hash_from_header: &str, file_digest: Vec<u8>) -> Result<
 }
 
 async fn copy_machine_id(new_label: NewLabel) -> Result<(), Error> {
-    let new_guard = TmpMountGuard::mount(&new_label.0.as_fs()).await?;
+    let new_guard = TmpMountGuard::mount(&new_label.0.as_fs(), false).await?;
     tokio::fs::copy("/etc/machine-id", new_guard.as_ref().join("etc/machine-id")).await?;
     new_guard.unmount().await?;
     Ok(())
 }
 
 async fn copy_ssh_host_keys(new_label: NewLabel) -> Result<(), Error> {
-    let new_guard = TmpMountGuard::mount(&new_label.0.as_fs()).await?;
+    let new_guard = TmpMountGuard::mount(&new_label.0.as_fs(), false).await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_rsa_key",
         new_guard.as_ref().join("etc/ssh/ssh_host_rsa_key"),
@@ -443,7 +437,7 @@ async fn swap_boot_label(new_label: NewLabel) -> Result<(), Error> {
         .arg(new_label.0.label())
         .invoke(crate::ErrorKind::BlockDevice)
         .await?;
-    let mounted = TmpMountGuard::mount(&new_label.0.as_fs()).await?;
+    let mounted = TmpMountGuard::mount(&new_label.0.as_fs(), false).await?;
     Command::new("sed")
         .arg("-i")
         .arg(&format!(

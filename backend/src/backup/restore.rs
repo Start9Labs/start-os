@@ -57,7 +57,7 @@ pub async fn restore_packages_rpc(
         .load(&mut ctx.secret_store.acquire().await?)
         .await?;
     let mut backup_guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(&fs).await?,
+        TmpMountGuard::mount(&fs, true).await?,
         old_password.as_ref().unwrap_or(&password),
     )
     .await?;

@@ -103,7 +103,8 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                 )
             })?;
         }
-        let encrypted_guard = TmpMountGuard::mount(&EcryptFS::new(&crypt_path, &enc_key)).await?;
+        let encrypted_guard =
+            TmpMountGuard::mount(&EcryptFS::new(&crypt_path, &enc_key), false).await?;
 
         let metadata_path = encrypted_guard.as_ref().join("metadata.cbor");
         let metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {

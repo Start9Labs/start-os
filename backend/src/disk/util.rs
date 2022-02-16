@@ -325,7 +325,7 @@ pub async fn list() -> Result<DiskListResponse, Error> {
                     .unwrap_or_default();
                 let mut used = None;
 
-                match TmpMountGuard::mount(&BlockDev::new(&part)).await {
+                match TmpMountGuard::mount(&BlockDev::new(&part), true).await {
                     Err(e) => tracing::warn!("Could not collect usage information: {}", e.source),
                     Ok(mount_guard) => {
                         used = get_used(&mount_guard)

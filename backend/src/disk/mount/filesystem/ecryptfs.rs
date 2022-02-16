@@ -56,7 +56,11 @@ impl<EncryptedDir: AsRef<Path>, Key: AsRef<str>> EcryptFS<EncryptedDir, Key> {
 impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> FileSystem
     for EcryptFS<EncryptedDir, Key>
 {
-    async fn mount<P: AsRef<Path> + Send + Sync>(&self, mountpoint: P) -> Result<(), Error> {
+    async fn mount<P: AsRef<Path> + Send + Sync>(
+        &self,
+        mountpoint: P,
+        _readonly: bool, // ignored - inherited from parent fs
+    ) -> Result<(), Error> {
         mount_ecryptfs(self.encrypted_dir.as_ref(), mountpoint, self.key.as_ref()).await
     }
     async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {

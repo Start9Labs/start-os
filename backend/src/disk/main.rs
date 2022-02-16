@@ -128,6 +128,7 @@ pub async fn create_fs<P: AsRef<Path>>(
     mount(
         Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
         datadir.as_ref().join(name),
+        false,
     )
     .await?;
     tokio::fs::remove_file(PASSWORD_PATH)
@@ -268,6 +269,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
     mount(
         Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
         datadir.as_ref().join(name),
+        false,
     )
     .await?;
 

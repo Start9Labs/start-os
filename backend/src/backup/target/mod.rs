@@ -109,10 +109,14 @@ pub enum BackupTargetFS {
 }
 #[async_trait]
 impl FileSystem for BackupTargetFS {
-    async fn mount<P: AsRef<Path> + Send + Sync>(&self, mountpoint: P) -> Result<(), Error> {
+    async fn mount<P: AsRef<Path> + Send + Sync>(
+        &self,
+        mountpoint: P,
+        readonly: bool,
+    ) -> Result<(), Error> {
         match self {
-            BackupTargetFS::Disk(a) => a.mount(mountpoint).await,
-            BackupTargetFS::Cifs(a) => a.mount(mountpoint).await,
+            BackupTargetFS::Disk(a) => a.mount(mountpoint, readonly).await,
+            BackupTargetFS::Cifs(a) => a.mount(mountpoint, readonly).await,
         }
     }
     async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
@@ -228,6 +232,7 @@ pub async fn info(
             &target_id
                 .load(&mut ctx.secret_store.acquire().await?)
                 .await?,
+            true,
         )
         .await?,
         &password,

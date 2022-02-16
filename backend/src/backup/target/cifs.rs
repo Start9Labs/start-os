@@ -44,7 +44,7 @@ pub async fn add(
         username,
         password,
     };
-    let guard = TmpMountGuard::mount(&cifs).await?;
+    let guard = TmpMountGuard::mount(&cifs, true).await?;
     let embassy_os = recovery_info(&guard).await?;
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
@@ -92,7 +92,7 @@ pub async fn update(
         username,
         password,
     };
-    let guard = TmpMountGuard::mount(&cifs).await?;
+    let guard = TmpMountGuard::mount(&cifs, true).await?;
     let embassy_os = recovery_info(&guard).await?;
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
@@ -188,7 +188,7 @@ where
                 password: record.password,
             };
             let embassy_os = async {
-                let guard = TmpMountGuard::mount(&mount_info).await?;
+                let guard = TmpMountGuard::mount(&mount_info, true).await?;
                 let embassy_os = recovery_info(&guard).await?;
                 guard.unmount().await?;
                 Ok::<_, Error>(embassy_os)

@@ -14,13 +14,15 @@ use crate::{Error, ResultExt};
 pub async fn mount(
     logicalname: impl AsRef<Path>,
     mountpoint: impl AsRef<Path>,
+    readonly: bool,
 ) -> Result<(), Error> {
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
-    tokio::process::Command::new("mount")
-        .arg(logicalname.as_ref())
-        .arg(mountpoint.as_ref())
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
+    let mut cmd = tokio::process::Command::new("mount");
+    cmd.arg(logicalname.as_ref()).arg(mountpoint.as_ref());
+    if readonly {
+        cmd.arg("-o").arg("ro");
+    }
+    cmd.invoke(crate::ErrorKind::Filesystem).await?;
     Ok(())
 }
 
@@ -36,8 +38,12 @@ impl<LogicalName: AsRef<Path>> BlockDev<LogicalName> {
 }
 #[async_trait]
 impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for BlockDev<LogicalName> {
-    async fn mount<P: AsRef<Path> + Send + Sync>(&self, mountpoint: P) -> Result<(), Error> {
-        mount(self.logicalname.as_ref(), mountpoint).await
+    async fn mount<P: AsRef<Path> + Send + Sync>(
+        &self,
+        mountpoint: P,
+        readonly: bool,
+    ) -> Result<(), Error> {
+        mount(self.logicalname.as_ref(), mountpoint, readonly).await
     }
     async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
         let mut sha = Sha256::new();
