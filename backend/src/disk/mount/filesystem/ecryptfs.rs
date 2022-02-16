@@ -24,13 +24,13 @@ pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
         .arg(dst.as_ref())
         .arg("-o")
         // for more information `man ecryptfs` 
-        .arg(format!("key=passphrase:passphrase_passwd={},ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y", key))
+        .arg(format!("key=passphrase:passphrase_passwd={},ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y,no_sig_cache", key))
         .stdin(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
     let mut stdin = ecryptfs.stdin.take().unwrap();
     let mut stderr = ecryptfs.stderr.take().unwrap();
-    stdin.write_all(b"\nyes\nno").await?;
+    stdin.write_all(b"\n").await?;
     stdin.flush().await?;
     stdin.shutdown().await?;
     drop(stdin);
