@@ -34,9 +34,7 @@ use crate::notifications::NotificationManager;
 use crate::setup::password_hash;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
-use crate::system::launch_metrics_task;
 use crate::util::io::from_toml_async_reader;
-use crate::util::logger::EmbassyLogger;
 use crate::util::{AsyncFileExt, Invoke};
 use crate::{Error, ResultExt};
 
@@ -191,13 +189,7 @@ impl RpcContext {
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
             wifi_manager: Arc::new(RwLock::new(WpaCli::init("wlan0".to_string()))),
         });
-        let metrics_seed = seed.clone();
-        tokio::spawn(async move {
-            launch_metrics_task(&metrics_seed.metrics_cache, || {
-                metrics_seed.shutdown.subscribe()
-            })
-            .await
-        });
+
         let res = Self(seed);
         res.cleanup().await?;
         tracing::info!("Cleaned up transient states");
@@ -243,12 +235,6 @@ impl RpcContext {
         self.managers.empty().await?;
         self.secret_store.close().await;
         self.is_closed.store(true, Ordering::SeqCst);
-        if let Err(ctx) = Arc::try_unwrap(self.0) {
-            tracing::warn!(
-                "{} RPC Context(s) are still being held somewhere. This is likely a mistake.",
-                Arc::strong_count(&ctx) - 1
-            );
-        }
         Ok(())
     }
     #[instrument(skip(self))]
@@ -348,5 +334,16 @@ impl Deref for RpcContext {
             );
         }
         &*self.0
+    }
+}
+impl Drop for RpcContext {
+    fn drop(&mut self) {
+        #[cfg(feature = "unstable")]
+        if self.0.is_closed.load(Ordering::SeqCst) {
+            tracing::info!(
+                "RpcContext dropped. {} left.",
+                Arc::strong_count(&self.0) - 1
+            );
+        }
     }
 }
