@@ -18,7 +18,7 @@ use crate::context::RpcContext;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
-use crate::disk::mount::filesystem::FileSystem;
+use crate::disk::mount::filesystem::{FileSystem, MountType, ReadOnly};
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
 use crate::s9pk::manifest::PackageId;
@@ -109,10 +109,14 @@ pub enum BackupTargetFS {
 }
 #[async_trait]
 impl FileSystem for BackupTargetFS {
-    async fn mount<P: AsRef<Path> + Send + Sync>(&self, mountpoint: P) -> Result<(), Error> {
+    async fn mount<P: AsRef<Path> + Send + Sync>(
+        &self,
+        mountpoint: P,
+        mount_type: MountType,
+    ) -> Result<(), Error> {
         match self {
-            BackupTargetFS::Disk(a) => a.mount(mountpoint).await,
-            BackupTargetFS::Cifs(a) => a.mount(mountpoint).await,
+            BackupTargetFS::Disk(a) => a.mount(mountpoint, mount_type).await,
+            BackupTargetFS::Cifs(a) => a.mount(mountpoint, mount_type).await,
         }
     }
     async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
@@ -228,6 +232,7 @@ pub async fn info(
             &target_id
                 .load(&mut ctx.secret_store.acquire().await?)
                 .await?,
+            ReadOnly,
         )
         .await?,
         &password,

@@ -9,6 +9,7 @@ use super::guard::{GenericMountGuard, TmpMountGuard};
 use super::util::{bind, unmount};
 use crate::auth::check_password;
 use crate::backup::target::BackupInfo;
+use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::util::EmbassyOsRecoveryInfo;
 use crate::middleware::encrypt::{decrypt_slice, encrypt_slice};
 use crate::s9pk::manifest::PackageId;
@@ -103,7 +104,8 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                 )
             })?;
         }
-        let encrypted_guard = TmpMountGuard::mount(&EcryptFS::new(&crypt_path, &enc_key)).await?;
+        let encrypted_guard =
+            TmpMountGuard::mount(&EcryptFS::new(&crypt_path, &enc_key), ReadWrite).await?;
 
         let metadata_path = encrypted_guard.as_ref().join("metadata.cbor");
         let metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {
