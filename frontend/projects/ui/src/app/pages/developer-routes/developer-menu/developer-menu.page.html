@@ -1,26 +1,65 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/developer"></ion-back-button>
-    </ion-buttons>
-    <ion-title>{{ patchDb.data.ui.dev[projectId].name}}</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ng-container *ngIf="!yamlToPreview; else previewingYaml">
+  <ion-header>
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <ion-back-button defaultHref="/developer"></ion-back-button>
+      </ion-buttons>
+      <ion-title>{{ patchDb.data.ui.dev[projectId].name}}</ion-title>
+    </ion-toolbar>
+  </ion-header>
 
-<ion-content>
-  <ion-item-divider>Components</ion-item-divider>
-  <ion-item button detail routerLink="instructions" routerDirection="forward">
-    <ion-icon slot="start" name="list-outline"></ion-icon>
-    <ion-label>
-      <h2>Instructions Generator</h2>
-      <p>Create instructions and see how they will appear to the end user</p>
-    </ion-label>
-  </ion-item>
-  <ion-item button detail routerLink="config">
-    <ion-icon slot="start" name="construct-outline"></ion-icon>
-    <ion-label>
-      <h2>Config Generator</h2>
-      <p>Edit the config with YAML and see it in real time</p>
-    </ion-label>
-  </ion-item>
-</ion-content>
+  <ion-content>
+    <ion-item-divider>Components</ion-item-divider>
+    <ion-item button (click)="openBasicInfoModal()">
+      <ion-icon slot="start" name="information-circle-outline"></ion-icon>
+      <ion-label>
+        <h2>Basic Info</h2>
+        <p>Complete basic info for your package</p>
+      </ion-label>
+      <ion-button
+        slot="end"
+        fill="clear"
+        color="warning"
+        (click)="setYaml(projectData['basic-info'], $event)"
+      >
+        View YAML
+      </ion-button>
+    </ion-item>
+    <ion-item button detail routerLink="instructions" routerDirection="forward">
+      <ion-icon slot="start" name="list-outline"></ion-icon>
+      <ion-label>
+        <h2>Instructions Generator</h2>
+        <p>Create instructions and see how they will appear to the end user</p>
+      </ion-label>
+    </ion-item>
+    <ion-item button detail routerLink="config">
+      <ion-icon slot="start" name="construct-outline"></ion-icon>
+      <ion-label>
+        <h2>Config Generator</h2>
+        <p>Edit the config with YAML and see it in real time</p>
+      </ion-label>
+    </ion-item>
+  </ion-content>
+</ng-container>
+
+<ng-template #previewingYaml>
+  <ion-header>
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <ion-icon
+          button
+          name="arrow-back"
+          (click)="yamlToPreview= '' "
+        ></ion-icon>
+      </ion-buttons>
+      <ion-title>YAML Preview</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content>
+    <ngx-monaco-editor
+      [options]="editorOptions"
+      [(ngModel)]="yamlToPreview"
+    ></ngx-monaco-editor>
+  </ion-content>
+</ng-template>

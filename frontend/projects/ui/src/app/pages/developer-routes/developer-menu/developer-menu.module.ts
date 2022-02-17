@@ -5,6 +5,9 @@ import { RouterModule, Routes } from '@angular/router'
 import { DeveloperMenuPage } from './developer-menu.page'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { BackupReportPageModule } from 'src/app/modals/backup-report/backup-report.module'
+import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.module'
+import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
+import { FormsModule } from '@angular/forms'
 
 const routes: Routes = [
   {
@@ -20,6 +23,9 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     BadgeMenuComponentModule,
     BackupReportPageModule,
+    GenericFormPageModule,
+    FormsModule,
+    MonacoEditorModule,
   ],
   declarations: [DeveloperMenuPage],
 })
