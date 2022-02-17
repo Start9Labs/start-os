@@ -68,6 +68,11 @@ cat /embassy-os/product_key.txt | tr -d '\n' | sha256sum | head -c 32 | sed 's/$
 
 passwd -l pi
 
+# introduce start9 username and embassy as default password
+usermod -l start9 -d /home/start9 -m pi
+groupmod --new-name start9 pi
+echo start9:embassy | chpasswd
+
 raspi-config nonint enable_overlayfs
 
 # create a copy of the cmdline *without* the quirk string, so that it can be easily amended
