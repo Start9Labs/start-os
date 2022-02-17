@@ -2,34 +2,50 @@
   <ion-grid>
     <ion-row>
       <ion-col>
-
-        <div style="padding-bottom: 32px;" class="ion-text-center">
-          <img src="assets/img/logo.png" style="max-width: 240px;" />
+        <div style="padding-bottom: 32px" class="ion-text-center">
+          <img src="assets/img/logo.png" style="max-width: 240px" />
         </div>
 
         <ion-card color="dark">
           <ion-card-header class="ion-text-center">
             <ion-card-title>Recover</ion-card-title>
-            <ion-card-subtitle>Select the shared folder or drive containing your Embassy backup</ion-card-subtitle>
+            <ion-card-subtitle
+              >Select the shared folder or drive containing your Embassy
+              backup</ion-card-subtitle
+            >
           </ion-card-header>
 
           <ion-card-content class="ion-margin">
-            <ion-spinner *ngIf="loading" class="center-spinner" name="lines"></ion-spinner>
+            <ion-spinner
+              *ngIf="loading"
+              class="center-spinner"
+              name="lines"
+            ></ion-spinner>
 
             <!-- loaded -->
-            <ion-item-group *ngIf="!loading">
+            <ion-item-group *ngIf="!loading" class="ion-text-center">
               <!-- cifs -->
-              <h2 class="target-label">
-                Shared Network Folder
-              </h2>
+              <h2 class="target-label">Shared Network Folder</h2>
               <p class="ion-padding-bottom">
-                Using a shared folder is the recommended way to recover from backup, since it works with all Embassy hardware configurations.
-                To recover from a shared folder, please follow the <a href="https://docs.start9.com/user-manual/general/backups.html#shared-network-folder" target="_blank" noreferrer>instructions</a>.
+                Using a shared folder is the recommended way to recover from
+                backup, since it works with all Embassy hardware configurations.
+                To recover from a shared folder, please follow the
+                <a
+                  href="https://docs.start9.com/user-manual/general/backups.html#shared-network-folder"
+                  target="_blank"
+                  noreferrer
+                  >instructions</a
+                >.
               </p>
 
               <!-- connect -->
               <ion-item button lines="none" (click)="presentModalCifs()">
-                <ion-icon slot="start" name="folder-open-outline" size="large" color="light"></ion-icon>
+                <ion-icon
+                  slot="start"
+                  name="folder-open-outline"
+                  size="large"
+                  color="light"
+                ></ion-icon>
                 <ion-label>Open Shared Folder</ion-label>
               </ion-item>
 
@@ -37,25 +53,56 @@
               <br />
 
               <!-- drives -->
-              <h2 class="target-label">
-                Physical Drives
-              </h2>
+              <h2 class="target-label">Physical Drives</h2>
               <p class="ion-padding-bottom">
-                Warning! Plugging in more than one physical drive to Embassy can lead to power failure and data corruption.
-                To recover from a physical drive, please follow the <a href="https://docs.start9.com/user-manual/general/backups.html#physical-drive" target="_blank" noreferrer>instructions</a>.
+                Warning! Plugging in more than one physical drive to Embassy can
+                lead to power failure and data corruption. To recover from a
+                physical drive, please follow the
+                <a
+                  href="https://docs.start9.com/user-manual/general/backups.html#physical-drive"
+                  target="_blank"
+                  noreferrer
+                  >instructions</a
+                >.
               </p>
 
               <ng-container *ngFor="let mapped of mappedDrives">
-                <ion-item button *ngIf="mapped.drive as drive" [disabled]="!driveClickable(mapped)" (click)="select(drive)">
-                  <ion-icon slot="start" name="save-outline" size="large" color="light"></ion-icon>
+                <ion-item
+                  button
+                  *ngIf="mapped.drive as drive"
+                  [disabled]="!driveClickable(mapped)"
+                  (click)="select(drive)"
+                  lines="none"
+                >
+                  <ion-icon
+                    slot="start"
+                    name="save-outline"
+                    size="large"
+                    color="light"
+                  ></ion-icon>
                   <ion-label>
                     <h1>{{ drive.label || drive.logicalname }}</h1>
-                    <drive-status [hasValidBackup]="mapped.hasValidBackup" [is02x]="mapped.is02x"></drive-status>
-                    <p>{{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model || 'Unknown Model' }}</p>
+                    <drive-status
+                      [hasValidBackup]="mapped.hasValidBackup"
+                      [is02x]="mapped.is02x"
+                    ></drive-status>
+                    <p>
+                      {{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model ||
+                      'Unknown Model' }}
+                    </p>
                     <p>Capacity: {{ drive.capacity | convertBytes }}</p>
                   </ion-label>
                 </ion-item>
               </ng-container>
+              <ion-button
+                class="ion-margin-top"
+                fill="clear"
+                color="primary"
+                (click)="refresh()"
+              >
+                <ion-icon slot="start" name="refresh"></ion-icon>
+                Refresh
+              </ion-button>
             </ion-item-group>
           </ion-card-content>
         </ion-card>
