@@ -85,7 +85,7 @@ sudo chmod -x /tmp/eos-mnt/etc/update-motd.d/*
 sudo chmod +x /tmp/eos-mnt/etc/update-motd.d/00-embassy
 
 if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
-	cat ./build/initialization.sh | grep -v "passwd -l pi" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
+	cat ./build/initialization.sh | grep -v "passwd -l start9" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
 	sudo chmod +x /tmp/eos-mnt/usr/local/bin/initialization.sh
 else
 	sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
