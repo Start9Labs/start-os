@@ -7,19 +7,19 @@ use digest::Digest;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
-use super::FileSystem;
+use super::{FileSystem, MountType, ReadOnly};
 use crate::util::Invoke;
 use crate::{Error, ResultExt};
 
 pub async fn mount(
     logicalname: impl AsRef<Path>,
     mountpoint: impl AsRef<Path>,
-    readonly: bool,
+    mount_type: MountType,
 ) -> Result<(), Error> {
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
     let mut cmd = tokio::process::Command::new("mount");
     cmd.arg(logicalname.as_ref()).arg(mountpoint.as_ref());
-    if readonly {
+    if mount_type == ReadOnly {
         cmd.arg("-o").arg("ro");
     }
     cmd.invoke(crate::ErrorKind::Filesystem).await?;
@@ -41,9 +41,9 @@ impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for BlockDev<LogicalName
     async fn mount<P: AsRef<Path> + Send + Sync>(
         &self,
         mountpoint: P,
-        readonly: bool,
+        mount_type: MountType,
     ) -> Result<(), Error> {
-        mount(self.logicalname.as_ref(), mountpoint, readonly).await
+        mount(self.logicalname.as_ref(), mountpoint, mount_type).await
     }
     async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
         let mut sha = Sha256::new();

@@ -20,6 +20,7 @@ use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;
 use crate::disk::mount::backup::BackupMountGuard;
+use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
@@ -125,7 +126,7 @@ pub async fn backup_all(
         .load(&mut ctx.secret_store.acquire().await?)
         .await?;
     let mut backup_guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(&fs, false).await?,
+        TmpMountGuard::mount(&fs, ReadWrite).await?,
         old_password.as_ref().unwrap_or(&password),
     )
     .await?;

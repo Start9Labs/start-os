@@ -7,6 +7,7 @@ use tracing::instrument;
 
 use super::util::pvscan;
 use crate::disk::mount::filesystem::block_dev::mount;
+use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::util::unmount;
 use crate::util::Invoke;
 use crate::{Error, ResultExt};
@@ -128,7 +129,7 @@ pub async fn create_fs<P: AsRef<Path>>(
     mount(
         Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
         datadir.as_ref().join(name),
-        false,
+        ReadWrite,
     )
     .await?;
     tokio::fs::remove_file(PASSWORD_PATH)
@@ -269,7 +270,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
     mount(
         Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
         datadir.as_ref().join(name),
-        false,
+        ReadWrite,
     )
     .await?;
 

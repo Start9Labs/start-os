@@ -30,6 +30,7 @@ use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
+use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskListResponse, EmbassyOsRecoveryInfo};
 use crate::hostname::PRODUCT_KEY_PATH;
@@ -137,7 +138,7 @@ pub fn v2() -> Result<(), Error> {
 
 #[command(rpc_only, metadata(authenticated = false))]
 pub async fn set(#[context] ctx: SetupContext, #[arg] logicalname: PathBuf) -> Result<(), Error> {
-    let guard = TmpMountGuard::mount(&BlockDev::new(&logicalname), true).await?;
+    let guard = TmpMountGuard::mount(&BlockDev::new(&logicalname), ReadOnly).await?;
     let product_key = tokio::fs::read_to_string(guard.as_ref().join("root/agent/product_key"))
         .await?
         .trim()
@@ -182,7 +183,7 @@ pub async fn verify_cifs(
             username,
             password,
         },
-        true,
+        ReadOnly,
     )
     .await?;
     let embassy_os = recovery_info(&guard).await?;
@@ -391,7 +392,7 @@ async fn recover(
     recovery_source: BackupTargetFS,
     recovery_password: Option<String>,
 ) -> Result<(OnionAddressV3, X509, BoxFuture<'static, Result<(), Error>>), Error> {
-    let recovery_source = TmpMountGuard::mount(&recovery_source, true).await?;
+    let recovery_source = TmpMountGuard::mount(&recovery_source, ReadOnly).await?;
     let recovery_version = recovery_info(&recovery_source)
         .await?
         .as_ref()

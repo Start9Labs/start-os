@@ -5,19 +5,19 @@ use digest::generic_array::GenericArray;
 use digest::Digest;
 use sha2::Sha256;
 
-use super::FileSystem;
+use super::{FileSystem, MountType, ReadOnly};
 use crate::util::Invoke;
 use crate::Error;
 
 pub async fn mount_label(
     label: &str,
     mountpoint: impl AsRef<Path>,
-    readonly: bool,
+    mount_type: MountType,
 ) -> Result<(), Error> {
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
     let mut cmd = tokio::process::Command::new("mount");
     cmd.arg("-L").arg(label).arg(mountpoint.as_ref());
-    if readonly {
+    if mount_type == ReadOnly {
         cmd.arg("-o").arg("ro");
     }
     cmd.invoke(crate::ErrorKind::Filesystem).await?;
@@ -37,9 +37,9 @@ impl<S: AsRef<str> + Send + Sync> FileSystem for Label<S> {
     async fn mount<P: AsRef<Path> + Send + Sync>(
         &self,
         mountpoint: P,
-        readonly: bool,
+        mount_type: MountType,
     ) -> Result<(), Error> {
-        mount_label(self.label.as_ref(), mountpoint, readonly).await
+        mount_label(self.label.as_ref(), mountpoint, mount_type).await
     }
     async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
         let mut sha = Sha256::new();

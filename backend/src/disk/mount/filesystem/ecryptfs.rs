@@ -8,7 +8,7 @@ use digest::Digest;
 use sha2::Sha256;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use super::FileSystem;
+use super::{FileSystem, MountType};
 use crate::{Error, ResultExt};
 
 pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
@@ -59,7 +59,7 @@ impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> Fil
     async fn mount<P: AsRef<Path> + Send + Sync>(
         &self,
         mountpoint: P,
-        _readonly: bool, // ignored - inherited from parent fs
+        _mount_type: MountType, // ignored - inherited from parent fs
     ) -> Result<(), Error> {
         mount_ecryptfs(self.encrypted_dir.as_ref(), mountpoint, self.key.as_ref()).await
     }
