@@ -12,6 +12,7 @@ use embassy::middleware::diagnostic::diagnostic;
 use embassy::net::mdns::MdnsController;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
+use embassy::system::launch_metrics_task;
 use embassy::util::{daemon, Invoke};
 use embassy::{static_server, Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
@@ -96,6 +97,14 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             async move {
                 shutdown.recv().await.expect("context dropped");
             }
+        });
+
+        let metrics_ctx = rpc_ctx.clone();
+        let metrics_task = tokio::spawn(async move {
+            launch_metrics_task(&metrics_ctx.metrics_cache, || {
+                metrics_ctx.shutdown.subscribe()
+            })
+            .await
         });
 
         let rev_cache_ctx = rpc_ctx.clone();
@@ -225,12 +234,18 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             server
                 .map_err(|e| Error::new(e, ErrorKind::Network))
                 .map_ok(|_| tracing::debug!("RPC Server Shutdown")),
+            metrics_task
+                .map_err(|e| Error::new(
+                    eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
+                    ErrorKind::Unknown
+                ))
+                .map_ok(|_| tracing::debug!("Metrics daemon Shutdown")),
             revision_cache_task
                 .map_err(|e| Error::new(
                     eyre!("{}", e).wrap_err("Revision Cache daemon panicked!"),
                     ErrorKind::Unknown
                 ))
-                .map_ok(|_| tracing::debug!("Revision Cache Shutdown")),
+                .map_ok(|_| tracing::debug!("Revision Cache daemon Shutdown")),
             ws_server
                 .map_err(|e| Error::new(e, ErrorKind::Network))
                 .map_ok(|_| tracing::debug!("WebSocket Server Shutdown")),
@@ -239,10 +254,10 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .map_ok(|_| tracing::debug!("Static File Server Shutdown")),
             tor_health_daemon
                 .map_err(|e| Error::new(
-                    e.wrap_err("Tor Health Daemon panicked!"),
+                    e.wrap_err("Tor Health daemon panicked!"),
                     ErrorKind::Unknown
                 ))
-                .map_ok(|_| tracing::debug!("Tor Health Daemon Shutdown")),
+                .map_ok(|_| tracing::debug!("Tor Health daemon Shutdown")),
         )?;
 
         let mut shutdown = shutdown_recv

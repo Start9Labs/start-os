@@ -338,6 +338,8 @@ pub async fn execute_inner(
                 tracing::error!("Error recovering drive!: {}", e);
                 tracing::debug!("{:?}", e);
                 *ctx.recovery_status.write().await = Some(Err(e.into()));
+            } else {
+                tracing::info!("Recovery Complete!");
             }
         });
         (tor_addr, root_ca)
