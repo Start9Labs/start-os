@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
+use digest::generic_array::GenericArray;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt, TryStreamExt};
 use nix::unistd::{Gid, Uid};
@@ -14,6 +15,7 @@ use patch_db::LockType;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use sqlx::{Executor, Sqlite};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
@@ -28,9 +30,10 @@ use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
+use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskListResponse, EmbassyOsRecoveryInfo};
-use crate::hostname::{get_product_key, PRODUCT_KEY_PATH};
+use crate::hostname::PRODUCT_KEY_PATH;
 use crate::id::Id;
 use crate::init::init;
 use crate::install::PKG_PUBLIC_DIR;
@@ -135,7 +138,7 @@ pub fn v2() -> Result<(), Error> {
 
 #[command(rpc_only, metadata(authenticated = false))]
 pub async fn set(#[context] ctx: SetupContext, #[arg] logicalname: PathBuf) -> Result<(), Error> {
-    let guard = TmpMountGuard::mount(&BlockDev::new(&logicalname)).await?;
+    let guard = TmpMountGuard::mount(&BlockDev::new(&logicalname), ReadOnly).await?;
     let product_key = tokio::fs::read_to_string(guard.as_ref().join("root/agent/product_key"))
         .await?
         .trim()
@@ -173,12 +176,15 @@ pub async fn verify_cifs(
     #[arg] username: String,
     #[arg] password: Option<String>,
 ) -> Result<EmbassyOsRecoveryInfo, Error> {
-    let guard = TmpMountGuard::mount(&Cifs {
-        hostname,
-        path,
-        username,
-        password,
-    })
+    let guard = TmpMountGuard::mount(
+        &Cifs {
+            hostname,
+            path,
+            username,
+            password,
+        },
+        ReadOnly,
+    )
     .await?;
     let embassy_os = recovery_info(&guard).await?;
     guard.unmount().await?;
@@ -386,7 +392,7 @@ async fn recover(
     recovery_source: BackupTargetFS,
     recovery_password: Option<String>,
 ) -> Result<(OnionAddressV3, X509, BoxFuture<'static, Result<(), Error>>), Error> {
-    let recovery_source = TmpMountGuard::mount(&recovery_source).await?;
+    let recovery_source = TmpMountGuard::mount(&recovery_source, ReadOnly).await?;
     let recovery_version = recovery_info(&recovery_source)
         .await?
         .as_ref()
@@ -411,6 +417,47 @@ async fn recover(
     };
 
     Ok(res)
+}
+
+async fn shasum(
+    path: impl AsRef<Path>,
+) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
+    use tokio::io::AsyncReadExt;
+
+    let mut rdr = tokio::fs::File::open(path).await?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0; 1024];
+    let mut read;
+    while {
+        read = rdr.read(&mut buf).await?;
+        read != 0
+    } {
+        hasher.update(&buf[0..read]);
+    }
+    Ok(hasher.finalize())
+}
+
+async fn validated_copy(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Error> {
+    let src_path = src.as_ref();
+    let dst_path = dst.as_ref();
+    tokio::fs::copy(src_path, dst_path).await.with_ctx(|_| {
+        (
+            crate::ErrorKind::Filesystem,
+            format!("cp {} -> {}", src_path.display(), dst_path.display()),
+        )
+    })?;
+    let (src_hash, dst_hash) = tokio::try_join!(shasum(src_path), shasum(dst_path))?;
+    if src_hash != dst_hash {
+        Err(Error::new(
+            eyre!(
+                "source hash does not match destination hash for {}",
+                dst_path.display()
+            ),
+            crate::ErrorKind::Filesystem,
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send + Sync>(
@@ -459,12 +506,14 @@ fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send 
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
                     let len = m.len();
-                    tokio::fs::copy(&src_path, &dst_path).await.with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            format!("cp {} -> {}", src_path.display(), dst_path.display()),
-                        )
-                    })?;
+                    let mut cp_res = Ok(());
+                    for _ in 0..10 {
+                        cp_res = validated_copy(&src_path, &dst_path).await;
+                        if cp_res.is_ok() {
+                            break;
+                        }
+                    }
+                    cp_res?;
                     let tmp_dst_path = dst_path.clone();
                     tokio::task::spawn_blocking(move || {
                         nix::unistd::chown(

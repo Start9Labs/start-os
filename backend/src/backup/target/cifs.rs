@@ -9,6 +9,7 @@ use sqlx::{Executor, Sqlite};
 use super::{BackupTarget, BackupTargetId};
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::cifs::Cifs;
+use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{recovery_info, EmbassyOsRecoveryInfo};
 use crate::util::display_none;
@@ -44,7 +45,7 @@ pub async fn add(
         username,
         password,
     };
-    let guard = TmpMountGuard::mount(&cifs).await?;
+    let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
     let embassy_os = recovery_info(&guard).await?;
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
@@ -92,7 +93,7 @@ pub async fn update(
         username,
         password,
     };
-    let guard = TmpMountGuard::mount(&cifs).await?;
+    let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
     let embassy_os = recovery_info(&guard).await?;
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
@@ -188,7 +189,7 @@ where
                 password: record.password,
             };
             let embassy_os = async {
-                let guard = TmpMountGuard::mount(&mount_info).await?;
+                let guard = TmpMountGuard::mount(&mount_info, ReadOnly).await?;
                 let embassy_os = recovery_info(&guard).await?;
                 guard.unmount().await?;
                 Ok::<_, Error>(embassy_os)

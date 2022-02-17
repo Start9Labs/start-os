@@ -22,6 +22,7 @@ use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::db::util::WithRevision;
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
+use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
@@ -57,7 +58,7 @@ pub async fn restore_packages_rpc(
         .load(&mut ctx.secret_store.acquire().await?)
         .await?;
     let mut backup_guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(&fs).await?,
+        TmpMountGuard::mount(&fs, ReadOnly).await?,
         old_password.as_ref().unwrap_or(&password),
     )
     .await?;

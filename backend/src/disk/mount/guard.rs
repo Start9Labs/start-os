@@ -6,8 +6,9 @@ use lazy_static::lazy_static;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
-use super::filesystem::FileSystem;
+use super::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
 use super::util::unmount;
+use crate::util::Invoke;
 use crate::Error;
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/embassy-os/tmp";
@@ -26,9 +27,10 @@ impl MountGuard {
     pub async fn mount(
         filesystem: &impl FileSystem,
         mountpoint: impl AsRef<Path>,
+        mount_type: MountType,
     ) -> Result<Self, Error> {
         let mountpoint = mountpoint.as_ref().to_owned();
-        filesystem.mount(&mountpoint).await?;
+        filesystem.mount(&mountpoint, mount_type).await?;
         Ok(MountGuard {
             mountpoint,
             mounted: true,
@@ -70,7 +72,8 @@ async fn tmp_mountpoint(source: &impl FileSystem) -> Result<PathBuf, Error> {
 }
 
 lazy_static! {
-    static ref TMP_MOUNTS: Mutex<BTreeMap<PathBuf, Weak<MountGuard>>> = Mutex::new(BTreeMap::new());
+    static ref TMP_MOUNTS: Mutex<BTreeMap<PathBuf, (MountType, Weak<MountGuard>)>> =
+        Mutex::new(BTreeMap::new());
 }
 
 #[derive(Debug)]
@@ -78,19 +81,31 @@ pub struct TmpMountGuard {
     guard: Arc<MountGuard>,
 }
 impl TmpMountGuard {
+    /// DRAGONS: if you try to mount something as ro and rw at the same time, the ro mount will be upgraded to rw.
     #[instrument(skip(filesystem))]
-    pub async fn mount(filesystem: &impl FileSystem) -> Result<Self, Error> {
+    pub async fn mount(filesystem: &impl FileSystem, mount_type: MountType) -> Result<Self, Error> {
         let mountpoint = tmp_mountpoint(filesystem).await?;
         let mut tmp_mounts = TMP_MOUNTS.lock().await;
         if !tmp_mounts.contains_key(&mountpoint) {
-            tmp_mounts.insert(mountpoint.clone(), Weak::new());
+            tmp_mounts.insert(mountpoint.clone(), (mount_type, Weak::new()));
         }
-        let weak_slot = tmp_mounts.get_mut(&mountpoint).unwrap();
+        let (prev_mt, weak_slot) = tmp_mounts.get_mut(&mountpoint).unwrap();
         if let Some(guard) = weak_slot.upgrade() {
+            // upgrade to rw
+            if *prev_mt == ReadOnly && mount_type == ReadWrite {
+                tokio::process::Command::new("mount")
+                    .arg("-o")
+                    .arg("remount,rw")
+                    .arg(&mountpoint)
+                    .invoke(crate::ErrorKind::Filesystem)
+                    .await?;
+                *prev_mt = ReadWrite;
+            }
             Ok(TmpMountGuard { guard })
         } else {
-            let guard = Arc::new(MountGuard::mount(filesystem, &mountpoint).await?);
+            let guard = Arc::new(MountGuard::mount(filesystem, &mountpoint, mount_type).await?);
             *weak_slot = Arc::downgrade(&guard);
+            *prev_mt = mount_type;
             Ok(TmpMountGuard { guard })
         }
     }

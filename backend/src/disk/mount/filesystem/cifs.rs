@@ -10,7 +10,7 @@ use sha2::Sha256;
 use tokio::process::Command;
 use tracing::instrument;
 
-use super::FileSystem;
+use super::{FileSystem, MountType, ReadOnly};
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::util::Invoke;
 use crate::Error;
@@ -40,19 +40,22 @@ pub async fn mount_cifs(
     username: &str,
     password: Option<&str>,
     mountpoint: impl AsRef<Path>,
+    mount_type: MountType,
 ) -> Result<(), Error> {
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
     let ip: IpAddr = resolve_hostname(hostname).await?;
     let absolute_path = Path::new("/").join(path.as_ref());
-    Command::new("mount")
-        .arg("-t")
+    let mut cmd = Command::new("mount");
+    cmd.arg("-t")
         .arg("cifs")
         .env("USER", username)
         .env("PASSWD", password.unwrap_or_default())
         .arg(format!("//{}{}", ip, absolute_path.display()))
-        .arg(mountpoint.as_ref())
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
+        .arg(mountpoint.as_ref());
+    if mount_type == ReadOnly {
+        cmd.arg("-o").arg("ro");
+    }
+    cmd.invoke(crate::ErrorKind::Filesystem).await?;
     Ok(())
 }
 
@@ -66,7 +69,7 @@ pub struct Cifs {
 }
 impl Cifs {
     pub async fn mountable(&self) -> Result<(), Error> {
-        let guard = TmpMountGuard::mount(self).await?;
+        let guard = TmpMountGuard::mount(self, ReadOnly).await?;
         guard.unmount().await?;
         Ok(())
     }
@@ -76,6 +79,7 @@ impl FileSystem for Cifs {
     async fn mount<P: AsRef<std::path::Path> + Send + Sync>(
         &self,
         mountpoint: P,
+        mount_type: MountType,
     ) -> Result<(), Error> {
         mount_cifs(
             &self.hostname,
@@ -83,6 +87,7 @@ impl FileSystem for Cifs {
             &self.username,
             self.password.as_ref().map(|p| p.as_str()),
             mountpoint,
+            mount_type,
         )
         .await
     }
