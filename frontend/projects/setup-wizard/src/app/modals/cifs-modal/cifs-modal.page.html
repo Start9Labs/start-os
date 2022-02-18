@@ -28,15 +28,15 @@
     <p>Share Name *</p>
     <ion-item>
       <ion-input
-        id="path"
+        id="shareName"
         required
-        [(ngModel)]="cifs.path"
-        name="path"
-        #path="ngModel"
+        [(ngModel)]="cifs['share-name']"
+        name="shareName"
+        #shareName="ngModel"
         placeholder="ex. Share'"
       ></ion-input>
     </ion-item>
-    <p [hidden]="path.valid || path.pristine">
+    <p [hidden]="shareName.valid || shareName.pristine">
       <ion-text color="danger">Share Name is required</ion-text>
     </p>
 

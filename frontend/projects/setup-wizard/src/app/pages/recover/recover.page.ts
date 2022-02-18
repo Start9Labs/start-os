@@ -1,5 +1,11 @@
 import { Component, Input } from '@angular/core'
-import { AlertController, IonicSafeString, LoadingController, ModalController, NavController } from '@ionic/angular'
+import {
+  AlertController,
+  IonicSafeString,
+  LoadingController,
+  ModalController,
+  NavController,
+} from '@ionic/angular'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
 import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
@@ -17,7 +23,7 @@ export class RecoverPage {
   mappedDrives: MappedDisk[] = []
   hasShownGuidAlert = false
 
-  constructor (
+  constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
@@ -26,45 +32,48 @@ export class RecoverPage {
     private readonly loadingCtrl: LoadingController,
     private readonly errorToastService: ErrorToastService,
     public readonly stateService: StateService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     await this.getDrives()
   }
 
-  async refresh () {
+  async refresh() {
     this.loading = true
     await this.getDrives()
   }
 
-  driveClickable (mapped: MappedDisk) {
-    return mapped.drive['embassy-os']?.full && (this.stateService.hasProductKey || mapped.is02x)
+  driveClickable(mapped: MappedDisk) {
+    return (
+      mapped.drive['embassy-os']?.full &&
+      (this.stateService.hasProductKey || mapped.is02x)
+    )
   }
 
-  async getDrives () {
+  async getDrives() {
     this.mappedDrives = []
     try {
       const { disks, reconnect } = await this.apiService.getDrives()
-      disks.filter(d => d.partitions.length).forEach(d => {
-        d.partitions.forEach(p => {
-          const drive: DiskBackupTarget = {
-            vendor: d.vendor,
-            model: d.model,
-            logicalname: p.logicalname,
-            label: p.label,
-            capacity: p.capacity,
-            used: p.used,
-            'embassy-os': p['embassy-os'],
-          }
-          this.mappedDrives.push(
-            {
+      disks
+        .filter(d => d.partitions.length)
+        .forEach(d => {
+          d.partitions.forEach(p => {
+            const drive: DiskBackupTarget = {
+              vendor: d.vendor,
+              model: d.model,
+              logicalname: p.logicalname,
+              label: p.label,
+              capacity: p.capacity,
+              used: p.used,
+              'embassy-os': p['embassy-os'],
+            }
+            this.mappedDrives.push({
               hasValidBackup: p['embassy-os']?.full,
               is02x: drive['embassy-os']?.version.startsWith('0.2'),
               drive,
-            },
-          )
+            })
+          })
         })
-      })
 
       if (!this.mappedDrives.length && reconnect.length) {
         const list = `<ul>${reconnect.map(recon => `<li>${recon}</li>`)}</ul>`
@@ -85,7 +94,11 @@ export class RecoverPage {
       if (!!importableDrive && !this.hasShownGuidAlert) {
         const alert = await this.alertCtrl.create({
           header: 'Embassy Data Drive Detected',
-          message: new IonicSafeString(`${importableDrive.vendor || 'Unknown Vendor'} - ${importableDrive.model || 'Unknown Model' } contains Embassy data. To use this drive and its data <i>as-is</i>, click "Use Drive". This will complete the setup process.<br /><br /><b>Important</b>. If you are trying to restore from backup or update from 0.2.x, DO NOT click "Use Drive". Instead, click "Cancel" and follow instructions.`),
+          message: new IonicSafeString(
+            `${importableDrive.vendor || 'Unknown Vendor'} - ${
+              importableDrive.model || 'Unknown Model'
+            } contains Embassy data. To use this drive and its data <i>as-is</i>, click "Use Drive". This will complete the setup process.<br /><br /><b>Important</b>. If you are trying to restore from backup or update from 0.2.x, DO NOT click "Use Drive". Instead, click "Cancel" and follow instructions.`,
+          ),
           buttons: [
             {
               role: 'cancel',
@@ -109,17 +122,22 @@ export class RecoverPage {
     }
   }
 
-  async presentModalCifs (): Promise<void> {
+  async presentModalCifs(): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: CifsModal,
     })
     modal.onDidDismiss().then(res => {
       if (res.role === 'success') {
-        const { hostname, path, username, password } = res.data.cifs
+        const {
+          hostname,
+          'share-name': shareName,
+          username,
+          password,
+        } = res.data.cifs
         this.stateService.recoverySource = {
           type: 'cifs',
           hostname,
-          path,
+          'share-name': shareName,
           username,
           password,
         }
@@ -130,7 +148,7 @@ export class RecoverPage {
     await modal.present()
   }
 
-  async select (target: DiskBackupTarget) {
+  async select(target: DiskBackupTarget) {
     const is02x = target['embassy-os'].version.startsWith('0.2')
 
     if (this.stateService.hasProductKey) {
@@ -154,7 +172,8 @@ export class RecoverPage {
       if (!is02x) {
         const alert = await this.alertCtrl.create({
           header: 'Error',
-          message: 'In order to use this image, you must select a drive containing a valid 0.2.x Embassy.',
+          message:
+            'In order to use this image, you must select a drive containing a valid 0.2.x Embassy.',
           buttons: [
             {
               role: 'cancel',
@@ -179,7 +198,7 @@ export class RecoverPage {
     }
   }
 
-  private async importDrive (guid: string) {
+  private async importDrive(guid: string) {
     const loader = await this.loadingCtrl.create({
       message: 'Importing Drive',
     })
@@ -194,7 +213,7 @@ export class RecoverPage {
     }
   }
 
-  private async selectRecoverySource (logicalname: string, password?: string) {
+  private async selectRecoverySource(logicalname: string, password?: string) {
     this.stateService.recoverySource = {
       type: 'disk',
       logicalname,
@@ -203,7 +222,6 @@ export class RecoverPage {
     this.navCtrl.navigateForward(`/embassy`)
   }
 }
-
 
 @Component({
   selector: 'drive-status',
@@ -214,7 +232,6 @@ export class DriveStatusComponent {
   @Input() hasValidBackup: boolean
   @Input() is02x: boolean
 }
-
 
 interface MappedDisk {
   is02x: boolean
