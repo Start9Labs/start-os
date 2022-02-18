@@ -1,5 +1,8 @@
 <!-- loading -->
-<text-spinner *ngIf="backupService.loading; else loaded" [text]="loadingText"></text-spinner>
+<text-spinner
+  *ngIf="backupService.loading; else loaded"
+  [text]="loadingText"
+></text-spinner>
 
 <!-- loaded -->
 <ng-template #loaded>
@@ -19,7 +22,14 @@
       <ion-item>
         <ion-label>
           <h2>
-            Shared folders are the recommended way to create Embassy backups. View the <a href="https://docs.start9.com/user-manual/general/backups.html#shared-network-folder" target="_blank" noreferrer>Instructions</a>
+            Shared folders are the recommended way to create Embassy backups.
+            View the
+            <a
+              href="https://docs.start9.com/user-manual/general/backups.html#shared-network-folder"
+              target="_blank"
+              noreferrer
+              >Instructions</a
+            >
           </h2>
         </ion-label>
       </ion-item>
@@ -30,12 +40,23 @@
       </ion-item>
       <!-- cifs list -->
       <ng-container *ngFor="let target of backupService.cifs; let i = index">
-        <ion-item button *ngIf="target.entry as cifs" (click)="presentActionCifs(target, i)">
-          <ion-icon slot="start" name="folder-open-outline" size="large"></ion-icon>
+        <ion-item
+          button
+          *ngIf="target.entry as cifs"
+          (click)="presentActionCifs(target, i)"
+        >
+          <ion-icon
+            slot="start"
+            name="folder-open-outline"
+            size="large"
+          ></ion-icon>
           <ion-label>
             <h1>{{ cifs.path.split('/').pop() }}</h1>
             <ng-container *ngIf="cifs.mountable">
-              <backup-drives-status [type]="type" [hasValidBackup]="target.hasValidBackup"></backup-drives-status>
+              <backup-drives-status
+                [type]="type"
+                [hasValidBackup]="target.hasValidBackup"
+              ></backup-drives-status>
             </ng-container>
             <h2 *ngIf="!cifs.mountable" class="inline">
               <ion-icon name="cellular-outline" color="danger"></ion-icon>
@@ -50,28 +71,56 @@
       <!-- ** drives ** -->
       <ion-item-divider>Physical Drives</ion-item-divider>
       <!-- no drives -->
-      <ion-item *ngIf="!backupService.drives.length; else hasDrives" class="ion-padding-bottom">
+      <ion-item
+        *ngIf="!backupService.drives.length; else hasDrives"
+        class="ion-padding-bottom"
+      >
         <ion-label>
           <h2>
-            <ion-text color="warning">
-              Warning! Plugging a 2nd physical drive directly into your Embassy can lead to data corruption.
+            <ion-text>
+              Please
+              <a href="javascript:window.location.reload(true)">refresh</a> if
+              your drive does not appear.
             </ion-text>
           </h2>
           <br />
           <h2>
-            To backup to a physical drive, please follow the <a href="https://docs.start9.com/user-manual/general/backups.html#physical-drive" target="_blank" noreferrer>instructions</a>.
+            <ion-text color="warning">
+              Warning! Plugging a 2nd physical drive directly into your Embassy
+              can lead to data corruption.
+            </ion-text>
+          </h2>
+          <br />
+          <h2>
+            To backup to a physical drive, please follow the
+            <a
+              href="https://docs.start9.com/user-manual/general/backups.html#physical-drive"
+              target="_blank"
+              noreferrer
+              >instructions</a
+            >.
           </h2>
         </ion-label>
       </ion-item>
       <!-- drives detected -->
       <ng-template #hasDrives>
-        <ion-item button *ngFor="let target of backupService.drives" (click)="select(target)">
+        <ion-item
+          button
+          *ngFor="let target of backupService.drives"
+          (click)="select(target)"
+        >
           <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
           <ng-container *ngIf="target.entry as drive">
             <ion-label>
               <h1>{{ drive.label || drive.logicalname }}</h1>
-              <backup-drives-status [type]="type" [hasValidBackup]="target.hasValidBackup"></backup-drives-status>
-              <p>{{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model || 'Unknown Model' }}</p>
+              <backup-drives-status
+                [type]="type"
+                [hasValidBackup]="target.hasValidBackup"
+              ></backup-drives-status>
+              <p>
+                {{ drive.vendor || 'Unknown Vendor' }} -
+                {{ drive.model || 'Unknown Model' }}
+              </p>
               <p>Capacity: {{ drive.capacity | convertBytes }}</p>
             </ion-label>
           </ng-container>
