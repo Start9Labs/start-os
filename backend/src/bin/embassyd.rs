@@ -13,6 +13,7 @@ use embassy::net::mdns::MdnsController;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
+use embassy::util::logger::EmbassyLogger;
 use embassy::util::{daemon, Invoke};
 use embassy::{static_server, Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
@@ -287,6 +288,8 @@ fn main() {
                 .takes_value(true),
         )
         .get_matches();
+
+    EmbassyLogger::init();
 
     let cfg_path = matches.value_of("config");
 
