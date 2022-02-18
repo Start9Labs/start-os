@@ -24,7 +24,7 @@
       <ion-text color="danger">Hostname is required. e.g. 'My Computer' OR 'my-computer.local'</ion-text>
     </p>
 
-    <p>Path *</p>
+    <p>Share Name *</p>
     <ion-item>
       <ion-input
         id="path"
@@ -32,7 +32,7 @@
         [(ngModel)]="cifs.path"
         name="path"
         #path="ngModel"
-        placeholder="ex. /Desktop/my-folder'"
+        placeholder="ex. Share'"
       ></ion-input>
     </ion-item>
     <p [hidden]="path.valid || path.pristine">
