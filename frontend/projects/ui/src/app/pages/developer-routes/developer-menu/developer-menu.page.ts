@@ -18,10 +18,8 @@ import * as yaml from 'js-yaml'
   providers: [DestroyService],
 })
 export class DeveloperMenuPage {
-  yamlToPreview = ''
   projectId: string
   projectData: DevProjectData
-  editorOptions = { theme: 'vs-dark', language: 'yaml' }
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -44,11 +42,6 @@ export class DeveloperMenuPage {
       })
   }
 
-  setYaml(obj: {}, event: Event) {
-    event.stopPropagation()
-    this.yamlToPreview = yaml.dump(obj)
-  }
-
   async openBasicInfoModal() {
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
@@ -58,8 +51,14 @@ export class DeveloperMenuPage {
         buttons: [
           {
             text: 'Save',
-            handler: (basicInfo: BasicInfo) => {
-              this.saveBasicInfo(basicInfo)
+            handler: basicInfo => {
+              basicInfo.description = {
+                short: basicInfo.short,
+                long: basicInfo.long,
+              }
+              delete basicInfo.short
+              delete basicInfo.long
+              this.saveBasicInfo(basicInfo as BasicInfo)
             },
             isSubmit: true,
           },
