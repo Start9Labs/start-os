@@ -1,8 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>
-      Connect Shared Folder
-    </ion-title>
+    <ion-title> Connect Shared Folder </ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -21,7 +19,10 @@
       ></ion-input>
     </ion-item>
     <p [hidden]="hostname.valid || hostname.pristine">
-      <ion-text color="danger">Hostname is required. e.g. 'My Computer' OR 'my-computer.local'</ion-text>
+      <ion-text color="danger"
+        >Hostname is required. e.g. 'My Computer' OR
+        'my-computer.local'</ion-text
+      >
     </p>
 
     <p>Share Name *</p>
@@ -36,7 +37,7 @@
       ></ion-input>
     </ion-item>
     <p [hidden]="path.valid || path.pristine">
-      <ion-text color="danger">Path is required</ion-text>
+      <ion-text color="danger">Share Name is required</ion-text>
     </p>
 
     <p>Username *</p>
@@ -71,12 +72,25 @@
 
 <ion-footer>
   <ion-toolbar>
-    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" (click)="cancel()">
+    <ion-button
+      class="ion-padding-end"
+      slot="end"
+      color="dark"
+      fill="clear"
+      (click)="cancel()"
+    >
       Cancel
     </ion-button>
-    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" strong="true" [disabled]="!cifsForm.form.valid" (click)="submit()">
+    <ion-button
+      class="ion-padding-end"
+      slot="end"
+      color="dark"
+      fill="clear"
+      strong="true"
+      [disabled]="!cifsForm.form.valid"
+      (click)="submit()"
+    >
       Verify
     </ion-button>
   </ion-toolbar>
 </ion-footer>
-

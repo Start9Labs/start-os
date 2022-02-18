@@ -278,10 +278,10 @@ const CifsSpec: ConfigSpec = {
   },
   path: {
     type: 'string',
-    name: 'Path',
+    name: 'Share Name',
     description:
-      'The directory path to the shared folder on your target device.',
-    placeholder: 'e.g. /Desktop/my-folder',
+      'The name of the Share on your target device, on Windows this is the full path to the shared folder or the name of the share on Mac and Linux',
+    placeholder: 'e.g. Share',
     nullable: false,
     masked: false,
     copyable: false,
