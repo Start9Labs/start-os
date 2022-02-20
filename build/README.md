@@ -27,6 +27,8 @@
 - jq
 	- `sudo apt install -y jq`
 	- https://stedolan.github.io/jq
+- Rust Cross Compiler
+	- https://github.com/Start9Labs/rust-musl-cross/tree/master
 
 2. Clone the repo, move into it, and bring in required submodules
 
@@ -51,6 +53,8 @@ We recommend [Balena Etcher](https://www.balena.io/etcher/)
 ## Setup
 
 Visit http://embassy.local from any web browser
+
+You will need to enter your product key, which is created at build in the file `product_key.txt`
 
 We recommend [Firefox](https://www.mozilla.org/firefox/browsers)
 
