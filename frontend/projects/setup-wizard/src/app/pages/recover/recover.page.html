@@ -10,8 +10,8 @@
           <ion-card-header class="ion-text-center">
             <ion-card-title>Recover</ion-card-title>
             <ion-card-subtitle
-              >Select the shared folder or drive containing your Embassy
-              backup</ion-card-subtitle
+              >Select the LAN Shared Folder or physical drive containing your
+              Embassy backup</ion-card-subtitle
             >
           </ion-card-header>
 
@@ -25,13 +25,13 @@
             <!-- loaded -->
             <ion-item-group *ngIf="!loading" class="ion-text-center">
               <!-- cifs -->
-              <h2 class="target-label">Shared Network Folder</h2>
+              <h2 class="target-label">LAN Shared Folder</h2>
               <p class="ion-padding-bottom">
-                Using a shared folder is the recommended way to recover from
+                Using a LAN Shared Folder is the recommended way to recover from
                 backup, since it works with all Embassy hardware configurations.
-                To recover from a shared folder, please follow the
+                View the
                 <a
-                  href="https://docs.start9.com/user-manual/general/backups.html#shared-network-folder"
+                  href="https://docs.start9.com/user-manual/general/backups.html#lan-backups"
                   target="_blank"
                   noreferrer
                   >instructions</a
@@ -46,7 +46,7 @@
                   size="large"
                   color="light"
                 ></ion-icon>
-                <ion-label>Open Shared Folder</ion-label>
+                <ion-label>Open</ion-label>
               </ion-item>
 
               <br />

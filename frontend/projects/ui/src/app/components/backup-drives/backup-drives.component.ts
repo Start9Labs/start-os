@@ -52,14 +52,14 @@ export class BackupDrivesComponent {
   ): void {
     if (target.entry.type === 'cifs' && !target.entry.mountable) {
       const message =
-        'Unable to connect to shared folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
+        'Unable to connect to LAN Shared Folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
       this.presentAlertError(message)
       return
     }
 
     if (this.type === 'restore' && !target.hasValidBackup) {
       const message = `${
-        target.entry.type === 'cifs' ? 'Shared folder' : 'Drive partition'
+        target.entry.type === 'cifs' ? 'LAN Shared Folder' : 'Drive partition'
       } does not contain a valid Embassy backup.`
       this.presentAlertError(message)
       return
@@ -72,11 +72,11 @@ export class BackupDrivesComponent {
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
       componentProps: {
-        title: 'New Shared Folder',
+        title: 'New LAN Shared Folder',
         spec: CifsSpec,
         buttons: [
           {
-            text: 'Save',
+            text: 'Connect',
             handler: (value: RR.AddBackupTargetReq) => {
               return this.addCifs(value)
             },
@@ -283,9 +283,8 @@ const CifsSpec: ConfigSpec = {
   path: {
     type: 'string',
     name: 'Path',
-    description:
-      'The directory path to the shared folder on your target device.',
-    placeholder: 'e.g. /Desktop/my-folder',
+    description: `On Windows, this is the fully qualified path to the shared folder, (e.g. /Desktop/my-folder).\n\n On Linux and Mac, this is the literal name of the shared folder (e.g. my-shared-folder).`,
+    placeholder: 'e.g. my-shared-folder or /Desktop/my-folder',
     nullable: false,
     masked: false,
     copyable: false,
@@ -293,7 +292,7 @@ const CifsSpec: ConfigSpec = {
   username: {
     type: 'string',
     name: 'Username',
-    description: 'The username of the user account on your target device.',
+    description: `On Linux, this is the samba username you created when sharing the folder.\n\n On Mac and Windows, this is the username of the user who is sharing the folder.`,
     nullable: false,
     masked: false,
     copyable: false,
@@ -301,7 +300,7 @@ const CifsSpec: ConfigSpec = {
   password: {
     type: 'string',
     name: 'Password',
-    description: 'The password of the user account on your target device.',
+    description: `On Linux, this is the samba password you created when sharing the folder.\n\n On Mac and Windows, this is the password of the user who is sharing the folder.`,
     nullable: true,
     masked: true,
     copyable: false,
