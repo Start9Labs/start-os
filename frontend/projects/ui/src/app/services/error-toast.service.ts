@@ -8,11 +8,9 @@ import { RequestError } from './http.service'
 export class ErrorToastService {
   private toast: HTMLIonToastElement
 
-  constructor (
-    private readonly toastCtrl: ToastController,
-  ) { }
+  constructor(private readonly toastCtrl: ToastController) {}
 
-  async present (e: RequestError, link?: string): Promise<void> {
+  async present(e: RequestError, link?: string): Promise<void> {
     console.error(e)
 
     if (this.toast) return
@@ -36,7 +34,7 @@ export class ErrorToastService {
     await this.toast.present()
   }
 
-  async dismiss (): Promise<void> {
+  async dismiss(): Promise<void> {
     if (this.toast) {
       await this.toast.dismiss()
       this.toast = undefined
@@ -44,11 +42,11 @@ export class ErrorToastService {
   }
 }
 
-export function getErrorMessage (e: RequestError, link?: string): string | IonicSafeString {
-  let message: string | IonicSafeString
-
-  if (e.message) message = `${message ? message + ' ' : ''}${e.message}`
-  if (e.details) message = `${message ? message + ': ' : ''}${e.details}`
+export function getErrorMessage(
+  e: RequestError,
+  link?: string,
+): string | IonicSafeString {
+  let message: string | IonicSafeString = e.message
 
   if (!message) {
     message = 'Unknown Error.'
@@ -56,7 +54,9 @@ export function getErrorMessage (e: RequestError, link?: string): string | Ionic
   }
 
   if (link) {
-    message = new IonicSafeString(`${message}<br /><br /><a href=${link} target="_blank" rel="noreferrer" style="color: white;">Get Help</a>`)
+    message = new IonicSafeString(
+      `${message}<br /><br /><a href=${link} target="_blank" rel="noreferrer" style="color: white;">Get Help</a>`,
+    )
   }
 
   return message

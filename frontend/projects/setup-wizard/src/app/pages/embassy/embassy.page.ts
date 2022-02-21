@@ -1,6 +1,15 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController, ModalController, NavController } from '@ionic/angular'
-import { ApiService, DiskInfo, DiskRecoverySource } from 'src/app/services/api/api.service'
+import {
+  AlertController,
+  LoadingController,
+  ModalController,
+  NavController,
+} from '@ionic/angular'
+import {
+  ApiService,
+  DiskInfo,
+  DiskRecoverySource,
+} from 'src/app/services/api/api.service'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
@@ -14,7 +23,7 @@ export class EmbassyPage {
   storageDrives: DiskInfo[] = []
   loading = true
 
-  constructor (
+  constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly modalController: ModalController,
@@ -22,26 +31,34 @@ export class EmbassyPage {
     private readonly stateService: StateService,
     private readonly loadingCtrl: LoadingController,
     private readonly errorToastService: ErrorToastService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     await this.getDrives()
   }
 
-  tooSmall (drive: DiskInfo) {
+  tooSmall(drive: DiskInfo) {
     return drive.capacity < 34359738368
   }
 
-  async refresh () {
+  async refresh() {
     this.loading = true
     await this.getDrives()
   }
 
-  async getDrives () {
+  async getDrives() {
     this.loading = true
     try {
       const { disks, reconnect } = await this.apiService.getDrives()
-      this.storageDrives = disks.filter(d => !d.partitions.map(p => p.logicalname).includes((this.stateService.recoverySource as DiskRecoverySource)?.logicalname))
+      this.storageDrives = disks.filter(
+        d =>
+          !d.partitions
+            .map(p => p.logicalname)
+            .includes(
+              (this.stateService.recoverySource as DiskRecoverySource)
+                ?.logicalname,
+            ),
+      )
       if (!this.storageDrives.length && reconnect.length) {
         const list = `<ul>${reconnect.map(recon => `<li>${recon}</li>`)}</ul>`
         const alert = await this.alertCtrl.create({
@@ -63,7 +80,7 @@ export class EmbassyPage {
     }
   }
 
-  async chooseDrive (drive: DiskInfo) {
+  async chooseDrive(drive: DiskInfo) {
     if (!!drive.partitions.find(p => p.used) || !!drive.guid) {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
@@ -96,7 +113,7 @@ export class EmbassyPage {
     }
   }
 
-  private async presentModalPassword (drive: DiskInfo): Promise<void> {
+  private async presentModalPassword(drive: DiskInfo): Promise<void> {
     const modal = await this.modalController.create({
       component: PasswordPage,
       componentProps: {
@@ -110,7 +127,7 @@ export class EmbassyPage {
     await modal.present()
   }
 
-  private async setupEmbassy (drive: DiskInfo, password: string): Promise<void> {
+  private async setupEmbassy(drive: DiskInfo, password: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Transferring encrypted data. This could take a while...',
     })
@@ -125,7 +142,9 @@ export class EmbassyPage {
         await this.navCtrl.navigateForward(`/init`)
       }
     } catch (e) {
-      this.errorToastService.present(`${e.message}: ${e.details}. Restart Embassy to try again.`)
+      this.errorToastService.present(
+        `${e.message}\n\nRestart Embassy to try again.`,
+      )
       console.error(e)
     } finally {
       loader.dismiss()
