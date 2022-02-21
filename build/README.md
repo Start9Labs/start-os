@@ -50,9 +50,9 @@ We recommend [Balena Etcher](https://www.balena.io/etcher/)
 
 ## Setup
 
-Visit http://embassy.local from any web browser
+Visit http://embassy.local from any web browser - We recommend [Firefox](https://www.mozilla.org/firefox/browsers)
 
-We recommend [Firefox](https://www.mozilla.org/firefox/browsers)
+Enter your product key. This is generated during the build process and can be found in `product_key.txt`, located in the root directory.
 
 ## Troubleshooting
 
