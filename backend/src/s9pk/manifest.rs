@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use color_eyre::eyre::eyre;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize, Serializer};
 use url::Url;
@@ -17,6 +18,7 @@ use crate::status::health_check::HealthChecks;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
+use crate::Error;
 
 pub const SYSTEM_PACKAGE_ID: PackageId<&'static str> = PackageId(SYSTEM_ID);
 
@@ -209,6 +211,23 @@ impl Assets {
 pub struct Description {
     pub short: String,
     pub long: String,
+}
+impl Description {
+    pub fn validate(&self) -> Result<(), Error> {
+        if self.short.chars().skip(160).next().is_some() {
+            return Err(Error::new(
+                eyre!("Short description must be 160 characters or less."),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
+        if self.long.chars().skip(5000).next().is_some() {
+            return Err(Error::new(
+                eyre!("Long description must be 5000 characters or less."),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
