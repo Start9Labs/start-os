@@ -10,14 +10,14 @@ import { StateService } from './services/state.service'
   styleUrls: ['app.component.scss'],
 })
 export class AppComponent {
-  constructor (
+  constructor(
     private readonly apiService: ApiService,
     private readonly errorToastService: ErrorToastService,
     private readonly navCtrl: NavController,
     private readonly stateService: StateService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     try {
       const status = await this.apiService.getStatus()
       if (status.migrating || status['product-key']) {
@@ -30,7 +30,7 @@ export class AppComponent {
         await this.navCtrl.navigateForward(`/recover`)
       }
     } catch (e) {
-      this.errorToastService.present(`${e.message}: ${e.details}`)
+      this.errorToastService.present(e.message)
     }
   }
 }

@@ -34,6 +34,7 @@ export interface ValueSpecString extends ListValueSpecString, WithStandalone {
   type: 'string'
   default?: DefaultString
   nullable: boolean
+  textarea?: boolean
 }
 
 export interface ValueSpecNumber extends ListValueSpecNumber, WithStandalone {

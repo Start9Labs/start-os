@@ -29,11 +29,9 @@
     <ion-button
       slot="end"
       fill="clear"
-      color="danger"
-      (click)="presentAlertDelete(entry.key, $event)"
+      (click)="presentAction(entry.key, $event)"
     >
-      <ion-icon slot="start" name="close"></ion-icon>
-      Delete
+      <ion-icon name="ellipsis-horizontal-outline"></ion-icon>
     </ion-button>
   </ion-item>
 </ion-content>
