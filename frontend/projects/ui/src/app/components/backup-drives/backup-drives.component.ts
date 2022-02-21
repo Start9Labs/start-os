@@ -59,7 +59,7 @@ export class BackupDrivesComponent {
 
     if (this.type === 'restore' && !target.hasValidBackup) {
       const message = `${
-        target.entry.type === 'cifs' ? 'LAN Shared folder' : 'Drive partition'
+        target.entry.type === 'cifs' ? 'LAN Shared Folder' : 'Drive partition'
       } does not contain a valid Embassy backup.`
       this.presentAlertError(message)
       return
