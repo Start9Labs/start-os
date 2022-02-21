@@ -52,7 +52,7 @@ We recommend [Balena Etcher](https://www.balena.io/etcher/)
 
 Visit http://embassy.local from any web browser
 
-You will need to enter your product key, which is created at build in the file `product_key.txt`
+Enter your product key. This is generated during the build process and can be found in `product_key.txt`, located in the root directory.
 
 We recommend [Firefox](https://www.mozilla.org/firefox/browsers)
 
