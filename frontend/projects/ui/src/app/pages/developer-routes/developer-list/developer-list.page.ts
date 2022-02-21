@@ -160,7 +160,7 @@ export class DeveloperListPage {
         await this.api.setDbValue({ pointer: `/dev`, value: { [id]: def } })
       }
     } catch (e) {
-      this.errToast.present({ message: `Error saving project data` } as any)
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
@@ -190,7 +190,7 @@ export class DeveloperListPage {
   async editName(id: string, newName: string) {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      message: 'Editing Name...',
+      message: 'Saving...',
       cssClass: 'loader',
     })
     await loader.present()
@@ -198,7 +198,7 @@ export class DeveloperListPage {
     try {
       await this.api.setDbValue({ pointer: `/dev/${id}/name`, value: newName })
     } catch (e) {
-      this.errToast.present({ message: `Error editing name` } as any)
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
@@ -217,7 +217,7 @@ export class DeveloperListPage {
       delete devDataToSave[id]
       await this.api.setDbValue({ pointer: `/dev`, value: devDataToSave })
     } catch (e) {
-      this.errToast.present({ message: `Error deleting project data` } as any)
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }

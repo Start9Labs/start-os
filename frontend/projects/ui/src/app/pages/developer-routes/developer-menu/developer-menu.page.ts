@@ -82,9 +82,7 @@ export class DeveloperMenuPage {
         value: basicInfo,
       })
     } catch (e) {
-      this.errToast.present({
-        message: 'Save error:  Your changes are not saved.',
-      } as any)
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }

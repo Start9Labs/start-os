@@ -11,7 +11,6 @@
 </ion-header>
 
 <ion-content>
-  <ion-item-divider>Required</ion-item-divider>
   <ion-item button (click)="openBasicInfoModal()">
     <ion-icon slot="start" name="information-circle-outline"></ion-icon>
     <ion-label>
@@ -32,10 +31,6 @@
       name="remove-outline"
       *ngIf="projectData['basic-info'] | empty"
     ></ion-icon>
-  </ion-item>
-
-  <ion-item-divider>Tools</ion-item-divider>
-  <ion-item button detail routerLink="instructions" routerDirection="forward">
     <ion-icon slot="start" name="list-outline"></ion-icon>
     <ion-label>
       <h2>Instructions Generator</h2>

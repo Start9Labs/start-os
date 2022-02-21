@@ -142,9 +142,7 @@ export class MarketplacesPage {
     try {
       await this.marketplaceService.getMarketplaceData({}, url)
     } catch (e) {
-      this.errToast.present({
-        message: `Could not connect to ${url}`,
-      } as any)
+      this.errToast.present(e)
       loader.dismiss()
       return
     }
@@ -164,9 +162,7 @@ export class MarketplacesPage {
     try {
       await this.marketplaceService.load()
     } catch (e) {
-      this.errToast.present({
-        message: `Error syncing marketplace data`,
-      } as any)
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
@@ -219,7 +215,7 @@ export class MarketplacesPage {
       const { name } = await this.marketplaceService.getMarketplaceData({}, url)
       marketplace['known-hosts'][id] = { name, url }
     } catch (e) {
-      this.errToast.present({ message: `Could not connect to ${url}` } as any)
+      this.errToast.present(e)
       loader.dismiss()
       return
     }
@@ -229,7 +225,7 @@ export class MarketplacesPage {
     try {
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e) {
-      this.errToast.present({ message: `Error saving marketplace data` } as any)
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
@@ -259,7 +255,7 @@ export class MarketplacesPage {
       marketplace['known-hosts'][id] = { name, url }
       marketplace['selected-id'] = id
     } catch (e) {
-      this.errToast.present({ message: `Could not connect to ${url}` } as any)
+      this.errToast.present(e)
       loader.dismiss()
       return
     }
@@ -269,7 +265,7 @@ export class MarketplacesPage {
     try {
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e) {
-      this.errToast.present({ message: `Error saving marketplace data` } as any)
+      this.errToast.present(e)
       loader.dismiss()
       return
     }
@@ -279,9 +275,7 @@ export class MarketplacesPage {
     try {
       await this.marketplaceService.load()
     } catch (e) {
-      this.errToast.present({
-        message: `Error syncing marketplace data`,
-      } as any)
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
