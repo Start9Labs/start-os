@@ -18,14 +18,14 @@
   <ng-template #noError>
     <ion-item-group>
       <!-- ** cifs ** -->
-      <ion-item-divider>Shared Network Folders</ion-item-divider>
+      <ion-item-divider>LAN Shared Folders</ion-item-divider>
       <ion-item>
         <ion-label>
           <h2>
-            Shared folders are the recommended way to create Embassy backups.
-            View the
+            LAN Shared Folders are the recommended way to create Embassy
+            backups. View the
             <a
-              href="https://docs.start9.com/user-manual/general/backups.html#shared-network-folder"
+              href="https://docs.start9.com/user-manual/general/backups.html#lan-backups"
               target="_blank"
               noreferrer
               >Instructions</a
@@ -35,8 +35,13 @@
       </ion-item>
       <!-- add new cifs -->
       <ion-item button detail="false" (click)="presentModalAddCifs()">
-        <ion-icon slot="start" name="add" size="large" color="dark"></ion-icon>
-        <ion-label>New shared folder</ion-label>
+        <ion-icon
+          slot="start"
+          name="folder-open-outline"
+          size="large"
+          color="dark"
+        ></ion-icon>
+        <ion-label>Open</ion-label>
       </ion-item>
       <!-- cifs list -->
       <ng-container *ngFor="let target of backupService.cifs; let i = index">
