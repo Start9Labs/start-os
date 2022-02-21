@@ -24,6 +24,7 @@ import { Subscription } from 'rxjs'
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MarketplacePkg } from 'src/app/services/api/api.types'
+import { LocalStorageService } from 'src/app/services/local-storage.service'
 
 @Component({
   selector: 'marketplace-show',
@@ -52,6 +53,7 @@ export class MarketplaceShowPage {
     private readonly patch: PatchDbService,
     private readonly embassyApi: ApiService,
     private readonly marketplaceService: MarketplaceService,
+    public readonly localStorageService: LocalStorageService,
   ) {}
 
   async ngOnInit() {
