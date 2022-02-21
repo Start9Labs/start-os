@@ -7,6 +7,7 @@ use std::task::Poll;
 use std::time::Duration;
 
 use bollard::container::{KillContainerOptions, StopContainerOptions};
+use chrono::Utc;
 use color_eyre::eyre::eyre;
 use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
@@ -26,6 +27,7 @@ use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::status::MainStatus;
 use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
 
@@ -476,23 +478,39 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
         match run_main(&thread_shared).await {
             Ok(Ok(NoOutput)) => (), // restart
             Ok(Err(e)) => {
-                let res = thread_shared.ctx.notification_manager
+                let mut db = thread_shared.ctx.db.handle();
+                let started = crate::db::DatabaseModel::new()
+                    .package_data()
+                    .idx_model(&thread_shared.manifest.id)
+                    .and_then(|pde| pde.installed())
+                    .map::<_, MainStatus>(|i| i.status().main())
+                    .get(&mut db, false)
+                    .await;
+                match started.as_deref() {
+                    Ok(Some(MainStatus::Running { started, .. }))
+                        if Utc::now().signed_duration_since(*started)
+                            > chrono::Duration::from_std(Duration::from_secs(15)).unwrap() =>
+                    {
+                        let res = thread_shared.ctx.notification_manager
                     .notify(
-                        &mut thread_shared.ctx.db.handle(),
+                        &mut db,
                         Some(thread_shared.manifest.id.clone()),
                         NotificationLevel::Warning,
                         String::from("Service Crashed"),
                         format!("The service {} has crashed with the following exit code: {}\nDetails: {}", thread_shared.manifest.id.clone(), e.0, e.1),
                         (),
-                        Some(900) // 15 minutes
+                        Some(3600) // 1 hour
                     )
                     .await;
-                match res {
-                    Err(e) => {
-                        tracing::error!("Failed to issue notification: {}", e);
-                        tracing::debug!("{:?}", e);
+                        match res {
+                            Err(e) => {
+                                tracing::error!("Failed to issue notification: {}", e);
+                                tracing::debug!("{:?}", e);
+                            }
+                            Ok(()) => {}
+                        }
                     }
-                    Ok(()) => {}
+                    _ => tracing::error!("service just started. not issuing crash notification"),
                 }
                 tracing::error!("service crashed: {}: {}", e.0, e.1);
                 tokio::time::sleep(Duration::from_secs(15)).await;

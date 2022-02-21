@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
+use chrono::Utc;
 use color_eyre::eyre::eyre;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockType, PatchDb, Revision};
@@ -287,13 +288,14 @@ impl RpcContext {
                             main,
                             MainStatus::Stopped, /* placeholder */
                         ) {
-                            MainStatus::BackingUp { started, health } => {
-                                if let Some(started) = started {
-                                    MainStatus::Running { started, health }
+                            MainStatus::BackingUp { started, .. } => {
+                                if let Some(_) = started {
+                                    MainStatus::Starting
                                 } else {
                                     MainStatus::Stopped
                                 }
                             }
+                            MainStatus::Running { .. } => MainStatus::Starting,
                             a => a,
                         };
                         *main = new_main;
