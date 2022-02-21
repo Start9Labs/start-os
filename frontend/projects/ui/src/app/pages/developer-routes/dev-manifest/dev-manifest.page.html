@@ -1,0 +1,17 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button
+        [defaultHref]="'/developer/projects/' + projectId"
+      ></ion-back-button>
+    </ion-buttons>
+    <ion-title> Manifest </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ngx-monaco-editor
+    [options]="editorOptions"
+    [(ngModel)]="manifest"
+  ></ngx-monaco-editor>
+</ion-content>

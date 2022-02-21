@@ -52,7 +52,7 @@ export class StateService {
       progress = await this.apiService.getRecoveryStatus()
     } catch (e) {
       this.errorToastService.present(
-        `${e.message}: ${e.details}.\nRestart Embassy to try again.`,
+        `${e.message}\n\nRestart Embassy to try again.`,
       )
     }
     if (progress) {

@@ -2,18 +2,16 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
-import { DeveloperMenuPage } from './developer-menu.page'
+import { DevManifestPage } from './dev-manifest.page'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { BackupReportPageModule } from 'src/app/modals/backup-report/backup-report.module'
-import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.module'
-import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import { FormsModule } from '@angular/forms'
-import { SharedPipesModule } from '../../../../../../shared/src/pipes/shared/shared.module'
+import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 
 const routes: Routes = [
   {
     path: '',
-    component: DeveloperMenuPage,
+    component: DevManifestPage,
   },
 ]
 
@@ -24,11 +22,9 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     BadgeMenuComponentModule,
     BackupReportPageModule,
-    GenericFormPageModule,
     FormsModule,
     MonacoEditorModule,
-    SharedPipesModule,
   ],
-  declarations: [DeveloperMenuPage],
+  declarations: [DevManifestPage],
 })
-export class DeveloperMenuPageModule {}
+export class DevManifestPageModule {}

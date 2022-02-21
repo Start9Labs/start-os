@@ -4,11 +4,32 @@
       <ion-back-button defaultHref="/developer"></ion-back-button>
     </ion-buttons>
     <ion-title>{{ patchDb.data.ui.dev[projectId].name}}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button routerLink="manifest">View Manifest</ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
-  <ion-item-divider>Components</ion-item-divider>
+  <ion-item button (click)="openBasicInfoModal()">
+    <ion-icon slot="start" name="information-circle-outline"></ion-icon>
+    <ion-label>
+      <h2>Basic Info</h2>
+      <p>Complete basic info for your package</p>
+    </ion-label>
+    <ion-icon
+      slot="end"
+      color="success"
+      name="checkmark"
+      *ngIf="!(projectData['basic-info'] | empty)"
+    ></ion-icon>
+    <ion-icon
+      slot="end"
+      color="warning"
+      name="remove-outline"
+      *ngIf="projectData['basic-info'] | empty"
+    ></ion-icon>
+  </ion-item>
   <ion-item button detail routerLink="instructions" routerDirection="forward">
     <ion-icon slot="start" name="list-outline"></ion-icon>
     <ion-label>

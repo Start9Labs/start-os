@@ -1,5 +1,10 @@
 import { Injectable } from '@angular/core'
-import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http'
+import {
+  HttpClient,
+  HttpErrorResponse,
+  HttpHeaders,
+  HttpParams,
+} from '@angular/common/http'
 import { Observable } from 'rxjs'
 import * as aesjs from 'aes-js'
 import * as pbkdf2 from 'pbkdf2'
@@ -11,15 +16,12 @@ export class HttpService {
   fullUrl: string
   productKey: string
 
-  constructor (
-    private readonly http: HttpClient,
-  ) {
+  constructor(private readonly http: HttpClient) {
     const port = window.location.port
     this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}/rpc/v1`
   }
 
-  async rpcRequest<T> (body: RPCOptions, encrypted = true): Promise<T> {
-
+  async rpcRequest<T>(body: RPCOptions, encrypted = true): Promise<T> {
     const httpOpts = {
       method: Method.POST,
       body,
@@ -42,17 +44,17 @@ export class HttpService {
     if (isRpcSuccess(res)) return res.result
   }
 
-  async encryptedHttpRequest<T> (httpOpts: {
-    body: RPCOptions;
-    url: string;
+  async encryptedHttpRequest<T>(httpOpts: {
+    body: RPCOptions
+    url: string
   }): Promise<T> {
-
     const urlIsRelative = httpOpts.url.startsWith('/')
-    const url = urlIsRelative ?
-      this.fullUrl + httpOpts.url :
-      httpOpts.url
+    const url = urlIsRelative ? this.fullUrl + httpOpts.url : httpOpts.url
 
-    const encryptedBody = await AES_CTR.encryptPbkdf2(this.productKey, encodeUtf8(JSON.stringify(httpOpts.body)))
+    const encryptedBody = await AES_CTR.encryptPbkdf2(
+      this.productKey,
+      encodeUtf8(JSON.stringify(httpOpts.body)),
+    )
     const options = {
       responseType: 'arraybuffer',
       body: encryptedBody.buffer,
@@ -67,9 +69,14 @@ export class HttpService {
 
     const req = this.http.post(url, options.body, options)
 
-    return (req)
+    return req
       .toPromise()
-      .then(res => AES_CTR.decryptPbkdf2(this.productKey, (res as any).body as ArrayBuffer))
+      .then(res =>
+        AES_CTR.decryptPbkdf2(
+          this.productKey,
+          (res as any).body as ArrayBuffer,
+        ),
+      )
       .then(res => JSON.parse(res))
       .catch(e => {
         if (!e.status && !e.statusText) {
@@ -80,46 +87,56 @@ export class HttpService {
       })
   }
 
-  async httpRequest<T> (httpOpts: {
-    body: RPCOptions;
-    url: string;
+  async httpRequest<T>(httpOpts: {
+    body: RPCOptions
+    url: string
   }): Promise<T> {
     const urlIsRelative = httpOpts.url.startsWith('/')
-    const url = urlIsRelative ?
-      this.fullUrl + httpOpts.url :
-      httpOpts.url
+    const url = urlIsRelative ? this.fullUrl + httpOpts.url : httpOpts.url
 
     const options = {
       responseType: 'json',
       body: httpOpts.body,
       observe: 'events',
       reportProgress: false,
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
     } as any
 
-    const req: Observable<{ body: T }> = this.http.post(url, httpOpts.body, options) as any
+    const req: Observable<{ body: T }> = this.http.post(
+      url,
+      httpOpts.body,
+      options,
+    ) as any
 
-    return (req)
+    return req
       .toPromise()
       .then(res => res.body)
-      .catch(e => { throw new HttpError(e) })
+      .catch(e => {
+        throw new HttpError(e)
+      })
   }
 }
 
-function RpcError (e: RPCError['error']): void {
+function RpcError(e: RPCError['error']): void {
   const { code, message, data } = e
 
   this.code = code
-  this.message = message
 
-  if (typeof data !== 'string') {
-    this.details = data.details
+  if (typeof data === 'string') {
+    this.message = `${message}\n\n${data}`
   } else {
-    this.details = data
+    if (data.details) {
+      this.message = `${message}\n\n${data.details}`
+    } else {
+      this.message = message
+    }
   }
 }
 
-function HttpError (e: HttpErrorResponse): void {
+function HttpError(e: HttpErrorResponse): void {
   const { status, statusText } = e
 
   this.code = status
@@ -127,17 +144,21 @@ function HttpError (e: HttpErrorResponse): void {
   this.details = null
 }
 
-function EncryptionError (e: HttpErrorResponse): void {
+function EncryptionError(e: HttpErrorResponse): void {
   this.code = null
   this.message = 'Invalid Key'
   this.details = null
 }
 
-function isRpcError<Error, Result> (arg: { error: Error } | { result: Result }): arg is { error: Error } {
+function isRpcError<Error, Result>(
+  arg: { error: Error } | { result: Result },
+): arg is { error: Error } {
   return !!(arg as any).error
 }
 
-function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result }): arg is { result: Result } {
+function isRpcSuccess<Error, Result>(
+  arg: { error: Error } | { result: Result },
+): arg is { result: Result } {
   return !!(arg as any).result
 }
 
@@ -152,7 +173,7 @@ export enum Method {
 export interface RPCOptions {
   method: string
   params?: {
-    [param: string]: string | number | boolean | object | string[] | number[];
+    [param: string]: string | number | boolean | object | string[] | number[]
   }
 }
 
@@ -172,27 +193,35 @@ export interface RPCSuccess<T> extends RPCBase {
 
 export interface RPCError extends RPCBase {
   error: {
-    code: number,
+    code: number
     message: string
-    data?: {
-      details: string
-    } | string
+    data?:
+      | {
+          details: string
+        }
+      | string
   }
 }
 
 export type RPCResponse<T> = RPCSuccess<T> | RPCError
 
-type HttpError = HttpErrorResponse & { error: { code: string, message: string } }
+type HttpError = HttpErrorResponse & {
+  error: { code: string; message: string }
+}
 
 export interface HttpOptions {
   method: Method
   url: string
-  headers?: HttpHeaders | {
-    [header: string]: string | string[]
-  }
-  params?: HttpParams | {
-    [param: string]: string | string[]
-  }
+  headers?:
+    | HttpHeaders
+    | {
+        [header: string]: string | string[]
+      }
+  params?:
+    | HttpParams
+    | {
+        [param: string]: string | string[]
+      }
   responseType?: 'json' | 'text' | 'arrayBuffer'
   withCredentials?: boolean
   body?: any
@@ -200,7 +229,10 @@ export interface HttpOptions {
 }
 
 type AES_CTR = {
-  encryptPbkdf2: (secretKey: string, messageBuffer: Uint8Array) => Promise<Uint8Array>
+  encryptPbkdf2: (
+    secretKey: string,
+    messageBuffer: Uint8Array,
+  ) => Promise<Uint8Array>
   decryptPbkdf2: (secretKey, arr: ArrayBuffer) => Promise<string>
 }
 
@@ -211,7 +243,10 @@ export const AES_CTR: AES_CTR = {
 
     const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256')
 
-    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter))
+    const aesCtr = new aesjs.ModeOfOperation.ctr(
+      key,
+      new aesjs.Counter(counter),
+    )
     const encryptedBytes = aesCtr.encrypt(messageBuffer)
     return new Uint8Array([...counter, ...salt, ...encryptedBytes])
   },
@@ -223,21 +258,26 @@ export const AES_CTR: AES_CTR = {
     const cipher = buff.slice(32)
     const key = pbkdf2.pbkdf2Sync(secretKey, salt, 1000, 256 / 8, 'sha256')
 
-    const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(counter))
+    const aesCtr = new aesjs.ModeOfOperation.ctr(
+      key,
+      new aesjs.Counter(counter),
+    )
     const decryptedBytes = aesCtr.decrypt(cipher)
 
     return aesjs.utils.utf8.fromBytes(decryptedBytes)
   },
 }
 
-export const encode16 = (buffer: Uint8Array) => buffer.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
-export const decode16 = hexString => new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
+export const encode16 = (buffer: Uint8Array) =>
+  buffer.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
+export const decode16 = hexString =>
+  new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
 
-export function encodeUtf8 (str: string): Uint8Array {
+export function encodeUtf8(str: string): Uint8Array {
   const encoder = new TextEncoder()
   return encoder.encode(str)
 }
 
-export function decodeUtf8 (arr: Uint8Array): string {
+export function decodeUtf8(arr: Uint8Array): string {
   return new TextDecoder().decode(arr)
 }

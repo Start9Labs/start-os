@@ -1,5 +1,7 @@
 import { Component } from '@angular/core'
 import {
+  ActionSheetButton,
+  ActionSheetController,
   AlertController,
   LoadingController,
   ModalController,
@@ -15,7 +17,6 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
 import { DevData } from 'src/app/services/patch-db/data-model'
-import { Subscription } from 'rxjs'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ActivatedRoute } from '@angular/router'
 import { DestroyService } from '@start9labs/shared'
@@ -40,6 +41,7 @@ export class DeveloperListPage {
     private readonly route: ActivatedRoute,
     private readonly destroy$: DestroyService,
     private readonly patch: PatchDbService,
+    private readonly actionCtrl: ActionSheetController,
   ) {}
 
   ngOnInit() {
@@ -63,6 +65,60 @@ export class DeveloperListPage {
       initialValue: `Project ${projNumber}`,
       buttonText: 'Save',
       submitFn: (value: string) => this.createProject(value),
+    }
+
+    const modal = await this.modalCtrl.create({
+      componentProps: { options },
+      cssClass: 'alertlike-modal',
+      presentingElement: await this.modalCtrl.getTop(),
+      component: GenericInputComponent,
+    })
+
+    await modal.present()
+  }
+
+  async presentAction(id: string, event: Event) {
+    event.stopPropagation()
+    const buttons: ActionSheetButton[] = [
+      {
+        text: 'Edit Name',
+        icon: 'pencil',
+        handler: () => {
+          this.openEditNameModal(id)
+        },
+      },
+      {
+        text: 'Delete',
+        icon: 'trash',
+        role: 'destructive',
+        handler: () => {
+          this.presentAlertDelete(id)
+        },
+      },
+    ]
+
+    const action = await this.actionCtrl.create({
+      header: this.devData[id].name,
+      subHeader: 'Manage project',
+      mode: 'ios',
+      buttons,
+    })
+
+    await action.present()
+  }
+
+  async openEditNameModal(id: string) {
+    const curName = this.devData[id].name
+    const options: GenericInputOptions = {
+      title: 'Edit Name',
+      message: 'Edit the name of your project.',
+      label: 'Name',
+      useMask: false,
+      placeholder: curName,
+      nullable: true,
+      initialValue: curName,
+      buttonText: 'Save',
+      submitFn: (value: string) => this.editName(id, value),
     }
 
     const modal = await this.modalCtrl.create({
@@ -104,14 +160,13 @@ export class DeveloperListPage {
         await this.api.setDbValue({ pointer: `/dev`, value: { [id]: def } })
       }
     } catch (e) {
-      this.errToast.present({ message: `Error saving project data` } as any)
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
   }
 
-  async presentAlertDelete(id: string, event: Event) {
-    event.stopPropagation()
+  async presentAlertDelete(id: string) {
     const alert = await this.alertCtrl.create({
       header: 'Caution',
       message: `Are you sure you want to delete this project?`,
@@ -132,6 +187,23 @@ export class DeveloperListPage {
     await alert.present()
   }
 
+  async editName(id: string, newName: string) {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Saving...',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.api.setDbValue({ pointer: `/dev/${id}/name`, value: newName })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
   async delete(id: string) {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
@@ -145,7 +217,7 @@ export class DeveloperListPage {
       delete devDataToSave[id]
       await this.api.setDbValue({ pointer: `/dev`, value: devDataToSave })
     } catch (e) {
-      this.errToast.present({ message: `Error deleting project data` } as any)
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }

@@ -75,9 +75,7 @@ export class DevConfigPage {
         value: this.code,
       })
     } catch (e) {
-      this.errToast.present({
-        message: 'Auto save error:  Your changes are not saved.',
-      } as any)
+      this.errToast.present(e)
     } finally {
       this.saving = false
     }

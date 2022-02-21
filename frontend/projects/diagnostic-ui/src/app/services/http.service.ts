@@ -5,40 +5,43 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http'
   providedIn: 'root',
 })
 export class HttpService {
+  constructor(private readonly http: HttpClient) {}
 
-  constructor (
-    private readonly http: HttpClient,
-  ) { }
-
-  async rpcRequest<T> (options: RPCOptions): Promise<T> {
+  async rpcRequest<T>(options: RPCOptions): Promise<T> {
     const res = await this.httpRequest<RPCResponse<T>>(options)
     if (isRpcError(res)) throw new RpcError(res.error)
     if (isRpcSuccess(res)) return res.result
   }
 
-  async httpRequest<T> (body: RPCOptions): Promise<T> {
+  async httpRequest<T>(body: RPCOptions): Promise<T> {
     const url = `${window.location.protocol}//${window.location.hostname}:${window.location.port}/rpc/v1`
-    return this.http.post(url, body)
-      .toPromise().then(a => a as T)
-      .catch(e => { throw new HttpError(e) })
+    return this.http
+      .post(url, body)
+      .toPromise()
+      .then(a => a as T)
+      .catch(e => {
+        throw new HttpError(e)
+      })
   }
 }
 
-function RpcError (e: RPCError['error']): void {
+function RpcError(e: RPCError['error']): void {
   const { code, message, data } = e
 
   this.code = code
-  this.message = message
 
   if (typeof data === 'string') {
-    this.details = e.data
-    this.revision = null
+    this.message = `${message}\n\n${data}`
   } else {
-    this.details = data.details
+    if (data.details) {
+      this.message = `${message}\n\n${data.details}`
+    } else {
+      this.message = message
+    }
   }
 }
 
-function HttpError (e: HttpErrorResponse): void {
+function HttpError(e: HttpErrorResponse): void {
   const { status, statusText } = e
 
   this.code = status
@@ -47,11 +50,15 @@ function HttpError (e: HttpErrorResponse): void {
   this.revision = null
 }
 
-function isRpcError<Error, Result> (arg: { error: Error } | { result: Result}): arg is { error: Error } {
+function isRpcError<Error, Result>(
+  arg: { error: Error } | { result: Result },
+): arg is { error: Error } {
   return !!(arg as any).error
 }
 
-function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result}): arg is { result: Result } {
+function isRpcSuccess<Error, Result>(
+  arg: { error: Error } | { result: Result },
+): arg is { result: Result } {
   return !!(arg as any).result
 }
 
@@ -84,14 +91,18 @@ export interface RPCSuccess<T> extends RPCBase {
 
 export interface RPCError extends RPCBase {
   error: {
-    code: number,
+    code: number
     message: string
-    data?: {
-      details: string
-    } | string
+    data?:
+      | {
+          details: string
+        }
+      | string
   }
 }
 
 export type RPCResponse<T> = RPCSuccess<T> | RPCError
 
-type HttpError = HttpErrorResponse & { error: { code: string, message: string } }
+type HttpError = HttpErrorResponse & {
+  error: { code: string; message: string }
+}

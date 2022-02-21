@@ -33,6 +33,13 @@ const routes: Routes = [
         m => m.DevInstructionsPageModule,
       ),
   },
+  {
+    path: 'projects/:projectId/manifest',
+    loadChildren: () =>
+      import('./dev-manifest/dev-manifest.module').then(
+        m => m.DevManifestPageModule,
+      ),
+  },
 ]
 
 @NgModule({

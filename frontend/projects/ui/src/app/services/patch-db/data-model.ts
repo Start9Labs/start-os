@@ -1,5 +1,6 @@
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { InstallProgress, PackageState } from '@start9labs/shared'
+import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -28,11 +29,14 @@ export interface UIMarketplaceData {
 }
 
 export interface DevData {
-  [id: string]: {
-    name: string
-    instructions?: string
-    config?: string
-  }
+  [id: string]: DevProjectData
+}
+
+export interface DevProjectData {
+  name: string
+  instructions?: string
+  config?: string
+  'basic-info'?: BasicInfo
 }
 
 export interface ServerInfo {
