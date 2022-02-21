@@ -149,6 +149,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
             .into_iter()
             .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
             .collect::<Result<BTreeSet<ImageId>, _>>()?;
+        man.description.validate()?;
         man.actions
             .0
             .iter()
