@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
+use chrono::Utc;
 use color_eyre::eyre::eyre;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockType, PatchDb, Revision};
@@ -283,17 +284,25 @@ impl RpcContext {
                             },
                         ..
                     } => {
+                        let new_started = Utc::now();
                         let new_main = match std::mem::replace(
                             main,
                             MainStatus::Stopped, /* placeholder */
                         ) {
-                            MainStatus::BackingUp { started, health } => {
-                                if let Some(started) = started {
-                                    MainStatus::Running { started, health }
+                            MainStatus::BackingUp { started, .. } => {
+                                if let Some(_) = started {
+                                    MainStatus::Running {
+                                        started: new_started,
+                                        health: Default::default(),
+                                    }
                                 } else {
                                     MainStatus::Stopped
                                 }
                             }
+                            MainStatus::Running { .. } => MainStatus::Running {
+                                started: new_started,
+                                health: Default::default(),
+                            },
                             a => a,
                         };
                         *main = new_main;
