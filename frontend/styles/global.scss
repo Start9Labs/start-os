@@ -29,6 +29,10 @@ ion-input {
   caret-color: gray;
 }
 
+.item-interactive {
+  --highlight-background: var(--ion-color-light) !important;
+}
+
 ion-modal::part(content) {
   position: absolute;
   height: 90% !important;
