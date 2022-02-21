@@ -489,7 +489,7 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
                 match started.as_deref() {
                     Ok(Some(MainStatus::Running { started, .. }))
                         if Utc::now().signed_duration_since(*started)
-                            > chrono::Duration::from_std(Duration::from_secs(10)).unwrap() =>
+                            > chrono::Duration::from_std(Duration::from_secs(15)).unwrap() =>
                     {
                         let res = thread_shared.ctx.notification_manager
                     .notify(

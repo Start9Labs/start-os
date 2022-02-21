@@ -284,25 +284,18 @@ impl RpcContext {
                             },
                         ..
                     } => {
-                        let new_started = Utc::now();
                         let new_main = match std::mem::replace(
                             main,
                             MainStatus::Stopped, /* placeholder */
                         ) {
                             MainStatus::BackingUp { started, .. } => {
                                 if let Some(_) = started {
-                                    MainStatus::Running {
-                                        started: new_started,
-                                        health: Default::default(),
-                                    }
+                                    MainStatus::Starting
                                 } else {
                                     MainStatus::Stopped
                                 }
                             }
-                            MainStatus::Running { .. } => MainStatus::Running {
-                                started: new_started,
-                                health: Default::default(),
-                            },
+                            MainStatus::Running { .. } => MainStatus::Starting,
                             a => a,
                         };
                         *main = new_main;
