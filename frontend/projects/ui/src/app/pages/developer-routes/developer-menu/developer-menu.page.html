@@ -20,17 +20,17 @@
     <ion-icon
       slot="end"
       color="success"
-      size="large"
       name="checkmark"
       *ngIf="!(projectData['basic-info'] | empty)"
     ></ion-icon>
     <ion-icon
       slot="end"
       color="warning"
-      size="large"
       name="remove-outline"
       *ngIf="projectData['basic-info'] | empty"
     ></ion-icon>
+  </ion-item>
+  <ion-item button detail routerLink="instructions" routerDirection="forward">
     <ion-icon slot="start" name="list-outline"></ion-icon>
     <ion-label>
       <h2>Instructions Generator</h2>
