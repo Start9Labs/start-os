@@ -235,6 +235,10 @@ export class BackupDrivesComponent {
       loader.dismiss()
     }
   }
+
+  refresh() {
+    this.backupService.getBackupTargets()
+  }
 }
 
 @Component({
