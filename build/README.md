@@ -27,8 +27,6 @@
 - jq
 	- `sudo apt install -y jq`
 	- https://stedolan.github.io/jq
-- Rust Cross Compiler
-	- https://github.com/Start9Labs/rust-musl-cross/tree/master
 
 2. Clone the repo, move into it, and bring in required submodules
 
