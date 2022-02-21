@@ -63,7 +63,7 @@ export function getBasicInfoSpec(devData: DevProjectData): ConfigSpec {
       nullable: false,
       masked: false,
       copyable: true,
-      long: true,
+      textarea: true,
       default: basicInfo?.['release-notes'],
     },
     license: {
@@ -143,7 +143,7 @@ export function getBasicInfoSpec(devData: DevProjectData): ConfigSpec {
       nullable: false,
       masked: false,
       copyable: false,
-      long: true,
+      textarea: true,
       default: basicInfo?.description?.short,
     },
     long: {
@@ -153,7 +153,7 @@ export function getBasicInfoSpec(devData: DevProjectData): ConfigSpec {
       nullable: false,
       masked: false,
       copyable: false,
-      long: true,
+      textarea: true,
       default: basicInfo?.description?.long,
     },
   }

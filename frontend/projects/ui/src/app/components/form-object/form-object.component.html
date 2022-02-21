@@ -61,7 +61,7 @@
           *ngIf="spec.type === 'string' || spec.type === 'number'"
         >
           <ion-textarea
-            *ngIf="spec.type === 'string' && spec.long; else notTextArea"
+            *ngIf="spec.type === 'string' && spec.textarea; else notTextArea"
             [placeholder]="spec.placeholder || 'Enter ' + spec.name"
             [formControlName]="entry.key"
             (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
