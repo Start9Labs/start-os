@@ -17,8 +17,8 @@
     "build:all": "npm run build:deps && npm run build:diagnostic-ui && npm run build:setup-wizard && npm run build:ui",
     "start:diagnostic-ui": "npm run copy-git-hash && ionic serve --project diagnostic-ui",
     "start:setup-wizard": "npm run copy-git-hash && ionic serve --project setup-wizard",
-    "start:ui": "npm run copy-git-hash && ionic serve --project ui",
-    "copy-git-hash": "./update-git-hash.sh"
+    "start:ui": "npm run-script copy-git-hash && ionic serve --project ui",
+    "copy-git-hash": "node update-git-hash.js"
   },
   "dependencies": {
     "@angular/animations": "^13.2.0",
