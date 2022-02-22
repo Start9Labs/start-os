@@ -4,9 +4,12 @@
 set -e
 
 # introduce start9 username and embassy as default password
-usermod -l start9 -d /home/start9 -m pi
-groupmod --new-name start9 pi
-echo start9:embassy | chpasswd
+if ! [ $(users) = "start9" ]
+then
+	usermod -l start9 -d /home/start9 -m pi
+	groupmod --new-name start9 pi
+	echo start9:embassy | chpasswd
+fi
 
 passwd -l start9
 
