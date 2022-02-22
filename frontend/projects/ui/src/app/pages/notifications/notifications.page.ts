@@ -13,6 +13,7 @@ import {
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'notifications',
@@ -34,6 +35,7 @@ export class NotificationsPage {
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly route: ActivatedRoute,
+    public readonly patch: PatchDbService,
   ) {}
 
   async ngOnInit() {
