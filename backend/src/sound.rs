@@ -347,7 +347,7 @@ pub const CHIME: Song<[(Option<Note>, TimeSlice); 2]> = song!(400, [
     note(E, 6, Tie(&Dot(&Quarter), &Half));
 ]);
 
-pub const SHUTDOWN: Song<[(Option<Note>, TimeSlice); 12]> = song!(120, [
+pub const SHUTDOWN: Song<[(Option<Note>, TimeSlice); 12]> = song!(200, [
     note(C, 5, Eighth);
     rest(Eighth);
     note(G, 4, Triplet(&Eighth));
