@@ -892,24 +892,24 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                     dst.sync_all().await?;
                 }
             }
-
-            dependency_info.insert(
-                dep.clone(),
-                StaticDependencyInfo {
-                    icon: if let Some(manifest) = &manifest {
-                        format!(
-                            "/public/package-data/{}/{}/icon.{}",
-                            manifest.id,
-                            manifest.version,
-                            manifest.assets.icon_type()
-                        )
-                    } else {
-                        "/assets/img/package-icon.png".to_owned()
-                    },
-                    manifest,
-                },
-            );
         }
+
+        dependency_info.insert(
+            dep.clone(),
+            StaticDependencyInfo {
+                icon: if let Some(manifest) = &manifest {
+                    format!(
+                        "/public/package-data/{}/{}/icon.{}",
+                        manifest.id,
+                        manifest.version,
+                        manifest.assets.icon_type()
+                    )
+                } else {
+                    "/assets/img/package-icon.png".to_owned()
+                },
+                manifest,
+            },
+        );
     }
     tracing::info!("Install {}@{}: Fetched Dependency Info", pkg_id, version);
 
