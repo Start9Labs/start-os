@@ -76,7 +76,9 @@
             <h2>
               <b>
                 <span *ngIf="not['package-id']"
-                  >{{ not['package-id'] }} -
+                  >{{ patch.data['package-data'][not['package-id']] ?
+                  patch.data['package-data'][not['package-id']].manifest.title :
+                  not['package-id'] }} -
                 </span>
                 <ion-text [color]="getColor(not)"> {{ not.title }} </ion-text>
               </b>
