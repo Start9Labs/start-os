@@ -362,7 +362,7 @@ export class ServerShowPage {
         icon: 'map-outline',
         action: () =>
           window.open(
-            'https://docs.start9.com/user-manual/',
+            'https://start9.com/latest/user-manual/',
             '_blank',
             'noreferrer',
           ),
@@ -375,7 +375,7 @@ export class ServerShowPage {
         icon: 'chatbubbles-outline',
         action: () =>
           window.open(
-            'https://docs.start9.com/support/contact/',
+            'https://start9.com/latest/support/contact/',
             '_blank',
             'noreferrer',
           ),

@@ -76,7 +76,7 @@ Depending on how large the project is, you may want to outsource the questioning
 A good bug report shouldn't leave others needing to chase you up for more information. Therefore, we ask you to investigate carefully, collect information and describe the issue in detail in your report. Please complete the following steps in advance to help us fix any potential bug as fast as possible.
 
 - Make sure that you are using the latest version.
-- Determine if your bug is really a bug and not an error on your side e.g. using incompatible environment components/versions (Make sure that you have read the [documentation](https://docs.start9.com). If you are looking for support, you might want to check [this section](#i-have-a-question)).
+- Determine if your bug is really a bug and not an error on your side e.g. using incompatible environment components/versions (Make sure that you have read the [documentation](https://start9.com/latest/user-manual). If you are looking for support, you might want to check [this section](#i-have-a-question)).
 - To see if other users have experienced (and potentially already solved) the same issue you are having, check if there is not already a bug report existing for your bug or error in the [bug tracker](https://github.com/Start9Labs/embassy-os/issues?q=label%3Abug).
 - Also make sure to search the internet (including Stack Overflow) to see if users outside of the GitHub community have discussed the issue.
 - Collect information about the bug:
@@ -94,7 +94,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 
 We use GitHub issues to track bugs and errors. If you run into an issue with the project:
 
-- Open an [Issue](https://github.com/Start9Labs/embassy-os/issues/new/choose) selecting the appropriate type. 
+- Open an [Issue](https://github.com/Start9Labs/embassy-os/issues/new/choose) selecting the appropriate type.
 - Explain the behavior you would expect and the actual behavior.
 - Please provide as much context as possible and describe the *reproduction steps* that someone else can follow to recreate the issue on their own. This usually includes your code. For good bug reports you should isolate the problem and create a reduced test case.
 - Provide the information you collected in the previous section.
@@ -116,7 +116,7 @@ This section guides you through submitting an enhancement suggestion for Embassy
 #### Before Submitting an Enhancement
 
 - Make sure that you are using the latest version.
-- Read the [documentation](https://docs.start9.com) carefully and find out if the functionality is already covered, maybe by an individual configuration.
+- Read the [documentation](https://start9.com/latest/user-manual) carefully and find out if the functionality is already covered, maybe by an individual configuration.
 - Perform a [search](https://github.com/Start9Labs/embassy-os/issues) to see if the enhancement has already been suggested. If it has, add a comment to the existing issue instead of opening a new one.
 - Find out whether your idea fits with the scope and aims of the project. It's up to you to make a strong case to convince the project's developers of the merits of this feature. Keep in mind that we want features that will be useful to the majority of our users and not just a small subset. If you're just targeting a minority of users, consider writing an add-on/plugin library.
 
@@ -136,9 +136,9 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/Start9
 ### Project Structure
 EmbassyOS is composed of the following components. Please visit the README for each component to understand the dependency requirements and installation instructions.
 - [`ui`](ui/README.md) (Typescript Ionic Angular) is the code that is deployed to the browser to provide the user interface for EmbassyOS.
-- [`backend`] (backend/README.md) (Rust) is a command line utility, daemon, and software development kit that sets up and manages services and their environments, provides the interface for the ui, manages system state, and provides utilities for packaging services for EmbassyOS. 
+- [`backend`] (backend/README.md) (Rust) is a command line utility, daemon, and software development kit that sets up and manages services and their environments, provides the interface for the ui, manages system state, and provides utilities for packaging services for EmbassyOS.
 - `patch-db` - A diff based data store that is used to synchronize data between the front and backend.
-  - Notably, `patch-db` has a [client](patch-db/client/README.md) with its own dependency and installation requirements. 
+  - Notably, `patch-db` has a [client](patch-db/client/README.md) with its own dependency and installation requirements.
 - `rpc-toolkit` - A library for generating an rpc server with cli bindings from Rust functions.
 - `system-images` - (Docker, Rust) A suite of utility Docker images that are preloaded with EmbassyOS to assist with functions relating to services (eg. configuration, backups, health checks).
 - [`setup-wizard`] (ui/README.md)- Code for the user interface that is displayed during the setup and recovery process for EmbassyOS.
@@ -168,7 +168,7 @@ This step is for setting up an environment in which to test your code changes if
   - run `make` from the project root
 
 ### Improving The Documentation
-You can find the repository for Start9's documentation [here](https://github.com/Start9Labs/documentation). If there is something you would like to see added, let us know, or create an issue yourself. Welcome are contributions for lacking or incorrect information, broken links, requested additions, or general style improvements. 
+You can find the repository for Start9's documentation [here](https://github.com/Start9Labs/documentation). If there is something you would like to see added, let us know, or create an issue yourself. Welcome are contributions for lacking or incorrect information, broken links, requested additions, or general style improvements.
 
 Contributions in the form of setup guides for integrations with external applications are highly encouraged. If you struggled through a process and would like to share your steps with others, check out the docs for each [service](https://github.com/Start9Labs/documentation/blob/master/source/user-manuals/available-services/index.rst) we support. The wrapper repos contain sections for adding integration guides, such as this [one](https://github.com/Start9Labs/bitcoind-wrapper/tree/master/docs). These not only help out others in the community, but inform how we can create a more seamless and intuitive experience.
 

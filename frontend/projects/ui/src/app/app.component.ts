@@ -264,12 +264,12 @@ export class AppComponent {
             case ConnectionFailure.Tor:
               message = 'Browser unable to connect over Tor.'
               link =
-                'https://docs.start9.com/support/FAQ/troubleshooting.html#tor-failure'
+                'https://start9.com/latest/support/troubleshooting/shoot-connection'
               break
             case ConnectionFailure.Lan:
               message = 'Embassy not found on Local Area Network.'
               link =
-                'https://docs.start9.com/support/FAQ/troubleshooting.html#lan-failure'
+                'https://start9.com/latest/support/troubleshooting/shoot-connection'
               break
           }
           await this.presentToastOffline(message, link)
