@@ -109,7 +109,7 @@ export class ToDependenciesPipe implements PipeTransform {
     return {
       id,
       version: pkg.manifest.dependencies[id].version,
-      title: depInfo.manifest.title,
+      title: depInfo.manifest?.title || id,
       icon: depInfo.icon,
       errorText,
       actionText,

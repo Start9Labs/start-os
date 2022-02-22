@@ -2019,10 +2019,6 @@ export module Mock {
         },
       },
       'dependency-info': {
-        lnd: {
-          manifest: Mock.MockManifestLnd,
-          icon: 'assets/img/service-icons/lnd.png',
-        },
         bitcoind: {
           manifest: Mock.MockManifestBitcoind,
           icon: 'assets/img/service-icons/bitcoind.png',
