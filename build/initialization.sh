@@ -3,6 +3,13 @@
 # Update repositories, install dependencies, do some initial configurations, set hostname, enable embassy-init, and config Tor
 set -e
 
+# introduce start9 username and embassy as default password
+usermod -l start9 -d /home/start9 -m pi
+groupmod --new-name start9 pi
+echo start9:embassy | chpasswd
+
+passwd -l start9
+
 ! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
 mount -o remount,rw /boot
 
@@ -65,13 +72,6 @@ CookieAuthentication 1
 EOF
 
 cat /embassy-os/product_key.txt | tr -d '\n' | sha256sum | head -c 32 | sed 's/$/\n/' > /etc/machine-id
-
-# introduce start9 username and embassy as default password
-usermod -l start9 -d /home/start9 -m pi
-groupmod --new-name start9 pi
-echo start9:embassy | chpasswd
-
-passwd -l start9
 
 raspi-config nonint enable_overlayfs
 
