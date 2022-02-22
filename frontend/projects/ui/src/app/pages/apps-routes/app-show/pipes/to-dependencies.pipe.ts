@@ -105,14 +105,12 @@ export class ToDependenciesPipe implements PipeTransform {
     }
 
     const depInfo = pkg.installed['dependency-info'][id]
-    const title = depInfo?.manifest.title || id
-    const icon = depInfo?.icon || ''
 
     return {
       id,
       version: pkg.manifest.dependencies[id].version,
-      title,
-      icon,
+      title: depInfo.manifest?.title || id,
+      icon: depInfo.icon,
       errorText,
       actionText,
       action,
