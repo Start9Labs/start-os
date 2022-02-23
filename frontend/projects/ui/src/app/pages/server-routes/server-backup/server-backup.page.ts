@@ -183,7 +183,7 @@ export class ServerBackupPage {
           .map(key => pkgs[key])
         const activeIndex = pkgArr.findIndex(
           pkg =>
-            pkg.installed.status.main.status === PackageMainStatus.BackingUp,
+            pkg.installed?.status.main.status === PackageMainStatus.BackingUp,
         )
 
         this.pkgs = pkgArr.map((pkg, i) => {
