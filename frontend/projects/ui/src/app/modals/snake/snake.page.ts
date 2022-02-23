@@ -130,10 +130,10 @@ export class SnakePage {
     this.context.fillStyle = '#ff4961'
     this.context.drawImage(
       this.image,
-      this.apple.x,
-      this.apple.y,
-      this.grid - 1,
-      this.grid - 1,
+      this.apple.x - 2,
+      this.apple.y - 2,
+      this.grid + 4,
+      this.grid + 4,
     )
 
     // draw snake one cell at a time
