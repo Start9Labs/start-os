@@ -364,7 +364,32 @@ export class ServerShowPage {
             component: SnakePage,
             cssClass: 'snake-modal',
           })
-          await modal.present()
+          modal.onDidDismiss().then(async ret => {
+            if (
+              ret.data.highScore &&
+              (ret.data.highScore >
+                this.patch.data.ui.gaming?.snake?.['high-score'] ||
+                !this.patch.data.ui.gaming?.snake?.['high-score'])
+            ) {
+              const loader = await this.loadingCtrl.create({
+                spinner: 'lines',
+                cssClass: 'loader',
+                message: 'Saving High Score...',
+              })
+              await loader.present()
+              try {
+                await this.embassyApi.setDbValue({
+                  pointer: '/gaming',
+                  value: { snake: { 'high-score': ret.data.highScore } },
+                })
+              } catch (e) {
+                this.errToast.present(e)
+              } finally {
+                this.loadingCtrl.dismiss()
+              }
+            }
+          })
+          modal.present()
         },
         detail: true,
         disabled: of(false),

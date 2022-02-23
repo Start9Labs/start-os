@@ -1,5 +1,6 @@
 import { Component, HostListener } from '@angular/core'
 import { ModalController } from '@ionic/angular'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'snake',
@@ -13,6 +14,9 @@ export class SnakePage {
   grid = 16
 
   startingLength = 4
+
+  score = 0
+  highScore = 0
 
   count = 0
   canvas: HTMLCanvasElement
@@ -38,10 +42,19 @@ export class SnakePage {
 
   moveQueue: String[] = []
 
-  constructor(private readonly modalCtrl: ModalController) {}
+  constructor(
+    private readonly modalCtrl: ModalController,
+    private readonly patch: PatchDbService,
+  ) {}
+
+  ngOnInit() {
+    if (this.patch.data.ui.gaming?.snake?.['high-score']) {
+      this.highScore = this.patch.data.ui.gaming?.snake?.['high-score']
+    }
+  }
 
   async dismiss() {
-    return this.modalCtrl.dismiss()
+    return this.modalCtrl.dismiss({ highScore: this.highScore })
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -150,6 +163,8 @@ export class SnakePage {
 
       // snake ate apple
       if (cell.x === this.apple.x && cell.y === this.apple.y) {
+        this.score++
+        if (this.score > this.highScore) this.highScore = this.score
         this.snake.maxCells++
 
         this.apple.x = this.getRandomInt(0, this.width) * this.grid
@@ -173,6 +188,7 @@ export class SnakePage {
 
           this.apple.x = this.getRandomInt(0, 25) * this.grid
           this.apple.y = this.getRandomInt(0, 25) * this.grid
+          this.score = 0
         }
       }
     }
