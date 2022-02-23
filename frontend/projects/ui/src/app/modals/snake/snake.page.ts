@@ -107,15 +107,15 @@ export class SnakePage {
 
     // wrap snake position horizontally on edge of screen
     if (this.snake.x < 0) {
-      this.snake.x = this.width - this.grid
-    } else if (this.snake.x >= this.width) {
+      this.snake.x = this.canvas.width - this.grid
+    } else if (this.snake.x >= this.canvas.width) {
       this.snake.x = 0
     }
 
     // wrap snake position vertically on edge of screen
     if (this.snake.y < 0) {
-      this.snake.y = this.height - this.grid
-    } else if (this.snake.y >= this.height) {
+      this.snake.y = this.canvas.height - this.grid
+    } else if (this.snake.y >= this.canvas.height) {
       this.snake.y = 0
     }
 
