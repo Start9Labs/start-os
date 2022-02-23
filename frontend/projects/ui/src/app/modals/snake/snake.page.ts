@@ -1,6 +1,5 @@
 import { Component, HostListener } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { BTC_ICON } from 'src/app/services/api/api-icons'
 
 @Component({
   selector: 'snake',
@@ -9,13 +8,13 @@ import { BTC_ICON } from 'src/app/services/api/api-icons'
 })
 export class SnakePage {
   speed = 6
-  width = 25
-  height = 25
+  width = 40
+  height = 26
+  grid = 17
 
   startingLength = 4
 
   count = 0
-  grid = 16
   canvas: HTMLCanvasElement
   image: HTMLImageElement
   context
@@ -60,7 +59,7 @@ export class SnakePage {
     this.image.onload = () => {
       requestAnimationFrame(() => this.loop())
     }
-    this.image.src = 'data:image/png;base64,' + BTC_ICON
+    this.image.src = '../../../../../../assets/img/icons/bitcoin.svg'
 
     // start the game
   }
