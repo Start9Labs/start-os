@@ -10,7 +10,7 @@ export class SnakePage {
   speed = 6
   width = 40
   height = 26
-  grid = 17
+  grid = 16
 
   startingLength = 4
 
@@ -54,6 +54,7 @@ export class SnakePage {
     this.canvas.width = this.grid * this.width
     this.canvas.height = this.grid * this.height
     this.context = this.canvas.getContext('2d')
+    this.context.imageSmoothingEnabled = false
 
     this.image = new Image()
     this.image.onload = () => {

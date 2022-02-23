@@ -362,6 +362,7 @@ export class ServerShowPage {
         action: async () => {
           const modal = await this.modalCtrl.create({
             component: SnakePage,
+            cssClass: 'snake-modal',
           })
           await modal.present()
         },
