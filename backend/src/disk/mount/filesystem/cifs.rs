@@ -53,7 +53,9 @@ pub async fn mount_cifs(
         .arg(format!("//{}{}", ip, absolute_path.display()))
         .arg(mountpoint.as_ref());
     if mount_type == ReadOnly {
-        cmd.arg("-o").arg("ro");
+        cmd.arg("-o").arg("ro,noserverino");
+    } else {
+        cmd.arg("-o").arg("noserverino");
     }
     cmd.invoke(crate::ErrorKind::Filesystem).await?;
     Ok(())
