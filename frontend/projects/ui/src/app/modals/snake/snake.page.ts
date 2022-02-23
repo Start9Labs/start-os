@@ -8,16 +8,20 @@ import { BTC_ICON } from 'src/app/services/api/api-icons'
   styleUrls: ['./snake.page.scss'],
 })
 export class SnakePage {
-  speed = 5
+  speed = 6
+  width = 25
+  height = 25
+
+  startingLength = 4
+
   count = 0
   grid = 16
   canvas: HTMLCanvasElement
   image: HTMLImageElement
   context
   snake = {
-    x: 160,
-    y: 160,
-
+    x: this.grid * (Math.floor(this.width / 2) - this.startingLength),
+    y: this.grid * Math.floor(this.height / 2),
     // snake velocity. moves one grid length every frame in either the x or y direction
     dx: this.grid,
     dy: 0,
@@ -26,12 +30,14 @@ export class SnakePage {
     cells: [],
 
     // length of the snake. grows when eating an apple
-    maxCells: 4,
+    maxCells: this.startingLength,
   }
   apple = {
-    x: 320,
-    y: 320,
+    x: this.getRandomInt(0, this.width) * this.grid,
+    y: this.getRandomInt(0, this.height) * this.grid,
   }
+
+  moveQueue: String[] = []
 
   constructor(private readonly modalCtrl: ModalController) {}
 
@@ -41,30 +47,13 @@ export class SnakePage {
 
   @HostListener('document:keydown', ['$event'])
   keyEvent(e: KeyboardEvent) {
-    // left arrow key
-    if (e.key === 'ArrowLeft' && this.snake.dx === 0) {
-      this.snake.dx = -this.grid
-      this.snake.dy = 0
-    }
-    // up arrow key
-    else if (e.key === 'ArrowUp' && this.snake.dy === 0) {
-      this.snake.dy = -this.grid
-      this.snake.dx = 0
-    }
-    // right arrow key
-    else if (e.key === 'ArrowRight' && this.snake.dx === 0) {
-      this.snake.dx = this.grid
-      this.snake.dy = 0
-    }
-    // down arrow key
-    else if (e.key === 'ArrowDown' && this.snake.dy === 0) {
-      this.snake.dy = this.grid
-      this.snake.dx = 0
-    }
+    this.moveQueue.push(e.key)
   }
 
   ngAfterViewInit() {
     this.canvas = document.getElementById('game') as HTMLCanvasElement
+    this.canvas.width = this.grid * this.width
+    this.canvas.height = this.grid * this.height
     this.context = this.canvas.getContext('2d')
 
     this.image = new Image()
@@ -92,17 +81,41 @@ export class SnakePage {
     this.snake.x += this.snake.dx
     this.snake.y += this.snake.dy
 
+    if (this.moveQueue.length) {
+      const move = this.moveQueue.shift()
+      // left arrow key
+      if (move === 'ArrowLeft' && this.snake.dx === 0) {
+        this.snake.dx = -this.grid
+        this.snake.dy = 0
+      }
+      // up arrow key
+      else if (move === 'ArrowUp' && this.snake.dy === 0) {
+        this.snake.dy = -this.grid
+        this.snake.dx = 0
+      }
+      // right arrow key
+      else if (move === 'ArrowRight' && this.snake.dx === 0) {
+        this.snake.dx = this.grid
+        this.snake.dy = 0
+      }
+      // down arrow key
+      else if (move === 'ArrowDown' && this.snake.dy === 0) {
+        this.snake.dy = this.grid
+        this.snake.dx = 0
+      }
+    }
+
     // wrap snake position horizontally on edge of screen
     if (this.snake.x < 0) {
-      this.snake.x = this.canvas.width - this.grid
-    } else if (this.snake.x >= this.canvas.width) {
+      this.snake.x = this.width - this.grid
+    } else if (this.snake.x >= this.width) {
       this.snake.x = 0
     }
 
     // wrap snake position vertically on edge of screen
     if (this.snake.y < 0) {
-      this.snake.y = this.canvas.height - this.grid
-    } else if (this.snake.y >= this.canvas.height) {
+      this.snake.y = this.height - this.grid
+    } else if (this.snake.y >= this.height) {
       this.snake.y = 0
     }
 
@@ -127,6 +140,8 @@ export class SnakePage {
     // draw snake one cell at a time
     this.context.fillStyle = '#2fdf75'
 
+    const firstCell = this.snake.cells[0]
+
     for (let index = 0; index < this.snake.cells.length; index++) {
       const cell = this.snake.cells[index]
 
@@ -137,22 +152,22 @@ export class SnakePage {
       if (cell.x === this.apple.x && cell.y === this.apple.y) {
         this.snake.maxCells++
 
-        // canvas is 400x400 which is 25x25 grids
-        this.apple.x = this.getRandomInt(0, 25) * this.grid
-        this.apple.y = this.getRandomInt(0, 25) * this.grid
+        this.apple.x = this.getRandomInt(0, this.width) * this.grid
+        this.apple.y = this.getRandomInt(0, this.height) * this.grid
       }
 
-      // check collision with all cells after this one (modified bubble sort)
-      for (var i = index + 1; i < this.snake.cells.length; i++) {
+      if (index > 0) {
+        // check collision with all cells after this one (modified bubble sort)
         // snake occupies same space as a body part. reset game
         if (
-          cell.x === this.snake.cells[i].x &&
-          cell.y === this.snake.cells[i].y
+          firstCell.x === this.snake.cells[index].x &&
+          firstCell.y === this.snake.cells[index].y
         ) {
-          this.snake.x = 160
-          this.snake.y = 160
+          this.snake.x =
+            this.grid * (Math.floor(this.width / 2) - this.startingLength)
+          this.snake.y = this.grid * Math.floor(this.height / 2)
           this.snake.cells = []
-          this.snake.maxCells = 4
+          this.snake.maxCells = this.startingLength
           this.snake.dx = this.grid
           this.snake.dy = 0
 
