@@ -91,7 +91,11 @@ export class RecoverPage {
       }
 
       const importableDrive = disks.find(d => !!d.guid)
-      if (!!importableDrive && !this.hasShownGuidAlert) {
+      if (
+        !!importableDrive &&
+        this.stateService.hasProductKey &&
+        !this.hasShownGuidAlert
+      ) {
         const alert = await this.alertCtrl.create({
           header: 'Embassy Data Drive Detected',
           message: new IonicSafeString(
