@@ -11,7 +11,7 @@ import {
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Embassy`,
-    'auto-check-updates': true,
+    'auto-check-updates': undefined,
     'pkg-order': [],
     'ack-welcome': '1.0.0',
     marketplace: undefined,
