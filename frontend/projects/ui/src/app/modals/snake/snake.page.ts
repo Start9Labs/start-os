@@ -1,5 +1,6 @@
 import { Component, HostListener } from '@angular/core'
 import { ModalController } from '@ionic/angular'
+import { pauseFor } from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
@@ -8,7 +9,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['./snake.page.scss'],
 })
 export class SnakePage {
-  speed = 6
+  speed = 40
   width = 40
   height = 26
   grid = 16
@@ -83,7 +84,7 @@ export class SnakePage {
 
     this.image = new Image()
     this.image.onload = () => {
-      requestAnimationFrame(() => this.loop())
+      requestAnimationFrame(async () => await this.loop())
     }
     this.image.src = '../../../../../../assets/img/icons/bitcoin.svg'
 
@@ -131,13 +132,10 @@ export class SnakePage {
   }
 
   // game loop
-  loop() {
-    requestAnimationFrame(() => this.loop())
+  async loop() {
+    await pauseFor(this.speed)
 
-    // slow game loop to 15 fps instead of 60 (60/15 = 4)
-    if (++this.count < this.speed) {
-      return
-    }
+    requestAnimationFrame(async () => await this.loop())
 
     this.count = 0
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height)

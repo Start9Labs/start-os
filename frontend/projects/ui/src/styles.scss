@@ -74,9 +74,11 @@ $subheader-height: 48px;
   --min-width: 400px;
 }
 
-.snake-modal {
-  --min-width: 700px;
-  height: 800px;
+@media only screen and (min-width: 720px) {
+  .snake-modal {
+    --min-width: 700px;
+    height: 800px;
+  }
 }
 
 .break-all {
