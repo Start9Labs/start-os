@@ -81,6 +81,9 @@ else
 	head -c 16 /dev/urandom | xxd -p | sed 's/$/\n/' > /etc/machine-id
 fi
 
+systemctl stop tor
+rm -rf /var/lib/tor/*
+
 raspi-config nonint enable_overlayfs
 
 # create a copy of the cmdline *without* the quirk string, so that it can be easily amended
