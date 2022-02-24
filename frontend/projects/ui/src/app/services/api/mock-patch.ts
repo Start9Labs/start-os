@@ -82,23 +82,19 @@ export const mockPatchData: DataModel = {
         'health-checks': {
           'chain-state': {
             name: 'Chain State',
-            description: 'Checks the chainstate',
           },
           'ephemeral-health-check': {
             name: 'Ephemeral Health Check',
-            description: `Checks to see if your new user registrations are on. If they are but you're not expecting any new user signups, you should disable this in Config, as anyone who knows your onion URL can create accounts on your server.`,
           },
           'p2p-interface': {
             name: 'P2P Interface',
-            description: `Checks to see if your new user registrations are on. If they are but you're not expecting any new user signups, you should disable this in Config, as anyone who knows your onion URL can create accounts on your server.`,
+            'success-message': 'the health check ran succesfully',
           },
           'rpc-interface': {
             name: 'RPC Interface',
-            description: 'Checks the RPC Interface',
           },
           'unnecessary-health-check': {
             name: 'Unneccessary Health Check',
-            description: 'Is totally not necessary to do this health check.',
           },
         } as any,
         config: {

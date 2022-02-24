@@ -15,11 +15,7 @@
       </ion-item>
     </ng-container>
     <ng-template #connected>
-      <ion-item
-        *ngFor="let health of checks"
-        button
-        (click)="presentAlertDescription(health.key)"
-      >
+      <ion-item *ngFor="let health of checks">
         <ng-container *ngIf="health.value?.result as result; else noResult">
           <ion-spinner
             *ngIf="isLoading(result)"
@@ -59,6 +55,17 @@
                 <span *ngIf="result === HealthResult.Loading">
                   {{ $any(health.value).message }}
                 </span>
+                <span
+                  *ngIf="
+                    result === HealthResult.Success &&
+                    pkg.manifest['health-checks'][health.key]['success-message']
+                  "
+                >
+                  :
+                  {{
+                    pkg.manifest['health-checks'][health.key]['success-message']
+                  }}
+                </span>
               </p>
             </ion-text>
           </ion-label>
@@ -70,7 +77,9 @@
             slot="start"
           ></ion-spinner>
           <ion-label>
-            <h2 class="bold">{{ pkg.manifest['health-checks'][health.key].name }}</h2>
+            <h2 class="bold">
+              {{ pkg.manifest['health-checks'][health.key].name }}
+            </h2>
             <p>Awaiting result...</p>
           </ion-label>
         </ng-template>
