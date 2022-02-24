@@ -74,6 +74,7 @@ export class AppComponent {
       const modal = await this.modalCtrl.create({
         component: SnakePage,
         cssClass: 'snake-modal',
+        backdropDismiss: false,
       })
 
       modal.onDidDismiss().then(async ret => {
