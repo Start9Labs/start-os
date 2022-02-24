@@ -291,7 +291,7 @@ function getMarketplaceValueSpec(): ValueSpecObject {
       url: {
         type: 'string',
         name: 'URL',
-        description: 'The fully-qualified URL of the alternative marketplace.',
+        description: 'The fully-qualified URL of the alt marketplace.',
         nullable: false,
         masked: false,
         copyable: false,

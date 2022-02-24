@@ -17,6 +17,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { exists, isEmptyObject } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ServerStatus } from 'src/app/services/patch-db/data-model'
+import { SnakePage } from 'src/app/modals/snake/snake.page'
 
 @Component({
   selector: 'server-show',

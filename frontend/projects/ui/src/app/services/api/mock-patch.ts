@@ -16,6 +16,7 @@ export const mockPatchData: DataModel = {
     'ack-welcome': '1.0.0',
     marketplace: undefined,
     dev: undefined,
+    gaming: undefined,
   },
   'server-info': {
     id: 'embassy-abcdefgh',

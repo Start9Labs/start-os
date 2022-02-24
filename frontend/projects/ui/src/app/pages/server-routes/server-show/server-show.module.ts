@@ -6,6 +6,7 @@ import { ServerShowPage } from './server-show.page'
 import { FormsModule } from '@angular/forms'
 import { TextSpinnerComponentModule } from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
+import { SnakePageModule } from 'src/app/modals/snake/snake.module'
 
 const routes: Routes = [
   {
@@ -22,6 +23,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     TextSpinnerComponentModule,
     BadgeMenuComponentModule,
+    SnakePageModule,
   ],
   declarations: [ServerShowPage],
 })

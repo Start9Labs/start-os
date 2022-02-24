@@ -16,6 +16,13 @@ export interface UIData {
   'ack-welcome': string // EOS version
   marketplace: UIMarketplaceData
   dev: DevData
+  gaming:
+    | {
+        snake: {
+          'high-score': number
+        }
+      }
+    | undefined
 }
 
 export interface UIMarketplaceData {
