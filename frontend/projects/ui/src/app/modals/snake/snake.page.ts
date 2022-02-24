@@ -25,23 +25,8 @@ export class SnakePage {
   image: HTMLImageElement
   context
 
-  snake = {
-    x: this.grid * (Math.floor(this.width / 2) - this.startingLength),
-    y: this.grid * Math.floor(this.height / 2),
-    // snake velocity. moves one grid length every frame in either the x or y direction
-    dx: this.grid,
-    dy: 0,
-
-    // keep track of all grids the snake body occupies
-    cells: [],
-
-    // length of the snake. grows when eating an apple
-    maxCells: this.startingLength,
-  }
-  apple = {
-    x: this.getRandomInt(0, this.width) * this.grid,
-    y: this.getRandomInt(0, this.height) * this.grid,
-  }
+  snake
+  apple
 
   moveQueue: String[] = []
 
@@ -77,6 +62,23 @@ export class SnakePage {
 
   ngAfterViewInit() {
     this.canvas = document.getElementById('game') as HTMLCanvasElement
+    this.grid = Math.min(this.grid, Math.floor(this.canvas.width / this.width))
+    this.snake = {
+      x: this.grid * (Math.floor(this.width / 2) - this.startingLength),
+      y: this.grid * Math.floor(this.height / 2),
+      // snake velocity. moves one grid length every frame in either the x or y direction
+      dx: this.grid,
+      dy: 0,
+      // keep track of all grids the snake body occupies
+      cells: [],
+      // length of the snake. grows when eating an apple
+      maxCells: this.startingLength,
+    }
+    this.apple = {
+      x: this.getRandomInt(0, this.width) * this.grid,
+      y: this.getRandomInt(0, this.height) * this.grid,
+    }
+
     this.canvas.width = this.grid * this.width
     this.canvas.height = this.grid * this.height
     this.context = this.canvas.getContext('2d')
