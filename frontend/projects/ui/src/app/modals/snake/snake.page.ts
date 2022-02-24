@@ -12,7 +12,7 @@ export class SnakePage {
   speed = 40
   width = 40
   height = 26
-  grid = 16
+  grid
 
   startingLength = 4
 
@@ -26,7 +26,7 @@ export class SnakePage {
   context
 
   snake
-  apple
+  bitcoin
 
   moveQueue: String[] = []
 
@@ -60,9 +60,27 @@ export class SnakePage {
     this.handleTouchMove(e)
   }
 
-  ngAfterViewInit() {
+  @HostListener('window:resize', ['$event'])
+  sizeChange(event) {
+    this.init()
+  }
+
+  ionViewDidEnter() {
+    this.init()
+
+    this.image = new Image()
+    this.image.onload = () => {
+      requestAnimationFrame(async () => await this.loop())
+    }
+    this.image.src = '../../../../../../assets/img/icons/bitcoin.svg'
+  }
+
+  init() {
     this.canvas = document.getElementById('game') as HTMLCanvasElement
-    this.grid = Math.min(this.grid, Math.floor(this.canvas.width / this.width))
+    this.canvas.style.border = '1px solid #e0e0e0'
+    this.context = this.canvas.getContext('2d')
+    const container = document.getElementsByClassName('canvas-center')[0]
+    this.grid = Math.floor(container.clientWidth / this.width)
     this.snake = {
       x: this.grid * (Math.floor(this.width / 2) - this.startingLength),
       y: this.grid * Math.floor(this.height / 2),
@@ -71,26 +89,17 @@ export class SnakePage {
       dy: 0,
       // keep track of all grids the snake body occupies
       cells: [],
-      // length of the snake. grows when eating an apple
+      // length of the snake. grows when eating an bitcoin
       maxCells: this.startingLength,
     }
-    this.apple = {
+    this.bitcoin = {
       x: this.getRandomInt(0, this.width) * this.grid,
       y: this.getRandomInt(0, this.height) * this.grid,
     }
 
     this.canvas.width = this.grid * this.width
     this.canvas.height = this.grid * this.height
-    this.context = this.canvas.getContext('2d')
     this.context.imageSmoothingEnabled = false
-
-    this.image = new Image()
-    this.image.onload = () => {
-      requestAnimationFrame(async () => await this.loop())
-    }
-    this.image.src = '../../../../../../assets/img/icons/bitcoin.svg'
-
-    // start the game
   }
 
   getTouches(evt: TouchEvent) {
@@ -191,8 +200,8 @@ export class SnakePage {
     this.context.fillStyle = '#ff4961'
     this.context.drawImage(
       this.image,
-      this.apple.x - 1,
-      this.apple.y - 1,
+      this.bitcoin.x - 1,
+      this.bitcoin.y - 1,
       this.grid + 2,
       this.grid + 2,
     )
@@ -208,14 +217,14 @@ export class SnakePage {
       // drawing 1 px smaller than the grid creates a grid effect in the snake body so you can see how long it is
       this.context.fillRect(cell.x, cell.y, this.grid - 1, this.grid - 1)
 
-      // snake ate apple
-      if (cell.x === this.apple.x && cell.y === this.apple.y) {
+      // snake ate bitcoin
+      if (cell.x === this.bitcoin.x && cell.y === this.bitcoin.y) {
         this.score++
         if (this.score > this.highScore) this.highScore = this.score
         this.snake.maxCells++
 
-        this.apple.x = this.getRandomInt(0, this.width) * this.grid
-        this.apple.y = this.getRandomInt(0, this.height) * this.grid
+        this.bitcoin.x = this.getRandomInt(0, this.width) * this.grid
+        this.bitcoin.y = this.getRandomInt(0, this.height) * this.grid
       }
 
       if (index > 0) {
@@ -240,8 +249,8 @@ export class SnakePage {
     this.snake.dx = this.grid
     this.snake.dy = 0
 
-    this.apple.x = this.getRandomInt(0, 25) * this.grid
-    this.apple.y = this.getRandomInt(0, 25) * this.grid
+    this.bitcoin.x = this.getRandomInt(0, 25) * this.grid
+    this.bitcoin.y = this.getRandomInt(0, 25) * this.grid
     this.score = 0
   }
 
