@@ -84,9 +84,10 @@ impl HealthChecks {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct HealthCheck {
     pub name: String,
-    pub description: String,
+    pub success_message: Option<String>,
     #[serde(flatten)]
     implementation: ActionImplementation,
     pub timeout: Option<Duration>,
