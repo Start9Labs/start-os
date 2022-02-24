@@ -180,6 +180,7 @@ export module RR {
     id: string
     'version-spec'?: string
     'version-priority'?: 'min' | 'max'
+    'marketplace-url': string
   }> // package.install
   export type InstallPackageRes = WithRevision<null>
 

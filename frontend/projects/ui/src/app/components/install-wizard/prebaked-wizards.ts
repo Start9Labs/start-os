@@ -9,12 +9,14 @@ import {
   TopbarParams,
 } from './install-wizard.component'
 import { ConfigService } from 'src/app/services/config.service'
+import { MarketplaceService } from 'src/app/pages/marketplace-routes/marketplace.service'
 
 @Injectable({ providedIn: 'root' })
 export class WizardBaker {
   constructor(
     private readonly embassyApi: ApiService,
     private readonly config: ConfigService,
+    private readonly marketplaceService: MarketplaceService,
   ) {}
 
   update(values: {
@@ -78,6 +80,7 @@ export class WizardBaker {
               this.embassyApi.installPackage({
                 id,
                 'version-spec': version ? `=${version}` : undefined,
+                'marketplace-url': this.marketplaceService.marketplaceUrl,
               }),
           },
         },
@@ -203,6 +206,7 @@ export class WizardBaker {
               this.embassyApi.installPackage({
                 id,
                 'version-spec': version ? `=${version}` : undefined,
+                'marketplace-url': this.marketplaceService.marketplaceUrl,
               }),
           },
         },
