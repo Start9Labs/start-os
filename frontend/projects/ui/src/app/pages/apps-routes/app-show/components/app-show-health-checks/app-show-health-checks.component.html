@@ -58,10 +58,13 @@
                 <span
                   *ngIf="
                     result === HealthResult.Success &&
-                    health.value['success-message']
+                    pkg.manifest['health-checks'][health.key]['success-message']
                   "
                 >
-                  : {{ health.value['success-message'] }}
+                  :
+                  {{
+                    pkg.manifest['health-checks'][health.key]['success-message']
+                  }}
                 </span>
               </p>
             </ion-text>
