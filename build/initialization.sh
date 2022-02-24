@@ -4,7 +4,7 @@
 set -e
 
 # introduce start9 username and embassy as default password
-if ! [ $(users) = "start9" ]
+if ! awk -F: '{ print $1}' /etc/passwd | grep start9
 then
 	usermod -l start9 -d /home/start9 -m pi
 	groupmod --new-name start9 pi
