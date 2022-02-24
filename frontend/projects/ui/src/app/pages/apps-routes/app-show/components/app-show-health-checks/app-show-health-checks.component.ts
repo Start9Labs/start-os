@@ -30,26 +30,6 @@ export class AppShowHealthChecksComponent {
     return result !== HealthResult.Failure && result !== HealthResult.Loading
   }
 
-  async presentAlertDescription(id: string) {
-    const health = this.pkg.manifest['health-checks'][id]
-
-    const alert = await this.alertCtrl.create({
-      header: 'Health Check',
-      subHeader: health.name,
-      message: health.description,
-      buttons: [
-        {
-          text: `OK`,
-          handler: () => {
-            alert.dismiss()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
-  }
-
   asIsOrder() {
     return 0
   }

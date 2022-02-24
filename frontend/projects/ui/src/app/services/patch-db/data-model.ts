@@ -128,7 +128,7 @@ export interface Manifest {
   main: ActionImpl
   'health-checks': Record<
     string,
-    ActionImpl & { name: string; description: string }
+    ActionImpl & { name: string; 'success-message': string | undefined }
   >
   config: ConfigActions | null
   volumes: Record<string, Volume>
