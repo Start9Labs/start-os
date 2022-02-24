@@ -213,6 +213,7 @@ export class MarketplaceShowPage {
       await this.embassyApi.installPackage({
         id,
         'version-spec': version ? `=${version}` : undefined,
+        'marketplace-url': this.marketplaceService.marketplaceUrl,
       })
     } catch (e) {
       this.errToast.present(e)
