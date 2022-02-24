@@ -78,7 +78,7 @@ if [ -f /embassy-os/product_key.txt ]
 then
 	cat /embassy-os/product_key.txt | tr -d '\n' | sha256sum | head -c 32 | sed 's/$/\n/' > /etc/machine-id
 else
-	head -c 32 /dev/urandom | sha256sum | head -c 32  | sed 's/$/\n/' > /etc/machine-id
+	head -c 16 /dev/urandom | xxd -p | sed 's/$/\n/' > /etc/machine-id
 fi
 
 raspi-config nonint enable_overlayfs
