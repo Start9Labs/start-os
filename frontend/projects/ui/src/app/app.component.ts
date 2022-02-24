@@ -215,7 +215,7 @@ export class AppComponent {
   }
 
   private checkForEosUpdate(ui: UIData): void {
-    if (ui['auto-check-updates']) {
+    if (ui['auto-check-updates'] !== false) {
       this.eosService.getEOS()
     }
   }
