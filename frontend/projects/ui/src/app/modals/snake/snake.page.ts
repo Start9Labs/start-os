@@ -169,18 +169,14 @@ export class SnakePage {
       }
     }
 
-    // wrap snake position horizontally on edge of screen
-    if (this.snake.x < 0) {
-      this.snake.x = this.canvas.width - this.grid
-    } else if (this.snake.x >= this.canvas.width) {
-      this.snake.x = 0
-    }
-
-    // wrap snake position vertically on edge of screen
-    if (this.snake.y < 0) {
-      this.snake.y = this.canvas.height - this.grid
-    } else if (this.snake.y >= this.canvas.height) {
-      this.snake.y = 0
+    // edge death
+    if (
+      this.snake.x < 0 ||
+      this.snake.y < 0 ||
+      this.snake.x >= this.canvas.width ||
+      this.snake.y >= this.canvas.height
+    ) {
+      this.death()
     }
 
     // keep track of where snake has been. front of the array is always the head
@@ -191,14 +187,14 @@ export class SnakePage {
       this.snake.cells.pop()
     }
 
-    // draw apple
+    // draw bitcoin
     this.context.fillStyle = '#ff4961'
     this.context.drawImage(
       this.image,
-      this.apple.x - 2,
-      this.apple.y - 2,
-      this.grid + 4,
-      this.grid + 4,
+      this.apple.x - 1,
+      this.apple.y - 1,
+      this.grid + 2,
+      this.grid + 2,
     )
 
     // draw snake one cell at a time
@@ -229,20 +225,24 @@ export class SnakePage {
           firstCell.x === this.snake.cells[index].x &&
           firstCell.y === this.snake.cells[index].y
         ) {
-          this.snake.x =
-            this.grid * (Math.floor(this.width / 2) - this.startingLength)
-          this.snake.y = this.grid * Math.floor(this.height / 2)
-          this.snake.cells = []
-          this.snake.maxCells = this.startingLength
-          this.snake.dx = this.grid
-          this.snake.dy = 0
-
-          this.apple.x = this.getRandomInt(0, 25) * this.grid
-          this.apple.y = this.getRandomInt(0, 25) * this.grid
-          this.score = 0
+          this.death()
         }
       }
     }
+  }
+
+  death() {
+    this.snake.x =
+      this.grid * (Math.floor(this.width / 2) - this.startingLength)
+    this.snake.y = this.grid * Math.floor(this.height / 2)
+    this.snake.cells = []
+    this.snake.maxCells = this.startingLength
+    this.snake.dx = this.grid
+    this.snake.dy = 0
+
+    this.apple.x = this.getRandomInt(0, 25) * this.grid
+    this.apple.y = this.getRandomInt(0, 25) * this.grid
+    this.score = 0
   }
 
   getRandomInt(min, max) {
