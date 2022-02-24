@@ -43,7 +43,7 @@ apt-get install -y \
 curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
 
 apt-get purge openresolv dhcpcd5 -y
-systemctl disable wpa_supplicant.service 
+systemctl disable wpa_supplicant.service
 
 apt-get autoremove -y
 apt-get upgrade -y
@@ -74,7 +74,12 @@ ControlPort 9051
 CookieAuthentication 1
 EOF
 
-cat /embassy-os/product_key.txt | tr -d '\n' | sha256sum | head -c 32 | sed 's/$/\n/' > /etc/machine-id
+if [ -f /embassy-os/product_key.txt ]
+then
+	cat /embassy-os/product_key.txt | tr -d '\n' | sha256sum | head -c 32 | sed 's/$/\n/' > /etc/machine-id
+else
+	head -c 16 /dev/urandom | xxd -p | sed 's/$/\n/' > /etc/machine-id
+fi
 
 raspi-config nonint enable_overlayfs
 
