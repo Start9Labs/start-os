@@ -43,9 +43,8 @@ export class AppComponent {
   code = {
     s: false,
     n: false,
-    a: false,
-    k: false,
     e: false,
+    k: false,
     unlocked: false,
   }
 
@@ -70,40 +69,7 @@ export class AppComponent {
         .map(([key, value]) => value)
         .reduce((a, b) => a && b)
     ) {
-      this.code.unlocked = true
-      const modal = await this.modalCtrl.create({
-        component: SnakePage,
-        cssClass: 'snake-modal',
-        backdropDismiss: false,
-      })
-
-      modal.onDidDismiss().then(async ret => {
-        this.code.unlocked = false
-        if (
-          ret.data.highScore &&
-          (ret.data.highScore >
-            this.patch.data.ui.gaming?.snake?.['high-score'] ||
-            !this.patch.data.ui.gaming?.snake?.['high-score'])
-        ) {
-          const loader = await this.loadingCtrl.create({
-            spinner: 'lines',
-            cssClass: 'loader',
-            message: 'Saving High Score...',
-          })
-          await loader.present()
-          try {
-            await this.embassyApi.setDbValue({
-              pointer: '/gaming',
-              value: { snake: { 'high-score': ret.data.highScore } },
-            })
-          } catch (e) {
-            this.errToast.present(e)
-          } finally {
-            this.loadingCtrl.dismiss()
-          }
-        }
-      })
-      modal.present()
+      await this.openSnek()
     }
   }
 
@@ -304,6 +270,42 @@ export class AppComponent {
     }
   }
 
+  async openSnek() {
+    this.code.unlocked = true
+    const modal = await this.modalCtrl.create({
+      component: SnakePage,
+      cssClass: 'snake-modal',
+      backdropDismiss: false,
+    })
+
+    modal.onDidDismiss().then(async ret => {
+      this.code.unlocked = false
+      if (
+        ret.data.highScore &&
+        (ret.data.highScore >
+          this.patch.data.ui.gaming?.snake?.['high-score'] ||
+          !this.patch.data.ui.gaming?.snake?.['high-score'])
+      ) {
+        const loader = await this.loadingCtrl.create({
+          spinner: 'lines',
+          cssClass: 'loader',
+          message: 'Saving High Score...',
+        })
+        await loader.present()
+        try {
+          await this.embassyApi.setDbValue({
+            pointer: '/gaming',
+            value: { snake: { 'high-score': ret.data.highScore } },
+          })
+        } catch (e) {
+          this.errToast.present(e)
+        } finally {
+          this.loadingCtrl.dismiss()
+        }
+      }
+    })
+    modal.present()
+  }
   // should wipe cache independant of actual BE logout
   private async logout() {
     this.embassyApi.logout({})
