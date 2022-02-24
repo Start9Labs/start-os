@@ -21,10 +21,10 @@ export class SnakePage {
 
   xDown: number
   yDown: number
-  count = 0
   canvas: HTMLCanvasElement
   image: HTMLImageElement
   context
+
   snake = {
     x: this.grid * (Math.floor(this.width / 2) - this.startingLength),
     y: this.grid * Math.floor(this.height / 2),
@@ -137,7 +137,6 @@ export class SnakePage {
 
     requestAnimationFrame(async () => await this.loop())
 
-    this.count = 0
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height)
 
     // move snake by it's velocity
