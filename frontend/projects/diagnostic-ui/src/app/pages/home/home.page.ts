@@ -12,16 +12,17 @@ export class HomePage {
     code: number
     problem: string
     solution: string
-  } = { } as any
+    details?: string
+  } = {} as any
   solutions: string[] = []
   restarted = false
 
-  constructor (
+  constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly api: ApiService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     try {
       const error = await this.api.getError()
       // incorrect drive
@@ -29,27 +30,35 @@ export class HomePage {
         this.error = {
           code: 15,
           problem: 'Unknown storage drive detected',
-          solution: 'To use a different storage drive, replace the current one and click RESTART EMBASSY below. To use the current storage drive, click USE CURRENT DRIVE below, then follow instructions. No data will be erased during this process.'
+          solution:
+            'To use a different storage drive, replace the current one and click RESTART EMBASSY below. To use the current storage drive, click USE CURRENT DRIVE below, then follow instructions. No data will be erased during this process.',
+          details: error.data?.details,
         }
-      // no drive
+        // no drive
       } else if (error.code === 20) {
         this.error = {
           code: 20,
           problem: 'Storage drive not found',
-          solution: 'Insert your EmbassyOS storage drive and click RESTART EMBASSY below.'
+          solution:
+            'Insert your EmbassyOS storage drive and click RESTART EMBASSY below.',
+          details: error.data?.details,
         }
-      // drive corrupted
+        // drive corrupted
       } else if (error.code === 25) {
         this.error = {
           code: 25,
-          problem: 'Storage drive corrupted. This could be the result of data corruption or a physical damage.',
-          solution: 'It may or may not be possible to re-use this drive by reformatting and recovering from backup. To enter recovery mode, click ENTER RECOVERY MODE below, then follow instructions. No data will be erased during this step.'
+          problem:
+            'Storage drive corrupted. This could be the result of data corruption or a physical damage.',
+          solution:
+            'It may or may not be possible to re-use this drive by reformatting and recovering from backup. To enter recovery mode, click ENTER RECOVERY MODE below, then follow instructions. No data will be erased during this step.',
+          details: error.data?.details,
         }
       } else {
         this.error = {
           code: error.code,
           problem: error.message,
-          solution: 'Please conact support.'
+          solution: 'Please conact support.',
+          details: error.data?.details,
         }
       }
     } catch (e) {
@@ -57,7 +66,7 @@ export class HomePage {
     }
   }
 
-  async restart (): Promise<void> {
+  async restart(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       cssClass: 'loader',
@@ -74,7 +83,7 @@ export class HomePage {
     }
   }
 
-  async forgetDrive (): Promise<void> {
+  async forgetDrive(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       cssClass: 'loader',
@@ -92,7 +101,7 @@ export class HomePage {
     }
   }
 
-  refreshPage (): void {
+  refreshPage(): void {
     window.location.reload()
   }
 }
