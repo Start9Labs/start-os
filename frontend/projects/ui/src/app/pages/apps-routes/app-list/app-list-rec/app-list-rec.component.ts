@@ -34,11 +34,10 @@ export class AppListRecComponent {
     switchMap(({ id, version }) =>
       // Mapping each installation to API request
       from(
-        this.api.installPackage({
+        this.marketplaceService.installPackage({
           id,
           'version-spec': `>=${version}`,
           'version-priority': 'min',
-          'marketplace-url': this.marketplaceService.marketplaceUrl,
         }),
       ).pipe(
         // Mapping operation to true/false loading indication

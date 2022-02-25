@@ -67,6 +67,11 @@ export class MarketplaceService {
     }
   }
 
+  async installPackage(req: Omit<RR.InstallPackageReq, 'marketplace-url'>) {
+    req['marketplace-url'] = this.marketplaceUrl
+    return this.api.installPackage(req as RR.InstallPackageReq)
+  }
+
   async getUpdates(
     localPkgs: Record<string, PackageDataEntry>,
   ): Promise<MarketplacePkg[]> {

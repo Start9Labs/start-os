@@ -210,10 +210,9 @@ export class MarketplaceShowPage {
     loader.present()
 
     try {
-      await this.embassyApi.installPackage({
+      await this.marketplaceService.installPackage({
         id,
         'version-spec': version ? `=${version}` : undefined,
-        'marketplace-url': this.marketplaceService.marketplaceUrl,
       })
     } catch (e) {
       this.errToast.present(e)

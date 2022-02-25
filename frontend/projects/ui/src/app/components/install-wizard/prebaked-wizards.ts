@@ -77,10 +77,9 @@ export class WizardBaker {
             verb: 'beginning update for',
             title,
             executeAction: () =>
-              this.embassyApi.installPackage({
+              this.marketplaceService.installPackage({
                 id,
                 'version-spec': version ? `=${version}` : undefined,
-                'marketplace-url': this.marketplaceService.marketplaceUrl,
               }),
           },
         },
@@ -203,10 +202,9 @@ export class WizardBaker {
             verb: 'beginning downgrade for',
             title,
             executeAction: () =>
-              this.embassyApi.installPackage({
+              this.marketplaceService.installPackage({
                 id,
                 'version-spec': version ? `=${version}` : undefined,
-                'marketplace-url': this.marketplaceService.marketplaceUrl,
               }),
           },
         },
