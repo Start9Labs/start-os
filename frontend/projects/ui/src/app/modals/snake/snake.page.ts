@@ -9,7 +9,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['./snake.page.scss'],
 })
 export class SnakePage {
-  speed = 40
+  speed = 45
   width = 40
   height = 26
   grid
