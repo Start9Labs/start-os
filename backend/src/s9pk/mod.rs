@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use color_eyre::eyre::eyre;
+use imbl::OrdMap;
 use rpc_toolkit::command;
+use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::SdkContext;
@@ -9,6 +11,7 @@ use crate::s9pk::builder::S9pkPacker;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
 use crate::util::display_none;
+use crate::util::serde::IoFormat;
 use crate::volume::Volume;
 use crate::{Error, ResultExt};
 
@@ -30,22 +33,25 @@ pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<
     } else {
         std::env::current_dir()?
     };
-    let manifest: Manifest = if path.join("manifest.toml").exists() {
-        let mut s = String::new();
-        File::open(path.join("manifest.toml"))?.read_to_string(&mut s)?;
-        serde_toml::from_str(&s).with_kind(crate::ErrorKind::Deserialization)?
+    let manifest_value: Value = if path.join("manifest.toml").exists() {
+        IoFormat::Toml.from_reader(File::open(path.join("manifest.toml"))?)?
     } else if path.join("manifest.yaml").exists() {
-        serde_yaml::from_reader(File::open(path.join("manifest.yaml"))?)
-            .with_kind(crate::ErrorKind::Deserialization)?
+        IoFormat::Yaml.from_reader(File::open(path.join("manifest.yaml"))?)?
     } else if path.join("manifest.json").exists() {
-        serde_json::from_reader(File::open(path.join("manifest.json"))?)
-            .with_kind(crate::ErrorKind::Deserialization)?
+        IoFormat::Json.from_reader(File::open(path.join("manifest.json"))?)?
     } else {
         return Err(Error::new(
             eyre!("manifest not found"),
             crate::ErrorKind::Pack,
         ));
     };
+    let manifest: Manifest = serde_json::from_value(manifest_value.clone())
+        .with_kind(crate::ErrorKind::Deserialization)?;
+    let extra_keys =
+        enumerate_extra_keys(&serde_json::to_value(&manifest).unwrap(), &manifest_value);
+    for k in extra_keys {
+        tracing::warn!("Unrecognized Manifest Key: {}", k);
+    }
 
     let outfile_path = path.join(format!("{}.s9pk", manifest.id));
     let mut outfile = File::create(outfile_path)?;
@@ -113,4 +119,46 @@ pub async fn verify(#[arg] path: PathBuf) -> Result<(), Error> {
     s9pk.validate().await?;
 
     Ok(())
+}
+
+fn enumerate_extra_keys(reference: &Value, candidate: &Value) -> Vec<String> {
+    match (reference, candidate) {
+        (Value::Object(m_r), Value::Object(m_c)) => {
+            let om_r: OrdMap<String, Value> = m_r.clone().into_iter().collect();
+            let om_c: OrdMap<String, Value> = m_c.clone().into_iter().collect();
+            let common = om_r.clone().intersection(om_c.clone());
+            let top_extra = common.clone().symmetric_difference(om_c.clone());
+            let mut all_extra = top_extra
+                .keys()
+                .map(|s| format!(".{}", s))
+                .collect::<Vec<String>>();
+            for (k, v) in common {
+                all_extra.extend(
+                    enumerate_extra_keys(&v, om_c.get(&k).unwrap())
+                        .into_iter()
+                        .map(|s| format!(".{}{}", k, s)),
+                )
+            }
+            all_extra
+        }
+        (_, Value::Object(m1)) => m1.clone().keys().map(|s| format!(".{}", s)).collect(),
+        _ => Vec::new(),
+    }
+}
+
+#[test]
+fn test_enumerate_extra_keys() {
+    use serde_json::json;
+    let extras = enumerate_extra_keys(
+        &json!({
+            "test": 1,
+            "test2": null,
+        }),
+        &json!({
+            "test": 1,
+            "test2": { "test3": null },
+            "test4": null
+        }),
+    );
+    println!("{:?}", extras)
 }
