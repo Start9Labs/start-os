@@ -49,7 +49,9 @@ export class MarketplaceService {
   async load(): Promise<void> {
     try {
       const [data, pkgs] = await Promise.all([
-        this.getMarketplaceData({}),
+        this.getMarketplaceData({
+          'server-id': this.patch.getData()['server-info'].id,
+        }),
         this.getMarketplacePkgs({ page: 1, 'per-page': 100 }),
       ])
       this.data = data

@@ -36,8 +36,8 @@ export class SnakePage {
   ) {}
 
   ngOnInit() {
-    if (this.patch.data.ui.gaming?.snake?.['high-score']) {
-      this.highScore = this.patch.data.ui.gaming?.snake?.['high-score']
+    if (this.patch.getData().ui.gaming?.snake?.['high-score']) {
+      this.highScore = this.patch.getData().ui.gaming?.snake?.['high-score']
     }
   }
 

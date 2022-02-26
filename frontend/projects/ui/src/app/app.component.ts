@@ -283,8 +283,8 @@ export class AppComponent {
       if (
         ret.data.highScore &&
         (ret.data.highScore >
-          this.patch.data.ui.gaming?.snake?.['high-score'] ||
-          !this.patch.data.ui.gaming?.snake?.['high-score'])
+          this.patch.getData().ui.gaming?.snake?.['high-score'] ||
+          !this.patch.getData().ui.gaming?.snake?.['high-score'])
       ) {
         const loader = await this.loadingCtrl.create({
           spinner: 'lines',
@@ -331,13 +331,11 @@ export class AppComponent {
               break
             case ConnectionFailure.Tor:
               message = 'Browser unable to connect over Tor.'
-              link =
-                'https://start9.com/latest/support/common-issues'
+              link = 'https://start9.com/latest/support/common-issues'
               break
             case ConnectionFailure.Lan:
               message = 'Embassy not found on Local Area Network.'
-              link =
-                'https://start9.com/latest/support/common-issues'
+              link = 'https://start9.com/latest/support/common-issues'
               break
           }
           await this.presentToastOffline(message, link)

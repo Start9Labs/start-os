@@ -121,7 +121,7 @@ export class ServerShowPage {
   }
 
   async presentAlertSystemRebuild() {
-    const minutes = Object.keys(this.patch.data['package-data']).length * 2
+    const minutes = Object.keys(this.patch.getData()['package-data']).length * 2
     const alert = await this.alertCtrl.create({
       header: 'System Rebuild',
       message: new IonicSafeString(

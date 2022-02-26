@@ -90,7 +90,7 @@ export class MarketplacesPage {
 
   async presentAction(id: string) {
     // no need to view actions if is selected marketplace
-    if (id === this.patch.data.ui.marketplace['selected-id']) return
+    if (id === this.patch.getData().ui.marketplace['selected-id']) return
 
     const buttons: ActionSheetButton[] = [
       {
@@ -125,7 +125,7 @@ export class MarketplacesPage {
 
   private async connect(id: string): Promise<void> {
     const marketplace: UIMarketplaceData = JSON.parse(
-      JSON.stringify(this.patch.data.ui.marketplace),
+      JSON.stringify(this.patch.getData().ui.marketplace),
     )
 
     const url = id
@@ -140,7 +140,10 @@ export class MarketplacesPage {
     await loader.present()
 
     try {
-      await this.marketplaceService.getMarketplaceData({}, url)
+      await this.marketplaceService.getMarketplaceData(
+        { 'server-id': this.patch.getData()['server-info'].id },
+        url,
+      )
     } catch (e) {
       this.errToast.present(e)
       loader.dismiss()
@@ -171,7 +174,7 @@ export class MarketplacesPage {
   private async delete(id: string): Promise<void> {
     if (!id) return
     const marketplace: UIMarketplaceData = JSON.parse(
-      JSON.stringify(this.patch.data.ui.marketplace),
+      JSON.stringify(this.patch.getData().ui.marketplace),
     )
 
     const loader = await this.loadingCtrl.create({
@@ -192,9 +195,9 @@ export class MarketplacesPage {
   }
 
   private async save(url: string): Promise<void> {
-    const marketplace = this.patch.data.ui.marketplace
+    const marketplace = this.patch.getData().ui.marketplace
       ? (JSON.parse(
-          JSON.stringify(this.patch.data.ui.marketplace),
+          JSON.stringify(this.patch.getData().ui.marketplace),
         ) as UIMarketplaceData)
       : { 'selected-id': undefined, 'known-hosts': {} }
 
@@ -212,7 +215,10 @@ export class MarketplacesPage {
 
     try {
       const id = v4()
-      const { name } = await this.marketplaceService.getMarketplaceData({}, url)
+      const { name } = await this.marketplaceService.getMarketplaceData(
+        { 'server-id': this.patch.getData()['server-info'].id },
+        url,
+      )
       marketplace['known-hosts'][id] = { name, url }
     } catch (e) {
       this.errToast.present(e)
@@ -232,9 +238,11 @@ export class MarketplacesPage {
   }
 
   private async saveAndConnect(url: string): Promise<void> {
-    const marketplace = this.patch.data.ui.marketplace
+    await this.save(url)
+
+    const marketplace = this.patch.getData().ui.marketplace
       ? (JSON.parse(
-          JSON.stringify(this.patch.data.ui.marketplace),
+          JSON.stringify(this.patch.getData().ui.marketplace),
         ) as UIMarketplaceData)
       : { 'selected-id': undefined, 'known-hosts': {} }
 
@@ -251,7 +259,10 @@ export class MarketplacesPage {
 
     try {
       const id = v4()
-      const { name } = await this.marketplaceService.getMarketplaceData({}, url)
+      const { name } = await this.marketplaceService.getMarketplaceData(
+        { 'server-id': this.patch.getData()['server-info'].id },
+        url,
+      )
       marketplace['known-hosts'][id] = { name, url }
       marketplace['selected-id'] = id
     } catch (e) {
@@ -270,7 +281,7 @@ export class MarketplacesPage {
       return
     }
 
-    loader.message = 'Syncing store...'
+    loader.message = 'Syncing marketplace data...'
 
     try {
       await this.marketplaceService.load()
