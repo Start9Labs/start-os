@@ -80,7 +80,6 @@ export class SnakePage {
     this.canvas.style.border = '1px solid #e0e0e0'
     this.context = this.canvas.getContext('2d')
     const container = document.getElementsByClassName('canvas-center')[0]
-    console.log('height', container.clientHeight)
     this.grid = Math.min(
       Math.floor(container.clientWidth / this.width),
       Math.floor(container.clientHeight / this.height),
