@@ -37,7 +37,6 @@ export class MarketplaceService {
   init(): Subscription {
     return this.patch.watch$('ui', 'marketplace').subscribe(marketplace => {
       if (!marketplace || !marketplace['selected-id']) {
-        console.log('**MARKETPLACE', this.config)
         this.marketplace = this.config.marketplace
       } else {
         this.marketplace =
