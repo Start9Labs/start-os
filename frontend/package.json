@@ -15,10 +15,10 @@
     "build:setup-wizard": "ng run setup-wizard:build",
     "build:ui": "ng run ui:build && tsc projects/ui/postprocess.ts && node projects/ui/postprocess.js && git log | head -n1 > dist/ui/git-hash.txt",
     "build:all": "npm run build:deps && npm run build:diagnostic-ui && npm run build:setup-wizard && npm run build:ui",
-    "start:diagnostic-ui": "npm run copy-git-hash && ionic serve --project diagnostic-ui",
-    "start:setup-wizard": "npm run copy-git-hash && ionic serve --project setup-wizard",
-    "start:ui": "npm run-script copy-git-hash && ionic serve --project ui",
-    "copy-git-hash": "node update-git-hash.js"
+    "start:diagnostic-ui": "npm run-script build-config && ionic serve --project diagnostic-ui",
+    "start:setup-wizard": "npm run-script build-config && ionic serve --project setup-wizard",
+    "start:ui": "npm run-script build-config && ionic serve --project ui",
+    "build-config": "node build-config.js"
   },
   "dependencies": {
     "@angular/animations": "^13.2.0",
