@@ -11,7 +11,7 @@ impl EmbassyLogger {
         use tracing_subscriber::prelude::*;
         use tracing_subscriber::{fmt, EnvFilter};
 
-        let filter_layer = EnvFilter::from_default_env().add_directive(LevelFilter::WARN.into());
+        let filter_layer = EnvFilter::from_default_env();
         let fmt_layer = fmt::layer().with_target(true);
 
         tracing_subscriber::registry()
