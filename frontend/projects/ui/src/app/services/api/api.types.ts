@@ -242,7 +242,7 @@ export module RR {
 
   // marketplace
 
-  export type GetMarketplaceDataReq = { url?: string }
+  export type GetMarketplaceDataReq = { 'server-id': string }
   export type GetMarketplaceDataRes = MarketplaceData
 
   export type GetMarketplaceEOSReq = {

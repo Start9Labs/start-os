@@ -26,7 +26,7 @@ export class EOSService {
     const updateAvailable =
       this.emver.compare(
         this.eos.version,
-        this.patch.data['server-info'].version,
+        this.patch.getData()['server-info'].version,
       ) === 1
     this.updateAvailable$.next(updateAvailable)
     return updateAvailable
