@@ -19,6 +19,9 @@ fn inner_main() -> Result<(), Error> {
                     .takes_value(true),
             ),
         context: matches => {
+            if let Err(_) = std::env::var("RUST_LOG") {
+                std::env::set_var("RUST_LOG", "embassy=warn");
+            }
             EmbassyLogger::init();
             SdkContext::init(matches)?
         },
