@@ -11,7 +11,7 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 

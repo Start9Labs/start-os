@@ -3,7 +3,7 @@ import { AlertInput, AlertButton } from '@ionic/core'
 import { ApiService } from './api/embassy-api.service'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { AlertController, LoadingController } from '@ionic/angular'
-import { ErrorToastService } from './error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',

@@ -34,13 +34,15 @@
                     <ion-text
                       *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 0"
                       color="success"
-                      >Installed</ion-text
                     >
+                      Installed
+                    </ion-text>
                     <ion-text
                       *ngIf="(pkg.manifest.version | compareEmver : localPkg.manifest.version) === 1"
                       color="warning"
-                      >Update Available</ion-text
                     >
+                      Update Available
+                    </ion-text>
                   </p>
                   <!-- installing, updating -->
                   <p
@@ -132,11 +134,10 @@
     <!-- auto-config -->
     <ion-item lines="none" *ngIf="dependentInfo" class="rec-item">
       <ion-label>
-        <h2 style="display: flex; align-items: center">
-          <ion-text
-            style="margin: 5px; font-family: 'Montserrat'; font-size: 18px"
-            >{{ pkg.manifest.title }}</ion-text
-          >
+        <h2 class="auto-config">
+          <ion-text class="auto-config-text">
+            {{ pkg.manifest.title }}
+          </ion-text>
         </h2>
         <p>
           <ion-text color="dark">
@@ -167,7 +168,7 @@
         New in {{ pkg.manifest.version | displayEmver }}
         <ion-button
           [routerLink]="['notes']"
-          style="position: absolute; right: 10px"
+          class="all-notes"
           fill="clear"
           color="dark"
         >
@@ -221,8 +222,8 @@
                       (optional)</span
                     >
                   </h2>
-                  <p style="font-size: small">
-                    {{ dep.value.version | displayEmver }}
+                  <p>
+                    <small>{{ dep.value.version | displayEmver }}</small>
                   </p>
                   <p>{{ dep.value.description }}</p>
                 </ion-label>

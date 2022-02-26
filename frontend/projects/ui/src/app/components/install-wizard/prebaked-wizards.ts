@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core'
+import { Inject, Injectable } from '@angular/core'
+import { exists } from '@start9labs/shared'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { Breakages } from 'src/app/services/api/api.types'
-import { exists } from '@start9labs/shared'
 import { ApiService } from '../../services/api/embassy-api.service'
 import {
   InstallWizardComponent,
@@ -9,13 +10,14 @@ import {
   TopbarParams,
 } from './install-wizard.component'
 import { ConfigService } from 'src/app/services/config.service'
-import { MarketplaceService } from 'src/app/pages/marketplace-routes/marketplace.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 
 @Injectable({ providedIn: 'root' })
 export class WizardBaker {
   constructor(
     private readonly embassyApi: ApiService,
     private readonly config: ConfigService,
+    @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
   ) {}
 

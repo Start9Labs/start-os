@@ -14,7 +14,7 @@ import {
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 
 @Component({

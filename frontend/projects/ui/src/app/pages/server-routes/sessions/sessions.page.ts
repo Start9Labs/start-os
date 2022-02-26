@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { AlertController, LoadingController } from '@ionic/angular'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PlatformType, RR } from 'src/app/services/api/api.types'
 
@@ -13,16 +13,16 @@ export class SessionsPage {
   loading = true
   sessionInfo: RR.GetSessionsRes
 
-  constructor (
+  constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly embassyApi: ApiService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     try {
-      this.sessionInfo = await this.embassyApi.getSessions({ })
+      this.sessionInfo = await this.embassyApi.getSessions({})
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -30,7 +30,7 @@ export class SessionsPage {
     }
   }
 
-  async presentAlertKill (id: string) {
+  async presentAlertKill(id: string) {
     const alert = await this.alertCtrl.create({
       header: 'Caution',
       message: `Are you sure you want to kill this session?`,
@@ -51,7 +51,7 @@ export class SessionsPage {
     await alert.present()
   }
 
-  async kill (id: string): Promise<void> {
+  async kill(id: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Killing session...',
@@ -69,7 +69,7 @@ export class SessionsPage {
     }
   }
 
-  getPlatformIcon (platforms: PlatformType[]): string {
+  getPlatformIcon(platforms: PlatformType[]): string {
     if (platforms.includes('cli')) {
       return 'terminal-outline'
     } else if (platforms.includes('desktop')) {
@@ -79,7 +79,7 @@ export class SessionsPage {
     }
   }
 
-  getPlatformName (platforms: PlatformType[]): string {
+  getPlatformName(platforms: PlatformType[]): string {
     if (platforms.includes('cli')) {
       return 'CLI'
     } else if (platforms.includes('desktop')) {
@@ -97,7 +97,7 @@ export class SessionsPage {
     }
   }
 
-  asIsOrder (a: any, b: any) {
+  asIsOrder(a: any, b: any) {
     return 0
   }
 }

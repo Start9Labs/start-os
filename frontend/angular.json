@@ -376,6 +376,29 @@
         }
       }
     },
+    "marketplace": {
+      "projectType": "library",
+      "root": "projects/marketplace",
+      "sourceRoot": "projects/marketplace/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "options": {
+            "project": "projects/shared/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/shared/tsconfig.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/shared/tsconfig.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        }
+      }
+    },
     "shared": {
       "projectType": "library",
       "root": "projects/shared",

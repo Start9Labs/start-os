@@ -23,6 +23,7 @@ import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import { SharedPipesModule, WorkspaceConfig } from '@start9labs/shared'
+import { MarketplaceModule } from './marketplace.module'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
@@ -48,6 +49,7 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     GenericInputComponentModule,
     MonacoEditorModule,
     SharedPipesModule,
+    MarketplaceModule,
   ],
   providers: [
     FormBuilder,
@@ -79,4 +81,4 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
   bootstrap: [AppComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class AppModule { }
+export class AppModule {}

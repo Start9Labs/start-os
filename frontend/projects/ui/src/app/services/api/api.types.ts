@@ -1,11 +1,10 @@
 import { Dump, Revision } from 'patch-db-client'
+import { MarketplaceData, MarketplacePkg } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
   DataModel,
   DependencyError,
-  Manifest,
-  URL,
 } from 'src/app/services/patch-db/data-model'
 
 export module RR {
@@ -268,30 +267,10 @@ export module RR {
 export type WithExpire<T> = { 'expire-id'?: string } & T
 export type WithRevision<T> = { response: T; revision?: Revision }
 
-export interface MarketplaceData {
-  categories: string[]
-  name: string
-}
-
 export interface MarketplaceEOS {
   version: string
   headline: string
   'release-notes': { [version: string]: string }
-}
-
-export interface MarketplacePkg {
-  icon: URL
-  license: URL
-  instructions: URL
-  manifest: Manifest
-  categories: string[]
-  versions: string[]
-  'dependency-metadata': {
-    [id: string]: {
-      title: string
-      icon: URL
-    }
-  }
 }
 
 export interface Breakages {

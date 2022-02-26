@@ -1,8 +1,8 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent } from '@ionic/angular'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { MarketplaceService } from '../marketplace.service'
+import { ErrorToastService } from '@start9labs/shared'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 
 @Component({
   selector: 'app-release-notes',
@@ -17,7 +17,7 @@ export class AppReleaseNotes {
 
   constructor(
     private readonly route: ActivatedRoute,
-    public marketplaceService: MarketplaceService,
+    public marketplaceService: AbstractMarketplaceService,
     public errToast: ErrorToastService,
   ) {}
 

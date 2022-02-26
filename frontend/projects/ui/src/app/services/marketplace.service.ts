@@ -1,38 +1,29 @@
 import { Injectable } from '@angular/core'
-import { Subscription } from 'rxjs'
+import { LoadingController } from '@ionic/angular'
+import { Emver, ErrorToastService } from '@start9labs/shared'
 import {
-  MarketplaceData,
   MarketplacePkg,
-  RR,
-} from 'src/app/services/api/api.types'
+  AbstractMarketplaceService,
+} from '@start9labs/marketplace'
+import { Subscription } from 'rxjs'
+import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
-import { Emver } from '@start9labs/shared'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
-@Injectable({
-  providedIn: 'root',
-})
-export class MarketplaceService {
-  data: MarketplaceData
-  pkgs: MarketplacePkg[] = []
-  releaseNotes: {
-    [id: string]: {
-      [version: string]: string
-    }
-  } = {}
-  marketplace: {
-    url: string
-    name: string
-  }
-
+@Injectable()
+export class MarketplaceService extends AbstractMarketplaceService {
   constructor(
     private readonly api: ApiService,
     private readonly emver: Emver,
     private readonly patch: PatchDbService,
     private readonly config: ConfigService,
-  ) {}
+    private readonly loadingCtrl: LoadingController,
+    private readonly errToast: ErrorToastService,
+  ) {
+    super()
+  }
 
   init(): Subscription {
     return this.patch.watch$('ui', 'marketplace').subscribe(marketplace => {
@@ -70,6 +61,26 @@ export class MarketplaceService {
       this.data = undefined
       this.pkgs = []
       throw e
+    }
+  }
+
+  async install(id: string, version?: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Beginning Installation',
+      cssClass: 'loader',
+    })
+    loader.present()
+
+    try {
+      await this.installPackage({
+        id,
+        'version-spec': version ? `=${version}` : undefined,
+      })
+    } catch (e) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
     }
   }
 

@@ -1,15 +1,20 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="end">
-      <badge-menu-button></badge-menu-button>
+    <ion-buttons *ngIf="headerContent" slot="end">
+      <ng-container *ngComponentOutlet="headerContent"></ng-container>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
   <!-- loading -->
+  <!--
+    TODO: Refactor:
+    marketplace.name is only filled after data is retrieved from PatchDb
+    using this fact to show spinner without dependence on PatchDb
+  -->
   <text-spinner
-    *ngIf="!patch.loaded else data"
+    *ngIf="!marketplaceService.marketplace.name else data"
     text="Connecting to Embassy"
   ></text-spinner>
 

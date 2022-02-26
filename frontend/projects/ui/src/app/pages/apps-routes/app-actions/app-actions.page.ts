@@ -18,8 +18,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { isEmptyObject } from '@start9labs/shared'
+import { isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 
 @Component({

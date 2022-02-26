@@ -4,9 +4,8 @@ import { IonContent } from '@ionic/angular'
 import { Subscription } from 'rxjs'
 import { Metric } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { MainStatus } from 'src/app/services/patch-db/data-model'
-import { pauseFor } from '@start9labs/shared'
+import { pauseFor, ErrorToastService } from '@start9labs/shared'
 
 @Component({
   selector: 'app-metrics',

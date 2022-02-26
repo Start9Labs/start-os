@@ -8,7 +8,6 @@ import {
   EmverPipesModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
-import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { MarketplacePipesModule } from '../pipes/marketplace-pipes.module'
 import { MarketplaceListPage } from './marketplace-list.page'
 
@@ -29,7 +28,6 @@ const routes: Routes = [
     SharedPipesModule,
     EmverPipesModule,
     MarketplacePipesModule,
-    BadgeMenuComponentModule,
   ],
   declarations: [MarketplaceListPage],
 })

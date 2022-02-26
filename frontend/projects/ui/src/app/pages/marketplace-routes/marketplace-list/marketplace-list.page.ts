@@ -1,14 +1,17 @@
-import { Component, ViewChild } from '@angular/core'
-import { MarketplacePkg } from 'src/app/services/api/api.types'
+import { Component, Inject, Optional, Type, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
-import { Subscription } from 'rxjs'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { MarketplaceService } from '../marketplace.service'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import {
+  LIST_HEADER_CONTENT,
+  LOAD_TRIGGER,
+  LOCAL_PACKAGES,
+  LocalPackages,
+  MarketplacePkg,
+  AbstractMarketplaceService,
+} from '@start9labs/marketplace'
+import { Observable, Subscription } from 'rxjs'
+import { ErrorToastService, PackageState } from '@start9labs/shared'
 import Fuse from 'fuse.js/dist/fuse.min.js'
-import { exists, isEmptyObject, PackageState } from '@start9labs/shared'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { filter, first } from 'rxjs/operators'
+import { Manifest } from 'src/app/services/patch-db/data-model'
 
 const defaultOps = {
   isCaseSensitive: false,
@@ -31,6 +34,9 @@ const defaultOps = {
   ],
 }
 
+// TODO: Refactor
+type Package = MarketplacePkg & { manifest: Manifest }
+
 @Component({
   selector: 'marketplace-list',
   templateUrl: './marketplace-list.page.html',
@@ -41,9 +47,9 @@ export class MarketplaceListPage {
 
   @ViewChild(IonContent) content: IonContent
 
-  pkgs: MarketplacePkg[] = []
+  pkgs: Package[] = []
   categories: string[]
-  localPkgs: Record<string, PackageDataEntry> = {}
+  localPkgs: LocalPackages = {}
   category = 'featured'
   query: string
   loading = true
@@ -52,30 +58,23 @@ export class MarketplaceListPage {
 
   constructor(
     private readonly errToast: ErrorToastService,
-    public readonly patch: PatchDbService,
-    public readonly marketplaceService: MarketplaceService,
+    public readonly marketplaceService: AbstractMarketplaceService,
+    @Inject(LOCAL_PACKAGES)
+    private readonly localPkgs$: Observable<LocalPackages>,
+    @Inject(LOAD_TRIGGER)
+    private readonly loadTrigger$: Observable<unknown>,
+    @Optional()
+    @Inject(LIST_HEADER_CONTENT)
+    readonly headerContent: Type<any> | null,
   ) {}
 
   async ngOnInit() {
     this.subs = [
-      this.patch
-        .watch$('package-data')
-        .pipe(filter(data => exists(data) && !isEmptyObject(data)))
-        .subscribe(pkgs => {
-          this.localPkgs = pkgs
-          Object.values(this.localPkgs).forEach(pkg => {
-            pkg['install-progress'] = { ...pkg['install-progress'] }
-          })
-        }),
-    ]
+      this.localPkgs$.subscribe(pkgs => {
+        this.localPkgs = pkgs
+      }),
 
-    this.patch
-      .watch$('server-info')
-      .pipe(
-        filter(data => exists(data) && !isEmptyObject(data)),
-        first(),
-      )
-      .subscribe(async _ => {
+      this.loadTrigger$.subscribe(async _ => {
         try {
           if (!this.marketplaceService.pkgs.length) {
             await this.marketplaceService.load()
@@ -83,12 +82,12 @@ export class MarketplaceListPage {
 
           // category should start as first item in array
           // remove here then add at beginning
-          const filterdCategories =
+          const filteredCategories =
             this.marketplaceService.data.categories.filter(
               cat => this.category !== cat,
             )
           this.categories = [this.category, 'updates']
-            .concat(filterdCategories)
+            .concat(filteredCategories)
             .concat(['all'])
 
           this.filterPkgs()
@@ -97,7 +96,8 @@ export class MarketplaceListPage {
         } finally {
           this.loading = false
         }
-      })
+      }),
+    ]
   }
 
   ngAfterViewInit() {
@@ -123,12 +123,13 @@ export class MarketplaceListPage {
 
   private filterPkgs(): void {
     if (this.category === 'updates') {
+      // TODO: Fix type
       this.pkgs = this.marketplaceService.pkgs.filter(pkg => {
         const { id, version } = pkg.manifest
         return (
           this.localPkgs[id] && version !== this.localPkgs[id].manifest.version
         )
-      })
+      }) as Package[]
     } else if (this.query) {
       const fuse = new Fuse(this.marketplaceService.pkgs, defaultOps)
       this.pkgs = fuse.search(this.query).map(p => p.item)
