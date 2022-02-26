@@ -859,7 +859,7 @@ dependencies = [
 
 [[package]]
 name = "embassy-os"
-version = "0.3.0-pre.0"
+version = "0.3.0"
 dependencies = [
  "aes",
  "async-trait",
