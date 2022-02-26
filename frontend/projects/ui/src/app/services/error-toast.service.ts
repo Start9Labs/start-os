@@ -50,7 +50,7 @@ export function getErrorMessage(
 
   if (!message) {
     message = 'Unknown Error.'
-    link = 'https://docs.start9.com/support/FAQ/index.html'
+    link = 'https://start9.com/latest/support/FAQ'
   }
 
   if (link) {

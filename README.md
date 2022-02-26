@@ -26,7 +26,7 @@ While not as convenient as buying an Embassy, this option is easier than you mig
 1. You prefer not to divulge your physical address.
 1. You just like building things.
 
-To pursue this option, follow this [guide](https://docs.start9.com/getting-started/diy.html).
+To pursue this option, follow this [guide](https://start9.com/latest/diy).
 
 ### :hammer_and_wrench: Build EmbassyOS from Source
 
