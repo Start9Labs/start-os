@@ -12,9 +12,17 @@ alias 'rust-arm64-builder'='docker run --rm -it -v "$HOME/.cargo/registry":/root
 
 cd ..
 if [[ "$ENVIRONMENT" =~ (^|-)unstable($|-) ]]; then
-	rust-arm64-builder sh -c "(cd backend && cargo build --release --features unstable)"
+	if [[ "$ENVIRONMENT" =~ (^|-)beta($|-) ]]; then
+		rust-arm64-builder sh -c "(cd backend && cargo build --release --features beta,unstable)"
+	else
+		rust-arm64-builder sh -c "(cd backend && cargo build --release --features unstable)"
+	fi
 else
-	rust-arm64-builder sh -c "(cd backend && cargo build --release)"
+	if [[ "$ENVIRONMENT" =~ (^|-)beta($|-) ]]; then
+		rust-arm64-builder sh -c "(cd backend && cargo build --release --features beta)"
+	else
+		rust-arm64-builder sh -c "(cd backend && cargo build --release)"
+	fi
 fi
 cd backend
 #rust-arm64-builder aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/embassyd
