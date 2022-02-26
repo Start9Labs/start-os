@@ -1,6 +1,11 @@
 <ion-header>
   <ion-toolbar>
     <ion-title>{{ version }} Release Notes</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
