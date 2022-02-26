@@ -1,0 +1,14 @@
+{
+  "prod": {
+    "url": "https://registry.start9.com",
+    "name": "Embassy Marketplace"
+  },
+  "beta": {
+    "url": "https://beta-registry-0-3.start9labs.com",
+    "name": "Embassy Marketplace (Beta)"
+  },
+  "alpha": {
+    "url": "https://alpha-registry-0-3.start9labs.com",
+    "name": "Embassy Marketplace (Alpha)"
+  }
+}

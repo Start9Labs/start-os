@@ -7,6 +7,11 @@
 }
 
 .main-content {
-  height: 100%;
   color: var(--ion-color-dark);
+}
+
+.spaced-list {
+  li {
+    padding-bottom: 12px;
+  }
 }

@@ -22,7 +22,10 @@ export class MarketplaceService {
       [version: string]: string
     }
   } = {}
-  marketplaceUrl: string
+  marketplace: {
+    url: string
+    name: string
+  }
 
   constructor(
     private readonly api: ApiService,
@@ -34,10 +37,11 @@ export class MarketplaceService {
   init(): Subscription {
     return this.patch.watch$('ui', 'marketplace').subscribe(marketplace => {
       if (!marketplace || !marketplace['selected-id']) {
-        this.marketplaceUrl = this.config.marketplace.url
+        console.log('**MARKETPLACE', this.config)
+        this.marketplace = this.config.marketplace
       } else {
-        this.marketplaceUrl =
-          marketplace['known-hosts'][marketplace['selected-id']].url
+        this.marketplace =
+          marketplace['known-hosts'][marketplace['selected-id']]
       }
     })
   }
@@ -68,7 +72,7 @@ export class MarketplaceService {
   }
 
   async installPackage(req: Omit<RR.InstallPackageReq, 'marketplace-url'>) {
-    req['marketplace-url'] = this.marketplaceUrl
+    req['marketplace-url'] = this.marketplace.url
     return this.api.installPackage(req as RR.InstallPackageReq)
   }
 
@@ -121,7 +125,7 @@ export class MarketplaceService {
     params: RR.GetMarketplaceDataReq,
     url?: string,
   ): Promise<RR.GetMarketplaceDataRes> {
-    url = url || this.marketplaceUrl
+    url = url || this.marketplace.url
     return this.api.marketplaceProxy('/package/v0/info', params, url)
   }
 
@@ -140,7 +144,7 @@ export class MarketplaceService {
     return this.api.marketplaceProxy(
       '/package/v0/index',
       qp,
-      this.marketplaceUrl,
+      this.marketplace.url,
     )
   }
 
@@ -150,7 +154,7 @@ export class MarketplaceService {
     return this.api.marketplaceProxy(
       `/package/v0/release-notes/${params.id}`,
       {},
-      this.marketplaceUrl,
+      this.marketplace.url,
     )
   }
 }

@@ -1,20 +1,61 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Welcome to {{ version }}!</ion-title>
+    <ion-title>{{ version }} Release Notes</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
-  <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%">
-    <h2>A Whole New Embassy</h2>
-    <div class="main-content">
-      <p>New features and more new features!</p>
-    </div>
+  <h1>A whole new Embassy!</h1>
+  <p>
+    Check out the full
+    <a
+      href="https://start9labs.medium.com/embassyos-0-3-0-f3d2d2ea016f"
+      target="_blank"
+      noreferrer
+      >Release Notes</a
+    >.
+  </p>
+  <h2>Highlights</h2>
+  <ul class="spaced-list">
+    <li>
+      <b>SSD Support</b> - Embassy now requires an external SSD, offering more
+      storage, better reliability, and a faster experience.
+    </li>
+    <li><b>Websockets</b> - Provides a smooth, "real-time" feel.</li>
+    <li>
+      <b>Full Embassy Backups</b> - Create encrypted backups of your Embassy and
+      all its services with a single button.
+    </li>
+    <li>
+      <b>LAN Shared Folders (for backups)</b> - Easily perform "over-the-air"
+      backups on your desktop/laptop or a drive plugged into your
+      desktop/laptop.
+    </li>
+    <li>
+      <b>Revamped User Interface</b> - The user interface has been rewritten and
+      redesigned to be more performant, understandable, and beautiful.
+    </li>
+    <li>
+      <b>Session Management</b> - View your Embassy's active sessions and log
+      out remotely.
+    </li>
+    <li>
+      <b>Alt Marketplaces</b> - Optionally connect to and browse alternative
+      service marketplaces.
+    </li>
+    <li>
+      <b>Progress Reporting</b> - View live progress of services
+      installs/updates and EmbassyOS updates.
+    </li>
+    <li>
+      <b>Health Checks</b> - View the health of your services at a glance, along
+      with helpful messages if something is wrong.
+    </li>
+  </ul>
 
-    <div class="close-button">
-      <ion-button fill="outline" color="dark" (click)="dismiss()">
-        Begin
-      </ion-button>
-    </div>
+  <div class="ion-text-center ion-padding">
+    <ion-button fill="outline" color="dark" (click)="dismiss()">
+      Begin
+    </ion-button>
   </div>
 </ion-content>
