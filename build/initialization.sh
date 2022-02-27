@@ -87,6 +87,7 @@ rm -rf /var/lib/tor/*
 raspi-config nonint enable_overlayfs
 
 # create a copy of the cmdline *without* the quirk string, so that it can be easily amended
+sudo sed -i 's/usb-storage.quirks=152d:0562:u //g' /media/drbonez/system-boot/cmdline.txt
 sudo cp /boot/cmdline.txt /boot/cmdline.txt.orig
 sudo sed -i 's/^/usb-storage.quirks=152d:0562:u /g' /boot/cmdline.txt
 
