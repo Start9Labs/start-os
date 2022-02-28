@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
@@ -52,6 +53,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
             async move { ctx.product_key().await }
         };
         let encrypt = encrypt(keysource);
+        tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
         rpc_server!({
             command: embassy::setup_api,
