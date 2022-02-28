@@ -25,6 +25,7 @@ use tracing::instrument;
 use crate::backup::restore::recover_full_embassy;
 use crate::backup::target::BackupTargetFS;
 use crate::context::rpc::RpcContextConfig;
+use crate::context::setup::SetupResult;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
 use crate::disk::main::DEFAULT_PASSWORD;
@@ -112,18 +113,19 @@ pub async fn attach(
         &*ctx.product_key().await?,
     )
     .await?;
-    *ctx.disk_guid.write().await = Some(guid.clone());
     let secrets = ctx.secret_store().await?;
     let tor_key = crate::net::tor::os_key(&mut secrets.acquire().await?).await?;
     let (_, root_ca) = SslManager::init(secrets).await?.export_root_ca().await?;
-    Ok(SetupResult {
+    let setup_result = SetupResult {
         tor_address: format!("http://{}", tor_key.public().get_onion_address()),
         lan_address: format!(
             "https://embassy-{}.local",
             crate::hostname::derive_id(&*ctx.product_key().await?)
         ),
         root_ca: String::from_utf8(root_ca.to_pem()?)?,
-    })
+    };
+    *ctx.setup_result.write().await = Some((guid, setup_result.clone()));
+    Ok(setup_result)
 }
 
 #[command(subcommands(v2, recovery_status))]
@@ -191,14 +193,6 @@ pub async fn verify_cifs(
     embassy_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct SetupResult {
-    tor_address: String,
-    lan_address: String,
-    root_ca: String,
-}
-
 #[command(rpc_only)]
 pub async fn execute(
     #[context] ctx: SetupContext,
@@ -240,9 +234,9 @@ pub async fn execute(
 
 #[instrument(skip(ctx))]
 #[command(rpc_only)]
-pub async fn complete(#[context] ctx: SetupContext) -> Result<(), Error> {
-    let guid = if let Some(guid) = &*ctx.disk_guid.read().await {
-        guid.clone()
+pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error> {
+    let (guid, setup_result) = if let Some((guid, setup_result)) = &*ctx.setup_result.read().await {
+        (guid.clone(), setup_result.clone())
     } else {
         return Err(Error::new(
             eyre!("setup.execute has not completed successfully"),
@@ -281,7 +275,7 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<(), Error> {
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
     ctx.shutdown.send(()).expect("failed to shutdown");
-    Ok(())
+    Ok(setup_result)
 }
 
 #[instrument(skip(ctx, embassy_password, recovery_password))]
@@ -323,10 +317,21 @@ pub async fn execute_inner(
             &ctx.product_key().await?,
         )
         .await?;
+        let res = (tor_addr, root_ca.clone());
         tokio::spawn(async move {
             if let Err(e) = recover_fut
                 .and_then(|_| async {
-                    *ctx.disk_guid.write().await = Some(guid);
+                    *ctx.setup_result.write().await = Some((
+                        guid,
+                        SetupResult {
+                            tor_address: format!("http://{}", tor_addr),
+                            lan_address: format!(
+                                "https://embassy-{}.local",
+                                crate::hostname::derive_id(&ctx.product_key().await?)
+                            ),
+                            root_ca: String::from_utf8(root_ca.to_pem()?)?,
+                        },
+                    ));
                     if let Some(Ok(recovery_status)) = &mut *ctx.recovery_status.write().await {
                         recovery_status.complete = true;
                     }
@@ -342,16 +347,26 @@ pub async fn execute_inner(
                 tracing::info!("Recovery Complete!");
             }
         });
-        (tor_addr, root_ca)
+        res
     } else {
-        let res = fresh_setup(&ctx, &embassy_password).await?;
+        let (tor_addr, root_ca) = fresh_setup(&ctx, &embassy_password).await?;
         init(
             &RpcContextConfig::load(ctx.config_path.as_ref()).await?,
             &ctx.product_key().await?,
         )
         .await?;
-        *ctx.disk_guid.write().await = Some(guid);
-        res
+        *ctx.setup_result.write().await = Some((
+            guid,
+            SetupResult {
+                tor_address: format!("http://{}", tor_addr),
+                lan_address: format!(
+                    "https://embassy-{}.local",
+                    crate::hostname::derive_id(&ctx.product_key().await?)
+                ),
+                root_ca: String::from_utf8(root_ca.to_pem()?)?,
+            },
+        ));
+        (tor_addr, root_ca)
     };
 
     Ok(res)
