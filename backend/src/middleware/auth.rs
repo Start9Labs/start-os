@@ -224,6 +224,8 @@ pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                                             |_| StatusCode::OK,
                                         )?));
                                     }
+                                } else {
+                                    guard.0 = 0;
                                 }
                                 guard.1 = Instant::now();
                             }
