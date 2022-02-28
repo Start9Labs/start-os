@@ -111,10 +111,15 @@ export class LiveApiService extends ApiService {
   }
 
   async setupComplete() {
-    return this.http.rpcRequest<SetupEmbassyRes>({
+    const res = await this.http.rpcRequest<SetupEmbassyRes>({
       method: 'setup.complete',
       params: {},
     })
+
+    return {
+      ...res,
+      'root-ca': btoa(res['root-ca']),
+    }
   }
 }
 
