@@ -348,12 +348,22 @@ pub fn configure_rec<'a, Db: DbHandle>(
             .get(db, true)
             .await?;
         let volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
+        let is_needs_config = !*pkg_model
+            .clone()
+            .status()
+            .configured()
+            .get(db, true)
+            .await?;
 
         // get current config and current spec
         let ConfigRes {
-            config: old_config,
+            config: mut old_config,
             spec,
         } = action.get(ctx, id, &*version, &*volumes).await?;
+        if is_needs_config {
+            old_config = None
+        }
+        let old_config = old_config;
 
         // determine new config to use
         let mut config = if let Some(config) = config.or_else(|| old_config.clone()) {
