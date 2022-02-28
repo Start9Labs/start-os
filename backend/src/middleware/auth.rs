@@ -181,7 +181,7 @@ impl Borrow<String> for HashSessionToken {
 }
 
 pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
-    let rate_limiter = Arc::new(Mutex::new(Instant::now()));
+    let rate_limiter = Arc::new(Mutex::new((0_usize, Instant::now())));
     Box::new(
         move |req: &mut Request<Body>,
               metadata: M|
@@ -205,24 +205,29 @@ pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                                     Err(e.into()),
                                     |_| StatusCode::OK,
                                 )?));
-                            } else {
+                            } else if rpc_req.method.as_str() == "auth.login" {
                                 let mut guard = rate_limiter.lock().await;
-                                if guard.elapsed() < Duration::from_secs(10) {
-                                    let (res_parts, _) = Response::new(()).into_parts();
-                                    return Ok(Err(to_response(
-                                        &req.headers,
-                                        res_parts,
-                                        Err(Error::new(
-                                            eyre!(
-                                                "Please limit login attempts to 1 per 10 seconds."
+                                guard.0 += 1;
+                                if guard.1.elapsed() < Duration::from_secs(20) {
+                                    if guard.0 >= 3 {
+                                        let (res_parts, _) = Response::new(()).into_parts();
+                                        return Ok(Err(to_response(
+                                            &req.headers,
+                                            res_parts,
+                                            Err(Error::new(
+                                                eyre!(
+                                                "Please limit login attempts to 3 per 20 seconds."
                                             ),
-                                            crate::ErrorKind::RateLimited,
-                                        )
-                                        .into()),
-                                        |_| StatusCode::OK,
-                                    )?));
+                                                crate::ErrorKind::RateLimited,
+                                            )
+                                            .into()),
+                                            |_| StatusCode::OK,
+                                        )?));
+                                    }
+                                } else {
+                                    guard.0 = 0;
                                 }
-                                *guard = Instant::now();
+                                guard.1 = Instant::now();
                             }
                         }
                         Ok(Ok(noop3()))
