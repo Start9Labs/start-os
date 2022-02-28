@@ -254,7 +254,7 @@ async fn run_main(
         .commit_health_check_results
         .store(true, Ordering::SeqCst);
     let health = async {
-        tokio::time::sleep(Duration::from_secs(1)).await; // only sleep for 1 second before first health check
+        tokio::time::sleep(Duration::from_secs(10)).await; // only sleep for 1 second before first health check
         loop {
             let mut db = state.ctx.db.handle();
             if let Err(e) = health::check(
@@ -488,8 +488,10 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
                     .await;
                 match started.as_deref() {
                     Ok(Some(MainStatus::Running { started, .. }))
-                        if Utc::now().signed_duration_since(*started)
-                            > chrono::Duration::from_std(Duration::from_secs(15)).unwrap() =>
+                        if cfg!(feature = "unstable")
+                            || (Utc::now().signed_duration_since(*started)
+                                > chrono::Duration::from_std(Duration::from_secs(60)).unwrap()
+                                && !matches!(&*thread_shared.on_stop.borrow(), &OnStop::Exit)) =>
                     {
                         let res = thread_shared.ctx.notification_manager
                     .notify(
