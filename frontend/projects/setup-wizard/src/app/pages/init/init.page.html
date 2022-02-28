@@ -2,22 +2,44 @@
   <ion-grid>
     <ion-row>
       <ion-col class="ion-text-center">
-
-        <div style="padding-bottom: 32px;">
-          <img src="assets/img/logo.png" style="max-width: 240px;" />
+        <div style="padding-bottom: 32px">
+          <img src="assets/img/logo.png" style="max-width: 240px" />
         </div>
 
-        <success [hidden]="!stateService.embassyLoaded" (onDownload)="download()"></success>
+        <success
+          [hidden]="!stateService.embassyLoaded"
+          (onDownload)="download()"
+        ></success>
 
         <ion-card [hidden]="stateService.embassyLoaded" color="dark">
           <ion-card-header>
-            <ion-card-title style="font-size: 40px;">Initializing Embassy</ion-card-title>
+            <ion-card-title style="font-size: 40px"
+              >Initializing Embassy</ion-card-title
+            >
             <ion-card-subtitle>Progress: {{ progress }}%</ion-card-subtitle>
           </ion-card-header>
 
           <ion-card-content class="ion-margin">
-            <ion-progress-bar color="primary" style="max-width: 700px; margin: auto; padding-bottom: 20px; margin-bottom: 40px;" [value]="progress / 100"></ion-progress-bar>
-            <p class="ion-text-start">After completion, you will be prompted to download a file from your Embassy. Save the file somewhere safe, it is the easiest way to recover your Embassy's addresses and SSL certificate in case you lose them.</p>
+            <ion-progress-bar
+              color="primary"
+              style="
+                max-width: 700px;
+                margin: auto;
+                padding-bottom: 20px;
+                margin-bottom: 40px;
+              "
+              [value]="progress / 100"
+            ></ion-progress-bar>
+            <p class="ion-text-start">
+              After completion, you will be prompted to download a file from
+              your Embassy. Save the file somewhere safe, it is the easiest way
+              to recover your Embassy's addresses and SSL certificate in case
+              you lose them.
+            </p>
+            <p class="ion-text-start" style="color: var(--ion-color-danger)">
+              <b>DO NOT:</b> Close or refresh the browser window during
+              intialization process.
+            </p>
           </ion-card-content>
         </ion-card>
       </ion-col>

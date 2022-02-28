@@ -108,8 +108,11 @@ export class AppShowStatusComponent {
 
   async stop(): Promise<void> {
     const { id, title, version } = this.pkg.manifest
+    const hasDependents = !!Object.keys(
+      this.pkg.installed['current-dependents'],
+    ).filter(depId => depId !== this.pkg.manifest.id).length
 
-    if (isEmptyObject(this.pkg.installed['current-dependents'])) {
+    if (!hasDependents) {
       const loader = await this.loadingCtrl.create({
         message: `Stopping...`,
         spinner: 'lines',
