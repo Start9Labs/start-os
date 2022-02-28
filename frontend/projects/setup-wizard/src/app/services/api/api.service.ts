@@ -1,16 +1,16 @@
 export abstract class ApiService {
   // unencrypted
-  abstract getStatus (): Promise<GetStatusRes> // setup.status
-  abstract getDrives (): Promise<DiskListResponse> // setup.disk.list
-  abstract set02XDrive (logicalname: string): Promise<void> // setup.recovery.v2.set
-  abstract getRecoveryStatus (): Promise<RecoveryStatusRes> // setup.recovery.status
+  abstract getStatus(): Promise<GetStatusRes> // setup.status
+  abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
+  abstract set02XDrive(logicalname: string): Promise<void> // setup.recovery.v2.set
+  abstract getRecoveryStatus(): Promise<RecoveryStatusRes> // setup.recovery.status
 
   // encrypted
-  abstract verifyCifs (cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
-  abstract verifyProductKey (): Promise<void> // echo - throws error if invalid
-  abstract importDrive (guid: string): Promise<SetupEmbassyRes> // setup.execute
-  abstract setupEmbassy (setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
-  abstract setupComplete (): Promise<void> // setup.complete
+  abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
+  abstract verifyProductKey(): Promise<void> // echo - throws error if invalid
+  abstract importDrive(guid: string): Promise<SetupEmbassyRes> // setup.execute
+  abstract setupEmbassy(setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
+  abstract setupComplete(): Promise<SetupEmbassyRes> // setup.complete
 }
 
 export interface GetStatusRes {
@@ -75,12 +75,12 @@ export interface CifsRecoverySource {
 }
 
 export interface DiskInfo {
-  logicalname: string,
-  vendor: string | null,
-  model: string | null,
-  partitions: PartitionInfo[],
-  capacity: number,
-  guid: string | null, // cant back up if guid exists
+  logicalname: string
+  vendor: string | null
+  model: string | null
+  partitions: PartitionInfo[]
+  capacity: number
+  guid: string | null // cant back up if guid exists
 }
 
 export interface RecoveryStatusRes {
@@ -90,9 +90,9 @@ export interface RecoveryStatusRes {
 }
 
 export interface PartitionInfo {
-  logicalname: string,
-  label: string | null,
-  capacity: number,
-  used: number | null,
-  'embassy-os': EmbassyOSRecoveryInfo | null,
+  logicalname: string
+  label: string | null
+  capacity: number
+  used: number | null
+  'embassy-os': EmbassyOSRecoveryInfo | null
 }
