@@ -28,7 +28,9 @@ export class AppListPkgComponent {
     return this.pkg.entry.manifest
   }
 
-  launchUi(): void {
+  launchUi(e: Event): void {
+    e.stopPropagation()
+    e.preventDefault()
     this.launcherService.launch(this.pkg.entry)
   }
 }

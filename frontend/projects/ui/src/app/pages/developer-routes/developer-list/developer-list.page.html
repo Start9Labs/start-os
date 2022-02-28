@@ -23,7 +23,7 @@
   <ion-item
     button
     *ngFor="let entry of devData | keyvalue"
-    (click)="goToProject(entry.key)"
+    [routerLink]="[entry.key]"
   >
     <p>{{ entry.value.name }}</p>
     <ion-button

@@ -24,7 +24,7 @@
     slot="end"
     fill="clear"
     color="primary"
-    (click)="launchUi()"
+    (click)="launchUi($event)"
     [disabled]="!(pkg.entry.state | isLaunchable: status:manifest.interfaces)"
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>
