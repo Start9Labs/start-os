@@ -238,8 +238,6 @@ export class MarketplacesPage {
   }
 
   private async saveAndConnect(url: string): Promise<void> {
-    await this.save(url)
-
     const marketplace = this.patch.getData().ui.marketplace
       ? (JSON.parse(
           JSON.stringify(this.patch.getData().ui.marketplace),
