@@ -8,19 +8,20 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['loading.page.scss'],
 })
 export class LoadingPage {
-  constructor (
+  constructor(
     public stateService: StateService,
     private navCtrl: NavController,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.stateService.pollDataTransferProgress()
-    const progSub = this.stateService.dataCompletionSubject.subscribe(async complete => {
-      if (complete) {
-        progSub.unsubscribe()
-        await this.navCtrl.navigateForward(`/init`)
-      }
-    })
+    const progSub = this.stateService.dataCompletionSubject.subscribe(
+      async complete => {
+        if (complete) {
+          progSub.unsubscribe()
+          await this.navCtrl.navigateForward(`/success`)
+        }
+      },
+    )
   }
 }
-

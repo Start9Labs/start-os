@@ -204,7 +204,7 @@ export class RecoverPage {
     await loader.present()
     try {
       await this.stateService.importDrive(guid)
-      await this.navCtrl.navigateForward(`/init`)
+      await this.navCtrl.navigateForward(`/success`)
     } catch (e) {
       this.errorToastService.present(e.message)
     } finally {

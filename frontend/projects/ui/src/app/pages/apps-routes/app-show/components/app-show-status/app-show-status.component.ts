@@ -110,7 +110,7 @@ export class AppShowStatusComponent {
     const { id, title, version } = this.pkg.manifest
     const hasDependents = !!Object.keys(
       this.pkg.installed['current-dependents'],
-    ).filter(depId => depId !== this.pkg.manifest.id).length
+    ).filter(depId => depId !== id).length
 
     if (!hasDependents) {
       const loader = await this.loadingCtrl.create({

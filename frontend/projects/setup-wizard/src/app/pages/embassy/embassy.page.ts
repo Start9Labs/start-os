@@ -129,7 +129,7 @@ export class EmbassyPage {
 
   private async setupEmbassy(drive: DiskInfo, password: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      message: 'Transferring encrypted data. This could take a while...',
+      message: 'Initializing data drive. This could take a while...',
     })
 
     await loader.present()
@@ -139,7 +139,7 @@ export class EmbassyPage {
       if (!!this.stateService.recoverySource) {
         await this.navCtrl.navigateForward(`/loading`)
       } else {
-        await this.navCtrl.navigateForward(`/init`)
+        await this.navCtrl.navigateForward(`/success`)
       }
     } catch (e) {
       this.errorToastService.present(

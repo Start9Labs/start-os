@@ -91,4 +91,11 @@ export class StateService {
     this.lanAddress = ret['lan-address']
     this.cert = ret['root-ca']
   }
+
+  async completeEmbassy(): Promise<void> {
+    const ret = await this.apiService.setupComplete()
+    this.torAddress = ret['tor-address']
+    this.lanAddress = ret['lan-address']
+    this.cert = ret['root-ca']
+  }
 }

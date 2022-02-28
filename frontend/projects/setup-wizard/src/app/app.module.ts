@@ -15,7 +15,6 @@ import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
 import { GlobalErrorHandler } from './services/global-error-handler.service'
 import { SuccessPageModule } from './pages/success/success.module'
-import { InitPageModule } from './pages/init/init.module'
 import { HomePageModule } from './pages/home/home.module'
 import { LoadingPageModule } from './pages/loading/loading.module'
 import { ProdKeyModalModule } from './modals/prod-key-modal/prod-key-modal.module'
@@ -42,7 +41,6 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     ProdKeyModalModule,
     ProductKeyPageModule,
     RecoverPageModule,
-    InitPageModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },

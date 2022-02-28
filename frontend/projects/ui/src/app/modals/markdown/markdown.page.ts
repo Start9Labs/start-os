@@ -26,9 +26,6 @@ export class MarkdownPage {
       if (!this.content) {
         this.content = await this.embassyApi.getStatic(this.contentUrl)
       }
-    } catch (e) {
-      this.loadingError = getErrorMessage(e)
-    } finally {
       this.loading = false
       await pauseFor(50)
       const links = document.links
@@ -39,6 +36,9 @@ export class MarkdownPage {
           links[i].className += ' externalLink'
         }
       }
+    } catch (e) {
+      this.loadingError = getErrorMessage(e)
+      this.loading = false
     }
   }
 
