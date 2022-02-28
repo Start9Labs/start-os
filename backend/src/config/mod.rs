@@ -357,13 +357,9 @@ pub fn configure_rec<'a, Db: DbHandle>(
 
         // get current config and current spec
         let ConfigRes {
-            config: mut old_config,
+            config: old_config,
             spec,
         } = action.get(ctx, id, &*version, &*volumes).await?;
-        if is_needs_config {
-            old_config = None
-        }
-        let old_config = old_config;
 
         // determine new config to use
         let mut config = if let Some(config) = config.or_else(|| old_config.clone()) {
@@ -483,7 +479,9 @@ pub fn configure_rec<'a, Db: DbHandle>(
 
         // handle dependents
         let dependents = pkg_model.clone().current_dependents().get(db, true).await?;
-        let prev = old_config.map(Value::Object).unwrap_or_default();
+        let prev = if is_needs_config { None } else { old_config }
+            .map(Value::Object)
+            .unwrap_or_default();
         let next = Value::Object(config.clone());
         for (dependent, dep_info) in dependents.iter().filter(|(dep_id, _)| dep_id != &id) {
             // check if config passes dependent check
