@@ -79,7 +79,9 @@
 
     <!-- not loading -->
     <ng-container *ngIf="!loading && wifi.country">
-      <ion-item-divider>Saved Networks</ion-item-divider>
+      <ion-item-divider *ngIf="!(wifi.ssids | empty)"
+        >Saved Networks</ion-item-divider
+      >
       <ion-item
         button
         detail="false"
@@ -126,38 +128,40 @@
       </ion-item>
 
       <ion-item-divider>Available Networks</ion-item-divider>
-      <ion-item
-        button
-        detail="false"
-        *ngFor="let avWifi of wifi['available-wifi']"
-        (click)="presentModalAdd(avWifi.ssid, !!avWifi.security.length)"
-      >
-        <ion-label>{{ avWifi.ssid }}</ion-label>
-        <img
-          *ngIf="avWifi.strength < 5"
-          slot="end"
-          src="assets/img/icons/wifi-1.png"
-          style="max-width: 32px"
-        />
-        <img
-          *ngIf="avWifi.strength >= 5 && avWifi.strength < 50"
-          slot="end"
-          src="assets/img/icons/wifi-1.png"
-          style="max-width: 32px"
-        />
-        <img
-          *ngIf="avWifi.strength >= 50 && avWifi.strength < 90"
-          slot="end"
-          src="assets/img/icons/wifi-2.png"
-          style="max-width: 32px"
-        />
-        <img
-          *ngIf="avWifi.strength >= 90"
-          slot="end"
-          src="assets/img/icons/wifi-3.png"
-          style="max-width: 32px"
-        />
-      </ion-item>
+      <ng-container *ngFor="let avWifi of wifi['available-wifi']">
+        <ion-item
+          button
+          detail="false"
+          (click)="presentModalAdd(avWifi.ssid, !!avWifi.security.length)"
+          *ngIf="avWifi.ssid"
+        >
+          <ion-label>{{ avWifi.ssid }}</ion-label>
+          <img
+            *ngIf="avWifi.strength < 5"
+            slot="end"
+            src="assets/img/icons/wifi-1.png"
+            style="max-width: 32px"
+          />
+          <img
+            *ngIf="avWifi.strength >= 5 && avWifi.strength < 50"
+            slot="end"
+            src="assets/img/icons/wifi-1.png"
+            style="max-width: 32px"
+          />
+          <img
+            *ngIf="avWifi.strength >= 50 && avWifi.strength < 90"
+            slot="end"
+            src="assets/img/icons/wifi-2.png"
+            style="max-width: 32px"
+          />
+          <img
+            *ngIf="avWifi.strength >= 90"
+            slot="end"
+            src="assets/img/icons/wifi-3.png"
+            style="max-width: 32px"
+          />
+        </ion-item>
+      </ng-container>
       <ion-item button detail="false" (click)="presentModalAdd()">
         <ion-icon slot="start" name="add" size="large"></ion-icon>
         <ion-label>Join other network</ion-label>

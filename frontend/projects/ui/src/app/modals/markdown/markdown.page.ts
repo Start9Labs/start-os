@@ -2,6 +2,7 @@ import { Component, Input } from '@angular/core'
 import { ModalController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getErrorMessage } from 'src/app/services/error-toast.service'
+import { pauseFor } from '../../../../../shared/src/util/misc.util'
 
 @Component({
   selector: 'markdown',
@@ -25,6 +26,11 @@ export class MarkdownPage {
       if (!this.content) {
         this.content = await this.embassyApi.getStatic(this.contentUrl)
       }
+    } catch (e) {
+      this.loadingError = getErrorMessage(e)
+    } finally {
+      this.loading = false
+      await pauseFor(50)
       const links = document.links
       for (let i = 0, linksLength = links.length; i < linksLength; i++) {
         if (links[i].hostname != window.location.hostname) {
@@ -33,10 +39,6 @@ export class MarkdownPage {
           links[i].className += ' externalLink'
         }
       }
-    } catch (e) {
-      this.loadingError = getErrorMessage(e)
-    } finally {
-      this.loading = false
     }
   }
 

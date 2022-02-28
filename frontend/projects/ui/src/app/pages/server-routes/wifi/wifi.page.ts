@@ -40,19 +40,20 @@ export class WifiPage {
   ) {}
 
   async ngOnInit() {
+    await this.getWifi()
+  }
+
+  async getWifi(timeout?: number): Promise<void> {
+    this.loading = true
     try {
-      await this.getWifi()
+      this.wifi = await this.api.getWifi({}, timeout)
+      if (!this.wifi.country) {
+        await this.presentAlertCountry()
+      }
     } catch (e) {
       this.errToast.present(e)
     } finally {
       this.loading = false
-    }
-  }
-
-  async getWifi(timeout?: number): Promise<void> {
-    this.wifi = await this.api.getWifi({}, timeout)
-    if (!this.wifi.country) {
-      await this.presentAlertCountry()
     }
   }
 
