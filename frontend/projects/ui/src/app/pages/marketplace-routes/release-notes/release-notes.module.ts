@@ -6,14 +6,17 @@ import {
   EmverPipesModule,
   MarkdownPipeModule,
   TextSpinnerComponentModule,
+  ElementModule,
 } from '@start9labs/shared'
-import { AppReleaseNotes } from './app-release-notes.page'
-import { MarketplacePipesModule } from '../pipes/marketplace-pipes.module'
+import { MarketplacePipesModule } from '@start9labs/marketplace'
+
+import { ReleaseNotesPage } from './release-notes.page'
+import { ReleaseNotesHeaderComponent } from './release-notes-header/release-notes-header.component'
 
 const routes: Routes = [
   {
     path: '',
-    component: AppReleaseNotes,
+    component: ReleaseNotesPage,
   },
 ]
 
@@ -26,7 +29,9 @@ const routes: Routes = [
     EmverPipesModule,
     MarkdownPipeModule,
     MarketplacePipesModule,
+    ElementModule,
   ],
-  declarations: [AppReleaseNotes],
+  declarations: [ReleaseNotesPage, ReleaseNotesHeaderComponent],
+  exports: [ReleaseNotesPage, ReleaseNotesHeaderComponent],
 })
-export class ReleaseNotesModule {}
+export class ReleaseNotesPageModule {}

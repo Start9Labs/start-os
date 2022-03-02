@@ -5,6 +5,9 @@
 export * from './components/text-spinner/text-spinner.component.module'
 export * from './components/text-spinner/text-spinner.component'
 
+export * from './directives/element/element.directive'
+export * from './directives/element/element.module'
+
 export * from './pipes/emver/emver.module'
 export * from './pipes/emver/emver.pipe'
 export * from './pipes/markdown/markdown.module'

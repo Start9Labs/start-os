@@ -278,16 +278,6 @@ ion-loading {
   --padding-start: 10px;
 }
 
-.divider {
-  background: linear-gradient(
-    90deg,
-    var(--ion-color-light) 0,
-    var(--ion-color-dark) 50%,
-    var(--ion-color-light) 100%
-  );
-  height: 1px;
-}
-
 h2 {
   line-height: unset;
 }

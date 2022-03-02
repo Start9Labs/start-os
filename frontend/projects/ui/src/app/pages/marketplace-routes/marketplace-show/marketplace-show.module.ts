@@ -10,7 +10,7 @@ import {
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
-import { MarketplacePipesModule } from '../pipes/marketplace-pipes.module'
+import { MarketplacePipesModule } from '@start9labs/marketplace'
 
 const routes: Routes = [
   {

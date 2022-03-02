@@ -48,6 +48,7 @@ export class PatchDbService {
     return this.patchDb.store.cache.data
   }
 
+  // TODO: Refactor to use `Observable` so that we can react to PatchDb becoming loaded
   get loaded(): boolean {
     return (
       this.patchDb?.store?.cache?.data &&
