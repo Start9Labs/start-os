@@ -68,7 +68,7 @@ impl ImageTag {
                 crate::ErrorKind::ValidateS9pk,
             ));
         }
-        if id != &self.package_id {
+        if version != &self.version {
             return Err(Error::new(
                 eyre!(
                     "Contains image with incorrect version: expected {} received {}",
