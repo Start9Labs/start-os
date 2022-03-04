@@ -1,11 +1,12 @@
 import { Component } from '@angular/core'
 import { defer, Observable } from 'rxjs'
-import { filter, first, map, startWith, switchMapTo } from 'rxjs/operators'
+import { filter, first, map, startWith, switchMapTo, tap } from 'rxjs/operators'
 import { exists, isEmptyObject } from '@start9labs/shared'
 import {
   AbstractMarketplaceService,
   LocalPkg,
   MarketplacePkg,
+  spreadProgress,
 } from '@start9labs/marketplace'
 
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -19,6 +20,7 @@ export class MarketplaceListPage {
     this.patch.watch$('package-data'),
   ).pipe(
     filter(data => exists(data) && !isEmptyObject(data)),
+    tap(pkgs => Object.values(pkgs).forEach(spreadProgress)),
     startWith({}),
   )
 

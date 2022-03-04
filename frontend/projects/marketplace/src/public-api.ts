@@ -13,3 +13,5 @@ export * from './types/marketplace'
 export * from './types/marketplace-data'
 export * from './types/marketplace-manifest'
 export * from './types/marketplace-pkg'
+
+export * from './utils/spread-progress'

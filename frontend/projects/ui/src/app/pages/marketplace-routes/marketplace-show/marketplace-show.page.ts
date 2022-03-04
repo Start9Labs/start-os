@@ -5,6 +5,7 @@ import {
   LocalPkg,
   MarketplacePkg,
   AbstractMarketplaceService,
+  spreadProgress,
 } from '@start9labs/marketplace'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { BehaviorSubject, defer, Observable, of } from 'rxjs'
@@ -30,15 +31,7 @@ export class MarketplaceShowPage {
 
   readonly localPkg$ = defer(() =>
     this.patch.watch$('package-data', this.pkgId),
-  ).pipe(
-    filter<LocalPkg>(Boolean),
-    tap(pkg => {
-      pkg['install-progress'] = {
-        ...pkg['install-progress'],
-      }
-    }),
-    share(),
-  )
+  ).pipe(filter<LocalPkg>(Boolean), tap(spreadProgress), share())
 
   readonly pkg$: Observable<MarketplacePkg> = this.loadVersion$.pipe(
     switchMap(version =>

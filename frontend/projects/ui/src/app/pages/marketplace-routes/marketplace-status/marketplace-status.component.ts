@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { LocalPkg } from '@start9labs/marketplace'
 import { PackageState } from '@start9labs/shared'
 
 @Component({
   selector: 'marketplace-status',
   templateUrl: 'marketplace-status.component.html',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceStatusComponent {
   @Input()
