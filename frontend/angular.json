@@ -386,14 +386,14 @@
         "build": {
           "builder": "@angular-devkit/build-angular:ng-packagr",
           "options": {
-            "project": "projects/shared/ng-package.json"
+            "project": "projects/marketplace/ng-package.json"
           },
           "configurations": {
             "production": {
-              "tsConfig": "projects/shared/tsconfig.prod.json"
+              "tsConfig": "projects/marketplace/tsconfig.prod.json"
             },
             "development": {
-              "tsConfig": "projects/shared/tsconfig.json"
+              "tsConfig": "projects/marketplace/tsconfig.json"
             }
           },
           "defaultConfiguration": "production"
