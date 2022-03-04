@@ -79,10 +79,12 @@ export class WizardBaker {
             verb: 'beginning update for',
             title,
             executeAction: () =>
-              this.marketplaceService.installPackage({
-                id,
-                'version-spec': version ? `=${version}` : undefined,
-              }),
+              this.marketplaceService
+                .installPackage({
+                  id,
+                  'version-spec': version ? `=${version}` : undefined,
+                })
+                .toPromise(),
           },
         },
         bottomBar: {
@@ -204,10 +206,12 @@ export class WizardBaker {
             verb: 'beginning downgrade for',
             title,
             executeAction: () =>
-              this.marketplaceService.installPackage({
-                id,
-                'version-spec': version ? `=${version}` : undefined,
-              }),
+              this.marketplaceService
+                .installPackage({
+                  id,
+                  'version-spec': version ? `=${version}` : undefined,
+                })
+                .toPromise(),
           },
         },
         bottomBar: {

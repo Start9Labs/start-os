@@ -1,10 +1,11 @@
-import { Component, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { LocalPkg, MarketplacePkg } from '@start9labs/marketplace'
 
 @Component({
   selector: 'marketplace-list-content',
   templateUrl: 'marketplace-list-content.component.html',
   styleUrls: ['./marketplace-list-content.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceListContentComponent {
   @Input()

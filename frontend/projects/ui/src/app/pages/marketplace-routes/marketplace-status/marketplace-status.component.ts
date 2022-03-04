@@ -3,11 +3,11 @@ import { LocalPkg } from '@start9labs/marketplace'
 import { PackageState } from '@start9labs/shared'
 
 @Component({
-  selector: 'marketplace-list-status',
-  templateUrl: 'marketplace-list-status.component.html',
+  selector: 'marketplace-status',
+  templateUrl: 'marketplace-status.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MarketplaceListStatusComponent {
+export class MarketplaceStatusComponent {
   @Input()
   pkg?: LocalPkg
 

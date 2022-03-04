@@ -56,8 +56,7 @@ export function isObject(val: any): boolean {
 }
 
 export function isEmptyObject(obj: object): boolean {
-  if (obj === undefined) return true
-  return !Object.keys(obj).length
+  return obj === undefined || !Object.keys(obj).length
 }
 
 export function pauseFor(ms: number): Promise<void> {

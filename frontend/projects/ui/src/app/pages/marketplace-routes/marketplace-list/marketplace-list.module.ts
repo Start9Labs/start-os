@@ -11,11 +11,11 @@ import {
 import { MarketplacePipesModule } from '@start9labs/marketplace'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 
+import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceListPage } from './marketplace-list.page'
 import { MarketplaceListHeaderComponent } from './marketplace-list-header/marketplace-list-header.component'
 import { MarketplaceListSkeletonComponent } from './marketplace-list-skeleton/marketplace-list-skeleton.component'
 import { MarketplaceListContentComponent } from './marketplace-list-content/marketplace-list-content.component'
-import { MarketplaceListStatusComponent } from './marketplace-list-status/marketplace-list-status.component'
 
 const routes: Routes = [
   {
@@ -34,20 +34,19 @@ const routes: Routes = [
     SharedPipesModule,
     EmverPipesModule,
     MarketplacePipesModule,
+    MarketplaceStatusModule,
     BadgeMenuComponentModule,
   ],
   declarations: [
     MarketplaceListPage,
     MarketplaceListHeaderComponent,
     MarketplaceListContentComponent,
-    MarketplaceListStatusComponent,
     MarketplaceListSkeletonComponent,
   ],
   exports: [
     MarketplaceListPage,
     MarketplaceListHeaderComponent,
     MarketplaceListContentComponent,
-    MarketplaceListStatusComponent,
     MarketplaceListSkeletonComponent,
   ],
 })

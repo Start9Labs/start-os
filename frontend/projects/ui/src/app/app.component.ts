@@ -15,7 +15,6 @@ import {
   Emver,
   ErrorToastService,
 } from '@start9labs/shared'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { Subscription } from 'rxjs'
 import {
   debounceTime,
@@ -37,7 +36,6 @@ import { LocalStorageService } from './services/local-storage.service'
 import { EOSService } from './services/eos.service'
 import { OSWelcomePage } from './modals/os-welcome/os-welcome.page'
 import { SnakePage } from './modals/snake/snake.page'
-import { MarketplaceService } from './services/marketplace.service'
 
 @Component({
   selector: 'app-root',
@@ -133,8 +131,6 @@ export class AppComponent {
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
     private readonly modalCtrl: ModalController,
-    @Inject(AbstractMarketplaceService)
-    private readonly marketplaceService: MarketplaceService,
     private readonly toastCtrl: ToastController,
     private readonly errToast: ErrorToastService,
     private readonly config: ConfigService,
@@ -196,8 +192,6 @@ export class AppComponent {
               this.watchVersion(),
               // watch unread notification count to display toast
               this.watchNotifications(),
-              // watch marketplace URL for changes
-              this.marketplaceService.init(),
             ])
           })
         // UNVERIFIED

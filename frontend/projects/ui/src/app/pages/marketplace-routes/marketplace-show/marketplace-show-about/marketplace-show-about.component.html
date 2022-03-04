@@ -1,0 +1,23 @@
+<!-- release notes -->
+<ion-item-divider>
+  New in {{ pkg.manifest.version | displayEmver }}
+  <ion-button routerLink="notes" class="all-notes" fill="clear" color="dark">
+    All Release Notes
+    <ion-icon slot="end" name="arrow-forward-outline"></ion-icon>
+  </ion-button>
+</ion-item-divider>
+<ion-item lines="none" color="transparent">
+  <ion-label>
+    <div
+      class="release-notes"
+      [innerHTML]="pkg.manifest['release-notes'] | markdown"
+    ></div>
+  </ion-label>
+</ion-item>
+<!-- description -->
+<ion-item-divider>Description</ion-item-divider>
+<ion-item lines="none" color="transparent">
+  <ion-label>
+    <div class="release-notes">{{ pkg.manifest.description.long }}</div>
+  </ion-label>
+</ion-item>

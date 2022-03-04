@@ -15,6 +15,7 @@ import { v4 } from 'uuid'
 import { UIMarketplaceData } from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { finalize, first } from 'rxjs/operators'
 
 @Component({
   selector: 'marketplaces',
@@ -164,13 +165,13 @@ export class MarketplacesPage {
 
     loader.message = 'Syncing store...'
 
-    try {
-      await this.marketplaceService.load()
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+    this.marketplaceService
+      .getPackages()
+      .pipe(
+        first(),
+        finalize(() => loader.dismiss()),
+      )
+      .subscribe()
   }
 
   private async delete(id: string): Promise<void> {
@@ -285,13 +286,13 @@ export class MarketplacesPage {
 
     loader.message = 'Syncing marketplace data...'
 
-    try {
-      await this.marketplaceService.load()
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+    this.marketplaceService
+      .getPackages()
+      .pipe(
+        first(),
+        finalize(() => loader.dismiss()),
+      )
+      .subscribe()
   }
 }
 

@@ -9,11 +9,11 @@ import { AbstractMarketplaceService } from '@start9labs/marketplace'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReleaseNotesPage {
-  readonly pkgId = this.route.snapshot.paramMap.get('pkgId')
-
-  readonly notes$ = this.marketplaceService.getReleaseNotes(this.pkgId)
+  private readonly pkgId = this.route.snapshot.paramMap.get('pkgId')
 
   private selected: string | null = null
+
+  readonly notes$ = this.marketplaceService.getReleaseNotes(this.pkgId)
 
   constructor(
     private readonly route: ActivatedRoute,

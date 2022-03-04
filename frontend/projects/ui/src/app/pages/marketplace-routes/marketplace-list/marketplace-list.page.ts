@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { defer, Observable } from 'rxjs'
-import { filter, first, map, startWith, switchMapTo, tap } from 'rxjs/operators'
+import { filter, first, map, startWith, switchMapTo } from 'rxjs/operators'
 import { exists, isEmptyObject } from '@start9labs/shared'
 import {
   AbstractMarketplaceService,
@@ -19,11 +19,6 @@ export class MarketplaceListPage {
     this.patch.watch$('package-data'),
   ).pipe(
     filter(data => exists(data) && !isEmptyObject(data)),
-    tap(pkgs =>
-      Object.values(pkgs).forEach(pkg => {
-        pkg['install-progress'] = { ...pkg['install-progress'] }
-      }),
-    ),
     startWith({}),
   )
 
@@ -33,13 +28,17 @@ export class MarketplaceListPage {
       map(categories => new Set(['featured', 'updates', ...categories, 'all'])),
     )
 
-  readonly pkgs$: Observable<MarketplacePkg[]> = this.patch
-    .watch$('server-info')
-    .pipe(
-      filter(data => exists(data) && !isEmptyObject(data)),
-      first(),
-      switchMapTo(this.marketplaceService.getPackages()),
-    )
+  readonly pkgs$: Observable<MarketplacePkg[]> = defer(() =>
+    this.patch.watch$('server-info'),
+  ).pipe(
+    filter(data => exists(data) && !isEmptyObject(data)),
+    first(),
+    switchMapTo(this.marketplaceService.getPackages()),
+  )
+
+  readonly name$: Observable<string> = this.marketplaceService
+    .getMarketplace()
+    .pipe(map(({ name }) => name))
 
   constructor(
     private readonly patch: PatchDbService,
@@ -48,9 +47,5 @@ export class MarketplaceListPage {
 
   get loaded(): boolean {
     return this.patch.loaded
-  }
-
-  get name(): string {
-    return this.marketplaceService.marketplace.name
   }
 }

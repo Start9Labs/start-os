@@ -6,7 +6,7 @@
     [localPkgs]="localPkgs$ | async"
     [pkgs]="pkgs$ | async"
     [categories]="categories$ | async"
-    [name]="name"
+    [name]="name$ | async"
   ></marketplace-list-content>
 
   <ng-template #loading>

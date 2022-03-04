@@ -46,9 +46,10 @@
               {{ pkg.manifest.title }}
             </h2>
             <h3>{{ pkg.manifest.description.short }}</h3>
-            <marketplace-list-status
+            <marketplace-status
+              class="status"
               [pkg]="localPkgs[pkg.manifest.id]"
-            ></marketplace-list-status>
+            ></marketplace-status>
           </ion-label>
         </ion-item>
       </ion-col>
