@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
 };
 
 use tokio::sync::{mpsc, oneshot};
@@ -8,15 +11,19 @@ use tokio::sync::{mpsc, oneshot};
 use futures::{stream, StreamExt};
 use tracing::{debug, error};
 
-use crate::backup::{backup_bulk::backup_all_task, target::BackupTargetId};
-use crate::context::RpcContext;
+use crate::{
+    backup::{backup_bulk::backup_all_task, target::BackupTargetId},
+    config::set_impl_task,
+    dependencies::BreakageRes,
+    s9pk::manifest::PackageId,
+};
+use crate::{config::set_dry_task, context::RpcContext};
 use crate::{db::util::WithRevision, Error};
 
 // TODO In Progress
 
 // TODO wait for closed done
 
-// TODO Config
 // TODO Installing
 // TODO Resotre
 // TODO Uninstall
@@ -34,20 +41,52 @@ pub struct BackupAll {
     pub(crate) password: String,
     pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
 }
-impl Into<Task> for BackupAll {
-    fn into(self) -> Task {
-        Task::BackupAll(self)
+impl From<BackupAll> for Task {
+    fn from(val: BackupAll) -> Self {
+        Task::BackupAll(val)
+    }
+}
+
+pub struct ConfigureSet {
+    pub(crate) ctx: RpcContext,
+    pub(crate) package_id: PackageId,
+    pub(crate) config: Option<crate::Config>,
+    pub(crate) timeout: Option<Duration>,
+    pub(crate) expire_id: Option<String>,
+    pub(crate) done: oneshot::Sender<Result<BreakageRes, Error>>,
+}
+impl From<ConfigureSet> for Task {
+    fn from(val: ConfigureSet) -> Self {
+        Task::ConfigureSet(val)
+    }
+}
+
+pub struct ConfigureImpl {
+    pub(crate) ctx: RpcContext,
+    pub(crate) package_id: PackageId,
+    pub(crate) config: Option<crate::Config>,
+    pub(crate) timeout: Option<Duration>,
+    pub(crate) expire_id: Option<String>,
+    pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+}
+impl From<ConfigureImpl> for Task {
+    fn from(val: ConfigureImpl) -> Self {
+        Task::ConfigureImpl(val)
     }
 }
 
 pub enum Task {
     BackupAll(BackupAll),
+    ConfigureSet(ConfigureSet),
+    ConfigureImpl(ConfigureImpl),
 }
 
 impl std::fmt::Debug for Task {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::BackupAll(_) => f.write_str("BackupAll"),
+            Self::ConfigureSet(_) => f.write_str("ConfigureSet"),
+            Self::ConfigureImpl(_) => f.write_str("ConfigureImpl"),
         }
     }
 }
@@ -56,6 +95,8 @@ impl Task {
     fn is_safe_concurrent(&self, _other: &Task) -> bool {
         match self {
             Task::BackupAll(_) => false,
+            Task::ConfigureSet(_) => false,
+            Task::ConfigureImpl(_) => false,
         }
     }
     async fn run(self) {
@@ -69,6 +110,38 @@ impl Task {
             }) => {
                 if let Err(err) =
                     done.send(backup_all_task(ctx, target_id, old_password, password).await)
+                {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+
+            Task::ConfigureImpl(ConfigureImpl {
+                ctx,
+                package_id,
+                config,
+                timeout,
+                expire_id,
+                done,
+            }) => {
+                if let Err(err) =
+                    done.send(set_impl_task(ctx, (package_id, config, timeout, expire_id)).await)
+                {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+
+            Task::ConfigureSet(ConfigureSet {
+                ctx,
+                package_id,
+                config,
+                timeout,
+                expire_id,
+                done,
+            }) => {
+                if let Err(err) =
+                    done.send(set_dry_task(ctx, (package_id, config, timeout, expire_id)).await)
                 {
                     error!("Task could not be notified done");
                     debug!("{:?}", err);

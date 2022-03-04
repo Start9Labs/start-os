@@ -11,9 +11,9 @@ use rand::SeedableRng;
 use regex::Regex;
 use rpc_toolkit::command;
 use serde_json::Value;
+use tokio::sync::oneshot;
 use tracing::instrument;
 
-use crate::context::RpcContext;
 use crate::db::model::CurrentDependencyInfo;
 use crate::db::util::WithRevision;
 use crate::dependencies::{
@@ -24,6 +24,7 @@ use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
+use crate::{context::RpcContext, tasks};
 use crate::{Error, ResultExt as _};
 
 pub mod action;
@@ -219,12 +220,34 @@ pub fn set(
 #[instrument(skip(ctx))]
 pub async fn set_dry(
     #[context] ctx: RpcContext,
-    #[parent_data] (id, config, timeout, _): (
+    #[parent_data] (id, config, timeout, expire_id): (
         PackageId,
         Option<Config>,
         Option<Duration>,
         Option<String>,
     ),
+) -> Result<BreakageRes, Error> {
+    let (done, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        tasks::ConfigureSet {
+            ctx: ctx.clone(),
+            package_id: id,
+            config,
+            timeout,
+            expire_id,
+            done,
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+
+#[instrument(skip(ctx))]
+pub async fn set_dry_task(
+    ctx: RpcContext,
+    (id, config, timeout, _): (PackageId, Option<Config>, Option<Duration>, Option<String>),
 ) -> Result<BreakageRes, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
@@ -258,6 +281,27 @@ pub async fn set_dry(
 
 #[instrument(skip(ctx))]
 pub async fn set_impl(
+    ctx: RpcContext,
+    (id, config, timeout, expire_id): (PackageId, Option<Config>, Option<Duration>, Option<String>),
+) -> Result<WithRevision<()>, Error> {
+    let (done, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        tasks::ConfigureImpl {
+            ctx: ctx.clone(),
+            package_id: id,
+            config,
+            timeout,
+            expire_id,
+            done,
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+#[instrument(skip(ctx))]
+pub async fn set_impl_task(
     ctx: RpcContext,
     (id, config, timeout, expire_id): (PackageId, Option<Config>, Option<Duration>, Option<String>),
 ) -> Result<WithRevision<()>, Error> {
