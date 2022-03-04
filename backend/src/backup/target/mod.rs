@@ -42,7 +42,7 @@ pub enum BackupTarget {
     Cifs(CifsBackupTarget),
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
     Cifs { id: u32 },

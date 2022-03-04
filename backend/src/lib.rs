@@ -40,6 +40,7 @@ pub mod ssh;
 pub mod static_server;
 pub mod status;
 pub mod system;
+pub mod tasks;
 pub mod update;
 pub mod util;
 pub mod version;

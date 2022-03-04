@@ -9,14 +9,12 @@ use patch_db::{DbHandle, LockType, PatchDbHandle, Revision};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::io::AsyncWriteExt;
+use tokio::{io::AsyncWriteExt, sync::oneshot};
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
 use super::PackageBackupReport;
-use crate::auth::check_password_against_db;
-use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::util::WithRevision;
 use crate::disk::mount::backup::BackupMountGuard;
@@ -29,6 +27,11 @@ use crate::util::serde::IoFormat;
 use crate::util::{display_none, AtomicFile};
 use crate::version::VersionT;
 use crate::Error;
+use crate::{auth::check_password_against_db, tasks};
+use crate::{
+    backup::{BackupReport, ServerBackupReport},
+    ErrorKind,
+};
 
 #[derive(Debug)]
 pub struct OsBackup {
@@ -119,6 +122,28 @@ pub async fn backup_all(
     #[arg(rename = "target-id")] target_id: BackupTargetId,
     #[arg(rename = "old-password", long = "old-password")] old_password: Option<String>,
     #[arg] password: String,
+) -> Result<WithRevision<()>, Error> {
+    let (sx, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        tasks::BackupAll {
+            ctx: ctx.clone(),
+            target_id,
+            old_password,
+            password,
+            done: sx,
+        }
+        .into(),
+    );
+
+    rx.await.map_err(|e| Error::new(e, ErrorKind::Unknown))?
+}
+
+#[instrument(skip(ctx, old_password, password))]
+pub async fn backup_all_task(
+    ctx: RpcContext,
+    target_id: BackupTargetId,
+    old_password: Option<String>,
+    password: String,
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;

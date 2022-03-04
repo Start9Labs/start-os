@@ -22,7 +22,6 @@ use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::hostname::{derive_hostname, derive_id, get_product_key};
 use crate::install::cleanup::{cleanup_failed, uninstall};
@@ -37,6 +36,10 @@ use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::io::from_toml_async_reader;
 use crate::util::{AsyncFileExt, Invoke};
+use crate::{
+    core::rpc_continuations::{RequestGuid, RpcContinuation},
+    tasks::TaskRunner,
+};
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -131,6 +134,7 @@ pub struct RpcContextSeed {
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
     pub wifi_manager: Arc<RwLock<WpaCli>>,
+    pub task_runner: Arc<TaskRunner>,
 }
 
 #[derive(Clone)]
@@ -168,6 +172,9 @@ impl RpcContext {
         let metrics_cache = RwLock::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
+
+        let task_runner = Arc::new(TaskRunner::default());
+
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
@@ -189,6 +196,7 @@ impl RpcContext {
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
             wifi_manager: Arc::new(RwLock::new(WpaCli::init("wlan0".to_string()))),
+            task_runner,
         });
 
         let res = Self(seed);
