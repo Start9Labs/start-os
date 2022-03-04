@@ -8,15 +8,13 @@ use tokio::sync::mpsc;
 use futures::{stream, StreamExt};
 use tracing::{debug, error};
 
-use crate::config::set_dry_task;
 use crate::{backup::backup_bulk::backup_all_task, config::set_impl_task, control};
+use crate::{config::set_dry_task, install};
 
 // TODO In Progress
 
 // TODO wait for closed done
 
-// TODO Uninstall
-// TODO Installing
 // TODO Restore
 
 // TODO Property?
@@ -28,12 +26,17 @@ use crate::{backup::backup_bulk::backup_all_task, config::set_impl_task, control
 pub mod task_shapes {
     use std::time::Duration;
 
+    use reqwest::Url;
     use tokio::sync::oneshot;
 
-    use crate::context::RpcContext;
     use crate::{
-        backup::target::BackupTargetId, dependencies::BreakageRes, s9pk::manifest::PackageId,
+        backup::target::BackupTargetId,
+        core::rpc_continuations::RequestGuid,
+        dependencies::BreakageRes,
+        install,
+        s9pk::manifest::{Manifest, PackageId},
     };
+    use crate::{context::RpcContext, install::MinMax};
     use crate::{db::util::WithRevision, Error};
 
     use super::Task;
@@ -109,6 +112,53 @@ pub mod task_shapes {
             Task::ConfigureImpl(val)
         }
     }
+
+    pub struct UninstallDry {
+        pub(crate) ctx: RpcContext,
+        pub(crate) id: PackageId,
+        pub(crate) done: oneshot::Sender<Result<BreakageRes, Error>>,
+    }
+    impl From<UninstallDry> for Task {
+        fn from(val: UninstallDry) -> Self {
+            Task::UninstallDry(val)
+        }
+    }
+
+    pub struct UninstallImpl {
+        pub(crate) ctx: RpcContext,
+        pub(crate) id: PackageId,
+        pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+    }
+    impl From<UninstallImpl> for Task {
+        fn from(val: UninstallImpl) -> Self {
+            Task::UninstallImpl(val)
+        }
+    }
+
+    pub struct Install {
+        pub(crate) ctx: RpcContext,
+        pub(crate) id: String,
+        pub(crate) marketplace_url: Option<Url>,
+        pub(crate) version_spec: Option<String>,
+        pub(crate) version_priority: Option<install::MinMax>,
+        pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+    }
+    impl From<Install> for Task {
+        fn from(val: Install) -> Self {
+            Task::Install(val)
+        }
+    }
+
+    pub struct Sideload {
+        pub(crate) ctx: RpcContext,
+        pub(crate) manifest: Manifest,
+        pub(crate) done: oneshot::Sender<Result<RequestGuid, Error>>,
+    }
+    impl From<Sideload> for Task {
+        fn from(val: Sideload) -> Self {
+            Task::Sideload(val)
+        }
+    }
 }
 use task_shapes::*;
 
@@ -119,6 +169,10 @@ pub enum Task {
     CommandStart(CommandStart),
     CommandStopDry(CommandStopDry),
     CommandStopImpl(CommandStopImpl),
+    UninstallDry(UninstallDry),
+    UninstallImpl(UninstallImpl),
+    Sideload(Sideload),
+    Install(Install),
 }
 
 impl std::fmt::Debug for Task {
@@ -130,6 +184,10 @@ impl std::fmt::Debug for Task {
             Self::CommandStart(_) => f.write_str("CommandStart"),
             Self::CommandStopDry(_) => f.write_str("CommandStopDry"),
             Self::CommandStopImpl(_) => f.write_str("CommandStopImpl"),
+            Self::UninstallDry(_) => f.write_str("UninstallDry"),
+            Self::UninstallImpl(_) => f.write_str("UninstallImpl"),
+            Self::Sideload(_) => f.write_str("Sideload"),
+            Self::Install(_) => f.write_str("Install"),
         }
     }
 }
@@ -141,12 +199,17 @@ impl Task {
             Task::ConfigureSet(_) => false,
             Task::ConfigureImpl(_) => false,
             Task::CommandStart(_) => {
-                matches!(self, Task::CommandStart(_) | Task::CommandStopDry(_))
+                matches!(self, Task::CommandStart(_))
             }
-            Task::CommandStopDry(_) => {
-                matches!(self, Task::CommandStart(_) | Task::CommandStopDry(_))
+            Task::CommandStopImpl(_) | Task::CommandStopDry(_) => {
+                matches!(self, Task::CommandStopImpl(_) | Task::CommandStopDry(_))
             }
-            Task::CommandStopImpl(_) => matches!(self, Task::CommandStopImpl(_)),
+            Task::UninstallImpl(_) | Task::UninstallDry(_) => {
+                matches!(self, Task::UninstallImpl(_) | Task::UninstallDry(_))
+            }
+            Task::Sideload(_) | Task::Install(_) => {
+                matches!(self, Task::Sideload(_) | Task::Install(_))
+            }
         }
     }
     async fn run(self) {
@@ -211,6 +274,44 @@ impl Task {
             }
             Task::CommandStopImpl(CommandStopImpl { ctx, id, done }) => {
                 if let Err(err) = done.send(control::stop_impl_task(ctx, id).await) {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+            Task::UninstallImpl(UninstallImpl { ctx, id, done }) => {
+                if let Err(err) = done.send(install::uninstall_impl_task(ctx, id).await) {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+            Task::UninstallDry(UninstallDry { ctx, id, done }) => {
+                if let Err(err) = done.send(install::uninstall_dry_task(ctx, id).await) {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+            Task::Install(Install {
+                ctx,
+                done,
+                id,
+                marketplace_url,
+                version_priority,
+                version_spec,
+            }) => {
+                if let Err(err) = done.send(
+                    install::install_task(ctx, id, marketplace_url, version_spec, version_priority)
+                        .await,
+                ) {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+            Task::Sideload(Sideload {
+                ctx,
+                done,
+                manifest,
+            }) => {
+                if let Err(err) = done.send(install::sideload_task(ctx, manifest).await) {
                     error!("Task could not be notified done");
                     debug!("{:?}", err);
                 }

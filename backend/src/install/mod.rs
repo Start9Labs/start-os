@@ -18,14 +18,16 @@ use patch_db::{DbHandle, LockType};
 use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, Context};
-use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
+use tokio::{
+    fs::{File, OpenOptions},
+    sync::oneshot,
+};
 use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
-use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, RecoveredPackageInfo,
@@ -47,6 +49,10 @@ use crate::util::serde::{display_serializable, IoFormat, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::asset_dir;
+use crate::{
+    context::{CliContext, RpcContext},
+    tasks::task_shapes,
+};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod cleanup;
@@ -125,6 +131,31 @@ pub async fn install(
         String,
     >,
     #[arg(long = "version-priority", rename = "version-priority")] version_priority: Option<MinMax>,
+) -> Result<WithRevision<()>, Error> {
+    let (done, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        task_shapes::Install {
+            ctx: ctx.clone(),
+            id,
+            marketplace_url,
+            version_spec,
+            version_priority,
+            done,
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+#[instrument(skip(ctx))]
+pub async fn install_task(
+    ctx: RpcContext,
+    id: String,
+
+    marketplace_url: Option<Url>,
+    version_spec: Option<String>,
+    version_priority: Option<MinMax>,
 ) -> Result<WithRevision<()>, Error> {
     let version_str = match &version_spec {
         None => "*",
@@ -330,6 +361,21 @@ pub async fn sideload(
     #[context] ctx: RpcContext,
     #[arg] manifest: Manifest,
 ) -> Result<RequestGuid, Error> {
+    let (done, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        task_shapes::Sideload {
+            ctx: ctx.clone(),
+            manifest,
+            done,
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+#[instrument(skip(ctx))]
+pub async fn sideload_task(ctx: RpcContext, manifest: Manifest) -> Result<RequestGuid, Error> {
     let new_ctx = ctx.clone();
     let guid = RequestGuid::new();
     let handler = Box::new(|req: Request<Body>| {
@@ -559,6 +605,22 @@ pub async fn uninstall_dry(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
 ) -> Result<BreakageRes, Error> {
+    let (done, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        task_shapes::UninstallDry {
+            ctx: ctx.clone(),
+            id,
+            done,
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+
+#[instrument(skip(ctx))]
+pub async fn uninstall_dry_task(ctx: RpcContext, id: PackageId) -> Result<BreakageRes, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
@@ -572,6 +634,25 @@ pub async fn uninstall_dry(
 
 #[instrument(skip(ctx))]
 pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
+    let (done, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        task_shapes::UninstallImpl {
+            ctx: ctx.clone(),
+            id,
+            done,
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+
+#[instrument(skip(ctx))]
+pub async fn uninstall_impl_task(
+    ctx: RpcContext,
+    id: PackageId,
+) -> Result<WithRevision<()>, Error> {
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
 
