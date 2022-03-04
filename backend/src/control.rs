@@ -3,9 +3,9 @@ use std::collections::BTreeMap;
 use color_eyre::eyre::eyre;
 use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
+use tokio::sync::oneshot;
 use tracing::instrument;
 
-use crate::context::RpcContext;
 use crate::db::util::WithRevision;
 use crate::dependencies::{
     break_all_dependents_transitive, heal_all_dependents_transitive, BreakageRes, DependencyError,
@@ -15,6 +15,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
+use crate::{context::RpcContext, tasks};
 use crate::{Error, ResultExt};
 
 #[command(display(display_none))]
@@ -23,6 +24,22 @@ pub async fn start(
     #[context] ctx: RpcContext,
     #[arg] id: PackageId,
 ) -> Result<WithRevision<()>, Error> {
+    let (done, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        tasks::CommandStart {
+            ctx: ctx.clone(),
+            id,
+            done,
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+
+#[instrument(skip(ctx))]
+pub async fn start_task(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     crate::db::DatabaseModel::new()
@@ -113,6 +130,21 @@ pub async fn stop_dry(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
 ) -> Result<BreakageRes, Error> {
+    let (done, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        tasks::CommandStopDry {
+            ctx: ctx.clone(),
+            id,
+            done,
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+#[instrument(skip(ctx))]
+pub async fn stop_dry_task(ctx: RpcContext, id: PackageId) -> Result<BreakageRes, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
 
@@ -126,6 +158,21 @@ pub async fn stop_dry(
 
 #[instrument(skip(ctx))]
 pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
+    let (done, rx) = oneshot::channel();
+    ctx.task_runner.add_task(
+        tasks::CommandStopImpl {
+            ctx: ctx.clone(),
+            id,
+            done,
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+#[instrument(skip(ctx))]
+pub async fn stop_impl_task(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
 

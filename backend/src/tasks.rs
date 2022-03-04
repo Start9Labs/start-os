@@ -14,6 +14,7 @@ use tracing::{debug, error};
 use crate::{
     backup::{backup_bulk::backup_all_task, target::BackupTargetId},
     config::set_impl_task,
+    control,
     dependencies::BreakageRes,
     s9pk::manifest::PackageId,
 };
@@ -25,9 +26,8 @@ use crate::{db::util::WithRevision, Error};
 // TODO wait for closed done
 
 // TODO Installing
-// TODO Resotre
+// TODO Restore
 // TODO Uninstall
-// TODO Stopping / Starting
 
 // TODO Property?
 // TODO Action?
@@ -44,6 +44,37 @@ pub struct BackupAll {
 impl From<BackupAll> for Task {
     fn from(val: BackupAll) -> Self {
         Task::BackupAll(val)
+    }
+}
+pub struct CommandStart {
+    pub(crate) ctx: RpcContext,
+    pub(crate) id: PackageId,
+    pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+}
+impl From<CommandStart> for Task {
+    fn from(val: CommandStart) -> Self {
+        Task::CommandStart(val)
+    }
+}
+
+pub struct CommandStopDry {
+    pub(crate) ctx: RpcContext,
+    pub(crate) id: PackageId,
+    pub(crate) done: oneshot::Sender<Result<BreakageRes, Error>>,
+}
+impl From<CommandStopDry> for Task {
+    fn from(val: CommandStopDry) -> Self {
+        Task::CommandStopDry(val)
+    }
+}
+pub struct CommandStopImpl {
+    pub(crate) ctx: RpcContext,
+    pub(crate) id: PackageId,
+    pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+}
+impl From<CommandStopImpl> for Task {
+    fn from(val: CommandStopImpl) -> Self {
+        Task::CommandStopImpl(val)
     }
 }
 
@@ -79,6 +110,9 @@ pub enum Task {
     BackupAll(BackupAll),
     ConfigureSet(ConfigureSet),
     ConfigureImpl(ConfigureImpl),
+    CommandStart(CommandStart),
+    CommandStopDry(CommandStopDry),
+    CommandStopImpl(CommandStopImpl),
 }
 
 impl std::fmt::Debug for Task {
@@ -87,6 +121,9 @@ impl std::fmt::Debug for Task {
             Self::BackupAll(_) => f.write_str("BackupAll"),
             Self::ConfigureSet(_) => f.write_str("ConfigureSet"),
             Self::ConfigureImpl(_) => f.write_str("ConfigureImpl"),
+            Self::CommandStart(_) => f.write_str("CommandStart"),
+            Self::CommandStopDry(_) => f.write_str("CommandStopDry"),
+            Self::CommandStopImpl(_) => f.write_str("CommandStopImpl"),
         }
     }
 }
@@ -97,6 +134,13 @@ impl Task {
             Task::BackupAll(_) => false,
             Task::ConfigureSet(_) => false,
             Task::ConfigureImpl(_) => false,
+            Task::CommandStart(_) => {
+                matches!(self, Task::CommandStart(_) | Task::CommandStopDry(_))
+            }
+            Task::CommandStopDry(_) => {
+                matches!(self, Task::CommandStart(_) | Task::CommandStopDry(_))
+            }
+            Task::CommandStopImpl(_) => matches!(self, Task::CommandStopImpl(_)),
         }
     }
     async fn run(self) {
@@ -143,6 +187,24 @@ impl Task {
                 if let Err(err) =
                     done.send(set_dry_task(ctx, (package_id, config, timeout, expire_id)).await)
                 {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+            Task::CommandStart(CommandStart { ctx, id, done }) => {
+                if let Err(err) = done.send(control::start_task(ctx, id).await) {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+            Task::CommandStopDry(CommandStopDry { ctx, id, done }) => {
+                if let Err(err) = done.send(control::stop_dry_task(ctx, id).await) {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+            Task::CommandStopImpl(CommandStopImpl { ctx, id, done }) => {
+                if let Err(err) = done.send(control::stop_impl_task(ctx, id).await) {
                     error!("Task could not be notified done");
                     debug!("{:?}", err);
                 }
