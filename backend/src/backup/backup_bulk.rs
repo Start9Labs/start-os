@@ -27,7 +27,7 @@ use crate::util::serde::IoFormat;
 use crate::util::{display_none, AtomicFile};
 use crate::version::VersionT;
 use crate::Error;
-use crate::{auth::check_password_against_db, tasks};
+use crate::{auth::check_password_against_db, tasks::task_shapes};
 use crate::{
     backup::{BackupReport, ServerBackupReport},
     ErrorKind,
@@ -125,7 +125,7 @@ pub async fn backup_all(
 ) -> Result<WithRevision<()>, Error> {
     let (sx, rx) = oneshot::channel();
     ctx.task_runner.add_task(
-        tasks::BackupAll {
+        task_shapes::BackupAll {
             ctx: ctx.clone(),
             target_id,
             old_password,

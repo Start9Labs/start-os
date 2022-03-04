@@ -6,7 +6,7 @@ use rpc_toolkit::command;
 use tokio::sync::oneshot;
 use tracing::instrument;
 
-use crate::db::util::WithRevision;
+use crate::context::RpcContext;
 use crate::dependencies::{
     break_all_dependents_transitive, heal_all_dependents_transitive, BreakageRes, DependencyError,
     TaggedDependencyError,
@@ -15,7 +15,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
-use crate::{context::RpcContext, tasks};
+use crate::{db::util::WithRevision, tasks::task_shapes};
 use crate::{Error, ResultExt};
 
 #[command(display(display_none))]
@@ -26,7 +26,7 @@ pub async fn start(
 ) -> Result<WithRevision<()>, Error> {
     let (done, rx) = oneshot::channel();
     ctx.task_runner.add_task(
-        tasks::CommandStart {
+        task_shapes::CommandStart {
             ctx: ctx.clone(),
             id,
             done,
@@ -132,7 +132,7 @@ pub async fn stop_dry(
 ) -> Result<BreakageRes, Error> {
     let (done, rx) = oneshot::channel();
     ctx.task_runner.add_task(
-        tasks::CommandStopDry {
+        task_shapes::CommandStopDry {
             ctx: ctx.clone(),
             id,
             done,
@@ -160,7 +160,7 @@ pub async fn stop_dry_task(ctx: RpcContext, id: PackageId) -> Result<BreakageRes
 pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
     let (done, rx) = oneshot::channel();
     ctx.task_runner.add_task(
-        tasks::CommandStopImpl {
+        task_shapes::CommandStopImpl {
             ctx: ctx.clone(),
             id,
             done,

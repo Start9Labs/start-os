@@ -24,7 +24,7 @@ use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
-use crate::{context::RpcContext, tasks};
+use crate::{context::RpcContext, tasks::task_shapes};
 use crate::{Error, ResultExt as _};
 
 pub mod action;
@@ -229,7 +229,7 @@ pub async fn set_dry(
 ) -> Result<BreakageRes, Error> {
     let (done, rx) = oneshot::channel();
     ctx.task_runner.add_task(
-        tasks::ConfigureSet {
+        task_shapes::ConfigureSet {
             ctx: ctx.clone(),
             package_id: id,
             config,
@@ -286,7 +286,7 @@ pub async fn set_impl(
 ) -> Result<WithRevision<()>, Error> {
     let (done, rx) = oneshot::channel();
     ctx.task_runner.add_task(
-        tasks::ConfigureImpl {
+        task_shapes::ConfigureImpl {
             ctx: ctx.clone(),
             package_id: id,
             config,

@@ -1,110 +1,116 @@
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 
 use futures::{stream, StreamExt};
 use tracing::{debug, error};
 
-use crate::{
-    backup::{backup_bulk::backup_all_task, target::BackupTargetId},
-    config::set_impl_task,
-    control,
-    dependencies::BreakageRes,
-    s9pk::manifest::PackageId,
-};
-use crate::{config::set_dry_task, context::RpcContext};
-use crate::{db::util::WithRevision, Error};
+use crate::config::set_dry_task;
+use crate::{backup::backup_bulk::backup_all_task, config::set_impl_task, control};
 
 // TODO In Progress
 
 // TODO wait for closed done
 
+// TODO Uninstall
 // TODO Installing
 // TODO Restore
-// TODO Uninstall
 
 // TODO Property?
 // TODO Action?
 // TODO Dependency?
 // TODO Health Checks?
 
-pub struct BackupAll {
-    pub(crate) ctx: RpcContext,
-    pub(crate) target_id: BackupTargetId,
-    pub(crate) old_password: Option<String>,
-    pub(crate) password: String,
-    pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
-}
-impl From<BackupAll> for Task {
-    fn from(val: BackupAll) -> Self {
-        Task::BackupAll(val)
-    }
-}
-pub struct CommandStart {
-    pub(crate) ctx: RpcContext,
-    pub(crate) id: PackageId,
-    pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
-}
-impl From<CommandStart> for Task {
-    fn from(val: CommandStart) -> Self {
-        Task::CommandStart(val)
-    }
-}
+/// Use these shapes to send into the task_runner.
+pub mod task_shapes {
+    use std::time::Duration;
 
-pub struct CommandStopDry {
-    pub(crate) ctx: RpcContext,
-    pub(crate) id: PackageId,
-    pub(crate) done: oneshot::Sender<Result<BreakageRes, Error>>,
-}
-impl From<CommandStopDry> for Task {
-    fn from(val: CommandStopDry) -> Self {
-        Task::CommandStopDry(val)
-    }
-}
-pub struct CommandStopImpl {
-    pub(crate) ctx: RpcContext,
-    pub(crate) id: PackageId,
-    pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
-}
-impl From<CommandStopImpl> for Task {
-    fn from(val: CommandStopImpl) -> Self {
-        Task::CommandStopImpl(val)
-    }
-}
+    use tokio::sync::oneshot;
 
-pub struct ConfigureSet {
-    pub(crate) ctx: RpcContext,
-    pub(crate) package_id: PackageId,
-    pub(crate) config: Option<crate::Config>,
-    pub(crate) timeout: Option<Duration>,
-    pub(crate) expire_id: Option<String>,
-    pub(crate) done: oneshot::Sender<Result<BreakageRes, Error>>,
-}
-impl From<ConfigureSet> for Task {
-    fn from(val: ConfigureSet) -> Self {
-        Task::ConfigureSet(val)
-    }
-}
+    use crate::context::RpcContext;
+    use crate::{
+        backup::target::BackupTargetId, dependencies::BreakageRes, s9pk::manifest::PackageId,
+    };
+    use crate::{db::util::WithRevision, Error};
 
-pub struct ConfigureImpl {
-    pub(crate) ctx: RpcContext,
-    pub(crate) package_id: PackageId,
-    pub(crate) config: Option<crate::Config>,
-    pub(crate) timeout: Option<Duration>,
-    pub(crate) expire_id: Option<String>,
-    pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
-}
-impl From<ConfigureImpl> for Task {
-    fn from(val: ConfigureImpl) -> Self {
-        Task::ConfigureImpl(val)
+    use super::Task;
+
+    pub struct BackupAll {
+        pub(crate) ctx: RpcContext,
+        pub(crate) target_id: BackupTargetId,
+        pub(crate) old_password: Option<String>,
+        pub(crate) password: String,
+        pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+    }
+    impl From<BackupAll> for Task {
+        fn from(val: BackupAll) -> Self {
+            Task::BackupAll(val)
+        }
+    }
+    pub struct CommandStart {
+        pub(crate) ctx: RpcContext,
+        pub(crate) id: PackageId,
+        pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+    }
+    impl From<CommandStart> for Task {
+        fn from(val: CommandStart) -> Self {
+            Task::CommandStart(val)
+        }
+    }
+
+    pub struct CommandStopDry {
+        pub(crate) ctx: RpcContext,
+        pub(crate) id: PackageId,
+        pub(crate) done: oneshot::Sender<Result<BreakageRes, Error>>,
+    }
+    impl From<CommandStopDry> for Task {
+        fn from(val: CommandStopDry) -> Self {
+            Task::CommandStopDry(val)
+        }
+    }
+    pub struct CommandStopImpl {
+        pub(crate) ctx: RpcContext,
+        pub(crate) id: PackageId,
+        pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+    }
+    impl From<CommandStopImpl> for Task {
+        fn from(val: CommandStopImpl) -> Self {
+            Task::CommandStopImpl(val)
+        }
+    }
+
+    pub struct ConfigureSet {
+        pub(crate) ctx: RpcContext,
+        pub(crate) package_id: PackageId,
+        pub(crate) config: Option<crate::Config>,
+        pub(crate) timeout: Option<Duration>,
+        pub(crate) expire_id: Option<String>,
+        pub(crate) done: oneshot::Sender<Result<BreakageRes, Error>>,
+    }
+    impl From<ConfigureSet> for Task {
+        fn from(val: ConfigureSet) -> Self {
+            Task::ConfigureSet(val)
+        }
+    }
+
+    pub struct ConfigureImpl {
+        pub(crate) ctx: RpcContext,
+        pub(crate) package_id: PackageId,
+        pub(crate) config: Option<crate::Config>,
+        pub(crate) timeout: Option<Duration>,
+        pub(crate) expire_id: Option<String>,
+        pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+    }
+    impl From<ConfigureImpl> for Task {
+        fn from(val: ConfigureImpl) -> Self {
+            Task::ConfigureImpl(val)
+        }
     }
 }
+use task_shapes::*;
 
 pub enum Task {
     BackupAll(BackupAll),
