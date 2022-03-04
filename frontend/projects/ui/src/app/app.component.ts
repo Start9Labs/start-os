@@ -257,6 +257,7 @@ export class AppComponent {
       const modal = await this.modalCtrl.create({
         component: OSWelcomePage,
         presentingElement: await this.modalCtrl.getTop(),
+        backdropDismiss: false,
         componentProps: {
           version: this.config.version,
         },

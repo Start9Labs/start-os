@@ -4,6 +4,7 @@ import { IonicModule } from '@ionic/angular'
 import { FormsModule } from '@angular/forms'
 import { SuccessPage } from './success.page'
 import { PasswordPageModule } from '../../modals/password/password.module'
+import { SuccessPageRoutingModule } from './success-routing.module'
 
 @NgModule({
   imports: [
@@ -11,8 +12,9 @@ import { PasswordPageModule } from '../../modals/password/password.module'
     FormsModule,
     IonicModule,
     PasswordPageModule,
+    SuccessPageRoutingModule,
   ],
   declarations: [SuccessPage],
   exports: [SuccessPage],
 })
-export class SuccessPageModule { }
+export class SuccessPageModule {}

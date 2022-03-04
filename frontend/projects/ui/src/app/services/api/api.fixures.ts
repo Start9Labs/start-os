@@ -1017,6 +1017,11 @@ export module Mock {
         strength: 99,
         security: ['1', '2', '3'],
       },
+      {
+        ssid: '',
+        strength: 40,
+        security: [],
+      },
     ],
   }
 

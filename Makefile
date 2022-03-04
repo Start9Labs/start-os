@@ -60,7 +60,7 @@ $(EMBASSY_UIS): $(FRONTEND_SRC) frontend/node_modules patch-db/client patch-db/c
 
 frontend/config.json: .git/HEAD $(GIT_REFS)
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
-	jq '.gitHash = "$(shell git rev-parse HEAD)"' frontend/config.json > $(TMP_FILE) && mv $(TMP_FILE) frontend/config.json
+	npm --prefix frontend run-script build-config
 
 patch-db/client/node_modules: patch-db/client/package.json
 	npm --prefix patch-db/client install

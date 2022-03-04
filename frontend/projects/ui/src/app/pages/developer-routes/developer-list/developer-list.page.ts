@@ -78,6 +78,7 @@ export class DeveloperListPage {
 
   async presentAction(id: string, event: Event) {
     event.stopPropagation()
+    event.preventDefault()
     const buttons: ActionSheetButton[] = [
       {
         text: 'Edit Name',
@@ -220,10 +221,6 @@ export class DeveloperListPage {
     } finally {
       loader.dismiss()
     }
-  }
-
-  async goToProject(id: string) {
-    await this.navCtrl.navigateForward([id], { relativeTo: this.route })
   }
 }
 

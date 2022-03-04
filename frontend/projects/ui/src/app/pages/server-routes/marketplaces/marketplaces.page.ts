@@ -93,7 +93,7 @@ export class MarketplacesPage {
 
   async presentAction(id: string) {
     // no need to view actions if is selected marketplace
-    if (id === this.patch.getData().ui.marketplace['selected-id']) return
+    if (id === this.patch.getData().ui.marketplace?.['selected-id']) return
 
     const buttons: ActionSheetButton[] = [
       {
@@ -241,8 +241,6 @@ export class MarketplacesPage {
   }
 
   private async saveAndConnect(url: string): Promise<void> {
-    await this.save(url)
-
     const marketplace = this.patch.getData().ui.marketplace
       ? (JSON.parse(
           JSON.stringify(this.patch.getData().ui.marketplace),

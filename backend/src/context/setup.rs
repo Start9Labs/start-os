@@ -8,7 +8,7 @@ use patch_db::json_ptr::JsonPointer;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 use tokio::fs::File;
@@ -24,6 +24,14 @@ use crate::setup::{password_hash, RecoveryStatus};
 use crate::util::io::from_toml_async_reader;
 use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SetupResult {
+    pub tor_address: String,
+    pub lan_address: String,
+    pub root_ca: String,
+}
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -62,7 +70,7 @@ pub struct SetupContextSeed {
     pub selected_v2_drive: RwLock<Option<PathBuf>>,
     pub cached_product_key: RwLock<Option<Arc<String>>>,
     pub recovery_status: RwLock<Option<Result<RecoveryStatus, RpcError>>>,
-    pub disk_guid: RwLock<Option<Arc<String>>>,
+    pub setup_result: RwLock<Option<(Arc<String>, SetupResult)>>,
 }
 
 #[derive(Clone)]
@@ -81,7 +89,7 @@ impl SetupContext {
             selected_v2_drive: RwLock::new(None),
             cached_product_key: RwLock::new(None),
             recovery_status: RwLock::new(None),
-            disk_guid: RwLock::new(None),
+            setup_result: RwLock::new(None),
         })))
     }
     #[instrument(skip(self))]

@@ -348,6 +348,12 @@ pub fn configure_rec<'a, Db: DbHandle>(
             .get(db, true)
             .await?;
         let volumes = pkg_model.clone().manifest().volumes().get(db, true).await?;
+        let is_needs_config = !*pkg_model
+            .clone()
+            .status()
+            .configured()
+            .get(db, true)
+            .await?;
 
         // get current config and current spec
         let ConfigRes {
@@ -473,7 +479,9 @@ pub fn configure_rec<'a, Db: DbHandle>(
 
         // handle dependents
         let dependents = pkg_model.clone().current_dependents().get(db, true).await?;
-        let prev = old_config.map(Value::Object).unwrap_or_default();
+        let prev = if is_needs_config { None } else { old_config }
+            .map(Value::Object)
+            .unwrap_or_default();
         let next = Value::Object(config.clone());
         for (dependent, dep_info) in dependents.iter().filter(|(dep_id, _)| dep_id != &id) {
             // check if config passes dependent check

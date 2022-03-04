@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { ModalController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { getErrorMessage } from '@start9labs/shared'
+import { getErrorMessage, pauseFor } from '@start9labs/shared'
 
 @Component({
   selector: 'markdown',
@@ -25,6 +25,8 @@ export class MarkdownPage {
       if (!this.content) {
         this.content = await this.embassyApi.getStatic(this.contentUrl)
       }
+      this.loading = false
+      await pauseFor(50)
       const links = document.links
       for (let i = 0, linksLength = links.length; i < linksLength; i++) {
         if (links[i].hostname != window.location.hostname) {
@@ -35,7 +37,6 @@ export class MarkdownPage {
       }
     } catch (e) {
       this.loadingError = getErrorMessage(e)
-    } finally {
       this.loading = false
     }
   }

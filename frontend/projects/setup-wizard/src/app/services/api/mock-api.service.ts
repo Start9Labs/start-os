@@ -96,6 +96,7 @@ export class MockApiService extends ApiService {
 
   async setupComplete() {
     await pauseFor(1000)
+    return setupRes
   }
 }
 
