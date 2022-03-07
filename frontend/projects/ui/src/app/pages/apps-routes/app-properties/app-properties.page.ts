@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs'
 import { copyToClipboard } from 'src/app/util/web.util'
 import {
   AlertController,
+  IonBackButtonDelegate,
   IonContent,
   ModalController,
   NavController,
@@ -31,6 +32,8 @@ export class AppPropertiesPage {
   unmasked: { [key: string]: boolean } = {}
   running = true
 
+  @ViewChild(IonBackButtonDelegate, { static: false })
+  backButton: IonBackButtonDelegate
   @ViewChild(IonContent) content: IonContent
   subs: Subscription[] = []
 
@@ -44,6 +47,12 @@ export class AppPropertiesPage {
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
   ) {}
+
+  ionViewDidEnter() {
+    this.backButton.onClick = () => {
+      history.back()
+    }
+  }
 
   async ngOnInit() {
     this.pkgId = this.route.snapshot.paramMap.get('pkgId')
