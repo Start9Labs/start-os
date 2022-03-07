@@ -10,7 +10,11 @@ use tokio::{
 
 use tracing::{debug, error};
 
-use crate::{backup::backup_bulk::backup_all_task, config::set_impl_task, control};
+use crate::{
+    backup::{backup_bulk::backup_all_task, restore},
+    config::set_impl_task,
+    control,
+};
 use crate::{config::set_dry_task, install};
 
 /// Use these shapes to send into the task_runner.
@@ -150,6 +154,20 @@ pub mod task_shapes {
             Task::Sideload(Box::new(val))
         }
     }
+
+    pub struct Restore {
+        pub(crate) ctx: RpcContext,
+        pub(crate) ids: Vec<PackageId>,
+        pub(crate) target_id: BackupTargetId,
+        pub(crate) old_password: Option<String>,
+        pub(crate) password: String,
+        pub(crate) done: oneshot::Sender<Result<WithRevision<()>, Error>>,
+    }
+    impl From<Restore> for Task {
+        fn from(val: Restore) -> Self {
+            Task::Restore(val)
+        }
+    }
 }
 use task_shapes::*;
 
@@ -157,20 +175,23 @@ use task_shapes::*;
 /// task_shapes module and use the From trait to convert into a Task.
 pub enum Task {
     BackupAll(BackupAll),
-    ConfigureSet(ConfigureSet),
-    ConfigureImpl(ConfigureImpl),
     CommandStart(CommandStart),
     CommandStopDry(CommandStopDry),
     CommandStopImpl(CommandStopImpl),
+    ConfigureImpl(ConfigureImpl),
+    ConfigureSet(ConfigureSet),
+    Install(Install),
+    Restore(Restore),
+    /// https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant
+    Sideload(Box<Sideload>),
     UninstallDry(UninstallDry),
     UninstallImpl(UninstallImpl),
-    Sideload(Box<Sideload>),
-    Install(Install),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 enum TaskType {
     BackupAll,
+    Restore,
     ConfigureSet,
     ConfigureImpl,
     CommandStart,
@@ -186,16 +207,16 @@ impl From<&Task> for TaskType {
     fn from(task: &Task) -> Self {
         match task {
             Task::BackupAll(_) => TaskType::BackupAll,
-            Task::ConfigureSet(_) => TaskType::ConfigureSet,
-            Task::ConfigureImpl(_) => TaskType::ConfigureImpl,
             Task::CommandStart(_) => TaskType::CommandStart,
             Task::CommandStopDry(_) => TaskType::CommandStopDry,
             Task::CommandStopImpl(_) => TaskType::CommandStopImpl,
+            Task::ConfigureImpl(_) => TaskType::ConfigureImpl,
+            Task::ConfigureSet(_) => TaskType::ConfigureSet,
+            Task::Install(_) => TaskType::Install,
+            Task::Restore(_) => TaskType::Restore,
+            Task::Sideload(_) => TaskType::Sideload,
             Task::UninstallDry(_) => TaskType::UninstallDry,
             Task::UninstallImpl(_) => TaskType::UninstallImpl,
-            // https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant
-            Task::Sideload(_) => TaskType::Sideload,
-            Task::Install(_) => TaskType::Install,
         }
     }
 }
@@ -206,6 +227,7 @@ impl TaskType {
             TaskType::BackupAll => false,
             TaskType::ConfigureSet => false,
             TaskType::ConfigureImpl => false,
+            TaskType::Restore => false,
             TaskType::CommandStart => {
                 matches!(other, TaskType::CommandStart)
             }
@@ -226,15 +248,16 @@ impl std::fmt::Debug for Task {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::BackupAll(_) => f.write_str("BackupAll"),
-            Self::ConfigureSet(_) => f.write_str("ConfigureSet"),
-            Self::ConfigureImpl(_) => f.write_str("ConfigureImpl"),
             Self::CommandStart(_) => f.write_str("CommandStart"),
             Self::CommandStopDry(_) => f.write_str("CommandStopDry"),
             Self::CommandStopImpl(_) => f.write_str("CommandStopImpl"),
+            Self::ConfigureImpl(_) => f.write_str("ConfigureImpl"),
+            Self::ConfigureSet(_) => f.write_str("ConfigureSet"),
+            Self::Install(_) => f.write_str("Install"),
+            Self::Restore(_) => f.write_str("Restore"),
+            Self::Sideload(_) => f.write_str("Sideload"),
             Self::UninstallDry(_) => f.write_str("UninstallDry"),
             Self::UninstallImpl(_) => f.write_str("UninstallImpl"),
-            Self::Sideload(_) => f.write_str("Sideload"),
-            Self::Install(_) => f.write_str("Install"),
         }
     }
 }
@@ -344,6 +367,22 @@ impl Task {
                     manifest,
                 } = *sideload;
                 if let Err(err) = done.send(install::sideload_task(ctx, manifest).await) {
+                    error!("Task could not be notified done");
+                    debug!("{:?}", err);
+                }
+            }
+            Task::Restore(Restore {
+                ctx,
+                done,
+                ids,
+                old_password,
+                password,
+                target_id,
+            }) => {
+                if let Err(err) = done.send(
+                    restore::restore_packages_rpc_task(ctx, ids, target_id, old_password, password)
+                        .await,
+                ) {
                     error!("Task could not be notified done");
                     debug!("{:?}", err);
                 }

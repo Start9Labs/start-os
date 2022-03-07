@@ -52,6 +52,27 @@ pub async fn restore_packages_rpc(
     #[arg(rename = "old-password", long = "old-password")] old_password: Option<String>,
     #[arg] password: String,
 ) -> Result<WithRevision<()>, Error> {
+
+    let (done, rx) = tokio::sync::oneshot::channel();
+    ctx.task_runner.add_task(
+        crate::tasks::task_shapes::Restore{
+            ctx: ctx.clone(), ids, target_id, old_password, password, done
+        }
+        .into(),
+    );
+
+    rx.await
+        .map_err(|e| Error::new(e, crate::ErrorKind::Unknown))?
+}
+
+#[instrument(skip(ctx, old_password, password))]
+pub async fn restore_packages_rpc_task(
+    ctx: RpcContext,
+    ids: Vec<PackageId>,
+    target_id: BackupTargetId,
+    old_password: Option<String>,
+    password: String,
+) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
     let fs = target_id
