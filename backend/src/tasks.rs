@@ -220,29 +220,6 @@ impl From<&Task> for TaskType {
     }
 }
 
-impl TaskType {
-    fn is_safe_concurrent(&self, other: TaskType) -> bool {
-        match self {
-            TaskType::BackupAll => false,
-            TaskType::ConfigureSet => false,
-            TaskType::ConfigureImpl => false,
-            TaskType::Restore => false,
-            TaskType::CommandStart => {
-                matches!(other, TaskType::CommandStart)
-            }
-            TaskType::CommandStopImpl | TaskType::CommandStopDry => {
-                matches!(other, TaskType::CommandStopImpl | TaskType::CommandStopDry)
-            }
-            TaskType::UninstallImpl | TaskType::UninstallDry => {
-                matches!(other, TaskType::UninstallImpl | TaskType::UninstallDry)
-            }
-            TaskType::Sideload | TaskType::Install => {
-                matches!(other, TaskType::Sideload | TaskType::Install)
-            }
-        }
-    }
-}
-
 impl std::fmt::Debug for Task {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -262,9 +239,6 @@ impl std::fmt::Debug for Task {
 }
 
 impl Task {
-    fn is_safe_concurrent(&self, other: &Task) -> bool {
-        TaskType::from(self).is_safe_concurrent(TaskType::from(other))
-    }
     async fn run(self) {
         match self {
             Task::BackupAll(BackupAll {
@@ -398,6 +372,94 @@ pub struct TaskRunner {
     alive: Arc<AtomicBool>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CurrentlyRunningTask {
+    task_type: TaskType,
+    package_id: Option<crate::s9pk::manifest::PackageId>,
+}
+
+#[derive(Default)]
+struct CurrentlyRunningTasks(Vec<CurrentlyRunningTask>);
+
+impl CurrentlyRunningTasks {
+    fn try_push(&mut self, task: CurrentlyRunningTask) -> Option<CurrentlyRunningTask> {
+        let task_type = task.task_type;
+        for running_task in self.0.iter() {
+            let safe_to_add = match running_task.task_type {
+                TaskType::BackupAll
+                | TaskType::ConfigureSet
+                | TaskType::ConfigureImpl
+                | TaskType::Restore => false,
+                TaskType::CommandStart => {
+                    matches!(task_type, TaskType::CommandStart)
+                }
+                TaskType::CommandStopImpl | TaskType::CommandStopDry => {
+                    matches!(
+                        task_type,
+                        TaskType::CommandStopImpl | TaskType::CommandStopDry
+                    )
+                }
+                TaskType::UninstallImpl | TaskType::UninstallDry => {
+                    matches!(task_type, TaskType::UninstallImpl | TaskType::UninstallDry)
+                }
+                TaskType::Sideload | TaskType::Install => {
+                    matches!(task_type, TaskType::Sideload | TaskType::Install)
+                }
+            };
+            if !safe_to_add {
+                return Some(task);
+            }
+            match (&task.package_id, &running_task.package_id) {
+                (Some(package_id), Some(running_package_id))
+                    if package_id == running_package_id =>
+                {
+                    return Some(task);
+                }
+                _ => {}
+            }
+        }
+        self.0.push(task);
+        None
+    }
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn remove_from_running(&mut self, task_type_done: TaskType) {
+        if let Some(index) = self
+            .0
+            .iter()
+            .position(|task_type| task_type.task_type == task_type_done)
+        {
+            self.0.remove(index);
+        }
+    }
+}
+
+impl From<&Task> for CurrentlyRunningTask {
+    fn from(task: &Task) -> Self {
+        let task_type: TaskType = (task).into();
+        CurrentlyRunningTask {
+            task_type,
+            package_id: match task {
+                Task::BackupAll(_) => None,
+                Task::CommandStart(CommandStart { id: package_id, .. })
+                | Task::CommandStopDry(CommandStopDry { id: package_id, .. })
+                | Task::CommandStopImpl(CommandStopImpl { id: package_id, .. })
+                | Task::ConfigureImpl(ConfigureImpl { package_id, .. })
+                | Task::ConfigureSet(ConfigureSet { package_id, .. })
+                | Task::UninstallDry(UninstallDry { id: package_id, .. })
+                | Task::UninstallImpl(UninstallImpl { id: package_id, .. }) => {
+                    Some(package_id.clone())
+                }
+                Task::Sideload(side) => Some(side.manifest.id.clone()),
+                Task::Install(Install { id, .. }) => id.parse().ok(),
+                Task::Restore(_) => None,
+            },
+        }
+    }
+}
+
 impl Default for TaskRunner {
     fn default() -> Self {
         let (queue, rx) = mpsc::unbounded_channel();
@@ -427,7 +489,7 @@ impl TaskRunner {
     fn start_running_tasks(mut rx: mpsc::UnboundedReceiver<Task>, spawned_alive: Arc<AtomicBool>) {
         tokio::task::spawn(async move {
             let mut todos: Vec<Task> = Vec::new();
-            let running_tasks = Arc::new(Mutex::new(Vec::<TaskType>::new()));
+            let running_tasks: Arc<Mutex<CurrentlyRunningTasks>> = Default::default();
             let (indicate_task_done, mut task_is_done) = mpsc::unbounded_channel::<TaskType>();
 
             loop {
@@ -438,23 +500,16 @@ impl TaskRunner {
                 tokio::select! {
                     Some(task) = rx.recv() => {
                         let mut running_tasks = running_tasks.lock().await;
-                        let first_task_type = running_tasks.first();
-                        if let Some(first_task_type) = first_task_type {
-                            if first_task_type.is_safe_concurrent(TaskType::from(&task)) {
-                                run_task(&mut running_tasks, task, indicate_task_done.clone());
-                            }
-                            else {
-                                add_todo(&mut todos, task);
-                            }
-                        }
-                        else {
-                            add_todo(&mut todos, task);
+                        if running_tasks.is_empty() {
                             run_new_tasks_from_todo(&mut todos, &mut running_tasks, indicate_task_done.clone());
+                        }
+                        if let Some(task) = try_run_task(&mut running_tasks, task, indicate_task_done.clone()) {
+                            todos.push(task);
                         }
                     },
                     Some(task_type_done) = task_is_done.recv() => {
                         let mut running_tasks = running_tasks.lock().await;
-                        remove_from_running(&mut running_tasks, task_type_done);
+                        running_tasks.remove_from_running(task_type_done);
                         if running_tasks.is_empty() {
                             run_new_tasks_from_todo(&mut todos, &mut running_tasks, indicate_task_done.clone());
                         }
@@ -466,52 +521,35 @@ impl TaskRunner {
             }
             rx.close();
 
-            fn run_task(
-                running_tasks: &mut Vec<TaskType>,
+            fn try_run_task(
+                running_tasks: &mut CurrentlyRunningTasks,
                 task: Task,
                 task_is_done: mpsc::UnboundedSender<TaskType>,
-            ) {
-                let task_type: TaskType = (&task).into();
-                running_tasks.push(task_type);
+            ) -> Option<Task> {
+                let running_task = CurrentlyRunningTask::from(&task);
+                if running_tasks.try_push(running_task.clone()).is_some() {
+                    return Some(task);
+                }
 
                 spawn(async move {
                     task.run().await;
-                    if let Err(err) = task_is_done.send(task_type) {
+                    if let Err(err) = task_is_done.send(running_task.task_type) {
                         error!("Task could not be notified done");
                         debug!("{:?}", err);
                     }
                 });
+                None
             }
-            fn add_todo(todos: &mut Vec<Task>, new_todo: Task) {
-                todos.push(new_todo);
-            }
+
             fn run_new_tasks_from_todo(
                 todos: &mut Vec<Task>,
-                running_tasks: &mut Vec<TaskType>,
+                running_tasks: &mut CurrentlyRunningTasks,
                 task_is_done: mpsc::UnboundedSender<TaskType>,
             ) {
-                let mut new_todos = std::mem::take(todos).into_iter();
-                let head = match new_todos.next() {
-                    None => return,
-                    Some(first) => first,
-                };
-
-                let (mut tasks_todo, next_todos): (Vec<_>, Vec<_>) =
-                    new_todos.partition(|x| head.is_safe_concurrent(x));
-                *todos = next_todos;
-                tasks_todo.push(head);
-
-                for tasks_todo in tasks_todo {
-                    run_task(running_tasks, tasks_todo, task_is_done.clone());
-                }
-            }
-
-            fn remove_from_running(running_tasks: &mut Vec<TaskType>, task_type_done: TaskType) {
-                if let Some(index) = running_tasks
-                    .iter()
-                    .position(|task_type| task_type == &task_type_done)
-                {
-                    running_tasks.remove(index);
+                for task in std::mem::take(todos) {
+                    if let Some(task) = try_run_task(running_tasks, task, task_is_done.clone()) {
+                        todos.push(task)
+                    }
                 }
             }
         });
