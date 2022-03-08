@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::disk::util::{get_available, get_percentage, get_used};
+use crate::disk::util::{get_available, get_used};
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::util::serde::{display_serializable, IoFormat};

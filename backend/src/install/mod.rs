@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::future::{self, BoxFuture};
-use futures::{stream, FutureExt, StreamExt, TryStreamExt};
+use futures::future::BoxFuture;
+use futures::{FutureExt, StreamExt, TryStreamExt};
 use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::Body;

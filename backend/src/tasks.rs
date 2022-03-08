@@ -7,7 +7,6 @@ use tokio::{
     spawn,
     sync::{mpsc, Mutex},
 };
-
 use tracing::{debug, error};
 
 use crate::{
@@ -412,6 +411,7 @@ impl Default for TaskRunner {
 impl TaskRunner {
     /// Add another task to be done. Depending on what is running already determines if this will start away
     /// or be queued.
+    #[tracing::instrument(skip(self))]
     pub fn add_task(&self, task: Task) {
         if let Err(err) = self.queue.send(task) {
             error!("Task system can no longer add tasks");
@@ -424,12 +424,12 @@ impl TaskRunner {
         self.alive.store(false, Ordering::Relaxed);
     }
 
-    fn start_running_tasks(rx: mpsc::UnboundedReceiver<Task>, spawned_alive: Arc<AtomicBool>) {
+    fn start_running_tasks(mut rx: mpsc::UnboundedReceiver<Task>, spawned_alive: Arc<AtomicBool>) {
         tokio::task::spawn(async move {
             let mut todos: Vec<Task> = Vec::new();
-            let mut rx = rx;
             let running_tasks = Arc::new(Mutex::new(Vec::<TaskType>::new()));
             let (indicate_task_done, mut task_is_done) = mpsc::unbounded_channel::<TaskType>();
+
             loop {
                 if !spawned_alive.load(Ordering::Relaxed) {
                     break;
@@ -459,7 +459,9 @@ impl TaskRunner {
                             run_new_tasks_from_todo(&mut todos, &mut running_tasks, indicate_task_done.clone());
                         }
                     }
-                    else => break,
+                    else => {
+                        break;
+                    },
                 }
             }
             rx.close();
@@ -494,9 +496,10 @@ impl TaskRunner {
                     Some(first) => first,
                 };
 
-                let (tasks_todo, next_todos): (Vec<_>, Vec<_>) =
+                let (mut tasks_todo, next_todos): (Vec<_>, Vec<_>) =
                     new_todos.partition(|x| head.is_safe_concurrent(x));
                 *todos = next_todos;
+                tasks_todo.push(head);
 
                 for tasks_todo in tasks_todo {
                     run_task(running_tasks, tasks_todo, task_is_done.clone());
