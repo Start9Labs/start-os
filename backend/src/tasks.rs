@@ -500,9 +500,6 @@ impl TaskRunner {
                 tokio::select! {
                     Some(task) = rx.recv() => {
                         let mut running_tasks = running_tasks.lock().await;
-                        if running_tasks.is_empty() {
-                            run_new_tasks_from_todo(&mut todos, &mut running_tasks, indicate_task_done.clone());
-                        }
                         if let Some(task) = try_run_task(&mut running_tasks, task, indicate_task_done.clone()) {
                             todos.push(task);
                         }
