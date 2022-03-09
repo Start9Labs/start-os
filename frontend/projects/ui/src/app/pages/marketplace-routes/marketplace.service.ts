@@ -149,6 +149,14 @@ export class MarketplaceService {
     )
   }
 
+  getPackageMarkdown(type: 'license' | 'instructions', pkgId: string) {
+    return this.api.marketplaceProxy(
+      `/package/v0/${type}/embassy-pages/${pkgId}`,
+      {},
+      this.marketplace.url,
+    )
+  }
+
   async getReleaseNotes(
     params: RR.GetReleaseNotesReq,
   ): Promise<RR.GetReleaseNotesRes> {
