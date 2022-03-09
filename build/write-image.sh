@@ -75,8 +75,8 @@ sudo cp -R frontend/dist/diagnostic-ui /tmp/eos-mnt/var/www/html/diagnostic
 sudo cp -R frontend/dist/setup-wizard /tmp/eos-mnt/var/www/html/setup
 sudo cp -R frontend/dist/ui /tmp/eos-mnt/var/www/html/main
 
-# Make the .ssh directory
-sudo mkdir -p /tmp/eos-mnt/root/.ssh
+# Make the .ssh directory for UID 1000 user
+sudo mkdir -p /tmp/eos-mnt/home/$(awk -v val=1000 -F ":" '$3==val{print $1}' /tmp/eos-mnt/etc/passwd)/.ssh
 
 # Custom MOTD
 sudo rm /tmp/eos-mnt/etc/motd
