@@ -151,7 +151,7 @@ export class MarketplaceService {
 
   getPackageMarkdown(type: 'license' | 'instructions', pkgId: string) {
     return this.api.marketplaceProxy(
-      `/package/v0/${type}/embassy-pages/${pkgId}`,
+      `/package/v0/${type}/${pkgId}`,
       {},
       this.marketplace.url,
     )
