@@ -12,7 +12,7 @@ import { BehaviorSubject, defer, Observable, of } from 'rxjs'
 import {
   catchError,
   filter,
-  share,
+  shareReplay,
   startWith,
   switchMap,
   tap,
@@ -31,7 +31,11 @@ export class MarketplaceShowPage {
 
   readonly localPkg$ = defer(() =>
     this.patch.watch$('package-data', this.pkgId),
-  ).pipe(filter<LocalPkg>(Boolean), tap(spreadProgress), share())
+  ).pipe(
+    filter<LocalPkg>(Boolean),
+    tap(spreadProgress),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  )
 
   readonly pkg$: Observable<MarketplacePkg> = this.loadVersion$.pipe(
     switchMap(version =>
