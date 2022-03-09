@@ -12,7 +12,7 @@ use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
-static SSH_AUTHORIZED_KEYS_FILE: &str = "/root/.ssh/authorized_keys";
+static SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct PubKey(
