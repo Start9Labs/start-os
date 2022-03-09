@@ -129,14 +129,14 @@ export class MarketplaceShowPage {
   }
 
   async presentModalMd(title: 'license' | 'instructions') {
-    const content = this.marketplaceService.getPackageMarkdown(
+    const contentPromise = this.marketplaceService.getPackageMarkdown(
       title,
       this.pkgId,
     )
     const modal = await this.modalCtrl.create({
       componentProps: {
         title,
-        contentUrl: `${this.pkg[title]}`,
+        contentPromise,
       },
       component: MarkdownPage,
     })

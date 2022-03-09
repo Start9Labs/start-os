@@ -192,6 +192,8 @@ export class MockApiService extends ApiService {
       return Mock.MarketplacePkgsList
     } else if (path === '/package/v0/release-notes') {
       return Mock.ReleaseNotes
+    } else if (path.includes('instructions') || path.includes('license')) {
+      return markdown
     }
   }
 
