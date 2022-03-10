@@ -865,6 +865,7 @@ dependencies = [
  "async-trait",
  "avahi-sys",
  "base32",
+ "base64",
  "basic-cookies",
  "bollard",
  "chrono",
