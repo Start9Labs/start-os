@@ -12,15 +12,43 @@ pub fn marketplace() -> Result<(), Error> {
 
 #[command]
 pub async fn get(#[arg] url: Url) -> Result<Value, Error> {
-    let response = reqwest::get(url)
+    let mut response = reqwest::get(url)
         .await
         .with_kind(crate::ErrorKind::Network)?;
     let status = response.status();
     if status.is_success() {
-        response
-            .json()
-            .await
-            .with_kind(crate::ErrorKind::Deserialization)
+        match response
+            .headers_mut()
+            .remove("Content-Type")
+            .as_ref()
+            .and_then(|h| h.to_str().ok())
+        {
+            Some("application/json") => response
+                .json()
+                .await
+                .with_kind(crate::ErrorKind::Deserialization),
+            Some("text/plain") => Ok(Value::String(
+                response
+                    .text()
+                    .await
+                    .with_kind(crate::ErrorKind::Registry)?,
+            )),
+            Some(ctype) => Ok(Value::String(format!(
+                "data:{};base64,{}",
+                ctype,
+                base64::encode_config(
+                    &response
+                        .bytes()
+                        .await
+                        .with_kind(crate::ErrorKind::Registry)?,
+                    base64::URL_SAFE
+                )
+            ))),
+            _ => Err(Error::new(
+                eyre!("missing Content-Type"),
+                crate::ErrorKind::Registry,
+            )),
+        }
     } else {
         let message = response.text().await.with_kind(crate::ErrorKind::Network)?;
         Err(Error::new(

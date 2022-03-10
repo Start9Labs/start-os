@@ -51,6 +51,7 @@ avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", version = "0.10.0
   "dynamic",
 ], optional = true }
 base32 = "0.4.0"
+base64 = "0.13.0"
 basic-cookies = "0.1.4"
 bollard = "0.11.0"
 chrono = { version = "0.4.19", features = ["serde"] }
