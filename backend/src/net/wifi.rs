@@ -79,6 +79,7 @@ pub async fn add(
     .await
     {
         tracing::error!("Failed to add new WiFi network '{}': {}", ssid, err);
+        tracing::debug!("{:?}", err);
         return Err(Error::new(
             color_eyre::eyre::eyre!("Failed adding {}", ssid),
             ErrorKind::Wifi,
@@ -460,8 +461,6 @@ impl WpaCli {
             .arg("add")
             .arg("con-name")
             .arg(&ssid.0)
-            .arg("ifname")
-            .arg(&self.interface)
             .arg("type")
             .arg("wifi")
             .arg("ssid")
@@ -484,6 +483,18 @@ impl WpaCli {
             .arg(&psk.0)
             .invoke(ErrorKind::Wifi)
             .await?;
+        let _ = Command::new("nmcli")
+            .arg("con")
+            .arg("modify")
+            .arg(&ssid.0)
+            .arg("ifname")
+            .arg(&self.interface)
+            .await
+            .map(|_| ())
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to set interface {} for {}", self.interface, ssid.0);
+                tracing::debug!("{:?}", e);
+            });
         Ok(())
     }
     pub async fn set_country_low(&mut self, country_code: &str) -> Result<(), Error> {
