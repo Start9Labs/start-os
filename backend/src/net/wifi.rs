@@ -457,7 +457,7 @@ impl WpaCli {
     #[instrument(skip(self, psk))]
     pub async fn add_network_low(&mut self, ssid: &Ssid, psk: &Psk) -> Result<(), Error> {
         if self.find_networks(ssid).await?.is_empty() {
-            let _ = Command::new("nmcli")
+            Command::new("nmcli")
                 .arg("con")
                 .arg("add")
                 .arg("con-name")
@@ -469,7 +469,7 @@ impl WpaCli {
                 .invoke(ErrorKind::Wifi)
                 .await?;
         }
-        let _ = Command::new("nmcli")
+        Command::new("nmcli")
             .arg("con")
             .arg("modify")
             .arg(&ssid.0)
@@ -477,15 +477,7 @@ impl WpaCli {
             .arg("wpa-psk")
             .invoke(ErrorKind::Wifi)
             .await?;
-        let _ = Command::new("nmcli")
-            .arg("con")
-            .arg("modify")
-            .arg(&ssid.0)
-            .arg("wifi-sec.psk")
-            .arg(&psk.0)
-            .invoke(ErrorKind::Wifi)
-            .await?;
-        let _ = Command::new("nmcli")
+        Command::new("nmcli")
             .arg("con")
             .arg("modify")
             .arg(&ssid.0)
@@ -498,6 +490,14 @@ impl WpaCli {
                 tracing::warn!("Failed to set interface {} for {}", self.interface, ssid.0);
                 tracing::debug!("{:?}", e);
             });
+        Command::new("nmcli")
+            .arg("con")
+            .arg("modify")
+            .arg(&ssid.0)
+            .arg("wifi-sec.psk")
+            .arg(&psk.0)
+            .invoke(ErrorKind::Wifi)
+            .await?;
         Ok(())
     }
     pub async fn set_country_low(&mut self, country_code: &str) -> Result<(), Error> {
