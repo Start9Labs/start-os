@@ -456,17 +456,19 @@ impl WpaCli {
     }
     #[instrument(skip(self, psk))]
     pub async fn add_network_low(&mut self, ssid: &Ssid, psk: &Psk) -> Result<(), Error> {
-        let _ = Command::new("nmcli")
-            .arg("con")
-            .arg("add")
-            .arg("con-name")
-            .arg(&ssid.0)
-            .arg("type")
-            .arg("wifi")
-            .arg("ssid")
-            .arg(&ssid.0)
-            .invoke(ErrorKind::Wifi)
-            .await?;
+        if self.find_networks(ssid).await?.is_empty() {
+            let _ = Command::new("nmcli")
+                .arg("con")
+                .arg("add")
+                .arg("con-name")
+                .arg(&ssid.0)
+                .arg("type")
+                .arg("wifi")
+                .arg("ssid")
+                .arg(&ssid.0)
+                .invoke(ErrorKind::Wifi)
+                .await?;
+        }
         let _ = Command::new("nmcli")
             .arg("con")
             .arg("modify")
@@ -489,6 +491,7 @@ impl WpaCli {
             .arg(&ssid.0)
             .arg("ifname")
             .arg(&self.interface)
+            .invoke(ErrorKind::Wifi)
             .await
             .map(|_| ())
             .unwrap_or_else(|e| {
