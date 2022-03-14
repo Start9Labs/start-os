@@ -370,7 +370,7 @@ function getWifiValueSpec(
         nullable: !needsPW,
         masked: true,
         copyable: false,
-        pattern: '^.{8}$',
+        pattern: '^.{8,}$',
         'pattern-description': 'Must be longer than 8 characters',
       },
     },
