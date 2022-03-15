@@ -11,6 +11,7 @@ import { getErrorMessage, pauseFor } from '@start9labs/shared'
 export class MarkdownPage {
   @Input() contentUrl?: string
   @Input() content?: string
+  @Input() contentPromise?: Promise<string>
   @Input() title: string
   loading = true
   loadingError: string | IonicSafeString
@@ -23,7 +24,11 @@ export class MarkdownPage {
   async ngOnInit() {
     try {
       if (!this.content) {
-        this.content = await this.embassyApi.getStatic(this.contentUrl)
+        if (this.contentUrl) {
+          this.content = await this.embassyApi.getStatic(this.contentUrl)
+        } else {
+          this.content = await this.contentPromise
+        }
       }
       this.loading = false
       await pauseFor(50)
