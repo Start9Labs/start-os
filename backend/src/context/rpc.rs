@@ -2,12 +2,11 @@ use std::collections::{BTreeMap, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
-use chrono::Utc;
 use color_eyre::eyre::eyre;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockType, PatchDb, Revision};
@@ -35,7 +34,7 @@ use crate::notifications::NotificationManager;
 use crate::setup::password_hash;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
-use crate::util::io::from_toml_async_reader;
+use crate::util::io::from_yaml_async_reader;
 use crate::util::{AsyncFileExt, Invoke};
 use crate::{Error, ResultExt};
 
@@ -61,7 +60,7 @@ impl RpcContextConfig {
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, cfg_path.display().to_string()))?
         {
-            from_toml_async_reader(f).await
+            from_yaml_async_reader(f).await
         } else {
             Ok(Self::default())
         }
