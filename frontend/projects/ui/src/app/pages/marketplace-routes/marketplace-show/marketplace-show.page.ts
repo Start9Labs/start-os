@@ -57,16 +57,4 @@ export class MarketplaceShowPage {
   getIcon(icon: string): string {
     return `data:image/png;base64,${icon}`
   }
-
-  // async getPkg(version: string): Promise<void> {
-  // this.loading = true
-  // try {
-  //   this.pkg = await this.marketplaceService.getPkg(this.pkgId, version)
-  // } catch (e) {
-  //   this.errToast.present(e)
-  // } finally {
-  //   await pauseFor(100)
-  // this.loading = false
-  // }
-  // }
 }

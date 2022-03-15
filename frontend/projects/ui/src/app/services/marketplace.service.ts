@@ -44,6 +44,20 @@ export class MarketplaceService extends AbstractMarketplaceService {
     shareReplay(),
   )
 
+  private readonly instructions$: Observable<string> = this.init$.pipe(
+    switchMap(({ url }) =>
+      from(this.getPackageMarkdown('instructions', this.serverInfo.id, url)),
+    ),
+    shareReplay(),
+  )
+
+  private readonly license$: Observable<string> = this.init$.pipe(
+    switchMap(({ url }) =>
+      from(this.getPackageMarkdown('license', this.serverInfo.id, url)),
+    ),
+    shareReplay(),
+  )
+
   private readonly pkg$: Observable<MarketplacePkg[]> = this.init$.pipe(
     switchMap(({ url, name }) =>
       from(this.getMarketplacePkgs({ page: 1, 'per-page': 100 }, url)).pipe(
@@ -75,6 +89,14 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   getPackages(): Observable<MarketplacePkg[]> {
     return this.pkg$
+  }
+
+  getInstructions(): Observable<string> {
+    return this.instructions$
+  }
+
+  getLicense(): Observable<string> {
+    return this.license$
   }
 
   getPackage(id: string, version: string): Observable<MarketplacePkg> {
@@ -166,6 +188,18 @@ export class MarketplaceService extends AbstractMarketplaceService {
     url: string,
   ): Promise<RR.GetMarketplaceDataRes> {
     return this.api.marketplaceProxy('/package/v0/info', params, url)
+  }
+
+  async getPackageMarkdown(
+    type: 'license' | 'instructions',
+    pkgId: string,
+    url: string,
+  ): Promise<string> {
+    return this.api.marketplaceProxy(
+      `/package/v0/${type}/embassy-pages/${pkgId}`,
+      {},
+      url,
+    )
   }
 
   async getMarketplacePkgs(

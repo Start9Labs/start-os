@@ -6,8 +6,12 @@ import {
   Output,
 } from '@angular/core'
 import { AlertController, ModalController } from '@ionic/angular'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import {
+  MarketplacePkg,
+  AbstractMarketplaceService,
+} from '@start9labs/marketplace'
 import { displayEmver, Emver } from '@start9labs/shared'
+import { take } from 'rxjs/operators'
 
 import { MarkdownPage } from 'src/app/modals/markdown/markdown.page'
 
@@ -26,6 +30,7 @@ export class MarketplaceShowAdditionalComponent {
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
+    private readonly marketplaceService: AbstractMarketplaceService,
     private readonly emver: Emver,
   ) {}
 
@@ -57,15 +62,21 @@ export class MarketplaceShowAdditionalComponent {
     await alert.present()
   }
 
-  async presentModalMd(title: string) {
-    const modal = await this.modalCtrl.create({
-      componentProps: {
-        title,
-        contentUrl: `/marketplace${this.pkg[title]}`,
-      },
-      component: MarkdownPage,
-    })
+  async presentModalMd(title: 'license' | 'instructions') {
+    const content$ =
+      title === 'license'
+        ? this.marketplaceService.getLicense()
+        : this.marketplaceService.getInstructions()
 
-    await modal.present()
+    content$.pipe(take(1)).subscribe(async content => {
+      const modal = await this.modalCtrl.create({
+        componentProps: {
+          title,
+          content,
+        },
+        component: MarkdownPage,
+      })
+      await modal.present()
+    })
   }
 }
