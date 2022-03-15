@@ -2,16 +2,18 @@ import {
   ChangeDetectionStrategy,
   Component,
   EventEmitter,
+  Inject,
   Input,
   Output,
 } from '@angular/core'
 import { AlertController } from '@ionic/angular'
+import { ErrorToastService } from '@start9labs/shared'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { from, merge, OperatorFunction, pipe, Subject } from 'rxjs'
 import { catchError, mapTo, startWith, switchMap, tap } from 'rxjs/operators'
 import { RecoveredInfo } from 'src/app/util/parse-data-model'
-import { MarketplaceService } from 'src/app/pages/marketplace-routes/marketplace.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 
 @Component({
   selector: 'app-list-rec',
@@ -33,17 +35,14 @@ export class AppListRecComponent {
   readonly installing$ = this.install$.pipe(
     switchMap(({ id, version }) =>
       // Mapping each installation to API request
-      from(
-        this.marketplaceService.installPackage({
-          id,
-          'version-spec': `>=${version}`,
-          'version-priority': 'min',
-        }),
-      ).pipe(
-        // Mapping operation to true/false loading indication
-        loading(this.errToast),
-      ),
+      this.marketplaceService.installPackage({
+        id,
+        'version-spec': `>=${version}`,
+        'version-priority': 'min',
+      }),
     ),
+    // Mapping operation to true/false loading indication
+    loading(this.errToast),
   )
 
   // Deleting package
@@ -66,6 +65,7 @@ export class AppListRecComponent {
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
+    @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
   ) {}
 

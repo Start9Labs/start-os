@@ -1,8 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { ModalController, IonicSafeString } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { getErrorMessage } from 'src/app/services/error-toast.service'
-import { pauseFor } from '../../../../../shared/src/util/misc.util'
+import { getErrorMessage, pauseFor } from '@start9labs/shared'
 
 @Component({
   selector: 'markdown',

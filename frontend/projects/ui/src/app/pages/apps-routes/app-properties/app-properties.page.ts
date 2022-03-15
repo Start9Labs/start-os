@@ -15,7 +15,7 @@ import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { getValueByPointer } from 'fast-json-patch'
 
 @Component({

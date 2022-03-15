@@ -1,0 +1,38 @@
+<div class="hidden-scrollbar ion-text-center">
+  <ion-button *ngFor="let cat of ['', '', '', '', '', '', '']" fill="clear">
+    <ion-skeleton-text
+      animated
+      style="width: 80px; border-radius: 0"
+    ></ion-skeleton-text>
+  </ion-button>
+</div>
+
+<div class="divider" style="margin: 24px 0"></div>
+
+<ion-grid>
+  <ion-row>
+    <ion-col
+      *ngFor="let pkg of ['', '', '', '']"
+      sizeXs="12"
+      sizeSm="12"
+      sizeMd="6"
+    >
+      <ion-item>
+        <ion-thumbnail slot="start">
+          <ion-skeleton-text
+            style="border-radius: 100%"
+            animated
+          ></ion-skeleton-text>
+        </ion-thumbnail>
+        <ion-label>
+          <ion-skeleton-text
+            animated
+            style="width: 150px; height: 18px; margin-bottom: 8px"
+          ></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 400px"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 100px"></ion-skeleton-text>
+        </ion-label>
+      </ion-item>
+    </ion-col>
+  </ion-row>
+</ion-grid>

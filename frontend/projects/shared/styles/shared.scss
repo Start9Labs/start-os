@@ -1,0 +1,85 @@
+ion-input {
+  caret-color: gray;
+}
+
+ion-modal::part(content) {
+  position: absolute;
+  height: 90% !important;
+  top: 5%;
+  width: 90% !important;
+  left: 5%;
+  display: block;
+
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.03);
+  box-shadow: 0 0 70px 70px black;
+}
+
+@media (min-width: 1000px) {
+  ion-modal::part(content) {
+    position: absolute;
+    height: 80% !important;
+    top: 10%;
+    width: 50% !important;
+    left: 25%;
+  }
+}
+
+.alertlike-modal {
+  &::part(content) {
+    max-height: 380px !important;
+    top: 25% !important;
+    width: 90% !important;
+    left: 5% !important;
+    --box-shadow: none !important;
+  }
+}
+
+@media (min-width: 1000px) {
+  .alertlike-modal {
+    &::part(content) {
+      width: 60% !important;
+      left: 20% !important;
+    }
+  }
+}
+
+.item-interactive {
+  --highlight-background: var(--ion-color-light) !important;
+}
+
+.hidden-scrollbar {
+  overflow: auto;
+  white-space: nowrap;
+  height: 60px;
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.divider {
+  background: linear-gradient(
+    90deg,
+    var(--ion-color-light) 0,
+    var(--ion-color-dark) 50%,
+    var(--ion-color-light) 100%
+  );
+  height: 1px;
+}
+
+.loading-dots:after {
+  content: '...';
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: bottom;
+  animation: ellipsis-dot 1s infinite 0.3s;
+  animation-fill-mode: forwards;
+  width: 1em;
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@start9labs/marketplace",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "@angular/common": "^13.2.0",
+    "@angular/core": "^13.2.0",
+    "@start9labs/shared": "^0.0.1",
+    "fuse.js": "^6.4.6"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  }
+}

@@ -1,0 +1,76 @@
+<ion-item-divider>Additional Info</ion-item-divider>
+<ion-card>
+  <ion-grid>
+    <ion-row>
+      <ion-col sizeSm="12" sizeMd="6">
+        <ion-item-group>
+          <ion-item button detail="false" (click)="presentAlertVersions()">
+            <ion-label>
+              <h2>Other Versions</h2>
+              <p>Click to view other versions</p>
+            </ion-label>
+            <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
+          </ion-item>
+          <ion-item button detail="false" (click)="presentModalMd('license')">
+            <ion-label>
+              <h2>License</h2>
+              <p>{{ pkg.manifest.license }}</p>
+            </ion-label>
+            <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
+          </ion-item>
+          <ion-item
+            button
+            detail="false"
+            (click)="presentModalMd('instructions')"
+          >
+            <ion-label>
+              <h2>Instructions</h2>
+              <p>Click to view instructions</p>
+            </ion-label>
+            <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
+          </ion-item>
+        </ion-item-group>
+      </ion-col>
+      <ion-col sizeSm="12" sizeMd="6">
+        <ion-item-group>
+          <ion-item
+            [href]="pkg.manifest['upstream-repo']"
+            target="_blank"
+            rel="noreferrer"
+            detail="false"
+          >
+            <ion-label>
+              <h2>Source Repository</h2>
+              <p>{{ pkg.manifest['upstream-repo'] }}</p>
+            </ion-label>
+            <ion-icon slot="end" name="open-outline"></ion-icon>
+          </ion-item>
+          <ion-item
+            [href]="pkg.manifest['wrapper-repo']"
+            target="_blank"
+            rel="noreferrer"
+            detail="false"
+          >
+            <ion-label>
+              <h2>Wrapper Repository</h2>
+              <p>{{ pkg.manifest['wrapper-repo'] }}</p>
+            </ion-label>
+            <ion-icon slot="end" name="open-outline"></ion-icon>
+          </ion-item>
+          <ion-item
+            [href]="pkg.manifest['support-site']"
+            target="_blank"
+            rel="noreferrer"
+            detail="false"
+          >
+            <ion-label>
+              <h2>Support Site</h2>
+              <p>{{ pkg.manifest['support-site'] }}</p>
+            </ion-label>
+            <ion-icon slot="end" name="open-outline"></ion-icon>
+          </ion-item>
+        </ion-item-group>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-card>

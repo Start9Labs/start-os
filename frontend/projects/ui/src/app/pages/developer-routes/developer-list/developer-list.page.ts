@@ -17,9 +17,8 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
 import { DevData } from 'src/app/services/patch-db/data-model'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
 import { ActivatedRoute } from '@angular/router'
-import { DestroyService } from '@start9labs/shared'
+import { DestroyService, ErrorToastService } from '@start9labs/shared'
 import { takeUntil } from 'rxjs/operators'
 
 @Component({

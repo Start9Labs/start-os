@@ -1,9 +1,16 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController, ModalController } from '@ionic/angular'
+import {
+  AlertController,
+  LoadingController,
+  ModalController,
+} from '@ionic/angular'
 import { SSHKey } from 'src/app/services/api/api.types'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { GenericInputComponent, GenericInputOptions } from 'src/app/modals/generic-input/generic-input.component'
+import {
+  GenericInputComponent,
+  GenericInputOptions,
+} from 'src/app/modals/generic-input/generic-input.component'
 
 @Component({
   selector: 'ssh-keys',
@@ -15,21 +22,21 @@ export class SSHKeysPage {
   sshKeys: SSHKey[] = []
   readonly docsUrl = 'https://start9.com/latest/user-manual/ssh'
 
-  constructor (
+  constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly embassyApi: ApiService,
-  ) { }
+  ) {}
 
-  async ngOnInit () {
+  async ngOnInit() {
     await this.getKeys()
   }
 
-  async getKeys (): Promise<void> {
+  async getKeys(): Promise<void> {
     try {
-      this.sshKeys = await this.embassyApi.getSshKeys({ })
+      this.sshKeys = await this.embassyApi.getSshKeys({})
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -37,7 +44,7 @@ export class SSHKeysPage {
     }
   }
 
-  async presentModalAdd () {
+  async presentModalAdd() {
     const { name, description } = sshSpec
 
     const options: GenericInputOptions = {
@@ -55,7 +62,7 @@ export class SSHKeysPage {
     await modal.present()
   }
 
-  async add (pubkey: string): Promise<void> {
+  async add(pubkey: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
@@ -71,7 +78,7 @@ export class SSHKeysPage {
     }
   }
 
-  async presentAlertDelete (i: number) {
+  async presentAlertDelete(i: number) {
     const alert = await this.alertCtrl.create({
       header: 'Caution',
       message: `Are you sure you want to delete this key?`,
@@ -92,7 +99,7 @@ export class SSHKeysPage {
     await alert.present()
   }
 
-  async delete (i: number): Promise<void> {
+  async delete(i: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
@@ -115,7 +122,8 @@ export class SSHKeysPage {
 const sshSpec = {
   type: 'string',
   name: 'SSH Key',
-  description: 'Enter the SSH public key of you would like to authorize for root access to your Embassy.',
+  description:
+    'Enter the SSH public key of you would like to authorize for root access to your Embassy.',
   nullable: false,
   masked: false,
   copyable: false,

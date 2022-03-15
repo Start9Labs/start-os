@@ -7,7 +7,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { debounce } from '../../../../../../shared/src/util/misc.util'
 import { GenericFormPage } from '../../../modals/generic-form/generic-form.page'
-import { ErrorToastService } from '../../../services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 
 @Component({
   selector: 'dev-config',

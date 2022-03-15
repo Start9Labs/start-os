@@ -1,19 +1,21 @@
-import { Component } from '@angular/core'
+import { Component, Inject } from '@angular/core'
 import {
   ActionSheetController,
   LoadingController,
   ModalController,
 } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDbService } from '../../../services/patch-db/patch-db.service'
 import { v4 } from 'uuid'
-import { MarketplaceService } from '../../marketplace-routes/marketplace.service'
 import { UIMarketplaceData } from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { finalize, first } from 'rxjs/operators'
 
 @Component({
   selector: 'marketplaces',
@@ -30,6 +32,7 @@ export class MarketplacesPage {
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
+    @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly config: ConfigService,
     public readonly patch: PatchDbService,
@@ -162,13 +165,13 @@ export class MarketplacesPage {
 
     loader.message = 'Syncing store...'
 
-    try {
-      await this.marketplaceService.load()
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+    this.marketplaceService
+      .getPackages()
+      .pipe(
+        first(),
+        finalize(() => loader.dismiss()),
+      )
+      .subscribe()
   }
 
   private async delete(id: string): Promise<void> {
@@ -281,13 +284,13 @@ export class MarketplacesPage {
 
     loader.message = 'Syncing marketplace data...'
 
-    try {
-      await this.marketplaceService.load()
-    } catch (e) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+    this.marketplaceService
+      .getPackages()
+      .pipe(
+        first(),
+        finalize(() => loader.dismiss()),
+      )
+      .subscribe()
   }
 }
 

@@ -278,28 +278,8 @@ ion-loading {
   --padding-start: 10px;
 }
 
-.divider {
-  background: linear-gradient(
-    90deg,
-    var(--ion-color-light) 0,
-    var(--ion-color-dark) 50%,
-    var(--ion-color-light) 100%
-  );
-  height: 1px;
-}
-
 h2 {
   line-height: unset;
-}
-
-.loading-dots:after {
-  content: '...';
-  overflow: hidden;
-  display: inline-block;
-  vertical-align: bottom;
-  animation: ellipsis-dot 1s infinite 0.3s;
-  animation-fill-mode: forwards;
-  width: 1em;
 }
 
 @keyframes ellipsis-dot {

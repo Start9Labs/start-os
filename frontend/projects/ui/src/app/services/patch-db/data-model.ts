@@ -1,5 +1,6 @@
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
-import { InstallProgress, PackageState } from '@start9labs/shared'
+import { InstallProgress, PackageState, Url } from '@start9labs/shared'
+import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
 
 export interface DataModel {
@@ -50,8 +51,8 @@ export interface ServerInfo {
   id: string
   version: string
   'last-backup': string | null
-  'lan-address': URL
-  'tor-address': URL
+  'lan-address': Url
+  'tor-address': Url
   'unread-notification-count': number
   'status-info': {
     'backing-up': boolean
@@ -69,16 +70,16 @@ export enum ServerStatus {
 }
 export interface RecoveredPackageDataEntry {
   title: string
-  icon: URL
+  icon: Url
   version: string
 }
 
 export interface PackageDataEntry {
   state: PackageState
   'static-files': {
-    license: URL
-    instructions: URL
-    icon: URL
+    license: Url
+    instructions: Url
+    icon: Url
   }
   manifest: Manifest
   installed?: InstalledPackageDataEntry // exists when: installed, updating
@@ -95,7 +96,7 @@ export interface InstalledPackageDataEntry {
   'dependency-info': {
     [id: string]: {
       manifest: Manifest
-      icon: URL
+      icon: Url
     }
   }
   'interface-addresses': {
@@ -110,28 +111,7 @@ export interface CurrentDependencyInfo {
   'health-checks': string[] // array of health check IDs
 }
 
-export interface Manifest {
-  id: string
-  title: string
-  version: string
-  description: {
-    short: string
-    long: string
-  }
-  'release-notes': string
-  license: string // name
-  'wrapper-repo': URL
-  'upstream-repo': URL
-  'support-site': URL
-  'marketing-site': URL
-  'donation-url': URL | null
-  alerts: {
-    install: string | null
-    uninstall: string | null
-    restore: string | null
-    start: string | null
-    stop: string | null
-  }
+export interface Manifest extends MarketplaceManifest {
   main: ActionImpl
   'health-checks': Record<
     string,
@@ -397,5 +377,3 @@ export interface DependencyEntry {
     'auto-configure': ActionImpl
   }
 }
-
-export type URL = string

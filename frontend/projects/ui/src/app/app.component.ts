@@ -1,14 +1,5 @@
-import { Component, HostListener, NgZone } from '@angular/core'
-import { Storage } from '@ionic/storage-angular'
-import { AuthService, AuthState } from './services/auth.service'
-import { ApiService } from './services/api/embassy-api.service'
+import { Component, HostListener, Inject, NgZone } from '@angular/core'
 import { Router, RoutesRecognized } from '@angular/router'
-import {
-  debounceTime,
-  distinctUntilChanged,
-  filter,
-  take,
-} from 'rxjs/operators'
 import {
   AlertController,
   IonicSafeString,
@@ -16,21 +7,33 @@ import {
   ModalController,
   ToastController,
 } from '@ionic/angular'
-import { SplitPaneTracker } from './services/split-pane.service'
 import { ToastButton } from '@ionic/core'
+import { Storage } from '@ionic/storage-angular'
+import {
+  debounce,
+  isEmptyObject,
+  Emver,
+  ErrorToastService,
+} from '@start9labs/shared'
+import { Subscription } from 'rxjs'
+import {
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  take,
+} from 'rxjs/operators'
+import { AuthService, AuthState } from './services/auth.service'
+import { ApiService } from './services/api/embassy-api.service'
+import { SplitPaneTracker } from './services/split-pane.service'
 import { PatchDbService } from './services/patch-db/patch-db.service'
 import {
   ConnectionFailure,
   ConnectionService,
 } from './services/connection.service'
 import { ConfigService } from './services/config.service'
-import { debounce, isEmptyObject, Emver } from '@start9labs/shared'
 import { ServerStatus, UIData } from 'src/app/services/patch-db/data-model'
-import { ErrorToastService } from './services/error-toast.service'
-import { Subscription } from 'rxjs'
 import { LocalStorageService } from './services/local-storage.service'
 import { EOSService } from './services/eos.service'
-import { MarketplaceService } from './pages/marketplace-routes/marketplace.service'
 import { OSWelcomePage } from './modals/os-welcome/os-welcome.page'
 import { SnakePage } from './modals/snake/snake.page'
 
@@ -128,7 +131,6 @@ export class AppComponent {
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
     private readonly modalCtrl: ModalController,
-    private readonly marketplaceService: MarketplaceService,
     private readonly toastCtrl: ToastController,
     private readonly errToast: ErrorToastService,
     private readonly config: ConfigService,
@@ -190,8 +192,6 @@ export class AppComponent {
               this.watchVersion(),
               // watch unread notification count to display toast
               this.watchNotifications(),
-              // watch marketplace URL for changes
-              this.marketplaceService.init(),
             ])
           })
         // UNVERIFIED

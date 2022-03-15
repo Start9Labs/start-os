@@ -1,0 +1,30 @@
+<!-- auto-config -->
+<ion-item lines="none" *ngIf="dependentInfo" class="rec-item">
+  <ion-label>
+    <h2 class="heading">
+      <ion-text class="title">
+        {{ title }}
+      </ion-text>
+    </h2>
+    <p>
+      <ion-text color="dark">
+        {{ dependentInfo.title }} requires an install of {{ title }} satisfying
+        {{ dependentInfo.version }}.
+        <br />
+        <br />
+        <span
+          *ngIf="version | satisfiesEmver: dependentInfo.version"
+          class="text"
+        >
+          {{ title }} version {{ version | displayEmver }} is compatible.
+        </span>
+        <span
+          *ngIf="!(version | satisfiesEmver: dependentInfo.version)"
+          class="text text_error"
+        >
+          {{ title }} version {{ version | displayEmver }} is NOT compatible.
+        </span>
+      </ion-text>
+    </p>
+  </ion-label>
+</ion-item>

@@ -8,7 +8,7 @@ import {
 } from '@ionic/angular'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
 import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
 import { ProdKeyModal } from '../../modals/prod-key-modal/prod-key-modal.page'
@@ -120,7 +120,7 @@ export class RecoverPage {
         this.hasShownGuidAlert = true
       }
     } catch (e) {
-      this.errorToastService.present(e.message)
+      this.errorToastService.present(e)
     } finally {
       this.loading = false
     }
@@ -206,7 +206,7 @@ export class RecoverPage {
       await this.stateService.importDrive(guid)
       await this.navCtrl.navigateForward(`/success`)
     } catch (e) {
-      this.errorToastService.present(e.message)
+      this.errorToastService.present(e)
     } finally {
       loader.dismiss()
     }

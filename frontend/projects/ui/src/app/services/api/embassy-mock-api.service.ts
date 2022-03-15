@@ -190,7 +190,7 @@ export class MockApiService extends ApiService {
       }
     } else if (path === '/package/v0/index') {
       return Mock.MarketplacePkgsList
-    } else if (path === '/package/v0/release-notes') {
+    } else if (path.startsWith('/package/v0/release-notes')) {
       return Mock.ReleaseNotes
     }
   }

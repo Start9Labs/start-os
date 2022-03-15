@@ -5,8 +5,7 @@ import {
   CifsRecoverySource,
   DiskRecoverySource,
 } from './api/api.service'
-import { ErrorToastService } from './error-toast.service'
-import { pauseFor } from '@start9labs/shared'
+import { pauseFor, ErrorToastService } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',
@@ -51,9 +50,9 @@ export class StateService {
     try {
       progress = await this.apiService.getRecoveryStatus()
     } catch (e) {
-      this.errorToastService.present(
-        `${e.message}\n\nRestart Embassy to try again.`,
-      )
+      this.errorToastService.present({
+        message: `${e.message}\n\nRestart Embassy to try again.`,
+      })
     }
     if (progress) {
       this.dataTransferProgress = {

@@ -9,15 +9,24 @@ const routes: Routes = [
   },
   {
     path: 'browse',
-    loadChildren: () => import('./marketplace-list/marketplace-list.module').then(m => m.MarketplaceListPageModule),
+    loadChildren: () =>
+      import('./marketplace-list/marketplace-list.module').then(
+        m => m.MarketplaceListPageModule,
+      ),
   },
   {
     path: ':pkgId',
-    loadChildren: () => import('./marketplace-show/marketplace-show.module').then(m => m.MarketplaceShowPageModule),
+    loadChildren: () =>
+      import('./marketplace-show/marketplace-show.module').then(
+        m => m.MarketplaceShowPageModule,
+      ),
   },
   {
     path: ':pkgId/notes',
-    loadChildren: () => import('./app-release-notes/app-release-notes.module').then(m => m.ReleaseNotesModule),
+    loadChildren: () =>
+      import('./release-notes/release-notes.module').then(
+        m => m.ReleaseNotesPageModule,
+      ),
   },
 ]
 
@@ -25,4 +34,4 @@ const routes: Routes = [
   imports: [RouterModule.forChild(routes)],
   exports: [RouterModule],
 })
-export class MarketplaceRoutingModule { }
+export class MarketplaceRoutingModule {}

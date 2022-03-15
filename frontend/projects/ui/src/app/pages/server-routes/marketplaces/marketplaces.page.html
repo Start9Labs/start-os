@@ -20,16 +20,12 @@
     </ion-item>
 
     <ion-item
-      [button]="mp.id !== selectedId"
-      detail="false"
       *ngFor="let mp of marketplaces"
+      detail="false"
+      [button]="mp.id !== selectedId"
       (click)="presentAction(mp.id)"
     >
-      <div
-        *ngIf="mp.id !== selectedId"
-        slot="start"
-        style="padding-right: 32px"
-      ></div>
+      <div *ngIf="mp.id !== selectedId" slot="start" class="padding"></div>
       <ion-icon
         *ngIf="mp.id === selectedId"
         slot="start"

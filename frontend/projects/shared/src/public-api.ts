@@ -5,6 +5,9 @@
 export * from './components/text-spinner/text-spinner.component.module'
 export * from './components/text-spinner/text-spinner.component'
 
+export * from './directives/element/element.directive'
+export * from './directives/element/element.module'
+
 export * from './pipes/emver/emver.module'
 export * from './pipes/emver/emver.pipe'
 export * from './pipes/markdown/markdown.module'
@@ -17,11 +20,13 @@ export * from './pipes/unit-conversion/unit-conversion.pipe'
 
 export * from './services/destroy.service'
 export * from './services/emver.service'
+export * from './services/error-toast.service'
 
 export * from './types/dependent-info'
 export * from './types/install-progress'
 export * from './types/package-state'
 export * from './types/progress-data'
+export * from './types/url'
 export * from './types/workspace-config'
 
 export * from './util/misc.util'

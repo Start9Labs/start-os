@@ -10,7 +10,7 @@ import {
   DiskInfo,
   DiskRecoverySource,
 } from 'src/app/services/api/api.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
 
@@ -74,7 +74,7 @@ export class EmbassyPage {
         await alert.present()
       }
     } catch (e) {
-      this.errorToastService.present(e.message)
+      this.errorToastService.present(e)
     } finally {
       this.loading = false
     }
@@ -142,9 +142,9 @@ export class EmbassyPage {
         await this.navCtrl.navigateForward(`/success`)
       }
     } catch (e) {
-      this.errorToastService.present(
-        `${e.message}\n\nRestart Embassy to try again.`,
-      )
+      this.errorToastService.present({
+        message: `${e.message}\n\nRestart Embassy to try again.`,
+      })
       console.error(e)
     } finally {
       loader.dismiss()

@@ -1,8 +1,7 @@
 import { Component } from '@angular/core'
 import { Metrics } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
-import { pauseFor } from '@start9labs/shared'
+import { pauseFor, ErrorToastService } from '@start9labs/shared'
 
 @Component({
   selector: 'server-metrics',

@@ -1,0 +1,28 @@
+<ng-container *ngIf="pkg; else none" [ngSwitch]="pkg.state">
+  <div *ngSwitchCase="PackageState.Installed">
+    <ion-text *ngIf="(version | compareEmver: version) === 0" color="success">
+      Installed
+    </ion-text>
+    <ion-text *ngIf="(version | compareEmver: version) === 1" color="warning">
+      Update Available
+    </ion-text>
+  </div>
+  <div *ngSwitchCase="PackageState.Removing">
+    <ion-text color="danger">
+      Removing
+      <span class="loading-dots"></span>
+    </ion-text>
+  </div>
+  <div *ngSwitchDefault>
+    <ion-text
+      *ngIf="pkg['install-progress'] | installProgress as progress"
+      color="primary"
+    >
+      Installing
+      <span class="loading-dots"></span>{{ progress }}
+    </ion-text>
+  </div>
+</ng-container>
+<ng-template #none>
+  <div>Not Installed</div>
+</ng-template>

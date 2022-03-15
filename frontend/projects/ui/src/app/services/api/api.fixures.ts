@@ -9,7 +9,6 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import {
   Log,
-  MarketplacePkg,
   Metric,
   RR,
   NotificationLevel,
@@ -17,6 +16,7 @@ import {
 } from './api.types'
 
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
+import { MarketplacePkg } from '@start9labs/marketplace'
 
 export module Mock {
   export const MarketplaceEos: RR.GetMarketplaceEOSRes = {

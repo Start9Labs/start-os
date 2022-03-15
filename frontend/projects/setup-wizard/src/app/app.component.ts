@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { ApiService } from './services/api/api.service'
-import { ErrorToastService } from './services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { StateService } from './services/state.service'
 
 @Component({
@@ -30,7 +30,7 @@ export class AppComponent {
         await this.navCtrl.navigateForward(`/recover`)
       }
     } catch (e) {
-      this.errorToastService.present(e.message)
+      this.errorToastService.present(e)
     }
   }
 }

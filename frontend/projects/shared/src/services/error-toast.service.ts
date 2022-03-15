@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core'
 import { IonicSafeString, ToastController } from '@ionic/angular'
-import { RequestError } from './http.service'
 
 @Injectable({
   providedIn: 'root',
@@ -10,7 +9,7 @@ export class ErrorToastService {
 
   constructor(private readonly toastCtrl: ToastController) {}
 
-  async present(e: RequestError, link?: string): Promise<void> {
+  async present(e: { message: string }, link?: string): Promise<void> {
     console.error(e)
 
     if (this.toast) return
@@ -43,18 +42,16 @@ export class ErrorToastService {
 }
 
 export function getErrorMessage(
-  e: RequestError,
+  { message }: { message: string },
   link?: string,
 ): string | IonicSafeString {
-  let message: string | IonicSafeString = e.message
-
   if (!message) {
     message = 'Unknown Error.'
     link = 'https://start9.com/latest/support/FAQ'
   }
 
   if (link) {
-    message = new IonicSafeString(
+    return new IonicSafeString(
       `${message}<br /><br /><a href=${link} target="_blank" rel="noreferrer" style="color: white;">Get Help</a>`,
     )
   }

@@ -1,6 +1,6 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { ModalController, IonicSafeString, IonInput } from '@ionic/angular'
-import { getErrorMessage } from 'src/app/services/error-toast.service'
+import { getErrorMessage } from '@start9labs/shared'
 
 @Component({
   selector: 'generic-input',
@@ -14,11 +14,9 @@ export class GenericInputComponent {
   unmasked = false
   error: string | IonicSafeString
 
-  constructor (
-    private readonly modalCtrl: ModalController,
-  ) { }
+  constructor(private readonly modalCtrl: ModalController) {}
 
-  ngOnInit () {
+  ngOnInit() {
     const defaultOptions: Partial<GenericInputOptions> = {
       buttonText: 'Submit',
       placeholder: 'Enter value',
@@ -34,19 +32,19 @@ export class GenericInputComponent {
     this.value = this.options.initialValue
   }
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     setTimeout(() => this.elem.setFocus(), 400)
   }
 
-  toggleMask () {
+  toggleMask() {
     this.unmasked = !this.unmasked
   }
 
-  cancel () {
+  cancel() {
     this.modalCtrl.dismiss()
   }
 
-  async submit () {
+  async submit() {
     const value = this.value.trim()
 
     if (!value && !this.options.nullable) return

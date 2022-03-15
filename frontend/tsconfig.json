@@ -22,6 +22,7 @@
       "crypto": ["./node_modules/crypto-browserify"],
       "vm": ["./node_modules/vm-browserify"],
       /* These paths are relative to each app base folder */
+      "@start9labs/marketplace": ["../marketplace/src/public-api"],
       "@start9labs/shared": ["../shared/src/public-api"]
     },
     "typeRoots": ["node_modules/@types"],

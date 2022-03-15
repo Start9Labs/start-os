@@ -1,6 +1,6 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
-import { ErrorToastService } from 'src/app/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { RR } from 'src/app/services/api/api.types'
 var Convert = require('ansi-to-html')
 var convert = new Convert({
@@ -14,7 +14,11 @@ var convert = new Convert({
 })
 export class LogsPage {
   @ViewChild(IonContent) private content: IonContent
-  @Input() fetchLogs: (params: { before_flag?: boolean, limit?: number, cursor?: string }) => Promise<RR.LogsRes>
+  @Input() fetchLogs: (params: {
+    before_flag?: boolean
+    limit?: number
+    cursor?: string
+  }) => Promise<RR.LogsRes>
   loading = true
   loadingMore = false
   logs: string
@@ -25,15 +29,13 @@ export class LogsPage {
   scrollToBottomButton = false
   isOnBottom = true
 
-  constructor (
-    private readonly errToast: ErrorToastService,
-  ) { }
+  constructor(private readonly errToast: ErrorToastService) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.getLogs()
   }
 
-  async fetch (isBefore: boolean = true) {
+  async fetch(isBefore: boolean = true) {
     try {
       const cursor = isBefore ? this.startCursor : this.endCursor
       const logsRes = await this.fetchLogs({
@@ -57,7 +59,7 @@ export class LogsPage {
     }
   }
 
-  async getLogs () {
+  async getLogs() {
     try {
       // get logs
       const logs = await this.fetch()
@@ -65,47 +67,60 @@ export class LogsPage {
 
       const container = document.getElementById('container')
       const beforeContainerHeight = container.scrollHeight
-      const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n') + (logs.length ? '\n' : '')
+      const newLogs = document
+        .getElementById('template')
+        .cloneNode(true) as HTMLElement
+      newLogs.innerHTML =
+        logs
+          .map(l => `${l.timestamp} ${convert.toHtml(l.message)}`)
+          .join('\n') + (logs.length ? '\n' : '')
       container.prepend(newLogs)
       const afterContainerHeight = container.scrollHeight
 
       // scroll down
       scrollBy(0, afterContainerHeight - beforeContainerHeight)
-      this.content.scrollToPoint(0, afterContainerHeight - beforeContainerHeight)
+      this.content.scrollToPoint(
+        0,
+        afterContainerHeight - beforeContainerHeight,
+      )
 
       if (logs.length < this.limit) {
         this.needInfinite = false
       }
-
-    } catch (e) { }
+    } catch (e) {}
   }
 
-  async loadMore () {
+  async loadMore() {
     try {
       this.loadingMore = true
       const logs = await this.fetch(false)
-      if (!logs.length) return this.loadingMore = false
+      if (!logs.length) return (this.loadingMore = false)
 
       const container = document.getElementById('container')
-      const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n') + (logs.length ? '\n' : '')
+      const newLogs = document
+        .getElementById('template')
+        .cloneNode(true) as HTMLElement
+      newLogs.innerHTML =
+        logs
+          .map(l => `${l.timestamp} ${convert.toHtml(l.message)}`)
+          .join('\n') + (logs.length ? '\n' : '')
       container.append(newLogs)
       this.loadingMore = false
       this.scrollEvent()
-    } catch (e) { }
+    } catch (e) {}
   }
 
-  scrollEvent () {
+  scrollEvent() {
     const buttonDiv = document.getElementById('button-div')
-    this.isOnBottom = buttonDiv && buttonDiv.getBoundingClientRect().top < window.innerHeight
+    this.isOnBottom =
+      buttonDiv && buttonDiv.getBoundingClientRect().top < window.innerHeight
   }
 
-  scrollToBottom () {
+  scrollToBottom() {
     this.content.scrollToBottom(500)
   }
 
-  async loadData (e: any): Promise<void> {
+  async loadData(e: any): Promise<void> {
     await this.getLogs()
     e.target.complete()
   }

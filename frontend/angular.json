@@ -38,8 +38,9 @@
               }
             ],
             "styles": [
-              "styles/variables.scss",
-              "styles/global.scss",
+              "projects/shared/styles/variables.scss",
+              "projects/shared/styles/global.scss",
+              "projects/shared/styles/shared.scss",
               "projects/ui/src/styles.scss"
             ],
             "scripts": []
@@ -157,8 +158,8 @@
               }
             ],
             "styles": [
-              "styles/variables.scss",
-              "styles/global.scss",
+              "projects/shared/styles/variables.scss",
+              "projects/shared/styles/global.scss",
               "projects/setup-wizard/src/styles.scss"
             ],
             "scripts": []
@@ -276,8 +277,8 @@
               }
             ],
             "styles": [
-              "styles/variables.scss",
-              "styles/global.scss",
+              "projects/shared/styles/variables.scss",
+              "projects/shared/styles/global.scss",
               "projects/diagnostic-ui/src/styles.scss"
             ],
             "scripts": []
@@ -373,6 +374,29 @@
               "devServerTarget": "diagnostic-ui:serve:production"
             }
           }
+        }
+      }
+    },
+    "marketplace": {
+      "projectType": "library",
+      "root": "projects/marketplace",
+      "sourceRoot": "projects/marketplace/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "options": {
+            "project": "projects/marketplace/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/marketplace/tsconfig.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/marketplace/tsconfig.json"
+            }
+          },
+          "defaultConfiguration": "production"
         }
       }
     },
