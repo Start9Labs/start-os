@@ -177,7 +177,7 @@ export class WifiPage {
 
     try {
       await this.api.setWifiCountry({ country })
-      await this.getWifi(4000)
+      await this.getWifi()
       this.wifi.country = country
     } catch (e) {
       this.errToast.present(e)
@@ -190,7 +190,6 @@ export class WifiPage {
     ssid: string,
     deleteOnFailure = false,
   ): Promise<void> {
-    const timeout = 4000
     const maxAttempts = 5
     let attempts = 0
 
@@ -205,7 +204,7 @@ export class WifiPage {
 
       try {
         const start = new Date().valueOf()
-        await this.getWifi(timeout)
+        await this.getWifi()
         const end = new Date().valueOf()
         if (this.wifi.connected === ssid) {
           this.presentAlertSuccess(ssid)
@@ -213,7 +212,8 @@ export class WifiPage {
         } else {
           attempts++
           const diff = end - start
-          await pauseFor(Math.max(1000, timeout - diff))
+          // depending on the response time, wait a min of 1000 ms, and a max of 4000 ms in between retries.  Both 1000 and 4000 are arbitrary      
+          await pauseFor(Math.max(1000, 4000 - diff))
         }
       } catch (e) {
         attempts++
@@ -288,7 +288,7 @@ export class WifiPage {
 
     try {
       await this.api.deleteWifi({ ssid })
-      await this.getWifi(4000)
+      await this.getWifi()
       delete this.wifi.ssids[ssid]
     } catch (e) {
       this.errToast.present(e)
@@ -312,7 +312,7 @@ export class WifiPage {
         priority: 0,
         connect: false,
       })
-      await this.getWifi(4000)
+      await this.getWifi()
     } catch (e) {
       this.errToast.present(e)
     } finally {
@@ -370,6 +370,8 @@ function getWifiValueSpec(
         nullable: !needsPW,
         masked: true,
         copyable: false,
+        pattern: '^.{8,}$',
+        'pattern-description': 'Must be longer than 8 characters',
       },
     },
   }

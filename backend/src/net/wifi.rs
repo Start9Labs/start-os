@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -79,6 +79,7 @@ pub async fn add(
     .await
     {
         tracing::error!("Failed to add new WiFi network '{}': {}", ssid, err);
+        tracing::debug!("{:?}", err);
         return Err(Error::new(
             color_eyre::eyre::eyre!("Failed adding {}", ssid),
             ErrorKind::Wifi,
@@ -292,12 +293,12 @@ pub async fn get(
         wpa_supplicant.list_wifi_low()
     );
     let signal_strengths = signal_strengths?;
-    let list_networks = list_networks?;
+    let list_networks: BTreeSet<_> = list_networks?.into_iter().map(|(_, x)| x.ssid).collect();
     let available_wifi = {
         let mut wifi_list: Vec<WifiListOut> = signal_strengths
             .clone()
             .into_iter()
-            .filter(|(ssid, _)| !list_networks.contains_key(ssid))
+            .filter(|(ssid, _)| !list_networks.contains(ssid))
             .map(|(ssid, info)| WifiListOut {
                 ssid,
                 strength: info.strength,
@@ -309,13 +310,13 @@ pub async fn get(
         wifi_list
     };
     let ssids: HashMap<Ssid, SignalStrength> = list_networks
-        .into_keys()
-        .map(|x| {
+        .into_iter()
+        .map(|ssid| {
             let signal_strength = signal_strengths
-                .get(&x)
+                .get(&ssid)
                 .map(|x| x.strength)
                 .unwrap_or_default();
-            (x, signal_strength)
+            (ssid, signal_strength)
         })
         .collect();
     let current = current_res?;
@@ -341,10 +342,13 @@ pub async fn get_available(
         wpa_supplicant.list_wifi_low(),
         wpa_supplicant.list_networks_low()
     );
-    let network_list = network_list?;
+    let network_list = network_list?
+        .into_iter()
+        .map(|(_, info)| info.ssid)
+        .collect::<BTreeSet<_>>();
     let mut wifi_list: Vec<WifiListOut> = wifi_list?
         .into_iter()
-        .filter(|(ssid, _)| !network_list.contains_key(ssid))
+        .filter(|(ssid, _)| !network_list.contains(ssid))
         .map(|(ssid, info)| WifiListOut {
             ssid,
             strength: info.strength,
@@ -369,7 +373,7 @@ pub async fn set_country(
     }
     let mut wpa_supplicant = ctx.wifi_manager.write().await;
     wpa_supplicant.set_country_low(country.alpha2()).await?;
-    for (_ssid, network_id) in wpa_supplicant.list_networks_low().await? {
+    for (network_id, _wifi_info) in wpa_supplicant.list_networks_low().await? {
         wpa_supplicant.remove_network_low(network_id).await?;
     }
     wpa_supplicant.remove_all_connections().await?;
@@ -421,6 +425,12 @@ impl SignalStrength {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct WifiInfo {
+    ssid: Ssid,
+    device: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Psk(String);
 impl WpaCli {
@@ -446,20 +456,20 @@ impl WpaCli {
     }
     #[instrument(skip(self, psk))]
     pub async fn add_network_low(&mut self, ssid: &Ssid, psk: &Psk) -> Result<(), Error> {
-        let _ = Command::new("nmcli")
-            .arg("con")
-            .arg("add")
-            .arg("con-name")
-            .arg(&ssid.0)
-            .arg("ifname")
-            .arg(&self.interface)
-            .arg("type")
-            .arg("wifi")
-            .arg("ssid")
-            .arg(&ssid.0)
-            .invoke(ErrorKind::Wifi)
-            .await?;
-        let _ = Command::new("nmcli")
+        if self.find_networks(ssid).await?.is_empty() {
+            Command::new("nmcli")
+                .arg("con")
+                .arg("add")
+                .arg("con-name")
+                .arg(&ssid.0)
+                .arg("type")
+                .arg("wifi")
+                .arg("ssid")
+                .arg(&ssid.0)
+                .invoke(ErrorKind::Wifi)
+                .await?;
+        }
+        Command::new("nmcli")
             .arg("con")
             .arg("modify")
             .arg(&ssid.0)
@@ -467,7 +477,20 @@ impl WpaCli {
             .arg("wpa-psk")
             .invoke(ErrorKind::Wifi)
             .await?;
-        let _ = Command::new("nmcli")
+        Command::new("nmcli")
+            .arg("con")
+            .arg("modify")
+            .arg(&ssid.0)
+            .arg("ifname")
+            .arg(&self.interface)
+            .invoke(ErrorKind::Wifi)
+            .await
+            .map(|_| ())
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to set interface {} for {}", self.interface, ssid.0);
+                tracing::debug!("{:?}", e);
+            });
+        Command::new("nmcli")
             .arg("con")
             .arg("modify")
             .arg(&ssid.0)
@@ -526,27 +549,32 @@ impl WpaCli {
         Ok(())
     }
     #[instrument]
-    pub async fn list_networks_low(&self) -> Result<BTreeMap<Ssid, NetworkId>, Error> {
+    pub async fn list_networks_low(&self) -> Result<BTreeMap<NetworkId, WifiInfo>, Error> {
         let r = Command::new("nmcli")
             .arg("-t")
             .arg("c")
             .arg("show")
             .invoke(ErrorKind::Wifi)
             .await?;
-        Ok(String::from_utf8(r)?
-            .lines()
+        let r = String::from_utf8(r)?;
+        tracing::info!("JCWM: all the networks: {:?}", r);
+        Ok(r.lines()
             .filter_map(|l| {
                 let mut cs = l.split(':');
                 let name = Ssid(cs.next()?.to_owned());
                 let uuid = NetworkId(cs.next()?.to_owned());
                 let connection_type = cs.next()?;
-                let device = cs.next()?;
-                if !device.contains("wlan0") || !connection_type.contains("wireless") {
+                let device = cs.next();
+                if !connection_type.contains("wireless") {
                     return None;
                 }
-                Some((name, uuid))
+                let info = WifiInfo {
+                    ssid: name,
+                    device: device.map(|x| x.to_owned()),
+                };
+                Some((uuid, info))
             })
-            .collect::<BTreeMap<Ssid, NetworkId>>())
+            .collect::<BTreeMap<NetworkId, WifiInfo>>())
     }
 
     #[instrument]
@@ -606,12 +634,37 @@ impl WpaCli {
             .await?;
         Ok(())
     }
-    pub async fn check_network(&self, ssid: &Ssid) -> Result<Option<NetworkId>, Error> {
-        Ok(self.list_networks_low().await?.remove(ssid))
+    async fn check_active_network(&self, ssid: &Ssid) -> Result<Option<NetworkId>, Error> {
+        Ok(self
+            .list_networks_low()
+            .await?
+            .iter()
+            .find_map(|(network_id, wifi_info)| {
+                wifi_info.device.as_ref()?;
+                if wifi_info.ssid == *ssid {
+                    Some(network_id.clone())
+                } else {
+                    None
+                }
+            }))
+    }
+    pub async fn find_networks(&self, ssid: &Ssid) -> Result<Vec<NetworkId>, Error> {
+        Ok(self
+            .list_networks_low()
+            .await?
+            .iter()
+            .filter_map(|(network_id, wifi_info)| {
+                if wifi_info.ssid == *ssid {
+                    Some(network_id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect())
     }
     #[instrument(skip(db))]
     pub async fn select_network(&mut self, db: impl DbHandle, ssid: &Ssid) -> Result<bool, Error> {
-        let m_id = self.check_network(ssid).await?;
+        let m_id = self.check_active_network(ssid).await?;
         match m_id {
             None => Err(Error::new(
                 color_eyre::eyre::eyre!("SSID Not Found"),
@@ -663,14 +716,15 @@ impl WpaCli {
     }
     #[instrument(skip(db))]
     pub async fn remove_network(&mut self, db: impl DbHandle, ssid: &Ssid) -> Result<bool, Error> {
-        match self.check_network(ssid).await? {
-            None => Ok(false),
-            Some(x) => {
-                self.remove_network_low(x).await?;
-                self.save_config(db).await?;
-                Ok(true)
-            }
+        let found_networks = self.find_networks(ssid).await?;
+        if found_networks.is_empty() {
+            return Ok(true);
         }
+        for network_id in found_networks {
+            self.remove_network_low(network_id).await?;
+        }
+        self.save_config(db).await?;
+        Ok(true)
     }
     #[instrument(skip(psk, db))]
     pub async fn set_add_network(
