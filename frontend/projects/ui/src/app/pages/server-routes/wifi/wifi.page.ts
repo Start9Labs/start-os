@@ -213,6 +213,7 @@ export class WifiPage {
         } else {
           attempts++
           const diff = end - start
+          // depending on the response time, wait a min of 1000 ms, and a max of 4000 ms in between retries.  Both 1000 and 4000 are arbitrary      
           await pauseFor(Math.max(1000, 4000 - diff))
         }
       } catch (e) {
