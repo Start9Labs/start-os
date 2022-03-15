@@ -16,7 +16,7 @@ pub const WHITELIST: [(VendorId, ProductId); 5] = [
     (VendorId(0x1d6b), ProductId(0x0003)), // root hub usb3
     (VendorId(0x2109), ProductId(0x3431)),
     (VendorId(0x1058), ProductId(0x262f)), // western digital black HDD
-    (VendorId(0x04e8), ProductId(0x4001)),
+    (VendorId(0x04e8), ProductId(0x4001)), // Samsung T7
 ];
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
