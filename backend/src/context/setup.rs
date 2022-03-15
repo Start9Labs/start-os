@@ -21,7 +21,7 @@ use crate::db::model::Database;
 use crate::hostname::{derive_hostname, derive_id, get_product_key};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
-use crate::util::io::from_toml_async_reader;
+use crate::util::io::from_yaml_async_reader;
 use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
 
@@ -50,7 +50,7 @@ impl SetupContextConfig {
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, cfg_path.display().to_string()))?
         {
-            from_toml_async_reader(f).await
+            from_yaml_async_reader(f).await
         } else {
             Ok(Self::default())
         }
