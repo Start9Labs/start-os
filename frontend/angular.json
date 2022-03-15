@@ -160,6 +160,7 @@
             "styles": [
               "projects/shared/styles/variables.scss",
               "projects/shared/styles/global.scss",
+              "projects/shared/styles/shared.scss",
               "projects/setup-wizard/src/styles.scss"
             ],
             "scripts": []
@@ -279,6 +280,7 @@
             "styles": [
               "projects/shared/styles/variables.scss",
               "projects/shared/styles/global.scss",
+              "projects/shared/styles/shared.scss",
               "projects/diagnostic-ui/src/styles.scss"
             ],
             "scripts": []
