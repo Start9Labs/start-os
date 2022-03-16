@@ -28,6 +28,13 @@ const routes: Routes = [
       ),
   },
   {
+    path: 'kernel-logs',
+    loadChildren: () =>
+      import('./kernel-logs/kernel-logs.module').then(
+        m => m.KernelLogsPageModule,
+      ),
+  },
+  {
     path: 'marketplaces',
     loadChildren: () =>
       import('./marketplaces/marketplaces.module').then(
