@@ -63,6 +63,12 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'server.logs', params })
   }
 
+  async getKernelLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes> {
+    return this.http.rpcRequest({ method: 'server.kernel-logs', params })
+  }
+
   async getServerMetrics(
     params: RR.GetServerMetricsReq,
   ): Promise<RR.GetServerMetricsRes> {

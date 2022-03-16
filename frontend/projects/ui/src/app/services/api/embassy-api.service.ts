@@ -55,6 +55,10 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>
 
+  abstract getKernelLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes>
+
   abstract getServerMetrics(
     params: RR.GetServerMetricsReq,
   ): Promise<RR.GetServerMetricsRes>

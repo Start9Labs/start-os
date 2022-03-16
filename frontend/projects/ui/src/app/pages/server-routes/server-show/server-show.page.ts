@@ -345,11 +345,22 @@ export class ServerShowPage {
         disabled: of(false),
       },
       {
-        title: 'Logs',
-        description: 'Raw, unfiltered device logs',
+        title: 'OS Logs',
+        description: 'Raw, unfiltered operating system logs',
         icon: 'newspaper-outline',
         action: () =>
           this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
+        detail: true,
+        disabled: of(false),
+      },
+      {
+        title: 'Kernel Logs',
+        description: 'Diagnostic log stream for device drivers',
+        icon: 'receipt-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['kernel-logs'], {
+            relativeTo: this.route,
+          }),
         detail: true,
         disabled: of(false),
       },
