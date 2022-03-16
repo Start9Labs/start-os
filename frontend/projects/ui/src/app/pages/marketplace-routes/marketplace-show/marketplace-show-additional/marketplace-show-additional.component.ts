@@ -63,20 +63,12 @@ export class MarketplaceShowAdditionalComponent {
   }
 
   async presentModalMd(title: 'license' | 'instructions') {
-    const content$ =
-      title === 'license'
-        ? this.marketplaceService.getLicense()
-        : this.marketplaceService.getInstructions()
-
-    content$.pipe(take(1)).subscribe(async content => {
-      const modal = await this.modalCtrl.create({
-        componentProps: {
-          title,
-          content,
-        },
-        component: MarkdownPage,
-      })
-      await modal.present()
+    const modal = await this.modalCtrl.create({
+      componentProps: {
+        title,
+      },
+      component: MarkdownPage,
     })
+    await modal.present()
   }
 }
