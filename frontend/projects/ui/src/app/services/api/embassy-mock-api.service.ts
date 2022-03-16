@@ -112,6 +112,28 @@ export class MockApiService extends ApiService {
     }
   }
 
+  async getKernelLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes> {
+    await pauseFor(2000)
+    let entries: Log[]
+    if (Math.random() < 0.2) {
+      entries = Mock.ServerLogs
+    } else {
+      const arrLength = params.limit
+        ? Math.ceil(params.limit / Mock.ServerLogs.length)
+        : 10
+      entries = new Array(arrLength)
+        .fill(Mock.ServerLogs)
+        .reduce((acc, val) => acc.concat(val), [])
+    }
+    return {
+      entries,
+      'start-cursor': 'startCursor',
+      'end-cursor': 'endCursor',
+    }
+  }
+
   async getServerMetrics(
     params: RR.GetServerMetricsReq,
   ): Promise<RR.GetServerMetricsRes> {

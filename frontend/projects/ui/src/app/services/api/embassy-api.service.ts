@@ -56,6 +56,10 @@ export abstract class ApiService
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>
 
+  abstract getKernelLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes>
+
   abstract getServerMetrics(
     params: RR.GetServerMetricsReq,
   ): Promise<RR.GetServerMetricsRes>
