@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
-import { LocalPkg } from '@start9labs/marketplace'
-import { PackageState } from '@start9labs/shared'
+import { PackageState } from 'src/app/types/package-state'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'marketplace-status',
@@ -8,7 +8,7 @@ import { PackageState } from '@start9labs/shared'
 })
 export class MarketplaceStatusComponent {
   @Input()
-  pkg?: LocalPkg
+  pkg?: PackageDataEntry
 
   PackageState = PackageState
 

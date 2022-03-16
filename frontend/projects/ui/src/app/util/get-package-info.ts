@@ -6,8 +6,9 @@ import {
   renderPkgStatus,
   StatusRendering,
 } from '../services/pkg-status-rendering.service'
-import { packageLoadingProgress, ProgressData } from '@start9labs/shared'
+import { ProgressData } from 'src/app/types/progress-data'
 import { Subscription } from 'rxjs'
+import { packageLoadingProgress } from './package-loading-progress'
 
 export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
   const statuses = renderPkgStatus(entry)

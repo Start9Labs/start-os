@@ -1,6 +1,12 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Inject,
+  Input,
+} from '@angular/core'
 import { MarketplacePkg } from '@start9labs/marketplace'
-import { DependentInfo } from '@start9labs/shared'
+import { DOCUMENT } from '@angular/common'
+import { DependentInfo } from 'src/app/types/dependent-info'
 
 @Component({
   selector: 'marketplace-show-dependent',
@@ -12,7 +18,10 @@ export class MarketplaceShowDependentComponent {
   @Input()
   pkg: MarketplacePkg
 
-  readonly dependentInfo?: DependentInfo = history.state?.dependentInfo
+  readonly dependentInfo?: DependentInfo =
+    this.document.defaultView?.history.state?.dependentInfo
+
+  constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
   get title(): string {
     return this.pkg?.manifest.title || ''

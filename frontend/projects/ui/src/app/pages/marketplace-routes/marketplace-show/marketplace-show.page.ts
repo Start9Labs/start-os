@@ -2,12 +2,11 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from '@start9labs/shared'
 import {
-  LocalPkg,
   MarketplacePkg,
   AbstractMarketplaceService,
-  spreadProgress,
 } from '@start9labs/marketplace'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { BehaviorSubject, defer, Observable, of } from 'rxjs'
 import {
   catchError,
@@ -17,6 +16,8 @@ import {
   switchMap,
   tap,
 } from 'rxjs/operators'
+
+import { spreadProgress } from '../utils/spread-progress'
 
 @Component({
   selector: 'marketplace-show',
@@ -32,7 +33,7 @@ export class MarketplaceShowPage {
   readonly localPkg$ = defer(() =>
     this.patch.watch$('package-data', this.pkgId),
   ).pipe(
-    filter<LocalPkg>(Boolean),
+    filter<PackageDataEntry>(Boolean),
     tap(spreadProgress),
     shareReplay({ bufferSize: 1, refCount: true }),
   )

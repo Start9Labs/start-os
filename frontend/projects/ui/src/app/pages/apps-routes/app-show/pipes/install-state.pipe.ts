@@ -1,6 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { ProgressData, packageLoadingProgress } from '@start9labs/shared'
+import { ProgressData } from 'src/app/types/progress-data'
+import { packageLoadingProgress } from 'src/app/util/package-loading-progress'
 
 @Pipe({
   name: 'installState',

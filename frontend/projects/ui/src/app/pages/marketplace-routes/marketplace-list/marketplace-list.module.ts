@@ -8,13 +8,17 @@ import {
   EmverPipesModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
-import { MarketplacePipesModule } from '@start9labs/marketplace'
+import {
+  FilterPackagesPipeModule,
+  CategoriesModule,
+  ItemModule,
+  SearchModule,
+  SkeletonModule,
+} from '@start9labs/marketplace'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceListPage } from './marketplace-list.page'
-import { MarketplaceListHeaderComponent } from './marketplace-list-header/marketplace-list-header.component'
-import { MarketplaceListSkeletonComponent } from './marketplace-list-skeleton/marketplace-list-skeleton.component'
 import { MarketplaceListContentComponent } from './marketplace-list-content/marketplace-list-content.component'
 
 const routes: Routes = [
@@ -33,21 +37,15 @@ const routes: Routes = [
     TextSpinnerComponentModule,
     SharedPipesModule,
     EmverPipesModule,
-    MarketplacePipesModule,
+    FilterPackagesPipeModule,
     MarketplaceStatusModule,
     BadgeMenuComponentModule,
+    ItemModule,
+    CategoriesModule,
+    SearchModule,
+    SkeletonModule,
   ],
-  declarations: [
-    MarketplaceListPage,
-    MarketplaceListHeaderComponent,
-    MarketplaceListContentComponent,
-    MarketplaceListSkeletonComponent,
-  ],
-  exports: [
-    MarketplaceListPage,
-    MarketplaceListHeaderComponent,
-    MarketplaceListContentComponent,
-    MarketplaceListSkeletonComponent,
-  ],
+  declarations: [MarketplaceListPage, MarketplaceListContentComponent],
+  exports: [MarketplaceListPage, MarketplaceListContentComponent],
 })
 export class MarketplaceListPageModule {}

@@ -4,20 +4,20 @@ import { filter, first, map, startWith, switchMapTo, tap } from 'rxjs/operators'
 import { exists, isEmptyObject } from '@start9labs/shared'
 import {
   AbstractMarketplaceService,
-  LocalPkg,
   MarketplacePkg,
-  spreadProgress,
 } from '@start9labs/marketplace'
 
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { spreadProgress } from '../utils/spread-progress'
 
 @Component({
   selector: 'marketplace-list',
   templateUrl: './marketplace-list.page.html',
 })
 export class MarketplaceListPage {
-  readonly localPkgs$: Observable<Record<string, LocalPkg>> = defer(() =>
-    this.patch.watch$('package-data'),
+  readonly localPkgs$: Observable<Record<string, PackageDataEntry>> = defer(
+    () => this.patch.watch$('package-data'),
   ).pipe(
     filter(data => exists(data) && !isEmptyObject(data)),
     tap(pkgs => Object.values(pkgs).forEach(spreadProgress)),

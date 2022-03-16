@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { InstallProgress, ProgressData } from '@start9labs/shared'
+import { InstallProgress } from 'src/app/types/install-progress'
+import { ProgressData } from 'src/app/types/progress-data'
 
 @Component({
   selector: 'app-show-progress',

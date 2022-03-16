@@ -3,10 +3,12 @@ import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
 import { take } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import {
+  debounce,
+  ErrorToastService,
+  MarkdownComponent,
+} from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { debounce } from '../../../../../../shared/src/util/misc.util'
-import { MarkdownPage } from '../../../modals/markdown/markdown.page'
 
 @Component({
   selector: 'dev-instructions',
@@ -44,7 +46,7 @@ export class DevInstructionsPage {
         title: 'Instructions Sample',
         content: this.code,
       },
-      component: MarkdownPage,
+      component: MarkdownComponent,
     })
 
     await modal.present()

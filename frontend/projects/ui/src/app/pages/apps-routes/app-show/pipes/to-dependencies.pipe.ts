@@ -8,7 +8,8 @@ import {
   DependencyErrorType,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { DependentInfo, exists } from '@start9labs/shared'
+import { exists } from '@start9labs/shared'
+import { DependentInfo } from 'src/app/types/dependent-info'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ModalService } from 'src/app/services/modal.service'
 

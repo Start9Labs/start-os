@@ -1,8 +1,8 @@
-import { Pipe, PipeTransform } from '@angular/core'
+import { NgModule, Pipe, PipeTransform } from '@angular/core'
 import Fuse from 'fuse.js/dist/fuse.min.js'
 
-import { LocalPkg } from '../types/local-pkg'
 import { MarketplacePkg } from '../types/marketplace-pkg'
+import { MarketplaceManifest } from '../types/marketplace-manifest'
 
 const defaultOps = {
   isCaseSensitive: false,
@@ -31,9 +31,9 @@ const defaultOps = {
 export class FilterPackagesPipe implements PipeTransform {
   transform(
     packages: MarketplacePkg[] | null,
-    local: Record<string, LocalPkg>,
     query: string,
     category: string,
+    local: Record<string, { manifest: MarketplaceManifest }> = {},
   ): MarketplacePkg[] | null {
     if (!packages) {
       return null
@@ -63,3 +63,9 @@ export class FilterPackagesPipe implements PipeTransform {
       .map(p => p.item)
   }
 }
+
+@NgModule({
+  declarations: [FilterPackagesPipe],
+  exports: [FilterPackagesPipe],
+})
+export class FilterPackagesPipeModule {}

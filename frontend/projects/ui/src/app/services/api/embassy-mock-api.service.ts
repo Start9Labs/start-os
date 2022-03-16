@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core'
-import { InstallProgress, pauseFor } from '@start9labs/shared'
+import { pauseFor } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { PatchOp, Update, Operation, RemoveOperation } from 'patch-db-client'
-import { PackageState } from '@start9labs/shared'
+import { PackageState } from 'src/app/types/package-state'
+import { InstallProgress } from 'src/app/types/install-progress'
 import {
   DataModel,
   DependencyErrorType,

@@ -1,0 +1,26 @@
+.header {
+  font-family: 'Montserrat', sans-serif;
+  padding: 2%;
+}
+
+.logo {
+  min-width: 15%;
+  max-width: 18%;
+}
+
+.text {
+  margin-left: 5%;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.title {
+  margin: 0 0 0 -2px;
+  font-size: calc(20px + 3vw);
+}
+
+.version {
+  padding: 4px 0 12px 0;
+  margin: 0;
+  font-size: calc(10px + 1vw);
+}

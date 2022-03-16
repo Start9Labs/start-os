@@ -8,16 +8,18 @@ import {
   MarkdownPipeModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
-import { MarketplacePipesModule } from '@start9labs/marketplace'
+import {
+  PackageModule,
+  AboutModule,
+  AdditionalModule,
+  DependenciesModule,
+} from '@start9labs/marketplace'
 import { InstallWizardComponentModule } from 'src/app/components/install-wizard/install-wizard.component.module'
 
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceShowPage } from './marketplace-show.page'
 import { MarketplaceShowHeaderComponent } from './marketplace-show-header/marketplace-show-header.component'
 import { MarketplaceShowDependentComponent } from './marketplace-show-dependent/marketplace-show-dependent.component'
-import { MarketplaceShowDependenciesComponent } from './marketplace-show-dependencies/marketplace-show-dependencies.component'
-import { MarketplaceShowAdditionalComponent } from './marketplace-show-additional/marketplace-show-additional.component'
-import { MarketplaceShowAboutComponent } from './marketplace-show-about/marketplace-show-about.component'
 import { MarketplaceShowControlsComponent } from './marketplace-show-controls/marketplace-show-controls.component'
 
 const routes: Routes = [
@@ -36,27 +38,24 @@ const routes: Routes = [
     SharedPipesModule,
     EmverPipesModule,
     MarkdownPipeModule,
-    MarketplacePipesModule,
     MarketplaceStatusModule,
     InstallWizardComponentModule,
+    PackageModule,
+    AboutModule,
+    DependenciesModule,
+    AdditionalModule,
   ],
   declarations: [
     MarketplaceShowPage,
     MarketplaceShowHeaderComponent,
     MarketplaceShowControlsComponent,
     MarketplaceShowDependentComponent,
-    MarketplaceShowAboutComponent,
-    MarketplaceShowDependenciesComponent,
-    MarketplaceShowAdditionalComponent,
   ],
   exports: [
     MarketplaceShowPage,
     MarketplaceShowHeaderComponent,
     MarketplaceShowControlsComponent,
     MarketplaceShowDependentComponent,
-    MarketplaceShowAboutComponent,
-    MarketplaceShowDependenciesComponent,
-    MarketplaceShowAdditionalComponent,
   ],
 })
 export class MarketplaceShowPageModule {}
