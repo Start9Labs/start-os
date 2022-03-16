@@ -106,6 +106,7 @@ fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
 
 #[derive(Debug)]
 pub enum LogSource {
+    Kernel,
     Service(&'static str),
     Container(PackageId),
 }
@@ -139,37 +140,42 @@ pub async fn fetch_logs(
     cursor: Option<String>,
     before_flag: bool,
 ) -> Result<LogResponse, Error> {
-    let limit = limit.unwrap_or(50);
-    let limit_formatted = format!("-n{}", limit);
+    let mut cmd = Command::new("journalctl");
 
-    let mut args = vec!["--output=json", "--output-fields=MESSAGE", &limit_formatted];
-    let id_formatted = match id {
+    let limit = limit.unwrap_or(50);
+
+    cmd.arg("--output=json");
+    cmd.arg("--output-fields=MESSAGE");
+    cmd.arg(format!("-n{}", limit));
+    match id {
+        LogSource::Kernel => {
+            cmd.arg("-k");
+        }
         LogSource::Service(id) => {
-            args.push("-u");
-            id.to_owned()
+            cmd.arg("-u");
+            cmd.arg(id);
         }
         LogSource::Container(id) => {
-            format!("CONTAINER_NAME={}", DockerAction::container_name(&id, None))
+            cmd.arg(format!(
+                "CONTAINER_NAME={}",
+                DockerAction::container_name(&id, None)
+            ));
         }
     };
-    args.push(&id_formatted);
 
     let cursor_formatted = format!("--after-cursor={}", cursor.clone().unwrap_or("".to_owned()));
     let mut get_prev_logs_and_reverse = false;
     if cursor.is_some() {
-        args.push(&cursor_formatted);
+        cmd.arg(&cursor_formatted);
         if before_flag {
             get_prev_logs_and_reverse = true;
         }
     }
     if get_prev_logs_and_reverse {
-        args.push("--reverse");
+        cmd.arg("--reverse");
     }
 
-    let mut child = Command::new("journalctl")
-        .args(args)
-        .stdout(Stdio::piped())
-        .spawn()?;
+    let mut child = cmd.stdout(Stdio::piped()).spawn()?;
     let out = BufReader::new(
         child
             .stdout

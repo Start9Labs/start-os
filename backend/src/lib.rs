@@ -77,6 +77,7 @@ pub fn main_api() -> Result<(), RpcError> {
 
 #[command(subcommands(
     system::logs,
+    system::kernel_logs,
     system::metrics,
     shutdown::shutdown,
     shutdown::restart,
