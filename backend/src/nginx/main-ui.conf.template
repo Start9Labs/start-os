@@ -1,4 +1,8 @@
 
+map $http_upgrade $connection_upgrade {{
+        default upgrade;
+        '' $http_connection;
+}}
 
 server {{
         listen 443 ssl default_server;
