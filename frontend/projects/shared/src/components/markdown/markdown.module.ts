@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 
 import { MarkdownPipeModule } from '../../pipes/markdown/markdown.module'
+import { SharedPipesModule } from '../../pipes/shared/shared.module'
+import { SafeLinksModule } from '../../directives/safe-links/safe-links.module'
 import { TextSpinnerComponentModule } from '../text-spinner/text-spinner.component.module'
 import { MarkdownComponent } from './markdown.component'
 
@@ -13,6 +15,8 @@ import { MarkdownComponent } from './markdown.component'
     IonicModule,
     MarkdownPipeModule,
     TextSpinnerComponentModule,
+    SafeLinksModule,
+    SharedPipesModule,
   ],
   exports: [MarkdownComponent],
 })

@@ -10,22 +10,20 @@
 </ion-header>
 
 <ion-content>
-  <text-spinner
-    *ngIf="loading; else loaded"
-    [text]="'Loading ' + title | titlecase"
-  ></text-spinner>
+  <ion-item *ngIf="error$ | async as error">
+    <ion-label>
+      <ion-text safeLinks color="danger">{{ error }}</ion-text>
+    </ion-label>
+  </ion-item>
 
-  <ng-template #loaded>
-    <ion-item *ngIf="loadingError; else noError">
-      <ion-label>
-        <ion-text color="danger">
-          {{ loadingError }}
-        </ion-text>
-      </ion-label>
-    </ion-item>
+  <div
+    *ngIf="content$ | async as result; else loading"
+    safeLinks
+    class="content-padding"
+    [innerHTML]="result | markdown"
+  ></div>
 
-    <ng-template #noError>
-      <div class="content-padding" [innerHTML]="content | markdown"></div>
-    </ng-template>
+  <ng-template #loading>
+    <text-spinner [text]="'Loading ' + title | titlecase"></text-spinner>
   </ng-template>
 </ion-content>

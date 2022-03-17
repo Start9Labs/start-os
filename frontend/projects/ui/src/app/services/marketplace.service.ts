@@ -103,26 +103,6 @@ export class MarketplaceService extends AbstractMarketplaceService {
     )
   }
 
-  // async install(id: string, version?: string): Promise<void> {
-  //   const loader = await this.loadingCtrl.create({
-  //     spinner: 'lines',
-  //     message: 'Beginning Installation',
-  //     cssClass: 'loader',
-  //   })
-  //   loader.present()
-  //
-  //   try {
-  //     await this.installPackage({
-  //       id,
-  //       'version-spec': version ? `=${version}` : undefined,
-  //     })
-  //   } catch (e) {
-  //     this.errToast.present(e)
-  //   } finally {
-  //     loader.dismiss()
-  //   }
-  // }
-
   install(id: string, version?: string): Observable<unknown> {
     return defer(() =>
       from(
@@ -156,6 +136,20 @@ export class MarketplaceService extends AbstractMarketplaceService {
             ...req,
             'marketplace-url': url,
           }),
+        ),
+      ),
+    )
+  }
+
+  getPackageMarkdown(type: string, pkgId: string): Observable<string> {
+    return this.getMarketplace().pipe(
+      switchMap(({ url }) =>
+        from(
+          this.api.marketplaceProxy<string>(
+            `/package/v0/${type}/${pkgId}`,
+            {},
+            url,
+          ),
         ),
       ),
     )

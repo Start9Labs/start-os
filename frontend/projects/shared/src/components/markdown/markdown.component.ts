@@ -1,9 +1,10 @@
 import { Component, Input, Optional } from '@angular/core'
-import { ModalController, IonicSafeString } from '@ionic/angular'
+import { ModalController } from '@ionic/angular'
 
 import { getErrorMessage } from '../../services/error-toast.service'
-import { pauseFor } from '../../util/misc.util'
 import { AbstractApiService } from '../../services/api.service'
+import { defer, from, isObservable, Observable, of } from 'rxjs'
+import { catchError, ignoreElements, share } from 'rxjs/operators'
 
 @Component({
   selector: 'markdown',
@@ -12,10 +13,17 @@ import { AbstractApiService } from '../../services/api.service'
 })
 export class MarkdownComponent {
   @Input() contentUrl?: string
-  @Input() content?: string
-  @Input() title: string
-  loading = true
-  loadingError: string | IonicSafeString
+  @Input() content?: string | Observable<string>
+  @Input() title = ''
+
+  private readonly data$ = defer(() => this.contentObservable).pipe(share())
+
+  readonly error$ = this.data$.pipe(
+    ignoreElements(),
+    catchError(e => of(getErrorMessage(e))),
+  )
+
+  readonly content$ = this.data$.pipe(catchError(() => of([])))
 
   constructor(
     private readonly modalCtrl: ModalController,
@@ -23,28 +31,17 @@ export class MarkdownComponent {
     private readonly embassyApi: AbstractApiService | null,
   ) {}
 
-  async ngOnInit() {
-    try {
-      if (!this.content) {
-        this.content = await this.embassyApi?.getStatic(this.contentUrl)
-      }
-      this.loading = false
-      await pauseFor(50)
-      const links = document.links
-      for (let i = 0, linksLength = links.length; i < linksLength; i++) {
-        if (links[i].hostname != window.location.hostname) {
-          links[i].target = '_blank'
-          links[i].setAttribute('rel', 'noreferrer')
-          links[i].className += ' externalLink'
-        }
-      }
-    } catch (e) {
-      this.loadingError = getErrorMessage(e)
-      this.loading = false
-    }
-  }
-
   async dismiss() {
     return this.modalCtrl.dismiss(true)
+  }
+
+  private get contentObservable() {
+    if (isObservable(this.content)) {
+      return this.content
+    }
+
+    return this.contentUrl
+      ? from(this.embassyApi?.getStatic(this.contentUrl))
+      : of(this.content)
   }
 }

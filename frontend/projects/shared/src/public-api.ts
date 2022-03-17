@@ -9,6 +9,8 @@ export * from './components/text-spinner/text-spinner.component'
 
 export * from './directives/element/element.directive'
 export * from './directives/element/element.module'
+export * from './directives/safe-links/safe-links.directive'
+export * from './directives/safe-links/safe-links.module'
 
 export * from './pipes/emver/emver.module'
 export * from './pipes/emver/emver.pipe'

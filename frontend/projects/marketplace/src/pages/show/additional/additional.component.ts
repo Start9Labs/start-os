@@ -6,8 +6,10 @@ import {
   Output,
 } from '@angular/core'
 import { AlertController, ModalController } from '@ionic/angular'
-import { MarketplacePkg } from '@start9labs/marketplace'
 import { displayEmver, Emver, MarkdownComponent } from '@start9labs/shared'
+
+import { AbstractMarketplaceService } from '../../../services/marketplace.service'
+import { MarketplacePkg } from '../../../types/marketplace-pkg'
 
 @Component({
   selector: 'marketplace-additional',
@@ -25,6 +27,7 @@ export class AdditionalComponent {
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly emver: Emver,
+    private readonly marketplaceService: AbstractMarketplaceService,
   ) {}
 
   async presentAlertVersions() {
@@ -56,11 +59,13 @@ export class AdditionalComponent {
   }
 
   async presentModalMd(title: string) {
+    const content = this.marketplaceService.getPackageMarkdown(
+      title,
+      this.pkg.manifest.id,
+    )
+
     const modal = await this.modalCtrl.create({
-      componentProps: {
-        title,
-        contentUrl: `/marketplace${this.pkg[title]}`,
-      },
+      componentProps: { title, content },
       component: MarkdownComponent,
     })
 
