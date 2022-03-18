@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { LoadingController } from '@ionic/angular'
-import { Emver, ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService } from '@start9labs/shared'
 import {
   MarketplacePkg,
   AbstractMarketplaceService,
@@ -13,14 +13,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { ServerInfo } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import {
-  catchError,
-  finalize,
-  map,
-  shareReplay,
-  switchMap,
-  tap,
-} from 'rxjs/operators'
+import { catchError, map, shareReplay, switchMap, tap } from 'rxjs/operators'
 
 @Injectable()
 export class MarketplaceService extends AbstractMarketplaceService {
@@ -56,7 +49,6 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   constructor(
     private readonly api: ApiService,
-    private readonly emver: Emver,
     private readonly patch: PatchDbService,
     private readonly config: ConfigService,
     private readonly loadingCtrl: LoadingController,

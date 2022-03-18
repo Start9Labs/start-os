@@ -17,12 +17,14 @@
     </div>
 
     <ion-row>
-      <marketplace-item *ngFor="let pkg of filtered" [pkg]="pkg">
-        <marketplace-status
-          class="status"
-          [pkg]="localPkgs[pkg.manifest.id]"
-        ></marketplace-status>
-      </marketplace-item>
+      <ion-col *ngFor="let pkg of filtered" sizeXs="12" sizeSm="12" sizeMd="6">
+        <marketplace-item [pkg]="pkg">
+          <marketplace-status
+            class="status"
+            [pkg]="localPkgs[pkg.manifest.id]"
+          ></marketplace-status>
+        </marketplace-item>
+      </ion-col>
     </ion-row>
   </ion-grid>
 </ng-container>
