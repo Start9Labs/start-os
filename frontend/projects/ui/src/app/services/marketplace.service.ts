@@ -1,13 +1,13 @@
 import { Injectable } from '@angular/core'
 import { LoadingController } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
+import { Emver, ErrorToastService } from '@start9labs/shared'
 import {
   MarketplacePkg,
   AbstractMarketplaceService,
   Marketplace,
   MarketplaceData,
 } from '@start9labs/marketplace'
-import { defer, from, Observable, of } from 'rxjs'
+import { defer, from, merge, Observable, of } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
@@ -53,6 +53,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     private readonly config: ConfigService,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
+    private readonly emver: Emver,
   ) {
     super()
   }
@@ -72,7 +73,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   getPackage(id: string, version: string): Observable<MarketplacePkg> {
     const params = { ids: [{ id, version }] }
 
-    return this.init$.pipe(
+    const first$ = this.init$.pipe(
       switchMap(({ url }) => from(this.getMarketplacePkgs(params, url))),
       map(pkgs => pkgs.find(pkg => pkg.manifest.id == id)),
       tap(pkg => {
@@ -81,6 +82,19 @@ export class MarketplaceService extends AbstractMarketplaceService {
         }
       }),
     )
+
+    const second$ = this.getPackages().pipe(
+      map(pkgs =>
+        pkgs.find(pkg => {
+          const sameVersion =
+            version === '*' ||
+            this.emver.compare(pkg.manifest.version, version) === 0
+          return pkg.manifest.id === id && sameVersion
+        }),
+      ),
+    )
+
+    return merge(first$, second$)
   }
 
   getReleaseNotes(id: string): Observable<Record<string, string>> {
