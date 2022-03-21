@@ -5,6 +5,7 @@ use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 
 use crate::context::DiagnosticContext;
+use crate::disk::repair;
 use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::util::display_none;
@@ -12,7 +13,7 @@ use crate::Error;
 
 pub const SYSTEMD_UNIT: &'static str = "embassy-init";
 
-#[command(subcommands(error, logs, exit, restart, forget_disk))]
+#[command(subcommands(error, logs, exit, restart, forget_disk, disk))]
 pub fn diagnostic() -> Result<(), Error> {
     Ok(())
 }
@@ -56,7 +57,12 @@ pub fn restart(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
     Ok(())
 }
 
-#[command(rename = "forget-disk", display(display_none))]
+#[command(subcommands(forget_disk, repair))]
+pub fn disk() -> Result<(), Error> {
+    Ok(())
+}
+
+#[command(rename = "forget", display(display_none))]
 pub async fn forget_disk() -> Result<(), Error> {
     let disk_guid = Path::new("/embassy-os/disk.guid");
     if tokio::fs::metadata(disk_guid).await.is_ok() {

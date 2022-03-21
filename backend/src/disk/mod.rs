@@ -5,14 +5,16 @@ use self::util::DiskListResponse;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::Error;
 
+pub mod fsck;
 pub mod main;
 pub mod mount;
 pub mod quirks;
 pub mod util;
 
-pub const BOOT_RW_PATH: &'static str = "/media/boot-rw";
+pub const BOOT_RW_PATH: &str = "/media/boot-rw";
+pub const REPAIR_DISK_PATH: &str = "/embassy-os/repair-disk";
 
-#[command(subcommands(list))]
+#[command(subcommands(list, repair))]
 pub fn disk() -> Result<(), Error> {
     Ok(())
 }
@@ -78,4 +80,10 @@ pub async fn list(
     format: Option<IoFormat>,
 ) -> Result<DiskListResponse, Error> {
     crate::disk::util::list().await
+}
+
+#[command(display(display_none))]
+pub async fn repair() -> Result<(), Error> {
+    tokio::fs::write(REPAIR_DISK_PATH, b"").await?;
+    Ok(())
 }
