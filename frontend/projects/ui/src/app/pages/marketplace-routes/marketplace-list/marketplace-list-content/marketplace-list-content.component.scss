@@ -12,35 +12,6 @@
   text-align: center;
 }
 
-.grid {
-  padding-bottom: 32px;
-}
-
-.pkg-title {
-  font-family: 'Montserrat', sans-serif;
-  font-weight: bold;
-}
-
-.eos-item {
-  --border-style: none;
-  --background: linear-gradient(
-    45deg,
-    var(--ion-color-dark) -380%,
-    var(--ion-color-medium) 100%
-  );
-}
-
-.category {
-  font-weight: 300;
-  color: var(--ion-color-dark-shade);
-
-  &_selected {
-    font-weight: bold;
-    font-size: 17px;
-    color: var(--color);
-  }
-}
-
 .status {
   font-size: 14px;
 }

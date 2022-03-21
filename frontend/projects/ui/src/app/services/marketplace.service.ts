@@ -15,9 +15,9 @@ import { ServerInfo } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   catchError,
-  finalize,
   map,
   shareReplay,
+  startWith,
   switchMap,
   tap,
 } from 'rxjs/operators'
@@ -56,11 +56,11 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   constructor(
     private readonly api: ApiService,
-    private readonly emver: Emver,
     private readonly patch: PatchDbService,
     private readonly config: ConfigService,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
+    private readonly emver: Emver,
   ) {
     super()
   }
@@ -79,12 +79,17 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   getPackage(id: string, version: string): Observable<MarketplacePkg> {
     const params = { ids: [{ id, version }] }
-
-    return this.init$.pipe(
+    const fallback$ = this.init$.pipe(
       switchMap(({ url }) => from(this.getMarketplacePkgs(params, url))),
-      map(pkgs => pkgs.find(pkg => pkg.manifest.id == id)),
+      map(pkgs => this.findPackage(pkgs, id, version)),
+      startWith(null),
+    )
+
+    return this.getPackages().pipe(
+      map(pkgs => this.findPackage(pkgs, id, version)),
+      switchMap(pkg => (pkg ? of(pkg) : fallback$)),
       tap(pkg => {
-        if (!pkg) {
+        if (pkg === undefined) {
           throw new Error(`No results for ${id}${version ? ' ' + version : ''}`)
         }
       }),
@@ -102,26 +107,6 @@ export class MarketplaceService extends AbstractMarketplaceService {
       catchError(e => this.errToast.present(e) && of({})),
     )
   }
-
-  // async install(id: string, version?: string): Promise<void> {
-  //   const loader = await this.loadingCtrl.create({
-  //     spinner: 'lines',
-  //     message: 'Beginning Installation',
-  //     cssClass: 'loader',
-  //   })
-  //   loader.present()
-  //
-  //   try {
-  //     await this.installPackage({
-  //       id,
-  //       'version-spec': version ? `=${version}` : undefined,
-  //     })
-  //   } catch (e) {
-  //     this.errToast.present(e)
-  //   } finally {
-  //     loader.dismiss()
-  //   }
-  // }
 
   install(id: string, version?: string): Observable<unknown> {
     return defer(() =>
@@ -156,6 +141,20 @@ export class MarketplaceService extends AbstractMarketplaceService {
             ...req,
             'marketplace-url': url,
           }),
+        ),
+      ),
+    )
+  }
+
+  getPackageMarkdown(type: string, pkgId: string): Observable<string> {
+    return this.getMarketplace().pipe(
+      switchMap(({ url }) =>
+        from(
+          this.api.marketplaceProxy<string>(
+            `/package/v0/${type}/${pkgId}`,
+            {},
+            url,
+          ),
         ),
       ),
     )
@@ -216,5 +215,19 @@ export class MarketplaceService extends AbstractMarketplaceService {
         value: name,
       })
     }
+  }
+
+  private findPackage(
+    pkgs: readonly MarketplacePkg[],
+    id: string,
+    version: string,
+  ): MarketplacePkg | undefined {
+    return pkgs.find(pkg => {
+      const versionIsSame =
+        version === '*' ||
+        this.emver.compare(pkg.manifest.version, version) === 0
+
+      return pkg.manifest.id === id && versionIsSame
+    })
   }
 }

@@ -3,11 +3,14 @@ import { AlertController, ModalController, NavController } from '@ionic/angular'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
-  LocalPkg,
 } from '@start9labs/marketplace'
-import { pauseFor, PackageState } from '@start9labs/shared'
+import { pauseFor } from '@start9labs/shared'
 
-import { Manifest } from 'src/app/services/patch-db/data-model'
+import { PackageState } from 'src/app/types/package-state'
+import {
+  Manifest,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
@@ -22,7 +25,7 @@ export class MarketplaceShowControlsComponent {
   pkg: MarketplacePkg
 
   @Input()
-  localPkg: LocalPkg
+  localPkg: PackageDataEntry
 
   readonly PackageState = PackageState
 

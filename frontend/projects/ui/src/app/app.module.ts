@@ -12,7 +12,6 @@ import { PatchDbServiceFactory } from './services/patch-db/patch-db.factory'
 import { ConfigService } from './services/config.service'
 import { QrCodeModule } from 'ng-qrcode'
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
-import { MarkdownPageModule } from './modals/markdown/markdown.module'
 import { PatchDbService } from './services/patch-db/patch-db.service'
 import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstrap'
 import { FormBuilder } from '@angular/forms'
@@ -22,7 +21,11 @@ import { GlobalErrorHandler } from './services/global-error-handler.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
-import { SharedPipesModule, WorkspaceConfig } from '@start9labs/shared'
+import {
+  MarkdownModule,
+  SharedPipesModule,
+  WorkspaceConfig,
+} from '@start9labs/shared'
 import { MarketplaceModule } from './marketplace.module'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
@@ -45,7 +48,7 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     }),
     QrCodeModule,
     OSWelcomePageModule,
-    MarkdownPageModule,
+    MarkdownModule,
     GenericInputComponentModule,
     MonacoEditorModule,
     SharedPipesModule,

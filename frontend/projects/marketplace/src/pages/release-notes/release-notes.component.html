@@ -1,0 +1,32 @@
+<ion-content>
+  <ng-container *ngIf="notes$ | async as notes; else loading">
+    <div *ngFor="let note of notes | keyvalue: asIsOrder">
+      <ion-button
+        expand="full"
+        color="light"
+        class="version-button"
+        [class.ion-activated]="isSelected(note.key)"
+        (click)="setSelected(note.key)"
+      >
+        <p class="version">{{ note.key | displayEmver }}</p>
+      </ion-button>
+      <ion-card
+        elementRef
+        #element="elementRef"
+        class="panel"
+        color="light"
+        [id]="note.key"
+        [style.maxHeight.px]="getDocSize(note.key, element)"
+      >
+        <ion-text
+          id="release-notes"
+          [innerHTML]="note.value | markdown"
+        ></ion-text>
+      </ion-card>
+    </div>
+  </ng-container>
+
+  <ng-template #loading>
+    <text-spinner text="Loading Release Notes"></text-spinner>
+  </ng-template>
+</ion-content>

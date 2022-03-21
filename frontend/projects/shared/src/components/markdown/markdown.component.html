@@ -1,0 +1,29 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ title | titlecase }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-item *ngIf="error$ | async as error">
+    <ion-label>
+      <ion-text safeLinks color="danger">{{ error }}</ion-text>
+    </ion-label>
+  </ion-item>
+
+  <div
+    *ngIf="content$ | async as result; else loading"
+    safeLinks
+    class="content-padding"
+    [innerHTML]="result | markdown"
+  ></div>
+
+  <ng-template #loading>
+    <text-spinner [text]="'Loading ' + title | titlecase"></text-spinner>
+  </ng-template>
+</ion-content>

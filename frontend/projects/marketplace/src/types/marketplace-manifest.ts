@@ -1,6 +1,8 @@
 import { Url } from '@start9labs/shared'
 
-export interface MarketplaceManifest {
+import { Dependency } from './dependency'
+
+export interface MarketplaceManifest<T = unknown> {
   id: string
   title: string
   version: string
@@ -22,4 +24,5 @@ export interface MarketplaceManifest {
     start: string | null
     stop: string | null
   }
+  dependencies: Record<string, Dependency<T>>
 }

@@ -1,4 +1,4 @@
-import { PackageState } from '@start9labs/shared'
+import { PackageState } from 'src/app/types/package-state'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
   DependencyErrorType,

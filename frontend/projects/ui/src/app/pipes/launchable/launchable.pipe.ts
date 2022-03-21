@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { PackageState } from '@start9labs/shared'
+import { PackageState } from 'src/app/types/package-state'
 import {
   InterfaceDef,
   PackageMainStatus,

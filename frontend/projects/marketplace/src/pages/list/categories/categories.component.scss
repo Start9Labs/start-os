@@ -1,0 +1,14 @@
+:host {
+  display: block;
+}
+
+.category {
+  font-weight: 300;
+  color: var(--ion-color-dark-shade);
+
+  &_selected {
+    font-weight: bold;
+    font-size: 17px;
+    color: var(--color);
+  }
+}

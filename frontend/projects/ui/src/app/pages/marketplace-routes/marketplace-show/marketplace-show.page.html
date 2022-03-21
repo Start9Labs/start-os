@@ -2,72 +2,53 @@
 
 <ion-content class="ion-padding">
   <ng-container *ngIf="pkg$ | async as pkg else loading">
-    <ion-grid>
-      <ion-row>
-        <ion-col sizeXs="12" sizeSm="12" sizeMd="9" sizeLg="9" sizeXl="9">
-          <div class="header">
-            <img alt="" [src]="getIcon(pkg.icon) | trust" />
-            <div class="header-text">
-              <h1 class="header-title">{{ pkg.manifest.title }}</h1>
-              <p class="header-version">
-                {{ pkg.manifest.version | displayEmver }}
-              </p>
-              <marketplace-status
-                class="header-status"
-                [pkg]="localPkg$ | async"
-              ></marketplace-status>
-            </div>
-          </div>
-        </ion-col>
-        <ion-col
-          sizeXl="3"
-          sizeLg="3"
-          sizeMd="3"
-          sizeSm="12"
-          sizeXs="12"
-          class="ion-align-self-center"
-        >
-          <marketplace-show-controls
-            [pkg]="pkg"
-            [localPkg]="localPkg$ | async"
-          ></marketplace-show-controls>
-        </ion-col>
-      </ion-row>
-      <ion-row *ngIf="localPkg$ | async">
-        <ion-col
-          sizeXl="3"
-          sizeLg="3"
-          sizeMd="3"
-          sizeSm="12"
-          sizeXs="12"
-          class="ion-align-self-center"
-        >
-          <ion-button
-            expand="block"
-            fill="outline"
-            color="primary"
-            [routerLink]="['/services', pkg.manifest.id]"
+    <ng-container *ngIf="!(pkg | empty)">
+      <marketplace-package [pkg]="pkg">
+        <marketplace-status
+          class="status"
+          [pkg]="localPkg$ | async"
+        ></marketplace-status>
+        <marketplace-show-controls
+          slot="controls"
+          [pkg]="pkg"
+          [localPkg]="localPkg$ | async"
+        ></marketplace-show-controls>
+        <ion-row *ngIf="localPkg$ | async">
+          <ion-col
+            sizeXl="3"
+            sizeLg="3"
+            sizeMd="3"
+            sizeSm="12"
+            sizeXs="12"
+            class="ion-align-self-center"
           >
-            View Service
-          </ion-button>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
+            <ion-button
+              expand="block"
+              fill="outline"
+              color="primary"
+              [routerLink]="['/services', pkg.manifest.id]"
+            >
+              View Service
+            </ion-button>
+          </ion-col>
+        </ion-row>
+      </marketplace-package>
 
-    <marketplace-show-dependent [pkg]="pkg"></marketplace-show-dependent>
+      <marketplace-show-dependent [pkg]="pkg"></marketplace-show-dependent>
 
-    <ion-item-group>
-      <marketplace-show-about [pkg]="pkg"></marketplace-show-about>
+      <ion-item-group>
+        <marketplace-about [pkg]="pkg"></marketplace-about>
+        <marketplace-dependencies
+          *ngIf="!(pkg.manifest.dependencies | empty)"
+          [pkg]="pkg"
+        ></marketplace-dependencies>
+      </ion-item-group>
 
-      <marketplace-show-dependencies
+      <marketplace-additional
         [pkg]="pkg"
-      ></marketplace-show-dependencies>
-    </ion-item-group>
-
-    <marketplace-show-additional
-      [pkg]="pkg"
-      (version)="loadVersion$.next($event)"
-    ></marketplace-show-additional>
+        (version)="loadVersion$.next($event)"
+      ></marketplace-additional>
+    </ng-container>
   </ng-container>
 
   <ng-template #loading>

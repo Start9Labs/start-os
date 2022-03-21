@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core'
-import { WorkspaceConfig, PackageState } from '@start9labs/shared'
+import { WorkspaceConfig } from '@start9labs/shared'
+import { PackageState } from 'src/app/types/package-state'
 import {
   InterfaceDef,
   PackageDataEntry,

@@ -1,7 +1,9 @@
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
-import { InstallProgress, PackageState, Url } from '@start9labs/shared'
+import { Url } from '@start9labs/shared'
 import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
+import { PackageState } from 'src/app/types/package-state'
+import { InstallProgress } from 'src/app/types/install-progress'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -111,7 +113,7 @@ export interface CurrentDependencyInfo {
   'health-checks': string[] // array of health check IDs
 }
 
-export interface Manifest extends MarketplaceManifest {
+export interface Manifest extends MarketplaceManifest<DependencyConfig> {
   main: ActionImpl
   'health-checks': Record<
     string,
@@ -125,7 +127,11 @@ export interface Manifest extends MarketplaceManifest {
   migrations: Migrations
   actions: Record<string, Action>
   permissions: any // @TODO 0.3.1
-  dependencies: DependencyInfo
+}
+
+export interface DependencyConfig {
+  check: ActionImpl
+  'auto-configure': ActionImpl
 }
 
 export interface ActionImpl {
@@ -351,29 +357,4 @@ export interface DependencyErrorHealthChecksFailed {
 
 export interface DependencyErrorTransitive {
   type: DependencyErrorType.Transitive
-}
-
-export interface DependencyInfo {
-  [id: string]: DependencyEntry
-}
-
-export interface DependencyEntry {
-  version: string
-  requirement:
-    | {
-        type: 'opt-in'
-        how: string
-      }
-    | {
-        type: 'opt-out'
-        how: string
-      }
-    | {
-        type: 'required'
-      }
-  description: string | null
-  config: {
-    check: ActionImpl
-    'auto-configure': ActionImpl
-  }
 }

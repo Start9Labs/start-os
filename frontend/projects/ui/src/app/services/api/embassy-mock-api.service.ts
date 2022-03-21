@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core'
-import { InstallProgress, pauseFor } from '@start9labs/shared'
+import { pauseFor } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { PatchOp, Update, Operation, RemoveOperation } from 'patch-db-client'
-import { PackageState } from '@start9labs/shared'
+import { PackageState } from 'src/app/types/package-state'
+import { InstallProgress } from 'src/app/types/install-progress'
 import {
   DataModel,
   DependencyErrorType,
@@ -192,6 +193,8 @@ export class MockApiService extends ApiService {
       return Mock.MarketplacePkgsList
     } else if (path.startsWith('/package/v0/release-notes')) {
       return Mock.ReleaseNotes
+    } else if (path.includes('instructions') || path.includes('license')) {
+      return markdown
     }
   }
 

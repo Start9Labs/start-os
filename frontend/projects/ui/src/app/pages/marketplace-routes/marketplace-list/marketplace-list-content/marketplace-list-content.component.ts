@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { LocalPkg, MarketplacePkg } from '@start9labs/marketplace'
+import { MarketplacePkg } from '@start9labs/marketplace'
+
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'marketplace-list-content',
@@ -12,7 +14,7 @@ export class MarketplaceListContentComponent {
   pkgs: MarketplacePkg[] | null = null
 
   @Input()
-  localPkgs: Record<string, LocalPkg> = {}
+  localPkgs: Record<string, PackageDataEntry> = {}
 
   @Input()
   categories: Set<string> | null = null
@@ -23,11 +25,7 @@ export class MarketplaceListContentComponent {
   category = 'featured'
   query = ''
 
-  isSelected(category: string) {
-    return category === this.category && !this.query
-  }
-
-  switchCategory(category: string): void {
+  onCategoryChange(category: string): void {
     this.category = category
     this.query = ''
   }

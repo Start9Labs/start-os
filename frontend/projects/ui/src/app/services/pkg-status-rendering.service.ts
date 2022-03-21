@@ -1,4 +1,5 @@
-import { isEmptyObject, PackageState } from '@start9labs/shared'
+import { isEmptyObject } from '@start9labs/shared'
+import { PackageState } from 'src/app/types/package-state'
 import {
   PackageDataEntry,
   PackageMainStatus,

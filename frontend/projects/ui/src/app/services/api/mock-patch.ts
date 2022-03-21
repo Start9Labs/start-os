@@ -1,4 +1,4 @@
-import { PackageState } from '@start9labs/shared'
+import { PackageState } from 'src/app/types/package-state'
 import {
   DataModel,
   DependencyErrorType,

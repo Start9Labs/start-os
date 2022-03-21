@@ -1,0 +1,10 @@
+<ion-item [routerLink]="['/marketplace', pkg.manifest.id]">
+  <ion-thumbnail slot="start">
+    <img alt="" [src]="'data:image/png;base64,' + pkg.icon | trustUrl" />
+  </ion-thumbnail>
+  <ion-label>
+    <h2 class="pkg-title">{{ pkg.manifest.title }}</h2>
+    <h3>{{ pkg.manifest.description.short }}</h3>
+    <ng-content></ng-content>
+  </ion-label>
+</ion-item>
