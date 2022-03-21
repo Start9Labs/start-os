@@ -72,29 +72,20 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   getPackage(id: string, version: string): Observable<MarketplacePkg> {
     const params = { ids: [{ id, version }] }
-
-    const first$ = this.init$.pipe(
+    const fallback$ = this.init$.pipe(
       switchMap(({ url }) => from(this.getMarketplacePkgs(params, url))),
-      map(pkgs => pkgs.find(pkg => pkg.manifest.id == id)),
+      map(pkgs => this.findPackage(pkgs, id, version)),
+    )
+
+    return this.getPackages().pipe(
+      map(pkgs => this.findPackage(pkgs, id, version)),
+      switchMap(pkg => (pkg ? of(pkg) : fallback$)),
       tap(pkg => {
         if (!pkg) {
           throw new Error(`No results for ${id}${version ? ' ' + version : ''}`)
         }
       }),
     )
-
-    const second$ = this.getPackages().pipe(
-      map(pkgs =>
-        pkgs.find(pkg => {
-          const sameVersion =
-            version === '*' ||
-            this.emver.compare(pkg.manifest.version, version) === 0
-          return pkg.manifest.id === id && sameVersion
-        }),
-      ),
-    )
-
-    return merge(first$, second$)
   }
 
   getReleaseNotes(id: string): Observable<Record<string, string>> {
@@ -216,5 +207,19 @@ export class MarketplaceService extends AbstractMarketplaceService {
         value: name,
       })
     }
+  }
+
+  private findPackage(
+    pkgs: readonly MarketplacePkg[],
+    id: string,
+    version: string,
+  ): MarketplacePkg | undefined {
+    return pkgs.find(pkg => {
+      const versionIsSame =
+        version === '*' ||
+        this.emver.compare(pkg.manifest.version, version) === 0
+
+      return pkg.manifest.id === id && versionIsSame
+    })
   }
 }
