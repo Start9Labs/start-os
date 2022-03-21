@@ -7,13 +7,20 @@ import {
   Marketplace,
   MarketplaceData,
 } from '@start9labs/marketplace'
-import { defer, from, merge, Observable, of } from 'rxjs'
+import { defer, from, Observable, of } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { ServerInfo } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { catchError, map, shareReplay, switchMap, tap } from 'rxjs/operators'
+import {
+  catchError,
+  map,
+  shareReplay,
+  startWith,
+  switchMap,
+  tap,
+} from 'rxjs/operators'
 
 @Injectable()
 export class MarketplaceService extends AbstractMarketplaceService {
@@ -75,13 +82,14 @@ export class MarketplaceService extends AbstractMarketplaceService {
     const fallback$ = this.init$.pipe(
       switchMap(({ url }) => from(this.getMarketplacePkgs(params, url))),
       map(pkgs => this.findPackage(pkgs, id, version)),
+      startWith(null),
     )
 
     return this.getPackages().pipe(
       map(pkgs => this.findPackage(pkgs, id, version)),
       switchMap(pkg => (pkg ? of(pkg) : fallback$)),
       tap(pkg => {
-        if (!pkg) {
+        if (pkg === undefined) {
           throw new Error(`No results for ${id}${version ? ' ' + version : ''}`)
         }
       }),
