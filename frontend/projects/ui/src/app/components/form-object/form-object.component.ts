@@ -152,6 +152,7 @@ export class FormObjectComponent {
 
       pauseFor(200).then(() => {
         this.objectListDisplay[key][0].height = this.getDocSize(key, 0)
+        this.onExpand.emit()
       })
     }
   }
@@ -171,6 +172,7 @@ export class FormObjectComponent {
       .expanded
       ? this.getDocSize(key, i)
       : '0px'
+    this.onExpand.emit()
   }
 
   updateLabel(key: string, i: number, displayAs: string) {
