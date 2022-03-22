@@ -243,7 +243,6 @@ export module Mock {
           'emergency-contact': {
             name: 'Emergency Contact',
             type: 'object',
-            'unique-by': null,
             description: 'The person to contact in case of emergency.',
             spec: {
               name: {
@@ -286,7 +285,6 @@ export module Mock {
           bitcoinNode: {
             name: 'Bitcoin Node Settings',
             type: 'union',
-            'unique-by': null,
             description: 'The node settings',
             default: 'internal',
             warning: 'Careful changing this',
@@ -1147,286 +1145,7 @@ export module Mock {
     },
   } as any // @TODO why is this necessary?
 
-  const realWorldConfigSpec: RR.GetPackageConfigRes = {
-    config: {
-      bitcoind: {
-        'bitcoind-rpc': {
-          type: 'internal',
-          'rpc-user': 'btcpayserver',
-          'rpc-password': '3ZRIgPq60y3bpWRPXKPdhV',
-        },
-        'bitcoind-p2p': {
-          type: 'internal',
-        },
-      },
-      lightning: {
-        type: 'lnd',
-      },
-      'tor-address':
-        'fzo2uwpfx3yxgvb2fjhmkbxa27logah3c7zw3fc6rxq5osqyegyy34qd.onion',
-    },
-    spec: {
-      'tor-address': {
-        type: 'pointer',
-        subtype: 'package',
-        target: 'tor-address',
-        'package-id': 'btcpayserver',
-        interface: 'network',
-        description: 'The Tor address for the network interface.',
-        name: 'Network Tor Address',
-      },
-      bitcoind: {
-        type: 'object',
-        spec: {
-          'bitcoind-rpc': {
-            type: 'union',
-            tag: {
-              id: 'type',
-              name: 'Type',
-              description:
-                'The Bitcoin Core node to connect to:\n  - internal: The Bitcoin Core and Proxy services installed to your Embassy\n  - external: An unpruned Bitcoin Core node running on a different device\n',
-              'variant-names': {
-                external: 'External',
-                internal: 'Internal',
-              },
-            },
-            variants: {
-              external: {
-                'connection-settings': {
-                  type: 'union',
-                  tag: {
-                    id: 'type',
-                    name: 'Type',
-                    description:
-                      '- Manual: Raw information for finding a Bitcoin Core node\n- Quick Connect: A Quick Connect URL for a Bitcoin Core node\n',
-                    'variant-names': {
-                      manual: 'Manual',
-                      'quick-connect': 'Quick Connect',
-                    },
-                  },
-                  variants: {
-                    manual: {
-                      'rpc-host': {
-                        type: 'string',
-                        copyable: false,
-                        masked: false,
-                        nullable: false,
-                        default: null,
-                        description:
-                          'The public address of your Bitcoin Core server',
-                        name: 'Public Address',
-                      },
-                      'rpc-user': {
-                        type: 'string',
-                        copyable: false,
-                        masked: false,
-                        nullable: false,
-                        default: null,
-                        description:
-                          'The username for the RPC user on your Bitcoin Core RPC server',
-                        name: 'RPC Username',
-                      },
-                      'rpc-password': {
-                        type: 'string',
-                        copyable: false,
-                        masked: false,
-                        nullable: false,
-                        default: null,
-                        description:
-                          'The password for the RPC user on your Bitcoin Core RPC server',
-                        name: 'RPC Password',
-                      },
-                      'rpc-port': {
-                        type: 'number',
-                        range: '[0,65535]',
-                        integral: true,
-                        nullable: false,
-                        default: 8332,
-                        description:
-                          'The port that your Bitcoin Core RPC server is bound to',
-                        name: 'RPC Port',
-                      },
-                    },
-                    'quick-connect': {
-                      'quick-connect-url': {
-                        type: 'string',
-                        copyable: false,
-                        masked: false,
-                        nullable: false,
-                        default: null,
-                        description:
-                          'The Quick Connect URL for your Bitcoin Core RPC server\nNOTE: LND will not accept a .onion url for this option\n',
-                        name: 'Quick Connect URL',
-                      },
-                    },
-                  },
-                  'display-as': null,
-                  'unique-by': null,
-                  default: 'quick-connect',
-                  description:
-                    'Information to connect to an external unpruned Bitcoin Core node',
-                  name: 'Connection Settings',
-                },
-              },
-              internal: {
-                'rpc-user': {
-                  type: 'pointer',
-                  subtype: 'package',
-                  target: 'config',
-                  'package-id': 'btc-rpc-proxy',
-                  selector: '$.users.[?(@.name == "btcpayserver")].name',
-                  multi: false,
-                  description:
-                    'The username for the RPC user allocated to BTCPay',
-                  name: 'RPC Username',
-                  interface: 'asdf',
-                },
-                'rpc-password': {
-                  type: 'pointer',
-                  subtype: 'package',
-                  target: 'config',
-                  'package-id': 'btc-rpc-proxy',
-                  selector: '$.users.[?(@.name == "btcpayserver")].password',
-                  multi: false,
-                  description:
-                    'The password for the RPC user allocated to BTCPay',
-                  name: 'RPC Password',
-                  interface: 'asdf',
-                },
-              },
-            },
-            'display-as': null,
-            'unique-by': null,
-            default: 'internal',
-            description:
-              'The Bitcoin Core node to connect to over the RPC interface',
-            name: 'Bitcoin Core RPC',
-          },
-          pruning: {
-            default: 'disabled',
-            description:
-              'Blockchain Pruning Options\nReduce the blockchain size on disk\n',
-            'display-as': null,
-            name: 'Pruning Settings',
-            tag: {
-              description:
-                '- Disabled: Disable pruning\n- Automatic: Limit blockchain size on disk to a certain number of megabytes\n- Manual: Prune blockchain with the "pruneblockchain" RPC\n',
-              id: 'mode',
-              name: 'Pruning Mode',
-              'variant-names': {
-                automatic: 'Automatic',
-                disabled: 'Disabled',
-                manual: 'Manual',
-              },
-            },
-            type: 'union',
-            'unique-by': null,
-            variants: {
-              automatic: {
-                size: {
-                  default: 550,
-                  description: 'Limit of blockchain size on disk.',
-                  integral: true,
-                  name: 'Max Chain Size',
-                  nullable: false,
-                  range: '[550,1000000)',
-                  type: 'number',
-                  units: 'MiB',
-                },
-              },
-              disabled: {},
-              manual: {
-                size: {
-                  default: 65536,
-                  description: 'Prune blockchain if size expands beyond this.',
-                  integral: true,
-                  name: 'Failsafe Chain Size',
-                  nullable: false,
-                  range: '[550,1000000)',
-                  type: 'number',
-                  units: 'MiB',
-                },
-              },
-            },
-          },
-          'bitcoind-p2p': {
-            type: 'union',
-            tag: {
-              id: 'type',
-              name: 'type',
-              description: null,
-              'variant-names': {
-                external: 'external',
-                internal: 'internal',
-              },
-            },
-            variants: {
-              external: {
-                'p2p-host': {
-                  type: 'string',
-                  copyable: false,
-                  masked: false,
-                  nullable: false,
-                  default: null,
-                  description: 'The public address of your Bitcoin Core server',
-                  name: 'Public Address',
-                },
-                'p2p-port': {
-                  type: 'number',
-                  range: '[0,65535]',
-                  integral: true,
-                  nullable: false,
-                  default: 8333,
-                  description:
-                    'The port that your Bitcoin Core P2P server is bound to',
-                  name: 'P2P Port',
-                },
-              },
-              internal: {},
-            },
-            'display-as': null,
-            'unique-by': null,
-            default: 'internal',
-            description:
-              'The Bitcoin Core node to connect to over the P2P interface',
-            name: 'Bitcoin Core P2P',
-          },
-        },
-        'display-as': null,
-        'unique-by': null,
-        description:
-          'RPC and P2P interface configuration options for Bitcoin Core',
-        name: 'Bitcoin Settings',
-      },
-      lightning: {
-        type: 'union',
-        tag: {
-          id: 'type',
-          name: 'Type',
-          description:
-            'Enables BTCPay to use the selected internal lightning node.',
-          'variant-names': {
-            'c-lightning': 'C-Lightning',
-            lnd: 'LND',
-            none: 'No selection',
-          },
-        },
-        variants: {
-          'c-lightning': {},
-          lnd: {},
-          none: {},
-        },
-        'display-as': null,
-        'unique-by': null,
-        default: 'none',
-        description:
-          'Use this setting to grant BTCPay access to your Embassy\\\'s LND or c-lightning node. If you prefer to use an external Lightning node, or you do not intend to use Lightning, leave this setting blank. Please see the "Instructions" page for more details.',
-        name: 'Embassy Lightning Node',
-      },
-    },
-  }
-
-  const testSpec: ConfigSpec = {
+  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = {
     testnet: {
       name: 'Testnet',
       type: 'boolean',
@@ -1595,14 +1314,12 @@ export module Mock {
     rpcsettings: {
       name: 'RPC Settings',
       type: 'object',
-      'unique-by': null,
       description: 'rpc username and password',
       warning: 'Adding RPC users gives them special permissions on your node.',
       spec: {
         laws: {
           name: 'Laws',
           type: 'object',
-          'unique-by': 'law1',
           description: 'the law of the realm',
           spec: {
             law1: {
@@ -1688,7 +1405,6 @@ export module Mock {
     'bitcoin-node': {
       name: 'Bitcoin Node Settings',
       type: 'union',
-      'unique-by': null,
       description: 'The node settings',
       default: 'internal',
       warning: 'Careful changing this',
@@ -1779,7 +1495,6 @@ export module Mock {
     advanced: {
       name: 'Advanced',
       type: 'object',
-      'unique-by': null,
       description: 'Advanced settings',
       spec: {
         notifications: {
@@ -1803,7 +1518,6 @@ export module Mock {
         rpcsettings: {
           name: 'RPC Settings',
           type: 'object',
-          'unique-by': null,
           description: 'rpc username and password',
           warning:
             'Adding RPC users gives them special permissions on your node.',
@@ -1811,7 +1525,6 @@ export module Mock {
             laws: {
               name: 'Laws',
               type: 'object',
-              'unique-by': 'law1',
               description: 'the law of the realm',
               spec: {
                 law1: {
@@ -1826,6 +1539,60 @@ export module Mock {
                   name: 'Second Law',
                   type: 'string',
                   description: 'the second law',
+                  nullable: true,
+                  masked: false,
+                  copyable: true,
+                },
+                law4: {
+                  name: 'Fourth Law',
+                  type: 'string',
+                  description: 'the fourth law',
+                  nullable: true,
+                  masked: false,
+                  copyable: true,
+                },
+                law3: {
+                  name: 'Third Law',
+                  type: 'list',
+                  subtype: 'object',
+                  description: 'the third law',
+                  range: '[0,2]',
+                  default: [],
+                  spec: {
+                    'unique-by': null,
+                    spec: {
+                      lawname: {
+                        name: 'Law Name',
+                        type: 'string',
+                        description: 'the name of the law maker',
+                        nullable: false,
+                        default: {
+                          charset: 'a-g,2-9',
+                          len: 12,
+                        },
+                        masked: false,
+                        copyable: false,
+                      },
+                      lawagency: {
+                        name: 'Law agency',
+                        type: 'string',
+                        description: 'the ip of the law maker',
+                        nullable: false,
+                        default: '192.168.1.0',
+                        pattern:
+                          '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
+                        'pattern-description':
+                          'may only contain numbers and periods',
+                        masked: false,
+                        copyable: true,
+                      },
+                    },
+                  },
+                },
+                law5: {
+                  name: 'Fifth Law',
+                  type: 'string',
+                  description: 'the fifth law',
                   nullable: true,
                   masked: false,
                   copyable: true,
@@ -1899,11 +1666,7 @@ export module Mock {
     },
   }
 
-  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = testSpec
   export const MockConfig = {}
-
-  // export const ConfigSpec: RR.GetPackageConfigRes['spec'] = realWorldConfigSpec.spec
-  // export const MockConfig = realWorldConfigSpec.config
 
   export const MockDependencyConfig = {
     testnet: true,

@@ -298,7 +298,6 @@ function getMarketplaceValueSpec(): ValueSpecObject {
   return {
     type: 'object',
     name: 'Add Marketplace',
-    'unique-by': null,
     spec: {
       url: {
         type: 'string',
