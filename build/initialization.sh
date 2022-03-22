@@ -16,6 +16,9 @@ passwd -l start9
 ! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
 mount -o remount,rw /boot
 
+apt-mark hold raspberrypi-bootloader
+apt-mark hold raspberrypi-kernel
+
 apt-get update
 apt-get install -y \
 	tor \
