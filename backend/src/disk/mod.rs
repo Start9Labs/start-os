@@ -2,6 +2,7 @@ use clap::ArgMatches;
 use rpc_toolkit::command;
 
 use self::util::DiskListResponse;
+use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::Error;
 

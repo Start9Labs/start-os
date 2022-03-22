@@ -5,6 +5,7 @@ use std::time::Duration;
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
 use embassy::disk::main::DEFAULT_PASSWORD;
+use embassy::disk::REPAIR_DISK_PATH;
 use embassy::hostname::get_product_key;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
