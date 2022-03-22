@@ -5,7 +5,7 @@ use color_eyre::eyre::eyre;
 use tokio::process::Command;
 use tracing::instrument;
 
-use crate::Error;
+use crate::{Error, ResultExt};
 
 #[derive(Debug, Clone, Copy)]
 pub enum RequiresReboot {
@@ -36,14 +36,11 @@ pub async fn e2fsck(
                     .unwrap_or(OsStr::new("unknown")),
             )
             .with_extension("e2undo");
-        if tokio::fs::metadata(&undo_path).await.is_ok() {
-            e2fsck_cmd = Command::new("e2undo");
-            e2fsck_cmd.arg(&undo_path);
-        }
         e2fsck_cmd.arg("-y").arg("-z").arg(&undo_path);
     } else {
         e2fsck_cmd.arg("-p");
     }
+    e2fsck_cmd.arg(logicalname.as_ref());
     let e2fsck_out = e2fsck_cmd.output().await?;
     let e2fsck_stderr = String::from_utf8(e2fsck_out.stderr)?;
     let code = e2fsck_out.status.code().ok_or_else(|| {
