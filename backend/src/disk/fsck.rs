@@ -8,16 +8,10 @@ use tracing::instrument;
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Clone, Copy)]
-pub enum RequiresReboot {
-    True,
-    False,
-}
+pub struct RequiresReboot(pub bool);
 impl std::ops::BitOrAssign for RequiresReboot {
     fn bitor_assign(&mut self, rhs: Self) {
-        *self = match (*self, rhs) {
-            (RequiresReboot::False, RequiresReboot::False) => RequiresReboot::False,
-            _ => RequiresReboot::True,
-        }
+        self.0 |= rhs.0
     }
 }
 
@@ -65,9 +59,9 @@ pub async fn e2fsck(
     if code < 8 {
         if code & 2 != 0 {
             tracing::warn!("reboot required");
-            Ok(RequiresReboot::True)
+            Ok(RequiresReboot(true))
         } else {
-            Ok(RequiresReboot::False)
+            Ok(RequiresReboot(false))
         }
     } else {
         Err(Error::new(

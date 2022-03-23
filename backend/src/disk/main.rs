@@ -292,7 +292,7 @@ pub async fn mount_all_fs<P: AsRef<Path>>(
     repair: bool,
     password: &str,
 ) -> Result<RequiresReboot, Error> {
-    let mut reboot = RequiresReboot::False;
+    let mut reboot = RequiresReboot(false);
     reboot |= mount_fs(guid, &datadir, "main", repair, password).await?;
     reboot |= mount_fs(guid, &datadir, "package-data", repair, password).await?;
     Ok(reboot)
