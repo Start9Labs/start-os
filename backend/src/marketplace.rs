@@ -22,6 +22,8 @@ pub async fn get(#[arg] url: Url) -> Result<Value, Error> {
             .remove("Content-Type")
             .as_ref()
             .and_then(|h| h.to_str().ok())
+            .and_then(|h| h.split(";").next())
+            .map(|h| h.trim())
         {
             Some("application/json") => response
                 .json()
