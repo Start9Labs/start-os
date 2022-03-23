@@ -28,6 +28,7 @@ use crate::context::rpc::RpcContextConfig;
 use crate::context::setup::SetupResult;
 use crate::context::SetupContext;
 use crate::db::model::RecoveredPackageInfo;
+use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
@@ -96,7 +97,13 @@ pub async fn attach(
     #[context] ctx: SetupContext,
     #[arg] guid: Arc<String>,
 ) -> Result<SetupResult, Error> {
-    crate::disk::main::import(&*guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
+    crate::disk::main::import(
+        &*guid,
+        &ctx.datadir,
+        RepairStrategy::Preen,
+        DEFAULT_PASSWORD,
+    )
+    .await?;
     let product_key_path = Path::new("/embassy-data/main/product_key.txt");
     if tokio::fs::metadata(product_key_path).await.is_ok() {
         let pkey = tokio::fs::read_to_string(product_key_path).await?;
@@ -301,7 +308,13 @@ pub async fn execute_inner(
         )
         .await?,
     );
-    crate::disk::main::import(&*guid, &ctx.datadir, DEFAULT_PASSWORD).await?;
+    crate::disk::main::import(
+        &*guid,
+        &ctx.datadir,
+        RepairStrategy::Preen,
+        DEFAULT_PASSWORD,
+    )
+    .await?;
 
     let res = if let Some(recovery_source) = recovery_source {
         let (tor_addr, root_ca, recover_fut) = recover(

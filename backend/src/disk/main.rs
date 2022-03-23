@@ -5,6 +5,7 @@ use color_eyre::eyre::eyre;
 use tokio::process::Command;
 use tracing::instrument;
 
+use super::fsck::{RepairStrategy, RequiresReboot};
 use super::util::pvscan;
 use crate::disk::mount::filesystem::block_dev::mount;
 use crate::disk::mount::filesystem::ReadWrite;
@@ -196,7 +197,12 @@ pub async fn export<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error>
 }
 
 #[instrument(skip(datadir, password))]
-pub async fn import<P: AsRef<Path>>(guid: &str, datadir: P, password: &str) -> Result<(), Error> {
+pub async fn import<P: AsRef<Path>>(
+    guid: &str,
+    datadir: P,
+    repair: RepairStrategy,
+    password: &str,
+) -> Result<(), Error> {
     let scan = pvscan().await?;
     if scan
         .values()
@@ -244,7 +250,7 @@ pub async fn import<P: AsRef<Path>>(guid: &str, datadir: P, password: &str) -> R
         .arg(guid)
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    mount_all_fs(guid, datadir, password).await?;
+    mount_all_fs(guid, datadir, repair, password).await?;
     Ok(())
 }
 
@@ -253,8 +259,9 @@ pub async fn mount_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
     name: &str,
+    repair: RepairStrategy,
     password: &str,
-) -> Result<(), Error> {
+) -> Result<RequiresReboot, Error> {
     tokio::fs::write(PASSWORD_PATH, password)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
@@ -267,27 +274,26 @@ pub async fn mount_fs<P: AsRef<Path>>(
         .arg(format!("{}_{}", guid, name))
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    mount(
-        Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
-        datadir.as_ref().join(name),
-        ReadWrite,
-    )
-    .await?;
+    let mapper_path = Path::new("/dev/mapper").join(format!("{}_{}", guid, name));
+    let reboot = repair.e2fsck(&mapper_path).await?;
+    mount(&mapper_path, datadir.as_ref().join(name), ReadWrite).await?;
 
     tokio::fs::remove_file(PASSWORD_PATH)
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
 
-    Ok(())
+    Ok(reboot)
 }
 
 #[instrument(skip(datadir, password))]
 pub async fn mount_all_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
+    repair: RepairStrategy,
     password: &str,
-) -> Result<(), Error> {
-    mount_fs(guid, &datadir, "main", password).await?;
-    mount_fs(guid, &datadir, "package-data", password).await?;
-    Ok(())
+) -> Result<RequiresReboot, Error> {
+    let mut reboot = RequiresReboot(false);
+    reboot |= mount_fs(guid, &datadir, "main", repair, password).await?;
+    reboot |= mount_fs(guid, &datadir, "package-data", repair, password).await?;
+    Ok(reboot)
 }
