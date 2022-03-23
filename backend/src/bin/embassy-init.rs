@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use embassy::context::rpc::RpcContextConfig;
 use embassy::context::{DiagnosticContext, SetupContext};
+use embassy::disk::fsck::RepairStrategy;
 use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::disk::REPAIR_DISK_PATH;
 use embassy::hostname::get_product_key;
@@ -80,7 +81,11 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
                 .await?
                 .trim(),
             cfg.datadir(),
-            tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok(),
+            if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
+                RepairStrategy::Aggressive
+            } else {
+                RepairStrategy::Preen
+            },
             DEFAULT_PASSWORD,
         )
         .await?;

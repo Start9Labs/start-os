@@ -5,7 +5,7 @@ use color_eyre::eyre::eyre;
 use tokio::process::Command;
 use tracing::instrument;
 
-use super::fsck::{e2fsck, RequiresReboot};
+use super::fsck::{RepairStrategy, RequiresReboot};
 use super::util::pvscan;
 use crate::disk::mount::filesystem::block_dev::mount;
 use crate::disk::mount::filesystem::ReadWrite;
@@ -200,7 +200,7 @@ pub async fn export<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error>
 pub async fn import<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
-    repair: bool,
+    repair: RepairStrategy,
     password: &str,
 ) -> Result<(), Error> {
     let scan = pvscan().await?;
@@ -259,7 +259,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
     name: &str,
-    repair: bool,
+    repair: RepairStrategy,
     password: &str,
 ) -> Result<RequiresReboot, Error> {
     tokio::fs::write(PASSWORD_PATH, password)
@@ -275,7 +275,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
     let mapper_path = Path::new("/dev/mapper").join(format!("{}_{}", guid, name));
-    let reboot = e2fsck(&mapper_path, repair).await?;
+    let reboot = repair.e2fsck(&mapper_path).await?;
     mount(&mapper_path, datadir.as_ref().join(name), ReadWrite).await?;
 
     tokio::fs::remove_file(PASSWORD_PATH)
@@ -289,7 +289,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
 pub async fn mount_all_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
-    repair: bool,
+    repair: RepairStrategy,
     password: &str,
 ) -> Result<RequiresReboot, Error> {
     let mut reboot = RequiresReboot(false);

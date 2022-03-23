@@ -15,27 +15,55 @@ impl std::ops::BitOrAssign for RequiresReboot {
     }
 }
 
-#[instrument]
-pub async fn e2fsck(
-    logicalname: impl AsRef<Path> + std::fmt::Debug,
-    repair: bool,
-) -> Result<RequiresReboot, Error> {
-    let mut e2fsck_cmd = Command::new("e2fsck");
-    if repair {
-        let undo_path = Path::new("/embassy-os")
-            .join(
-                logicalname
-                    .as_ref()
-                    .file_name()
-                    .unwrap_or(OsStr::new("unknown")),
-            )
-            .with_extension("e2undo");
-        e2fsck_cmd.arg("-y").arg("-z").arg(&undo_path);
-    } else {
-        e2fsck_cmd.arg("-p");
+#[derive(Debug, Clone, Copy)]
+pub enum RepairStrategy {
+    Preen,
+    Aggressive,
+}
+impl RepairStrategy {
+    pub async fn e2fsck(
+        &self,
+        logicalname: impl AsRef<Path> + std::fmt::Debug,
+    ) -> Result<RequiresReboot, Error> {
+        match self {
+            RepairStrategy::Preen => e2fsck_preen(logicalname).await,
+            RepairStrategy::Aggressive => e2fsck_aggressive(logicalname).await,
+        }
     }
-    e2fsck_cmd.arg(logicalname.as_ref());
-    let e2fsck_out = e2fsck_cmd.output().await?;
+}
+
+#[instrument]
+pub async fn e2fsck_preen(
+    logicalname: impl AsRef<Path> + std::fmt::Debug,
+) -> Result<RequiresReboot, Error> {
+    e2fsck_runner(Command::new("e2fsck").arg("-p"), logicalname).await
+}
+
+#[instrument]
+pub async fn e2fsck_aggressive(
+    logicalname: impl AsRef<Path> + std::fmt::Debug,
+) -> Result<RequiresReboot, Error> {
+    e2fsck_runner(
+        Command::new("e2fsck").arg("-y").arg("-z").arg(
+            Path::new("/embassy-os")
+                .join(
+                    logicalname
+                        .as_ref()
+                        .file_name()
+                        .unwrap_or(OsStr::new("unknown")),
+                )
+                .with_extension("e2undo"),
+        ),
+        logicalname,
+    )
+    .await
+}
+
+async fn e2fsck_runner(
+    e2fsck_cmd: &mut Command,
+    logicalname: impl AsRef<Path> + std::fmt::Debug,
+) -> Result<RequiresReboot, Error> {
+    let e2fsck_out = e2fsck_cmd.arg(logicalname.as_ref()).output().await?;
     let e2fsck_stderr = String::from_utf8(e2fsck_out.stderr)?;
     let code = e2fsck_out.status.code().ok_or_else(|| {
         Error::new(
