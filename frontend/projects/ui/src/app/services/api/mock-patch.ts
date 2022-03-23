@@ -273,7 +273,6 @@ export const mockPatchData: DataModel = {
               'emergency-contact': {
                 name: 'Emergency Contact',
                 type: 'object',
-                'unique-by': null,
                 description: 'The person to contact in case of emergency.',
                 spec: {
                   name: {
@@ -316,7 +315,6 @@ export const mockPatchData: DataModel = {
               bitcoinNode: {
                 name: 'Bitcoin Node Settings',
                 type: 'union',
-                'unique-by': null,
                 description: 'The node settings',
                 default: 'internal',
                 warning: 'Careful changing this',

@@ -53,8 +53,11 @@ export interface ValueSpecBoolean extends WithStandalone {
   default: boolean
 }
 
-export interface ValueSpecUnion extends ListValueSpecUnion, WithStandalone {
+export interface ValueSpecUnion extends WithStandalone {
   type: 'union'
+  tag: UnionTagSpec
+  variants: { [key: string]: ConfigSpec }
+  default: string
 }
 
 export interface ValueSpecPointer extends WithStandalone {
@@ -67,8 +70,9 @@ export interface ValueSpecPointer extends WithStandalone {
   multi?: boolean // will only exist if target = config
 }
 
-export interface ValueSpecObject extends ListValueSpecObject, WithStandalone {
+export interface ValueSpecObject extends WithStandalone {
   type: 'object'
+  spec: ConfigSpec
 }
 
 export interface WithStandalone {
