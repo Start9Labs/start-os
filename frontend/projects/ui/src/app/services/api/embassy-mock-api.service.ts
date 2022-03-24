@@ -193,6 +193,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   // marketplace URLs
 
   async marketplaceProxy(path: string, params: {}, url: string): Promise<any> {

@@ -93,6 +93,8 @@ export abstract class ApiService
     params: RR.SystemRebuildReq,
   ): Promise<RR.SystemRebuildRes>
 
+  abstract repairDisk(params: RR.SystemRebuildReq): Promise<RR.SystemRebuildRes>
+
   // marketplace URLs
 
   abstract marketplaceProxy<T>(
