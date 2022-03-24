@@ -108,7 +108,7 @@ serde_toml = { package = "toml", version = "0.5.8" }
 serde_yaml = "0.8.21"
 sha2 = "0.9.8"
 simple-logging = "2.0"
-sqlx = { version = "0.5", features = [
+sqlx = { version = "0.5.11", features = [
   "chrono",
   "offline",
   "runtime-tokio-rustls",
