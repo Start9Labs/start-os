@@ -1,6 +1,6 @@
 <ion-grid>
   <ion-row>
-    <ion-col sizeXs="12" sizeSm="12" sizeMd="9" sizeLg="9" sizeXl="9">
+    <ion-col sizeXs="12" sizeMd="9">
       <div class="header">
         <img
           class="logo"
@@ -14,15 +14,8 @@
         </div>
       </div>
     </ion-col>
-    <ion-col
-      sizeXl="3"
-      sizeLg="3"
-      sizeMd="3"
-      sizeSm="12"
-      sizeXs="12"
-      class="ion-align-self-center"
-    >
-      <ng-content select="[slot='controls']"></ng-content>
+    <ion-col sizeMd="3" sizeXs="12" class="ion-align-self-center">
+      <ng-content select="[position=controls]"></ng-content>
     </ion-col>
   </ion-row>
   <ng-content select="ion-row"></ng-content>
