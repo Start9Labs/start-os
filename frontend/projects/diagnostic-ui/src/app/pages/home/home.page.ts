@@ -74,7 +74,7 @@ export class HomePage {
         this.error = {
           code: error.code,
           problem: error.message,
-          solution: 'Please conact support.',
+          solution: 'Please contact support.',
           details: error.data?.details,
         }
       }
