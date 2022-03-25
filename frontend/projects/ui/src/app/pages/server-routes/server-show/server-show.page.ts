@@ -39,7 +39,7 @@ export class ServerShowPage {
     private readonly route: ActivatedRoute,
     public readonly eosService: EOSService,
     public readonly patch: PatchDbService,
-    private readonly localStorageService: LocalStorageService,
+    public readonly localStorageService: LocalStorageService,
   ) {}
 
   ngOnInit() {
@@ -150,7 +150,7 @@ export class ServerShowPage {
     const alert = await this.alertCtrl.create({
       header: 'RepairDisk',
       message: new IonicSafeString(
-        `<ion-text color="warning">Warning:</ion-text> This action will attempt to preform a disk repair operation. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot (bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an uncoverable state. Please proceed with caution.`,
+        `<ion-text color="warning">Warning:</ion-text> This action will attempt to preform a disk repair operation. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot (bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution. The Embassy will be restarted after this action is completed.`,
       ),
       buttons: [
         {
@@ -158,10 +158,12 @@ export class ServerShowPage {
           role: 'cancel',
         },
         {
-          text: 'Rebuild',
+          text: 'Repair',
           handler: () => {
             try {
-              this.embassyApi.systemRebuild({})
+              this.embassyApi.repairDisk({}).then(_ => {
+                this.restart()
+              })
             } catch (e) {
               this.errToast.present(e)
             }
@@ -451,7 +453,7 @@ export class ServerShowPage {
       {
         title: 'Repair Disk',
         description: '',
-        icon: 'construct-outline',
+        icon: 'medkit-outline',
         action: () => this.presentAlertRepairDisk(),
         detail: false,
         disabled: of(false),
