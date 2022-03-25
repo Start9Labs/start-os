@@ -118,6 +118,24 @@ export class HomePage {
     }
   }
 
+  async repairDrive(): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.api.repairDisk()
+      await this.api.restart()
+      this.restarted = true
+    } catch (e) {
+      console.error(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
   refreshPage(): void {
     window.location.reload()
   }
