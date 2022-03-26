@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { defer, Observable } from 'rxjs'
+import { Observable } from 'rxjs'
 import { filter, first, map, startWith, switchMapTo, tap } from 'rxjs/operators'
 import { exists, isEmptyObject } from '@start9labs/shared'
 import {
@@ -16,14 +16,13 @@ import { spreadProgress } from '../utils/spread-progress'
   templateUrl: './marketplace-list.page.html',
 })
 export class MarketplaceListPage {
-  readonly localPkgs$: Observable<Record<string, PackageDataEntry>> = defer(
-    () => this.patch.watch$('package-data'),
-  ).pipe(
-    filter(data => exists(data) && !isEmptyObject(data)),
-    tap(pkgs => Object.values(pkgs).forEach(spreadProgress)),
-    map(pkgs => ({ ...pkgs })),
-    startWith({}),
-  )
+  readonly localPkgs$: Observable<Record<string, PackageDataEntry>> = this.patch
+    .watch$('package-data')
+    .pipe(
+      filter(data => exists(data) && !isEmptyObject(data)),
+      tap(pkgs => Object.values(pkgs).forEach(spreadProgress)),
+      startWith({}),
+    )
 
   readonly categories$ = this.marketplaceService
     .getCategories()
@@ -31,13 +30,13 @@ export class MarketplaceListPage {
       map(categories => new Set(['featured', 'updates', ...categories, 'all'])),
     )
 
-  readonly pkgs$: Observable<MarketplacePkg[]> = defer(() =>
-    this.patch.watch$('server-info'),
-  ).pipe(
-    filter(data => exists(data) && !isEmptyObject(data)),
-    first(),
-    switchMapTo(this.marketplaceService.getPackages()),
-  )
+  readonly pkgs$: Observable<MarketplacePkg[]> = this.patch
+    .watch$('server-info')
+    .pipe(
+      filter(data => exists(data) && !isEmptyObject(data)),
+      first(),
+      switchMapTo(this.marketplaceService.getPackages()),
+    )
 
   readonly name$: Observable<string> = this.marketplaceService
     .getMarketplace()

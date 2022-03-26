@@ -1,5 +1,5 @@
-import { Component, HostListener, Inject, NgZone } from '@angular/core'
-import { Router, RoutesRecognized } from '@angular/router'
+import { Component, HostListener, NgZone } from '@angular/core'
+import { Router } from '@angular/router'
 import {
   AlertController,
   IonicSafeString,
@@ -31,11 +31,10 @@ import {
   ConnectionService,
 } from './services/connection.service'
 import { ConfigService } from './services/config.service'
-import { ServerStatus, UIData } from 'src/app/services/patch-db/data-model'
+import { UIData } from 'src/app/services/patch-db/data-model'
 import { LocalStorageService } from './services/local-storage.service'
 import { EOSService } from './services/eos.service'
 import { OSWelcomePage } from './modals/os-welcome/os-welcome.page'
-import { SnakePage } from './modals/snake/snake.page'
 
 @Component({
   selector: 'app-root',
@@ -43,83 +42,11 @@ import { SnakePage } from './modals/snake/snake.page'
   styleUrls: ['app.component.scss'],
 })
 export class AppComponent {
-  code = {
-    s: false,
-    n: false,
-    e: false,
-    k: false,
-    unlocked: false,
-  }
-
-  @HostListener('document:keydown.enter', ['$event'])
-  @debounce()
-  handleKeyboardEvent() {
-    const elems = document.getElementsByClassName('enter-click')
-    const elem = elems[elems.length - 1] as HTMLButtonElement
-    if (!elem || elem.classList.contains('no-click') || elem.disabled) return
-    if (elem) elem.click()
-  }
-
-  @HostListener('document:keypress', ['$event'])
-  async keyPress(e: KeyboardEvent) {
-    if (e.repeat || this.code.unlocked) return
-    if (this.code[e.key] === false) {
-      this.code[e.key] = true
-    }
-    if (
-      Object.entries(this.code)
-        .filter(([key, value]) => key.length === 1)
-        .map(([key, value]) => value)
-        .reduce((a, b) => a && b)
-    ) {
-      await this.openSnek()
-    }
-  }
-
-  @HostListener('document:keyup', ['$event'])
-  keyUp(e: KeyboardEvent) {
-    if (this.code[e.key]) {
-      this.code[e.key] = false
-    }
-  }
-
-  ServerStatus = ServerStatus
   showMenu = false
-  selectedIndex = 0
   offlineToast: HTMLIonToastElement
   updateToast: HTMLIonToastElement
   notificationToast: HTMLIonToastElement
-  serverName: string
-  unreadCount: number
   subscriptions: Subscription[] = []
-  osUpdateProgress: { size: number; downloaded: number }
-  appPages = [
-    {
-      title: 'Services',
-      url: '/services',
-      icon: 'grid-outline',
-    },
-    {
-      title: 'Embassy',
-      url: '/embassy',
-      icon: 'cube-outline',
-    },
-    {
-      title: 'Marketplace',
-      url: '/marketplace',
-      icon: 'storefront-outline',
-    },
-    {
-      title: 'Notifications',
-      url: '/notifications',
-      icon: 'notifications-outline',
-    },
-    {
-      title: 'Developer Tools',
-      url: '/developer',
-      icon: 'hammer-outline',
-    },
-  ]
 
   constructor(
     private readonly storage: Storage,
@@ -135,12 +62,27 @@ export class AppComponent {
     private readonly errToast: ErrorToastService,
     private readonly config: ConfigService,
     private readonly zone: NgZone,
-    public readonly splitPane: SplitPaneTracker,
-    public readonly patch: PatchDbService,
-    public readonly localStorageService: LocalStorageService,
-    public readonly eosService: EOSService,
+    private readonly splitPane: SplitPaneTracker,
+    private readonly patch: PatchDbService,
+    private readonly localStorageService: LocalStorageService,
+    private readonly eosService: EOSService,
   ) {
     this.init()
+  }
+
+  @HostListener('document:keydown.enter', ['$event'])
+  @debounce()
+  handleKeyboardEvent() {
+    const elems = document.getElementsByClassName('enter-click')
+    const elem = elems[elems.length - 1] as HTMLButtonElement
+
+    if (elem && !elem.classList.contains('no-click') && !elem.disabled) {
+      elem.click()
+    }
+  }
+
+  splitPaneVisible({ detail }: any) {
+    this.splitPane.sidebarOpen$.next(detail.visible)
   }
 
   async init() {
@@ -167,8 +109,6 @@ export class AppComponent {
           ...this.connectionService.start(),
           // watch connection to display connectivity issues
           this.watchConnection(),
-          // watch router to highlight selected menu item
-          this.watchRouter(),
         ])
 
         this.patch
@@ -186,8 +126,6 @@ export class AppComponent {
             this.subscriptions = this.subscriptions.concat([
               // watch status to present toast for updated state
               this.watchStatus(),
-              // watch update-progress to present progress bar when server is updating
-              this.watchUpdateProgress(),
               // watch version to refresh browser window
               this.watchVersion(),
               // watch unread notification count to display toast
@@ -210,40 +148,6 @@ export class AppComponent {
         })
       }
     })
-  }
-
-  async goToWebsite(): Promise<void> {
-    let url: string
-    if (this.config.isTor()) {
-      url =
-        'http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion'
-    } else {
-      url = 'https://start9.com'
-    }
-    window.open(url, '_blank', 'noreferrer')
-  }
-
-  async presentAlertLogout() {
-    const alert = await this.alertCtrl.create({
-      header: 'Caution',
-      message:
-        'Do you know your password? If you log out and forget your password, you may permanently lose access to your Embassy.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Logout',
-          cssClass: 'enter-click',
-          handler: () => {
-            this.logout()
-          },
-        },
-      ],
-    })
-
-    await alert.present()
   }
 
   private checkForEosUpdate(ui: UIData): void {
@@ -269,48 +173,6 @@ export class AppComponent {
       })
       modal.present()
     }
-  }
-
-  async openSnek() {
-    this.code.unlocked = true
-    const modal = await this.modalCtrl.create({
-      component: SnakePage,
-      cssClass: 'snake-modal',
-      backdropDismiss: false,
-    })
-
-    modal.onDidDismiss().then(async ret => {
-      this.code.unlocked = false
-      if (
-        ret.data.highScore &&
-        (ret.data.highScore >
-          this.patch.getData().ui.gaming?.snake?.['high-score'] ||
-          !this.patch.getData().ui.gaming?.snake?.['high-score'])
-      ) {
-        const loader = await this.loadingCtrl.create({
-          spinner: 'lines',
-          cssClass: 'loader',
-          message: 'Saving High Score...',
-        })
-        await loader.present()
-        try {
-          await this.embassyApi.setDbValue({
-            pointer: '/gaming',
-            value: { snake: { 'high-score': ret.data.highScore } },
-          })
-        } catch (e) {
-          this.errToast.present(e)
-        } finally {
-          this.loadingCtrl.dismiss()
-        }
-      }
-    })
-    modal.present()
-  }
-  // should wipe cache independant of actual BE logout
-  private async logout() {
-    this.embassyApi.logout({})
-    this.authService.setUnverified()
   }
 
   private watchConnection(): Subscription {
@@ -344,17 +206,6 @@ export class AppComponent {
       })
   }
 
-  private watchRouter(): Subscription {
-    return this.router.events
-      .pipe(filter((e: RoutesRecognized) => !!e.urlAfterRedirects))
-      .subscribe(e => {
-        const appPageIndex = this.appPages.findIndex(appPage =>
-          e.urlAfterRedirects.startsWith(appPage.url),
-        )
-        if (appPageIndex > -1) this.selectedIndex = appPageIndex
-      })
-  }
-
   private watchStatus(): Subscription {
     return this.patch
       .watch$('server-info', 'status-info', 'updated')
@@ -362,15 +213,6 @@ export class AppComponent {
         if (isUpdated && !this.updateToast) {
           this.presentToastUpdated()
         }
-      })
-  }
-  m
-
-  private watchUpdateProgress(): Subscription {
-    return this.patch
-      .watch$('server-info', 'status-info', 'update-progress')
-      .subscribe(progress => {
-        this.osUpdateProgress = progress
       })
   }
 
@@ -387,7 +229,6 @@ export class AppComponent {
     return this.patch
       .watch$('server-info', 'unread-notification-count')
       .subscribe(count => {
-        this.unreadCount = count
         if (previous !== undefined && count > previous)
           this.presentToastNotifications()
         previous = count
@@ -529,9 +370,5 @@ export class AppComponent {
     } finally {
       loader.dismiss()
     }
-  }
-
-  splitPaneVisible(e: any) {
-    this.splitPane.sidebarOpen$.next(e.detail.visible)
   }
 }

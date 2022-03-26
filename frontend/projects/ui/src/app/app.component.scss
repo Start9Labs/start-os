@@ -1,9 +1,5 @@
-.bold {
-  font-weight: bold;
-}
-
-.dim {
-  color: var(--ion-color-dark-shade);
+:host {
+  display: block;
 }
 
 ion-split-pane {

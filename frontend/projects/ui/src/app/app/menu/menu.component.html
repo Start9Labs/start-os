@@ -1,0 +1,60 @@
+<a class="logo ion-padding" target="_blank" rel="noreferrer" [href]="href">
+  <img alt="Start9" src="assets/img/logo.png" />
+</a>
+<div class="divider"></div>
+<ion-item-group class="menu">
+  <ion-menu-toggle *ngFor="let page of pages; let i = index" auto-hide="false">
+    <ion-item
+      *ngIf="
+        page.url !== '/developer' || (localStorageService.showDevTools$ | async)
+      "
+      button
+      class="link"
+      color="transparent"
+      routerDirection="root"
+      lines="none"
+      detail="false"
+      [routerLink]="page.url"
+    >
+      <ion-icon
+        slot="start"
+        class="icon label"
+        routerLinkActive="label_selected"
+        [name]="page.icon"
+      ></ion-icon>
+      <ion-label class="label montserrat" routerLinkActive="label_selected">
+        {{ page.title }}
+      </ion-label>
+      <ion-icon
+        *ngIf="page.url === '/embassy' && eosService.updateAvailable$ | async"
+        color="success"
+        size="small"
+        name="rocket-outline"
+      ></ion-icon>
+      <ion-badge
+        *ngIf="page.url === '/notifications' && notification$ | async as count"
+        color="danger"
+        class="badge"
+      >
+        {{ count }}
+      </ion-badge>
+    </ion-item>
+  </ion-menu-toggle>
+</ion-item-group>
+<img appSnek class="snek" alt="Play Snek" src="assets/img/icons/snek.png" />
+<div class="bottom">
+  <div class="divider" style="margin-bottom: 10px"></div>
+  <ion-menu-toggle auto-hide="false">
+    <ion-item
+      button
+      lines="none"
+      style="--background: transparent; margin-bottom: 86px; text-align: center"
+      fill="clear"
+      (click)="presentAlertLogout()"
+    >
+      <ion-label>
+        <ion-text class="montserrat" color="dark"> Log Out </ion-text>
+      </ion-label>
+    </ion-item>
+  </ion-menu-toggle>
+</div>
