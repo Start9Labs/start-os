@@ -7,6 +7,9 @@ import {
   debounceTime,
   finalize,
   mergeMap,
+  skip,
+  switchMap,
+  take,
   tap,
   withLatestFrom,
 } from 'rxjs/operators'
@@ -14,6 +17,7 @@ import { isEmptyObject, pauseFor } from '@start9labs/shared'
 import { DataModel } from './data-model'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
+import { patch } from '@start9labs/emver'
 
 export const PATCH_HTTP = new InjectionToken<Source<DataModel>>('')
 export const PATCH_SOURCE = new InjectionToken<Source<DataModel>>('')
@@ -176,9 +180,19 @@ export class PatchDbService {
 
   // prettier-ignore
   watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
+    // TODO: refactor with a better solution to race condition
     const argsString = '/' + args.join('/')
+    const source$ =
+      this.patchDb?.store.watch$(...(args as [])) ||
+      this.patchConnection$.pipe(
+        skip(1),
+        take(1),
+        switchMap(() => this.patchDb.store.watch$(...(args as []))),
+      )
+
     console.log('patchDB: WATCHING ', argsString)
-    return this.patchDb.store.watch$(...(args as [])).pipe(
+
+    return source$.pipe(
       tap(data => console.log('patchDB: NEW VALUE', argsString, data)),
       catchError(e => {
         console.error('patchDB: WATCH ERROR', e)

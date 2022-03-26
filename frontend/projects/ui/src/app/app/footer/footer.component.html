@@ -1,0 +1,16 @@
+<ion-toolbar
+  *ngIf="progress$ | async as progress"
+  color="light"
+  [@heightCollapse]="animation"
+>
+  <ion-list class="list">
+    <ion-list-header>
+      <ion-label>Downloading EOS: {{ getProgress(progress) }}%</ion-label>
+    </ion-list-header>
+    <ion-progress-bar
+      class="progress"
+      color="secondary"
+      [value]="getProgress(progress) / 100"
+    ></ion-progress-bar>
+  </ion-list>
+</ion-toolbar>

@@ -1,5 +1,5 @@
-import { NgModule, CUSTOM_ELEMENTS_SCHEMA, ErrorHandler } from '@angular/core'
-import { BrowserModule } from '@angular/platform-browser'
+import { NgModule, ErrorHandler } from '@angular/core'
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { RouteReuseStrategy } from '@angular/router'
 import { IonicModule, IonicRouteStrategy, IonNav } from '@ionic/angular'
 import { Drivers } from '@ionic/storage'
@@ -10,7 +10,6 @@ import { AppRoutingModule } from './app-routing.module'
 import { ApiService } from './services/api/embassy-api.service'
 import { PatchDbServiceFactory } from './services/patch-db/patch-db.factory'
 import { ConfigService } from './services/config.service'
-import { QrCodeModule } from 'ng-qrcode'
 import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
 import { PatchDbService } from './services/patch-db/patch-db.service'
 import { LocalStorageBootstrap } from './services/patch-db/local-storage-bootstrap'
@@ -27,6 +26,9 @@ import {
   WorkspaceConfig,
 } from '@start9labs/shared'
 import { MarketplaceModule } from './marketplace.module'
+import { PreloaderModule } from './app/preloader/preloader.module'
+import { FooterModule } from './app/footer/footer.module'
+import { MenuModule } from './app/menu/menu.module'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
@@ -35,7 +37,7 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
   entryComponents: [],
   imports: [
     HttpClientModule,
-    BrowserModule,
+    BrowserAnimationsModule,
     IonicModule.forRoot({
       mode: 'md',
     }),
@@ -46,7 +48,9 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
       name: '_embassystorage',
       driverOrder: [Drivers.LocalStorage, Drivers.IndexedDB],
     }),
-    QrCodeModule,
+    MenuModule,
+    PreloaderModule,
+    FooterModule,
     OSWelcomePageModule,
     MarkdownModule,
     GenericInputComponentModule,
@@ -82,6 +86,5 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     },
   ],
   bootstrap: [AppComponent],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class AppModule {}

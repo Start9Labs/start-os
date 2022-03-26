@@ -8,7 +8,10 @@
         <img [src]="pkg['static-files'].icon" alt="" />
       </ion-avatar>
       <ion-label>
-        <h1 class="name" [class.less-large]="pkg.manifest.title.length > 20">
+        <h1
+          class="montserrat"
+          [class.less-large]="pkg.manifest.title.length > 20"
+        >
           {{ pkg.manifest.title }}
         </h1>
         <h2>{{ pkg.manifest.version | displayEmver }}</h2>
