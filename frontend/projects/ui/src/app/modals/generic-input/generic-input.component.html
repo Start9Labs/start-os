@@ -1,7 +1,8 @@
 <ion-content>
-  <div style="margin: 24px 24px 12px 24px; display: flex; flex-direction: column;">
-
-    <ion-item style="padding-bottom: 8px;">
+  <div
+    style="margin: 24px 24px 12px 24px; display: flex; flex-direction: column"
+  >
+    <ion-item style="padding-bottom: 8px">
       <ion-label>
         <h1>{{ options.title }}</h1>
         <br />
@@ -13,26 +14,47 @@
           </p>
         </ng-container>
       </ion-label>
-    </ion-item>    
+    </ion-item>
 
     <form (ngSubmit)="submit()">
-      <div style="margin: 0 0 24px 16px;">
+      <div style="margin: 0 0 24px 16px">
         <p class="input-label">{{ options.label }}</p>
         <ion-item lines="none" color="dark">
-          <ion-input #mainInput [type]="options.useMask && !unmasked ? 'password' : 'text'" [(ngModel)]="value" name="value" [placeholder]="options.placeholder" (ionChange)="error = ''"></ion-input>
-          <ion-button slot="end" *ngIf="options.useMask" fill="clear" color="light" (click)="toggleMask()">
-            <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
+          <ion-input
+            #mainInput
+            type="text"
+            [(ngModel)]="value"
+            name="value"
+            [placeholder]="options.placeholder"
+            (ionChange)="error = ''"
+          ></ion-input>
+          <ion-button
+            slot="end"
+            *ngIf="options.useMask"
+            fill="clear"
+            color="light"
+            (click)="toggleMask()"
+          >
+            <ion-icon
+              slot="icon-only"
+              [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
+              size="small"
+            ></ion-icon>
           </ion-button>
         </ion-item>
         <!-- error -->
-        <p *ngIf="error"><ion-text color="danger">{{ error }}</ion-text></p>
+        <p *ngIf="error">
+          <ion-text color="danger">{{ error }}</ion-text>
+        </p>
       </div>
-  
+
       <div class="ion-text-right">
-        <ion-button fill="clear" (click)="cancel()">
-          Cancel
-        </ion-button>
-        <ion-button fill="clear" type="submit" [disabled]="!value && !options.nullable">
+        <ion-button fill="clear" (click)="cancel()"> Cancel </ion-button>
+        <ion-button
+          fill="clear"
+          type="submit"
+          [disabled]="!value && !options.nullable"
+        >
           {{ options.buttonText }}
         </ion-button>
       </div>
