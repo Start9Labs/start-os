@@ -89,9 +89,11 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
             DEFAULT_PASSWORD,
         )
         .await?;
-        tokio::fs::remove_file(REPAIR_DISK_PATH)
-            .await
-            .with_ctx(|_| (embassy::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
+        if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
+            tokio::fs::remove_file(REPAIR_DISK_PATH)
+                .await
+                .with_ctx(|_| (embassy::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
+        }
         tracing::info!("Loaded Disk");
         embassy::init::init(&cfg, &get_product_key().await?).await?;
     }
