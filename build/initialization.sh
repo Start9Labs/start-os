@@ -37,7 +37,6 @@ apt-get install -y \
 	ecryptfs-utils \
 	cifs-utils \
 	samba-common-bin \
-	ntp \
 	network-manager \
 	vim \
 	jq \
@@ -90,9 +89,9 @@ rm -rf /var/lib/tor/*
 raspi-config nonint enable_overlayfs
 
 # create a copy of the cmdline *without* the quirk string, so that it can be easily amended
-sudo sed -i 's/usb-storage.quirks=152d:0562:u,14cd:121c:u,0781:cfcb:u //g' /boot/cmdline.txt
-sudo cp /boot/cmdline.txt /boot/cmdline.txt.orig
-sudo sed -i 's/^/usb-storage.quirks=152d:0562:u,14cd:121c:u,0781:cfcb:u /g' /boot/cmdline.txt
+sed -i 's/usb-storage.quirks=152d:0562:u,14cd:121c:u,0781:cfcb:u //g' /boot/cmdline.txt
+cp /boot/cmdline.txt /boot/cmdline.txt.orig
+sed -i 's/^/usb-storage.quirks=152d:0562:u,14cd:121c:u,0781:cfcb:u /g' /boot/cmdline.txt
 
 systemctl disable initialization.service
 sudo systemctl restart NetworkManager

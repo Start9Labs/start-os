@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use tokio::process::Command;
 
 use crate::context::rpc::RpcContextConfig;
@@ -7,6 +9,19 @@ use crate::util::Invoke;
 use crate::Error;
 
 pub const SYSTEM_REBUILD_PATH: &str = "/embassy-os/system-rebuild";
+
+pub async fn check_time_is_synchronized() -> Result<bool, Error> {
+    Ok(String::from_utf8(
+        Command::new("timedatectl")
+            .arg("show")
+            .arg("-p")
+            .arg("NTPSynchronized")
+            .invoke(crate::ErrorKind::Unknown)
+            .await?,
+    )?
+    .trim()
+        == "NTPSynchronized=yes")
+}
 
 pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error> {
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok();
@@ -99,6 +114,18 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         update_progress: None,
     };
     info.save(&mut handle).await?;
+
+    let mut warn_time_not_synced = true;
+    for _ in 0..60 {
+        if check_time_is_synchronized().await? {
+            warn_time_not_synced = false;
+            break;
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    if warn_time_not_synced {
+        tracing::warn!("Timed out waiting for system time to synchronize");
+    }
 
     crate::version::init(&mut handle).await?;
 

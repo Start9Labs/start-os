@@ -1,8 +1,8 @@
 [Unit]
 Description=Embassy Init
-After=network.target ntp.service
+After=network.target
 Requires=network.target
-Wants=avahi-daemon.service nginx.service tor.service ntp.service
+Wants=avahi-daemon.service nginx.service tor.service
 
 [Service]
 Type=oneshot
