@@ -56,8 +56,6 @@ export class BackupService {
   }
 
   hasValidBackup(target: BackupTarget): boolean {
-    return [0, 1].includes(
-      this.emver.compare(target['embassy-os']?.version, '0.3.0'),
-    )
+    return this.emver.compare(target['embassy-os']?.version, '0.3.0') !== -1
   }
 }
