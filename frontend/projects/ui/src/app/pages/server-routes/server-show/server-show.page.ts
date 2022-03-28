@@ -148,9 +148,9 @@ export class ServerShowPage {
 
   async presentAlertRepairDisk() {
     const alert = await this.alertCtrl.create({
-      header: 'RepairDisk',
+      header: 'Repair Disk',
       message: new IonicSafeString(
-        `<ion-text color="warning">Warning:</ion-text> This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.`,
+        `<ion-text color="warning">Warning:</ion-text> <p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.</p>`,
       ),
       buttons: [
         {

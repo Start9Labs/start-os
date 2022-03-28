@@ -38,7 +38,7 @@
         <ng-container *ngFor="let button of cat.value">
           <ion-item
             button
-            [style.display]="(button.title === 'Repair Disk' && localStorageService.showDiskRepair$ | async) ? 'none' : 'block'"
+            [style.display]="(button.title === 'Repair Disk' && !(localStorageService.showDiskRepair$ | async)) ? 'none' : 'block'"
             [detail]="button.detail"
             [disabled]="button.disabled | async"
             (click)="button.action()"
