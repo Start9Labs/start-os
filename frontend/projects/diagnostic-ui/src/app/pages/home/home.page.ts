@@ -1,5 +1,9 @@
 import { Component } from '@angular/core'
-import { LoadingController } from '@ionic/angular'
+import {
+  AlertController,
+  IonicSafeString,
+  LoadingController,
+} from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 
 @Component({
@@ -20,6 +24,7 @@ export class HomePage {
   constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly api: ApiService,
+    private readonly alertCtrl: AlertController,
   ) {}
 
   async ngOnInit() {
@@ -134,6 +139,35 @@ export class HomePage {
     } finally {
       loader.dismiss()
     }
+  }
+
+  async presentAlertRepairDisk() {
+    const alert = await this.alertCtrl.create({
+      header: 'RepairDisk',
+      message: new IonicSafeString(
+        `<ion-text color="warning">Warning:</ion-text> This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.`,
+      ),
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Repair',
+          handler: () => {
+            try {
+              this.api.repairDisk().then(_ => {
+                this.restart()
+              })
+            } catch (e) {
+              console.error(e)
+            }
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
   }
 
   refreshPage(): void {
