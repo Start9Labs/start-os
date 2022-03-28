@@ -24,7 +24,14 @@ export class LiveApiService extends ApiService {
 
   forgetDrive(): Promise<void> {
     return this.http.rpcRequest<void>({
-      method: 'diagnostic.forget-disk',
+      method: 'diagnostic.disk.forget',
+      params: {},
+    })
+  }
+
+  repairDisk(): Promise<void> {
+    return this.http.rpcRequest<void>({
+      method: 'diagnostic.disk.repair',
       params: {},
     })
   }

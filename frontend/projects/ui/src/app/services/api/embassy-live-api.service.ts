@@ -99,6 +99,10 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'server.rebuild', params })
   }
 
+  async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
+    return this.http.rpcRequest({ method: 'disk.repair', params })
+  }
+
   // marketplace URLs
 
   async marketplaceProxy<T>(path: string, params: {}, url: string): Promise<T> {

@@ -396,7 +396,7 @@ export class AppComponent {
 
   private async presentAlertRefreshNeeded() {
     const alert = await this.alertCtrl.create({
-      backdropDismiss: false,
+      backdropDismiss: true,
       header: 'Refresh Needed',
       message:
         'Your user interface is cached and out of date. Hard refresh the page to get the latest UI.',

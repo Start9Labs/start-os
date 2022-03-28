@@ -16,6 +16,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { exists, isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ServerStatus } from 'src/app/services/patch-db/data-model'
+import { LocalStorageService } from 'src/app/services/local-storage.service'
 
 @Component({
   selector: 'server-show',
@@ -25,6 +26,7 @@ import { ServerStatus } from 'src/app/services/patch-db/data-model'
 export class ServerShowPage {
   ServerStatus = ServerStatus
   hasRecoveredPackage: boolean
+  clicks = 0
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -37,6 +39,7 @@ export class ServerShowPage {
     private readonly route: ActivatedRoute,
     public readonly eosService: EOSService,
     public readonly patch: PatchDbService,
+    public readonly localStorageService: LocalStorageService,
   ) {}
 
   ngOnInit() {
@@ -135,6 +138,35 @@ export class ServerShowPage {
           text: 'Rebuild',
           handler: () => {
             this.systemRebuild()
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
+  }
+
+  async presentAlertRepairDisk() {
+    const alert = await this.alertCtrl.create({
+      header: 'Repair Disk',
+      message: new IonicSafeString(
+        `<ion-text color="warning">Warning:</ion-text> <p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.</p>`,
+      ),
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Repair',
+          handler: () => {
+            try {
+              this.embassyApi.repairDisk({}).then(_ => {
+                this.restart()
+              })
+            } catch (e) {
+              this.errToast.present(e)
+            }
           },
           cssClass: 'enter-click',
         },
@@ -305,7 +337,7 @@ export class ServerShowPage {
       {
         title: 'Marketplace Settings',
         description: 'Add or remove marketplaces',
-        icon: 'storefront',
+        icon: 'storefront-outline',
         action: () =>
           this.navCtrl.navigateForward(['marketplaces'], {
             relativeTo: this.route,
@@ -418,11 +450,30 @@ export class ServerShowPage {
         detail: false,
         disabled: of(false),
       },
+      {
+        title: 'Repair Disk',
+        description: '',
+        icon: 'medkit-outline',
+        action: () => this.presentAlertRepairDisk(),
+        detail: false,
+        disabled: of(false),
+      },
     ],
   }
 
   asIsOrder() {
     return 0
+  }
+
+  async addClick() {
+    this.clicks++
+    if (this.clicks >= 5) {
+      this.clicks = 0
+      const newVal = await this.localStorageService.toggleShowDiskRepair()
+    }
+    setTimeout(() => {
+      this.clicks = Math.max(this.clicks - 1, 0)
+    }, 10000)
   }
 }
 

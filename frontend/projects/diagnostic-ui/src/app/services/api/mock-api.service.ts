@@ -33,6 +33,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async repairDisk(): Promise<void> {
+    await pauseFor(1000)
+    return null
+  }
+
   async getLogs(params: GetLogsReq): Promise<GetLogsRes> {
     await pauseFor(1000)
     let entries: Log[]

@@ -27,7 +27,7 @@ export const mockPatchData: DataModel = {
     'unread-notification-count': 4,
     'password-hash':
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-    'eos-version-compat': '>=0.3.0',
+    'eos-version-compat': '>=0.3.0 <=0.3.0.1',
     'status-info': null,
   },
   'recovered-packages': {

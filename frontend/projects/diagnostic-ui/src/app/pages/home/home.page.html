@@ -49,6 +49,12 @@
           }}
         </ion-button>
       </div>
+      <div
+        *ngIf="error.code === 2 || error.code === 48"
+        class="ion-padding-top"
+      >
+        <ion-button (click)="repairDrive()"> {{ 'Repair Drive' }} </ion-button>
+      </div>
     </ng-container>
 
     <ng-template #refresh>

@@ -1,5 +1,9 @@
 import { Component } from '@angular/core'
-import { LoadingController } from '@ionic/angular'
+import {
+  AlertController,
+  IonicSafeString,
+  LoadingController,
+} from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 
 @Component({
@@ -20,6 +24,7 @@ export class HomePage {
   constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly api: ApiService,
+    private readonly alertCtrl: AlertController,
   ) {}
 
   async ngOnInit() {
@@ -48,16 +53,33 @@ export class HomePage {
         this.error = {
           code: 25,
           problem:
-            'Storage drive corrupted. This could be the result of data corruption or a physical damage.',
+            'Storage drive corrupted. This could be the result of data corruption or physical damage.',
           solution:
             'It may or may not be possible to re-use this drive by reformatting and recovering from backup. To enter recovery mode, click ENTER RECOVERY MODE below, then follow instructions. No data will be erased during this step.',
+          details: error.data?.details,
+        }
+        // filesystem I/O error - disk needs repair
+      } else if (error.code === 2) {
+        this.error = {
+          code: 2,
+          problem: 'Filesystem I/O error.',
+          solution: '',
+          details: error.data?.details,
+        }
+        // disk management error - disk needs repair
+      } else if (error.code === 48) {
+        this.error = {
+          code: 48,
+          problem: 'Disk management error.',
+          solution:
+            'Repairing the disk could help resolve this issue. This will occur on a restart between the bep and chime. Please DO NOT unplug the drive or Embassy during this time or the situation will become worse.',
           details: error.data?.details,
         }
       } else {
         this.error = {
           code: error.code,
           problem: error.message,
-          solution: 'Please conact support.',
+          solution: 'Please contact support.',
           details: error.data?.details,
         }
       }
@@ -99,6 +121,53 @@ export class HomePage {
     } finally {
       loader.dismiss()
     }
+  }
+
+  async repairDrive(): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.api.repairDisk()
+      await this.api.restart()
+      this.restarted = true
+    } catch (e) {
+      console.error(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  async presentAlertRepairDisk() {
+    const alert = await this.alertCtrl.create({
+      header: 'RepairDisk',
+      message: new IonicSafeString(
+        `<ion-text color="warning">Warning:</ion-text> This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.`,
+      ),
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Repair',
+          handler: () => {
+            try {
+              this.api.repairDisk().then(_ => {
+                this.restart()
+              })
+            } catch (e) {
+              console.error(e)
+            }
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
   }
 
   refreshPage(): void {
