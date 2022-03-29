@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::num::ParseIntError;
 use std::path::Path;
 
@@ -19,7 +20,7 @@ pub const WHITELIST: [(VendorId, ProductId); 5] = [
     (VendorId(0x04e8), ProductId(0x4001)), // Samsung T7
 ];
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VendorId(u16);
 impl std::str::FromStr for VendorId {
     type Err = ParseIntError;
@@ -33,7 +34,7 @@ impl std::fmt::Display for VendorId {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ProductId(u16);
 impl std::str::FromStr for ProductId {
     type Err = ParseIntError;
@@ -48,10 +49,13 @@ impl std::fmt::Display for ProductId {
 }
 
 #[derive(Clone, Debug)]
-pub struct Quirks(Vec<(VendorId, ProductId)>);
+pub struct Quirks(BTreeSet<(VendorId, ProductId)>);
 impl Quirks {
     pub fn add(&mut self, vendor: VendorId, product: ProductId) {
-        self.0.push((vendor, product));
+        self.0.insert((vendor, product));
+    }
+    pub fn remove(&mut self, vendor: VendorId, product: ProductId) {
+        self.0.remove(&(vendor, product));
     }
     pub fn contains(&self, vendor: VendorId, product: ProductId) -> bool {
         self.0.contains(&(vendor, product))
@@ -75,10 +79,10 @@ impl std::str::FromStr for Quirks {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.trim();
-        let mut quirks = Vec::new();
+        let mut quirks = BTreeSet::new();
         for item in s.split(",") {
             if let [vendor, product, "u"] = item.splitn(3, ":").collect::<Vec<_>>().as_slice() {
-                quirks.push((vendor.parse()?, product.parse()?));
+                quirks.insert((vendor.parse()?, product.parse()?));
             } else {
                 return Err(Error::new(
                     eyre!("Invalid quirk: `{}`", item),
@@ -107,7 +111,11 @@ pub async fn update_quirks(quirks: &mut Quirks) -> Result<Vec<String>, Error> {
         let product = tokio::fs::read_to_string(usb_device.path().join("idProduct"))
             .await?
             .parse()?;
-        if WHITELIST.contains(&(vendor, product)) || quirks.contains(vendor, product) {
+        if WHITELIST.contains(&(vendor, product)) {
+            quirks.remove(vendor, product);
+            continue;
+        }
+        if quirks.contains(vendor, product) {
             continue;
         }
         quirks.add(vendor, product);
