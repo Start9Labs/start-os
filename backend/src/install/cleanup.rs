@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use bollard::image::ListImagesOptions;
 use color_eyre::eyre::eyre;
@@ -7,13 +7,16 @@ use sqlx::{Executor, Sqlite};
 use tracing::instrument;
 
 use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
-use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry};
-use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::error::ErrorCollection;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Apply, Version};
 use crate::Error;
+use crate::{config::not_found, dependencies::reconfigure_dependents_with_live_pointers};
+use crate::{context::RpcContext, db::locks::CurrentDependentsLock};
+use crate::{
+    db::model::{InstalledPackageDataEntry, PackageDataEntry},
+    dependencies::DependentsLock,
+};
 
 #[instrument(skip(ctx, db, deps))]
 pub async fn update_dependency_errors_of_dependents<
@@ -202,7 +205,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
     Ok(())
 }
 
-#[instrument(skip(db, current_dependencies))]
+#[instrument(skip(db, current_dependencies, locks))]
 pub async fn remove_from_current_dependents_lists<
     'a,
     Db: DbHandle,
@@ -211,24 +214,19 @@ pub async fn remove_from_current_dependents_lists<
     db: &mut Db,
     id: &'a PackageId,
     current_dependencies: I,
+    locks: &dyn CurrentDependentsLock,
 ) -> Result<(), Error> {
     for dep in current_dependencies.into_iter().chain(std::iter::once(id)) {
-        if let Some(current_dependents) = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(dep)
-            .and_then(|m| m.installed())
-            .map::<_, BTreeMap<PackageId, CurrentDependencyInfo>>(|m| m.current_dependents())
-            .check(db)
+        let mut current_dependents = locks
+            .current_dependents()
+            .get(db, &dep)
             .await?
-        {
-            if current_dependents
-                .clone()
-                .idx_model(id)
-                .exists(db, true)
-                .await?
-            {
-                current_dependents.remove(db, id).await?
-            }
+            .ok_or_else(not_found)?;
+        if current_dependents.remove(id).is_some() {
+            locks
+                .current_dependents()
+                .set(db, current_dependents, &dep)
+                .await?;
         }
     }
     Ok(())
@@ -245,6 +243,7 @@ where
     for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
 {
     let mut tx = db.begin().await?;
+    let dependents_lock = DependentsLock::new(&mut tx).await?;
     crate::db::DatabaseModel::new()
         .package_data()
         .lock(&mut tx, LockType::Write)
@@ -276,6 +275,7 @@ where
         &mut tx,
         &entry.manifest.id,
         entry.current_dependencies.keys(),
+        &dependents_lock,
     )
     .await?;
     update_dependency_errors_of_dependents(

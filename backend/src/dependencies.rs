@@ -6,15 +6,13 @@ use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use patch_db::{DbHandle, HasModel, LockType, Map, MapModel, PatchDbHandle};
+use patch_db::{DbHandle, HasModel, LockReceipt, LockType, Map, MapModel, PatchDbHandle};
 use rand::SeedableRng;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::action::{ActionImplementation, NoOutput};
-use crate::config::action::ConfigRes;
-use crate::config::spec::PackagePointerSpec;
+use crate::config::{action::ConfigRes, not_found, ConfigLocks};
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry};
@@ -26,6 +24,11 @@ use crate::util::serde::display_serializable;
 use crate::util::{display_none, Version};
 use crate::volume::Volumes;
 use crate::Error;
+use crate::{
+    action::{ActionImplementation, NoOutput},
+    db::locks::{CurrentDependentsLock, DependenciesLock, DependencyLock, PackageStatusLock},
+};
+use crate::{config::spec::PackagePointerSpec, db::locks::HealTransitiveLock};
 
 #[command(subcommands(configure))]
 pub fn dependency() -> Result<(), Error> {
@@ -498,6 +501,8 @@ pub async fn configure_impl(
         new_config,
         spec: _,
     } = configure_logic(ctx.clone(), &mut db, (pkg_id, dep_id.clone())).await?;
+
+    let locks = ConfigLocks::new(&mut db).await?;
     Ok(crate::config::configure(
         &ctx,
         &mut db,
@@ -507,6 +512,7 @@ pub async fn configure_impl(
         false,
         &mut BTreeMap::new(),
         &mut BTreeMap::new(),
+        &locks,
     )
     .await?)
 }
@@ -650,8 +656,7 @@ pub async fn configure_logic(
         spec,
     })
 }
-
-#[instrument(skip(db, current_dependencies))]
+#[instrument(skip(db, current_dependencies, locks))]
 pub async fn add_dependent_to_current_dependents_lists<
     'a,
     Db: DbHandle,
@@ -660,21 +665,19 @@ pub async fn add_dependent_to_current_dependents_lists<
     db: &mut Db,
     dependent_id: &PackageId,
     current_dependencies: I,
+    locks: &dyn CurrentDependentsLock,
 ) -> Result<(), Error> {
     for (dependency, dep_info) in current_dependencies {
-        if let Some(dependency_model) = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(&dependency)
-            .and_then(|pkg| pkg.installed())
-            .check(db)
+        let mut dependency_dependents = locks
+            .current_dependents()
+            .get(db, dependency)
             .await?
-        {
-            dependency_model
-                .current_dependents()
-                .idx_model(dependent_id)
-                .put(db, &dep_info)
-                .await?;
-        }
+            .ok_or_else(not_found)?;
+        dependency_dependents.insert(dependent_id.clone(), dep_info.clone());
+        locks
+            .current_dependents()
+            .set(db, dependency_dependents, dependency)
+            .await?;
     }
     Ok(())
 }
@@ -808,68 +811,49 @@ pub fn break_transitive<'a, Db: DbHandle>(
     .boxed()
 }
 
-#[instrument(skip(ctx, db))]
+#[instrument(skip(ctx, db, locks))]
 pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
     id: &'a PackageId,
+    locks: &'a dyn HealTransitiveLock,
 ) -> Result<(), Error> {
-    for dependent in crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(id)
-        .and_then(|m| m.installed())
-        .expect(db)
-        .await?
+    let dependents = locks
         .current_dependents()
-        .keys(db, true)
+        .get(db, id)
         .await?
-        .into_iter()
-        .filter(|dependent| id != dependent)
-    {
-        heal_transitive(ctx, db, &dependent, id).await?;
+        .ok_or_else(not_found)?;
+    for dependent in dependents.keys().filter(|dependent| id != *dependent) {
+        heal_transitive(ctx, db, dependent, id, locks).await?;
     }
     Ok(())
 }
 
-#[instrument(skip(ctx, db))]
+#[instrument(skip(ctx, db, locks))]
 pub fn heal_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
     id: &'a PackageId,
     dependency: &'a PackageId,
+    locks: &'a dyn HealTransitiveLock,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
-        let mut tx = db.begin().await?;
-        let model = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(id)
-            .and_then(|m| m.installed())
-            .expect(&mut tx)
-            .await?;
-        let mut status = model.clone().status().get_mut(&mut tx).await?;
+        let mut status = locks.status().get(db, id).await?.ok_or_else(not_found)?;
 
         let old = status.dependency_errors.0.remove(dependency);
 
         if let Some(old) = old {
-            let info = model
-                .manifest()
-                .dependencies()
-                .idx_model(dependency)
-                .expect(&mut tx)
+            let info = locks
+                .dependency()
+                .get_at(db, (id, dependency))
                 .await?
-                .get(&mut tx, true)
-                .await?;
-            if let Some(new) = old
-                .try_heal(ctx, &mut tx, id, dependency, None, &*info)
-                .await?
-            {
+                .ok_or_else(not_found)?;
+            if let Some(new) = old.try_heal(ctx, db, id, dependency, None, &info).await? {
                 status.dependency_errors.0.insert(dependency.clone(), new);
-                status.save(&mut tx).await?;
-                tx.save().await?;
+                locks.status().set(db, status, id).await?;
             } else {
-                status.save(&mut tx).await?;
-                tx.save().await?;
-                heal_all_dependents_transitive(ctx, db, id).await?;
+                locks.status().set(db, status, id).await?;
+                heal_all_dependents_transitive(ctx, db, id, locks).await?;
             }
         }
 
@@ -885,6 +869,7 @@ pub async fn reconfigure_dependents_with_live_pointers(
 ) -> Result<(), Error> {
     let dependents = &pde.current_dependents;
     let me = &pde.manifest.id;
+    let locks = ConfigLocks::new(&mut tx).await?;
     for (dependent_id, dependency_info) in dependents {
         if dependency_info.pointers.iter().any(|ptr| match ptr {
             // dependency id matches the package being uninstalled
@@ -903,9 +888,115 @@ pub async fn reconfigure_dependents_with_live_pointers(
                 false,
                 &mut BTreeMap::new(),
                 &mut BTreeMap::new(),
+                &locks,
             )
             .await?;
         }
     }
     Ok(())
+}
+
+pub struct HTLock {
+    current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+    status: LockReceipt<Status, String>,
+    dependencies: LockReceipt<Dependencies, String>,
+    dependency: LockReceipt<DepInfo, (String, String)>,
+}
+
+impl HTLock {
+    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+        let dependencies = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .map(|x| x.manifest().dependencies())
+            .make_locker(LockType::Read)
+            .add_to_keys(&mut locks);
+        let dependency = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .map(|x| x.manifest().dependencies().star())
+            .make_locker(LockType::Read)
+            .add_to_keys(&mut locks);
+        let current_dependents = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .map(|x| x.current_dependents())
+            .make_locker(LockType::Write)
+            .add_to_keys(&mut locks);
+        let status = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .map(|x| x.status())
+            .make_locker(LockType::Write)
+            .add_to_keys(&mut locks);
+
+        let skeleton_key = db.lock_all(locks).await?;
+        Ok(Self {
+            dependencies: dependencies.verify(&skeleton_key)?,
+            current_dependents: current_dependents.verify(&skeleton_key)?,
+            status: status.verify(&skeleton_key)?,
+            dependency: dependency.verify(&skeleton_key)?,
+        })
+    }
+}
+
+impl CurrentDependentsLock for HTLock {
+    fn current_dependents(
+        &self,
+    ) -> &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String> {
+        &self.current_dependents
+    }
+}
+impl PackageStatusLock for HTLock {
+    fn status(&self) -> &LockReceipt<Status, String> {
+        &self.status
+    }
+}
+
+impl DependenciesLock for HTLock {
+    fn dependencies(&self) -> &LockReceipt<Dependencies, String> {
+        &self.dependencies
+    }
+}
+impl DependencyLock for HTLock {
+    fn dependency(&self) -> &LockReceipt<DepInfo, (String, String)> {
+        &self.dependency
+    }
+}
+impl HealTransitiveLock for HTLock {}
+
+pub struct DependentsLock {
+    current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+}
+
+impl DependentsLock {
+    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let current_dependents = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .map(|x| x.current_dependents())
+            .make_locker(LockType::Write)
+            .add_to_keys(&mut locks);
+
+        let skeleton_key = db.lock_all(locks).await?;
+        Ok(Self {
+            current_dependents: current_dependents.verify(&skeleton_key)?,
+        })
+    }
+}
+
+impl CurrentDependentsLock for DependentsLock {
+    fn current_dependents(
+        &self,
+    ) -> &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String> {
+        &self.current_dependents
+    }
 }

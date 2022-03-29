@@ -260,6 +260,7 @@ pub struct InstalledPackageDataEntry {
     #[model]
     pub manifest: Manifest,
     pub last_backup: Option<DateTime<Utc>>,
+    #[model]
     pub system_pointers: Vec<SystemPointerSpec>,
     #[model]
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,

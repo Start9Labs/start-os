@@ -1,3 +1,4 @@
+pub mod locks;
 pub mod model;
 pub mod package;
 pub mod util;
