@@ -5,7 +5,6 @@ use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 use tracing::instrument;
 
-use crate::context::RpcContext;
 use crate::db::util::WithRevision;
 use crate::dependencies::{
     break_all_dependents_transitive, heal_all_dependents_transitive, BreakageRes, DependencyError,
@@ -15,6 +14,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
+use crate::{context::RpcContext, dependencies::HTLock};
 use crate::{Error, ResultExt};
 
 #[command(display(display_none))]
@@ -25,6 +25,7 @@ pub async fn start(
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
+    let locks = HTLock::new(&mut tx).await?;
     crate::db::DatabaseModel::new()
         .package_data()
         .lock(&mut tx, LockType::Write)
@@ -53,7 +54,7 @@ pub async fn start(
 
     *status = MainStatus::Starting;
     status.save(&mut tx).await?;
-    heal_all_dependents_transitive(&ctx, &mut tx, &id).await?;
+    heal_all_dependents_transitive(&ctx, &mut tx, &id, &locks).await?;
 
     let revision = tx.commit(None).await?;
 
@@ -79,7 +80,7 @@ async fn stop_common<Db: DbHandle>(
     let mut tx = db.begin().await?;
     let mut status = crate::db::DatabaseModel::new()
         .package_data()
-        .idx_model(&id)
+        .idx_model(id)
         .and_then(|pkg| pkg.installed())
         .expect(&mut tx)
         .await
@@ -97,7 +98,7 @@ async fn stop_common<Db: DbHandle>(
     *status = MainStatus::Stopping;
     status.save(&mut tx).await?;
     tx.save().await?;
-    break_all_dependents_transitive(db, &id, DependencyError::NotRunning, breakages).await?;
+    break_all_dependents_transitive(db, id, DependencyError::NotRunning, breakages).await?;
 
     Ok(())
 }

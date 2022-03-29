@@ -26,7 +26,6 @@ pub const SIG_CONTEXT: &'static [u8] = b"s9pk";
 #[instrument(skip(ctx))]
 pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
     use std::fs::File;
-    use std::io::Read;
 
     let path = if let Some(path) = path {
         path

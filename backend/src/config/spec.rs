@@ -343,7 +343,7 @@ pub enum ValueSpecAny {
     Pointer(WithDescription<ValueSpecPointer>),
 }
 impl ValueSpecAny {
-    pub fn name<'a>(&'a self) -> &'a str {
+    pub fn name(&self) -> &'_ str {
         match self {
             ValueSpecAny::Boolean(b) => b.name.as_str(),
             ValueSpecAny::Enum(e) => e.name.as_str(),
@@ -1192,10 +1192,7 @@ impl DefaultableWith for ValueSpecString {
                 let candidate = spec.gen(rng);
                 match (spec, &self.pattern) {
                     (DefaultString::Entropy(_), Some(pattern))
-                        if !pattern.pattern.is_match(&candidate) =>
-                    {
-                        ()
-                    }
+                        if !pattern.pattern.is_match(&candidate) => {}
                     _ => {
                         return Ok(Value::String(candidate));
                     }
@@ -1672,12 +1669,11 @@ pub struct LanAddressPointer {
 }
 impl fmt::Display for LanAddressPointer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            LanAddressPointer {
-                package_id,
-                interface,
-            } => write!(f, "{}: lan-address: {}", package_id, interface),
-        }
+        let LanAddressPointer {
+            package_id,
+            interface,
+        } = self;
+        write!(f, "{}: lan-address: {}", package_id, interface)
     }
 }
 impl LanAddressPointer {
@@ -1718,8 +1714,7 @@ impl ConfigPointer {
                 .package_data()
                 .idx_model(&self.package_id)
                 .and_then(|pde| pde.installed())
-                .map(|installed| installed.manifest())
-                .into();
+                .map(|installed| installed.manifest());
             let version = manifest_model
                 .clone()
                 .map(|manifest| manifest.version())
@@ -1741,9 +1736,9 @@ impl ConfigPointer {
                 (&*version, &*cfg_actions, &*volumes)
             {
                 let cfg_res = cfg_actions
-                    .get(&ctx, &self.package_id, version, volumes)
+                    .get(ctx, &self.package_id, version, volumes)
                     .await
-                    .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?;
+                    .map_err(|e| ConfigurationError::SystemError(e))?;
                 if let Some(cfg) = cfg_res.config {
                     Ok(self.select(&Value::Object(cfg)))
                 } else {
@@ -1757,13 +1752,12 @@ impl ConfigPointer {
 }
 impl fmt::Display for ConfigPointer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConfigPointer {
-                package_id,
-                selector,
-                ..
-            } => write!(f, "{}: config: {}", package_id, selector),
-        }
+        let ConfigPointer {
+            package_id,
+            selector,
+            ..
+        } = self;
+        write!(f, "{}: config: {}", package_id, selector)
     }
 }
 

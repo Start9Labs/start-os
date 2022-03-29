@@ -118,7 +118,7 @@ pub async fn init<Db: DbHandle>(db: &mut Db) -> Result<(), Error> {
     let ptr: JsonPointer = "/server-info/version"
         .parse()
         .with_kind(crate::ErrorKind::Database)?;
-    db.lock(ptr.clone(), LockType::Write).await?;
+    db.lock(ptr.clone().into(), LockType::Write).await?;
     let version: Version = db.get(&ptr).await?;
     match version {
         Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db).await?,
@@ -135,7 +135,7 @@ pub async fn init<Db: DbHandle>(db: &mut Db) -> Result<(), Error> {
     Ok(())
 }
 
-pub const COMMIT_HASH: &'static str =
+pub const COMMIT_HASH: &str =
     git_version::git_version!(args = ["--always", "--abbrev=40", "--dirty=-modified"]);
 
 #[command(rename = "git-info", local, metadata(authenticated = false))]

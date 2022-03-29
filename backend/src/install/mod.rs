@@ -25,7 +25,6 @@ use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
-use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, RecoveredPackageInfo,
@@ -47,16 +46,20 @@ use crate::util::serde::{display_serializable, IoFormat, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::asset_dir;
+use crate::{
+    config::ConfigLocks,
+    context::{CliContext, RpcContext},
+};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod cleanup;
 pub mod progress;
 pub mod update;
 
-pub const PKG_ARCHIVE_DIR: &'static str = "package-data/archive";
-pub const PKG_PUBLIC_DIR: &'static str = "package-data/public";
-pub const PKG_DOCKER_DIR: &'static str = "package-data/docker";
-pub const PKG_WASM_DIR: &'static str = "package-data/wasm";
+pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
+pub const PKG_PUBLIC_DIR: &str = "package-data/public";
+pub const PKG_DOCKER_DIR: &str = "package-data/docker";
+pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 #[command(display(display_serializable))]
 pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)>, Error> {
@@ -447,7 +450,7 @@ pub async fn sideload(
     });
     let cont = RpcContinuation {
         created_at: Instant::now(), // TODO
-        handler: handler,
+        handler,
     };
     // gc the map
     let mut guard = ctx.rpc_stream_continuations.lock().await;
@@ -1183,6 +1186,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         },
     );
     pde.save(&mut tx).await?;
+    let locks = ConfigLocks::new(&mut tx).await?;
     let mut dep_errs = model
         .expect(&mut tx)
         .await?
@@ -1244,6 +1248,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 false,
                 &mut BTreeMap::new(),
                 &mut BTreeMap::new(),
+                &locks,
             )
             .await?;
             let mut main_status = crate::db::DatabaseModel::new()
@@ -1261,9 +1266,15 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             *main_status = prev.status.main;
             main_status.save(&mut tx).await?;
         }
-        remove_from_current_dependents_lists(&mut tx, pkg_id, prev.current_dependencies.keys())
-            .await?; // remove previous
-        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?; // add new
+        remove_from_current_dependents_lists(
+            &mut tx,
+            pkg_id,
+            prev.current_dependencies.keys(),
+            &locks,
+        )
+        .await?; // remove previous
+        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies, &locks)
+            .await?; // add new
         update_dependency_errors_of_dependents(
             ctx,
             &mut tx,
@@ -1290,7 +1301,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 &manifest.volumes,
             )
             .await?;
-        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?;
+        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies, &locks)
+            .await?;
         update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
             .await?;
     } else if let Some(recovered) = {
@@ -1307,11 +1319,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             .into_owned()
     } {
         handle_recovered_package(recovered, manifest, ctx, pkg_id, version, &mut tx).await?;
-        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?;
+        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies, &locks)
+            .await?;
         update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
             .await?;
     } else {
-        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies).await?;
+        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies, &locks)
+            .await?;
         update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
             .await?;
     }
@@ -1351,6 +1365,7 @@ async fn handle_recovered_package(
     } else {
         false
     };
+    let locks = ConfigLocks::new(tx).await?;
     if configured && manifest.config.is_some() {
         crate::config::configure(
             ctx,
@@ -1361,6 +1376,7 @@ async fn handle_recovered_package(
             false,
             &mut BTreeMap::new(),
             &mut BTreeMap::new(),
+            &locks,
         )
         .await?;
     }
