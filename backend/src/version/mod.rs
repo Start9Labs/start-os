@@ -9,13 +9,15 @@ use rpc_toolkit::command;
 use crate::{Error, ResultExt};
 
 mod v0_3_0;
+mod v0_3_0_1;
 
-pub type Current = v0_3_0::Version;
+pub type Current = v0_3_0_1::Version;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum Version {
     V0_3_0(Wrapper<v0_3_0::Version>),
+    V0_3_0_1(Wrapper<v0_3_0_1::Version>),
     Other(emver::Version),
 }
 
@@ -111,6 +113,7 @@ pub async fn init<Db: DbHandle>(db: &mut Db) -> Result<(), Error> {
     let version: Version = db.get(&ptr).await?;
     match version {
         Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db).await?,
+        Version::V0_3_0_1(v) => v.0.migrate_to(&Current::new(), db).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
