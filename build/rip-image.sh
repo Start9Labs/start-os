@@ -96,3 +96,10 @@ echo "Verification Succeeded"
 
 sudo e2label update.img red
 echo "Image Relabeled to \"red\""
+
+echo "Compressing..."
+if which pv > /dev/null; then
+	cat update.img | pv -s $FS_SIZE | gzip > update.img.gz
+else
+	cat update.img | gzip > update.img.gz
+fi
