@@ -28,7 +28,8 @@
             [placeholder]="options.placeholder"
             (ionChange)="error = ''"
           ></ion-input>
-          <ion-button
+          <!-- removing mask button until proper solution implemented -->
+          <!-- <ion-button
             slot="end"
             *ngIf="options.useMask"
             fill="clear"
@@ -40,7 +41,7 @@
               [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
               size="small"
             ></ion-icon>
-          </ion-button>
+          </ion-button> -->
         </ion-item>
         <!-- error -->
         <p *ngIf="error">

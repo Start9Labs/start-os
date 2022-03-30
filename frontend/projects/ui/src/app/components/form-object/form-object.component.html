@@ -79,8 +79,8 @@
             >
             </ion-input>
           </ng-template>
-
-          <ion-button
+          <!-- removing mask button until proper solution implemented -->
+          <!-- <ion-button
             *ngIf="spec.type === 'string' && spec.masked"
             slot="end"
             fill="clear"
@@ -92,7 +92,7 @@
               [name]="unmasked[entry.key] ? 'eye-off-outline' : 'eye-outline'"
               size="small"
             ></ion-icon>
-          </ion-button>
+          </ion-button> -->
           <ion-note
             *ngIf="spec.type === 'number' && spec.units"
             slot="end"
