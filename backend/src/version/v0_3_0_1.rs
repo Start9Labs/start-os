@@ -1,7 +1,13 @@
+use std::path::Path;
+
 use emver::VersionRange;
+use tokio::process::Command;
 
 use super::*;
 use crate::disk::quirks::{fetch_quirks, save_quirks, update_quirks};
+use crate::disk::BOOT_RW_PATH;
+use crate::update::query_mounted_label;
+use crate::util::Invoke;
 
 const V0_3_0_1: emver::Version = emver::Version::new(0, 3, 0, 1);
 
@@ -19,6 +25,16 @@ impl VersionT for Version {
         &*v0_3_0::V0_3_0_COMPAT
     }
     async fn up<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {
+        let (_, current) = query_mounted_label().await?;
+        Command::new("sed")
+            .arg("-i")
+            .arg(&format!(
+                "s/PARTUUID=cb15ae4d-\\(03\\|04\\)/PARTUUID={}/g",
+                current.0.part_uuid()
+            ))
+            .arg(Path::new(BOOT_RW_PATH).join("cmdline.txt.orig"))
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
         let mut q = fetch_quirks().await?;
         update_quirks(&mut q).await?;
         save_quirks(&q).await?;

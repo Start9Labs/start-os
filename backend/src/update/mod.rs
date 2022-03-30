@@ -88,40 +88,40 @@ fn display_update_result(status: WithRevision<UpdateResult>, _: &ArgMatches<'_>)
 const HEADER_KEY: &str = "x-eos-hash";
 
 #[derive(Debug, Clone, Copy)]
-enum WritableDrives {
+pub enum WritableDrives {
     Green,
     Blue,
 }
 impl WritableDrives {
-    fn label(&self) -> &'static str {
+    pub fn label(&self) -> &'static str {
         match self {
             Self::Green => "green",
             Self::Blue => "blue",
         }
     }
-    fn block_dev(&self) -> &'static Path {
+    pub fn block_dev(&self) -> &'static Path {
         Path::new(match self {
             Self::Green => "/dev/mmcblk0p3",
             Self::Blue => "/dev/mmcblk0p4",
         })
     }
-    fn part_uuid(&self) -> &'static str {
+    pub fn part_uuid(&self) -> &'static str {
         match self {
             Self::Green => "cb15ae4d-03",
             Self::Blue => "cb15ae4d-04",
         }
     }
-    fn as_fs(&self) -> impl FileSystem {
+    pub fn as_fs(&self) -> impl FileSystem {
         BlockDev::new(self.block_dev())
     }
 }
 
 /// This will be where we are going to be putting the new update
 #[derive(Debug, Clone, Copy)]
-struct NewLabel(WritableDrives);
+pub struct NewLabel(pub WritableDrives);
 
 /// This is our current label where the os is running
-struct CurrentLabel(WritableDrives);
+pub struct CurrentLabel(pub WritableDrives);
 
 lazy_static! {
     static ref PARSE_COLOR: Regex = Regex::new("LABEL=(\\w+)[ \t]+/").unwrap();
@@ -259,7 +259,7 @@ async fn do_update(
 }
 
 #[instrument]
-async fn query_mounted_label() -> Result<(NewLabel, CurrentLabel), Error> {
+pub async fn query_mounted_label() -> Result<(NewLabel, CurrentLabel), Error> {
     let output = tokio::fs::read_to_string("/etc/fstab")
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, "/etc/fstab"))?;
@@ -445,7 +445,7 @@ async fn swap_boot_label(new_label: NewLabel) -> Result<(), Error> {
             new_label.0.label()
         ))
         .arg(mounted.as_ref().join("etc/fstab"))
-        .output()
+        .invoke(crate::ErrorKind::Filesystem)
         .await?;
     mounted.unmount().await?;
     Command::new("sed")
@@ -454,8 +454,17 @@ async fn swap_boot_label(new_label: NewLabel) -> Result<(), Error> {
             "s/PARTUUID=cb15ae4d-\\(03\\|04\\)/PARTUUID={}/g",
             new_label.0.part_uuid()
         ))
+        .arg(Path::new(BOOT_RW_PATH).join("cmdline.txt.orig"))
+        .invoke(crate::ErrorKind::Filesystem)
+        .await?;
+    Command::new("sed")
+        .arg("-i")
+        .arg(&format!(
+            "s/PARTUUID=cb15ae4d-\\(03\\|04\\)/PARTUUID={}/g",
+            new_label.0.part_uuid()
+        ))
         .arg(Path::new(BOOT_RW_PATH).join("cmdline.txt"))
-        .output()
+        .invoke(crate::ErrorKind::Filesystem)
         .await?;
 
     UPDATED.store(true, Ordering::SeqCst);
