@@ -86,7 +86,29 @@ export class ServerBackupPage {
       placeholder: 'Enter master password',
       useMask: true,
       buttonText: 'Create Backup',
-      submitFn: (password: string) => this.test(target, password),
+      submitFn: async (password: string) => {
+        // confirm password matches current master password
+        const passwordHash =
+          this.patch.getData()['server-info']['password-hash']
+        argon2.verify(passwordHash, password)
+
+        // first time backup
+        if (!target.hasValidBackup) {
+          await this.createBackup(target.id, password)
+          // existing backup
+        } else {
+          try {
+            argon2.verify(target.entry['embassy-os']['password-hash'], password)
+          } catch {
+            setTimeout(
+              () => this.presentModalOldPassword(target, password),
+              500,
+            )
+            return
+          }
+          await this.createBackup(target.id, password)
+        }
+      },
     }
 
     const m = await this.modalCtrl.create({
@@ -96,33 +118,6 @@ export class ServerBackupPage {
     })
 
     await m.present()
-  }
-
-  private async test(
-    target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
-    password: string,
-    oldPassword?: string,
-  ): Promise<void> {
-    const passwordHash = this.patch.getData()['server-info']['password-hash']
-    argon2.verify(passwordHash, password)
-
-    if (!target.hasValidBackup) {
-      await this.createBackup(target.id, password)
-    } else {
-      try {
-        argon2.verify(
-          target.entry['embassy-os']['password-hash'],
-          oldPassword || password,
-        )
-        await this.createBackup(target.id, password)
-      } catch (e) {
-        if (oldPassword) {
-          throw e
-        } else {
-          setTimeout(() => this.presentModalOldPassword(target, password), 500)
-        }
-      }
-    }
   }
 
   private async presentModalOldPassword(
@@ -137,8 +132,10 @@ export class ServerBackupPage {
       placeholder: 'Enter original password',
       useMask: true,
       buttonText: 'Create Backup',
-      submitFn: (oldPassword: string) =>
-        this.test(target, password, oldPassword),
+      submitFn: async (oldPassword: string) => {
+        argon2.verify(target.entry['embassy-os']['password-hash'], oldPassword)
+        await this.createBackup(target.id, password, oldPassword)
+      },
     }
 
     const m = await this.modalCtrl.create({

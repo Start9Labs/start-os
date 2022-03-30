@@ -25,10 +25,15 @@ export const mockPatchData: DataModel = {
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
     'unread-notification-count': 4,
+    // password is asdfasdf
     'password-hash':
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
     'eos-version-compat': '>=0.3.0 <=0.3.0.1',
-    'status-info': null,
+    'status-info': {
+      'backing-up': false,
+      updated: false,
+      'update-progress': null,
+    },
   },
   'recovered-packages': {
     'btc-rpc-proxy': {
