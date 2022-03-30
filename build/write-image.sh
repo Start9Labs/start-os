@@ -74,6 +74,7 @@ sudo mkdir -p /tmp/eos-mnt/var/www/html
 sudo cp -R frontend/dist/diagnostic-ui /tmp/eos-mnt/var/www/html/diagnostic
 sudo cp -R frontend/dist/setup-wizard /tmp/eos-mnt/var/www/html/setup
 sudo cp -R frontend/dist/ui /tmp/eos-mnt/var/www/html/main
+sudo cp index.html /tmp/eos-mnt/var/www/html/index.html
 
 # Make the .ssh directory
 sudo mkdir -p /tmp/eos-mnt/root/.ssh
