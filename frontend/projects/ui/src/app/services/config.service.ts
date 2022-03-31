@@ -8,6 +8,7 @@ import {
 } from 'src/app/services/patch-db/data-model'
 
 const {
+  targetArch,
   gitHash,
   useMocks,
   ui: { patchDb, api, mocks, marketplace },
@@ -19,15 +20,13 @@ const {
 export class ConfigService {
   origin = removePort(removeProtocol(window.origin))
   version = require('../../../../../package.json').version
-
   useMocks = useMocks
   mocks = mocks
-
+  targetArch = targetArch
   gitHash = gitHash
   patchDb = patchDb
   api = api
   marketplace = marketplace
-
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
   isConsulate = window['platform'] === 'ios'
   supportsWebSockets = !!window.WebSocket || this.isConsulate
