@@ -788,6 +788,10 @@ export class MockApiService extends ApiService {
           op: PatchOp.REMOVE,
           path: `/package-data/${id}/install-progress`,
         },
+        {
+          op: PatchOp.REMOVE,
+          path: `/recovered-packages/${id}`,
+        },
       ]
       this.updateMock(patch2)
     }, 1000)

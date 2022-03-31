@@ -1,14 +1,17 @@
 <div class="slide-content">
-  <div style="margin-top: 25px;">
-    <div style="margin: 15px; display: flex; justify-content: center; align-items: center;">
-      <ion-label [color]="params.titleColor">
-        <h1>{{ params.title }}</h1>
-        <h2>{{ params.headline }}</h2>
-      </ion-label>
-    </div>
-    <div *ngFor="let note of params.notes | keyvalue : asIsOrder">
-      <h2>{{ note.key }}</h2>
-      <div class="long-message" [innerHTML]="note.value | markdown"></div>
+  <div class="notes-content">
+    <h1>{{ params.title }}</h1>
+    <br />
+    <div *ngFor="let v of params.versions; let i = index">
+      <h4>
+        <b>
+          {{ v.version }}
+          <span *ngIf="i === 0"> (Current Version)</span>
+        </b>
+      </h4>
+      <hr style="height: 0; border-width: 1px" />
+      <div [innerHTML]="v.notes | markdown"></div>
+      <br />
     </div>
   </div>
 </div>

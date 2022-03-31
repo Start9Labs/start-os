@@ -103,6 +103,16 @@ export class WizardBaker {
   }): InstallWizardComponent['params'] {
     const { version, releaseNotes, headline } = values
 
+    const versions = Object.keys(releaseNotes)
+      .sort()
+      .reverse()
+      .map(version => {
+        return {
+          version,
+          notes: releaseNotes[version],
+        }
+      })
+
     const action = 'update'
     const title = 'EmbassyOS'
     const toolbar: TopbarParams = { action, title, version }
@@ -112,7 +122,7 @@ export class WizardBaker {
         slide: {
           selector: 'notes',
           params: {
-            notes: releaseNotes,
+            versions,
             title: 'Release Notes',
             titleColor: 'dark',
             headline,
