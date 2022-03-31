@@ -2,11 +2,10 @@
   <div class="notes-content">
     <h1>{{ params.title }}</h1>
     <br />
-    <div *ngFor="let v of params.versions; let i = index">
+    <div *ngFor="let v of params.versions">
       <h4>
         <b>
           {{ v.version }}
-          <span *ngIf="i === 0"> (Current Version)</span>
         </b>
       </h4>
       <hr style="height: 0; border-width: 1px" />
