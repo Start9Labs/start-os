@@ -1,5 +1,4 @@
 import { PackageState } from 'src/app/types/package-state'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
   DependencyErrorType,
   DockerIoFormat,
@@ -1034,7 +1033,8 @@ export module Mock {
         version: '0.3.0',
         full: true,
         'password-hash':
-          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNK',
+          // password is asdfasdf
+          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
         'wrapped-key': '',
       },
     },
@@ -1056,21 +1056,23 @@ export module Mock {
       mountable: true,
       'embassy-os': null,
     },
-    // 'powjefhjbnwhdva': {
-    //   type: 'disk',
-    //   logicalname: 'sdba1',
-    //   label: 'Another Drive',
-    //   capacity: 2000000000000,
-    //   used: 100000000000,
-    //   model: null,
-    //   vendor: 'SSK',
-    //   'embassy-os': {
-    //     version: '0.3.0',
-    //     full: true,
-    //     'password-hash': '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-    //     'wrapped-key': '',
-    //   },
-    // },
+    powjefhjbnwhdva: {
+      type: 'disk',
+      logicalname: 'sdba1',
+      label: 'Another Drive',
+      capacity: 2000000000000,
+      used: 100000000000,
+      model: null,
+      vendor: 'SSK',
+      'embassy-os': {
+        version: '0.3.0',
+        full: true,
+        // password is asdfasdf
+        'password-hash':
+          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+        'wrapped-key': '',
+      },
+    },
   }
 
   export const BackupInfo: RR.GetBackupInfoRes = {

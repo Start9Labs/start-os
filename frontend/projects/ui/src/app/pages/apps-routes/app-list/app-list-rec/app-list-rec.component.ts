@@ -99,7 +99,7 @@ function loading(
   return pipe(
     // Show notification on error
     catchError(e => from(errToast.present(e))),
-    // Map any result to false to stop loading inidicator
+    // Map any result to false to stop loading indicator
     mapTo(false),
     // Start operation with true
     startWith(true),

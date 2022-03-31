@@ -105,8 +105,9 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy<T>(path: string, params: {}, url: string): Promise<T> {
-    const fullURL = `${url}${path}?${new URLSearchParams(params).toString()}`
+  async marketplaceProxy<T>(path: string, qp: {}, url: string): Promise<T> {
+    Object.assign(qp, { arch: this.config.targetArch })
+    const fullURL = `${url}${path}?${new URLSearchParams(qp).toString()}`
     return this.http.rpcRequest({
       method: 'marketplace.get',
       params: { url: fullURL },

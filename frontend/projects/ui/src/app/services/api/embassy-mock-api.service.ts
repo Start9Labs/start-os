@@ -374,7 +374,7 @@ export class MockApiService extends ApiService {
     params: RR.CreateBackupReq,
   ): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
-    const path = '/server-info/status'
+    const path = '/server-info/status-info/backing-up'
     const ids = ['bitcoind', 'lnd']
 
     setTimeout(async () => {
@@ -402,7 +402,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path,
-          value: ServerStatus.Running,
+          value: false,
         },
       ]
       this.updateMock(lastPatch)
@@ -412,7 +412,7 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REPLACE,
         path,
-        value: ServerStatus.BackingUp,
+        value: true,
       },
     ]
 
@@ -787,6 +787,10 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REMOVE,
           path: `/package-data/${id}/install-progress`,
+        },
+        {
+          op: PatchOp.REMOVE,
+          path: `/recovered-packages/${id}`,
         },
       ]
       this.updateMock(patch2)

@@ -13,6 +13,7 @@
     "mocks": {
       "maskAs": "tor",
       "skipStartupAlerts": true
-    }
+    },
+    "targetArch": "aarch64"
   }
 }

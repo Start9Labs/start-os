@@ -36,13 +36,6 @@
 @font-face {
   font-family: 'Open Sans';
   font-style: normal;
-  font-weight: 500;
-  src: url('/assets/fonts/Open_Sans/OpenSans-SemiBold.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
   font-weight: thin;
   src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
 }
@@ -81,7 +74,7 @@ $subheader-height: 48px;
 .input-label {
   margin-bottom: 6px;
   font-size: medium;
-  font-weight: 500;
+  font-weight: bold;
   * {
     display: inline-block;
     vertical-align: middle;

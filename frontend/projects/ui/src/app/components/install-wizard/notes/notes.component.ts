@@ -8,17 +8,17 @@ import { BehaviorSubject, Subject } from 'rxjs'
 })
 export class NotesComponent {
   @Input() params: {
-    notes: { [version: string]: string }
+    versions: { version: string; notes: string }[]
     title: string
     titleColor: string
     headline: string
   }
 
-  load () { }
+  load() {}
   loading$ = new BehaviorSubject(false)
   cancel$ = new Subject<void>()
 
-  asIsOrder () {
+  asIsOrder() {
     return 0
   }
 }

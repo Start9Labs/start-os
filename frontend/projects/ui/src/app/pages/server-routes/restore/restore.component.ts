@@ -1,5 +1,9 @@
 import { Component } from '@angular/core'
-import { ModalController, NavController } from '@ionic/angular'
+import {
+  LoadingController,
+  ModalController,
+  NavController,
+} from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   GenericInputComponent,
@@ -12,7 +16,6 @@ import {
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
 import { AppRecoverSelectPage } from 'src/app/modals/app-recover-select/app-recover-select.page'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import * as argon2 from '@start9labs/argon2'
 
 @Component({
@@ -25,21 +28,24 @@ export class RestorePage {
     private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
     private readonly embassyApi: ApiService,
-    private readonly patch: PatchDbService,
+    private readonly loadingCtrl: LoadingController,
   ) {}
 
   async presentModalPassword(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
   ): Promise<void> {
     const options: GenericInputOptions = {
-      title: 'Master Password Required',
+      title: 'Password Required',
       message:
-        'Enter your master password. On the next screen, you will select the individual services you want to restore.',
+        'Enter the master password that was used to encrypt this backup. On the next screen, you will select the individual services you want to restore.',
       label: 'Master Password',
       placeholder: 'Enter master password',
       useMask: true,
       buttonText: 'Next',
-      submitFn: (password: string) => this.decryptDrive(target, password),
+      submitFn: async (password: string) => {
+        argon2.verify(target.entry['embassy-os']['password-hash'], password)
+        await this.restoreFromBackup(target, password)
+      },
     }
 
     const modal = await this.modalCtrl.create({
@@ -52,57 +58,27 @@ export class RestorePage {
     await modal.present()
   }
 
-  private async decryptDrive(
-    target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
-    password: string,
-  ): Promise<void> {
-    const passwordHash = this.patch.getData()['server-info']['password-hash']
-    argon2.verify(passwordHash, password)
-
-    try {
-      argon2.verify(target.entry['embassy-os']['password-hash'], password)
-      await this.restoreFromBackup(target, password)
-    } catch (e) {
-      setTimeout(() => this.presentModalOldPassword(target, password), 500)
-    }
-  }
-
-  private async presentModalOldPassword(
-    target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
-    password: string,
-  ): Promise<void> {
-    const options: GenericInputOptions = {
-      title: 'Original Password Needed',
-      message:
-        'This backup was created with a different password. Enter the ORIGINAL password that was used to encrypt this backup.',
-      label: 'Original Password',
-      placeholder: 'Enter original password',
-      useMask: true,
-      buttonText: 'Restore From Backup',
-      submitFn: (oldPassword: string) =>
-        this.restoreFromBackup(target, password, oldPassword),
-    }
-
-    const m = await this.modalCtrl.create({
-      component: GenericInputComponent,
-      componentProps: { options },
-      presentingElement: await this.modalCtrl.getTop(),
-      cssClass: 'alertlike-modal',
-    })
-
-    await m.present()
-  }
-
   private async restoreFromBackup(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
     password: string,
     oldPassword?: string,
   ): Promise<void> {
-    const backupInfo = await this.embassyApi.getBackupInfo({
-      'target-id': target.id,
-      password,
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Decrypting drive...',
+      cssClass: 'loader',
     })
-    this.presentModalSelect(target.id, backupInfo, password, oldPassword)
+    await loader.present()
+
+    try {
+      const backupInfo = await this.embassyApi.getBackupInfo({
+        'target-id': target.id,
+        password,
+      })
+      this.presentModalSelect(target.id, backupInfo, password, oldPassword)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   private async presentModalSelect(
