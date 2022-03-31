@@ -63,7 +63,8 @@ export class HomePage {
         this.error = {
           code: 2,
           problem: 'Filesystem I/O error.',
-          solution: '',
+          solution:
+            'Repairing the disk could help resolve this issue. This will occur on a restart between the bep and chime. Please DO NOT unplug the drive or Embassy during this time or the situation will become worse.',
           details: error.data?.details,
         }
         // disk management error - disk needs repair
