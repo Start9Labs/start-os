@@ -10,6 +10,7 @@ use tracing::instrument;
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Clone, Copy)]
+#[must_use]
 pub struct RequiresReboot(pub bool);
 impl std::ops::BitOrAssign for RequiresReboot {
     fn bitor_assign(&mut self, rhs: Self) {
