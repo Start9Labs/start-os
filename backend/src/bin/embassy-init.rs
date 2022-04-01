@@ -76,10 +76,11 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
         .with_kind(embassy::ErrorKind::Network)?;
     } else {
         let cfg = RpcContextConfig::load(cfg_path).await?;
-        embassy::disk::main::import(
-            tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
-                .await?
-                .trim(),
+        let guid_string = tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+            .await?;
+        let guid = guid_string.trim();
+        let reboot = embassy::disk::main::import(
+            guid,
             cfg.datadir(),
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                 RepairStrategy::Aggressive
@@ -93,6 +94,12 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
             tokio::fs::remove_file(REPAIR_DISK_PATH)
                 .await
                 .with_ctx(|_| (embassy::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
+        }
+        if reboot.0 {
+            embassy::disk::main::export(guid, cfg.datadir()).await?;
+            Command::new("reboot")
+                .invoke(embassy::ErrorKind::Unknown)
+                .await?;
         }
         tracing::info!("Loaded Disk");
         embassy::init::init(&cfg, &get_product_key().await?).await?;
