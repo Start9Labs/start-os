@@ -2,12 +2,15 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use color_eyre::eyre::eyre;
+use futures::future::BoxFuture;
+use futures::FutureExt;
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Clone, Copy)]
+#[must_use]
 pub struct RequiresReboot(pub bool);
 impl std::ops::BitOrAssign for RequiresReboot {
     fn bitor_assign(&mut self, rhs: Self) {
@@ -39,21 +42,38 @@ pub async fn e2fsck_preen(
     e2fsck_runner(Command::new("e2fsck").arg("-p"), logicalname).await
 }
 
+fn backup_existing_undo_file<'a>(path: &'a Path) -> BoxFuture<'a, Result<(), Error>> {
+    async move {
+        if tokio::fs::metadata(path).await.is_ok() {
+            let bak = path.with_extension(format!(
+                "{}.bak",
+                path.extension()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default()
+            ));
+            backup_existing_undo_file(&bak).await?;
+            tokio::fs::rename(path, &bak).await?;
+        }
+        Ok(())
+    }
+    .boxed()
+}
+
 #[instrument]
 pub async fn e2fsck_aggressive(
     logicalname: impl AsRef<Path> + std::fmt::Debug,
 ) -> Result<RequiresReboot, Error> {
+    let undo_path = Path::new("/embassy-os")
+        .join(
+            logicalname
+                .as_ref()
+                .file_name()
+                .unwrap_or(OsStr::new("unknown")),
+        )
+        .with_extension("e2undo");
+    backup_existing_undo_file(&undo_path).await?;
     e2fsck_runner(
-        Command::new("e2fsck").arg("-y").arg("-z").arg(
-            Path::new("/embassy-os")
-                .join(
-                    logicalname
-                        .as_ref()
-                        .file_name()
-                        .unwrap_or(OsStr::new("unknown")),
-                )
-                .with_extension("e2undo"),
-        ),
+        Command::new("e2fsck").arg("-y").arg("-z").arg(undo_path),
         logicalname,
     )
     .await

@@ -202,7 +202,7 @@ pub async fn import<P: AsRef<Path>>(
     datadir: P,
     repair: RepairStrategy,
     password: &str,
-) -> Result<(), Error> {
+) -> Result<RequiresReboot, Error> {
     let scan = pvscan().await?;
     if scan
         .values()
@@ -250,8 +250,7 @@ pub async fn import<P: AsRef<Path>>(
         .arg(guid)
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    mount_all_fs(guid, datadir, repair, password).await?;
-    Ok(())
+    mount_all_fs(guid, datadir, repair, password).await
 }
 
 #[instrument(skip(datadir, password))]
