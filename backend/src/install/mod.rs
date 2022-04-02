@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::future::{self, BoxFuture};
-use futures::{stream, FutureExt, StreamExt, TryStreamExt};
+use futures::future::BoxFuture;
+use futures::{FutureExt, StreamExt, TryStreamExt};
 use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::Body;
@@ -365,13 +365,13 @@ pub async fn sideload(
             match pde.take() {
                 Some(PackageDataEntry::Installed {
                     installed,
-                    manifest,
                     static_files,
+                    ..
                 }) => {
                     *pde = Some(PackageDataEntry::Updating {
                         install_progress: progress.clone(),
                         installed,
-                        manifest,
+                        manifest: manifest.clone(),
                         static_files,
                     })
                 }
@@ -1197,34 +1197,33 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     dep_errs.save(&mut tx).await?;
 
     if let PackageDataEntry::Updating {
-        installed: prev,
-        manifest: prev_manifest,
-        ..
+        installed: prev, ..
     } = prev
     {
         let prev_is_configured = prev.status.configured;
-        let prev_migration = prev_manifest
+        let prev_migration = prev
+            .manifest
             .migrations
             .to(
                 ctx,
                 version,
                 pkg_id,
-                &prev_manifest.version,
-                &prev_manifest.volumes,
+                &prev.manifest.version,
+                &prev.manifest.volumes,
             )
             .map(futures::future::Either::Left);
         let migration = manifest
             .migrations
             .from(
                 ctx,
-                &prev_manifest.version,
+                &prev.manifest.version,
                 pkg_id,
                 version,
                 &manifest.volumes,
             )
             .map(futures::future::Either::Right);
 
-        let viable_migration = if prev_manifest.version > manifest.version {
+        let viable_migration = if prev.manifest.version > manifest.version {
             prev_migration.or(migration)
         } else {
             migration.or(prev_migration)
