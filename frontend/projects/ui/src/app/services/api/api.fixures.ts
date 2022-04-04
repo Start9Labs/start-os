@@ -37,7 +37,7 @@ export module Mock {
   export const MockManifestBitcoind: Manifest = {
     id: 'bitcoind',
     title: 'Bitcoin Core',
-    version: '0.20.0',
+    version: '0.21.0',
     description: {
       short: 'A Bitcoin full node by Bitcoin Core.',
       long: 'Bitcoin is a decentralized consensus protocol and settlement network.',
@@ -1731,9 +1731,17 @@ export module Mock {
         'dependency-errors': {},
       },
       'interface-addresses': {
+        ui: {
+          'tor-address': 'bitcoind-ui-address.onion',
+          'lan-address': 'bitcoind-ui-address.local',
+        },
         rpc: {
-          'tor-address': 'bitcoinproxy-rpc-address.onion',
-          'lan-address': 'bitcoinproxy-rpc-address.local',
+          'tor-address': 'bitcoind-rpc-address.onion',
+          'lan-address': 'bitcoind-rpc-address.local',
+        },
+        p2p: {
+          'tor-address': 'bitcoind-p2p-address.onion',
+          'lan-address': 'bitcoind-p2p-address.local',
         },
       },
       'system-pointers': [],
