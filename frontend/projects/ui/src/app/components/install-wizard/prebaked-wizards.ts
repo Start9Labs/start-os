@@ -11,6 +11,7 @@ import {
 } from './install-wizard.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { first } from 'rxjs/operators'
 
 @Injectable({ providedIn: 'root' })
 export class WizardBaker {
@@ -84,6 +85,7 @@ export class WizardBaker {
                   id,
                   'version-spec': version ? `=${version}` : undefined,
                 })
+                .pipe(first())
                 .toPromise(),
           },
         },
@@ -221,6 +223,7 @@ export class WizardBaker {
                   id,
                   'version-spec': version ? `=${version}` : undefined,
                 })
+                .pipe(first())
                 .toPromise(),
           },
         },
@@ -332,7 +335,7 @@ export class WizardBaker {
             whileLoading: {},
             afterLoading: { text: 'Cancel' },
           },
-          next: 'Stop Service',
+          next: 'Stop Anyway',
         },
       },
       {
