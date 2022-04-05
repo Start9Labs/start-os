@@ -5,6 +5,8 @@ import { AlertController, ModalController, NavController } from '@ionic/angular'
 import { MarkdownComponent } from '@start9labs/shared'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ModalService } from 'src/app/services/modal.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { from } from 'rxjs'
 
 export interface Button {
   title: string
@@ -24,6 +26,7 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
     private readonly modalService: ModalService,
+    private readonly apiService: ApiService,
   ) {}
 
   transform(pkg: PackageDataEntry): Button[] {
@@ -103,7 +106,9 @@ export class ToButtonsPipe implements PipeTransform {
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Instructions',
-        contentUrl: pkg['static-files']['instructions'],
+        content: from(
+          this.apiService.getStatic(pkg['static-files']['instructions']),
+        ),
       },
       component: MarkdownComponent,
     })
