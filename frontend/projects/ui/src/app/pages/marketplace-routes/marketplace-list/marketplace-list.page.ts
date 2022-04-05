@@ -21,6 +21,7 @@ export class MarketplaceListPage {
   ).pipe(
     filter(data => exists(data) && !isEmptyObject(data)),
     tap(pkgs => Object.values(pkgs).forEach(spreadProgress)),
+    map(pkgs => ({ ...pkgs })),
     startWith({}),
   )
 

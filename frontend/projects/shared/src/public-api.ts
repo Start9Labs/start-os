@@ -23,7 +23,6 @@ export * from './pipes/shared/trust.pipe'
 export * from './pipes/unit-conversion/unit-conversion.module'
 export * from './pipes/unit-conversion/unit-conversion.pipe'
 
-export * from './services/api.service'
 export * from './services/destroy.service'
 export * from './services/emver.service'
 export * from './services/error-toast.service'
