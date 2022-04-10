@@ -27,6 +27,9 @@
 - jq
 	- `sudo apt install -y jq`
 	- https://stedolan.github.io/jq
+- yq
+	- `sudo snap install yq`
+	- https://mikefarah.gitbook.io/yq
 
 2. Clone the repo, move into it, and bring in required submodules
 
