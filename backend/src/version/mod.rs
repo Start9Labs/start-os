@@ -35,6 +35,11 @@ where
     async fn commit<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
         crate::db::DatabaseModel::new()
             .server_info()
+            .eos_version_compat()
+            .put(db, &self.compat())
+            .await?;
+        crate::db::DatabaseModel::new()
+            .server_info()
             .version()
             .put(db, &self.semver().into())
             .await?;
