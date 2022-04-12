@@ -39,12 +39,16 @@ impl HasLoggedOutSessions {
             .by_ref()
             .map(|x| x.as_logout_session_id())
             .collect::<Vec<_>>();
-        sqlx::query(&format!(
-            "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id IN ('{}')",
-            sessions.join("','")
-        ))
-        .execute(&mut ctx.secret_store.acquire().await?)
-        .await?;
+        let mut sqlx_conn = ctx.secret_store.acquire().await?;
+        for session in &sessions {
+            sqlx::query!(
+                "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = ?",
+                session
+            )
+            .execute(&mut sqlx_conn)
+            .await?;
+        }
+        drop(sqlx_conn);
         for session in sessions {
             for socket in ctx
                 .open_authed_websockets

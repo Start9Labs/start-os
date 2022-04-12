@@ -148,6 +148,10 @@ async fn deal_with_messages(
                         }
                         return Ok(())
                     }
+                    None => {
+                        tracing::info!("Closing WebSocket: Stream Finished");
+                        return Ok(())
+                    }
                     _ => (),
                 }
             }
