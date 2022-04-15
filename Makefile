@@ -22,6 +22,7 @@ clean:
 	rm -f product_key.txt
 	rm -f system-images/**/*.tar
 	sudo rm -f $(EMBASSY_BINS)
+	rm -f frontend/config.json
 	rm -rf frontend/node_modules
 	rm -rf frontend/dist
 	rm -rf patch-db/client/node_modules
