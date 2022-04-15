@@ -40,7 +40,7 @@ system-images/utils/utils.tar: $(UTILS_SRC)
 	cd system-images/utils && DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/x_system/utils --platform=linux/arm64 -o type=docker,dest=utils.tar .
 
 raspios.img:
-	wget https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2022-01-28/2022-01-28-raspios-bullseye-arm64-lite.zip
+	wget --continue https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2022-01-28/2022-01-28-raspios-bullseye-arm64-lite.zip
 	unzip 2022-01-28-raspios-bullseye-arm64-lite.zip
 	mv 2022-01-28-raspios-bullseye-arm64-lite.img raspios.img
 
