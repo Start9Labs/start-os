@@ -9,6 +9,9 @@ Environment=RUST_LOG=embassyd=debug,embassy=debug
 ExecStart=/usr/local/bin/embassyd
 Restart=always
 RestartSec=3
+ManagedOOMPreference=avoid
+CPUAccounting=true
+CPUWeight=1000
 
 [Install]
 WantedBy=multi-user.target
