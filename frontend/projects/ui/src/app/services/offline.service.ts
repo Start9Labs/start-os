@@ -1,0 +1,115 @@
+import { Injectable } from '@angular/core'
+import { IonicSafeString, ToastController } from '@ionic/angular'
+import { ToastButton } from '@ionic/core'
+import { EMPTY, from, Observable } from 'rxjs'
+import {
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  map,
+  switchMap,
+  tap,
+} from 'rxjs/operators'
+
+import { AuthService } from './auth.service'
+import { ConnectionFailure, ConnectionService } from './connection.service'
+
+interface OfflineMessage {
+  readonly message: string | IonicSafeString
+  readonly link?: string
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class OfflineService {
+  private readonly connection$ = this.connectionService
+    .watchFailure$()
+    .pipe(distinctUntilChanged(), debounceTime(500))
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly connectionService: ConnectionService,
+    private readonly toastCtrl: ToastController,
+  ) {}
+
+  init() {
+    let current: HTMLIonToastElement
+
+    this.authService.isVerified$
+      .pipe(
+        // Close on logout
+        tap(() => current?.dismiss()),
+        switchMap(verified => (verified ? this.connection$ : EMPTY)),
+        // Close on change to connection state
+        tap(() => current?.dismiss()),
+        filter(connection => connection !== ConnectionFailure.None),
+        map(getMessage),
+        switchMap(({ message, link }) =>
+          this.getToast().pipe(
+            tap(toast => {
+              current = toast
+
+              toast.message = message
+              toast.buttons = getButtons(link)
+              toast.present()
+            }),
+          ),
+        ),
+      )
+      .subscribe()
+  }
+
+  private getToast(): Observable<HTMLIonToastElement> {
+    return from(
+      this.toastCtrl.create({
+        header: 'Unable to Connect',
+        cssClass: 'warning-toast',
+        message: '',
+        position: 'bottom',
+        duration: 0,
+        buttons: [],
+      }),
+    )
+  }
+}
+
+function getMessage(failure: ConnectionFailure): OfflineMessage {
+  switch (failure) {
+    case ConnectionFailure.Network:
+      return { message: 'Phone or computer has no network connection.' }
+    case ConnectionFailure.Tor:
+      return {
+        message: 'Browser unable to connect over Tor.',
+        link: 'https://start9.com/latest/support/common-issues',
+      }
+    case ConnectionFailure.Lan:
+      return {
+        message: 'Embassy not found on Local Area Network.',
+        link: 'https://start9.com/latest/support/common-issues',
+      }
+  }
+}
+
+function getButtons(link?: string): ToastButton[] {
+  const buttons: ToastButton[] = [
+    {
+      side: 'start',
+      icon: 'close',
+      handler: () => true,
+    },
+  ]
+
+  if (link) {
+    buttons.push({
+      side: 'end',
+      text: 'View solutions',
+      handler: () => {
+        window.open(link, '_blank', 'noreferrer')
+        return false
+      },
+    })
+  }
+
+  return buttons
+}
