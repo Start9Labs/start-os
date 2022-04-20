@@ -1,4 +1,4 @@
-import { Component, HostListener, NgZone } from '@angular/core'
+import { Component, NgZone } from '@angular/core'
 import { Router } from '@angular/router'
 import {
   AlertController,
@@ -9,17 +9,13 @@ import {
 } from '@ionic/angular'
 import { ToastButton } from '@ionic/core'
 import { Storage } from '@ionic/storage-angular'
-import {
-  debounce,
-  isEmptyObject,
-  Emver,
-  ErrorToastService,
-} from '@start9labs/shared'
+import { isEmptyObject, Emver, ErrorToastService } from '@start9labs/shared'
 import { Subscription } from 'rxjs'
 import {
   debounceTime,
   distinctUntilChanged,
   filter,
+  map,
   take,
 } from 'rxjs/operators'
 import { AuthService, AuthState } from './services/auth.service'
@@ -32,9 +28,10 @@ import {
 } from './services/connection.service'
 import { ConfigService } from './services/config.service'
 import { UIData } from 'src/app/services/patch-db/data-model'
-import { LocalStorageService } from './services/local-storage.service'
 import { EOSService } from './services/eos.service'
 import { OSWelcomePage } from './modals/os-welcome/os-welcome.page'
+import { OfflineService } from './services/offline.service'
+import { LogoutService } from './services/logout.service'
 
 @Component({
   selector: 'app-root',
@@ -42,15 +39,13 @@ import { OSWelcomePage } from './modals/os-welcome/os-welcome.page'
   styleUrls: ['app.component.scss'],
 })
 export class AppComponent {
-  showMenu = false
-  offlineToast: HTMLIonToastElement
   updateToast: HTMLIonToastElement
   notificationToast: HTMLIonToastElement
   subscriptions: Subscription[] = []
 
   constructor(
     private readonly storage: Storage,
-    private readonly authService: AuthService,
+    readonly authService: AuthService,
     private readonly router: Router,
     private readonly embassyApi: ApiService,
     private readonly alertCtrl: AlertController,
@@ -61,24 +56,13 @@ export class AppComponent {
     private readonly toastCtrl: ToastController,
     private readonly errToast: ErrorToastService,
     private readonly config: ConfigService,
-    private readonly zone: NgZone,
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDbService,
-    private readonly localStorageService: LocalStorageService,
     private readonly eosService: EOSService,
+    private readonly logoutService: LogoutService,
+    private readonly offlineService: OfflineService,
   ) {
     this.init()
-  }
-
-  @HostListener('document:keydown.enter', ['$event'])
-  @debounce()
-  handleKeyboardEvent() {
-    const elems = document.getElementsByClassName('enter-click')
-    const elem = elems[elems.length - 1] as HTMLButtonElement
-
-    if (elem && !elem.classList.contains('no-click') && !elem.disabled) {
-      elem.click()
-    }
   }
 
   splitPaneVisible({ detail }: any) {
@@ -86,29 +70,19 @@ export class AppComponent {
   }
 
   async init() {
-    await this.storage.create()
-    await this.authService.init()
-    await this.localStorageService.init()
-
-    this.router.initialNavigation()
-
+    // Watch for connection status
+    this.offlineService.init()
+    // Redirect to login upon logout
+    this.logoutService.init()
     // watch auth
-    this.authService.watch$().subscribe(async auth => {
+    this.authService.isVerified$.subscribe(async verified => {
       // VERIFIED
-      if (auth === AuthState.VERIFIED) {
+      if (verified) {
         await this.patch.start()
-
-        this.showMenu = true
-        // if on the login screen, route to dashboard
-        if (this.router.url.startsWith('/login')) {
-          this.router.navigate([''], { replaceUrl: true })
-        }
 
         this.subscriptions = this.subscriptions.concat([
           // start the connection monitor
           ...this.connectionService.start(),
-          // watch connection to display connectivity issues
-          this.watchConnection(),
         ])
 
         this.patch
@@ -133,19 +107,15 @@ export class AppComponent {
             ])
           })
         // UNVERIFIED
-      } else if (auth === AuthState.UNVERIFIED) {
+      } else {
         this.subscriptions.forEach(sub => sub.unsubscribe())
         this.subscriptions = []
-        this.showMenu = false
         this.patch.stop()
         this.storage.clear()
+
         if (this.errToast) this.errToast.dismiss()
         if (this.updateToast) this.updateToast.dismiss()
         if (this.notificationToast) this.notificationToast.dismiss()
-        if (this.offlineToast) this.offlineToast.dismiss()
-        this.zone.run(() => {
-          this.router.navigate(['/login'], { replaceUrl: true })
-        })
       }
     })
   }
@@ -173,37 +143,6 @@ export class AppComponent {
       })
       modal.present()
     }
-  }
-
-  private watchConnection(): Subscription {
-    return this.connectionService
-      .watchFailure$()
-      .pipe(distinctUntilChanged(), debounceTime(500))
-      .subscribe(async connectionFailure => {
-        if (connectionFailure === ConnectionFailure.None) {
-          if (this.offlineToast) {
-            await this.offlineToast.dismiss()
-            this.offlineToast = undefined
-          }
-        } else {
-          let message: string | IonicSafeString
-          let link: string
-          switch (connectionFailure) {
-            case ConnectionFailure.Network:
-              message = 'Phone or computer has no network connection.'
-              break
-            case ConnectionFailure.Tor:
-              message = 'Browser unable to connect over Tor.'
-              link = 'https://start9.com/latest/support/common-issues'
-              break
-            case ConnectionFailure.Lan:
-              message = 'Embassy not found on Local Area Network.'
-              link = 'https://start9.com/latest/support/common-issues'
-              break
-          }
-          await this.presentToastOffline(message, link)
-        }
-      })
   }
 
   private watchStatus(): Subscription {
@@ -312,47 +251,6 @@ export class AppComponent {
       ],
     })
     await this.notificationToast.present()
-  }
-
-  private async presentToastOffline(
-    message: string | IonicSafeString,
-    link?: string,
-  ) {
-    if (this.offlineToast) {
-      this.offlineToast.message = message
-      return
-    }
-
-    let buttons: ToastButton[] = [
-      {
-        side: 'start',
-        icon: 'close',
-        handler: () => {
-          return true
-        },
-      },
-    ]
-
-    if (link) {
-      buttons.push({
-        side: 'end',
-        text: 'View solutions',
-        handler: () => {
-          window.open(link, '_blank', 'noreferrer')
-          return false
-        },
-      })
-    }
-
-    this.offlineToast = await this.toastCtrl.create({
-      header: 'Unable to Connect',
-      cssClass: 'warning-toast',
-      message,
-      position: 'bottom',
-      duration: 0,
-      buttons,
-    })
-    await this.offlineToast.present()
   }
 
   private async restart(): Promise<void> {

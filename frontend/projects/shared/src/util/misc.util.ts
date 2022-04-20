@@ -14,7 +14,7 @@ export function capitalizeFirstLetter(string: string): string {
   return string.charAt(0).toUpperCase() + string.slice(1)
 }
 
-export const exists = (t: any) => {
+export function exists<T>(t: T | undefined): t is T {
   return t !== undefined
 }
 

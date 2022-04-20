@@ -1,54 +1,46 @@
-import { MockSource, PollSource, WebsocketSource } from 'patch-db-client'
-import { ConfigService } from 'src/app/services/config.service'
-import { LocalStorageBootstrap } from './local-storage-bootstrap'
-import { PatchDbService } from './patch-db.service'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { AuthService } from '../auth.service'
-import { MockApiService } from '../api/embassy-mock-api.service'
-import { filter } from 'rxjs/operators'
+import { inject, InjectionToken } from '@angular/core'
 import { exists } from '@start9labs/shared'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Storage } from '@ionic/storage-angular'
+import { filter } from 'rxjs/operators'
+import {
+  Bootstrapper,
+  MockSource,
+  PollSource,
+  Source,
+  WebsocketSource,
+} from 'patch-db-client'
 
-export function PatchDbServiceFactory(
-  config: ConfigService,
+import { ConfigService } from '../config.service'
+import { LocalStorageBootstrap } from './local-storage-bootstrap'
+import { ApiService } from '../api/embassy-api.service'
+import { MockApiService } from '../api/embassy-mock-api.service'
+import { DataModel } from './data-model'
+
+export const PATCH_SOURCE = new InjectionToken<Source<DataModel>[]>(
+  '[wsSources, pollSources]',
+)
+export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('', {
+  factory: () => inject(LocalStorageBootstrap),
+})
+
+export function mockSourceFactory({
+  mockPatch$,
+}: MockApiService): Source<DataModel>[] {
+  return Array(2).fill(
+    new MockSource<DataModel>(mockPatch$.pipe(filter(exists))),
+  )
+}
+
+export function realSourceFactory(
   embassyApi: ApiService,
-  bootstrapper: LocalStorageBootstrap,
-  auth: AuthService,
-  storage: Storage,
-): PatchDbService {
-  const {
-    useMocks,
-    patchDb: { poll },
-  } = config
+  config: ConfigService,
+  { defaultView }: Document,
+): Source<DataModel>[] {
+  const { patchDb } = config
+  const { host } = defaultView.location
+  const protocol = defaultView.location.protocol === 'http:' ? 'ws' : 'wss'
 
-  if (useMocks) {
-    const source = new MockSource<DataModel>(
-      (embassyApi as MockApiService).mockPatch$.pipe(filter(exists)),
-    )
-    return new PatchDbService(
-      source,
-      source,
-      embassyApi,
-      bootstrapper,
-      auth,
-      storage,
-    )
-  } else {
-    const protocol = window.location.protocol === 'http:' ? 'ws' : 'wss'
-    const host = window.location.host
-    const wsSource = new WebsocketSource<DataModel>(
-      `${protocol}://${host}/ws/db`,
-    )
-    const pollSource = new PollSource<DataModel>({ ...poll }, embassyApi)
-
-    return new PatchDbService(
-      wsSource,
-      pollSource,
-      embassyApi,
-      bootstrapper,
-      auth,
-      storage,
-    )
-  }
+  return [
+    new WebsocketSource<DataModel>(`${protocol}://${host}/ws/db`),
+    new PollSource<DataModel>({ ...patchDb.poll }, embassyApi),
+  ]
 }

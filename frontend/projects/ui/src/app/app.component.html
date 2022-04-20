@@ -1,8 +1,8 @@
-<ion-app>
+<ion-app appEnter>
   <ion-content>
     <ion-split-pane
       contentId="main-content"
-      [disabled]="!showMenu"
+      [disabled]="!(authService.isVerified$ | async)"
       (ionSplitPaneVisible)="splitPaneVisible($event)"
     >
       <ion-menu contentId="main-content" type="overlay">
