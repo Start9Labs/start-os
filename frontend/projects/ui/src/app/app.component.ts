@@ -71,9 +71,9 @@ export class AppComponent {
 
   async init() {
     // Watch for connection status
-    this.offlineService.init()
+    this.offlineService.subscribe()
     // Redirect to login upon logout
-    this.logoutService.init()
+    this.logoutService.subscribe()
     // watch auth
     this.authService.isVerified$.subscribe(async verified => {
       // VERIFIED
@@ -82,7 +82,7 @@ export class AppComponent {
 
         this.subscriptions = this.subscriptions.concat([
           // start the connection monitor
-          ...this.connectionService.start(),
+          this.connectionService.start(),
         ])
 
         this.patch
