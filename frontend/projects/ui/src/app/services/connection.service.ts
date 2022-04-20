@@ -8,14 +8,21 @@ import {
   Subscription,
 } from 'rxjs'
 import { PatchConnection, PatchDbService } from './patch-db/patch-db.service'
-import { distinctUntilChanged, mapTo, startWith } from 'rxjs/operators'
+import { distinctUntilChanged, map, mapTo, startWith } from 'rxjs/operators'
 import { ConfigService } from './config.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class ConnectionService {
-  private readonly networkState$ = new Subject<boolean>()
+  private readonly networkState$ = merge(
+    fromEvent(window, 'online').pipe(mapTo(true)),
+    fromEvent(window, 'offline').pipe(mapTo(false)),
+  ).pipe(
+    startWith(null),
+    map(() => navigator.onLine),
+  )
+
   private readonly connectionFailure$ = new Subject<ConnectionFailure>()
 
   constructor(
@@ -27,8 +34,8 @@ export class ConnectionService {
     return this.connectionFailure$.asObservable()
   }
 
-  start(): Subscription[] {
-    const sub1 = combineLatest([
+  start(): Subscription {
+    return combineLatest([
       // 1
       this.networkState$.pipe(distinctUntilChanged()),
       // 2
@@ -50,16 +57,6 @@ export class ConnectionService {
         this.connectionFailure$.next(ConnectionFailure.Tor)
       }
     })
-
-    const sub2 = merge(
-      fromEvent(window, 'online').pipe(mapTo(true)),
-      fromEvent(window, 'offline').pipe(mapTo(false)),
-    )
-      .pipe(startWith(navigator.onLine))
-      .subscribe(state => {
-        this.networkState$.next(state)
-      })
-    return [sub1, sub2]
   }
 }
 

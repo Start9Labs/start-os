@@ -1,25 +1,27 @@
 import { Injectable, NgZone } from '@angular/core'
 import { Router } from '@angular/router'
 import { AuthService } from './auth.service'
-import { filter } from 'rxjs/operators'
+import { filter, tap } from 'rxjs/operators'
+import { Observable } from 'rxjs'
 
 @Injectable({
   providedIn: 'root',
 })
-export class LogoutService {
+export class LogoutService extends Observable<unknown> {
+  private readonly stream$ = this.authService.isVerified$.pipe(
+    filter(verified => !verified),
+    tap(() => {
+      this.zone.run(() => {
+        this.router.navigate(['/login'], { replaceUrl: true })
+      })
+    }),
+  )
+
   constructor(
     private readonly authService: AuthService,
     private readonly zone: NgZone,
     private readonly router: Router,
-  ) {}
-
-  init() {
-    this.authService.isVerified$
-      .pipe(filter(verified => !verified))
-      .subscribe(() => {
-        this.zone.run(() => {
-          this.router.navigate(['/login'], { replaceUrl: true })
-        })
-      })
+  ) {
+    super(subscriber => this.stream$.subscribe(subscriber))
   }
 }

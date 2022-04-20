@@ -22,42 +22,40 @@ interface OfflineMessage {
 @Injectable({
   providedIn: 'root',
 })
-export class OfflineService {
+export class OfflineService extends Observable<unknown> {
+  private current?: HTMLIonToastElement
+
   private readonly connection$ = this.connectionService
     .watchFailure$()
     .pipe(distinctUntilChanged(), debounceTime(500))
+
+  private readonly stream$ = this.authService.isVerified$.pipe(
+    // Close on logout
+    tap(() => this.current?.dismiss()),
+    switchMap(verified => (verified ? this.connection$ : EMPTY)),
+    // Close on change to connection state
+    tap(() => this.current?.dismiss()),
+    filter(connection => connection !== ConnectionFailure.None),
+    map(getMessage),
+    switchMap(({ message, link }) =>
+      this.getToast().pipe(
+        tap(toast => {
+          this.current = toast
+
+          toast.message = message
+          toast.buttons = getButtons(link)
+          toast.present()
+        }),
+      ),
+    ),
+  )
 
   constructor(
     private readonly authService: AuthService,
     private readonly connectionService: ConnectionService,
     private readonly toastCtrl: ToastController,
-  ) {}
-
-  init() {
-    let current: HTMLIonToastElement
-
-    this.authService.isVerified$
-      .pipe(
-        // Close on logout
-        tap(() => current?.dismiss()),
-        switchMap(verified => (verified ? this.connection$ : EMPTY)),
-        // Close on change to connection state
-        tap(() => current?.dismiss()),
-        filter(connection => connection !== ConnectionFailure.None),
-        map(getMessage),
-        switchMap(({ message, link }) =>
-          this.getToast().pipe(
-            tap(toast => {
-              current = toast
-
-              toast.message = message
-              toast.buttons = getButtons(link)
-              toast.present()
-            }),
-          ),
-        ),
-      )
-      .subscribe()
+  ) {
+    super(subscriber => this.stream$.subscribe(subscriber))
   }
 
   private getToast(): Observable<HTMLIonToastElement> {

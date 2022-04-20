@@ -44,20 +44,22 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: APP_INITIALIZER,
     deps: [Storage, AuthService, LocalStorageService, Router],
-    useFactory:
-      (
-        storage: Storage,
-        auth: AuthService,
-        localStorage: LocalStorageService,
-        router: Router,
-      ) =>
-      async () => {
-        await storage.create()
-        await auth.init()
-        await localStorage.init()
-
-        router.initialNavigation()
-      },
+    useFactory: appInitializer,
     multi: true,
   },
 ]
+
+export function appInitializer(
+  storage: Storage,
+  auth: AuthService,
+  localStorage: LocalStorageService,
+  router: Router,
+): () => Promise<void> {
+  return async () => {
+    await storage.create()
+    await auth.init()
+    await localStorage.init()
+
+    router.initialNavigation()
+  }
+}
