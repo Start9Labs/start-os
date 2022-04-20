@@ -47,7 +47,7 @@ use crate::util::{display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::asset_dir;
 use crate::{
-    config::ConfigLocks,
+    config::ConfigReceipts,
     context::{CliContext, RpcContext},
 };
 use crate::{Error, ErrorKind, ResultExt};
@@ -1186,7 +1186,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         },
     );
     pde.save(&mut tx).await?;
-    let locks = ConfigLocks::new(&mut tx).await?;
+    let locks = ConfigReceipts::new(&mut tx).await?;
     let mut dep_errs = model
         .expect(&mut tx)
         .await?
@@ -1365,7 +1365,7 @@ async fn handle_recovered_package(
     } else {
         false
     };
-    let locks = ConfigLocks::new(tx).await?;
+    let locks = ConfigReceipts::new(tx).await?;
     if configured && manifest.config.is_some() {
         crate::config::configure(
             ctx,

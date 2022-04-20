@@ -2,11 +2,11 @@ use std::cmp::Ordering;
 
 use async_trait::async_trait;
 use color_eyre::eyre::eyre;
-use patch_db::json_ptr::JsonPointer;
+use patch_db::{json_ptr::JsonPointer, LockReceipt};
 use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 
-use crate::{Error, ResultExt};
+use crate::{db::receipts, Error, ResultExt};
 
 mod v0_3_0;
 mod v0_3_0_1;
@@ -23,6 +23,11 @@ enum Version {
     Other(emver::Version),
 }
 
+pub trait VersionCommitReceipt:
+    receipts::VersionRangeReceipt + receipts::ServerVersionReceipt
+{
+}
+
 #[async_trait]
 pub trait VersionT
 where
@@ -34,16 +39,18 @@ where
     fn compat(&self) -> &'static emver::VersionRange;
     async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error>;
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error>;
-    async fn commit<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .eos_version_compat()
-            .put(db, &self.compat())
+    async fn commit<Db: DbHandle>(
+        &self,
+        db: &mut Db,
+        receipts: &dyn VersionCommitReceipt,
+    ) -> Result<(), Error> {
+        receipts
+            .version_range()
+            .set(db, self.compat().clone())
             .await?;
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .version()
-            .put(db, &self.semver().into())
+        receipts
+            .server_version()
+            .set(db, self.semver().into())
             .await?;
 
         Ok(())
@@ -52,10 +59,11 @@ where
         &self,
         version: &V,
         db: &mut Db,
+        receipts: &dyn VersionCommitReceipt,
     ) -> Result<(), Error> {
         match self.semver().cmp(&version.semver()) {
-            Ordering::Greater => self.rollback_to_unchecked(version, db).await,
-            Ordering::Less => version.migrate_from_unchecked(self, db).await,
+            Ordering::Greater => self.rollback_to_unchecked(version, db, receipts).await,
+            Ordering::Less => version.migrate_from_unchecked(self, db, receipts).await,
             Ordering::Equal => Ok(()),
         }
     }
@@ -63,27 +71,33 @@ where
         &self,
         version: &V,
         db: &mut Db,
+        receipts: &dyn VersionCommitReceipt,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         if version.semver() != previous.semver() {
-            previous.migrate_from_unchecked(version, db).await?;
+            previous
+                .migrate_from_unchecked(version, db, receipts)
+                .await?;
         }
         tracing::info!("{} -> {}", previous.semver(), self.semver(),);
         self.up(db).await?;
-        self.commit(db).await?;
+        self.commit(db, receipts).await?;
         Ok(())
     }
     async fn rollback_to_unchecked<V: VersionT, Db: DbHandle>(
         &self,
         version: &V,
         db: &mut Db,
+        receipts: &dyn VersionCommitReceipt,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         tracing::info!("{} -> {}", self.semver(), previous.semver(),);
         self.down(db).await?;
-        previous.commit(db).await?;
+        previous.commit(db, receipts).await?;
         if version.semver() != previous.semver() {
-            previous.rollback_to_unchecked(version, db).await?;
+            previous
+                .rollback_to_unchecked(version, db, receipts)
+                .await?;
         }
         Ok(())
     }
@@ -112,16 +126,31 @@ where
     }
 }
 
-pub async fn init<Db: DbHandle>(db: &mut Db) -> Result<(), Error> {
-    let ptr: JsonPointer = "/server-info/version"
-        .parse()
-        .with_kind(crate::ErrorKind::Database)?;
-    db.lock(ptr.clone().into(), LockType::Write).await?;
-    let version: Version = db.get(&ptr).await?;
+fn get_version(version: crate::util::Version) -> Version {
+    let wrapper = v0_3_0::Version::new();
+    if *version == wrapper.semver() {
+        return Version::V0_3_0(Wrapper(wrapper));
+    }
+    let wrapper = v0_3_0_1::Version::new();
+    if *version == wrapper.semver() {
+        return Version::V0_3_0_1(Wrapper(wrapper));
+    }
+    let wrapper = v0_3_0_2::Version::new();
+    if *version == wrapper.semver() {
+        return Version::V0_3_0_2(Wrapper(wrapper));
+    }
+    return Version::Other(version.into_version());
+}
+
+pub async fn init<Db: DbHandle>(
+    db: &mut Db,
+    receipts: &crate::init::InitReceipts,
+) -> Result<(), Error> {
+    let version: Version = get_version(receipts.server_version.get(db).await?);
     match version {
-        Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db).await?,
-        Version::V0_3_0_1(v) => v.0.migrate_to(&Current::new(), db).await?,
-        Version::V0_3_0_2(v) => v.0.migrate_to(&Current::new(), db).await?,
+        Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
+        Version::V0_3_0_1(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
+        Version::V0_3_0_2(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
