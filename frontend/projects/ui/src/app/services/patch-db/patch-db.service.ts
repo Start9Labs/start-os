@@ -1,4 +1,4 @@
-import { Inject, Injectable, InjectionToken } from '@angular/core'
+import { inject, Inject, Injectable, InjectionToken } from '@angular/core'
 import { Storage } from '@ionic/storage-angular'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
 import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
@@ -17,13 +17,8 @@ import { isEmptyObject, pauseFor } from '@start9labs/shared'
 import { DataModel } from './data-model'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
-import { patch } from '@start9labs/emver'
-
-export const PATCH_HTTP = new InjectionToken<Source<DataModel>>('')
-export const PATCH_SOURCE = new InjectionToken<Source<DataModel>>('')
-export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('')
-export const AUTH = new InjectionToken<AuthService>('')
-export const STORAGE = new InjectionToken<Storage>('')
+import { LocalStorageBootstrap } from './local-storage-bootstrap'
+import { BOOTSTRAPPER, PATCH_SOURCE } from './patch-db.factory'
 
 export enum PatchConnection {
   Initializing = 'initializing',
@@ -42,7 +37,7 @@ export class PatchDbService {
   private patchDb: PatchDB<DataModel>
   private subs: Subscription[] = []
   private sources$: BehaviorSubject<Source<DataModel>[]> = new BehaviorSubject([
-    this.wsSource,
+    this.sources[0],
   ])
 
   data: DataModel
@@ -61,18 +56,18 @@ export class PatchDbService {
   }
 
   constructor(
-    @Inject(PATCH_SOURCE) private readonly wsSource: Source<DataModel>,
-    @Inject(PATCH_SOURCE) private readonly pollSource: Source<DataModel>,
-    @Inject(PATCH_HTTP) private readonly http: ApiService,
+    // [wsSources, pollSources]
+    @Inject(PATCH_SOURCE) private readonly sources: Source<DataModel>[],
     @Inject(BOOTSTRAPPER)
     private readonly bootstrapper: Bootstrapper<DataModel>,
-    @Inject(AUTH) private readonly auth: AuthService,
-    @Inject(STORAGE) private readonly storage: Storage,
+    private readonly http: ApiService,
+    private readonly auth: AuthService,
+    private readonly storage: Storage,
   ) {}
 
   async init(): Promise<void> {
     const cache = await this.bootstrapper.init()
-    this.sources$.next([this.wsSource, this.http])
+    this.sources$.next([this.sources[0], this.http])
 
     this.patchDb = new PatchDB(this.sources$, this.http, cache)
 
@@ -94,13 +89,13 @@ export class PatchDbService {
               console.log('patchDB: POLLING FAILED', e)
               this.patchConnection$.next(PatchConnection.Disconnected)
               await pauseFor(2000)
-              this.sources$.next([this.pollSource, this.http])
+              this.sources$.next([this.sources[1], this.http])
               return
             }
 
             console.log('patchDB: WEBSOCKET FAILED', e)
             this.polling$.next(true)
-            this.sources$.next([this.pollSource, this.http])
+            this.sources$.next([this.sources[1], this.http])
           }),
         )
         .subscribe({
@@ -152,7 +147,7 @@ export class PatchDbService {
               console.log('patchDB: SWITCHING BACK TO WEBSOCKETS')
               this.patchConnection$.next(PatchConnection.Initializing)
               this.polling$.next(false)
-              this.sources$.next([this.wsSource, this.http])
+              this.sources$.next([this.sources[0], this.http])
             }
           }),
         )
