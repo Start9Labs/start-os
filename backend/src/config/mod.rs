@@ -40,8 +40,11 @@ pub mod util;
 pub use spec::{ConfigSpec, Defaultable};
 use util::NumRange;
 
-use self::action::{ConfigActions, ConfigRes};
 use self::spec::{PackagePointerSpec, ValueSpecPointer};
+use self::{
+    action::{ConfigActions, ConfigRes},
+    spec::ConfigPointerReceipts,
+};
 
 pub type Config = serde_json::Map<String, Value>;
 pub trait TypeOf {
@@ -268,6 +271,7 @@ pub fn set(
 /// is the keys that we need to insert on getting/setting because we have included wild cards into the paths.
 pub struct ConfigReceipts {
     ht_lock: HTLock,
+    config_receipts: ConfigPointerReceipts,
     configured: LockReceipt<bool, String>,
     config_actions: LockReceipt<ConfigActions, String>,
     dependency: LockReceipt<DepInfo, (String, String)>,
@@ -292,6 +296,7 @@ impl ConfigReceipts {
 
     pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
         let ht_lock = HTLock::setup(locks);
+        let config_receipts = ConfigPointerReceipts::setup(locks);
 
         let configured: LockTarget<bool, String> = crate::db::DatabaseModel::new()
             .package_data()
@@ -391,6 +396,7 @@ impl ConfigReceipts {
         move |skeleton_key| {
             Ok(Self {
                 ht_lock: ht_lock(skeleton_key)?,
+                config_receipts: config_receipts(skeleton_key)?,
                 configured: configured.verify(&skeleton_key)?,
                 config_actions: config_actions.verify(&skeleton_key)?,
                 dependencies: dependencies.verify(&skeleton_key)?,
@@ -583,8 +589,15 @@ pub fn configure_rec<'a, Db: DbHandle>(
 
         spec.validate(&manifest)?;
         spec.matches(&config)?; // check that new config matches spec
-        spec.update(ctx, db, &manifest, &*overrides, &mut config)
-            .await?; // dereference pointers in the new config
+        spec.update(
+            ctx,
+            db,
+            &manifest,
+            &*overrides,
+            &mut config,
+            &receipts.config_receipts,
+        )
+        .await?; // dereference pointers in the new config
 
         // create backreferences to pointers
         let mut sys = receipts
@@ -702,7 +715,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
             // check if config passes dependent check
             if let Some(cfg) = receipts
                 .manifest_dependencies_config
-                .get_at(db, (&dependent, &id))
+                .get(db, (&dependent, &id))
                 .await?
             {
                 let manifest = receipts
