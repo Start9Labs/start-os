@@ -19,6 +19,7 @@ pub async fn check<Db: DbHandle>(
     should_commit: &AtomicBool,
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
+    let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
 
     let mut checkpoint = tx.begin().await?;
 
@@ -113,6 +114,7 @@ pub async fn check<Db: DbHandle>(
                 id,
                 DependencyError::HealthChecksFailed { failures },
                 &mut BTreeMap::new(),
+                &receipts,
             )
             .await?;
         }

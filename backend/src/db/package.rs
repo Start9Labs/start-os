@@ -3,11 +3,11 @@ use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, Verifier};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::Error;
 
-pub struct PacakageReceipts {
+pub struct PackageReceipts {
     package_data: LockReceipt<super::model::AllPackageData, ()>,
 }
 
-impl PacakageReceipts {
+impl PackageReceipts {
     pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
@@ -30,7 +30,7 @@ impl PacakageReceipts {
 
 pub async fn get_packages<Db: DbHandle>(
     db: &mut Db,
-    receipts: &PacakageReceipts,
+    receipts: &PackageReceipts,
 ) -> Result<Vec<PackageId>, Error> {
     let packages = receipts.package_data.get(db).await?;
     Ok(packages.0.keys().cloned().collect())

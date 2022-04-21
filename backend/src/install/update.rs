@@ -24,10 +24,12 @@ pub async fn dry(
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
+    let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
     crate::db::DatabaseModel::new()
         .package_data()
         .lock(&mut tx, LockType::Read)
         .await?;
+
     for dependent in crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
@@ -65,6 +67,7 @@ pub async fn dry(
                     received: version.clone(),
                 },
                 &mut breakages,
+                &receipts,
             )
             .await?;
         }

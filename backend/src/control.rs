@@ -98,7 +98,9 @@ async fn stop_common<Db: DbHandle>(
     *status = MainStatus::Stopping;
     status.save(&mut tx).await?;
     tx.save().await?;
-    break_all_dependents_transitive(db, id, DependencyError::NotRunning, breakages).await?;
+    let receipts = crate::dependencies::BreakTransitiveReceipts::new(db).await?;
+    break_all_dependents_transitive(db, id, DependencyError::NotRunning, breakages, &receipts)
+        .await?;
 
     Ok(())
 }
