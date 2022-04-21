@@ -965,7 +965,7 @@ pub fn heal_transitive<'a, Db: DbHandle>(
         if let Some(old) = old {
             let info = receipts
                 .dependency
-                .get_at(db, (id, dependency))
+                .get(db, (id, dependency))
                 .await?
                 .ok_or_else(not_found)?;
             if let Some(new) = old
