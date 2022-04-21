@@ -25,7 +25,6 @@ use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, RecoveredPackageInfo,
     StaticDependencyInfo, StaticFiles,
@@ -49,6 +48,10 @@ use crate::volume::asset_dir;
 use crate::{
     config::ConfigReceipts,
     context::{CliContext, RpcContext},
+};
+use crate::{
+    core::rpc_continuations::{RequestGuid, RpcContinuation},
+    dependencies::BreakTransitiveReceipts,
 };
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -565,8 +568,15 @@ pub async fn uninstall_dry(
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
-    break_all_dependents_transitive(&mut tx, &id, DependencyError::NotInstalled, &mut breakages)
-        .await?;
+    let receipts = BreakTransitiveReceipts::new(&mut tx).await?;
+    break_all_dependents_transitive(
+        &mut tx,
+        &id,
+        DependencyError::NotInstalled,
+        &mut breakages,
+        &receipts,
+    )
+    .await?;
 
     tx.abort().await?;
 
@@ -681,6 +691,34 @@ pub async fn delete_recovered(
     })
 }
 
+pub struct DownloadInstallReceipts {
+    package_receipts: crate::db::package::PackageReceipts,
+    manifest_receipts: crate::db::package::ManifestReceipts,
+}
+
+impl DownloadInstallReceipts {
+    pub async fn new<'a>(db: &'a mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks, id);
+        Ok(setup(&db.lock_all(locks).await?)?)
+    }
+
+    pub fn setup(
+        locks: &mut Vec<patch_db::LockTargetId>,
+        id: &PackageId,
+    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+        let package_receipts = crate::db::package::PackageReceipts::setup(locks);
+        let manifest_receipts = crate::db::package::ManifestReceipts::setup(locks, id);
+        move |skeleton_key| {
+            Ok(Self {
+                package_receipts: package_receipts(skeleton_key)?,
+                manifest_receipts: manifest_receipts(skeleton_key)?,
+            })
+        }
+    }
+}
+
 #[instrument(skip(ctx, temp_manifest, s9pk))]
 pub async fn download_install_s9pk(
     ctx: &RpcContext,
@@ -695,10 +733,13 @@ pub async fn download_install_s9pk(
     if let Err(e) = async {
         let mut db_handle = ctx.db.handle();
         let mut tx = db_handle.begin().await?;
+        let receipts = DownloadInstallReceipts::new(&mut tx, &pkg_id).await?;
         // Build set of existing manifests
         let mut manifests = Vec::new();
-        for pkg in crate::db::package::get_packages(&mut tx).await? {
-            match crate::db::package::get_manifest(&mut tx, &pkg).await? {
+        for pkg in crate::db::package::get_packages(&mut tx, &receipts.package_receipts).await? {
+            match crate::db::package::get_manifest(&mut tx, &pkg, &receipts.manifest_receipts)
+                .await?
+            {
                 Some(m) => {
                     manifests.push(m);
                 }
@@ -795,8 +836,9 @@ pub async fn download_install_s9pk(
     {
         let mut handle = ctx.db.handle();
         let mut tx = handle.begin().await?;
+        let receipts = cleanup::CleanupFailedReceipts::new(&mut tx, &pkg_id).await?;
 
-        if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id).await {
+        if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id, &receipts).await {
             tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
             tracing::debug!("{:?}", e);
         } else {
@@ -1186,7 +1228,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         },
     );
     pde.save(&mut tx).await?;
-    let locks = ConfigReceipts::new(&mut tx).await?;
+    let receipts = ConfigReceipts::new(&mut tx).await?;
+    // UpdateDependencyReceipts
     let mut dep_errs = model
         .expect(&mut tx)
         .await?
@@ -1197,7 +1240,14 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         .dependency_errors()
         .get_mut(&mut tx)
         .await?;
-    *dep_errs = DependencyErrors::init(ctx, &mut tx, &manifest, &current_dependencies).await?;
+    *dep_errs = DependencyErrors::init(
+        ctx,
+        &mut tx,
+        &manifest,
+        &current_dependencies,
+        &receipts.try_heal_receipts,
+    )
+    .await?;
     dep_errs.save(&mut tx).await?;
 
     if let PackageDataEntry::Updating {
@@ -1248,7 +1298,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 false,
                 &mut BTreeMap::new(),
                 &mut BTreeMap::new(),
-                &locks,
+                &receipts,
             )
             .await?;
             let mut main_status = crate::db::DatabaseModel::new()
@@ -1270,11 +1320,16 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             &mut tx,
             pkg_id,
             prev.current_dependencies.keys(),
-            &locks,
+            &receipts,
         )
         .await?; // remove previous
-        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies, &locks)
-            .await?; // add new
+        add_dependent_to_current_dependents_lists(
+            &mut tx,
+            pkg_id,
+            &current_dependencies,
+            &receipts,
+        )
+        .await?; // add new
         update_dependency_errors_of_dependents(
             ctx,
             &mut tx,
@@ -1283,6 +1338,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 .keys()
                 .chain(prev.current_dependents.keys())
                 .collect::<BTreeSet<_>>(),
+            &receipts.update_dependency_receipts,
         )
         .await?;
         if &prev.manifest.version != version {
@@ -1301,10 +1357,21 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 &manifest.volumes,
             )
             .await?;
-        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies, &locks)
-            .await?;
-        update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
-            .await?;
+        add_dependent_to_current_dependents_lists(
+            &mut tx,
+            pkg_id,
+            &current_dependencies,
+            &receipts,
+        )
+        .await?;
+        update_dependency_errors_of_dependents(
+            ctx,
+            &mut tx,
+            pkg_id,
+            current_dependents.keys(),
+            &receipts.update_dependency_receipts,
+        )
+        .await?;
     } else if let Some(recovered) = {
         // solve taxonomy escalation
         crate::db::DatabaseModel::new()
@@ -1319,15 +1386,37 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             .into_owned()
     } {
         handle_recovered_package(recovered, manifest, ctx, pkg_id, version, &mut tx).await?;
-        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies, &locks)
-            .await?;
-        update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
-            .await?;
+        add_dependent_to_current_dependents_lists(
+            &mut tx,
+            pkg_id,
+            &current_dependencies,
+            &receipts,
+        )
+        .await?;
+        update_dependency_errors_of_dependents(
+            ctx,
+            &mut tx,
+            pkg_id,
+            current_dependents.keys(),
+            &receipts.update_dependency_receipts,
+        )
+        .await?;
     } else {
-        add_dependent_to_current_dependents_lists(&mut tx, pkg_id, &current_dependencies, &locks)
-            .await?;
-        update_dependency_errors_of_dependents(ctx, &mut tx, pkg_id, current_dependents.keys())
-            .await?;
+        add_dependent_to_current_dependents_lists(
+            &mut tx,
+            pkg_id,
+            &current_dependencies,
+            &receipts,
+        )
+        .await?;
+        update_dependency_errors_of_dependents(
+            ctx,
+            &mut tx,
+            pkg_id,
+            current_dependents.keys(),
+            &receipts.update_dependency_receipts,
+        )
+        .await?;
     }
 
     crate::db::DatabaseModel::new()

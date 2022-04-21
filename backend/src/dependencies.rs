@@ -319,9 +319,8 @@ impl DependencyError {
                                         .await?
                                         .ok_or_else(not_found)?
                                         .get(dependency)
-                                        .map(|x| x.health_checks)
-                                        .unwrap_or_default()
-                                        .contains(&check)
+                                        .map(|x| x.health_checks.contains(&check))
+                                        .unwrap_or(false)
                                 {
                                     failures.insert(check.clone(), res.clone());
                                 }
@@ -839,7 +838,7 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
     id: &'a PackageId,
     error: DependencyError,
     breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
-    receipts: &'a dyn receipts::DependencyErrorsAtReceipt,
+    receipts: &'a BreakTransitiveReceipts,
 ) -> Result<(), Error> {
     for dependent in crate::db::DatabaseModel::new()
         .package_data()
@@ -858,6 +857,35 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
     Ok(())
 }
 
+#[derive(Clone)]
+pub struct BreakTransitiveReceipts {
+    dependency_errors: LockReceipt<DependencyErrors, String>,
+}
+
+impl BreakTransitiveReceipts {
+    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks);
+        Ok(setup(&db.lock_all(locks).await?)?)
+    }
+
+    pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
+        let dependency_errors = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .map(|x| x.status().dependency_errors())
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+        move |skeleton_key| {
+            Ok(Self {
+                dependency_errors: dependency_errors.verify(skeleton_key)?,
+            })
+        }
+    }
+}
+
 #[instrument(skip(db, receipts))]
 pub fn break_transitive<'a, Db: DbHandle>(
     db: &'a mut Db,
@@ -865,7 +893,7 @@ pub fn break_transitive<'a, Db: DbHandle>(
     dependency: &'a PackageId,
     error: DependencyError,
     breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
-    receipts: &'a dyn receipts::DependencyErrorsAtReceipt,
+    receipts: &'a BreakTransitiveReceipts,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
         let mut tx = db.begin().await?;
@@ -876,8 +904,8 @@ pub fn break_transitive<'a, Db: DbHandle>(
             .expect(&mut tx)
             .await?;
         let mut dependency_errors = receipts
-            .dependency_errors()
-            .get(db, id)
+            .dependency_errors
+            .get(&mut tx, id)
             .await?
             .ok_or_else(not_found)?;
 
@@ -904,8 +932,8 @@ pub fn break_transitive<'a, Db: DbHandle>(
                 },
             );
             receipts
-                .dependency_errors()
-                .set(db, dependency_errors, id)
+                .dependency_errors
+                .set(&mut tx, dependency_errors, id)
                 .await?;
 
             tx.save().await?;
@@ -919,8 +947,8 @@ pub fn break_transitive<'a, Db: DbHandle>(
             .await?;
         } else {
             receipts
-                .dependency_errors()
-                .set(db, dependency_errors, id)
+                .dependency_errors
+                .set(&mut tx, dependency_errors, id)
                 .await?;
 
             tx.save().await?;

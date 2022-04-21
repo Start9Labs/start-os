@@ -13,16 +13,19 @@ use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
 
-use crate::install::cleanup::remove_from_current_dependents_lists;
-use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::{context::RpcContext, db::receipts::HealTransitiveReceipt};
 use crate::{db::model::CurrentDependencyInfo, dependencies::HTLock};
 use crate::{db::util::WithRevision, dependencies::Dependencies};
 use crate::{
+    dependencies::BreakTransitiveReceipts,
+    install::cleanup::{remove_from_current_dependents_lists, UpdateDependencyReceipts},
+};
+use crate::{
     dependencies::DepInfo,
     s9pk::manifest::{Manifest, PackageId},
 };
+use crate::{dependencies::TryHealReceipts, util::display_none};
 use crate::{
     dependencies::{
         add_dependent_to_current_dependents_lists, break_transitive,
@@ -270,8 +273,11 @@ pub fn set(
 /// An UnlockedLock has two types, the type of setting and getting from the db, and the second type
 /// is the keys that we need to insert on getting/setting because we have included wild cards into the paths.
 pub struct ConfigReceipts {
-    ht_lock: HTLock,
-    config_receipts: ConfigPointerReceipts,
+    pub ht_lock: HTLock,
+    pub config_receipts: ConfigPointerReceipts,
+    pub update_dependency_receipts: UpdateDependencyReceipts,
+    pub try_heal_receipts: TryHealReceipts,
+    pub break_transitive_receipts: BreakTransitiveReceipts,
     configured: LockReceipt<bool, String>,
     config_actions: LockReceipt<ConfigActions, String>,
     dependency: LockReceipt<DepInfo, (String, String)>,
@@ -297,6 +303,9 @@ impl ConfigReceipts {
     pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
         let ht_lock = HTLock::setup(locks);
         let config_receipts = ConfigPointerReceipts::setup(locks);
+        let update_dependency_receipts = UpdateDependencyReceipts::setup(locks);
+        let break_transitive_receipts = BreakTransitiveReceipts::setup(locks);
+        let try_heal_receipts = TryHealReceipts::setup(locks);
 
         let configured: LockTarget<bool, String> = crate::db::DatabaseModel::new()
             .package_data()
@@ -397,18 +406,21 @@ impl ConfigReceipts {
             Ok(Self {
                 ht_lock: ht_lock(skeleton_key)?,
                 config_receipts: config_receipts(skeleton_key)?,
-                configured: configured.verify(&skeleton_key)?,
-                config_actions: config_actions.verify(&skeleton_key)?,
-                dependencies: dependencies.verify(&skeleton_key)?,
-                volumes: volumes.verify(&skeleton_key)?,
-                version: version.verify(&skeleton_key)?,
-                manifest: manifest.verify(&skeleton_key)?,
-                system_pointers: system_pointers.verify(&skeleton_key)?,
-                current_dependents: current_dependents.verify(&skeleton_key)?,
-                dependency_errors: dependency_errors.verify(&skeleton_key)?,
-                dependency: dependency.verify(&skeleton_key)?,
-                manifest_dependencies_config: manifest_dependencies_config.verify(&skeleton_key)?,
-                status: status.verify(&skeleton_key)?,
+                try_heal_receipts: try_heal_receipts(skeleton_key)?,
+                break_transitive_receipts: break_transitive_receipts(skeleton_key)?,
+                update_dependency_receipts: update_dependency_receipts(skeleton_key)?,
+                configured: configured.verify(skeleton_key)?,
+                config_actions: config_actions.verify(skeleton_key)?,
+                dependencies: dependencies.verify(skeleton_key)?,
+                volumes: volumes.verify(skeleton_key)?,
+                version: version.verify(skeleton_key)?,
+                manifest: manifest.verify(skeleton_key)?,
+                system_pointers: system_pointers.verify(skeleton_key)?,
+                current_dependents: current_dependents.verify(skeleton_key)?,
+                dependency_errors: dependency_errors.verify(skeleton_key)?,
+                dependency: dependency.verify(skeleton_key)?,
+                manifest_dependencies_config: manifest_dependencies_config.verify(skeleton_key)?,
+                status: status.verify(skeleton_key)?,
             })
         }
     }
@@ -552,21 +564,21 @@ pub fn configure_rec<'a, Db: DbHandle>(
         // fetch data from db
         let action = receipts
             .config_actions
-            .get(db, &id)
+            .get(db, id)
             .await?
             .ok_or_else(not_found)?;
         let dependencies = receipts
             .dependencies
-            .get(db, &id)
+            .get(db, id)
             .await?
             .ok_or_else(not_found)?;
-        let volumes = receipts.volumes.get(db, &id).await?.ok_or_else(not_found)?;
+        let volumes = receipts.volumes.get(db, id).await?.ok_or_else(not_found)?;
         let is_needs_config = !receipts
             .configured
-            .get(db, &id)
+            .get(db, id)
             .await?
             .ok_or_else(not_found)?;
-        let version = receipts.version.get(db, &id).await?.ok_or_else(not_found)?;
+        let version = receipts.version.get(db, id).await?.ok_or_else(not_found)?;
 
         // get current config and current spec
         let ConfigRes {
@@ -581,11 +593,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
             spec.gen(&mut rand::rngs::StdRng::from_entropy(), timeout)?
         };
 
-        let manifest = receipts
-            .manifest
-            .get(db, &id)
-            .await?
-            .ok_or_else(not_found)?;
+        let manifest = receipts.manifest.get(db, id).await?.ok_or_else(not_found)?;
 
         spec.validate(&manifest)?;
         spec.matches(&config)?; // check that new config matches spec
@@ -734,7 +742,15 @@ pub fn configure_rec<'a, Db: DbHandle>(
                     .await?
                 {
                     let dep_err = DependencyError::ConfigUnsatisfied { error };
-                    break_transitive(db, dependent, id, dep_err, breakages, receipts).await?;
+                    break_transitive(
+                        db,
+                        dependent,
+                        id,
+                        dep_err,
+                        breakages,
+                        &receipts.break_transitive_receipts,
+                    )
+                    .await?;
                 }
 
                 // handle backreferences
@@ -756,7 +772,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                                             error: format!("{}", e),
                                         },
                                         breakages,
-                                        receipts,
+                                        &receipts.break_transitive_receipts,
                                     )
                                     .await?;
                                 } else {

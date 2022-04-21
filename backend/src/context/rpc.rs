@@ -173,11 +173,11 @@ impl RpcCleanReceipts {
     }
 }
 
-pub struct RpcSetNgingReceipts {
+pub struct RpcSetNginxReceipts {
     server_info: LockReceipt<crate::db::model::ServerInfo, ()>,
 }
 
-impl RpcSetNgingReceipts {
+impl RpcSetNginxReceipts {
     pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
@@ -275,7 +275,7 @@ impl RpcContext {
     pub async fn set_nginx_conf<Db: DbHandle>(
         &self,
         db: &mut Db,
-        receipts: &RpcSetNgingReceipts,
+        receipts: &RpcSetNginxReceipts,
     ) -> Result<(), Error> {
         tokio::fs::write("/etc/nginx/sites-available/default", {
             let info = receipts.server_info.get(db).await?;

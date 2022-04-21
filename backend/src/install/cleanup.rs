@@ -26,17 +26,14 @@ pub struct UpdateDependencyReceipts {
     manifest: LockReceipt<Manifest, String>,
 }
 impl UpdateDependencyReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
+    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
-        let setup = Self::setup(&mut locks, id);
+        let setup = Self::setup(&mut locks);
         Ok(setup(&db.lock_all(locks).await?)?)
     }
 
-    pub fn setup(
-        locks: &mut Vec<LockTargetId>,
-        id: &PackageId,
-    ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
+    pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
         let dependency_errors = crate::db::DatabaseModel::new()
             .package_data()
             .star()
@@ -317,7 +314,7 @@ impl UninstallReceipts {
             .make_locker(LockType::Write)
             .add_to_keys(locks);
         let ht = HTLock::setup(locks);
-        let update_depenency_receipts = UpdateDependencyReceipts::setup(locks, id);
+        let update_depenency_receipts = UpdateDependencyReceipts::setup(locks);
         move |skeleton_key| {
             Ok(Self {
                 removing: removing.verify(skeleton_key)?,
