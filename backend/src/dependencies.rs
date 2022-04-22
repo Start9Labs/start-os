@@ -14,8 +14,10 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
+use crate::action::{ActionImplementation, NoOutput};
 use crate::config::spec::PackagePointerSpec;
 use crate::config::{action::ConfigActions, Config, ConfigSpec};
+use crate::config::{action::ConfigRes, not_found, ConfigReceipts};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry};
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -25,14 +27,6 @@ use crate::util::serde::display_serializable;
 use crate::util::{display_none, Version};
 use crate::volume::Volumes;
 use crate::Error;
-use crate::{
-    action::{ActionImplementation, NoOutput},
-    db::receipts::CurrentDependentsReceipt,
-};
-use crate::{
-    config::{action::ConfigRes, not_found, ConfigReceipts},
-    db::receipts,
-};
 
 #[command(subcommands(configure))]
 pub fn dependency() -> Result<(), Error> {
@@ -540,7 +534,6 @@ impl DependencyConfig {
 }
 
 pub struct DependencyConfigReceipts {
-    configured: LockReceipt<bool, String>,
     dependencies: LockReceipt<Dependencies, ()>,
     dependency_volumes: LockReceipt<Volumes, ()>,
     dependency_version: LockReceipt<Version, ()>,
@@ -557,13 +550,6 @@ impl DependencyConfigReceipts {
     ) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
-        let configured = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.status().configured())
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
         let dependencies = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(package_id)
@@ -609,7 +595,6 @@ impl DependencyConfigReceipts {
 
         let skeleton_key = db.lock_all(locks).await?;
         Ok(Self {
-            configured: configured.verify(&skeleton_key)?,
             dependencies: dependencies.verify(&skeleton_key)?,
             dependency_volumes: dependency_volumes.verify(&skeleton_key)?,
             dependency_version: dependency_version.verify(&skeleton_key)?,
@@ -755,7 +740,7 @@ pub async fn configure_logic(
         spec,
     })
 }
-#[instrument(skip(db, current_dependencies, locks))]
+#[instrument(skip(db, current_dependencies, current_dependent_receipt))]
 pub async fn add_dependent_to_current_dependents_lists<
     'a,
     Db: DbHandle,
@@ -764,19 +749,17 @@ pub async fn add_dependent_to_current_dependents_lists<
     db: &mut Db,
     dependent_id: &PackageId,
     current_dependencies: I,
-    locks: &dyn CurrentDependentsReceipt,
+    current_dependent_receipt: &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
 ) -> Result<(), Error> {
     for (dependency, dep_info) in current_dependencies {
-        let mut dependency_dependents = locks
-            .current_dependents()
-            .get(db, dependency)
-            .await?
-            .ok_or_else(not_found)?;
-        dependency_dependents.insert(dependent_id.clone(), dep_info.clone());
-        locks
-            .current_dependents()
-            .set(db, dependency_dependents, dependency)
-            .await?;
+        if let Some(mut dependency_dependents) =
+            current_dependent_receipt.get(db, dependency).await?
+        {
+            dependency_dependents.insert(dependent_id.clone(), dep_info.clone());
+            current_dependent_receipt
+                .set(db, dependency_dependents, dependency)
+                .await?;
+        }
     }
     Ok(())
 }
@@ -967,7 +950,7 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     locks: &'a HTLock,
 ) -> Result<(), Error> {
     let dependents = locks
-        .current_dependents()
+        .current_dependents
         .get(db, id)
         .await?
         .ok_or_else(not_found)?;
@@ -1052,8 +1035,6 @@ pub struct HTLock {
     pub try_heal: TryHealReceipts,
     current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
     status: LockReceipt<Status, String>,
-    dependencies: LockReceipt<Dependencies, String>,
-    manifest: LockReceipt<Manifest, String>,
     dependency: LockReceipt<DepInfo, (String, String)>,
 }
 
@@ -1067,13 +1048,6 @@ impl HTLock {
 
     pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
         let try_heal = TryHealReceipts::setup(locks);
-        let dependencies = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.manifest().dependencies())
-            .make_locker(LockType::Read)
-            .add_to_keys(locks);
         let dependency = crate::db::DatabaseModel::new()
             .package_data()
             .star()
@@ -1095,86 +1069,13 @@ impl HTLock {
             .map(|x| x.status())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let manifest = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.manifest())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
                 try_heal: try_heal(skeleton_key)?,
-                dependencies: dependencies.verify(skeleton_key)?,
                 current_dependents: current_dependents.verify(skeleton_key)?,
                 status: status.verify(skeleton_key)?,
                 dependency: dependency.verify(skeleton_key)?,
-                manifest: manifest.verify(skeleton_key)?,
             })
         }
-    }
-}
-
-impl receipts::CurrentDependentsReceipt for HTLock {
-    fn current_dependents(
-        &self,
-    ) -> &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String> {
-        &self.current_dependents
-    }
-}
-impl receipts::PackageStatusReceipt for HTLock {
-    fn status(&self) -> &LockReceipt<Status, String> {
-        &self.status
-    }
-}
-
-impl receipts::DependenciesReceipt for HTLock {
-    fn dependencies(&self) -> &LockReceipt<Dependencies, String> {
-        &self.dependencies
-    }
-}
-impl receipts::DependencyReceipt for HTLock {
-    fn dependency(&self) -> &LockReceipt<DepInfo, (String, String)> {
-        &self.dependency
-    }
-}
-impl receipts::ManifestReceipt for HTLock {
-    fn manifest(&self) -> &LockReceipt<Manifest, String> {
-        &self.manifest
-    }
-}
-impl receipts::HealTransitiveReceipt for HTLock {}
-
-pub struct DependentsLock {
-    current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
-}
-
-impl DependentsLock {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks)?;
-        Ok(setup(db.lock_all(locks).await?))
-    }
-
-    pub fn setup(locks: &mut Vec<LockTargetId>) -> Result<impl FnOnce(Verifier) -> Self, Error> {
-        let current_dependents = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.current_dependents())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        Ok(move |skeleton_key| Self {
-            current_dependents: current_dependents.verify(&skeleton_key).unwrap(),
-        })
-    }
-}
-
-impl CurrentDependentsReceipt for DependentsLock {
-    fn current_dependents(
-        &self,
-    ) -> &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String> {
-        &self.current_dependents
     }
 }

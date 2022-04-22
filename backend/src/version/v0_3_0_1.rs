@@ -11,6 +11,7 @@ use crate::util::Invoke;
 
 const V0_3_0_1: emver::Version = emver::Version::new(0, 3, 0, 1);
 
+#[derive(Debug, Clone)]
 pub struct Version;
 #[async_trait]
 impl VersionT for Version {

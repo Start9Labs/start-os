@@ -14,6 +14,7 @@ lazy_static! {
     );
 }
 
+#[derive(Debug, Clone)]
 pub struct Version;
 #[async_trait]
 impl VersionT for Version {

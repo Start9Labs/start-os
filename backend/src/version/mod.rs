@@ -2,11 +2,10 @@ use std::cmp::Ordering;
 
 use async_trait::async_trait;
 use color_eyre::eyre::eyre;
-use patch_db::{json_ptr::JsonPointer, LockReceipt};
-use patch_db::{DbHandle, LockType};
+use patch_db::DbHandle;
 use rpc_toolkit::command;
 
-use crate::{db::receipts, init::InitReceipts, Error, ResultExt};
+use crate::{init::InitReceipts, Error};
 
 mod v0_3_0;
 mod v0_3_0_1;
@@ -14,7 +13,7 @@ mod v0_3_0_2;
 
 pub type Current = v0_3_0_2::Version;
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
 enum Version {
     V0_3_0(Wrapper<v0_3_0::Version>),
@@ -23,9 +22,31 @@ enum Version {
     Other(emver::Version),
 }
 
-pub trait VersionCommitReceipt:
-    receipts::VersionRangeReceipt + receipts::ServerVersionReceipt
-{
+impl Version {
+    fn from_util_version(version: crate::util::Version) -> Self {
+        let wrapper = v0_3_0::Version::new();
+        if *version == wrapper.semver() {
+            return Version::V0_3_0(Wrapper(wrapper));
+        }
+        let wrapper = v0_3_0_1::Version::new();
+        if *version == wrapper.semver() {
+            return Version::V0_3_0_1(Wrapper(wrapper));
+        }
+        let wrapper = v0_3_0_2::Version::new();
+        if *version == wrapper.semver() {
+            return Version::V0_3_0_2(Wrapper(wrapper));
+        }
+        Version::Other(version.into_version())
+    }
+    #[cfg(test)]
+    fn as_sem_ver(&self) -> emver::Version {
+        match self {
+            Version::V0_3_0(Wrapper(x)) => x.semver(),
+            Version::V0_3_0_1(Wrapper(x)) => x.semver(),
+            Version::V0_3_0_2(Wrapper(x)) => x.semver(),
+            Version::Other(x) => x.clone(),
+        }
+    }
 }
 
 #[async_trait]
@@ -102,6 +123,7 @@ where
         Ok(())
     }
 }
+#[derive(Debug, Clone)]
 struct Wrapper<T>(T);
 impl<T> serde::Serialize for Wrapper<T>
 where
@@ -118,7 +140,7 @@ where
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let v = crate::util::Version::deserialize(deserializer)?;
         let version = T::new();
-        if &*v == &version.semver() {
+        if *v == version.semver() {
             Ok(Wrapper(version))
         } else {
             Err(serde::de::Error::custom("Mismatched Version"))
@@ -126,27 +148,11 @@ where
     }
 }
 
-fn get_version(version: crate::util::Version) -> Version {
-    let wrapper = v0_3_0::Version::new();
-    if *version == wrapper.semver() {
-        return Version::V0_3_0(Wrapper(wrapper));
-    }
-    let wrapper = v0_3_0_1::Version::new();
-    if *version == wrapper.semver() {
-        return Version::V0_3_0_1(Wrapper(wrapper));
-    }
-    let wrapper = v0_3_0_2::Version::new();
-    if *version == wrapper.semver() {
-        return Version::V0_3_0_2(Wrapper(wrapper));
-    }
-    return Version::Other(version.into_version());
-}
-
 pub async fn init<Db: DbHandle>(
     db: &mut Db,
     receipts: &crate::init::InitReceipts,
 ) -> Result<(), Error> {
-    let version: Version = get_version(receipts.server_version.get(db).await?);
+    let version = Version::from_util_version(receipts.server_version.get(db).await?);
     match version {
         Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
         Version::V0_3_0_1(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
@@ -167,4 +173,40 @@ pub const COMMIT_HASH: &str =
 #[command(rename = "git-info", local, metadata(authenticated = false))]
 pub fn git_info() -> Result<&'static str, Error> {
     Ok(COMMIT_HASH)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn em_version() -> impl Strategy<Value = emver::Version> {
+        any::<(usize, usize, usize, usize)>().prop_map(|(major, minor, patch, super_minor)| {
+            emver::Version::new(major, minor, patch, super_minor)
+        })
+    }
+
+    fn versions() -> impl Strategy<Value = Version> {
+        prop_oneof![
+            Just(Version::V0_3_0(Wrapper(v0_3_0::Version::new()))),
+            Just(Version::V0_3_0_1(Wrapper(v0_3_0_1::Version::new()))),
+            Just(Version::V0_3_0_2(Wrapper(v0_3_0_2::Version::new()))),
+            em_version().prop_map(Version::Other),
+        ]
+    }
+
+    proptest! {
+        #[test]
+        fn emversion_isomorphic_version(original in em_version()) {
+            let version = Version::from_util_version(original.clone().into());
+            let back = version.as_sem_ver();
+            prop_assert_eq!(original, back, "All versions should round trip");
+        }
+        #[test]
+        fn version_isomorphic_em_version(version in versions()) {
+            let sem_ver = version.as_sem_ver();
+            let back = Version::from_util_version(sem_ver.into());
+            prop_assert_eq!(format!("{:?}",version), format!("{:?}", back), "All versions should round trip");
+        }
+    }
 }

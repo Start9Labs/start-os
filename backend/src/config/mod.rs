@@ -13,28 +13,21 @@ use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
 
+use crate::context::RpcContext;
+use crate::dependencies::{
+    add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
+    BreakageRes, DependencyConfig, DependencyError, DependencyErrors, TaggedDependencyError,
+};
+use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
-use crate::{context::RpcContext, db::receipts::HealTransitiveReceipt};
+use crate::Error;
 use crate::{db::model::CurrentDependencyInfo, dependencies::HTLock};
 use crate::{db::util::WithRevision, dependencies::Dependencies};
 use crate::{
     dependencies::BreakTransitiveReceipts,
     install::cleanup::{remove_from_current_dependents_lists, UpdateDependencyReceipts},
 };
-use crate::{
-    dependencies::DepInfo,
-    s9pk::manifest::{Manifest, PackageId},
-};
 use crate::{dependencies::TryHealReceipts, util::display_none};
-use crate::{
-    dependencies::{
-        add_dependent_to_current_dependents_lists, break_transitive,
-        heal_all_dependents_transitive, BreakageRes, DependencyConfig, DependencyError,
-        DependencyErrors, TaggedDependencyError,
-    },
-    status::Status,
-};
-use crate::{Error, ResultExt as _};
 
 pub mod action;
 pub mod spec;
@@ -280,16 +273,14 @@ pub struct ConfigReceipts {
     pub break_transitive_receipts: BreakTransitiveReceipts,
     configured: LockReceipt<bool, String>,
     config_actions: LockReceipt<ConfigActions, String>,
-    dependency: LockReceipt<DepInfo, (String, String)>,
     dependencies: LockReceipt<Dependencies, String>,
     volumes: LockReceipt<crate::volume::Volumes, String>,
     version: LockReceipt<crate::util::Version, String>,
     manifest: LockReceipt<Manifest, String>,
     system_pointers: LockReceipt<Vec<spec::SystemPointerSpec>, String>,
-    current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+    pub current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
     dependency_errors: LockReceipt<DependencyErrors, String>,
     manifest_dependencies_config: LockReceipt<DependencyConfig, (String, String)>,
-    status: LockReceipt<Status, String>,
 }
 
 impl ConfigReceipts {
@@ -328,14 +319,6 @@ impl ConfigReceipts {
             .star()
             .installed()
             .map(|x| x.manifest().dependencies())
-            .make_locker(LockType::Read)
-            .add_to_keys(locks);
-
-        let dependency = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.manifest().dependencies().star())
             .make_locker(LockType::Read)
             .add_to_keys(locks);
 
@@ -395,13 +378,6 @@ impl ConfigReceipts {
             .make_locker(LockType::Write)
             .add_to_keys(locks);
 
-        let status = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.status())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
                 ht_lock: ht_lock(skeleton_key)?,
@@ -418,55 +394,11 @@ impl ConfigReceipts {
                 system_pointers: system_pointers.verify(skeleton_key)?,
                 current_dependents: current_dependents.verify(skeleton_key)?,
                 dependency_errors: dependency_errors.verify(skeleton_key)?,
-                dependency: dependency.verify(skeleton_key)?,
                 manifest_dependencies_config: manifest_dependencies_config.verify(skeleton_key)?,
-                status: status.verify(skeleton_key)?,
             })
         }
     }
 }
-
-impl crate::db::receipts::CurrentDependentsReceipt for ConfigReceipts {
-    fn current_dependents(
-        &self,
-    ) -> &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String> {
-        &self.current_dependents
-    }
-}
-
-impl crate::db::receipts::DependencyErrorsAtReceipt for ConfigReceipts {
-    fn dependency_errors(&self) -> &LockReceipt<DependencyErrors, String> {
-        &self.dependency_errors
-    }
-}
-
-impl crate::db::receipts::PackageStatusReceipt for ConfigReceipts {
-    fn status(&self) -> &LockReceipt<Status, String> {
-        &self.status
-    }
-}
-
-impl crate::db::receipts::DependenciesReceipt for ConfigReceipts {
-    fn dependencies(&self) -> &LockReceipt<Dependencies, String> {
-        &self.dependencies
-    }
-}
-
-impl crate::db::receipts::DependencyReceipt for ConfigReceipts {
-    fn dependency(&self) -> &LockReceipt<DepInfo, (String, String)> {
-        &self.dependency
-    }
-}
-
-impl crate::db::receipts::ManifestReceipt for ConfigReceipts {
-    fn manifest(&self) -> &LockReceipt<Manifest, String> {
-        &self.manifest
-    }
-}
-
-impl HealTransitiveReceipt for ConfigReceipts {}
-
-// impl {}
 
 #[command(rename = "dry", display(display_serializable))]
 #[instrument(skip(ctx))]
@@ -686,8 +618,20 @@ pub fn configure_rec<'a, Db: DbHandle>(
         };
 
         // update dependencies
-        remove_from_current_dependents_lists(db, id, current_dependencies.keys(), receipts).await?; // remove previous
-        add_dependent_to_current_dependents_lists(db, id, &current_dependencies, receipts).await?; // add new
+        remove_from_current_dependents_lists(
+            db,
+            id,
+            current_dependencies.keys(),
+            &receipts.current_dependents,
+        )
+        .await?; // remove previous
+        add_dependent_to_current_dependents_lists(
+            db,
+            id,
+            &current_dependencies,
+            &receipts.current_dependents,
+        )
+        .await?; // add new
         current_dependencies.remove(id);
         receipts
             .current_dependents
@@ -830,10 +774,6 @@ async fn ensure_creation_of_config_paths_makes_sense() {
         "/package-data/*/installed/manifest/dependencies"
     );
     assert_eq!(
-        &format!("{}", config_locks.dependency.lock.glob),
-        "/package-data/*/installed/manifest/dependencies/*"
-    );
-    assert_eq!(
         &format!("{}", config_locks.volumes.lock.glob),
         "/package-data/*/installed/manifest/volumes"
     );
@@ -872,9 +812,5 @@ async fn ensure_creation_of_config_paths_makes_sense() {
     assert_eq!(
         &format!("{}", config_locks.system_pointers.lock.glob),
         "/package-data/*/installed/system-pointers"
-    );
-    assert_eq!(
-        &format!("{}", config_locks.status.lock.glob),
-        "/package-data/*/installed/status"
     );
 }

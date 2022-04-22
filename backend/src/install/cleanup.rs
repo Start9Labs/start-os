@@ -6,19 +6,19 @@ use sqlx::{Executor, Sqlite};
 use tracing::instrument;
 
 use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
+use crate::context::RpcContext;
 use crate::db::model::{InstalledPackageDataEntry, PackageDataEntry};
 use crate::{config::not_found, dependencies::reconfigure_dependents_with_live_pointers};
-use crate::{context::RpcContext, db::receipts::CurrentDependentsReceipt};
 use crate::{
     db::model::AllPackageData,
     s9pk::manifest::{Manifest, PackageId},
 };
 use crate::{db::model::CurrentDependencyInfo, error::ErrorCollection};
-use crate::{dependencies::TryHealReceipts, Error};
 use crate::{
-    dependencies::{DependencyErrors, HTLock},
+    dependencies::DependencyErrors,
     util::{Apply, Version},
 };
+use crate::{dependencies::TryHealReceipts, Error};
 
 pub struct UpdateDependencyReceipts {
     ht: TryHealReceipts,
@@ -157,7 +157,7 @@ pub struct CleanupFailedReceipts {
 }
 
 impl CleanupFailedReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
+    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks);
@@ -255,7 +255,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
     Ok(())
 }
 
-#[instrument(skip(db, current_dependencies, locks))]
+#[instrument(skip(db, current_dependencies, current_dependent_receipt))]
 pub async fn remove_from_current_dependents_lists<
     'a,
     Db: DbHandle,
@@ -264,13 +264,12 @@ pub async fn remove_from_current_dependents_lists<
     db: &mut Db,
     id: &'a PackageId,
     current_dependencies: I,
-    locks: &dyn CurrentDependentsReceipt,
+    current_dependent_receipt: &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
 ) -> Result<(), Error> {
     for dep in current_dependencies.into_iter().chain(std::iter::once(id)) {
-        if let Some(mut current_dependents) = locks.current_dependents().get(db, dep).await? {
+        if let Some(mut current_dependents) = current_dependent_receipt.get(db, dep).await? {
             if current_dependents.remove(id).is_some() {
-                locks
-                    .current_dependents()
+                current_dependent_receipt
                     .set(db, current_dependents, dep)
                     .await?;
             }
@@ -282,7 +281,6 @@ pub struct UninstallReceipts {
     removing: LockReceipt<InstalledPackageDataEntry, ()>,
     current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
     update_depenency_receipts: UpdateDependencyReceipts,
-    ht: HTLock,
 }
 impl UninstallReceipts {
     pub async fn new<'a>(db: &'a mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
@@ -310,26 +308,16 @@ impl UninstallReceipts {
             .map(|x| x.current_dependents())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let ht = HTLock::setup(locks);
         let update_depenency_receipts = UpdateDependencyReceipts::setup(locks);
         move |skeleton_key| {
             Ok(Self {
                 removing: removing.verify(skeleton_key)?,
                 current_dependents: current_dependents.verify(skeleton_key)?,
-                ht: ht(skeleton_key)?,
                 update_depenency_receipts: update_depenency_receipts(skeleton_key)?,
             })
         }
     }
 }
-impl CurrentDependentsReceipt for UninstallReceipts {
-    fn current_dependents(
-        &self,
-    ) -> &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String> {
-        &self.current_dependents
-    }
-}
-
 #[instrument(skip(ctx, secrets, db))]
 pub async fn uninstall<Ex>(
     ctx: &RpcContext,
@@ -357,7 +345,7 @@ where
         &mut tx,
         &entry.manifest.id,
         entry.current_dependencies.keys(),
-        &receipts,
+        &receipts.current_dependents,
     )
     .await?;
     update_dependency_errors_of_dependents(
