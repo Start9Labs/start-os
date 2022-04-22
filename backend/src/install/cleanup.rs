@@ -267,16 +267,13 @@ pub async fn remove_from_current_dependents_lists<
     locks: &dyn CurrentDependentsReceipt,
 ) -> Result<(), Error> {
     for dep in current_dependencies.into_iter().chain(std::iter::once(id)) {
-        let mut current_dependents = locks
-            .current_dependents()
-            .get(db, &dep)
-            .await?
-            .ok_or_else(not_found)?;
-        if current_dependents.remove(id).is_some() {
-            locks
-                .current_dependents()
-                .set(db, current_dependents, &dep)
-                .await?;
+        if let Some(mut current_dependents) = locks.current_dependents().get(db, dep).await? {
+            if current_dependents.remove(id).is_some() {
+                locks
+                    .current_dependents()
+                    .set(db, current_dependents, dep)
+                    .await?;
+            }
         }
     }
     Ok(())
