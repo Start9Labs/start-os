@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
-use color_eyre::eyre::eyre;
 use patch_db::{json_ptr::JsonPointer, LockReceipt};
 use patch_db::{DbHandle, LockType, PatchDb, Revision};
 use reqwest::Url;

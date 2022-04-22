@@ -1,13 +1,13 @@
 use std::time::Duration;
 
-use patch_db::{DbHandle, JsonGlob, LockReceipt, LockTarget, LockType, Model};
+use patch_db::{DbHandle, LockReceipt, LockType};
 use tokio::process::Command;
 
 use crate::context::rpc::RpcContextConfig;
+use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
 use crate::util::Invoke;
 use crate::Error;
-use crate::{db::model::ServerStatus, util::Apply};
 
 pub const SYSTEM_REBUILD_PATH: &str = "/embassy-os/system-rebuild";
 

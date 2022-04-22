@@ -836,7 +836,7 @@ pub async fn download_install_s9pk(
     {
         let mut handle = ctx.db.handle();
         let mut tx = handle.begin().await?;
-        let receipts = cleanup::CleanupFailedReceipts::new(&mut tx, &pkg_id).await?;
+        let receipts = cleanup::CleanupFailedReceipts::new(&mut tx).await?;
 
         if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id, &receipts).await {
             tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
@@ -1320,14 +1320,14 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             &mut tx,
             pkg_id,
             prev.current_dependencies.keys(),
-            &receipts,
+            &receipts.current_dependents,
         )
         .await?; // remove previous
         add_dependent_to_current_dependents_lists(
             &mut tx,
             pkg_id,
             &current_dependencies,
-            &receipts,
+            &receipts.current_dependents,
         )
         .await?; // add new
         update_dependency_errors_of_dependents(
@@ -1361,7 +1361,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             &mut tx,
             pkg_id,
             &current_dependencies,
-            &receipts,
+            &receipts.current_dependents,
         )
         .await?;
         update_dependency_errors_of_dependents(
@@ -1390,7 +1390,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             &mut tx,
             pkg_id,
             &current_dependencies,
-            &receipts,
+            &receipts.current_dependents,
         )
         .await?;
         update_dependency_errors_of_dependents(
@@ -1406,7 +1406,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             &mut tx,
             pkg_id,
             &current_dependencies,
-            &receipts,
+            &receipts.current_dependents,
         )
         .await?;
         update_dependency_errors_of_dependents(
