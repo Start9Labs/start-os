@@ -3,10 +3,10 @@ use std::time::Duration;
 use patch_db::{DbHandle, JsonGlob, LockReceipt, LockTarget, LockType, Model};
 use tokio::process::Command;
 
+use crate::context::rpc::RpcContextConfig;
 use crate::install::PKG_DOCKER_DIR;
 use crate::util::Invoke;
 use crate::Error;
-use crate::{context::rpc::RpcContextConfig, db::receipts};
 use crate::{db::model::ServerStatus, util::Apply};
 
 pub const SYSTEM_REBUILD_PATH: &str = "/embassy-os/system-rebuild";
@@ -65,20 +65,6 @@ impl InitReceipts {
         })
     }
 }
-
-impl receipts::VersionRangeReceipt for InitReceipts {
-    fn version_range(&self) -> &LockReceipt<emver::VersionRange, ()> {
-        &self.version_range
-    }
-}
-
-impl receipts::ServerVersionReceipt for InitReceipts {
-    fn server_version(&self) -> &LockReceipt<crate::util::Version, ()> {
-        &self.server_version
-    }
-}
-
-impl crate::version::VersionCommitReceipt for InitReceipts {}
 
 pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error> {
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok();

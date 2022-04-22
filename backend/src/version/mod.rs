@@ -6,7 +6,7 @@ use patch_db::{json_ptr::JsonPointer, LockReceipt};
 use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 
-use crate::{db::receipts, Error, ResultExt};
+use crate::{db::receipts, init::InitReceipts, Error, ResultExt};
 
 mod v0_3_0;
 mod v0_3_0_1;
@@ -44,14 +44,14 @@ where
     async fn commit<Db: DbHandle>(
         &self,
         db: &mut Db,
-        receipts: &dyn VersionCommitReceipt,
+        receipts: &InitReceipts,
     ) -> Result<(), Error> {
         receipts
-            .version_range()
+            .version_range
             .set(db, self.compat().clone())
             .await?;
         receipts
-            .server_version()
+            .server_version
             .set(db, self.semver().into())
             .await?;
 
@@ -61,7 +61,7 @@ where
         &self,
         version: &V,
         db: &mut Db,
-        receipts: &dyn VersionCommitReceipt,
+        receipts: &InitReceipts,
     ) -> Result<(), Error> {
         match self.semver().cmp(&version.semver()) {
             Ordering::Greater => self.rollback_to_unchecked(version, db, receipts).await,
@@ -73,7 +73,7 @@ where
         &self,
         version: &V,
         db: &mut Db,
-        receipts: &dyn VersionCommitReceipt,
+        receipts: &InitReceipts,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         if version.semver() != previous.semver() {
@@ -90,7 +90,7 @@ where
         &self,
         version: &V,
         db: &mut Db,
-        receipts: &dyn VersionCommitReceipt,
+        receipts: &InitReceipts,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         tracing::info!("{} -> {}", self.semver(), previous.semver(),);
