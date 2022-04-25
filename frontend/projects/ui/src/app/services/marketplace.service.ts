@@ -171,11 +171,12 @@ export class MarketplaceService extends AbstractMarketplaceService {
     params: Omit<RR.GetMarketplacePackagesReq, 'eos-version-compat'>,
     url: string,
   ): Promise<RR.GetMarketplacePackagesRes> {
-    if (params.query) delete params.category
-    if (params.ids) params.ids = JSON.stringify(params.ids) as any
+    let clonedParams = { ...params }
+    if (clonedParams.query) delete clonedParams.category
+    if (clonedParams.ids) clonedParams.ids = JSON.stringify(clonedParams.ids)
 
     const qp: RR.GetMarketplacePackagesReq = {
-      ...params,
+      ...clonedParams,
       'eos-version-compat': this.serverInfo['eos-version-compat'],
     }
 
