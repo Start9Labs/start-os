@@ -2,6 +2,9 @@
  * Public API Surface of @start9labs/shared
  */
 
+export * from './classes/http-error'
+export * from './classes/rpc-error'
+
 export * from './components/markdown/markdown.component'
 export * from './components/markdown/markdown.module'
 export * from './components/text-spinner/text-spinner.component.module'
@@ -27,6 +30,7 @@ export * from './services/destroy.service'
 export * from './services/emver.service'
 export * from './services/error-toast.service'
 
+export * from './types/rpc-error-details'
 export * from './types/url'
 export * from './types/workspace-config'
 

@@ -8,6 +8,7 @@ import {
 import { Observable } from 'rxjs'
 import * as aesjs from 'aes-js'
 import * as pbkdf2 from 'pbkdf2'
+import { HttpError, RpcError } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',
@@ -80,7 +81,7 @@ export class HttpService {
       .then(res => JSON.parse(res))
       .catch(e => {
         if (!e.status && !e.statusText) {
-          throw new EncryptionError(e)
+          throw new EncryptionError()
         } else {
           throw new HttpError(e)
         }
@@ -120,34 +121,10 @@ export class HttpService {
   }
 }
 
-function RpcError(e: RPCError['error']): void {
-  const { code, message, data } = e
-
-  this.code = code
-
-  if (typeof data === 'string') {
-    this.message = `${message}\n\n${data}`
-  } else {
-    if (data.details) {
-      this.message = `${message}\n\n${data.details}`
-    } else {
-      this.message = message
-    }
-  }
-}
-
-function HttpError(e: HttpErrorResponse): void {
-  const { status, statusText } = e
-
-  this.code = status
-  this.message = statusText
-  this.details = null
-}
-
-function EncryptionError(e: HttpErrorResponse): void {
-  this.code = null
-  this.message = 'Invalid Key'
-  this.details = null
+class EncryptionError {
+  readonly code = null
+  readonly message = 'Invalid Key'
+  readonly details = null
 }
 
 function isRpcError<Error, Result>(
@@ -204,10 +181,6 @@ export interface RPCError extends RPCBase {
 }
 
 export type RPCResponse<T> = RPCSuccess<T> | RPCError
-
-type HttpError = HttpErrorResponse & {
-  error: { code: string; message: string }
-}
 
 export interface HttpOptions {
   method: Method

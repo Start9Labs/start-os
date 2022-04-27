@@ -51,8 +51,8 @@ export class LoginPage {
       this.authService
         .setVerified()
         .then(() => this.router.navigate([''], { replaceUrl: true }))
-    } catch ({ code, message }) {
-      this.error = code === 34 ? 'Invalid Password' : message
+    } catch (e: any) {
+      this.error = e.code === 34 ? 'Invalid Password' : e.message
     } finally {
       this.loader.dismiss()
     }

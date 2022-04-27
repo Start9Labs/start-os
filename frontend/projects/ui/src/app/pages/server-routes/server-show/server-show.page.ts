@@ -164,7 +164,7 @@ export class ServerShowPage {
               this.embassyApi.repairDisk({}).then(_ => {
                 this.restart()
               })
-            } catch (e) {
+            } catch (e: any) {
               this.errToast.present(e)
             }
           },
@@ -185,7 +185,7 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.restartServer({})
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -202,7 +202,7 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.shutdownServer({})
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -219,7 +219,7 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.systemRebuild({})
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -239,7 +239,7 @@ export class ServerShowPage {
       if (updateAvailable) {
         this.updateEos()
       }
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()

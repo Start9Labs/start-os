@@ -59,7 +59,7 @@ export class NotificationsPage {
       })
       this.beforeCursor = notifications[notifications.length - 1]?.id
       this.needInfinite = notifications.length >= this.perPage
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       return notifications
@@ -78,7 +78,7 @@ export class NotificationsPage {
       await this.embassyApi.deleteNotification({ id })
       this.notifications.splice(index, 1)
       this.beforeCursor = this.notifications[this.notifications.length - 1]?.id
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -169,7 +169,7 @@ export class NotificationsPage {
       })
       this.notifications = []
       this.beforeCursor = undefined
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()

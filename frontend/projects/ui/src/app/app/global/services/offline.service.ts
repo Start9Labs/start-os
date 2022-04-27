@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { IonicSafeString, ToastController } from '@ionic/angular'
+import { IonicSafeString, ToastController, ToastOptions } from '@ionic/angular'
 import { ToastButton } from '@ionic/core'
 import { EMPTY, from, Observable } from 'rxjs'
 import {
@@ -11,17 +11,14 @@ import {
   tap,
 } from 'rxjs/operators'
 
-import { AuthService } from './auth.service'
-import { ConnectionFailure, ConnectionService } from './connection.service'
+import { AuthService } from 'src/app/services/auth.service'
+import {
+  ConnectionFailure,
+  ConnectionService,
+} from 'src/app/services/connection.service'
 
-interface OfflineMessage {
-  readonly message: string | IonicSafeString
-  readonly link?: string
-}
-
-@Injectable({
-  providedIn: 'root',
-})
+// Watch for connection status
+@Injectable()
 export class OfflineService extends Observable<unknown> {
   private current?: HTMLIonToastElement
 
@@ -59,17 +56,17 @@ export class OfflineService extends Observable<unknown> {
   }
 
   private getToast(): Observable<HTMLIonToastElement> {
-    return from(
-      this.toastCtrl.create({
-        header: 'Unable to Connect',
-        cssClass: 'warning-toast',
-        message: '',
-        position: 'bottom',
-        duration: 0,
-        buttons: [],
-      }),
-    )
+    return from(this.toastCtrl.create(TOAST))
   }
+}
+
+const TOAST: ToastOptions = {
+  header: 'Unable to Connect',
+  cssClass: 'warning-toast',
+  message: '',
+  position: 'bottom',
+  duration: 0,
+  buttons: [],
 }
 
 function getMessage(failure: ConnectionFailure): OfflineMessage {
@@ -110,4 +107,9 @@ function getButtons(link?: string): ToastButton[] {
   }
 
   return buttons
+}
+
+interface OfflineMessage {
+  readonly message: string | IonicSafeString
+  readonly link?: string
 }

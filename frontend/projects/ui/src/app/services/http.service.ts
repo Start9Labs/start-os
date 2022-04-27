@@ -10,6 +10,7 @@ import { map, take } from 'rxjs/operators'
 import { ConfigService } from './config.service'
 import { Revision } from 'patch-db-client'
 import { AuthService } from './auth.service'
+import { HttpError, RpcError } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',
@@ -98,33 +99,6 @@ export class HttpService {
   }
 }
 
-function RpcError(e: RPCError['error']): void {
-  const { code, message, data } = e
-
-  this.code = code
-
-  if (typeof data === 'string') {
-    this.message = `${message}\n\n${data}`
-    this.revision = null
-  } else {
-    if (data.details) {
-      this.message = `${message}\n\n${data.details}`
-    } else {
-      this.message = message
-    }
-    this.revision = data.revision
-  }
-}
-
-function HttpError(e: HttpErrorResponse): void {
-  const { status, statusText } = e
-
-  this.code = status
-  this.message = statusText
-  this.details = null
-  this.revision = null
-}
-
 function isRpcError<Error, Result>(
   arg: { error: Error } | { result: Result },
 ): arg is { error: Error } {
@@ -187,10 +161,6 @@ export interface RPCError extends RPCBase {
 }
 
 export type RPCResponse<T> = RPCSuccess<T> | RPCError
-
-type HttpError = HttpErrorResponse & {
-  error: { code: string; message: string }
-}
 
 export interface HttpOptions {
   method: Method

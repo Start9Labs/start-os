@@ -30,7 +30,7 @@ export class SuccessPage {
             encodeURIComponent(this.stateService.cert),
         )
       this.download()
-    } catch (e) {
+    } catch (e: any) {
       await this.errCtrl.present(e)
     }
   }

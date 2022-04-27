@@ -57,7 +57,7 @@ export class AppMetricsPage {
   async getMetrics(): Promise<void> {
     try {
       this.metrics = await this.embassyApi.getPkgMetrics({ id: this.pkgId })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
       this.stopDaemon()
     } finally {

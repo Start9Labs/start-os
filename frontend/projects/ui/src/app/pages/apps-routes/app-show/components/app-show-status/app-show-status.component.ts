@@ -122,7 +122,7 @@ export class AppShowStatusComponent {
 
       try {
         await this.embassyApi.stopPackage({ id })
-      } catch (e) {
+      } catch (e: any) {
         this.errToast.present(e)
       } finally {
         loader.dismiss()
@@ -149,7 +149,7 @@ export class AppShowStatusComponent {
 
     try {
       await this.embassyApi.startPackage({ id: this.pkg.manifest.id })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()

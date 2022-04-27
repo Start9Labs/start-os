@@ -149,7 +149,7 @@ export class AppPropertiesPage {
         id: this.pkgId,
       })
       this.node = getValueByPointer(this.properties, this.pointer || '')
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       this.loading = false

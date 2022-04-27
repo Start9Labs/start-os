@@ -147,7 +147,7 @@ export class MarketplacesPage {
         { 'server-id': this.patch.getData()['server-info'].id },
         url,
       )
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
       loader.dismiss()
       return
@@ -158,7 +158,7 @@ export class MarketplacesPage {
     try {
       marketplace['selected-id'] = id
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
       loader.dismiss()
     }
@@ -190,7 +190,7 @@ export class MarketplacesPage {
     try {
       delete marketplace['known-hosts'][id]
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -223,7 +223,7 @@ export class MarketplacesPage {
         url,
       )
       marketplace['known-hosts'][id] = { name, url }
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
       loader.dismiss()
       return
@@ -233,7 +233,7 @@ export class MarketplacesPage {
 
     try {
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -266,7 +266,7 @@ export class MarketplacesPage {
       )
       marketplace['known-hosts'][id] = { name, url }
       marketplace['selected-id'] = id
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
       loader.dismiss()
       return
@@ -276,7 +276,7 @@ export class MarketplacesPage {
 
     try {
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
       loader.dismiss()
       return

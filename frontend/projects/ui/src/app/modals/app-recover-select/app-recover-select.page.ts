@@ -82,7 +82,7 @@ export class AppRecoverSelectPage {
         password: this.password,
       })
       this.modalCtrl.dismiss(undefined, 'success')
-    } catch (e) {
+    } catch (e: any) {
       this.error = getErrorMessage(e)
     } finally {
       loader.dismiss()

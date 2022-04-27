@@ -119,7 +119,7 @@ export class RecoverPage {
         await alert.present()
         this.hasShownGuidAlert = true
       }
-    } catch (e) {
+    } catch (e: any) {
       this.errorToastService.present(e)
     } finally {
       this.loading = false
@@ -205,7 +205,7 @@ export class RecoverPage {
     try {
       await this.stateService.importDrive(guid)
       await this.navCtrl.navigateForward(`/success`)
-    } catch (e) {
+    } catch (e: any) {
       this.errorToastService.present(e)
     } finally {
       loader.dismiss()

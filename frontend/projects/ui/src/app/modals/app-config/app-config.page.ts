@@ -102,7 +102,7 @@ export class AppConfigPage {
         this.diff = this.getDiff(patch)
         this.markDirty(patch)
       }
-    } catch (e) {
+    } catch (e: any) {
       this.loadingError = getErrorMessage(e)
     } finally {
       this.loadingText = undefined
@@ -170,7 +170,7 @@ export class AppConfigPage {
         config,
       })
       this.modalCtrl.dismiss()
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       this.saving = false

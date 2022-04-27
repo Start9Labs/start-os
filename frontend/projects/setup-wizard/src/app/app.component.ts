@@ -29,7 +29,7 @@ export class AppComponent {
         this.stateService.isMigrating = false
         await this.navCtrl.navigateForward(`/recover`)
       }
-    } catch (e) {
+    } catch (e: any) {
       this.errorToastService.present(e)
     }
   }
