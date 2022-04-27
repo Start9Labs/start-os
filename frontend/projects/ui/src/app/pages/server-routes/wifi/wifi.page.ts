@@ -49,7 +49,7 @@ export class WifiPage {
       if (!this.wifi.country) {
         await this.presentAlertCountry()
       }
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       this.loading = false
@@ -179,7 +179,7 @@ export class WifiPage {
       await this.api.setWifiCountry({ country })
       await this.getWifi()
       this.wifi.country = country
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -271,7 +271,7 @@ export class WifiPage {
     try {
       await this.api.connectWifi({ ssid })
       await this.confirmWifi(ssid)
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -290,7 +290,7 @@ export class WifiPage {
       await this.api.deleteWifi({ ssid })
       await this.getWifi()
       delete this.wifi.ssids[ssid]
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -313,7 +313,7 @@ export class WifiPage {
         connect: false,
       })
       await this.getWifi()
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -337,7 +337,7 @@ export class WifiPage {
       })
 
       await this.confirmWifi(ssid, true)
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()

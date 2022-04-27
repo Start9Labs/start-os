@@ -17,6 +17,7 @@ import { FooterModule } from './app/footer/footer.module'
 import { MenuModule } from './app/menu/menu.module'
 import { EnterModule } from './app/enter/enter.module'
 import { APP_PROVIDERS } from './app.providers'
+import { GlobalModule } from './app/global/global.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -44,6 +45,7 @@ import { APP_PROVIDERS } from './app.providers'
     MonacoEditorModule,
     SharedPipesModule,
     MarketplaceModule,
+    GlobalModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

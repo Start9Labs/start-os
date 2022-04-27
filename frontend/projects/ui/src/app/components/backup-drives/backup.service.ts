@@ -48,7 +48,7 @@ export class BackupService {
             entry: drive as DiskBackupTarget,
           }
         })
-    } catch (e) {
+    } catch (e: any) {
       this.loadingError = getErrorMessage(e)
     } finally {
       this.loading = false

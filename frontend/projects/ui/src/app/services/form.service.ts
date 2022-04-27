@@ -1,11 +1,9 @@
 import { Injectable } from '@angular/core'
 import {
-  AbstractControl,
   FormArray,
   FormBuilder,
   FormControl,
   FormGroup,
-  ValidationErrors,
   ValidatorFn,
   Validators,
 } from '@angular/forms'
@@ -69,7 +67,7 @@ export class FormService {
   }
 
   getListItem(spec: ValueSpecList, entry: any) {
-    const listItemValidators = this.getListItemValidators(spec)
+    const listItemValidators = getListItemValidators(spec)
     if (isValueSpecListOf(spec, 'string')) {
       return this.formBuilder.control(entry, listItemValidators)
     } else if (isValueSpecListOf(spec, 'number')) {
@@ -80,14 +78,6 @@ export class FormService {
       return this.getFormGroup(spec.spec.spec, listItemValidators, entry)
     } else if (isValueSpecListOf(spec, 'union')) {
       return this.getUnionObject(spec.spec, spec.spec.default, entry)
-    }
-  }
-
-  private getListItemValidators(spec: ValueSpecList) {
-    if (isValueSpecListOf(spec, 'string')) {
-      return this.stringValidators(spec.spec)
-    } else if (isValueSpecListOf(spec, 'number')) {
-      return this.numberValidators(spec.spec)
     }
   }
 
@@ -112,7 +102,7 @@ export class FormService {
     let value: any
     switch (spec.type) {
       case 'string':
-        validators = this.stringValidators(spec)
+        validators = stringValidators(spec)
         if (currentValue !== undefined) {
           value = currentValue
         } else {
@@ -120,7 +110,7 @@ export class FormService {
         }
         return this.formBuilder.control(value, validators)
       case 'number':
-        validators = this.numberValidators(spec)
+        validators = numberValidators(spec)
         if (currentValue !== undefined) {
           value = currentValue
         } else {
@@ -130,7 +120,7 @@ export class FormService {
       case 'object':
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
-        validators = this.listValidators(spec)
+        validators = listValidators(spec)
         const mapped = (
           Array.isArray(currentValue) ? currentValue : (spec.default as any[])
         ).map(entry => {
@@ -149,56 +139,64 @@ export class FormService {
         return this.formBuilder.control(value)
     }
   }
+}
 
-  private stringValidators(
-    spec: ValueSpecString | ListValueSpecString,
-  ): ValidatorFn[] {
-    const validators: ValidatorFn[] = []
+function getListItemValidators(spec: ValueSpecList) {
+  if (isValueSpecListOf(spec, 'string')) {
+    return stringValidators(spec.spec)
+  } else if (isValueSpecListOf(spec, 'number')) {
+    return numberValidators(spec.spec)
+  }
+}
 
-    if (!(spec as ValueSpecString).nullable) {
-      validators.push(Validators.required)
-    }
+function stringValidators(
+  spec: ValueSpecString | ListValueSpecString,
+): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
 
-    if (spec.pattern) {
-      validators.push(Validators.pattern(spec.pattern))
-    }
-
-    return validators
+  if (!(spec as ValueSpecString).nullable) {
+    validators.push(Validators.required)
   }
 
-  private numberValidators(
-    spec: ValueSpecNumber | ListValueSpecNumber,
-  ): ValidatorFn[] {
-    const validators: ValidatorFn[] = []
-
-    validators.push(isNumber())
-
-    if (!(spec as ValueSpecNumber).nullable) {
-      validators.push(Validators.required)
-    }
-
-    if (spec.integral) {
-      validators.push(isInteger())
-    }
-
-    validators.push(numberInRange(spec.range))
-
-    return validators
+  if (spec.pattern) {
+    validators.push(Validators.pattern(spec.pattern))
   }
 
-  private listValidators(spec: ValueSpecList): ValidatorFn[] {
-    const validators: ValidatorFn[] = []
+  return validators
+}
 
-    validators.push(listInRange(spec.range))
+function numberValidators(
+  spec: ValueSpecNumber | ListValueSpecNumber,
+): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
 
-    validators.push(listItemIssue())
+  validators.push(isNumber())
 
-    if (!isValueSpecListOf(spec, 'enum')) {
-      validators.push(listUnique(spec))
-    }
-
-    return validators
+  if (!(spec as ValueSpecNumber).nullable) {
+    validators.push(Validators.required)
   }
+
+  if (spec.integral) {
+    validators.push(isInteger())
+  }
+
+  validators.push(numberInRange(spec.range))
+
+  return validators
+}
+
+function listValidators(spec: ValueSpecList): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
+
+  validators.push(listInRange(spec.range))
+
+  validators.push(listItemIssue())
+
+  if (!isValueSpecListOf(spec, 'enum')) {
+    validators.push(listUnique(spec))
+  }
+
+  return validators
 }
 
 function isFullUnion(
@@ -208,48 +206,47 @@ function isFullUnion(
 }
 
 export function numberInRange(stringRange: string): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
+  return control => {
     const value = control.value
     if (!value) return null
     try {
       Range.from(stringRange).checkIncludes(value)
       return null
-    } catch (e) {
+    } catch (e: any) {
       return { numberNotInRange: { value: `Number must be ${e.message}` } }
     }
   }
 }
 
 export function isNumber(): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    return !control.value || control.value == Number(control.value)
+  return control =>
+    !control.value || control.value == Number(control.value)
       ? null
       : { notNumber: { value: control.value } }
-  }
 }
 
 export function isInteger(): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    return !control.value || control.value == Math.trunc(control.value)
+  return control =>
+    !control.value || control.value == Math.trunc(control.value)
       ? null
       : { numberNotInteger: { value: control.value } }
-  }
 }
 
 export function listInRange(stringRange: string): ValidatorFn {
-  return (control: FormArray): ValidationErrors | null => {
+  return control => {
     try {
       Range.from(stringRange).checkIncludes(control.value.length)
       return null
-    } catch (e) {
+    } catch (e: any) {
       return { listNotInRange: { value: `List must be ${e.message}` } }
     }
   }
 }
 
 export function listItemIssue(): ValidatorFn {
-  return (parentControl: FormArray): ValidationErrors | null => {
-    const problemChild = parentControl.controls.find(c => c.invalid)
+  return parentControl => {
+    const { controls } = parentControl as FormArray
+    const problemChild = controls.find(c => c.invalid)
     if (problemChild) {
       return { listItemIssue: { value: 'Invalid entries' } }
     } else {
@@ -259,7 +256,7 @@ export function listItemIssue(): ValidatorFn {
 }
 
 export function listUnique(spec: ValueSpecList): ValidatorFn {
-  return (control: FormArray): ValidationErrors | null => {
+  return control => {
     const list = control.value
     for (let idx = 0; idx < list.length; idx++) {
       for (let idx2 = idx + 1; idx2 < list.length; idx2++) {
@@ -516,25 +513,29 @@ export function convertValuesRecursive(
       convertValuesRecursive(spec, control)
     } else if (valueSpec.type === 'list') {
       const formArr = group.get(key) as FormArray
+      const { controls } = formArr
+
       if (valueSpec.subtype === 'number') {
-        formArr.controls.forEach(control => {
+        controls.forEach(control => {
           control.setValue(control.value ? Number(control.value) : null)
         })
       } else if (valueSpec.subtype === 'string') {
-        formArr.controls.forEach(control => {
+        controls.forEach(control => {
           if (!control.value) control.setValue(null)
         })
       } else if (valueSpec.subtype === 'object') {
-        formArr.controls.forEach((formGroup: FormGroup) => {
+        controls.forEach(formGroup => {
           const objectSpec = valueSpec.spec as ListValueSpecObject
-          convertValuesRecursive(objectSpec.spec, formGroup)
+          convertValuesRecursive(objectSpec.spec, formGroup as FormGroup)
         })
       } else if (valueSpec.subtype === 'union') {
-        formArr.controls.forEach((formGroup: FormGroup) => {
+        controls.forEach(formGroup => {
           const unionSpec = valueSpec.spec as ListValueSpecUnion
           const spec =
-            unionSpec.variants[formGroup.controls[unionSpec.tag.id].value]
-          convertValuesRecursive(spec, formGroup)
+            unionSpec.variants[
+              (formGroup as FormGroup).controls[unionSpec.tag.id].value
+            ]
+          convertValuesRecursive(spec, formGroup as FormGroup)
         })
       }
     }

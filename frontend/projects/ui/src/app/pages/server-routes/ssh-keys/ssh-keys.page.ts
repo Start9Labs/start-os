@@ -37,7 +37,7 @@ export class SSHKeysPage {
   async getKeys(): Promise<void> {
     try {
       this.sshKeys = await this.embassyApi.getSshKeys({})
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       this.loading = false
@@ -111,7 +111,7 @@ export class SSHKeysPage {
       const entry = this.sshKeys[i]
       await this.embassyApi.deleteSshKey({ fingerprint: entry.fingerprint })
       this.sshKeys.splice(i, 1)
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()

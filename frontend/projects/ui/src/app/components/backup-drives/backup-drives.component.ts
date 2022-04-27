@@ -157,7 +157,7 @@ export class BackupDrivesComponent {
         entry,
       })
       return true
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
       return false
     } finally {
@@ -209,9 +209,8 @@ export class BackupDrivesComponent {
 
     try {
       const res = await this.embassyApi.updateBackupTarget(value)
-      const entry = Object.values(res)[0]
-      this.backupService.cifs[index].entry = entry
-    } catch (e) {
+      this.backupService.cifs[index].entry = Object.values(res)[0]
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -229,7 +228,7 @@ export class BackupDrivesComponent {
     try {
       await this.embassyApi.removeBackupTarget({ id })
       this.backupService.cifs.splice(index, 1)
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()

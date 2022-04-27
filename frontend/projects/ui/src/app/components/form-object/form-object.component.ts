@@ -212,8 +212,7 @@ export class FormObjectComponent {
       component: EnumListPage,
     })
 
-    modal.onWillDismiss().then((res: { data: string[] }) => {
-      const data = res.data
+    modal.onWillDismiss<string[]>().then(({ data }) => {
       if (!data) return
       this.updateEnumList(key, current, data)
     })

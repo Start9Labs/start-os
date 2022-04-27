@@ -1,12 +1,12 @@
 import { Injectable, NgZone } from '@angular/core'
 import { Router } from '@angular/router'
-import { AuthService } from './auth.service'
 import { filter, tap } from 'rxjs/operators'
 import { Observable } from 'rxjs'
 
-@Injectable({
-  providedIn: 'root',
-})
+import { AuthService } from 'src/app/services/auth.service'
+
+// Redirect to login page upon broken authorization
+@Injectable()
 export class LogoutService extends Observable<unknown> {
   private readonly stream$ = this.authService.isVerified$.pipe(
     filter(verified => !verified),

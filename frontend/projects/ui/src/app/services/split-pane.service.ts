@@ -5,5 +5,5 @@ import { Injectable } from '@angular/core'
   providedIn: 'root',
 })
 export class SplitPaneTracker {
-  sidebarOpen$: BehaviorSubject<boolean> = new BehaviorSubject(false)
+  readonly sidebarOpen$ = new BehaviorSubject<boolean>(false)
 }

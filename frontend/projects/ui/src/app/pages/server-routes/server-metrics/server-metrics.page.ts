@@ -55,7 +55,7 @@ export class ServerMetricsPage {
   private async getMetrics(): Promise<void> {
     try {
       this.metrics = await this.embassyApi.getServerMetrics({})
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
       this.stopDaemon()
     }

@@ -44,7 +44,7 @@ export class SnekDirective {
             pointer: '/gaming',
             value: { snake: { 'high-score': data.highScore } },
           })
-        } catch (e) {
+        } catch (e: any) {
           this.errToast.present(e)
         } finally {
           this.loadingCtrl.dismiss()

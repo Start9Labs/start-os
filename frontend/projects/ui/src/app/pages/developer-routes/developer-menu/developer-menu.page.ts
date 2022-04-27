@@ -81,7 +81,7 @@ export class DeveloperMenuPage {
         pointer: `/dev/${this.projectId}/basic-info`,
         value: basicInfo,
       })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()

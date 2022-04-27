@@ -37,7 +37,7 @@ export class ServerConfigService {
 
           try {
             await this.saveFns[key](data)
-          } catch (e) {
+          } catch (e: any) {
             this.errToast.present(e)
           } finally {
             loader.dismiss()
