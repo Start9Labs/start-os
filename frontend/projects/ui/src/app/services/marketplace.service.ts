@@ -19,6 +19,7 @@ import {
   shareReplay,
   startWith,
   switchMap,
+  take,
   tap,
 } from 'rxjs/operators'
 
@@ -135,6 +136,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     req: Omit<RR.InstallPackageReq, 'marketplace-url'>,
   ): Observable<unknown> {
     return this.getMarketplace().pipe(
+      take(1),
       switchMap(({ url }) =>
         from(
           this.api.installPackage({
