@@ -5,7 +5,7 @@ use patch_db::{DbHandle, LockType};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::dependencies::{break_transitive, DependencyError};
+use crate::dependencies::{break_transitive, heal_transitive, DependencyError};
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::MainStatus;
@@ -115,6 +115,8 @@ pub async fn check<Db: DbHandle>(
                 &mut BTreeMap::new(),
             )
             .await?;
+        } else {
+            heal_transitive(ctx, &mut tx, &dependent, id).await?;
         }
     }
 
