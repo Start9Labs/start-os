@@ -4,12 +4,45 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use patch_db::{DbHandle, LockType};
 use tracing::instrument;
 
-use crate::context::RpcContext;
 use crate::dependencies::{break_transitive, DependencyError};
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::MainStatus;
 use crate::Error;
+use crate::{context::RpcContext, dependencies::BreakTransitiveReceipts};
+
+// #[derive(Clone)]
+// pub struct CheckReceipts {
+//     break_receipts: BreakTransitiveReceipts,
+// }
+
+// impl CheckReceipts {
+//     pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
+//         let mut locks = Vec::new();
+
+//         let setup = Self::setup(&mut locks);
+//         Ok(setup(&db.lock_all(locks).await?)?)
+//     }
+
+//     pub fn setup(
+//         locks: &mut Vec<patch_db::LockTargetId>,
+//     ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+//         let break_receipts = BreakTransitiveReceipts::setup(locks);
+//         // let dependency_errors = crate::db::DatabaseModel::new()
+//         //     .package_data()
+//         //     .star()
+//         //     .installed()
+//         //     .map(|x| x.status().dependency_errors())
+//         //     .make_locker(LockType::Write)
+//         //     .add_to_keys(locks);
+//         move |skeleton_key| {
+//             Ok(Self {
+//                 break_receipts: break_receipts(skeleton_key)?,
+//                 // dependency_errors: dependency_errors.verify(skeleton_key)?,
+//             })
+//         }
+//     }
+// }
 
 #[instrument(skip(ctx, db))]
 pub async fn check<Db: DbHandle>(
@@ -19,7 +52,6 @@ pub async fn check<Db: DbHandle>(
     should_commit: &AtomicBool,
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
-    let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
 
     let mut checkpoint = tx.begin().await?;
 
@@ -98,6 +130,10 @@ pub async fn check<Db: DbHandle>(
         .await?;
 
     checkpoint.save().await?;
+
+    tracing::debug!("Checking health of {}", id);
+    let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
+    tracing::debug!("Got receipts {}", id);
 
     for (dependent, info) in &*current_dependents {
         let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results
