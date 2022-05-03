@@ -11,39 +11,6 @@ use crate::status::MainStatus;
 use crate::Error;
 use crate::{context::RpcContext, dependencies::BreakTransitiveReceipts};
 
-// #[derive(Clone)]
-// pub struct CheckReceipts {
-//     break_receipts: BreakTransitiveReceipts,
-// }
-
-// impl CheckReceipts {
-//     pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
-//         let mut locks = Vec::new();
-
-//         let setup = Self::setup(&mut locks);
-//         Ok(setup(&db.lock_all(locks).await?)?)
-//     }
-
-//     pub fn setup(
-//         locks: &mut Vec<patch_db::LockTargetId>,
-//     ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-//         let break_receipts = BreakTransitiveReceipts::setup(locks);
-//         // let dependency_errors = crate::db::DatabaseModel::new()
-//         //     .package_data()
-//         //     .star()
-//         //     .installed()
-//         //     .map(|x| x.status().dependency_errors())
-//         //     .make_locker(LockType::Write)
-//         //     .add_to_keys(locks);
-//         move |skeleton_key| {
-//             Ok(Self {
-//                 break_receipts: break_receipts(skeleton_key)?,
-//                 // dependency_errors: dependency_errors.verify(skeleton_key)?,
-//             })
-//         }
-//     }
-// }
-
 #[instrument(skip(ctx, db))]
 pub async fn check<Db: DbHandle>(
     ctx: &RpcContext,
