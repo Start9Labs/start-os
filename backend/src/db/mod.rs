@@ -1,6 +1,6 @@
-pub mod locks;
 pub mod model;
 pub mod package;
+pub mod receipts;
 pub mod util;
 
 use std::borrow::Cow;

@@ -6,18 +6,18 @@ use color_eyre::eyre::eyre;
 use futures::future::{BoxFuture, FutureExt};
 use indexmap::IndexSet;
 use itertools::Itertools;
-use patch_db::{DbHandle, LockReceipt, LockTarget, LockType};
+use patch_db::{DbHandle, LockReceipt, LockTarget, LockTargetId, LockType, Verifier};
 use rand::SeedableRng;
 use regex::Regex;
 use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
 
-use crate::db::model::CurrentDependencyInfo;
 use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
-use crate::{context::RpcContext, db::locks::HealTransitiveLock};
+use crate::{context::RpcContext, db::receipts::HealTransitiveReceipt};
+use crate::{db::model::CurrentDependencyInfo, dependencies::HTLock};
 use crate::{db::util::WithRevision, dependencies::Dependencies};
 use crate::{
     dependencies::DepInfo,
@@ -170,6 +170,57 @@ pub fn config(#[arg] id: PackageId) -> Result<PackageId, Error> {
     Ok(id)
 }
 
+pub struct ConfigGetReceipts {
+    manifest_volumes: LockReceipt<crate::volume::Volumes, ()>,
+    manifest_version: LockReceipt<crate::util::Version, ()>,
+    manifest_config: LockReceipt<Option<ConfigActions>, ()>,
+}
+
+impl ConfigGetReceipts {
+    pub async fn new<'a>(db: &'a mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks, id);
+        Ok(setup(&db.lock_all(locks).await?)?)
+    }
+
+    pub fn setup(
+        locks: &mut Vec<LockTargetId>,
+        id: &PackageId,
+    ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
+        let ht_lock = HTLock::setup(locks);
+
+        let manifest_version = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(id)
+            .and_then(|x| x.installed())
+            .map(|x| x.manifest().version())
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+        let manifest_volumes = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(id)
+            .and_then(|x| x.installed())
+            .map(|x| x.manifest().volumes())
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+        let manifest_config = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(id)
+            .and_then(|x| x.installed())
+            .map(|x| x.manifest().config())
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+        move |skeleton_key| {
+            Ok(Self {
+                manifest_volumes: manifest_volumes.verify(&skeleton_key)?,
+                manifest_version: manifest_version.verify(&skeleton_key)?,
+                manifest_config: manifest_config.verify(&skeleton_key)?,
+            })
+        }
+    }
+}
+
 #[command(display(display_serializable))]
 #[instrument(skip(ctx))]
 pub async fn get(
@@ -180,29 +231,16 @@ pub async fn get(
     format: Option<IoFormat>,
 ) -> Result<ConfigRes, Error> {
     let mut db = ctx.db.handle();
-    let pkg_model = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&id)
-        .and_then(|m| m.installed())
-        .expect(&mut db)
-        .await
-        .with_kind(crate::ErrorKind::NotFound)?;
-    let action = pkg_model
-        .clone()
-        .manifest()
-        .config()
-        .get(&mut db, true)
+    let receipts = ConfigGetReceipts::new(&mut db, &id).await?;
+    let action = receipts
+        .manifest_config
+        .get(&mut db)
         .await?
-        .to_owned()
         .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
-    let version = pkg_model
-        .clone()
-        .manifest()
-        .version()
-        .get(&mut db, true)
-        .await?;
-    let volumes = pkg_model.manifest().volumes().get(&mut db, true).await?;
-    action.get(&ctx, &id, &*version, &*volumes).await
+
+    let volumes = receipts.manifest_volumes.get(&mut db).await?;
+    let version = receipts.manifest_version.get(&mut db).await?;
+    action.get(&ctx, &id, &version, &volumes).await
 }
 
 #[command(
@@ -228,7 +266,8 @@ pub fn set(
 /// do the operation on the db.
 /// An UnlockedLock has two types, the type of setting and getting from the db, and the second type
 /// is the keys that we need to insert on getting/setting because we have included wild cards into the paths.
-pub struct ConfigLocks {
+pub struct ConfigReceipts {
+    ht_lock: HTLock,
     configured: LockReceipt<bool, String>,
     config_actions: LockReceipt<ConfigActions, String>,
     dependency: LockReceipt<DepInfo, (String, String)>,
@@ -243,11 +282,16 @@ pub struct ConfigLocks {
     status: LockReceipt<Status, String>,
 }
 
-impl ConfigLocks {
-    /// We should call and create the locks at the start of a service call. This is doing the
-    /// setup of all the locks that used to be deeper in the stack
-    pub async fn new(db: &'_ mut impl DbHandle) -> Result<Self, Error> {
+impl ConfigReceipts {
+    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks);
+        Ok(setup(&db.lock_all(locks).await?)?)
+    }
+
+    pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
+        let ht_lock = HTLock::setup(locks);
 
         let configured: LockTarget<bool, String> = crate::db::DatabaseModel::new()
             .package_data()
@@ -255,7 +299,7 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.status().configured())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let config_actions = crate::db::DatabaseModel::new()
             .package_data()
@@ -263,7 +307,7 @@ impl ConfigLocks {
             .installed()
             .and_then(|x| x.manifest().config())
             .make_locker(LockType::Read)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let dependencies = crate::db::DatabaseModel::new()
             .package_data()
@@ -271,7 +315,7 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.manifest().dependencies())
             .make_locker(LockType::Read)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let dependency = crate::db::DatabaseModel::new()
             .package_data()
@@ -279,7 +323,7 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.manifest().dependencies().star())
             .make_locker(LockType::Read)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let volumes = crate::db::DatabaseModel::new()
             .package_data()
@@ -287,7 +331,7 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.manifest().volumes())
             .make_locker(LockType::Read)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let version = crate::db::DatabaseModel::new()
             .package_data()
@@ -295,7 +339,7 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.manifest().version())
             .make_locker(LockType::Read)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let manifest = crate::db::DatabaseModel::new()
             .package_data()
@@ -303,7 +347,7 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.manifest())
             .make_locker(LockType::Read)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let system_pointers = crate::db::DatabaseModel::new()
             .package_data()
@@ -311,7 +355,7 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.system_pointers())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let current_dependents = crate::db::DatabaseModel::new()
             .package_data()
@@ -319,7 +363,7 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.current_dependents())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let dependency_errors = crate::db::DatabaseModel::new()
             .package_data()
@@ -327,7 +371,7 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.status().dependency_errors())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let manifest_dependencies_config = crate::db::DatabaseModel::new()
             .package_data()
@@ -335,7 +379,7 @@ impl ConfigLocks {
             .installed()
             .and_then(|x| x.manifest().dependencies().star().config())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
 
         let status = crate::db::DatabaseModel::new()
             .package_data()
@@ -343,27 +387,28 @@ impl ConfigLocks {
             .installed()
             .map(|x| x.status())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-
-        let skeleton_key = db.lock_all(locks).await?;
-        Ok(Self {
-            configured: configured.verify(&skeleton_key)?,
-            config_actions: config_actions.verify(&skeleton_key)?,
-            dependencies: dependencies.verify(&skeleton_key)?,
-            volumes: volumes.verify(&skeleton_key)?,
-            version: version.verify(&skeleton_key)?,
-            manifest: manifest.verify(&skeleton_key)?,
-            system_pointers: system_pointers.verify(&skeleton_key)?,
-            current_dependents: current_dependents.verify(&skeleton_key)?,
-            dependency_errors: dependency_errors.verify(&skeleton_key)?,
-            dependency: dependency.verify(&skeleton_key)?,
-            manifest_dependencies_config: manifest_dependencies_config.verify(&skeleton_key)?,
-            status: status.verify(&skeleton_key)?,
-        })
+            .add_to_keys(locks);
+        move |skeleton_key| {
+            Ok(Self {
+                ht_lock: ht_lock(skeleton_key)?,
+                configured: configured.verify(&skeleton_key)?,
+                config_actions: config_actions.verify(&skeleton_key)?,
+                dependencies: dependencies.verify(&skeleton_key)?,
+                volumes: volumes.verify(&skeleton_key)?,
+                version: version.verify(&skeleton_key)?,
+                manifest: manifest.verify(&skeleton_key)?,
+                system_pointers: system_pointers.verify(&skeleton_key)?,
+                current_dependents: current_dependents.verify(&skeleton_key)?,
+                dependency_errors: dependency_errors.verify(&skeleton_key)?,
+                dependency: dependency.verify(&skeleton_key)?,
+                manifest_dependencies_config: manifest_dependencies_config.verify(&skeleton_key)?,
+                status: status.verify(&skeleton_key)?,
+            })
+        }
     }
 }
 
-impl crate::db::locks::CurrentDependentsLock for ConfigLocks {
+impl crate::db::receipts::CurrentDependentsReceipt for ConfigReceipts {
     fn current_dependents(
         &self,
     ) -> &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String> {
@@ -371,25 +416,37 @@ impl crate::db::locks::CurrentDependentsLock for ConfigLocks {
     }
 }
 
-impl crate::db::locks::PackageStatusLock for ConfigLocks {
+impl crate::db::receipts::DependencyErrorsAtReceipt for ConfigReceipts {
+    fn dependency_errors(&self) -> &LockReceipt<DependencyErrors, String> {
+        &self.dependency_errors
+    }
+}
+
+impl crate::db::receipts::PackageStatusReceipt for ConfigReceipts {
     fn status(&self) -> &LockReceipt<Status, String> {
         &self.status
     }
 }
 
-impl crate::db::locks::DependenciesLock for ConfigLocks {
+impl crate::db::receipts::DependenciesReceipt for ConfigReceipts {
     fn dependencies(&self) -> &LockReceipt<Dependencies, String> {
         &self.dependencies
     }
 }
 
-impl crate::db::locks::DependencyLock for ConfigLocks {
+impl crate::db::receipts::DependencyReceipt for ConfigReceipts {
     fn dependency(&self) -> &LockReceipt<DepInfo, (String, String)> {
         &self.dependency
     }
 }
 
-impl HealTransitiveLock for ConfigLocks {}
+impl crate::db::receipts::ManifestReceipt for ConfigReceipts {
+    fn manifest(&self) -> &LockReceipt<Manifest, String> {
+        &self.manifest
+    }
+}
+
+impl HealTransitiveReceipt for ConfigReceipts {}
 
 // impl {}
 
@@ -407,7 +464,7 @@ pub async fn set_dry(
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
-    let locks = ConfigLocks::new(&mut tx).await?;
+    let locks = ConfigReceipts::new(&mut tx).await?;
     configure(
         &ctx,
         &mut tx,
@@ -434,7 +491,7 @@ pub async fn set_impl(
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
-    let locks = ConfigLocks::new(&mut tx).await?;
+    let locks = ConfigReceipts::new(&mut tx).await?;
     configure(
         &ctx,
         &mut tx,
@@ -453,7 +510,7 @@ pub async fn set_impl(
     })
 }
 
-#[instrument(skip(ctx, db, locks))]
+#[instrument(skip(ctx, db, receipts))]
 pub async fn configure<'a, Db: DbHandle>(
     ctx: &RpcContext,
     db: &'a mut Db,
@@ -463,17 +520,17 @@ pub async fn configure<'a, Db: DbHandle>(
     dry_run: bool,
     overrides: &mut BTreeMap<PackageId, Config>,
     breakages: &mut BTreeMap<PackageId, TaggedDependencyError>,
-    locks: &ConfigLocks,
+    receipts: &ConfigReceipts,
 ) -> Result<(), Error> {
     configure_rec(
-        ctx, db, id, config, timeout, dry_run, overrides, breakages, locks,
+        ctx, db, id, config, timeout, dry_run, overrides, breakages, receipts,
     )
     .await?;
-    locks.configured.set(db, true, &id).await?;
+    receipts.configured.set(db, true, &id).await?;
     Ok(())
 }
 
-#[instrument(skip(ctx, db, locks))]
+#[instrument(skip(ctx, db, receipts))]
 pub fn configure_rec<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
@@ -483,23 +540,27 @@ pub fn configure_rec<'a, Db: DbHandle>(
     dry_run: bool,
     overrides: &'a mut BTreeMap<PackageId, Config>,
     breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
-    locks: &'a ConfigLocks,
+    receipts: &'a ConfigReceipts,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
         // fetch data from db
-        let action = locks
+        let action = receipts
             .config_actions
             .get(db, &id)
             .await?
             .ok_or_else(not_found)?;
-        let dependencies = locks
+        let dependencies = receipts
             .dependencies
             .get(db, &id)
             .await?
             .ok_or_else(not_found)?;
-        let volumes = locks.volumes.get(db, &id).await?.ok_or_else(not_found)?;
-        let is_needs_config = !locks.configured.get(db, &id).await?.ok_or_else(not_found)?;
-        let version = locks.version.get(db, &id).await?.ok_or_else(not_found)?;
+        let volumes = receipts.volumes.get(db, &id).await?.ok_or_else(not_found)?;
+        let is_needs_config = !receipts
+            .configured
+            .get(db, &id)
+            .await?
+            .ok_or_else(not_found)?;
+        let version = receipts.version.get(db, &id).await?.ok_or_else(not_found)?;
 
         // get current config and current spec
         let ConfigRes {
@@ -514,7 +575,11 @@ pub fn configure_rec<'a, Db: DbHandle>(
             spec.gen(&mut rand::rngs::StdRng::from_entropy(), timeout)?
         };
 
-        let manifest = locks.manifest.get(db, &id).await?.ok_or_else(not_found)?;
+        let manifest = receipts
+            .manifest
+            .get(db, &id)
+            .await?
+            .ok_or_else(not_found)?;
 
         spec.validate(&manifest)?;
         spec.matches(&config)?; // check that new config matches spec
@@ -522,7 +587,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
             .await?; // dereference pointers in the new config
 
         // create backreferences to pointers
-        let mut sys = locks
+        let mut sys = receipts
             .system_pointers
             .get(db, &id)
             .await?
@@ -559,7 +624,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                 ValueSpecPointer::System(s) => sys.push(s),
             }
         }
-        locks.system_pointers.set(db, sys, &id).await?;
+        receipts.system_pointers.set(db, sys, &id).await?;
 
         let signal = if !dry_run {
             // run config action
@@ -600,22 +665,29 @@ pub fn configure_rec<'a, Db: DbHandle>(
         };
 
         // update dependencies
-        remove_from_current_dependents_lists(db, id, current_dependencies.keys(), locks).await?; // remove previous
-        add_dependent_to_current_dependents_lists(db, id, &current_dependencies, locks).await?; // add new
+        remove_from_current_dependents_lists(db, id, current_dependencies.keys(), receipts).await?; // remove previous
+        add_dependent_to_current_dependents_lists(db, id, &current_dependencies, receipts).await?; // add new
         current_dependencies.remove(id);
-        locks
+        receipts
             .current_dependents
             .set(db, current_dependencies.clone(), &id)
             .await?;
 
-        let errs = locks
+        let errs = receipts
             .dependency_errors
             .get(db, &id)
             .await?
             .ok_or_else(not_found)?;
         tracing::warn!("Dependency Errors: {:?}", errs);
-        let errs = DependencyErrors::init(ctx, db, &manifest, &current_dependencies).await?;
-        locks.dependency_errors.set(db, errs, &id).await?;
+        let errs = DependencyErrors::init(
+            ctx,
+            db,
+            &manifest,
+            &current_dependencies,
+            &receipts.ht_lock.try_heal,
+        )
+        .await?;
+        receipts.dependency_errors.set(db, errs, &id).await?;
 
         // cache current config for dependents
         overrides.insert(id.clone(), config.clone());
@@ -628,12 +700,12 @@ pub fn configure_rec<'a, Db: DbHandle>(
         let next = Value::Object(config.clone());
         for (dependent, dep_info) in dependents.iter().filter(|(dep_id, _)| dep_id != &id) {
             // check if config passes dependent check
-            if let Some(cfg) = locks
+            if let Some(cfg) = receipts
                 .manifest_dependencies_config
                 .get_at(db, (&dependent, &id))
                 .await?
             {
-                let manifest = locks
+                let manifest = receipts
                     .manifest
                     .get(db, &dependent)
                     .await?
@@ -649,7 +721,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                     .await?
                 {
                     let dep_err = DependencyError::ConfigUnsatisfied { error };
-                    break_transitive(db, dependent, id, dep_err, breakages).await?;
+                    break_transitive(db, dependent, id, dep_err, breakages, receipts).await?;
                 }
 
                 // handle backreferences
@@ -658,7 +730,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                         if cfg_ptr.select(&next) != cfg_ptr.select(&prev) {
                             if let Err(e) = configure_rec(
                                 ctx, db, dependent, None, timeout, dry_run, overrides, breakages,
-                                locks,
+                                receipts,
                             )
                             .await
                             {
@@ -671,6 +743,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                                             error: format!("{}", e),
                                         },
                                         breakages,
+                                        receipts,
                                     )
                                     .await?;
                                 } else {
@@ -680,7 +753,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                         }
                     }
                 }
-                heal_all_dependents_transitive(ctx, db, id, locks).await?;
+                heal_all_dependents_transitive(ctx, db, id, &receipts.ht_lock).await?;
             }
         }
 
@@ -714,7 +787,7 @@ pub fn not_found() -> Error {
 #[tokio::test]
 async fn ensure_creation_of_config_paths_makes_sense() {
     let mut fake = patch_db::test_utils::NoOpDb();
-    let config_locks = ConfigLocks::new(&mut fake).await.unwrap();
+    let config_locks = ConfigReceipts::new(&mut fake).await.unwrap();
     assert_eq!(
         &format!("{}", config_locks.configured.lock.glob),
         "/package-data/*/installed/status/configured"

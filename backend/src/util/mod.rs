@@ -131,6 +131,9 @@ impl Version {
     pub fn as_str(&self) -> &str {
         self.string.as_str()
     }
+    pub fn into_version(self) -> emver::Version {
+        self.version
+    }
 }
 impl std::fmt::Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
