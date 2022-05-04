@@ -177,7 +177,7 @@ pub struct RpcSetNginxReceipts {
 }
 
 impl RpcSetNginxReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
+    pub async fn new(db: &'_ mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks);
@@ -274,7 +274,7 @@ impl RpcContext {
     pub async fn set_nginx_conf<Db: DbHandle>(
         &self,
         db: &mut Db,
-        receipts: &RpcSetNginxReceipts,
+        receipts: RpcSetNginxReceipts,
     ) -> Result<(), Error> {
         tokio::fs::write("/etc/nginx/sites-available/default", {
             let info = receipts.server_info.get(db).await?;
