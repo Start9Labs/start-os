@@ -387,7 +387,7 @@ export class ServerShowPage {
       },
       {
         title: 'Kernel Logs',
-        description: 'Diagnostic log stream for device drivers',
+        description: 'Diagnostic log stream for device drivers and other kernel processes',
         icon: 'receipt-outline',
         action: () =>
           this.navCtrl.navigateForward(['kernel-logs'], {
