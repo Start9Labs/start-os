@@ -10,6 +10,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::MainStatus;
 use crate::Error;
+use crate::{context::RpcContext, dependencies::BreakTransitiveReceipts};
 
 #[instrument(skip(ctx, db))]
 pub async fn check<Db: DbHandle>(
@@ -19,7 +20,6 @@ pub async fn check<Db: DbHandle>(
     should_commit: &AtomicBool,
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
-    let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
 
     let mut checkpoint = tx.begin().await?;
 
@@ -98,6 +98,10 @@ pub async fn check<Db: DbHandle>(
         .await?;
 
     checkpoint.save().await?;
+
+    tracing::debug!("Checking health of {}", id);
+    let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
+    tracing::debug!("Got receipts {}", id);
 
     for (dependent, info) in &*current_dependents {
         let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results

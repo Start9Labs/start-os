@@ -823,19 +823,15 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
     breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
     receipts: &'a BreakTransitiveReceipts,
 ) -> Result<(), Error> {
-    for dependent in crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(id)
-        .and_then(|m| m.installed())
-        .expect(db)
+    for dependent in receipts
+        .current_dependents
+        .get(db, id)
         .await?
-        .current_dependents()
-        .keys(db, true)
-        .await?
-        .into_iter()
-        .filter(|dependent| id != dependent)
+        .iter()
+        .flat_map(|x| x.keys())
+        .filter(|dependent| id != *dependent)
     {
-        break_transitive(db, &dependent, id, error.clone(), breakages, receipts).await?;
+        break_transitive(db, dependent, id, error.clone(), breakages, receipts).await?;
     }
     Ok(())
 }
@@ -843,10 +839,11 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
 #[derive(Clone)]
 pub struct BreakTransitiveReceipts {
     dependency_errors: LockReceipt<DependencyErrors, String>,
+    current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
 }
 
 impl BreakTransitiveReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
+    pub async fn new(db: &'_ mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks);
@@ -861,9 +858,17 @@ impl BreakTransitiveReceipts {
             .map(|x| x.status().dependency_errors())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
+        let current_dependents = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .map(|x| x.current_dependents())
+            .make_locker(LockType::Exist)
+            .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
                 dependency_errors: dependency_errors.verify(skeleton_key)?,
+                current_dependents: current_dependents.verify(skeleton_key)?,
             })
         }
     }
@@ -880,12 +885,6 @@ pub fn break_transitive<'a, Db: DbHandle>(
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
         let mut tx = db.begin().await?;
-        let model = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(id)
-            .and_then(|m| m.installed())
-            .expect(&mut tx)
-            .await?;
         let mut dependency_errors = receipts
             .dependency_errors
             .get(&mut tx, id)
@@ -999,11 +998,11 @@ pub fn heal_transitive<'a, Db: DbHandle>(
 pub async fn reconfigure_dependents_with_live_pointers(
     ctx: &RpcContext,
     mut tx: impl DbHandle,
+    receipts: &ConfigReceipts,
     pde: &InstalledPackageDataEntry,
 ) -> Result<(), Error> {
     let dependents = &pde.current_dependents;
     let me = &pde.manifest.id;
-    let locks = ConfigReceipts::new(&mut tx).await?;
     for (dependent_id, dependency_info) in dependents {
         if dependency_info.pointers.iter().any(|ptr| match ptr {
             // dependency id matches the package being uninstalled
@@ -1022,7 +1021,7 @@ pub async fn reconfigure_dependents_with_live_pointers(
                 false,
                 &mut BTreeMap::new(),
                 &mut BTreeMap::new(),
-                &locks,
+                receipts,
             )
             .await?;
         }

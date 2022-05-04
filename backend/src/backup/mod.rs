@@ -240,7 +240,8 @@ impl BackupActions {
             .get(db, true)
             .await?;
 
-        reconfigure_dependents_with_live_pointers(ctx, db, &entry).await?;
+        let receipts = crate::config::ConfigReceipts::new(db).await?;
+        reconfigure_dependents_with_live_pointers(ctx, db, &receipts, &entry).await?;
 
         Ok(())
     }

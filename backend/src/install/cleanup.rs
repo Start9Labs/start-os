@@ -6,9 +6,9 @@ use sqlx::{Executor, Sqlite};
 use tracing::instrument;
 
 use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
-use crate::context::RpcContext;
 use crate::db::model::{InstalledPackageDataEntry, PackageDataEntry};
 use crate::{config::not_found, dependencies::reconfigure_dependents_with_live_pointers};
+use crate::{config::ConfigReceipts, context::RpcContext};
 use crate::{
     db::model::AllPackageData,
     s9pk::manifest::{Manifest, PackageId},
@@ -278,7 +278,9 @@ pub async fn remove_from_current_dependents_lists<
     Ok(())
 }
 pub struct UninstallReceipts {
+    config: ConfigReceipts,
     removing: LockReceipt<InstalledPackageDataEntry, ()>,
+    packages: LockReceipt<AllPackageData, ()>,
     current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
     update_depenency_receipts: UpdateDependencyReceipts,
 }
@@ -294,6 +296,7 @@ impl UninstallReceipts {
         locks: &mut Vec<LockTargetId>,
         id: &PackageId,
     ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
+        let config = ConfigReceipts::setup(locks);
         let removing = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(id)
@@ -308,12 +311,18 @@ impl UninstallReceipts {
             .map(|x| x.current_dependents())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
+        let packages = crate::db::DatabaseModel::new()
+            .package_data()
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
         let update_depenency_receipts = UpdateDependencyReceipts::setup(locks);
         move |skeleton_key| {
             Ok(Self {
+                config: config(skeleton_key)?,
                 removing: removing.verify(skeleton_key)?,
                 current_dependents: current_dependents.verify(skeleton_key)?,
                 update_depenency_receipts: update_depenency_receipts(skeleton_key)?,
+                packages: packages.verify(skeleton_key)?,
             })
         }
     }
@@ -333,13 +342,14 @@ where
     let entry = receipts.removing.get(&mut tx).await?;
     cleanup(ctx, &entry.manifest.id, &entry.manifest.version).await?;
 
-    crate::db::DatabaseModel::new()
-        .package_data()
-        .remove(&mut tx, id)
-        .await?;
-
+    let packages = {
+        let mut packages = receipts.packages.get(&mut tx).await?;
+        packages.0.remove(id);
+        packages
+    };
+    receipts.packages.set(&mut tx, packages).await?;
     // once we have removed the package entry, we can change all the dependent pointers to null
-    reconfigure_dependents_with_live_pointers(ctx, &mut tx, &entry).await?;
+    reconfigure_dependents_with_live_pointers(ctx, &mut tx, &receipts.config, &entry).await?;
 
     remove_from_current_dependents_lists(
         &mut tx,
