@@ -11,8 +11,9 @@ use crate::{Error, ResultExt};
 mod v0_3_0;
 mod v0_3_0_1;
 mod v0_3_0_2;
+mod v0_3_0_3;
 
-pub type Current = v0_3_0_2::Version;
+pub type Current = v0_3_0_3::Version;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -20,6 +21,7 @@ enum Version {
     V0_3_0(Wrapper<v0_3_0::Version>),
     V0_3_0_1(Wrapper<v0_3_0_1::Version>),
     V0_3_0_2(Wrapper<v0_3_0_2::Version>),
+    V0_3_0_3(Wrapper<v0_3_0_3::Version>),
     Other(emver::Version),
 }
 
@@ -122,6 +124,7 @@ pub async fn init<Db: DbHandle>(db: &mut Db) -> Result<(), Error> {
         Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db).await?,
         Version::V0_3_0_1(v) => v.0.migrate_to(&Current::new(), db).await?,
         Version::V0_3_0_2(v) => v.0.migrate_to(&Current::new(), db).await?,
+        Version::V0_3_0_3(v) => v.0.migrate_to(&Current::new(), db).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),

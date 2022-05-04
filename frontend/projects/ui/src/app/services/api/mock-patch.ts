@@ -20,7 +20,7 @@ export const mockPatchData: DataModel = {
   },
   'server-info': {
     id: 'embassy-abcdefgh',
-    version: '0.3.0.1',
+    version: '0.3.0.3',
     'last-backup': null,
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
