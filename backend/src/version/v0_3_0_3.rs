@@ -4,6 +4,7 @@ use super::*;
 
 const V0_3_0_3: emver::Version = emver::Version::new(0, 3, 0, 3);
 
+#[derive(Clone, Debug)]
 pub struct Version;
 #[async_trait]
 impl VersionT for Version {

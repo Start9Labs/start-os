@@ -38,6 +38,10 @@ impl Version {
         if *version == wrapper.semver() {
             return Version::V0_3_0_2(Wrapper(wrapper));
         }
+        let wrapper = v0_3_0_3::Version::new();
+        if *version == wrapper.semver() {
+            return Version::V0_3_0_3(Wrapper(wrapper));
+        }
         Version::Other(version.into_version())
     }
     #[cfg(test)]
@@ -46,6 +50,7 @@ impl Version {
             Version::V0_3_0(Wrapper(x)) => x.semver(),
             Version::V0_3_0_1(Wrapper(x)) => x.semver(),
             Version::V0_3_0_2(Wrapper(x)) => x.semver(),
+            Version::V0_3_0_3(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -156,10 +161,10 @@ pub async fn init<Db: DbHandle>(
 ) -> Result<(), Error> {
     let version = Version::from_util_version(receipts.server_version.get(db).await?);
     match version {
-        Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db).await?,
-        Version::V0_3_0_1(v) => v.0.migrate_to(&Current::new(), db).await?,
-        Version::V0_3_0_2(v) => v.0.migrate_to(&Current::new(), db).await?,
-        Version::V0_3_0_3(v) => v.0.migrate_to(&Current::new(), db).await?,
+        Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
+        Version::V0_3_0_1(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
+        Version::V0_3_0_2(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
+        Version::V0_3_0_3(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
@@ -194,6 +199,7 @@ mod tests {
             Just(Version::V0_3_0(Wrapper(v0_3_0::Version::new()))),
             Just(Version::V0_3_0_1(Wrapper(v0_3_0_1::Version::new()))),
             Just(Version::V0_3_0_2(Wrapper(v0_3_0_2::Version::new()))),
+            Just(Version::V0_3_0_3(Wrapper(v0_3_0_3::Version::new()))),
             em_version().prop_map(Version::Other),
         ]
     }
