@@ -46,6 +46,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   )
 
   private readonly pkg$: Observable<MarketplacePkg[]> = this.init$.pipe(
+    take(1),
     switchMap(({ url, name }) =>
       from(this.getMarketplacePkgs({ page: 1, 'per-page': 100 }, url)).pipe(
         tap(() => this.onPackages(name)),
@@ -81,6 +82,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   getPackage(id: string, version: string): Observable<MarketplacePkg> {
     const params = { ids: [{ id, version }] }
     const fallback$ = this.init$.pipe(
+      take(1),
       switchMap(({ url }) => from(this.getMarketplacePkgs(params, url))),
       map(pkgs => this.findPackage(pkgs, id, version)),
       startWith(null),
@@ -173,12 +175,11 @@ export class MarketplaceService extends AbstractMarketplaceService {
     params: Omit<RR.GetMarketplacePackagesReq, 'eos-version-compat'>,
     url: string,
   ): Promise<RR.GetMarketplacePackagesRes> {
-    let clonedParams = { ...params }
-    if (clonedParams.query) delete clonedParams.category
-    if (clonedParams.ids) clonedParams.ids = JSON.stringify(clonedParams.ids)
+    if (params.query) delete params.category
+    if (params.ids) params.ids = JSON.stringify(params.ids)
 
     const qp: RR.GetMarketplacePackagesReq = {
-      ...clonedParams,
+      ...params,
       'eos-version-compat': this.serverInfo['eos-version-compat'],
     }
 
