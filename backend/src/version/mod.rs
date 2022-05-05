@@ -26,23 +26,12 @@ enum Version {
 
 impl Version {
     fn from_util_version(version: crate::util::Version) -> Self {
-        let wrapper = v0_3_0::Version::new();
-        if *version == wrapper.semver() {
-            return Version::V0_3_0(Wrapper(wrapper));
-        }
-        let wrapper = v0_3_0_1::Version::new();
-        if *version == wrapper.semver() {
-            return Version::V0_3_0_1(Wrapper(wrapper));
-        }
-        let wrapper = v0_3_0_2::Version::new();
-        if *version == wrapper.semver() {
-            return Version::V0_3_0_2(Wrapper(wrapper));
-        }
-        let wrapper = v0_3_0_3::Version::new();
-        if *version == wrapper.semver() {
-            return Version::V0_3_0_3(Wrapper(wrapper));
-        }
-        Version::Other(version.into_version())
+        serde_json::to_value(version.clone())
+            .and_then(serde_json::from_value)
+            .unwrap_or_else(|_e| {
+                tracing::warn!("Can't deserialize: {:?} and falling back to other", version);
+                Version::Other(version.into_version())
+            })
     }
     #[cfg(test)]
     fn as_sem_ver(&self) -> emver::Version {
