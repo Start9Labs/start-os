@@ -105,6 +105,23 @@ pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<
 
             std::io::Cursor::new(assets.into_inner()?)
         })
+        .scripts({
+            let mut scripts = tar::Builder::new(Vec::new());
+
+            for (script_volume, _) in manifest
+                .volumes
+                .iter()
+                .filter(|(_, v)| matches!(v, &&Volume::Scripts {}))
+            {
+                scripts.append_dir_all(
+                    script_volume,
+                    path.join(manifest.assets.scripts_path())
+                        .join(script_volume),
+                )?;
+            }
+
+            std::io::Cursor::new(scripts.into_inner()?)
+        })
         .build()
         .pack(&ctx.developer_key()?)?;
     outfile.sync_all()?;

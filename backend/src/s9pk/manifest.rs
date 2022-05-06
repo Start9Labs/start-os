@@ -166,6 +166,8 @@ pub struct Assets {
     pub docker_images: Option<PathBuf>,
     #[serde(default)]
     pub assets: Option<PathBuf>,
+    #[serde(default)]
+    pub scripts: Option<PathBuf>,
 }
 impl Assets {
     pub fn license_path(&self) -> &Path {
@@ -204,6 +206,12 @@ impl Assets {
             .as_ref()
             .map(|a| a.as_path())
             .unwrap_or(Path::new("assets"))
+    }
+    pub fn scripts_path(&self) -> &Path {
+        self.scripts
+            .as_ref()
+            .map(|a| a.as_path())
+            .unwrap_or(Path::new("scripts"))
     }
 }
 

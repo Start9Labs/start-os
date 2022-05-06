@@ -38,7 +38,7 @@ impl Header {
         reader.read_exact(&mut magic).await?;
         if magic != MAGIC {
             return Err(Error::new(
-                eyre!("Incorrect Magic"),
+                eyre!("Incorrect Magic: {:?}", magic),
                 crate::ErrorKind::ParseS9pk,
             ));
         }
@@ -46,7 +46,7 @@ impl Header {
         reader.read_exact(&mut version).await?;
         if version[0] != VERSION {
             return Err(Error::new(
-                eyre!("Unknown Version"),
+                eyre!("Unknown Version: {}", version[0]),
                 crate::ErrorKind::ParseS9pk,
             ));
         }
@@ -75,6 +75,7 @@ pub struct TableOfContents {
     pub icon: FileSection,
     pub docker_images: FileSection,
     pub assets: FileSection,
+    pub scripts: FileSection,
 }
 impl TableOfContents {
     pub fn serialize<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
@@ -93,6 +94,7 @@ impl TableOfContents {
         self.docker_images
             .serialize_entry("docker_images", &mut writer)?;
         self.assets.serialize_entry("assets", &mut writer)?;
+        self.scripts.serialize_entry("scripts", &mut writer)?;
         Ok(())
     }
     pub async fn deserialize<R: AsyncRead + Unpin>(mut reader: R) -> std::io::Result<Self> {
@@ -131,6 +133,7 @@ impl TableOfContents {
             icon: from_table(&table, "icon")?,
             docker_images: from_table(&table, "docker_images")?,
             assets: from_table(&table, "assets")?,
+            scripts: from_table(&table, "scripts")?,
         })
     }
 }
