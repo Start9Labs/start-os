@@ -25,6 +25,9 @@ use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
+use crate::config::ConfigReceipts;
+use crate::context::{CliContext, RpcContext};
+use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, RecoveredPackageInfo,
     StaticDependencyInfo, StaticFiles,
@@ -32,7 +35,8 @@ use crate::db::model::{
 use crate::db::util::WithRevision;
 use crate::dependencies::{
     add_dependent_to_current_dependents_lists, break_all_dependents_transitive,
-    reconfigure_dependents_with_live_pointers, BreakageRes, DependencyError, DependencyErrors,
+    reconfigure_dependents_with_live_pointers, BreakTransitiveReceipts, BreakageRes,
+    DependencyError, DependencyErrors,
 };
 use crate::install::cleanup::{cleanup, update_dependency_errors_of_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
@@ -44,15 +48,7 @@ use crate::util::io::{copy_and_shutdown, response_to_reader};
 use crate::util::serde::{display_serializable, IoFormat, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
-use crate::volume::asset_dir;
-use crate::{
-    config::ConfigReceipts,
-    context::{CliContext, RpcContext},
-};
-use crate::{
-    core::rpc_continuations::{RequestGuid, RpcContinuation},
-    dependencies::BreakTransitiveReceipts,
-};
+use crate::volume::{asset_dir, script_dir};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod cleanup;
@@ -1122,6 +1118,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             }
             let mut tar = tokio_tar::Archive::new(rdr.assets().await?);
             tar.unpack(asset_dir).await?;
+
+            let script_dir = script_dir(&ctx.datadir, pkg_id, version);
+            if tokio::fs::metadata(&script_dir).await.is_err() {
+                tokio::fs::create_dir_all(&script_dir).await?;
+            }
+            let mut tar = tokio_tar::Archive::new(rdr.scripts().await?);
+            tar.unpack(script_dir).await?;
 
             Ok(())
         })

@@ -84,7 +84,8 @@ impl TableOfContents {
             + (1 + "instructions".len() + 16)
             + (1 + "icon".len() + 16)
             + (1 + "docker_images".len() + 16)
-            + (1 + "assets".len() + 16)) as u32;
+            + (1 + "assets".len() + 16)
+            + (1 + "scripts".len() + 16)) as u32;
         writer.write_all(&u32::to_be_bytes(len))?;
         self.manifest.serialize_entry("manifest", &mut writer)?;
         self.license.serialize_entry("license", &mut writer)?;
