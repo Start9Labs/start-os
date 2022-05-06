@@ -20,6 +20,7 @@ pub struct S9pkPacker<
     RIcon: Read,
     RDockerImages: Read,
     RAssets: Read,
+    RScripts: Read,
 > {
     writer: W,
     manifest: &'a Manifest,
@@ -28,6 +29,7 @@ pub struct S9pkPacker<
     icon: RIcon,
     docker_images: RDockerImages,
     assets: RAssets,
+    scripts: RScripts,
 }
 impl<
         'a,
@@ -37,7 +39,8 @@ impl<
         RIcon: Read,
         RDockerImages: Read,
         RAssets: Read,
-    > S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages, RAssets>
+        RScripts: Read,
+    > S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages, RAssets, RScripts>
 {
     /// BLOCKING
     #[instrument(skip(self))]
@@ -110,6 +113,15 @@ impl<
             .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Assets"))?;
         let new_pos = writer.inner_mut().stream_position()?;
         header.table_of_contents.assets = FileSection {
+            position,
+            length: new_pos - position,
+        };
+        position = new_pos;
+        // scripts
+        std::io::copy(&mut self.scripts, &mut writer)
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Scripts"))?;
+        let new_pos = writer.inner_mut().stream_position()?;
+        header.table_of_contents.scripts = FileSection {
             position,
             length: new_pos - position,
         };
