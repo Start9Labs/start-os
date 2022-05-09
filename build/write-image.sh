@@ -76,8 +76,11 @@ sudo cp -R frontend/dist/setup-wizard /tmp/eos-mnt/var/www/html/setup
 sudo cp -R frontend/dist/ui /tmp/eos-mnt/var/www/html/main
 sudo cp index.html /tmp/eos-mnt/var/www/html/index.html
 
-# Make the .ssh directory
-sudo mkdir -p /tmp/eos-mnt/root/.ssh
+# Make the .ssh directory for UID 1000 user
+sudo mkdir -p /tmp/eos-mnt/home/$(awk -v val=1000 -F ":" '$3==val{print $1}' /tmp/eos-mnt/etc/passwd)/.ssh
+sudo mv /tmp/eos-mnt/etc/sudoers.d/010_pi-nopasswd /tmp/eos-mnt/etc/sudoers.d/010_start9-nopasswd
+sudo sed -i 's/pi/start9/g' /tmp/eos-mnt/etc/sudoers.d/010_start9-nopasswd
+sudo sed -i 's/ pi / start9 /g' /tmp/eos-mnt/etc/systemd/system/autologin@.service
 
 # Custom MOTD
 sudo rm /tmp/eos-mnt/etc/motd

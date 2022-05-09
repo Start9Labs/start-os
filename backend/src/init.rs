@@ -125,7 +125,7 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         tracing::info!("Loaded Package Docker Images");
     }
 
-    crate::ssh::sync_keys_from_db(&secret_store, "/root/.ssh/authorized_keys").await?;
+    crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
     let db = cfg.db(&secret_store, product_key).await?;
 
