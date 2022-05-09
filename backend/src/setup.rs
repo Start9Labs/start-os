@@ -75,9 +75,7 @@ pub struct StatusRes {
 #[command(rpc_only, metadata(authenticated = false))]
 pub async fn status(#[context] ctx: SetupContext) -> Result<StatusRes, Error> {
     Ok(StatusRes {
-        product_key: tokio::fs::metadata("/embassy-os/product_key.txt")
-            .await
-            .is_ok(),
+        product_key: tokio::fs::metadata(PRODUCT_KEY_PATH).await.is_ok(),
         migrating: ctx.recovery_status.read().await.is_some(),
     })
 }
@@ -104,20 +102,29 @@ pub async fn attach(
         DEFAULT_PASSWORD,
     )
     .await?;
+    let mut product_key = ctx.product_key().await?;
     let product_key_path = Path::new("/embassy-data/main/product_key.txt");
     if tokio::fs::metadata(product_key_path).await.is_ok() {
-        let pkey = tokio::fs::read_to_string(product_key_path).await?;
-        if pkey.trim() != &*ctx.product_key().await? {
+        let pkey = Arc::new(
+            tokio::fs::read_to_string(product_key_path)
+                .await?
+                .trim()
+                .to_owned(),
+        );
+        if pkey != product_key {
             crate::disk::main::export(&*guid, &ctx.datadir).await?;
             return Err(Error::new(
-                eyre!("The EmbassyOS product key does not match the supplied drive"),
+                eyre!(
+                    "The EmbassyOS product key does not match the supplied drive: {}",
+                    pkey
+                ),
                 ErrorKind::ProductKeyMismatch,
             ));
         }
     }
     init(
         &RpcContextConfig::load(ctx.config_path.as_ref()).await?,
-        &*ctx.product_key().await?,
+        &*product_key,
     )
     .await?;
     let secrets = ctx.secret_store().await?;
@@ -127,7 +134,7 @@ pub async fn attach(
         tor_address: format!("http://{}", tor_key.public().get_onion_address()),
         lan_address: format!(
             "https://embassy-{}.local",
-            crate::hostname::derive_id(&*ctx.product_key().await?)
+            crate::hostname::derive_id(&*product_key)
         ),
         root_ca: String::from_utf8(root_ca.to_pem()?)?,
     };
