@@ -21,7 +21,7 @@ use crate::{
 use crate::{dependencies::TryHealReceipts, Error};
 
 pub struct UpdateDependencyReceipts {
-    ht: TryHealReceipts,
+    try_heal: TryHealReceipts,
     dependency_errors: LockReceipt<DependencyErrors, String>,
     manifest: LockReceipt<Manifest, String>,
 }
@@ -48,12 +48,12 @@ impl UpdateDependencyReceipts {
             .map(|x| x.manifest())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let ht = TryHealReceipts::setup(locks);
+        let try_heal = TryHealReceipts::setup(locks);
         move |skeleton_key| {
             Ok(Self {
                 dependency_errors: dependency_errors.verify(skeleton_key)?,
                 manifest: manifest.verify(skeleton_key)?,
-                ht: ht(skeleton_key)?,
+                try_heal: try_heal(skeleton_key)?,
             })
         }
     }
@@ -74,7 +74,8 @@ pub async fn update_dependency_errors_of_dependents<
     for dep in deps {
         if let Some(man) = receipts.manifest.get(db, dep).await? {
             if let Err(e) = if let Some(info) = man.dependencies.0.get(id) {
-                info.satisfied(ctx, db, id, None, dep, &receipts.ht).await?
+                info.satisfied(ctx, db, id, None, dep, &receipts.try_heal)
+                    .await?
             } else {
                 Ok(())
             } {

@@ -19,7 +19,7 @@ use crate::{Error, ResultExt};
 
 #[derive(Clone)]
 pub struct StartReceipts {
-    ht: DependencyReceipt,
+    dependency_receipt: DependencyReceipt,
     status: LockReceipt<MainStatus, ()>,
     version: LockReceipt<crate::util::Version, ()>,
 }
@@ -36,7 +36,7 @@ impl StartReceipts {
         locks: &mut Vec<patch_db::LockTargetId>,
         id: &PackageId,
     ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let ht = DependencyReceipt::setup(locks);
+        let dependency_receipt = DependencyReceipt::setup(locks);
         let status = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(id)
@@ -53,7 +53,7 @@ impl StartReceipts {
             .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
-                ht: ht(skeleton_key)?,
+                dependency_receipt: dependency_receipt(skeleton_key)?,
                 status: status.verify(skeleton_key)?,
                 version: version.verify(skeleton_key)?,
             })
@@ -72,7 +72,7 @@ pub async fn start(
     let receipts = StartReceipts::new(&mut tx, &id).await?;
     let version = receipts.version.get(&mut tx).await?;
     receipts.status.set(&mut tx, MainStatus::Starting).await?;
-    heal_all_dependents_transitive(&ctx, &mut tx, &id, &receipts.ht).await?;
+    heal_all_dependents_transitive(&ctx, &mut tx, &id, &receipts.dependency_receipt).await?;
 
     let revision = tx.commit(None).await?;
     drop(receipts);

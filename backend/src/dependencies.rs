@@ -838,7 +838,7 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
 
 #[derive(Clone)]
 pub struct BreakTransitiveReceipts {
-    pub ht: DependencyReceipt,
+    pub dependency_receipt: DependencyReceipt,
     dependency_errors: LockReceipt<DependencyErrors, String>,
     current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
 }
@@ -852,7 +852,7 @@ impl BreakTransitiveReceipts {
     }
 
     pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-        let ht = DependencyReceipt::setup(locks);
+        let dependency_receipt = DependencyReceipt::setup(locks);
         let dependency_errors = crate::db::DatabaseModel::new()
             .package_data()
             .star()
@@ -869,7 +869,7 @@ impl BreakTransitiveReceipts {
             .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
-                ht: ht(skeleton_key)?,
+                dependency_receipt: dependency_receipt(skeleton_key)?,
                 dependency_errors: dependency_errors.verify(skeleton_key)?,
                 current_dependents: current_dependents.verify(skeleton_key)?,
             })

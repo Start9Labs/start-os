@@ -121,7 +121,7 @@ pub async fn check<Db: DbHandle>(
             )
             .await?;
         } else {
-            heal_transitive(ctx, &mut tx, &dependent, id, &receipts.ht).await?;
+            heal_transitive(ctx, &mut tx, &dependent, id, &receipts.dependency_receipt).await?;
         }
     }
 
