@@ -838,7 +838,7 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
 
 #[derive(Clone)]
 pub struct BreakTransitiveReceipts {
-    pub ht: HTLock,
+    pub ht: DependencyReceipt,
     dependency_errors: LockReceipt<DependencyErrors, String>,
     current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
 }
@@ -852,7 +852,7 @@ impl BreakTransitiveReceipts {
     }
 
     pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-        let ht = HTLock::setup(locks);
+        let ht = DependencyReceipt::setup(locks);
         let dependency_errors = crate::db::DatabaseModel::new()
             .package_data()
             .star()
@@ -949,7 +949,7 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
     id: &'a PackageId,
-    locks: &'a HTLock,
+    locks: &'a DependencyReceipt,
 ) -> Result<(), Error> {
     let dependents = locks
         .current_dependents
@@ -968,7 +968,7 @@ pub fn heal_transitive<'a, Db: DbHandle>(
     db: &'a mut Db,
     id: &'a PackageId,
     dependency: &'a PackageId,
-    receipts: &'a HTLock,
+    receipts: &'a DependencyReceipt,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
         let mut status = receipts.status.get(db, id).await?.ok_or_else(not_found)?;
@@ -1033,14 +1033,14 @@ pub async fn reconfigure_dependents_with_live_pointers(
 }
 
 #[derive(Clone)]
-pub struct HTLock {
+pub struct DependencyReceipt {
     pub try_heal: TryHealReceipts,
     current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
     status: LockReceipt<Status, String>,
     dependency: LockReceipt<DepInfo, (String, String)>,
 }
 
-impl HTLock {
+impl DependencyReceipt {
     pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 

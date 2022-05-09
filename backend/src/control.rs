@@ -14,12 +14,12 @@ use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
-use crate::{context::RpcContext, dependencies::HTLock};
+use crate::{context::RpcContext, dependencies::DependencyReceipt};
 use crate::{Error, ResultExt};
 
 #[derive(Clone)]
 pub struct StartReceipts {
-    ht: HTLock,
+    ht: DependencyReceipt,
     status: LockReceipt<MainStatus, ()>,
     version: LockReceipt<crate::util::Version, ()>,
 }
@@ -36,7 +36,7 @@ impl StartReceipts {
         locks: &mut Vec<patch_db::LockTargetId>,
         id: &PackageId,
     ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let ht = HTLock::setup(locks);
+        let ht = DependencyReceipt::setup(locks);
         let status = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(id)

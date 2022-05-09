@@ -21,7 +21,7 @@ use crate::dependencies::{
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::Error;
-use crate::{db::model::CurrentDependencyInfo, dependencies::HTLock};
+use crate::{db::model::CurrentDependencyInfo, dependencies::DependencyReceipt};
 use crate::{db::util::WithRevision, dependencies::Dependencies};
 use crate::{
     dependencies::BreakTransitiveReceipts,
@@ -187,7 +187,7 @@ impl ConfigGetReceipts {
         locks: &mut Vec<LockTargetId>,
         id: &PackageId,
     ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-        let ht_lock = HTLock::setup(locks);
+        let ht_lock = DependencyReceipt::setup(locks);
 
         let manifest_version = crate::db::DatabaseModel::new()
             .package_data()
@@ -266,7 +266,7 @@ pub fn set(
 /// An UnlockedLock has two types, the type of setting and getting from the db, and the second type
 /// is the keys that we need to insert on getting/setting because we have included wild cards into the paths.
 pub struct ConfigReceipts {
-    pub ht_lock: HTLock,
+    pub ht_lock: DependencyReceipt,
     pub config_receipts: ConfigPointerReceipts,
     pub update_dependency_receipts: UpdateDependencyReceipts,
     pub try_heal_receipts: TryHealReceipts,
@@ -292,7 +292,7 @@ impl ConfigReceipts {
     }
 
     pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-        let ht_lock = HTLock::setup(locks);
+        let ht_lock = DependencyReceipt::setup(locks);
         let config_receipts = ConfigPointerReceipts::setup(locks);
         let update_dependency_receipts = UpdateDependencyReceipts::setup(locks);
         let break_transitive_receipts = BreakTransitiveReceipts::setup(locks);
