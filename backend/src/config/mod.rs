@@ -187,7 +187,6 @@ impl ConfigGetReceipts {
         locks: &mut Vec<LockTargetId>,
         id: &PackageId,
     ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-        let ht_lock = DependencyReceipt::setup(locks);
 
         let manifest_version = crate::db::DatabaseModel::new()
             .package_data()
@@ -212,9 +211,9 @@ impl ConfigGetReceipts {
             .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
-                manifest_volumes: manifest_volumes.verify(&skeleton_key)?,
-                manifest_version: manifest_version.verify(&skeleton_key)?,
-                manifest_config: manifest_config.verify(&skeleton_key)?,
+                manifest_volumes: manifest_volumes.verify(skeleton_key)?,
+                manifest_version: manifest_version.verify(skeleton_key)?,
+                manifest_config: manifest_config.verify(skeleton_key)?,
             })
         }
     }
@@ -266,7 +265,7 @@ pub fn set(
 /// An UnlockedLock has two types, the type of setting and getting from the db, and the second type
 /// is the keys that we need to insert on getting/setting because we have included wild cards into the paths.
 pub struct ConfigReceipts {
-    pub ht_lock: DependencyReceipt,
+    pub dependency_receipt: DependencyReceipt,
     pub config_receipts: ConfigPointerReceipts,
     pub update_dependency_receipts: UpdateDependencyReceipts,
     pub try_heal_receipts: TryHealReceipts,
@@ -292,7 +291,7 @@ impl ConfigReceipts {
     }
 
     pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-        let ht_lock = DependencyReceipt::setup(locks);
+        let dependency_receipt = DependencyReceipt::setup(locks);
         let config_receipts = ConfigPointerReceipts::setup(locks);
         let update_dependency_receipts = UpdateDependencyReceipts::setup(locks);
         let break_transitive_receipts = BreakTransitiveReceipts::setup(locks);
@@ -380,7 +379,7 @@ impl ConfigReceipts {
 
         move |skeleton_key| {
             Ok(Self {
-                ht_lock: ht_lock(skeleton_key)?,
+                dependency_receipt: dependency_receipt(skeleton_key)?,
                 config_receipts: config_receipts(skeleton_key)?,
                 try_heal_receipts: try_heal_receipts(skeleton_key)?,
                 break_transitive_receipts: break_transitive_receipts(skeleton_key)?,
@@ -649,7 +648,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
             db,
             &manifest,
             &current_dependencies,
-            &receipts.ht_lock.try_heal,
+            &receipts.dependency_receipt.try_heal,
         )
         .await?;
         receipts.dependency_errors.set(db, errs, &id).await?;
@@ -726,7 +725,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                         }
                     }
                 }
-                heal_all_dependents_transitive(ctx, db, id, &receipts.ht_lock).await?;
+                heal_all_dependents_transitive(ctx, db, id, &receipts.dependency_receipt).await?;
             }
         }
 
