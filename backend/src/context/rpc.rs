@@ -7,8 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
-use color_eyre::eyre::eyre;
-use patch_db::json_ptr::JsonPointer;
+use patch_db::{json_ptr::JsonPointer, LockReceipt};
 use patch_db::{DbHandle, LockType, PatchDb, Revision};
 use reqwest::Url;
 use rpc_toolkit::url::Host;
@@ -21,7 +20,6 @@ use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::hostname::{derive_hostname, derive_id, get_product_key};
 use crate::install::cleanup::{cleanup_failed, uninstall};
@@ -36,6 +34,10 @@ use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::io::from_yaml_async_reader;
 use crate::util::{AsyncFileExt, Invoke};
+use crate::{
+    core::rpc_continuations::{RequestGuid, RpcContinuation},
+    install::cleanup::CleanupFailedReceipts,
+};
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -132,6 +134,71 @@ pub struct RpcContextSeed {
     pub wifi_manager: Arc<RwLock<WpaCli>>,
 }
 
+pub struct RpcCleanReceipts {
+    cleanup_receipts: CleanupFailedReceipts,
+    packages: LockReceipt<crate::db::model::AllPackageData, ()>,
+    package: LockReceipt<crate::db::model::PackageDataEntry, String>,
+}
+
+impl RpcCleanReceipts {
+    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks);
+        Ok(setup(&db.lock_all(locks).await?)?)
+    }
+
+    pub fn setup(
+        locks: &mut Vec<patch_db::LockTargetId>,
+    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+        let cleanup_receipts = CleanupFailedReceipts::setup(locks);
+
+        let packages = crate::db::DatabaseModel::new()
+            .package_data()
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+        let package = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+        move |skeleton_key| {
+            Ok(Self {
+                cleanup_receipts: cleanup_receipts(skeleton_key)?,
+                packages: packages.verify(skeleton_key)?,
+                package: package.verify(skeleton_key)?,
+            })
+        }
+    }
+}
+
+pub struct RpcSetNginxReceipts {
+    server_info: LockReceipt<crate::db::model::ServerInfo, ()>,
+}
+
+impl RpcSetNginxReceipts {
+    pub async fn new(db: &'_ mut impl DbHandle) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks);
+        Ok(setup(&db.lock_all(locks).await?)?)
+    }
+
+    pub fn setup(
+        locks: &mut Vec<patch_db::LockTargetId>,
+    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+        let server_info = crate::db::DatabaseModel::new()
+            .server_info()
+            .make_locker(LockType::Read)
+            .add_to_keys(locks);
+        move |skeleton_key| {
+            Ok(Self {
+                server_info: server_info.verify(skeleton_key)?,
+            })
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
@@ -203,13 +270,14 @@ impl RpcContext {
         tracing::info!("Initialized Package Managers");
         Ok(res)
     }
-    #[instrument(skip(self, db))]
-    pub async fn set_nginx_conf<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    #[instrument(skip(self, db, receipts))]
+    pub async fn set_nginx_conf<Db: DbHandle>(
+        &self,
+        db: &mut Db,
+        receipts: RpcSetNginxReceipts,
+    ) -> Result<(), Error> {
         tokio::fs::write("/etc/nginx/sites-available/default", {
-            let info = crate::db::DatabaseModel::new()
-                .server_info()
-                .get(db, true)
-                .await?;
+            let info = receipts.server_info.get(db).await?;
             format!(
                 include_str!("../nginx/main-ui.conf.template"),
                 lan_hostname = info.lan_address.host_str().unwrap(),
@@ -237,34 +305,19 @@ impl RpcContext {
         self.is_closed.store(true, Ordering::SeqCst);
         Ok(())
     }
+
     #[instrument(skip(self))]
     pub async fn cleanup(&self) -> Result<(), Error> {
         let mut db = self.db.handle();
-        crate::db::DatabaseModel::new()
-            .package_data()
-            .lock(&mut db, LockType::Write)
-            .await?;
-        for package_id in crate::db::DatabaseModel::new()
-            .package_data()
-            .keys(&mut db, true)
-            .await?
-        {
+        let receipts = RpcCleanReceipts::new(&mut db).await?;
+        for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
             if let Err(e) = async {
-                let mut pde = crate::db::DatabaseModel::new()
-                    .package_data()
-                    .idx_model(&package_id)
-                    .get_mut(&mut db)
-                    .await?;
-                match pde.as_mut().ok_or_else(|| {
-                    Error::new(
-                        eyre!("Node does not exist: /package-data/{}", package_id),
-                        crate::ErrorKind::Database,
-                    )
-                })? {
+                match package {
                     PackageDataEntry::Installing { .. }
                     | PackageDataEntry::Restoring { .. }
                     | PackageDataEntry::Updating { .. } => {
-                        cleanup_failed(self, &mut db, &package_id).await?;
+                        cleanup_failed(self, &mut db, &package_id, &receipts.cleanup_receipts)
+                            .await?;
                     }
                     PackageDataEntry::Removing { .. } => {
                         uninstall(
@@ -276,17 +329,12 @@ impl RpcContext {
                         .await?;
                     }
                     PackageDataEntry::Installed {
-                        installed:
-                            InstalledPackageDataEntry {
-                                status: Status { main, .. },
-                                ..
-                            },
-                        ..
+                        installed,
+                        static_files,
+                        manifest,
                     } => {
-                        let new_main = match std::mem::replace(
-                            main,
-                            MainStatus::Stopped, /* placeholder */
-                        ) {
+                        let status = installed.status;
+                        let main = match status.main {
                             MainStatus::BackingUp { started, .. } => {
                                 if let Some(_) = started {
                                     MainStatus::Starting
@@ -295,11 +343,20 @@ impl RpcContext {
                                 }
                             }
                             MainStatus::Running { .. } => MainStatus::Starting,
-                            a => a,
+                            a => a.clone(),
                         };
-                        *main = new_main;
-
-                        pde.save(&mut db).await?;
+                        let new_package = PackageDataEntry::Installed {
+                            installed: InstalledPackageDataEntry {
+                                status: Status { main, ..status },
+                                ..installed
+                            },
+                            static_files,
+                            manifest,
+                        };
+                        receipts
+                            .package
+                            .set(&mut db, new_package, &package_id)
+                            .await?;
                     }
                 }
                 Ok::<_, Error>(())

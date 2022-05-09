@@ -4,12 +4,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use patch_db::{DbHandle, LockType};
 use tracing::instrument;
 
-use crate::context::RpcContext;
 use crate::dependencies::{break_transitive, heal_transitive, DependencyError};
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::MainStatus;
 use crate::Error;
+use crate::{context::RpcContext, dependencies::BreakTransitiveReceipts};
 
 #[instrument(skip(ctx, db))]
 pub async fn check<Db: DbHandle>(
@@ -98,6 +98,10 @@ pub async fn check<Db: DbHandle>(
 
     checkpoint.save().await?;
 
+    tracing::debug!("Checking health of {}", id);
+    let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
+    tracing::debug!("Got receipts {}", id);
+
     for (dependent, info) in &*current_dependents {
         let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results
             .iter()
@@ -113,10 +117,11 @@ pub async fn check<Db: DbHandle>(
                 id,
                 DependencyError::HealthChecksFailed { failures },
                 &mut BTreeMap::new(),
+                &receipts,
             )
             .await?;
         } else {
-            heal_transitive(ctx, &mut tx, &dependent, id).await?;
+            heal_transitive(ctx, &mut tx, &dependent, id, &receipts.dependency_receipt).await?;
         }
     }
 

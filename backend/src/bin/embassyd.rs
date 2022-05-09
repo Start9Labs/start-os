@@ -81,7 +81,11 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .expect("send shutdown signal");
         });
 
-        rpc_ctx.set_nginx_conf(&mut rpc_ctx.db.handle()).await?;
+        let mut db = rpc_ctx.db.handle();
+        let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;
+
+        rpc_ctx.set_nginx_conf(&mut db, receipts).await?;
+        drop(db);
         let auth = auth(rpc_ctx.clone());
         let ctx = rpc_ctx.clone();
         let server = rpc_server!({

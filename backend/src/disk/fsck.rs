@@ -7,7 +7,7 @@ use futures::FutureExt;
 use tokio::process::Command;
 use tracing::instrument;
 
-use crate::{Error, ResultExt};
+use crate::Error;
 
 #[derive(Debug, Clone, Copy)]
 #[must_use]
