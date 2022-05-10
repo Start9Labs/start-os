@@ -71,4 +71,4 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	npm --prefix patch-db/client run build
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
-frontend: frontend/node_modules $(EMBASSY_UIS) 
+frontend: frontend/node_modules frontend/config.json $(EMBASSY_UIS) 

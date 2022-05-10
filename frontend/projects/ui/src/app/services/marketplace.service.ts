@@ -19,6 +19,7 @@ import {
   shareReplay,
   startWith,
   switchMap,
+  take,
   tap,
 } from 'rxjs/operators'
 
@@ -45,6 +46,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   )
 
   private readonly pkg$: Observable<MarketplacePkg[]> = this.init$.pipe(
+    take(1),
     switchMap(({ url, name }) =>
       from(this.getMarketplacePkgs({ page: 1, 'per-page': 100 }, url)).pipe(
         tap(() => this.onPackages(name)),
@@ -80,6 +82,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   getPackage(id: string, version: string): Observable<MarketplacePkg> {
     const params = { ids: [{ id, version }] }
     const fallback$ = this.init$.pipe(
+      take(1),
       switchMap(({ url }) => from(this.getMarketplacePkgs(params, url))),
       map(pkgs => this.findPackage(pkgs, id, version)),
       startWith(null),
@@ -135,6 +138,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     req: Omit<RR.InstallPackageReq, 'marketplace-url'>,
   ): Observable<unknown> {
     return this.getMarketplace().pipe(
+      take(1),
       switchMap(({ url }) =>
         from(
           this.api.installPackage({
@@ -172,7 +176,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     url: string,
   ): Promise<RR.GetMarketplacePackagesRes> {
     if (params.query) delete params.category
-    if (params.ids) params.ids = JSON.stringify(params.ids) as any
+    if (params.ids) params.ids = JSON.stringify(params.ids)
 
     const qp: RR.GetMarketplacePackagesReq = {
       ...params,

@@ -610,7 +610,7 @@ export module Mock {
     }
   } = {
     bitcoind: {
-      '0.19.2': {
+      '0.19.0': {
         icon: BTC_ICON,
         license: 'licenseUrl',
         instructions: 'instructionsUrl',
