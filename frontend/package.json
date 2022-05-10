@@ -35,7 +35,6 @@
     "@start9labs/argon2": "^0.1.0",
     "@start9labs/emver": "^0.1.5",
     "aes-js": "^3.1.2",
-    "ajv": "^6.12.6",
     "ansi-to-html": "^0.7.2",
     "core-js": "^3.21.1",
     "dompurify": "^2.3.6",
@@ -50,6 +49,7 @@
     "pbkdf2": "^3.1.2",
     "rxjs": "^6.6.7",
     "tslib": "^2.3.0",
+    "ts-matches": "^5.1.0",
     "uuid": "^8.3.2",
     "zone.js": "^0.11.5"
   },
