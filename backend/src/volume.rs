@@ -187,8 +187,6 @@ pub enum Volume {
     #[serde(rename_all = "kebab-case")]
     Assets {},
     #[serde(rename_all = "kebab-case")]
-    Scripts {},
-    #[serde(rename_all = "kebab-case")]
     Pointer {
         package_id: PackageId,
         volume_id: VolumeId,
@@ -239,7 +237,6 @@ impl Volume {
         match self {
             Volume::Data { .. } => data_dir(&ctx.datadir, pkg_id, volume_id),
             Volume::Assets {} => asset_dir(&ctx.datadir, pkg_id, version).join(volume_id),
-            Volume::Scripts {} => script_dir(&ctx.datadir, pkg_id, version).join(volume_id),
             Volume::Pointer {
                 package_id,
                 volume_id,
@@ -272,7 +269,6 @@ impl Volume {
         match self {
             Volume::Data { readonly } => *readonly,
             Volume::Assets {} => true,
-            Volume::Scripts {} => true,
             Volume::Pointer { readonly, .. } => *readonly,
             Volume::Certificate { .. } => true,
             Volume::Backup { readonly } => *readonly,
