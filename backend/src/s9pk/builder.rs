@@ -121,10 +121,10 @@ impl<
         std::io::copy(&mut self.scripts, &mut writer)
             .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Scripts"))?;
         let new_pos = writer.inner_mut().stream_position()?;
-        header.table_of_contents.scripts = FileSection {
+        header.table_of_contents.scripts = Some(FileSection {
             position,
             length: new_pos - position,
-        };
+        });
         position = new_pos;
 
         // header

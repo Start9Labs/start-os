@@ -1123,8 +1123,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             if tokio::fs::metadata(&script_dir).await.is_err() {
                 tokio::fs::create_dir_all(&script_dir).await?;
             }
-            let mut tar = tokio_tar::Archive::new(rdr.scripts().await?);
-            tar.unpack(script_dir).await?;
+            if let Some(hdl) = rdr.scripts().await? {
+                let mut tar = tokio_tar::Archive::new(hdl);
+                tar.unpack(script_dir).await?;
+            }
 
             Ok(())
         })
