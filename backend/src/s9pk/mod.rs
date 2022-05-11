@@ -107,7 +107,7 @@ pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<
         })
         .scripts({
             let mut scripts = tar::Builder::new(Vec::new());
-            scripts.append_dir_all(script_volume, path.join(manifest.assets.scripts_path()))?;
+            scripts.append_dir_all("scripts", path.join(manifest.assets.scripts_path()))?;
             std::io::Cursor::new(scripts.into_inner()?)
         })
         .build()
