@@ -6,19 +6,20 @@ use sqlx::{Executor, Sqlite};
 use tracing::instrument;
 
 use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
-use crate::db::model::{InstalledPackageDataEntry, PackageDataEntry};
-use crate::{config::not_found, dependencies::reconfigure_dependents_with_live_pointers};
-use crate::{config::ConfigReceipts, context::RpcContext};
-use crate::{
-    db::model::AllPackageData,
-    s9pk::manifest::{Manifest, PackageId},
+use crate::config::{not_found, ConfigReceipts};
+use crate::context::RpcContext;
+use crate::db::model::{
+    AllPackageData, CurrentDependencyInfo, CurrentDependencyInfo, InstalledPackageDataEntry,
+    InstalledPackageDataEntry, PackageDataEntry, PackageDataEntry,
 };
-use crate::{db::model::CurrentDependencyInfo, error::ErrorCollection};
-use crate::{
-    dependencies::DependencyErrors,
-    util::{Apply, Version},
+use crate::dependencies::{
+    reconfigure_dependents_with_live_pointers, DependencyErrors, TryHealReceipts,
 };
-use crate::{dependencies::TryHealReceipts, Error};
+use crate::error::ErrorCollection;
+use crate::s9pk::manifest::{Manifest, PackageId, PackageId};
+use crate::util::{Apply, Version, Version};
+use crate::volume::PKG_VOLUME_DIR;
+use crate::Error;
 
 pub struct UpdateDependencyReceipts {
     try_heal: TryHealReceipts,
@@ -145,6 +146,28 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
         .join(version.as_str());
     if tokio::fs::metadata(&docker_path).await.is_ok() {
         tokio::fs::remove_dir_all(&docker_path)
+            .await
+            .apply(|res| errors.handle(res));
+    }
+    let assets_path = ctx
+        .datadir
+        .join(PKG_VOLUME_DIR)
+        .join(id)
+        .join("assets")
+        .join(version.as_str());
+    if tokio::fs::metadata(&assets_path).await.is_ok() {
+        tokio::fs::remove_dir_all(&assets_path)
+            .await
+            .apply(|res| errors.handle(res));
+    }
+    let scripts_path = ctx
+        .datadir
+        .join(PKG_VOLUME_DIR)
+        .join(id)
+        .join("scripts")
+        .join(version.as_str());
+    if tokio::fs::metadata(&scripts_path).await.is_ok() {
+        tokio::fs::remove_dir_all(&scripts_path)
             .await
             .apply(|res| errors.handle(res));
     }
