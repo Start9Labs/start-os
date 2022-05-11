@@ -30,7 +30,9 @@ use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::BOOT_RW_PATH;
 use crate::notifications::NotificationLevel;
-use crate::sound::{BEP, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4};
+use crate::sound::{
+    CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
+};
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
@@ -204,9 +206,10 @@ async fn maybe_do_update(
             Ok(()) => {
                 status.updated = true;
                 status.save(&mut db).await.expect("could not save status");
-                BEP.play().await.expect("could not bep");
-                BEP.play().await.expect("could not bep");
-                BEP.play().await.expect("could not bep");
+                CIRCLE_OF_5THS_SHORT
+                    .play()
+                    .await
+                    .expect("could not play sound");
             }
             Err(e) => {
                 status.save(&mut db).await.expect("could not save status");
