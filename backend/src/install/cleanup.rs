@@ -9,15 +9,14 @@ use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
 use crate::config::{not_found, ConfigReceipts};
 use crate::context::RpcContext;
 use crate::db::model::{
-    AllPackageData, CurrentDependencyInfo, CurrentDependencyInfo, InstalledPackageDataEntry,
-    InstalledPackageDataEntry, PackageDataEntry, PackageDataEntry,
+    AllPackageData, CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry,
 };
 use crate::dependencies::{
     reconfigure_dependents_with_live_pointers, DependencyErrors, TryHealReceipts,
 };
 use crate::error::ErrorCollection;
-use crate::s9pk::manifest::{Manifest, PackageId, PackageId};
-use crate::util::{Apply, Version, Version};
+use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::util::{Apply, Version};
 use crate::volume::PKG_VOLUME_DIR;
 use crate::Error;
 
