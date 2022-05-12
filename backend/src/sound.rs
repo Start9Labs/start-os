@@ -404,7 +404,7 @@ pub const BEETHOVEN: Song<[(Option<Note>, TimeSlice); 9]> = song!(216, [
 ]);
 
 lazy_static::lazy_static! {
-    pub static ref CIRCLE_OF_5THS_SHORT: Song<std::iter::Take<CircleOf<'static>>> = Song {
+    pub static ref CIRCLE_OF_5THS_SHORT: Song<Vec<(Option<Note>, TimeSlice)>> = Song {
         tempo_qpm: 300,
         note_sequence: CircleOf::new(
             &FIFTH,
@@ -414,7 +414,7 @@ lazy_static::lazy_static! {
             },
             TimeSlice::Triplet(&TimeSlice::Eighth),
         )
-        .take(6),
+        .take(6).collect(),
     };
     pub static ref CIRCLE_OF_4THS_SHORT: Song<std::iter::Take<CircleOf<'static>>> = Song {
         tempo_qpm: 300,
