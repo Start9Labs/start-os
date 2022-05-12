@@ -106,9 +106,8 @@ pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<
             std::io::Cursor::new(assets.into_inner()?)
         })
         .scripts({
-            let mut scripts = tar::Builder::new(Vec::new());
-            scripts.append_dir_all("scripts", path.join(manifest.assets.scripts_path()))?;
-            std::io::Cursor::new(scripts.into_inner()?)
+            let script_path = path.join(manifest.assets.scripts_path()).join("embassy.js");
+            File::open(script_path)?
         })
         .build()
         .pack(&ctx.developer_key()?)?;
