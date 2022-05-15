@@ -31,17 +31,16 @@
 	- `sudo snap install yq`
 	- https://mikefarah.gitbook.io/yq
 
-2. Clone the repo, move into it, and bring in required submodules
-
+2. Clone the latest repo with required submodules
+   > :information_source: You chan check latest available version [here](https://github.com/Start9Labs/embassy-os/releases)
 	```
-	git clone --recursive https://github.com/Start9Labs/embassy-os.git
-	cd embassy-os
-	git submodule update --init --recursive
+	git clone --recursive https://github.com/Start9Labs/embassy-os.git --branch v0.3.0.3
 	```
 
 ## Build
 
 ```
+cd embassy-os
 make
 ```
 
