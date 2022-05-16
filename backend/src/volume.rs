@@ -165,9 +165,9 @@ pub fn asset_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Versi
 pub fn script_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Version) -> PathBuf {
     datadir
         .as_ref()
-        .join(PKG_VOLUME_DIR)
-        .join(pkg_id)
+        .join("package-data")
         .join("scripts")
+        .join(pkg_id)
         .join(version.as_str())
 }
 
