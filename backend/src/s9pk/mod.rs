@@ -107,7 +107,11 @@ pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<
         })
         .scripts({
             let script_path = path.join(manifest.assets.scripts_path()).join("embassy.js");
-            File::open(script_path)?
+            if script_path.exists() {
+                Some(File::open(script_path)?)
+            } else {
+                None
+            }
         })
         .build()
         .pack(&ctx.developer_key()?)?;

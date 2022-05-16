@@ -29,7 +29,7 @@ pub struct S9pkPacker<
     icon: RIcon,
     docker_images: RDockerImages,
     assets: RAssets,
-    scripts: RScripts,
+    scripts: Option<RScripts>,
 }
 impl<
         'a,
@@ -118,14 +118,16 @@ impl<
         };
         position = new_pos;
         // scripts
-        std::io::copy(&mut self.scripts, &mut writer)
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Scripts"))?;
-        let new_pos = writer.inner_mut().stream_position()?;
-        header.table_of_contents.scripts = Some(FileSection {
-            position,
-            length: new_pos - position,
-        });
-        position = new_pos;
+        if let Some(mut scripts) = self.scripts {
+            std::io::copy(&mut scripts, &mut writer)
+                .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Scripts"))?;
+            let new_pos = writer.inner_mut().stream_position()?;
+            header.table_of_contents.scripts = Some(FileSection {
+                position,
+                length: new_pos - position,
+            });
+            position = new_pos;
+        }
 
         // header
         let (hash, _) = writer.finish();
