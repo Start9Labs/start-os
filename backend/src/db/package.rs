@@ -50,7 +50,7 @@ impl ManifestReceipts {
 
     pub fn setup(
         locks: &mut Vec<LockTargetId>,
-        id: &PackageId,
+        _id: &PackageId,
     ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
         let manifest = crate::db::DatabaseModel::new()
             .package_data()

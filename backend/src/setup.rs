@@ -95,14 +95,14 @@ pub async fn attach(
     #[context] ctx: SetupContext,
     #[arg] guid: Arc<String>,
 ) -> Result<SetupResult, Error> {
-    crate::disk::main::import(
+    let _ = crate::disk::main::import(
         &*guid,
         &ctx.datadir,
         RepairStrategy::Preen,
         DEFAULT_PASSWORD,
     )
     .await?;
-    let mut product_key = ctx.product_key().await?;
+    let product_key = ctx.product_key().await?;
     let product_key_path = Path::new("/embassy-data/main/product_key.txt");
     if tokio::fs::metadata(product_key_path).await.is_ok() {
         let pkey = Arc::new(
@@ -315,7 +315,7 @@ pub async fn execute_inner(
         )
         .await?,
     );
-    crate::disk::main::import(
+    let _ = crate::disk::main::import(
         &*guid,
         &ctx.datadir,
         RepairStrategy::Preen,

@@ -17,7 +17,7 @@ use crate::dependencies::{
 use crate::error::ErrorCollection;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Apply, Version};
-use crate::volume::{asset_dir, script_dir, PKG_VOLUME_DIR};
+use crate::volume::{asset_dir, script_dir};
 use crate::Error;
 
 pub struct UpdateDependencyReceipts {

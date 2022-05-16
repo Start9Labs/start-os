@@ -5,17 +5,17 @@ use patch_db::{DbHandle, LockReceipt, LockType};
 use rpc_toolkit::command;
 use tracing::instrument;
 
+use crate::context::RpcContext;
 use crate::db::util::WithRevision;
 use crate::dependencies::{
     break_all_dependents_transitive, heal_all_dependents_transitive, BreakageRes, DependencyError,
-    TaggedDependencyError,
+    DependencyReceipt, TaggedDependencyError,
 };
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
-use crate::{context::RpcContext, dependencies::DependencyReceipt};
-use crate::{Error, ResultExt};
+use crate::Error;
 
 #[derive(Clone)]
 pub struct StartReceipts {

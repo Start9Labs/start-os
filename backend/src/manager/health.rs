@@ -4,12 +4,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use patch_db::{DbHandle, LockType};
 use tracing::instrument;
 
+use crate::context::RpcContext;
 use crate::dependencies::{break_transitive, heal_transitive, DependencyError};
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::MainStatus;
 use crate::Error;
-use crate::{context::RpcContext, dependencies::BreakTransitiveReceipts};
 
 #[instrument(skip(ctx, db))]
 pub async fn check<Db: DbHandle>(
