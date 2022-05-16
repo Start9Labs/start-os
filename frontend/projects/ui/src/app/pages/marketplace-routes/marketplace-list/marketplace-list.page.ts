@@ -22,6 +22,10 @@ export class MarketplaceListPage {
       filter(data => exists(data) && !isEmptyObject(data)),
       tap(pkgs => Object.values(pkgs).forEach(spreadProgress)),
       startWith({}),
+      // get new object pointers @TODO remove when patchdb updated to remove mutations
+      map(v => {
+        return { ...v }
+      }),
     )
 
   readonly categories$ = this.marketplaceService
