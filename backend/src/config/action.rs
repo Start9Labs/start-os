@@ -10,7 +10,7 @@ use super::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
 use crate::id::ImageId;
-use crate::procedure::PackageProcedure;
+use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
@@ -53,7 +53,7 @@ impl ConfigActions {
                 ctx,
                 pkg_id,
                 pkg_version,
-                Some("GetConfig"),
+                ProcedureName::GetConfig,
                 volumes,
                 None::<()>,
                 false,
@@ -81,7 +81,7 @@ impl ConfigActions {
                 ctx,
                 pkg_id,
                 pkg_version,
-                Some("SetConfig"),
+                ProcedureName::SetConfig,
                 volumes,
                 Some(input),
                 false,

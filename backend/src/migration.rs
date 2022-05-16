@@ -11,6 +11,7 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::id::ImageId;
 use crate::procedure::PackageProcedure;
+use crate::procedure::ProcedureName;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -64,7 +65,7 @@ impl Migrations {
                         ctx,
                         pkg_id,
                         pkg_version,
-                        Some("Migration"), // Migrations cannot be executed concurrently
+                        ProcedureName::Migration, // Migrations cannot be executed concurrently
                         volumes,
                         Some(version),
                         false,
@@ -99,7 +100,7 @@ impl Migrations {
                         ctx,
                         pkg_id,
                         pkg_version,
-                        Some("Migration"),
+                        ProcedureName::Migration,
                         volumes,
                         Some(version),
                         false,

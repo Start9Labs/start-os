@@ -10,6 +10,7 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::id::{Id, IdUnchecked};
 use crate::net::interface::{InterfaceId, Interfaces};
+use crate::net::NetController;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::{Error, ResultExt};
@@ -93,20 +94,22 @@ impl Volumes {
         version: &Version,
     ) -> Result<(), Error> {
         for (volume_id, volume) in &self.0 {
-            volume.install(ctx, pkg_id, version, volume_id).await?; // TODO: concurrent?
+            volume
+                .install(&ctx.datadir, pkg_id, version, volume_id)
+                .await?; // TODO: concurrent?
         }
         Ok(())
     }
     pub fn get_path_for(
         &self,
-        ctx: &RpcContext,
+        path: &PathBuf,
         pkg_id: &PackageId,
         version: &Version,
         volume_id: &VolumeId,
     ) -> Option<PathBuf> {
         self.0
             .get(volume_id)
-            .map(|volume| volume.path_for(ctx, pkg_id, version, volume_id))
+            .map(|volume| volume.path_for(path, pkg_id, version, volume_id))
     }
     pub fn to_readonly(&self) -> Self {
         Volumes(
@@ -214,14 +217,14 @@ impl Volume {
     }
     pub async fn install(
         &self,
-        ctx: &RpcContext,
+        path: &PathBuf,
         pkg_id: &PackageId,
         version: &Version,
         volume_id: &VolumeId,
     ) -> Result<(), Error> {
         match self {
             Volume::Data { .. } => {
-                tokio::fs::create_dir_all(self.path_for(ctx, pkg_id, version, volume_id)).await?;
+                tokio::fs::create_dir_all(self.path_for(path, pkg_id, version, volume_id)).await?;
             }
             _ => (),
         }
@@ -229,25 +232,25 @@ impl Volume {
     }
     pub fn path_for(
         &self,
-        ctx: &RpcContext,
+        data_dir_path: &PathBuf,
         pkg_id: &PackageId,
         version: &Version,
         volume_id: &VolumeId,
     ) -> PathBuf {
         match self {
-            Volume::Data { .. } => data_dir(&ctx.datadir, pkg_id, volume_id),
-            Volume::Assets {} => asset_dir(&ctx.datadir, pkg_id, version).join(volume_id),
+            Volume::Data { .. } => data_dir(&data_dir_path, pkg_id, volume_id),
+            Volume::Assets {} => asset_dir(&data_dir_path, pkg_id, version).join(volume_id),
             Volume::Pointer {
                 package_id,
                 volume_id,
                 path,
                 ..
-            } => data_dir(&ctx.datadir, package_id, volume_id).join(if path.is_absolute() {
+            } => data_dir(&data_dir_path, package_id, volume_id).join(if path.is_absolute() {
                 path.strip_prefix("/").unwrap()
             } else {
                 path.as_ref()
             }),
-            Volume::Certificate { interface_id: _ } => ctx.net_controller.ssl_directory_for(pkg_id),
+            Volume::Certificate { interface_id: _ } => NetController::ssl_directory_for(pkg_id),
             Volume::Backup { .. } => backup_dir(pkg_id),
         }
     }

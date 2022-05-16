@@ -270,6 +270,7 @@ impl RpcContext {
         tracing::info!("Initialized Package Managers");
         Ok(res)
     }
+
     #[instrument(skip(self, db, receipts))]
     pub async fn set_nginx_conf<Db: DbHandle>(
         &self,
