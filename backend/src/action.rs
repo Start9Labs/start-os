@@ -11,10 +11,10 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use self::docker::DockerAction;
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId, InvalidId};
+use crate::procedure::PackageProcedure;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::util::Version;

@@ -5,9 +5,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
 use tracing::instrument;
 
-use crate::action::{NoOutput, PackageProcedure};
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
+use crate::procedure::{NoOutput, PackageProcedure};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Duration;
 use crate::util::Version;

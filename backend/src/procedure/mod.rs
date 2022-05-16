@@ -1,25 +1,17 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
-use std::str::FromStr;
+use std::collections::BTreeSet;
 use std::time::Duration;
 
-use clap::ArgMatches;
-use color_eyre::eyre::eyre;
-use indexmap::IndexSet;
 use patch_db::HasModel;
-use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use self::docker::DockerProcedure;
-use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
-use crate::id::{Id, ImageId, InvalidId};
+use crate::id::ImageId;
 use crate::s9pk::manifest::PackageId;
-use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::{Error, ResultExt};
+use crate::Error;
 
 pub mod docker;
 
