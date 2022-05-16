@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use super::{Config, ConfigSpec};
-use crate::action::ActionImplementation;
 use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
 use crate::id::ImageId;
+use crate::procedure::PackageProcedure;
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
@@ -26,8 +26,8 @@ pub struct ConfigRes {
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 pub struct ConfigActions {
-    pub get: ActionImplementation,
-    pub set: ActionImplementation,
+    pub get: PackageProcedure,
+    pub set: PackageProcedure,
 }
 impl ConfigActions {
     #[instrument]

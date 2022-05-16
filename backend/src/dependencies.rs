@@ -14,10 +14,10 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::action::{ActionImplementation, NoOutput};
+use crate::action::{NoOutput, PackageProcedure};
+use crate::config::action::{ConfigActions, ConfigRes};
 use crate::config::spec::PackagePointerSpec;
-use crate::config::{action::ConfigActions, Config, ConfigSpec};
-use crate::config::{action::ConfigRes, not_found, ConfigReceipts};
+use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry};
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -486,8 +486,8 @@ impl DepInfo {
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct DependencyConfig {
-    check: ActionImplementation,
-    auto_configure: ActionImplementation,
+    check: PackageProcedure,
+    auto_configure: PackageProcedure,
 }
 impl DependencyConfig {
     pub async fn check(

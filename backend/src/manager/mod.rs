@@ -19,13 +19,13 @@ use tokio::sync::{Notify, RwLock};
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
-use crate::action::docker::DockerAction;
-use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
+use crate::procedure::docker::DockerProcedure;
+use crate::procedure::{NoOutput, PackageProcedure};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::MainStatus;
 use crate::util::{Container, NonDetachingJoinHandle, Version};
@@ -333,7 +333,7 @@ impl Manager {
             ctx,
             status: AtomicUsize::new(Status::Stopped as usize),
             on_stop,
-            container_name: DockerAction::container_name(&manifest.id, None),
+            container_name: DockerProcedure::container_name(&manifest.id, None),
             manifest,
             tor_keys,
             synchronized: Notify::new(),
@@ -399,7 +399,7 @@ impl Manager {
                 &self.shared.container_name,
                 Some(StopContainerOptions {
                     t: match &self.shared.manifest.main {
-                        ActionImplementation::Docker(a) => a,
+                        PackageProcedure::Docker(a) => a,
                     }
                     .sigterm_timeout
                     .map(|a| *a)
@@ -549,7 +549,7 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
             &shared.container_name,
             Some(StopContainerOptions {
                 t: match &shared.manifest.main {
-                    ActionImplementation::Docker(a) => a,
+                    PackageProcedure::Docker(a) => a,
                 }
                 .sigterm_timeout
                 .map(|a| *a)

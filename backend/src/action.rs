@@ -21,10 +21,6 @@ use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
 
-pub mod docker;
-
-// TODO: create RPC endpoint that looks up the appropriate action and calls `execute`
-
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ActionId<S: AsRef<str> = String>(Id<S>);
 impl FromStr for ActionId {
@@ -103,7 +99,7 @@ pub struct Action {
     pub description: String,
     #[serde(default)]
     pub warning: Option<String>,
-    pub implementation: ActionImplementation,
+    pub implementation: PackageProcedure,
     pub allowed_statuses: IndexSet<DockerStatus>,
     #[serde(default)]
     pub input_spec: ConfigSpec,
@@ -149,76 +145,6 @@ impl Action {
             )
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::Action))
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
-#[serde(tag = "type")]
-pub enum ActionImplementation {
-    Docker(DockerAction),
-}
-impl ActionImplementation {
-    #[instrument]
-    pub fn validate(
-        &self,
-        volumes: &Volumes,
-        image_ids: &BTreeSet<ImageId>,
-        expected_io: bool,
-    ) -> Result<(), color_eyre::eyre::Report> {
-        match self {
-            ActionImplementation::Docker(action) => {
-                action.validate(volumes, image_ids, expected_io)
-            }
-        }
-    }
-
-    #[instrument(skip(ctx, input))]
-    pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        name: Option<&str>,
-        volumes: &Volumes,
-        input: Option<I>,
-        allow_inject: bool,
-        timeout: Option<Duration>,
-    ) -> Result<Result<O, (i32, String)>, Error> {
-        match self {
-            ActionImplementation::Docker(action) => {
-                action
-                    .execute(
-                        ctx,
-                        pkg_id,
-                        pkg_version,
-                        name,
-                        volumes,
-                        input,
-                        allow_inject,
-                        timeout,
-                    )
-                    .await
-            }
-        }
-    }
-    #[instrument(skip(ctx, input))]
-    pub async fn sandboxed<I: Serialize, O: for<'de> Deserialize<'de>>(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        volumes: &Volumes,
-        input: Option<I>,
-        timeout: Option<Duration>,
-    ) -> Result<Result<O, (i32, String)>, Error> {
-        match self {
-            ActionImplementation::Docker(action) => {
-                action
-                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
-                    .await
-            }
-        }
     }
 }
 
@@ -276,15 +202,5 @@ pub async fn action(
             eyre!("Action not found in manifest"),
             crate::ErrorKind::NotFound,
         ))
-    }
-}
-
-pub struct NoOutput;
-impl<'de> Deserialize<'de> for NoOutput {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Ok(NoOutput)
     }
 }

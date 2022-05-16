@@ -8,9 +8,9 @@ use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::action::ActionImplementation;
 use crate::context::RpcContext;
 use crate::id::ImageId;
+use crate::procedure::PackageProcedure;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -19,8 +19,8 @@ use crate::{Error, ResultExt};
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct Migrations {
-    pub from: IndexMap<VersionRange, ActionImplementation>,
-    pub to: IndexMap<VersionRange, ActionImplementation>,
+    pub from: IndexMap<VersionRange, PackageProcedure>,
+    pub to: IndexMap<VersionRange, PackageProcedure>,
 }
 impl Migrations {
     #[instrument]

@@ -36,7 +36,7 @@ lazy_static::lazy_static! {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct DockerAction {
+pub struct DockerProcedure {
     pub image: ImageId,
     #[serde(default)]
     pub system: bool,
@@ -54,7 +54,7 @@ pub struct DockerAction {
     #[serde(default)]
     pub sigterm_timeout: Option<SerdeDuration>,
 }
-impl DockerAction {
+impl DockerProcedure {
     pub fn validate(
         &self,
         volumes: &Volumes,
