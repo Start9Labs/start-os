@@ -35,6 +35,7 @@ use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskListResponse, EmbassyOsRecoveryInfo};
+use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::PRODUCT_KEY_PATH;
 use crate::id::Id;
 use crate::init::init;
@@ -95,13 +96,31 @@ pub async fn attach(
     #[context] ctx: SetupContext,
     #[arg] guid: Arc<String>,
 ) -> Result<SetupResult, Error> {
-    let _ = crate::disk::main::import(
+    let requires_reboot = crate::disk::main::import(
         &*guid,
         &ctx.datadir,
-        RepairStrategy::Preen,
+        if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
+            RepairStrategy::Aggressive
+        } else {
+            RepairStrategy::Preen
+        },
         DEFAULT_PASSWORD,
     )
     .await?;
+    if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
+        tokio::fs::remove_file(REPAIR_DISK_PATH)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
+    }
+    if requires_reboot.0 {
+        crate::disk::main::export(&*guid, &ctx.datadir).await?;
+        return Err(Error::new(
+            eyre!(
+                "Errors were corrected with your disk, but the Embassy must be restarted in order to proceed"
+            ),
+            ErrorKind::DiskManagement,
+        ));
+    }
     let product_key = ctx.product_key().await?;
     let product_key_path = Path::new("/embassy-data/main/product_key.txt");
     if tokio::fs::metadata(product_key_path).await.is_ok() {
