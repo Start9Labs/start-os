@@ -7,7 +7,7 @@ use patch_db::HasModel;
 use serde::{Deserialize, Serialize, Serializer};
 use url::Url;
 
-use crate::action::{ActionImplementation, Actions};
+use crate::action::{Actions, PackageProcedure};
 use crate::backup::BackupActions;
 use crate::config::action::ConfigActions;
 use crate::dependencies::Dependencies;
@@ -128,12 +128,12 @@ pub struct Manifest {
     #[serde(default)]
     pub alerts: Alerts,
     #[model]
-    pub main: ActionImplementation,
+    pub main: PackageProcedure,
     pub health_checks: HealthChecks,
     #[model]
     pub config: Option<ConfigActions>,
     #[model]
-    pub properties: Option<ActionImplementation>,
+    pub properties: Option<PackageProcedure>,
     #[model]
     pub volumes: Volumes,
     // #[serde(default)]

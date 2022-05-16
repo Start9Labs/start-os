@@ -12,12 +12,12 @@ use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 use self::target::PackageBackupInfo;
-use crate::action::{ActionImplementation, NoOutput};
 use crate::context::RpcContext;
 use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::id::ImageId;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
+use crate::procedure::{NoOutput, PackageProcedure};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::IoFormat;
 use crate::util::{AtomicFile, Version};
@@ -64,8 +64,8 @@ struct BackupMetadata {
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 pub struct BackupActions {
-    pub create: ActionImplementation,
-    pub restore: ActionImplementation,
+    pub create: PackageProcedure,
+    pub restore: PackageProcedure,
 }
 impl BackupActions {
     pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {

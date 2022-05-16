@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
 use tracing::instrument;
 
-use crate::action::{ActionImplementation, NoOutput};
+use crate::action::{NoOutput, PackageProcedure};
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::PackageId;
@@ -89,7 +89,7 @@ pub struct HealthCheck {
     pub name: String,
     pub success_message: Option<String>,
     #[serde(flatten)]
-    implementation: ActionImplementation,
+    implementation: PackageProcedure,
     pub timeout: Option<Duration>,
 }
 impl HealthCheck {

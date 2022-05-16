@@ -31,6 +31,7 @@ pub mod middleware;
 pub mod migration;
 pub mod net;
 pub mod notifications;
+pub mod procedure;
 pub mod properties;
 pub mod s9pk;
 pub mod setup;
