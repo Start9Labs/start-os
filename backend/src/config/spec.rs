@@ -2045,7 +2045,7 @@ impl ValueSpec for SystemPointerSpec {
         _config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
 
-        receipts: &ConfigPointerReceipts,
+        _receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         *value = self.deref(db).await?;
         Ok(())

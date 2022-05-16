@@ -20,7 +20,7 @@ impl Header {
     pub fn placeholder() -> Self {
         Header {
             pubkey: PublicKey::default(),
-            signature: Signature::new([0; 64]),
+            signature: Signature::from_bytes(&[0; 64]).expect("Invalid ed25519 signature"),
             table_of_contents: Default::default(),
         }
     }
@@ -56,7 +56,7 @@ impl Header {
             .map_err(|e| Error::new(e, crate::ErrorKind::ParseS9pk))?;
         let mut sig_bytes = [0; 64];
         reader.read_exact(&mut sig_bytes).await?;
-        let signature = Signature::new(sig_bytes);
+        let signature = Signature::from_bytes(&sig_bytes).expect("Invalid ed25519 signature");
         let table_of_contents = TableOfContents::deserialize(reader).await?;
 
         Ok(Header {
