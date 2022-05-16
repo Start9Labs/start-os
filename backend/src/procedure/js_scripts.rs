@@ -647,7 +647,10 @@ mod js_runtime {
         }
 
         /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
-        async fn is_subset(parent: impl AsRef<Path>, child: impl AsRef<Path>) -> Result<bool, AnyError> {
+        async fn is_subset(
+            parent: impl AsRef<Path>,
+            child: impl AsRef<Path>,
+        ) -> Result<bool, AnyError> {
             let child = tokio::fs::canonicalize(child).await?;
             let parent = tokio::fs::canonicalize(parent).await?;
             Ok(child.starts_with(parent))
