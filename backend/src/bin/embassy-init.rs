@@ -79,7 +79,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
         let guid_string = tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
             .await?;
         let guid = guid_string.trim();
-        let reboot = embassy::disk::main::import(
+        let requires_reboot = embassy::disk::main::import(
             guid,
             cfg.datadir(),
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
@@ -95,7 +95,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
                 .await
                 .with_ctx(|_| (embassy::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
         }
-        if reboot.0 {
+        if requires_reboot.0 {
             embassy::disk::main::export(guid, cfg.datadir()).await?;
             Command::new("reboot")
                 .invoke(embassy::ErrorKind::Unknown)
