@@ -12,8 +12,8 @@ use tokio::process::Command;
 use tokio_stream::wrappers::LinesStream;
 use tracing::instrument;
 
-use crate::action::docker::DockerAction;
 use crate::error::ResultExt;
+use crate::procedure::docker::DockerProcedure;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Reversible;
 use crate::Error;
@@ -158,7 +158,7 @@ pub async fn fetch_logs(
         LogSource::Container(id) => {
             cmd.arg(format!(
                 "CONTAINER_NAME={}",
-                DockerAction::container_name(&id, None)
+                DockerProcedure::container_name(&id, None)
             ));
         }
     };
