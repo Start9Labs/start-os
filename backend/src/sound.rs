@@ -112,19 +112,23 @@ pub struct Song<Notes> {
     tempo_qpm: u16,
     note_sequence: Notes,
 }
-impl<'a, T: 'a> Song<T>
+impl<'a, T> Song<T>
 where
-    &'a T: IntoIterator<Item = &'a (Option<Note>, TimeSlice)>,
+    T: IntoIterator<Item = (Option<Note>, TimeSlice)> + Clone,
 {
     #[instrument(skip(self))]
-    pub async fn play(&'a self) -> Result<(), Error> {
+    pub async fn play(&self) -> Result<(), Error> {
         #[cfg(feature = "sound")]
         {
             let mut sound = SoundInterface::lease().await?;
-            for (note, slice) in &self.note_sequence {
+            for (note, slice) in self.note_sequence.clone() {
                 match note {
                     None => tokio::time::sleep(slice.to_duration(self.tempo_qpm)).await,
-                    Some(n) => sound.play_for_time_slice(self.tempo_qpm, n, slice).await?,
+                    Some(n) => {
+                        sound
+                            .play_for_time_slice(self.tempo_qpm, &n, &slice)
+                            .await?
+                    }
                 };
             }
             sound.close().await?;
@@ -285,6 +289,7 @@ pub fn circle_of_fourths(note: &Note) -> impl Iterator<Item = Note> {
     iterate(|n| interval(&FOURTH, n), note)
 }
 
+#[derive(Clone, Debug)]
 pub struct CircleOf<'a> {
     current: Note,
     duration: TimeSlice,
@@ -404,7 +409,7 @@ pub const BEETHOVEN: Song<[(Option<Note>, TimeSlice); 9]> = song!(216, [
 ]);
 
 lazy_static::lazy_static! {
-    pub static ref CIRCLE_OF_5THS_SHORT: Song<Vec<(Option<Note>, TimeSlice)>> = Song {
+    pub static ref CIRCLE_OF_5THS_SHORT: Song<std::iter::Take<CircleOf<'static>>> = Song {
         tempo_qpm: 300,
         note_sequence: CircleOf::new(
             &FIFTH,
@@ -414,7 +419,7 @@ lazy_static::lazy_static! {
             },
             TimeSlice::Triplet(&TimeSlice::Eighth),
         )
-        .take(6).collect(),
+        .take(6),
     };
     pub static ref CIRCLE_OF_4THS_SHORT: Song<std::iter::Take<CircleOf<'static>>> = Song {
         tempo_qpm: 300,

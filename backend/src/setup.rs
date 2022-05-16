@@ -359,7 +359,7 @@ pub async fn execute_inner(
                 })
                 .await
             {
-                BEETHOVEN.play().await.unwrap_or_default(); // ignore error in playing the song
+                (&BEETHOVEN).play().await.unwrap_or_default(); // ignore error in playing the song
                 tracing::error!("Error recovering drive!: {}", e);
                 tracing::debug!("{:?}", e);
                 *ctx.recovery_status.write().await = Some(Err(e.into()));
