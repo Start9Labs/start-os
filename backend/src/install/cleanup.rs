@@ -17,7 +17,7 @@ use crate::dependencies::{
 use crate::error::ErrorCollection;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Apply, Version};
-use crate::volume::PKG_VOLUME_DIR;
+use crate::volume::{asset_dir, script_dir, PKG_VOLUME_DIR};
 use crate::Error;
 
 pub struct UpdateDependencyReceipts {
@@ -148,23 +148,13 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
             .await
             .apply(|res| errors.handle(res));
     }
-    let assets_path = ctx
-        .datadir
-        .join(PKG_VOLUME_DIR)
-        .join(id)
-        .join("assets")
-        .join(version.as_str());
+    let assets_path = asset_dir(&ctx.datadir, id, version);
     if tokio::fs::metadata(&assets_path).await.is_ok() {
         tokio::fs::remove_dir_all(&assets_path)
             .await
             .apply(|res| errors.handle(res));
     }
-    let scripts_path = ctx
-        .datadir
-        .join(PKG_VOLUME_DIR)
-        .join(id)
-        .join("scripts")
-        .join(version.as_str());
+    let scripts_path = script_dir(&ctx.datadir, id, version);
     if tokio::fs::metadata(&scripts_path).await.is_ok() {
         tokio::fs::remove_dir_all(&scripts_path)
             .await
