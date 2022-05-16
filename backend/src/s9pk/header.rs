@@ -95,7 +95,9 @@ impl TableOfContents {
         self.docker_images
             .serialize_entry("docker_images", &mut writer)?;
         self.assets.serialize_entry("assets", &mut writer)?;
-    self.scripts.unwrap_or_default().serialize_entry("scripts", &mut writer)?;
+        self.scripts
+            .unwrap_or_default()
+            .serialize_entry("scripts", &mut writer)?;
         Ok(())
     }
     pub async fn deserialize<R: AsyncRead + Unpin>(mut reader: R) -> std::io::Result<Self> {
