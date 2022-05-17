@@ -36,7 +36,7 @@ export class AppConfigPage {
   @Input() pkgId: string
   @Input() dependentInfo?: DependentInfo
   diff: string[] // only if dependent info
-  pkg: PackageDataEntry
+  pkg?: PackageDataEntry
   loadingText: string | undefined
   configSpec: ConfigSpec
   configForm: FormGroup
@@ -58,7 +58,7 @@ export class AppConfigPage {
 
   async ngOnInit() {
     this.pkg = this.patch.getData()['package-data'][this.pkgId]
-    this.hasConfig = !!this.pkg.manifest.config
+    this.hasConfig = !!this.pkg?.manifest.config
 
     if (!this.hasConfig) return
 
@@ -133,7 +133,7 @@ export class AppConfigPage {
     if (this.configForm.invalid) {
       document
         .getElementsByClassName('validation-error')[0]
-        .parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
+        ?.parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
       return
     }
 

@@ -12,10 +12,12 @@ export class PackageInfoPipe implements PipeTransform {
   constructor(private readonly patch: PatchDbService) {}
 
   transform(pkg: PackageDataEntry): Observable<PkgInfo> {
-    return this.patch.watch$('package-data', pkg.manifest.id).pipe(
-      filter(v => !!v),
-      map(getPackageInfo),
-      startWith(getPackageInfo(pkg)),
-    )
+    return this.patch
+      .watch$('package-data', pkg.manifest.id)
+      .pipe(
+        filter<PackageDataEntry>(Boolean),
+        startWith(pkg),
+        map(getPackageInfo),
+      )
   }
 }
