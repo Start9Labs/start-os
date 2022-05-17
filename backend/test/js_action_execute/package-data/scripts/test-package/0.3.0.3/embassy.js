@@ -56,7 +56,7 @@ export async function getConfig(effects) {
       volumeId: 'main',
     // @ts-ignore
     })).value;
-    
+
     await effects.removeFile({
       path: "./testing/test2.log",
       volumeId: 'main',
