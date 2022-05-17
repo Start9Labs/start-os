@@ -21,6 +21,8 @@ const println = (x) => Deno.core.opSync("println", x);
 
 // @ts-ignore
 const currentFunction = Deno.core.opSync("current_function")
+//@ts-ignore
+const input = Deno.core.opSync("get_input");
 // @ts-ignore
 const setState = x => Deno.core.opSync("set_value", x)
 const effects = {
@@ -39,6 +41,6 @@ if(typeof runFunction !== 'function') {{
     throw new Error(`Expecting ${{currentFunction}} to be a function`  );
 }}
 (async () => {
-    const answer = await runFunction(effects)
+    const answer = await runFunction(effects, input)
     setState(answer);
 })()

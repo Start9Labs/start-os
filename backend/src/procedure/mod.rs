@@ -68,7 +68,7 @@ impl ProcedureName {
 #[serde(tag = "type")]
 pub enum PackageProcedure {
     Docker(DockerProcedure),
-    Js(JsProcedure),
+    Script(JsProcedure),
 }
 impl PackageProcedure {
     #[instrument]
@@ -81,7 +81,7 @@ impl PackageProcedure {
         match self {
             PackageProcedure::Docker(action) => action.validate(volumes, image_ids, expected_io),
 
-            PackageProcedure::Js(action) => action.validate(volumes),
+            PackageProcedure::Script(action) => action.validate(volumes),
         }
     }
 
@@ -112,7 +112,7 @@ impl PackageProcedure {
                     )
                     .await
             }
-            PackageProcedure::Js(procedure) => {
+            PackageProcedure::Script(procedure) => {
                 procedure
                     .execute(
                         &ctx.datadir,
@@ -143,7 +143,7 @@ impl PackageProcedure {
                     .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
                     .await
             }
-            PackageProcedure::Js(procedure) => {
+            PackageProcedure::Script(procedure) => {
                 procedure
                     .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
                     .await

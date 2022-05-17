@@ -5,14 +5,19 @@ export function properties() {
     return "Anything here"
 }
 
-
+/**
+ * 
+ * @param {import('./types').Effects} effects 
+ * @returns {Promise<import('./types').ConfigRes>}
+ */
 export async function getConfig(effects) {
+
     effects.writeFile({
       path: "./test.log",
       toWrite: "This is a test",
       volumeId: 'main',
     });
-    await effects.println(`Read results are ${effects.readFile({
+    effects.println(`Read results are ${effects.readFile({
       path: "./test.log",
       volumeId: 'main',
     })}`)
@@ -557,10 +562,12 @@ export async function getConfig(effects) {
 }
 
 /**
+ * @param {import ("./types").Effects} effects
  * @param {import("./types").Config} input
- * @returns {import("./types").SetResult}
+ * @returns {Promise<import("./types").SetResult>}
  */
-function setConfig(input) {
+export async function setConfig(effects, input) {
+
     return {
         "depends-on": {}
     }

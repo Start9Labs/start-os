@@ -144,6 +144,7 @@ mod js_runtime {
         version: Version,
         package_id: PackageId,
         volumes: Arc<Volumes>,
+        input: Value,
     }
 
     #[derive(Clone, Default)]
@@ -237,7 +238,6 @@ mod js_runtime {
                 };
                 buffer
             });
-            println!("Volumes: {:?}", volumes);
             Ok(Self {
                 base_directory,
                 module_loader: ModsLoader { code: js_code },
@@ -262,12 +262,13 @@ mod js_runtime {
                 fns::set_value::decl(),
                 fns::remove_file::decl(),
                 fns::is_sandboxed::decl(),
+                fns::get_input::decl(),
             ];
             self
         }
         pub async fn run_action<I: Serialize, O: for<'de> Deserialize<'de>>(
             self,
-            action_name: ProcedureName,
+            procedure_name: ProcedureName,
             input: Option<I>,
         ) -> Result<O, (JsError, String)> {
             let input = match serde_json::to_value(input) {
@@ -281,8 +282,7 @@ mod js_runtime {
                     ));
                 }
             };
-            let js_function_information = JsFunctionInformation { action_name, input };
-            let output = tokio::task::spawn_blocking(move || self.execute(js_function_information))
+            let output = tokio::task::spawn_blocking(move || self.execute(procedure_name, input))
                 .await
                 .map_err(|err| (JsError::Tokio, format!("Tokio gave us the error: {}", err)))??;
             match serde_json::from_value(output.clone()) {
@@ -303,18 +303,20 @@ mod js_runtime {
 
         fn execute(
             &self,
-            js_function_information: JsFunctionInformation,
+            procedure_name: ProcedureName,
+            input: Value,
         ) -> Result<Value, (JsError, String)> {
             let base_directory = self.base_directory.clone();
             let answer_state = AnswerState::default();
             let ext_answer_state = answer_state.clone();
             let js_ctx = JsContext {
                 datadir: base_directory,
-                run_function: js_function_information.action_name.js_function_name(),
+                run_function: procedure_name.js_function_name(),
                 package_id: self.package_id.clone(),
                 volumes: self.volumes.clone(),
                 version: self.version.clone(),
                 sandboxed: self.sandboxed,
+                input,
             };
             let ext = Extension::builder()
                 .ops(self.operations.clone())
@@ -336,7 +338,7 @@ mod js_runtime {
                 let mod_id = runtime
                     .load_main_module(&"file:///main.js".parse().unwrap(), None)
                     .await?;
-                let loaded = runtime.mod_evaluate(mod_id);
+                let _ = runtime.mod_evaluate(mod_id);
                 runtime.run_event_loop(false).await?;
                 Ok::<_, AnyError>(())
             };
@@ -353,45 +355,6 @@ mod js_runtime {
 
             let answer = answer_state.0.lock().clone();
             Ok(answer)
-        }
-
-        fn run_js_function(
-            &self,
-            action_name: &ProcedureName,
-            scope: &mut v8::HandleScope,
-            scope_function: v8::Local<v8::Function>,
-            input: &Value,
-            local: v8::Local<v8::Value>,
-        ) -> Result<Value, (JsError, String)> {
-            let function_name = action_name.js_function_name();
-            let args = serde_v8::to_v8(scope, input).map_err(|e| {
-                tracing::warn!("JsError: {}", e);
-                tracing::debug!("{:?}", e);
-                (
-                    JsError::BoundryLayerSerDe,
-                    "Js <-> Rust Args boundry serialization issue".to_string(),
-                )
-            })?;
-            let function_name = serde_v8::to_v8(scope, function_name).map_err(|e| {
-                tracing::warn!("JsError: {}", e);
-                tracing::debug!("{:?}", e);
-                (
-                    JsError::BoundryLayerSerDe,
-                    "Js <-> Rust Args boundry serialization issue".to_string(),
-                )
-            })?;
-            let output = match scope_function.call(scope, local, &[function_name, args]) {
-                Some(x) => x,
-                None => return Err((JsError::Javascript, "Javascript runtime error".to_string())),
-            };
-            serde_v8::from_v8::<Value>(scope, output).map_err(|e| {
-                tracing::warn!("JsError: {}", e);
-                tracing::debug!("{:?}", e);
-                (
-                    JsError::BoundryLayerSerDe,
-                    "Js <-> Rust boundry serialization issue".to_string(),
-                )
-            })
         }
     }
 
@@ -422,7 +385,7 @@ mod js_runtime {
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             //get_path_for in volume.rs
-            let new_file = dbg!(volume_path.clone().join(path_in));
+            let new_file = volume_path.join(path_in);
             if !new_file.starts_with(volume_path) {
                 bail!("Path has broken away from parent");
             }
@@ -451,8 +414,7 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            println!("Here is the voume path: {:?}", volume_path);
-            let new_file = dbg!(volume_path.clone().join(path_in));
+            let new_file = volume_path.join(path_in);
             // With the volume check
             if !new_file.starts_with(volume_path) {
                 bail!("Path has broken away from parent");
@@ -481,7 +443,6 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            println!("Here is the voume path: {:?}", volume_path);
             let new_file = dbg!(volume_path.clone().join(path_in));
             // With the volume check
             if !new_file.starts_with(volume_path) {
@@ -501,6 +462,11 @@ mod js_runtime {
         fn println(input: String) -> Result<(), AnyError> {
             println!("{}", input);
             Ok(())
+        }
+        #[op]
+        fn get_input(state: &mut OpState) -> Result<Value, AnyError> {
+            let ctx = state.borrow::<JsContext>();
+            Ok(ctx.input.clone())
         }
         #[op]
         fn set_value(state: &mut OpState, value: Value) -> Result<(), AnyError> {
@@ -538,7 +504,7 @@ async fn js_action_execute() {
         }
     }))
     .unwrap();
-    let input: Option<String> = None;
+    let input: Option<serde_json::Value> = Some(serde_json::json!({"test":123}));
     let timeout = None;
     let _output: crate::config::action::ConfigRes = js_action
         .execute(

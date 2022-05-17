@@ -8,7 +8,7 @@ if [ "$0" != "./build-prod.sh" ]; then
 	exit 1
 fi
 
-alias 'rust-arm64-builder'='docker run --rm -it -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-arm-cross:aarch64'
+alias 'rust-arm64-builder'='docker run --rm -it -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-arm-cross:aarch64'
 
 cd ..
 FLAGS=""
