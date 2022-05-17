@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { Observable } from 'rxjs'
-import { filter, first, map, startWith, switchMapTo, tap } from 'rxjs/operators'
+import { filter, first, map, startWith, switchMapTo } from 'rxjs/operators'
 import { exists, isEmptyObject } from '@start9labs/shared'
 import {
   AbstractMarketplaceService,
@@ -9,7 +9,6 @@ import {
 
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { spreadProgress } from '../utils/spread-progress'
 
 @Component({
   selector: 'marketplace-list',
@@ -20,7 +19,6 @@ export class MarketplaceListPage {
     .watch$('package-data')
     .pipe(
       filter(data => exists(data) && !isEmptyObject(data)),
-      tap(pkgs => Object.values(pkgs).forEach(spreadProgress)),
       startWith({}),
     )
 

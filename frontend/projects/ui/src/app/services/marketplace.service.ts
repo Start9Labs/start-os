@@ -27,16 +27,16 @@ import {
 export class MarketplaceService extends AbstractMarketplaceService {
   private readonly notes = new Map<string, Record<string, string>>()
 
-  private readonly init$: Observable<Marketplace> = defer(() =>
-    this.patch.watch$('ui', 'marketplace'),
-  ).pipe(
-    map(marketplace =>
-      marketplace?.['selected-id']
-        ? marketplace['known-hosts'][marketplace['selected-id']]
-        : this.config.marketplace,
-    ),
-    shareReplay(),
-  )
+  private readonly init$: Observable<Marketplace> = this.patch
+    .watch$('ui', 'marketplace')
+    .pipe(
+      map(marketplace =>
+        marketplace?.['selected-id']
+          ? marketplace['known-hosts'][marketplace['selected-id']]
+          : this.config.marketplace,
+      ),
+      shareReplay(),
+    )
 
   private readonly data$: Observable<MarketplaceData> = this.init$.pipe(
     switchMap(({ url }) =>

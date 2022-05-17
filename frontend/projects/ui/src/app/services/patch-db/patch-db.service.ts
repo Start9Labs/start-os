@@ -1,13 +1,19 @@
-import { inject, Inject, Injectable, InjectionToken } from '@angular/core'
+import { Inject, Injectable } from '@angular/core'
 import { Storage } from '@ionic/storage-angular'
 import { Bootstrapper, PatchDB, Source, Store } from 'patch-db-client'
-import { BehaviorSubject, Observable, of, Subscription } from 'rxjs'
+import {
+  BehaviorSubject,
+  Observable,
+  of,
+  ReplaySubject,
+  Subscription,
+} from 'rxjs'
 import {
   catchError,
   debounceTime,
+  filter,
   finalize,
   mergeMap,
-  skip,
   switchMap,
   take,
   tap,
@@ -17,7 +23,6 @@ import { isEmptyObject, pauseFor } from '@start9labs/shared'
 import { DataModel } from './data-model'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
-import { LocalStorageBootstrap } from './local-storage-bootstrap'
 import { BOOTSTRAPPER, PATCH_SOURCE } from './patch-db.factory'
 
 export enum PatchConnection {
@@ -31,7 +36,7 @@ export enum PatchConnection {
 })
 export class PatchDbService {
   private readonly WS_SUCCESS = 'wsSuccess'
-  private patchConnection$ = new BehaviorSubject(PatchConnection.Initializing)
+  private patchConnection$ = new ReplaySubject<PatchConnection>(1)
   private wsSuccess$ = new BehaviorSubject(false)
   private polling$ = new BehaviorSubject(false)
   private patchDb: PatchDB<DataModel>
@@ -175,19 +180,14 @@ export class PatchDbService {
 
   // prettier-ignore
   watch$: Store<DataModel>['watch$'] = (...args: (string | number)[]): Observable<DataModel> => {
-    // TODO: refactor with a better solution to race condition
     const argsString = '/' + args.join('/')
-    const source$ =
-      this.patchDb?.store.watch$(...(args as [])) ||
-      this.patchConnection$.pipe(
-        skip(1),
-        take(1),
-        switchMap(() => this.patchDb.store.watch$(...(args as []))),
-      )
 
     console.log('patchDB: WATCHING ', argsString)
 
-    return source$.pipe(
+    return this.patchConnection$.pipe(
+      filter(status => status === PatchConnection.Connected),
+      take(1),
+      switchMap(() => this.patchDb.store.watch$(...(args as []))),
       tap(data => console.log('patchDB: NEW VALUE', argsString, data)),
       catchError(e => {
         console.error('patchDB: WATCH ERROR', e)

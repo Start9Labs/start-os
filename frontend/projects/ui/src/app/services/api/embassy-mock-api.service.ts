@@ -19,9 +19,23 @@ import { BehaviorSubject } from 'rxjs'
 import { LocalStorageBootstrap } from '../patch-db/local-storage-bootstrap'
 import { mockPatchData } from './mock-patch'
 
+const PROGRESS: InstallProgress = {
+  size: 120,
+  downloaded: 0,
+  'download-complete': false,
+  validated: 0,
+  'validation-complete': false,
+  unpacked: 0,
+  'unpack-complete': false,
+}
+
 @Injectable()
 export class MockApiService extends ApiService {
-  readonly mockPatch$ = new BehaviorSubject<Update<DataModel>>(undefined)
+  readonly mockPatch$ = new BehaviorSubject<Update<DataModel>>({
+    id: 1,
+    value: mockPatchData,
+    expireId: null,
+  })
   private readonly revertTime = 4000
   sequence: number
 
@@ -391,8 +405,13 @@ export class MockApiService extends ApiService {
 
         await pauseFor(8000)
 
-        appPatch[0].value = PackageMainStatus.Stopped
-        this.updateMock(appPatch)
+        const newPatch = [
+          {
+            ...appPatch[0],
+            value: PackageMainStatus.Stopped,
+          },
+        ]
+        this.updateMock(newPatch)
       }
 
       await pauseFor(1000)
@@ -454,32 +473,21 @@ export class MockApiService extends ApiService {
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes> {
     await pauseFor(2000)
-    const initialProgress: InstallProgress = {
-      size: 120,
-      downloaded: 0,
-      'download-complete': false,
-      validated: 0,
-      'validation-complete': false,
-      unpacked: 0,
-      'unpack-complete': false,
-    }
 
     setTimeout(async () => {
-      this.updateProgress(params.id, initialProgress)
+      this.updateProgress(params.id)
     }, 1000)
 
-    const pkg: PackageDataEntry = {
-      ...Mock.LocalPkgs[params.id],
-      state: PackageState.Installing,
-      'install-progress': initialProgress,
-      installed: undefined,
-    }
-
-    const patch = [
+    const patch: Operation<PackageDataEntry>[] = [
       {
         op: PatchOp.ADD,
         path: `/package-data/${params.id}`,
-        value: pkg,
+        value: {
+          ...Mock.LocalPkgs[params.id],
+          state: PackageState.Installing,
+          'install-progress': { ...PROGRESS },
+          installed: undefined,
+        },
       },
     ]
     return this.withRevision(patch)
@@ -527,32 +535,20 @@ export class MockApiService extends ApiService {
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes> {
     await pauseFor(2000)
-    const patch: Operation[] = params.ids.map(id => {
-      const initialProgress: InstallProgress = {
-        size: 120,
-        downloaded: 120,
-        'download-complete': true,
-        validated: 0,
-        'validation-complete': false,
-        unpacked: 0,
-        'unpack-complete': false,
-      }
-
-      const pkg: PackageDataEntry = {
-        ...Mock.LocalPkgs[id],
-        state: PackageState.Restoring,
-        'install-progress': initialProgress,
-        installed: undefined,
-      }
-
+    const patch: Operation<PackageDataEntry>[] = params.ids.map(id => {
       setTimeout(async () => {
-        this.updateProgress(id, initialProgress)
+        this.updateProgress(id)
       }, 2000)
 
       return {
         op: PatchOp.ADD,
         path: `/package-data/${id}`,
-        value: pkg,
+        value: {
+          ...Mock.LocalPkgs[id],
+          state: PackageState.Restoring,
+          'install-progress': { ...PROGRESS },
+          installed: undefined,
+        },
       }
     })
 
@@ -703,11 +699,11 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
 
     setTimeout(async () => {
-      const patch2 = [
+      const patch2: RemoveOperation[] = [
         {
           op: PatchOp.REMOVE,
           path: `/package-data/${params.id}`,
-        } as RemoveOperation,
+        },
       ]
       this.updateMock(patch2)
     }, this.revertTime)
@@ -727,11 +723,11 @@ export class MockApiService extends ApiService {
     params: RR.DeleteRecoveredPackageReq,
   ): Promise<RR.DeleteRecoveredPackageRes> {
     await pauseFor(2000)
-    const patch = [
+    const patch: RemoveOperation[] = [
       {
         op: PatchOp.REMOVE,
         path: `/recovered-packages/${params.id}`,
-      } as RemoveOperation,
+      },
     ]
     return this.withRevision(patch)
   }
@@ -747,30 +743,30 @@ export class MockApiService extends ApiService {
     }
   }
 
-  private async updateProgress(
-    id: string,
-    initialProgress: InstallProgress,
-  ): Promise<void> {
+  private async updateProgress(id: string): Promise<void> {
+    const progress = { ...PROGRESS }
     const phases = [
       { progress: 'downloaded', completion: 'download-complete' },
       { progress: 'validated', completion: 'validation-complete' },
       { progress: 'unpacked', completion: 'unpack-complete' },
     ]
+
     for (let phase of phases) {
-      let i = initialProgress[phase.progress]
-      while (i < initialProgress.size) {
+      let i = progress[phase.progress]
+      while (i < progress.size) {
         await pauseFor(250)
-        i = Math.min(i + 5, initialProgress.size)
-        initialProgress[phase.progress] = i
-        if (i === initialProgress.size) {
-          initialProgress[phase.completion] = true
+        i = Math.min(i + 5, progress.size)
+        progress[phase.progress] = i
+
+        if (i === progress.size) {
+          progress[phase.completion] = true
         }
 
         const patch = [
           {
             op: PatchOp.REPLACE,
             path: `/package-data/${id}/install-progress`,
-            value: initialProgress,
+            value: { ...progress },
           },
         ]
         this.updateMock(patch)
@@ -778,7 +774,7 @@ export class MockApiService extends ApiService {
     }
 
     setTimeout(() => {
-      const patch2: any = [
+      const patch2: Operation<PackageDataEntry>[] = [
         {
           op: PatchOp.REPLACE,
           path: `/package-data/${id}`,
@@ -822,7 +818,7 @@ export class MockApiService extends ApiService {
     this.updateMock(patch2)
 
     setTimeout(async () => {
-      const patch3: Operation[] = [
+      const patch3: Operation<ServerStatus>[] = [
         {
           op: PatchOp.REPLACE,
           path: '/server-info/status',
@@ -847,7 +843,7 @@ export class MockApiService extends ApiService {
     }, 1000)
   }
 
-  private async updateMock(patch: Operation[]): Promise<void> {
+  private async updateMock<T>(patch: Operation<T>[]): Promise<void> {
     if (!this.sequence) {
       const { sequence } = await this.bootstrapper.init()
       this.sequence = sequence
@@ -861,7 +857,7 @@ export class MockApiService extends ApiService {
   }
 
   private async withRevision<T>(
-    patch: Operation[],
+    patch: Operation<unknown>[],
     response: T = null,
   ): Promise<WithRevision<T>> {
     if (!this.sequence) {

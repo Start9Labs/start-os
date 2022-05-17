@@ -1,4 +1,12 @@
-import { Inject, InjectionToken, NgModule, OnDestroy } from '@angular/core'
+import {
+  ClassProvider,
+  ExistingProvider,
+  Inject,
+  InjectionToken,
+  NgModule,
+  OnDestroy,
+  Type,
+} from '@angular/core'
 import { merge, Observable } from 'rxjs'
 import { OfflineService } from './services/offline.service'
 import { LogoutService } from './services/logout.service'
@@ -15,46 +23,15 @@ const GLOBAL_SERVICE = new InjectionToken<readonly Observable<unknown>[]>(
 
 @NgModule({
   providers: [
-    {
-      provide: GLOBAL_SERVICE,
-      multi: true,
-      useClass: ConnectionMonitorService,
-    },
-    {
-      provide: GLOBAL_SERVICE,
-      multi: true,
-      useClass: LogoutService,
-    },
-    {
-      provide: GLOBAL_SERVICE,
-      multi: true,
-      useClass: OfflineService,
-    },
-    {
-      provide: GLOBAL_SERVICE,
-      multi: true,
-      useExisting: PatchDataService,
-    },
-    {
-      provide: GLOBAL_SERVICE,
-      multi: true,
-      useExisting: PatchMonitorService,
-    },
-    {
-      provide: GLOBAL_SERVICE,
-      multi: true,
-      useClass: RefreshToastService,
-    },
-    {
-      provide: GLOBAL_SERVICE,
-      multi: true,
-      useClass: UnreadToastService,
-    },
-    {
-      provide: GLOBAL_SERVICE,
-      multi: true,
-      useClass: UpdateToastService,
-    },
+    [
+      ConnectionMonitorService,
+      LogoutService,
+      OfflineService,
+      RefreshToastService,
+      UnreadToastService,
+      UpdateToastService,
+    ].map(useClass),
+    [PatchDataService, PatchMonitorService].map(useExisting),
   ],
 })
 export class GlobalModule implements OnDestroy {
@@ -67,5 +44,21 @@ export class GlobalModule implements OnDestroy {
 
   ngOnDestroy() {
     this.subscription.unsubscribe()
+  }
+}
+
+function useClass(useClass: Type<unknown>): ClassProvider {
+  return {
+    provide: GLOBAL_SERVICE,
+    multi: true,
+    useClass,
+  }
+}
+
+function useExisting(useExisting: Type<unknown>): ExistingProvider {
+  return {
+    provide: GLOBAL_SERVICE,
+    multi: true,
+    useExisting,
   }
 }
