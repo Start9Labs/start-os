@@ -77,6 +77,12 @@ pub enum PackageProcedure {
     Script(JsProcedure),
 }
 impl PackageProcedure {
+    pub fn is_script(&self) -> bool {
+        match self {
+            Self::Js(_) => true,
+            _ => false,
+        }
+    }
     #[instrument]
     pub fn validate(
         &self,

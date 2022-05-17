@@ -154,6 +154,29 @@ pub struct Manifest {
     pub dependencies: Dependencies,
 }
 
+impl Manifest {
+    pub fn package_procedures(&self) -> impl Iterator<Item = &PackageProcedure> {
+        use std::iter::once;
+        let main = once(&self.main);
+        let cfg_get = self.config.as_ref().map(|a| &a.get).into_iter();
+        let cfg_set = self.config.as_ref().map(|a| &a.set).into_iter();
+        let props = self.properties.iter();
+        let backups = vec![&self.backup.create, &self.backup.restore].into_iter();
+        let migrations = self
+            .migrations
+            .to
+            .values()
+            .chain(self.migrations.from.values());
+        let actions = self.actions.0.values().map(|a| &a.implementation);
+        main.chain(cfg_get)
+            .chain(cfg_set)
+            .chain(props)
+            .chain(backups)
+            .chain(migrations)
+            .chain(actions)
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Assets {
