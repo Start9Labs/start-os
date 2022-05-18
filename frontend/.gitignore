@@ -39,3 +39,4 @@ postprocess.js
 /plugins
 
 config.json
+proxy.conf.json
