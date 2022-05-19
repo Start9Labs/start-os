@@ -343,10 +343,7 @@ mod js_runtime {
                 Ok::<_, AnyError>(())
             };
 
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap()
+            tokio::runtime::Handle::current()
                 .block_on(future)
                 .map_err(|e| {
                     tracing::debug!("{:?}", e);
