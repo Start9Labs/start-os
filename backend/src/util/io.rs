@@ -153,6 +153,17 @@ where
         .map_err(color_eyre::eyre::Error::from)
         .with_kind(crate::ErrorKind::Deserialization)
 }
+pub async fn to_cbor_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
+where
+    T: serde::Serialize,
+    W: AsyncWrite + Unpin,
+{
+    let mut buffer = Vec::new();
+    serde_cbor::ser::into_writer(value, &mut buffer).with_kind(crate::ErrorKind::Serialization)?;
+    buffer.extend_from_slice(b"\n");
+    writer.write_all(&buffer).await?;
+    Ok(())
+}
 
 pub async fn from_json_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
 where

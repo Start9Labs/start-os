@@ -22,10 +22,10 @@ pub mod reader;
 
 pub const SIG_CONTEXT: &'static [u8] = b"s9pk";
 
-#[command(cli_only, display(display_none), blocking)]
+#[command(cli_only, display(display_none))]
 #[instrument(skip(ctx))]
-pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
-    use std::fs::File;
+pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
+    use tokio::fs::File;
 
     let path = if let Some(path) = path {
         path
@@ -33,11 +33,17 @@ pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<
         std::env::current_dir()?
     };
     let manifest_value: Value = if path.join("manifest.toml").exists() {
-        IoFormat::Toml.from_reader(File::open(path.join("manifest.toml"))?)?
+        IoFormat::Toml
+            .from_async_reader(File::open(path.join("manifest.toml")).await?)
+            .await?
     } else if path.join("manifest.yaml").exists() {
-        IoFormat::Yaml.from_reader(File::open(path.join("manifest.yaml"))?)?
+        IoFormat::Yaml
+            .from_async_reader(File::open(path.join("manifest.yaml")).await?)
+            .await?
     } else if path.join("manifest.json").exists() {
-        IoFormat::Json.from_reader(File::open(path.join("manifest.json"))?)?
+        IoFormat::Json
+            .from_async_reader(File::open(path.join("manifest.json")).await?)
+            .await?
     } else {
         return Err(Error::new(
             eyre!("manifest not found"),
@@ -53,69 +59,80 @@ pub fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<
     }
 
     let outfile_path = path.join(format!("{}.s9pk", manifest.id));
-    let mut outfile = File::create(outfile_path)?;
+    let mut outfile = File::create(outfile_path).await?;
     S9pkPacker::builder()
         .manifest(&manifest)
         .writer(&mut outfile)
         .license(
-            File::open(path.join(manifest.assets.license_path())).with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    manifest.assets.license_path().display().to_string(),
-                )
-            })?,
+            File::open(path.join(manifest.assets.license_path()))
+                .await
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        manifest.assets.license_path().display().to_string(),
+                    )
+                })?,
         )
         .icon(
-            File::open(path.join(manifest.assets.icon_path())).with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    manifest.assets.icon_path().display().to_string(),
-                )
-            })?,
+            File::open(path.join(manifest.assets.icon_path()))
+                .await
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        manifest.assets.icon_path().display().to_string(),
+                    )
+                })?,
         )
         .instructions(
-            File::open(path.join(manifest.assets.instructions_path())).with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    manifest.assets.instructions_path().display().to_string(),
-                )
-            })?,
+            File::open(path.join(manifest.assets.instructions_path()))
+                .await
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        manifest.assets.instructions_path().display().to_string(),
+                    )
+                })?,
         )
         .docker_images(
-            File::open(path.join(manifest.assets.docker_images_path())).with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    manifest.assets.docker_images_path().display().to_string(),
-                )
-            })?,
+            File::open(path.join(manifest.assets.docker_images_path()))
+                .await
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        manifest.assets.docker_images_path().display().to_string(),
+                    )
+                })?,
         )
         .assets({
-            let mut assets = tar::Builder::new(Vec::new()); // TODO: Ideally stream this? best not to buffer in memory
+            let mut assets = tokio_tar::Builder::new(Vec::new()); // TODO: Ideally stream this? best not to buffer in memory
 
             for (asset_volume, _) in manifest
                 .volumes
                 .iter()
                 .filter(|(_, v)| matches!(v, &&Volume::Assets {}))
             {
-                assets.append_dir_all(
-                    asset_volume,
-                    path.join(manifest.assets.assets_path()).join(asset_volume),
-                )?;
+                assets
+                    .append_dir_all(
+                        asset_volume,
+                        path.join(manifest.assets.assets_path()).join(asset_volume),
+                    )
+                    .await?;
             }
 
-            std::io::Cursor::new(assets.into_inner()?)
+            std::io::Cursor::new(assets.into_inner().await?)
         })
         .scripts({
             let script_path = path.join(manifest.assets.scripts_path()).join("embassy.js");
             if script_path.exists() {
-                Some(File::open(script_path)?)
+                Some(File::open(script_path).await?)
             } else {
                 None
             }
         })
         .build()
-        .pack(&ctx.developer_key()?)?;
-    outfile.sync_all()?;
+        .pack(&ctx.developer_key()?)
+        .await?;
+    outfile.sync_all().await?;
 
     Ok(())
 }
