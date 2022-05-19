@@ -1,6 +1,5 @@
 // @ts-check
 
-
 export function properties() {
     return "Anything here"
 }

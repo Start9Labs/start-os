@@ -9,6 +9,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::id::{Id, IdUnchecked};
+use crate::install::PKG_SCRIPT_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::net::NetController;
 use crate::s9pk::manifest::PackageId;
@@ -168,8 +169,7 @@ pub fn asset_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Versi
 pub fn script_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Version) -> PathBuf {
     datadir
         .as_ref()
-        .join("package-data")
-        .join("scripts")
+        .join(&*PKG_SCRIPT_DIR)
         .join(pkg_id)
         .join(version.as_str())
 }
@@ -232,7 +232,7 @@ impl Volume {
     }
     pub fn path_for(
         &self,
-        data_dir_path: &PathBuf,
+        data_dir_path: impl AsRef<Path>,
         pkg_id: &PackageId,
         version: &Version,
         volume_id: &VolumeId,

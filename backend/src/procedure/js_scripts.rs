@@ -1,17 +1,13 @@
 use std::{path::PathBuf, time::Duration};
 
-use futures::future::Either as EitherFuture;
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
 use tracing::instrument;
 
 use crate::{
-    context::RpcContext, install::PKG_SCRIPT_DIR, s9pk::manifest::PackageId, util::Version,
-    volume::Volumes, Error,
+    context::RpcContext, s9pk::manifest::PackageId, util::Version, volume::Volumes, Error,
 };
 
-use self::js_runtime::JsExecutionBuilder;
+use self::js_runtime::JsExecutionEnvironment;
 
 use super::ProcedureName;
 
@@ -50,11 +46,15 @@ impl JsProcedure {
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         Ok(async move {
-            let running_action =
-                JsExecutionBuilder::load_js_file(directory, pkg_id, pkg_version, volumes.clone())
-                    .await?
-                    .with_effects()
-                    .run_action(name, input);
+            let running_action = JsExecutionEnvironment::load_from_package(
+                directory,
+                pkg_id,
+                pkg_version,
+                volumes.clone(),
+            )
+            .await?
+            .with_effects()
+            .run_action(name, input);
             let output: O = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
@@ -78,7 +78,7 @@ impl JsProcedure {
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         Ok(async move {
-            let running_action = JsExecutionBuilder::load_js_file(
+            let running_action = JsExecutionEnvironment::load_from_package(
                 &ctx.datadir,
                 pkg_id,
                 pkg_version,
@@ -101,12 +101,9 @@ impl JsProcedure {
 }
 
 mod js_runtime {
-    use deno_ast::MediaType;
-    use deno_ast::ParseParams;
-    use deno_ast::SourceTextInfo;
     use deno_core::anyhow::{anyhow, bail};
+    use deno_core::error::AnyError;
     use deno_core::resolve_import;
-    use deno_core::resolve_path;
     use deno_core::JsRuntime;
     use deno_core::ModuleLoader;
     use deno_core::ModuleSource;
@@ -114,27 +111,19 @@ mod js_runtime {
     use deno_core::ModuleSpecifier;
     use deno_core::ModuleType;
     use deno_core::RuntimeOptions;
-    use deno_core::{error::AnyError, serde_v8, v8};
     use deno_core::{Extension, OpDecl};
-    use futures::FutureExt;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use std::sync::Arc;
-    use std::{convert::TryFrom, path::PathBuf, pin::Pin};
+    use std::{path::PathBuf, pin::Pin};
     use tokio::io::AsyncReadExt;
 
     use crate::s9pk::manifest::PackageId;
     use crate::util::Version;
-    use crate::volume::VolumeId;
-    use crate::volume::Volumes;
+    use crate::volume::{script_dir, Volumes};
 
     use super::super::ProcedureName;
     use super::{JsCode, JsError};
-
-    pub struct JsFunctionInformation {
-        action_name: ProcedureName,
-        input: Value,
-    }
 
     #[derive(Clone, Deserialize, Serialize)]
     struct JsContext {
@@ -162,6 +151,9 @@ mod js_runtime {
             referrer: &str,
             _is_main: bool,
         ) -> Result<ModuleSpecifier, AnyError> {
+            if referrer.contains("embassy") {
+                bail!("Embassy.js cannot import anything else");
+            }
             let s = resolve_import(specifier, referrer).unwrap();
             Ok(s)
         }
@@ -169,13 +161,23 @@ mod js_runtime {
         fn load(
             &self,
             module_specifier: &ModuleSpecifier,
-            _maybe_referrer: Option<ModuleSpecifier>,
-            _is_dyn_import: bool,
+            maybe_referrer: Option<ModuleSpecifier>,
+            is_dyn_import: bool,
         ) -> Pin<Box<ModuleSourceFuture>> {
-            let module_source = match module_specifier.as_str() {
-                "file:///main.js" => Ok(ModuleSource {
-                    module_url_specified: "file:///main_module.js".to_string(),
-                    module_url_found: "file:///main_module.js".to_string(),
+            let module_specifier = module_specifier.as_str().to_owned();
+            let module = match &*module_specifier {
+                "file:///deno_global.js" => Ok(ModuleSource {
+                    module_url_specified: "file:///deno_global.js".to_string(),
+                    module_url_found: "file:///deno_global.js".to_string(),
+                    code: "const old_deno = Deno; Deno = null; export default old_deno"
+                        .as_bytes()
+                        .to_vec()
+                        .into_boxed_slice(),
+                    module_type: ModuleType::JavaScript,
+                }),
+                "file:///loadModule.js" => Ok(ModuleSource {
+                    module_url_specified: "file:///loadModule.js".to_string(),
+                    module_url_found: "file:///loadModule.js".to_string(),
                     code: include_str!("./js_scripts/loadModule.js")
                         .as_bytes()
                         .to_vec()
@@ -188,12 +190,23 @@ mod js_runtime {
                     code: self.code.0.as_bytes().to_vec().into_boxed_slice(),
                     module_type: ModuleType::JavaScript,
                 }),
-                _ => unreachable!(),
+                x => Err(anyhow!("Not allowed to import: {}", x)),
             };
-            async move { module_source }.boxed()
+            Box::pin(async move {
+                if is_dyn_import {
+                    bail!("Will not import dynamic");
+                }
+                match &maybe_referrer {
+                    Some(x) if x.as_str() == "file:///embassy.js" => {
+                        bail!("Embassy is not allowed to import")
+                    }
+                    _ => (),
+                }
+                module
+            })
         }
     }
-    pub struct JsExecutionBuilder {
+    pub struct JsExecutionEnvironment {
         sandboxed: bool,
         base_directory: PathBuf,
         module_loader: ModsLoader,
@@ -203,21 +216,17 @@ mod js_runtime {
         volumes: Arc<Volumes>,
     }
 
-    impl JsExecutionBuilder {
-        pub async fn load_js_file(
-            path: &std::path::PathBuf,
+    impl JsExecutionEnvironment {
+        pub async fn load_from_package(
+            data_directory: impl AsRef<std::path::Path>,
             package_id: &crate::s9pk::manifest::PackageId,
             version: &crate::util::Version,
             volumes: Volumes,
         ) -> Result<Self, (JsError, String)> {
-            let base_directory = path.clone();
+            let data_dir = data_directory.as_ref();
+            let base_directory = data_dir;
             let js_code = JsCode({
-                let file_path = path
-                    .clone()
-                    .join(&*crate::install::PKG_SCRIPT_DIR)
-                    .join(&package_id)
-                    .join(version.to_string())
-                    .join("embassy.js");
+                let file_path = script_dir(data_dir, package_id, version).join("embassy.js");
                 let mut file = match tokio::fs::File::open(file_path.clone()).await {
                     Ok(x) => x,
                     Err(e) => {
@@ -239,7 +248,7 @@ mod js_runtime {
                 buffer
             });
             Ok(Self {
-                base_directory,
+                base_directory: base_directory.to_owned(),
                 module_loader: ModsLoader { code: js_code },
                 operations: Default::default(),
                 package_id: package_id.clone(),
@@ -289,7 +298,9 @@ mod js_runtime {
                     ));
                 }
             };
-            let output = tokio::task::spawn_blocking(move || self.execute(procedure_name, input))
+            let safer_handle: crate::util::NonDetachingJoinHandle<_> =
+                tokio::task::spawn_blocking(move || self.execute(procedure_name, input)).into();
+            let output = safer_handle
                 .await
                 .map_err(|err| (JsError::Tokio, format!("Tokio gave us the error: {}", err)))??;
             match serde_json::from_value(output.clone()) {
@@ -343,10 +354,12 @@ mod js_runtime {
 
             let future = async move {
                 let mod_id = runtime
-                    .load_main_module(&"file:///main.js".parse().unwrap(), None)
+                    .load_main_module(&"file:///loadModule.js".parse().unwrap(), None)
                     .await?;
-                let _ = runtime.mod_evaluate(mod_id);
-                runtime.run_event_loop(false).await?;
+                let evaluated = runtime.mod_evaluate(mod_id);
+                let res = runtime.run_event_loop(false).await;
+                evaluated.await??;
+                res?;
                 Ok::<_, AnyError>(())
             };
 
@@ -362,11 +375,11 @@ mod js_runtime {
         }
     }
 
+    /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
     mod fns {
         use deno_core::{anyhow::bail, error::AnyError, *};
         use serde_json::Value;
 
-        use std::fs;
         use std::{convert::TryFrom, path::PathBuf};
 
         use crate::volume::VolumeId;
@@ -444,7 +457,7 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = dbg!(volume_path.clone().join(path_in));
+            let new_file = volume_path.clone().join(path_in);
             // With the volume check
             if !new_file.starts_with(volume_path) {
                 bail!("Path has broken away from parent");
@@ -472,7 +485,7 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = dbg!(volume_path.clone().join(path_in));
+            let new_file = volume_path.clone().join(path_in);
             // With the volume check
             if !new_file.starts_with(volume_path) {
                 bail!("Path has broken away from parent");
@@ -500,7 +513,7 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = dbg!(volume_path.clone().join(path_in));
+            let new_file = volume_path.clone().join(path_in);
             // With the volume check
             if !new_file.starts_with(volume_path) {
                 bail!("Path has broken away from parent");

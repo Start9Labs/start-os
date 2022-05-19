@@ -129,12 +129,6 @@ export type ValueSpecAny =
     >
     | Subtype<'system', {}>
 >>
-const test: ValueSpecAny = {
-    type: 'pointer',
-    subtype: 'package',
-    target: 'tor-address'
-
-}
 export type ValueSpecUnion = {
     tag: {
         id: string,
@@ -173,4 +167,25 @@ export type SetResult = {
     'depends-on': {
         [packageId: string]: string[]
     }
+}
+export type PackagePropertiesV2 = {
+    [name: string]: PackagePropertyObject | PackagePropertyString
+}
+export type PackagePropertyString = {
+    type: 'string',
+    description?: string,
+    value: string,
+    copyable?: boolean,
+    qr?: boolean,
+    masked?: boolean,
+}
+export type PackagePropertyObject = {
+    value: PackagePropertiesV2;
+    type: "object";
+    description: string;
+}
+
+export type Properties = {
+    version: 2,
+    data: PackagePropertiesV2
 }

@@ -49,14 +49,14 @@ impl ProcedureName {
     fn js_function_name(&self) -> String {
         match self {
             ProcedureName::Main => todo!(),
-            ProcedureName::CreateBackup => "createBackup".to_string(),
-            ProcedureName::RestoreBackup => "restoreBackup".to_string(),
-            ProcedureName::GetConfig => "getConfig".to_string(),
-            ProcedureName::SetConfig => "setConfig".to_string(),
-            ProcedureName::Migration => "migration".to_string(),
-            ProcedureName::Properties => "properties".to_string(),
-            ProcedureName::Health(id) => format!("{}Health", id),
-            ProcedureName::Action(id) => format!("{}Action", id),
+            ProcedureName::CreateBackup => "/createBackup".to_string(),
+            ProcedureName::RestoreBackup => "/restoreBackup".to_string(),
+            ProcedureName::GetConfig => "/getConfig".to_string(),
+            ProcedureName::SetConfig => "/setConfig".to_string(),
+            ProcedureName::Migration => "/migration".to_string(),
+            ProcedureName::Properties => "/properties".to_string(),
+            ProcedureName::Health(id) => format!("/health/{}", id),
+            ProcedureName::Action(id) => format!("/action/{}", id),
         }
     }
 }
