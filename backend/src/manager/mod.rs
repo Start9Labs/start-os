@@ -404,7 +404,7 @@ impl Manager {
                 Some(StopContainerOptions {
                     t: action
                         .sigterm_timeout
-                        .map(|a| *a)
+                        .copied()
                         .unwrap_or(Duration::from_secs(30))
                         .as_secs_f64() as i64,
                 }),
@@ -556,7 +556,7 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
             Some(StopContainerOptions {
                 t: action
                     .sigterm_timeout
-                    .map(|a| *a)
+                    .copied()
                     .unwrap_or(Duration::from_secs(30))
                     .as_secs_f64() as i64,
             }),
