@@ -25,6 +25,8 @@ v8.0.0
 
 ## Running locally with mocks
 
+1. Clone the repository
+
 ```
 git clone https://github.com/Start9Labs/embassy-os.git
 cd embassy-os
@@ -34,7 +36,7 @@ npm ci
 npm run build:deps
 ```
 
-Copy `config-sample.json` and its contents to a new file `config.json`.
+2. Copy `config-sample.json` and its contents to a new file `config.json`.
 
 ```
 cp config-sample.json config.json
@@ -43,10 +45,30 @@ cp config-sample.json config.json
 By default, "useMocks" is set to `true`.
 Valid values for "maskAs" are `tor` and `lan`.
 
-**Start the development server(s)**
+3. Start the development server(s)
 
 ```
 npm run start:ui
 npm run start:setup-wizard
 npm run start:diagnostic-ui
+```
+
+## Running locally with proxied backend
+
+This section enables you to run a local frontend with a remote backend (eg. hosted on a live Embassy). It assumes you have completed Step 1 and Step 2 in the [section above](#running-locally-with-mocks)
+
+1. Set `useMocks: true` in `config.json`
+
+2. Create a proxy configuration file from the sample:
+
+```
+cp proxy.conf.json.sample proxy.conf.json
+```
+
+3. Change the target address to desired IP address in `proxy.conf.json`
+
+4. Start the development server
+
+```
+npm run start:ui:proxy
 ```

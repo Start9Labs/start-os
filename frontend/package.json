@@ -15,9 +15,10 @@
     "build:setup-wizard": "ng run setup-wizard:build",
     "build:ui": "ng run ui:build && tsc projects/ui/postprocess.ts && node projects/ui/postprocess.js && git log | head -n1 > dist/ui/git-hash.txt",
     "build:all": "npm run build:deps && npm run build:diagnostic-ui && npm run build:setup-wizard && npm run build:ui",
-    "start:diagnostic-ui": "npm run-script build-config && ionic serve --project diagnostic-ui --address 0.0.0.0",
-    "start:setup-wizard": "npm run-script build-config && ionic serve --project setup-wizard --address 0.0.0.0",
-    "start:ui": "npm run-script build-config && ionic serve --project ui --ip --address 0.0.0.0",
+    "start:diagnostic-ui": "npm run-script build-config && ionic serve --project diagnostic-ui --host 0.0.0.0",
+    "start:setup-wizard": "npm run-script build-config && ionic serve --project setup-wizard --host 0.0.0.0",
+    "start:ui": "npm run-script build-config && ionic serve --project ui --ip --host 0.0.0.0",
+    "start:ui:proxy": "npm run-script build-config && ionic serve --project ui --ip --host 0.0.0.0 -- --proxy-config proxy.conf.json",
     "build-config": "node build-config.js"
   },
   "dependencies": {
