@@ -1,10 +1,16 @@
 export type Effects = {
-    writeFile(input: {path: string, volumeId: string, toWrite: string}): void,
-    readFile(input: {volumeId: string,path: string}): string,
-    removeFile(input: {volumeId: string,path: string}): string,
+    writeFile(input: {path: string, volumeId: string, toWrite: string}): Promise<void>,
+    readFile(input: {volumeId: string,path: string}): Promise<string>,
+    createDir(input: {volumeId: string,path: string}): Promise<string>,
+    removeDir(input: {volumeId: string,path: string}): Promise<string>,
+    removeFile(input: {volumeId: string,path: string}): Promise<void>,
     writeJsonFile(input: {volumeId: string,path: string, toWrite: object}): void,
     readJsonFile(input:{volumeId: string,path: string}): object,
-    println(whatToPrin: string),
+    trace(whatToPrin: string),
+    warn(whatToPrin: string),
+    error(whatToPrin: string),
+    debug(whatToPrin: string),
+    info(whatToPrin: string),
     is_sandboxed(): boolean,
 }
 

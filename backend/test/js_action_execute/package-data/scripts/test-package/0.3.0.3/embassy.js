@@ -11,16 +11,35 @@ export function properties() {
  * @returns {Promise<import('./types').ConfigRes>}
  */
 export async function getConfig(effects) {
-
-    effects.writeFile({
+    await effects.writeFile({
       path: "./test.log",
       toWrite: "This is a test",
       volumeId: 'main',
     });
-    effects.println(`Read results are ${effects.readFile({
+    await effects.createDir({
+      path: "./testing",
+      volumeId: 'main',});
+    await effects.writeFile({
+      path: "./testing/test2.log",
+      toWrite: "This is a test",
+      volumeId: 'main',
+    });
+    await effects.removeFile({
+      path: "./testing/test2.log",
+      volumeId: 'main',
+    })
+    await effects.removeDir({
+      path: "./testing",
+      volumeId: 'main',});
+    effects.debug(`Read results are ${await effects.readFile({
       path: "./test.log",
       volumeId: 'main',
     })}`)
+    effects.trace('trace')
+    effects.debug('debug')
+    effects.warn('warn')
+    effects.error('error')
+    effects.info('info')
     return {
         spec: {
             "control-tor-address": {
@@ -573,10 +592,3 @@ export async function setConfig(effects, input) {
     }
 }
 
-
-// loadActions({
-//   migration,
-//   properties,
-//   getConfig,
-//   setConfig
-// })

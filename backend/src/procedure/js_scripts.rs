@@ -136,7 +136,7 @@ mod js_runtime {
         input: Value,
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Deserialize, Serialize)]
     struct JsContext {
         sandboxed: bool,
         datadir: PathBuf,
@@ -257,7 +257,14 @@ mod js_runtime {
             self.operations = vec![
                 fns::read_file::decl(),
                 fns::write_file::decl(),
-                fns::println::decl(),
+                fns::create_dir::decl(),
+                fns::remove_dir::decl(),
+                fns::get_context::decl(),
+                fns::log_trace::decl(),
+                fns::log_warn::decl(),
+                fns::log_error::decl(),
+                fns::log_debug::decl(),
+                fns::log_info::decl(),
                 fns::current_function::decl(),
                 fns::set_value::decl(),
                 fns::remove_file::decl(),
@@ -367,12 +374,11 @@ mod js_runtime {
         use super::{AnswerState, JsContext};
 
         #[op]
-        fn read_file(
-            state: &mut OpState,
+        async fn read_file(
+            ctx: JsContext,
             volume_id: VolumeId,
             path_in: PathBuf,
         ) -> Result<String, AnyError> {
-            let ctx = state.borrow::<JsContext>();
             let volume = match ctx.volumes.get(&volume_id) {
                 Some(a) => a,
                 None => {
@@ -386,17 +392,16 @@ mod js_runtime {
             if !new_file.starts_with(volume_path) {
                 bail!("Path has broken away from parent");
             }
-            let answer = fs::read_to_string(new_file)?;
+            let answer = tokio::fs::read_to_string(new_file).await?;
             Ok(answer)
         }
         #[op]
-        fn write_file(
-            state: &mut OpState,
+        async fn write_file(
+            ctx: JsContext,
             volume_id: VolumeId,
             path_in: PathBuf,
             write: String,
         ) -> Result<(), AnyError> {
-            let ctx = state.borrow::<JsContext>();
             if ctx.sandboxed {
                 bail!("Cannot write in sandbox mode");
             }
@@ -416,16 +421,15 @@ mod js_runtime {
             if !new_file.starts_with(volume_path) {
                 bail!("Path has broken away from parent");
             }
-            fs::write(new_file, write)?;
+            tokio::fs::write(new_file, write).await?;
             Ok(())
         }
         #[op]
-        fn remove_file(
-            state: &mut OpState,
+        async fn remove_file(
+            ctx: JsContext,
             volume_id: VolumeId,
             path_in: PathBuf,
         ) -> Result<(), AnyError> {
-            let ctx = state.borrow::<JsContext>();
             if ctx.sandboxed {
                 bail!("Cannot write in sandbox mode");
             }
@@ -445,7 +449,63 @@ mod js_runtime {
             if !new_file.starts_with(volume_path) {
                 bail!("Path has broken away from parent");
             }
-            fs::remove_file(new_file)?;
+            tokio::fs::remove_file(new_file).await?;
+            Ok(())
+        }
+        #[op]
+        async fn remove_dir(
+            ctx: JsContext,
+            volume_id: VolumeId,
+            path_in: PathBuf,
+        ) -> Result<(), AnyError> {
+            if ctx.sandboxed {
+                bail!("Cannot write in sandbox mode");
+            }
+            let volume = match ctx.volumes.get(&volume_id) {
+                Some(a) => a,
+                None => {
+                    bail!("There is no {} in volumes", volume_id);
+                }
+            };
+            if volume.readonly() {
+                bail!("Volume {} is readonly", volume_id);
+            }
+            let volume_path =
+                volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
+            let new_file = dbg!(volume_path.clone().join(path_in));
+            // With the volume check
+            if !new_file.starts_with(volume_path) {
+                bail!("Path has broken away from parent");
+            }
+            tokio::fs::remove_dir_all(new_file).await?;
+            Ok(())
+        }
+        #[op]
+        async fn create_dir(
+            ctx: JsContext,
+            volume_id: VolumeId,
+            path_in: PathBuf,
+        ) -> Result<(), AnyError> {
+            if ctx.sandboxed {
+                bail!("Cannot write in sandbox mode");
+            }
+            let volume = match ctx.volumes.get(&volume_id) {
+                Some(a) => a,
+                None => {
+                    bail!("There is no {} in volumes", volume_id);
+                }
+            };
+            if volume.readonly() {
+                bail!("Volume {} is readonly", volume_id);
+            }
+            let volume_path =
+                volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
+            let new_file = dbg!(volume_path.clone().join(path_in));
+            // With the volume check
+            if !new_file.starts_with(volume_path) {
+                bail!("Path has broken away from parent");
+            }
+            tokio::fs::create_dir_all(new_file).await?;
             Ok(())
         }
 
@@ -456,9 +516,65 @@ mod js_runtime {
         }
 
         #[op]
-        fn println(input: String) -> Result<(), AnyError> {
-            println!("{}", input);
+        fn log_trace(state: &mut OpState, input: String) -> Result<(), AnyError> {
+            let ctx = state.borrow::<JsContext>();
+            tracing::trace!(
+                package_id = tracing::field::display(&ctx.package_id),
+                run_function = tracing::field::display(&ctx.run_function),
+                "{}",
+                input
+            );
             Ok(())
+        }
+        #[op]
+        fn log_warn(state: &mut OpState, input: String) -> Result<(), AnyError> {
+            let ctx = state.borrow::<JsContext>();
+            tracing::warn!(
+                package_id = tracing::field::display(&ctx.package_id),
+                run_function = tracing::field::display(&ctx.run_function),
+                "{}",
+                input
+            );
+            Ok(())
+        }
+        #[op]
+        fn log_error(state: &mut OpState, input: String) -> Result<(), AnyError> {
+            let ctx = state.borrow::<JsContext>();
+            tracing::error!(
+                package_id = tracing::field::display(&ctx.package_id),
+                run_function = tracing::field::display(&ctx.run_function),
+                "{}",
+                input
+            );
+            Ok(())
+        }
+        #[op]
+        fn log_debug(state: &mut OpState, input: String) -> Result<(), AnyError> {
+            let ctx = state.borrow::<JsContext>();
+            tracing::debug!(
+                package_id = tracing::field::display(&ctx.package_id),
+                run_function = tracing::field::display(&ctx.run_function),
+                "{}",
+                input
+            );
+            Ok(())
+        }
+        #[op]
+        fn log_info(state: &mut OpState, input: String) -> Result<(), AnyError> {
+            let ctx = state.borrow::<JsContext>();
+            tracing::info!(
+                package_id = tracing::field::display(&ctx.package_id),
+                run_function = tracing::field::display(&ctx.run_function),
+                "{}",
+                input
+            );
+            Ok(())
+        }
+
+        #[op]
+        fn get_context(state: &mut OpState) -> Result<JsContext, AnyError> {
+            let ctx = state.borrow::<JsContext>();
+            Ok(ctx.clone())
         }
         #[op]
         fn get_input(state: &mut OpState) -> Result<Value, AnyError> {
