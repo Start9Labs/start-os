@@ -123,14 +123,18 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
         })
         .scripts({
             let script_path = path.join(manifest.assets.scripts_path()).join("embassy.js");
-            if manifest.package_procedures().any(|a| a.is_script()) {
-                if script_path.exists() {
-                    Some(File::open(script_path).await?)
-                } else {
+            let needs_script = manifest.package_procedures().any(|a| a.is_script());
+            let has_script = script_path.exists();
+            match (needs_script, has_script) {
+                (true, true) => Some(File::open(script_path).await?),
+                (true, false) => {
                     return Err(Error::new(eyre!("Script is declared in manifest, but no such script exists at ./scripts/embassy.js"), ErrorKind::Pack).into())
                 }
-            } else {
-                None
+                (false, true) => {
+                    tracing::warn!("Manifest does not declare any actions that use scripts, but a script exists at ./scripts/embassy.js");
+                    None
+                }
+                (false, false) => None
             }
         })
         .build()
