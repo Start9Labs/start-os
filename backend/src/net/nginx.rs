@@ -91,7 +91,7 @@ impl NginxControllerInner {
         for (id, meta) in interface_map.iter() {
             for (port, lan_port_config) in meta.lan_config.iter() {
                 // get ssl certificate chain
-                let (listen_args, ssl_certificate_line, ssl_certificate_key_line) =
+                let (listen_args, ssl_certificate_line, ssl_certificate_key_line, proxy_redirect_directive) =
                     if lan_port_config.ssl {
                         // these have already been written by the net controller
                         let package_path = nginx_root.join(format!("ssl/{}", package));
@@ -115,9 +115,10 @@ impl NginxControllerInner {
                             format!("{} ssl", port.0),
                             format!("ssl_certificate {};", ssl_path_cert.to_str().unwrap()),
                             format!("ssl_certificate_key {};", ssl_path_key.to_str().unwrap()),
+                            format!("proxy_redirect http://$host/ https://$host/;"),
                         )
                     } else {
-                        (format!("{}", port.0), String::from(""), String::from(""))
+                        (format!("{}", port.0), String::from(""), String::from(""), String::from(""))
                     };
                 // write nginx configs
                 let nginx_conf_path = nginx_root.join(format!(
@@ -135,6 +136,7 @@ impl NginxControllerInner {
                         ssl_certificate_key_line = ssl_certificate_key_line,
                         app_ip = ipv4,
                         internal_port = lan_port_config.internal,
+                        proxy_redirect_directive = proxy_redirect_directive,
                     ),
                 )
                 .await
