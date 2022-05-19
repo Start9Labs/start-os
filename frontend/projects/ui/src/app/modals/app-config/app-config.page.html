@@ -24,7 +24,7 @@
   <text-spinner *ngIf="loadingText" [text]="loadingText"></text-spinner>
 
   <!-- not loading -->
-  <ng-template *ngIf="!loadingText && pkg">
+  <ng-container *ngIf="!loadingText && pkg">
     <ion-item *ngIf="loadingError; else noError">
       <ion-label>
         <ion-text color="danger"> {{ loadingError }} </ion-text>
@@ -95,7 +95,7 @@
         ></form-object>
       </form>
     </ng-template>
-  </ng-template>
+  </ng-container>
 </ion-content>
 
 <ion-footer>

@@ -10,7 +10,10 @@ import { WizardAction } from '../wizard-types'
 @Component({
   selector: 'dependents',
   templateUrl: './dependents.component.html',
-  styleUrls: ['../install-wizard.component.scss'],
+  styleUrls: [
+    './dependents.component.scss',
+    '../install-wizard.component.scss',
+  ],
 })
 export class DependentsComponent {
   @Input() params: {

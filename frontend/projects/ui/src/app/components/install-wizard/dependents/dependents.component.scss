@@ -1,0 +1,35 @@
+.wrapper {
+  margin-top: 25px;
+}
+
+.warning {
+  margin: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.label {
+  font-size: xx-large;
+  font-weight: bold;
+}
+
+.items {
+  margin: 25px 0;
+}
+
+.affected {
+  border-width: 0 0 1px 0;
+  font-size: unset;
+  text-align: left;
+  font-weight: bold;
+  margin-left: 13px;
+  border-style: solid;
+  border-color: var(--ion-color-light-tint);
+}
+
+.thumbnail {
+  position: relative;
+  height: 4vh;
+  width: 4vh;
+}
