@@ -379,6 +379,21 @@ impl IoFormat {
             }
         }
     }
+    pub async fn from_async_reader<
+        R: tokio::io::AsyncRead + Unpin,
+        T: for<'de> Deserialize<'de>,
+    >(
+        &self,
+        reader: R,
+    ) -> Result<T, Error> {
+        use crate::util::io::*;
+        match self {
+            IoFormat::Json | IoFormat::JsonPretty => from_json_async_reader(reader).await,
+            IoFormat::Yaml => from_yaml_async_reader(reader).await,
+            IoFormat::Cbor => from_cbor_async_reader(reader).await,
+            IoFormat::Toml | IoFormat::TomlPretty => from_toml_async_reader(reader).await,
+        }
+    }
     pub fn from_slice<T: for<'de> Deserialize<'de>>(&self, slice: &[u8]) -> Result<T, Error> {
         match self {
             IoFormat::Json | IoFormat::JsonPretty => {

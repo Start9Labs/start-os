@@ -4,9 +4,11 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::process::Stdio;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
 use async_trait::async_trait;
@@ -18,6 +20,7 @@ use futures::future::BoxFuture;
 use futures::FutureExt;
 use lazy_static::lazy_static;
 use patch_db::{HasModel, Model};
+use pin_project::pin_project;
 use tokio::fs::File;
 use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 use tokio::task::{JoinError, JoinHandle};
@@ -292,11 +295,13 @@ impl<T> Container<T> {
     }
 }
 
-pub struct HashWriter<H: Digest, W: std::io::Write> {
+#[pin_project]
+pub struct HashWriter<H: Digest, W: tokio::io::AsyncWrite> {
     hasher: H,
+    #[pin]
     writer: W,
 }
-impl<H: Digest, W: std::io::Write> HashWriter<H, W> {
+impl<H: Digest, W: tokio::io::AsyncWrite> HashWriter<H, W> {
     pub fn new(hasher: H, writer: W) -> Self {
         HashWriter { hasher, writer }
     }
@@ -310,14 +315,31 @@ impl<H: Digest, W: std::io::Write> HashWriter<H, W> {
         &mut self.writer
     }
 }
-impl<H: Digest, W: std::io::Write> std::io::Write for HashWriter<H, W> {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let written = self.writer.write(buf)?;
-        self.hasher.update(&buf[..written]);
-        Ok(written)
+impl<H: Digest, W: tokio::io::AsyncWrite> tokio::io::AsyncWrite for HashWriter<H, W> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        let this = self.project();
+        let written = tokio::io::AsyncWrite::poll_write(this.writer, cx, &buf);
+        match written {
+            // only update the hasher once
+            Poll::Ready(res) => {
+                if let Ok(n) = res {
+                    this.hasher.update(&buf[..n]);
+                }
+                Poll::Ready(res)
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.writer.flush()
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<std::io::Result<()>> {
+        self.project().writer.poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<std::io::Result<()>> {
+        self.project().writer.poll_shutdown(cx)
     }
 }
 
