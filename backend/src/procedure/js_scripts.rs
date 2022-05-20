@@ -75,6 +75,7 @@ impl JsProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
+        name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
         Ok(async move {
             let running_action = JsExecutionEnvironment::load_from_package(
@@ -85,7 +86,7 @@ impl JsProcedure {
             )
             .await?
             .read_only_effects()
-            .run_action(ProcedureName::GetConfig, input);
+            .run_action(name, input);
             let output: O = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
@@ -114,7 +115,7 @@ mod js_runtime {
     use deno_core::{Extension, OpDecl};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
-    use std::{path::Path, sync::Arc};
+    use std::sync::Arc;
     use std::{path::PathBuf, pin::Pin};
     use tokio::io::AsyncReadExt;
 

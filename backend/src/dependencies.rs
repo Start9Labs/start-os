@@ -14,7 +14,6 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::config::action::{ConfigActions, ConfigRes};
 use crate::config::spec::PackagePointerSpec;
 use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec};
 use crate::context::RpcContext;
@@ -27,6 +26,10 @@ use crate::util::serde::display_serializable;
 use crate::util::{display_none, Version};
 use crate::volume::Volumes;
 use crate::Error;
+use crate::{
+    config::action::{ConfigActions, ConfigRes},
+    procedure::ProcedureName,
+};
 
 #[command(subcommands(configure))]
 pub fn dependency() -> Result<(), Error> {
@@ -507,6 +510,7 @@ impl DependencyConfig {
                 dependent_volumes,
                 Some(dependency_config),
                 None,
+                ProcedureName::Check,
             )
             .await?
             .map_err(|(_, e)| e))
@@ -527,6 +531,7 @@ impl DependencyConfig {
                 dependent_volumes,
                 Some(old),
                 None,
+                ProcedureName::AutoConfig,
             )
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))
@@ -730,6 +735,7 @@ pub async fn configure_logic(
             &pkg_volumes,
             Some(&old_config),
             None,
+            ProcedureName::AutoConfig,
         )
         .await?
         .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?;

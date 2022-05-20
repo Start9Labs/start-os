@@ -4,13 +4,13 @@ export type Effects = {
   createDir(input: { volumeId: string; path: string }): Promise<string>;
   removeDir(input: { volumeId: string; path: string }): Promise<string>;
   removeFile(input: { volumeId: string; path: string }): Promise<void>;
-  writeJsonFile(input: { volumeId: string; path: string; toWrite: object }): void;
-  readJsonFile(input: { volumeId: string; path: string }): object;
-  trace(whatToPrin: string);
-  warn(whatToPrin: string);
-  error(whatToPrin: string);
-  debug(whatToPrin: string);
-  info(whatToPrin: string);
+  writeJsonFile(input: { volumeId: string; path: string; toWrite: object }): Promise<void>;
+  readJsonFile(input: { volumeId: string; path: string }): Promise<object>;
+  trace(whatToPrin: string): void;
+  warn(whatToPrin: string): void;
+  error(whatToPrin: string): void;
+  debug(whatToPrin: string): void;
+  info(whatToPrin: string): void;
   is_sandboxed(): boolean;
 };
 
