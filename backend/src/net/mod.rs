@@ -68,7 +68,7 @@ impl NetController {
         })
     }
 
-    pub fn ssl_directory_for(&self, pkg_id: &PackageId) -> PathBuf {
+    pub fn ssl_directory_for(pkg_id: &PackageId) -> PathBuf {
         PathBuf::from(format!("{}/{}", PACKAGE_CERT_PATH, pkg_id))
     }
 

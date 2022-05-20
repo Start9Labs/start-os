@@ -21,6 +21,8 @@ use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
 
+use super::ProcedureName;
+
 pub const NET_TLD: &str = "embassy";
 
 lazy_static::lazy_static! {
@@ -87,12 +89,14 @@ impl DockerProcedure {
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
-        name: Option<&str>,
+        name: ProcedureName,
         volumes: &Volumes,
         input: Option<I>,
         allow_inject: bool,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
+        let name = name.docker_name();
+        let name: Option<&str> = name.as_ref().map(|x| &**x);
         let mut cmd = tokio::process::Command::new("docker");
         if self.inject && allow_inject {
             cmd.arg("exec");
@@ -313,7 +317,7 @@ impl DockerProcedure {
             } else {
                 continue;
             };
-            let src = volume.path_for(ctx, pkg_id, pkg_version, volume_id);
+            let src = volume.path_for(&ctx.datadir, pkg_id, pkg_version, volume_id);
             if let Err(e) = tokio::fs::metadata(&src).await {
                 tracing::warn!("{} not mounted to container: {}", src.display(), e);
                 continue;

@@ -64,6 +64,7 @@ pub enum ErrorKind {
     InvalidBackupTargetId = 56,
     ProductKeyMismatch = 57,
     LanPortConflict = 58,
+    Javascript = 59,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -127,6 +128,7 @@ impl ErrorKind {
             InvalidBackupTargetId => "Invalid Backup Target ID",
             ProductKeyMismatch => "Incompatible Product Keys",
             LanPortConflict => "Incompatible LAN port configuration",
+            Javascript => "Javascript engine error",
         }
     }
 }

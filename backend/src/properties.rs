@@ -5,6 +5,7 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::procedure::ProcedureName;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::{Error, ErrorKind};
 
@@ -35,7 +36,7 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
                 &ctx,
                 &manifest.id,
                 &manifest.version,
-                Some(&format!("Properties-{}", rand::random::<u64>())),
+                ProcedureName::Properties,
                 &manifest.volumes,
                 None,
                 false,

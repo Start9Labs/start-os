@@ -7,7 +7,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
-use crate::procedure::{NoOutput, PackageProcedure};
+use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Duration;
 use crate::util::Version;
@@ -109,7 +109,7 @@ impl HealthCheck {
                 ctx,
                 pkg_id,
                 pkg_version,
-                Some(&format!("{}Health", id)),
+                ProcedureName::Health(id.clone()),
                 volumes,
                 Some(Utc::now().signed_duration_since(started).num_milliseconds()),
                 true,
