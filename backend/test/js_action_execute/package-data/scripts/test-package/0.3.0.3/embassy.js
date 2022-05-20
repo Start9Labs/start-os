@@ -10,6 +10,17 @@ export function properties() {
  * @returns {Promise<import('./types').ConfigRes>}
  */
 export async function getConfig(effects) {
+
+
+  try{
+    await effects.writeFile({
+      path: "../test.log",
+      toWrite: "This is a test",
+      volumeId: 'main',
+    });
+    throw new Error("Expecting that the ../test.log should not be a valid path since we are breaking out of the parent")
+  } catch(e) {}
+
     await effects.writeFile({
       path: "./test.log",
       toWrite: "This is a test",
@@ -18,11 +29,18 @@ export async function getConfig(effects) {
     await effects.createDir({
       path: "./testing",
       volumeId: 'main',});
-    await effects.writeFile({
+    await effects.writeJsonFile({
       path: "./testing/test2.log",
-      toWrite: "This is a test",
+      toWrite: {value: "This is a test"},
       volumeId: 'main',
     });
+
+    (await effects.readJsonFile({
+      path: "./testing/test2.log",
+      volumeId: 'main',
+    // @ts-ignore
+    })).value;
+    
     await effects.removeFile({
       path: "./testing/test2.log",
       volumeId: 'main',
@@ -587,6 +605,7 @@ export async function getConfig(effects) {
 export async function setConfig(effects, input) {
 
     return {
+        signal: "SIGTERM",
         "depends-on": {}
     }
 }

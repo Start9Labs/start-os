@@ -8,18 +8,6 @@ use crate::{
 };
 
 use self::js_runtime::JsExecutionEnvironment;
-use futures::future::Either as EitherFuture;
-use serde::{Deserialize, Serialize};
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
-use tracing::instrument;
-
-use crate::{
-    context::RpcContext, install::PKG_SCRIPT_DIR, s9pk::manifest::PackageId, util::Version,
-    volume::Volumes, Error,
-};
-
-use self::js_runtime::JsExecutionBuilder;
 
 use super::ProcedureName;
 
@@ -42,7 +30,7 @@ pub enum JsError {
 pub struct JsProcedure {}
 
 impl JsProcedure {
-    pub fn validate(&self, volumes: &Volumes) -> Result<(), color_eyre::eyre::Report> {
+    pub fn validate(&self, _volumes: &Volumes) -> Result<(), color_eyre::eyre::Report> {
         Ok(())
     }
 
@@ -65,7 +53,6 @@ impl JsProcedure {
                 volumes.clone(),
             )
             .await?
-            .with_effects()
             .run_action(name, input);
             let output: O = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
@@ -113,15 +100,9 @@ impl JsProcedure {
 }
 
 mod js_runtime {
-    use deno_ast::MediaType;
-    use deno_ast::ParseParams;
-    use deno_ast::SourceTextInfo;
-    use deno_core::anyhow::{anyhow, bail};
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
     use deno_core::resolve_import;
-    use deno_core::resolve_import;
-    use deno_core::resolve_path;
     use deno_core::JsRuntime;
     use deno_core::ModuleLoader;
     use deno_core::ModuleSource;
@@ -129,29 +110,26 @@ mod js_runtime {
     use deno_core::ModuleSpecifier;
     use deno_core::ModuleType;
     use deno_core::RuntimeOptions;
-    use deno_core::{error::AnyError, serde_v8, v8};
+    use deno_core::Snapshot;
     use deno_core::{Extension, OpDecl};
-    use deno_core::{Extension, OpDecl};
-    use futures::FutureExt;
-    use serde::{Deserialize, Serialize};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
-    use serde_json::Value;
-    use std::sync::Arc;
-    use std::sync::Arc;
-    use std::{convert::TryFrom, path::PathBuf, pin::Pin};
+    use std::{path::Path, sync::Arc};
     use std::{path::PathBuf, pin::Pin};
     use tokio::io::AsyncReadExt;
 
     use crate::s9pk::manifest::PackageId;
     use crate::util::Version;
-    use crate::volume::VolumeId;
+    use crate::volume::script_dir;
     use crate::volume::Volumes;
-    use crate::volume::{script_dir, Volumes};
 
     use super::super::ProcedureName;
     use super::{JsCode, JsError};
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    const SNAPSHOT_BYTES: &[u8] = include_bytes!("./js_scripts/JS_SNAPSHOT.bin");
 
+    #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+    const SNAPSHOT_BYTES: &[u8] = include_bytes!("./js_scripts/ARM_JS_SNAPSHOT.bin");
     #[derive(Clone, Deserialize, Serialize)]
     struct JsContext {
         sandboxed: bool,
@@ -239,7 +217,6 @@ mod js_runtime {
         module_loader: ModsLoader,
         package_id: PackageId,
         version: Version,
-        operations: Vec<OpDecl>,
         volumes: Arc<Volumes>,
     }
 
@@ -257,6 +234,7 @@ mod js_runtime {
                 let mut file = match tokio::fs::File::open(file_path.clone()).await {
                     Ok(x) => x,
                     Err(e) => {
+                        tracing::debug!("path: {:?}", file_path);
                         tracing::debug!("{:?}", e);
                         return Err((
                             JsError::FileSystem,
@@ -277,7 +255,6 @@ mod js_runtime {
             Ok(Self {
                 base_directory: base_directory.to_owned(),
                 module_loader: ModsLoader { code: js_code },
-                operations: Default::default(),
                 package_id: package_id.clone(),
                 version: version.clone(),
                 volumes: Arc::new(volumes),
@@ -286,29 +263,9 @@ mod js_runtime {
         }
         pub fn read_only_effects(mut self) -> Self {
             self.sandboxed = true;
-            self.with_effects()
-        }
-
-        pub fn with_effects(mut self) -> Self {
-            self.operations = vec![
-                fns::read_file::decl(),
-                fns::write_file::decl(),
-                fns::create_dir::decl(),
-                fns::remove_dir::decl(),
-                fns::get_context::decl(),
-                fns::log_trace::decl(),
-                fns::log_warn::decl(),
-                fns::log_error::decl(),
-                fns::log_debug::decl(),
-                fns::log_info::decl(),
-                fns::current_function::decl(),
-                fns::set_value::decl(),
-                fns::remove_file::decl(),
-                fns::is_sandboxed::decl(),
-                fns::get_input::decl(),
-            ];
             self
         }
+
         pub async fn run_action<I: Serialize, O: for<'de> Deserialize<'de>>(
             self,
             procedure_name: ProcedureName,
@@ -345,6 +302,25 @@ mod js_runtime {
                 }
             }
         }
+        fn declarations() -> Vec<OpDecl> {
+            vec![
+                fns::read_file::decl(),
+                fns::write_file::decl(),
+                fns::remove_file::decl(),
+                fns::create_dir::decl(),
+                fns::remove_dir::decl(),
+                fns::current_function::decl(),
+                fns::log_trace::decl(),
+                fns::log_warn::decl(),
+                fns::log_error::decl(),
+                fns::log_debug::decl(),
+                fns::log_info::decl(),
+                fns::get_context::decl(),
+                fns::get_input::decl(),
+                fns::set_value::decl(),
+                fns::is_sandboxed::decl(),
+            ]
+        }
 
         fn execute(
             &self,
@@ -364,7 +340,7 @@ mod js_runtime {
                 input,
             };
             let ext = Extension::builder()
-                .ops(self.operations.clone())
+                .ops(Self::declarations())
                 .state(move |state| {
                     state.put(ext_answer_state.clone());
                     state.put(js_ctx.clone());
@@ -373,11 +349,13 @@ mod js_runtime {
                 .build();
 
             let loader = std::rc::Rc::new(self.module_loader.clone());
-            let mut runtime = JsRuntime::new(RuntimeOptions {
+            let runtime_options = RuntimeOptions {
                 module_loader: Some(loader),
                 extensions: vec![ext],
+                startup_snapshot: Some(Snapshot::Static(SNAPSHOT_BYTES)),
                 ..Default::default()
-            });
+            };
+            let mut runtime = JsRuntime::new(runtime_options);
 
             let future = async move {
                 let mod_id = runtime
@@ -407,7 +385,10 @@ mod js_runtime {
         use deno_core::{anyhow::bail, error::AnyError, *};
         use serde_json::Value;
 
-        use std::{convert::TryFrom, path::PathBuf};
+        use std::{
+            convert::TryFrom,
+            path::{Path, PathBuf},
+        };
 
         use crate::volume::VolumeId;
 
@@ -429,7 +410,7 @@ mod js_runtime {
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             //get_path_for in volume.rs
             let new_file = volume_path.join(path_in);
-            if !new_file.starts_with(volume_path) {
+            if !is_subset(&volume_path, &new_file) {
                 bail!("Path has broken away from parent");
             }
             let answer = tokio::fs::read_to_string(new_file).await?;
@@ -458,7 +439,7 @@ mod js_runtime {
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             let new_file = volume_path.join(path_in);
             // With the volume check
-            if !new_file.starts_with(volume_path) {
+            if !is_subset(&volume_path, &new_file) {
                 bail!("Path has broken away from parent");
             }
             tokio::fs::write(new_file, write).await?;
@@ -486,7 +467,7 @@ mod js_runtime {
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             let new_file = volume_path.clone().join(path_in);
             // With the volume check
-            if !new_file.starts_with(volume_path) {
+            if !is_subset(&volume_path, &new_file) {
                 bail!("Path has broken away from parent");
             }
             tokio::fs::remove_file(new_file).await?;
@@ -514,7 +495,7 @@ mod js_runtime {
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             let new_file = volume_path.clone().join(path_in);
             // With the volume check
-            if !new_file.starts_with(volume_path) {
+            if !is_subset(&volume_path, &new_file) {
                 bail!("Path has broken away from parent");
             }
             tokio::fs::remove_dir_all(new_file).await?;
@@ -542,7 +523,7 @@ mod js_runtime {
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             let new_file = volume_path.clone().join(path_in);
             // With the volume check
-            if !new_file.starts_with(volume_path) {
+            if !is_subset(&volume_path, &new_file) {
                 bail!("Path has broken away from parent");
             }
             tokio::fs::create_dir_all(new_file).await?;
@@ -632,8 +613,45 @@ mod js_runtime {
             let ctx = state.borrow::<JsContext>();
             Ok(ctx.sandboxed)
         }
+
+        fn is_subset(parent: impl AsRef<Path>, child: impl AsRef<Path>) -> bool {
+            let child = normalize_path(child);
+            let parent = normalize_path(parent);
+            child
+                .zip(parent)
+                .map(|(child, parent)| child.starts_with(parent))
+                .unwrap_or(false)
+        }
+        fn normalize_path(path: impl AsRef<Path>) -> Option<PathBuf> {
+            use std::path::Component;
+            let mut components = path.as_ref().components().peekable();
+            let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+                components.next();
+                PathBuf::from(c.as_os_str())
+            } else {
+                PathBuf::new()
+            };
+
+            for component in components {
+                match component {
+                    Component::Prefix(..) => return None,
+                    Component::RootDir => {
+                        ret.push(component.as_os_str());
+                    }
+                    Component::CurDir => {}
+                    Component::ParentDir => {
+                        ret.pop();
+                    }
+                    Component::Normal(c) => {
+                        ret.push(c);
+                    }
+                }
+            }
+            Some(ret)
+        }
     }
 }
+
 #[tokio::test]
 async fn js_action_execute() {
     let js_action = JsProcedure {};
@@ -658,7 +676,7 @@ async fn js_action_execute() {
     }))
     .unwrap();
     let input: Option<serde_json::Value> = Some(serde_json::json!({"test":123}));
-    let timeout = None;
+    let timeout = Some(Duration::from_secs(10));
     let _output: crate::config::action::ConfigRes = js_action
         .execute(
             &path,
