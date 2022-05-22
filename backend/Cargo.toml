@@ -75,6 +75,7 @@ hyper = "0.14.13"
 hyper-ws-listener = { git = "https://github.com/Start9Labs/hyper-ws-listener.git", branch = "main" }
 imbl = "1.0.1"
 indexmap = { version = "1.7.0", features = ["serde"] }
+indicatif = "0.16.2"
 isocountry = "0.3.2"
 itertools = "0.10.1"
 jsonpath_lib = "0.3.0"
