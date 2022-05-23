@@ -1,12 +1,11 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title *ngIf="!patch.loaded"
-      >Loading<span class="loading-dots"></span
+    <ion-title *ngIf="!patch.loaded">
+      Loading<span class="loading-dots"></span
     ></ion-title>
-    <ion-title *ngIf="patch.loaded"
-      >{{ patch.data.ui.name || "Embassy-" + patch.data['server-info'].id
-      }}</ion-title
-    >
+    <ion-title *ngIf="patch.loaded && patch.data.ui">
+      {{ patch.data.ui.name || "Embassy-" + patch.data['server-info'].id }}
+    </ion-title>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
