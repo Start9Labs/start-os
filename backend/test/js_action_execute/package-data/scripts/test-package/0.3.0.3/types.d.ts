@@ -256,3 +256,11 @@ export type Properties = {
   version: 2;
   data: PackagePropertiesV2;
 };
+
+
+export type Dependencies = {
+  [id: string]: {
+    check(effects: Effects, input: Config): Promise<void | null>,
+    autoConfigure(effects: Effects, input: Config): Promise<Config>,
+  }
+}

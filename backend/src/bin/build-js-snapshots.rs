@@ -9,5 +9,4 @@ fn main() {
     println!("Snapshot size: {}", snapshot_slice.len());
 
     std::fs::write("JS_SNAPSHOT.bin", snapshot_slice).unwrap();
-    println!("Test");
 }

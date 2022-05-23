@@ -260,6 +260,7 @@ impl DependencyError {
                                 id,
                                 &dependent_manifest.version,
                                 &dependent_manifest.volumes,
+                                dependency,
                                 &dependency_config,
                             )
                             .await?
@@ -499,6 +500,7 @@ impl DependencyConfig {
         dependent_id: &PackageId,
         dependent_version: &Version,
         dependent_volumes: &Volumes,
+        dependency_id: &PackageId,
         dependency_config: &Config,
     ) -> Result<Result<NoOutput, String>, Error> {
         Ok(self
@@ -510,7 +512,7 @@ impl DependencyConfig {
                 dependent_volumes,
                 Some(dependency_config),
                 None,
-                ProcedureName::Check,
+                ProcedureName::Check(dependency_id.clone()),
             )
             .await?
             .map_err(|(_, e)| e))
@@ -531,7 +533,7 @@ impl DependencyConfig {
                 dependent_volumes,
                 Some(old),
                 None,
-                ProcedureName::AutoConfig,
+                ProcedureName::AutoConfig(dependent_id.clone()),
             )
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))
@@ -735,7 +737,7 @@ pub async fn configure_logic(
             &pkg_volumes,
             Some(&old_config),
             None,
-            ProcedureName::AutoConfig,
+            ProcedureName::AutoConfig(dependency_id.clone()),
         )
         .await?
         .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?;

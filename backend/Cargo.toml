@@ -142,8 +142,5 @@ url = { version = "2.2.2", features = ["serde"] }
 features = ["macros", "json"]
 version = "1.10.0"
 
-[build-dependencies]
-deno_core = "0.135.0"
-
 [profile.dev.package.backtrace]
 opt-level = 3

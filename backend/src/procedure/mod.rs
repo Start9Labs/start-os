@@ -28,8 +28,8 @@ pub enum ProcedureName {
     SetConfig,
     Migration,
     Properties,
-    Check,
-    AutoConfig,
+    Check(PackageId),
+    AutoConfig(PackageId),
     Health(HealthCheckId),
     Action(ActionId),
 }
@@ -46,8 +46,8 @@ impl ProcedureName {
             ProcedureName::Properties => Some(format!("Properties-{}", rand::random::<u64>())),
             ProcedureName::Health(id) => Some(format!("{}Health", id)),
             ProcedureName::Action(id) => Some(format!("{}Action", id)),
-            ProcedureName::Check => None,
-            ProcedureName::AutoConfig => None,
+            ProcedureName::Check(_) => None,
+            ProcedureName::AutoConfig(_) => None,
         }
     }
     fn js_function_name(&self) -> String {
@@ -61,8 +61,8 @@ impl ProcedureName {
             ProcedureName::Properties => "/properties".to_string(),
             ProcedureName::Health(id) => format!("/health/{}", id),
             ProcedureName::Action(id) => format!("/action/{}", id),
-            ProcedureName::Check => "/check".to_string(),
-            ProcedureName::AutoConfig => "/autoConfig".to_string(),
+            ProcedureName::Check(id) => format!("/dependencies/{}/check", id),
+            ProcedureName::AutoConfig(id) => format!("/dependencies/{}/autoConfigure", id),
         }
     }
 }

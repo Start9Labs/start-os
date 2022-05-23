@@ -81,8 +81,8 @@ const effects = {
 const runFunction = jsonPointerValue(mainModule, currentFunction);
 (async () => {
   if (typeof runFunction !== "function") {
-    error(`Expecting ${{ currentFunction }} to be a function`);
-    throw new Error(`Expecting ${{ currentFunction }} to be a function`);
+    error(`Expecting ${ currentFunction } to be a function`);
+    throw new Error(`Expecting ${ currentFunction } to be a function`);
   }
   const answer = await runFunction(effects, input);
   setState(answer);

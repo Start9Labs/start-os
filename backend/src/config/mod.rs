@@ -187,7 +187,6 @@ impl ConfigGetReceipts {
         locks: &mut Vec<LockTargetId>,
         id: &PackageId,
     ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-
         let manifest_version = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(id)
@@ -680,6 +679,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                         dependent,
                         &manifest.version,
                         &manifest.volumes,
+                        dependent,
                         &config,
                     )
                     .await?

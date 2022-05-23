@@ -20,12 +20,24 @@ export async function getConfig(effects) {
     });
     throw new Error("Expecting that the ../test.log should not be a valid path since we are breaking out of the parent")
   } catch(e) {}
-
+  try{
     await effects.writeFile({
-      path: "./test.log",
+      path: "./hack_back/broken.log",
       toWrite: "This is a test",
       volumeId: 'main',
     });
+    throw new Error("Expecting that using a symlink to break out of parent still fails")
+  } catch(e) {}
+  try{
+    await effects.writeFile({
+      path: "./hack_back/broken.log",
+      toWrite: "This is a test",
+      volumeId: 'main',
+    });
+    throw new Error("Expecting that using a symlink to break out of parent still fails")
+  } catch(e) {}
+
+  // Testing dir, create + delete
     await effects.createDir({
       path: "./testing",
       volumeId: 'main',});
@@ -48,10 +60,20 @@ export async function getConfig(effects) {
     await effects.removeDir({
       path: "./testing",
       volumeId: 'main',});
+
+
+      // Testing reading + writing
+    await effects.writeFile({
+      path: "./test.log",
+      toWrite: "This is a test",
+      volumeId: 'main',
+    });
+
     effects.debug(`Read results are ${await effects.readFile({
       path: "./test.log",
       volumeId: 'main',
     })}`)
+    // Testing loging
     effects.trace('trace')
     effects.debug('debug')
     effects.warn('warn')

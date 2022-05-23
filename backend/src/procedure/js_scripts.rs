@@ -126,10 +126,10 @@ mod js_runtime {
 
     use super::super::ProcedureName;
     use super::{JsCode, JsError};
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(target_arch = "x86_64")]
     const SNAPSHOT_BYTES: &[u8] = include_bytes!("./js_scripts/JS_SNAPSHOT.bin");
 
-    #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+    #[cfg(target_arch = "aarch64")]
     const SNAPSHOT_BYTES: &[u8] = include_bytes!("./js_scripts/ARM_JS_SNAPSHOT.bin");
     #[derive(Clone, Deserialize, Serialize)]
     struct JsContext {
@@ -364,8 +364,8 @@ mod js_runtime {
                     .await?;
                 let evaluated = runtime.mod_evaluate(mod_id);
                 let res = runtime.run_event_loop(false).await;
-                evaluated.await??;
                 res?;
+                evaluated.await??;
                 Ok::<_, AnyError>(())
             };
 
@@ -383,7 +383,11 @@ mod js_runtime {
 
     /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
     mod fns {
-        use deno_core::{anyhow::bail, error::AnyError, *};
+        use deno_core::{
+            anyhow::{anyhow, bail},
+            error::AnyError,
+            *,
+        };
         use serde_json::Value;
 
         use std::{
@@ -410,9 +414,13 @@ mod js_runtime {
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             //get_path_for in volume.rs
-            let new_file = volume_path.join(path_in);
+            let new_file = tokio::fs::canonicalize(volume_path.join(path_in)).await?;
             if !is_subset(&volume_path, &new_file) {
-                bail!("Path has broken away from parent");
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             let answer = tokio::fs::read_to_string(new_file).await?;
             Ok(answer)
@@ -438,10 +446,20 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
+            let parent_new_file = volume_path
+                .join(&path_in)
+                .parent()
+                .and_then(|x| x.canonicalize().ok())
+                .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
+
             let new_file = volume_path.join(path_in);
             // With the volume check
-            if !is_subset(&volume_path, &new_file) {
-                bail!("Path has broken away from parent");
+            if !is_subset(&volume_path, &parent_new_file) {
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             tokio::fs::write(new_file, write).await?;
             Ok(())
@@ -466,10 +484,14 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = volume_path.clone().join(path_in);
+            let new_file = tokio::fs::canonicalize(volume_path.join(path_in)).await?;
             // With the volume check
             if !is_subset(&volume_path, &new_file) {
-                bail!("Path has broken away from parent");
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             tokio::fs::remove_file(new_file).await?;
             Ok(())
@@ -494,10 +516,14 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = volume_path.clone().join(path_in);
+            let new_file = tokio::fs::canonicalize(volume_path.join(path_in)).await?;
             // With the volume check
             if !is_subset(&volume_path, &new_file) {
-                bail!("Path has broken away from parent");
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             tokio::fs::remove_dir_all(new_file).await?;
             Ok(())
@@ -522,10 +548,19 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = volume_path.clone().join(path_in);
+            let parent_new_file = volume_path
+                .join(&path_in)
+                .parent()
+                .and_then(|x| x.canonicalize().ok())
+                .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
+            let new_file = volume_path.join(path_in);
             // With the volume check
-            if !is_subset(&volume_path, &new_file) {
-                bail!("Path has broken away from parent");
+            if !is_subset(&volume_path, &parent_new_file) {
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             tokio::fs::create_dir_all(new_file).await?;
             Ok(())
@@ -615,6 +650,7 @@ mod js_runtime {
             Ok(ctx.sandboxed)
         }
 
+        /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
         fn is_subset(parent: impl AsRef<Path>, child: impl AsRef<Path>) -> bool {
             let child = normalize_path(child);
             let parent = normalize_path(parent);
@@ -623,6 +659,9 @@ mod js_runtime {
                 .map(|(child, parent)| child.starts_with(parent))
                 .unwrap_or(false)
         }
+
+        /// Used during the subset, we are collapsing the state of the file paths. This will not work with soft link,
+        /// and the correct method, canonicalizePaths seems to freeze randomly, and is much slower.
         fn normalize_path(path: impl AsRef<Path>) -> Option<PathBuf> {
             use std::path::Component;
             let mut components = path.as_ref().components().peekable();
@@ -656,7 +695,11 @@ mod js_runtime {
 #[tokio::test]
 async fn js_action_execute() {
     let js_action = JsProcedure {};
-    let path: PathBuf = "test/js_action_execute/".parse().unwrap();
+    let path: PathBuf = "test/js_action_execute/"
+        .parse::<PathBuf>()
+        .unwrap()
+        .canonicalize()
+        .unwrap();
     let package_id = "test-package".parse().unwrap();
     let package_version: Version = "0.3.0.3".parse().unwrap();
     let name = ProcedureName::GetConfig;
