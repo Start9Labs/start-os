@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use color_eyre::eyre::eyre;
@@ -14,6 +15,7 @@ use futures::{FutureExt, StreamExt, TryStreamExt};
 use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::Body;
+use indicatif::ProgressBar;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
@@ -284,7 +286,21 @@ pub async fn install(
             ))
         }
     }
-    pde.save(&mut tx).await?;
+    let (_, pde_save_res) = tokio::join!(
+        async {
+            let progress = progress.clone();
+            if progress.size.is_some() {
+                let progress_bar = ProgressBar::new(progress.size.unwrap());
+                while progress.download_complete.load(Ordering::Relaxed) != true {
+                    let progress_position = progress.downloaded.load(Ordering::Relaxed);
+                    progress_bar.set_position(progress_position);
+                    thread::sleep(Duration::from_millis(10));
+                }
+            }
+        },
+        async { pde.save(&mut tx).await }
+    );
+    pde_save_res?;
     let res = tx.commit(None).await?;
     drop(db_handle);
 
