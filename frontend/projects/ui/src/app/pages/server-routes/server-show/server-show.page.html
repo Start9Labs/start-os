@@ -3,7 +3,9 @@
     <ion-title *ngIf="!patch.loaded">
       Loading<span class="loading-dots"></span
     ></ion-title>
-    <ion-title *ngIf="patch.loaded && patch.data.ui">
+    <ion-title
+      *ngIf="patch.loaded && patch.data.ui && patch.data['server-info']"
+    >
       {{ patch.data.ui.name || "Embassy-" + patch.data['server-info'].id }}
     </ion-title>
     <ion-buttons slot="end">
@@ -36,6 +38,7 @@
         </ion-item-divider>
         <ng-container *ngFor="let button of cat.value">
           <ion-item
+            *ngIf="patch.data['server-info'] as server"
             button
             [style.display]="(button.title === 'Repair Disk' && !(localStorageService.showDiskRepair$ | async)) ? 'none' : 'block'"
             [detail]="button.detail"
@@ -49,16 +52,13 @@
 
               <!-- "Create Backup" button only -->
               <p *ngIf="button.title === 'Create Backup'">
-                <ng-container
-                  *ngIf="patch.data['server-info']['status-info'] as statusInfo"
-                >
+                <ng-container *ngIf="server['status-info'] as statusInfo">
                   <ion-text
                     color="warning"
                     *ngIf="!statusInfo['backing-up'] && !statusInfo['update-progress']"
                   >
-                    Last Backup: {{ patch.data['server-info']['last-backup'] ?
-                    (patch.data['server-info']['last-backup'] | date: 'short') :
-                    'never' }}
+                    Last Backup: {{ server['last-backup'] ?
+                    (server['last-backup'] | date: 'short') : 'never' }}
                   </ion-text>
                   <span *ngIf="!!statusInfo['backing-up']" class="inline">
                     <ion-spinner
@@ -73,7 +73,7 @@
               <p *ngIf="button.title === 'Software Update'">
                 <ng-container *ngIf="button.disabled | async; else enabled">
                   <ion-text
-                    *ngIf="patch.data['server-info']['status-info'].updated"
+                    *ngIf="server['status-info'].updated"
                     class="inline"
                     color="warning"
                   >
