@@ -415,7 +415,7 @@ mod js_runtime {
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             //get_path_for in volume.rs
             let new_file = volume_path.join(path_in);
-            if !is_subset(&volume_path, &new_file).await {
+            if !is_subset(&volume_path, &new_file).await? {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -452,7 +452,7 @@ mod js_runtime {
                 .parent()
                 .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
             // With the volume check
-            if !is_subset(&volume_path, &parent_new_file).await {
+            if !is_subset(&volume_path, &parent_new_file).await? {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -484,7 +484,7 @@ mod js_runtime {
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             let new_file = volume_path.join(path_in);
             // With the volume check
-            if !is_subset(&volume_path, &new_file).await {
+            if !is_subset(&volume_path, &new_file).await? {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -516,7 +516,7 @@ mod js_runtime {
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             let new_file = volume_path.join(path_in);
             // With the volume check
-            if !is_subset(&volume_path, &new_file).await {
+            if !is_subset(&volume_path, &new_file).await? {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -551,7 +551,7 @@ mod js_runtime {
                 .parent()
                 .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
             // With the volume check
-            if !is_subset(&volume_path, &parent_new_file).await {
+            if !is_subset(&volume_path, &parent_new_file).await? {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -647,13 +647,10 @@ mod js_runtime {
         }
 
         /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
-        async fn is_subset(parent: impl AsRef<Path>, child: impl AsRef<Path>) -> bool {
-            let child = tokio::fs::canonicalize(child).await.ok();
-            let parent = tokio::fs::canonicalize(parent).await.ok();
-            child
-                .zip(parent)
-                .map(|(child, parent)| child.starts_with(parent))
-                .unwrap_or(false)
+        async fn is_subset(parent: impl AsRef<Path>, child: impl AsRef<Path>) -> Result<bool, AnyError> {
+            let child = tokio::fs::canonicalize(child).await?;
+            let parent = tokio::fs::canonicalize(parent).await?;
+            Ok(child.starts_with(parent))
         }
     }
 }
