@@ -1,13 +1,11 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title *ngIf="!patch.loaded">
-      Loading<span class="loading-dots"></span
-    ></ion-title>
-    <ion-title
-      *ngIf="patch.loaded && patch.data.ui && patch.data['server-info']"
-    >
-      {{ patch.data.ui.name || "Embassy-" + patch.data['server-info'].id }}
+    <ion-title *ngIf="patch.loaded else loading">
+      {{ patch.data.ui?.name || "Embassy-" + patch.data['server-info']?.id }}
     </ion-title>
+    <ng-template #loading>
+      <ion-title>Loading<span class="loading-dots"></span></ion-title>
+    </ng-template>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
@@ -23,22 +21,22 @@
 
   <!-- not loading -->
   <ng-template #data>
-    <ion-item-group>
+    <ion-item-group *ngIf="server$ | async as server">
       <div *ngFor="let cat of settings | keyvalue : asIsOrder">
         <ion-item-divider>
-          <ion-text color="dark" *ngIf="cat.key !== 'Power'"
-            >{{ cat.key }}</ion-text
-          >
+          <ion-text color="dark" *ngIf="cat.key !== 'Power'">
+            {{ cat.key }}
+          </ion-text>
           <ion-text
             color="dark"
             *ngIf="cat.key === 'Power'"
             (click)="addClick()"
-            >{{ cat.key }}</ion-text
           >
+            {{ cat.key }}
+          </ion-text>
         </ion-item-divider>
         <ng-container *ngFor="let button of cat.value">
           <ion-item
-            *ngIf="patch.data['server-info'] as server"
             button
             [style.display]="(button.title === 'Repair Disk' && !(localStorageService.showDiskRepair$ | async)) ? 'none' : 'block'"
             [detail]="button.detail"
