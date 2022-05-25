@@ -373,7 +373,7 @@ mod js_runtime {
                 .block_on(future)
                 .map_err(|e| {
                     tracing::debug!("{:?}", e);
-                    (JsError::Javascript, format!("Execution error: {}", e))
+                    (JsError::Javascript, format!("{}", e))
                 })?;
 
             let answer = answer_state.0.lock().clone();
@@ -414,8 +414,8 @@ mod js_runtime {
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             //get_path_for in volume.rs
-            let new_file = tokio::fs::canonicalize(volume_path.join(path_in)).await?;
-            if !is_subset(&volume_path, &new_file) {
+            let new_file = volume_path.join(path_in);
+            if !is_subset(&volume_path, &new_file).await {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -446,15 +446,13 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let parent_new_file = volume_path
-                .join(&path_in)
-                .parent()
-                .and_then(|x| x.canonicalize().ok())
-                .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
 
             let new_file = volume_path.join(path_in);
+            let parent_new_file = new_file
+                .parent()
+                .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
             // With the volume check
-            if !is_subset(&volume_path, &parent_new_file) {
+            if !is_subset(&volume_path, &parent_new_file).await {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -484,9 +482,9 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = tokio::fs::canonicalize(volume_path.join(path_in)).await?;
+            let new_file = volume_path.join(path_in);
             // With the volume check
-            if !is_subset(&volume_path, &new_file) {
+            if !is_subset(&volume_path, &new_file).await {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -516,9 +514,9 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = tokio::fs::canonicalize(volume_path.join(path_in)).await?;
+            let new_file = volume_path.join(path_in);
             // With the volume check
-            if !is_subset(&volume_path, &new_file) {
+            if !is_subset(&volume_path, &new_file).await {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -548,14 +546,12 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let parent_new_file = volume_path
-                .join(&path_in)
-                .parent()
-                .and_then(|x| x.canonicalize().ok())
-                .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
             let new_file = volume_path.join(path_in);
+            let parent_new_file = new_file
+                .parent()
+                .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
             // With the volume check
-            if !is_subset(&volume_path, &parent_new_file) {
+            if !is_subset(&volume_path, &parent_new_file).await {
                 bail!(
                     "Path '{}' has broken away from parent '{}'",
                     new_file.to_string_lossy(),
@@ -651,43 +647,13 @@ mod js_runtime {
         }
 
         /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
-        fn is_subset(parent: impl AsRef<Path>, child: impl AsRef<Path>) -> bool {
-            let child = normalize_path(child);
-            let parent = normalize_path(parent);
+        async fn is_subset(parent: impl AsRef<Path>, child: impl AsRef<Path>) -> bool {
+            let child = tokio::fs::canonicalize(child).await.ok();
+            let parent = tokio::fs::canonicalize(parent).await.ok();
             child
                 .zip(parent)
                 .map(|(child, parent)| child.starts_with(parent))
                 .unwrap_or(false)
-        }
-
-        /// Used during the subset, we are collapsing the state of the file paths. This will not work with soft link,
-        /// and the correct method, canonicalizePaths seems to freeze randomly, and is much slower.
-        fn normalize_path(path: impl AsRef<Path>) -> Option<PathBuf> {
-            use std::path::Component;
-            let mut components = path.as_ref().components().peekable();
-            let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
-                components.next();
-                PathBuf::from(c.as_os_str())
-            } else {
-                PathBuf::new()
-            };
-
-            for component in components {
-                match component {
-                    Component::Prefix(..) => return None,
-                    Component::RootDir => {
-                        ret.push(component.as_os_str());
-                    }
-                    Component::CurDir => {}
-                    Component::ParentDir => {
-                        ret.pop();
-                    }
-                    Component::Normal(c) => {
-                        ret.push(c);
-                    }
-                }
-            }
-            Some(ret)
         }
     }
 }

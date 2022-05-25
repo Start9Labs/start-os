@@ -10,8 +10,6 @@ export function properties() {
  * @returns {Promise<import('./types').ConfigRes>}
  */
 export async function getConfig(effects) {
-
-
   try{
     await effects.writeFile({
       path: "../test.log",
@@ -26,15 +24,21 @@ export async function getConfig(effects) {
       toWrite: "This is a test",
       volumeId: 'main',
     });
-    throw new Error("Expecting that using a symlink to break out of parent still fails")
+    throw new Error("Expecting that using a symlink to break out of parent still fails for writing")
   } catch(e) {}
   try{
-    await effects.writeFile({
-      path: "./hack_back/broken.log",
-      toWrite: "This is a test",
+    await effects.createDir({
+      path: "./hack_back/broken_dir",
       volumeId: 'main',
     });
-    throw new Error("Expecting that using a symlink to break out of parent still fails")
+    throw new Error("Expecting that using a symlink to break out of parent still fails for writing dir")
+  } catch(e) {}
+  try{
+    await effects.readFile({
+      path: "./hack_back/data/bad_file.txt",
+      volumeId: 'main',
+    });
+    throw new Error("Expecting that using a symlink to break out of parent still fails for reading")
   } catch(e) {}
 
   // Testing dir, create + delete
