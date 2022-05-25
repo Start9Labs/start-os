@@ -10,19 +10,53 @@ export function properties() {
  * @returns {Promise<import('./types').ConfigRes>}
  */
 export async function getConfig(effects) {
+  try{
     await effects.writeFile({
-      path: "./test.log",
+      path: "../test.log",
       toWrite: "This is a test",
       volumeId: 'main',
     });
+    throw new Error("Expecting that the ../test.log should not be a valid path since we are breaking out of the parent")
+  } catch(e) {}
+  try{
+    await effects.writeFile({
+      path: "./hack_back/broken.log",
+      toWrite: "This is a test",
+      volumeId: 'main',
+    });
+    throw new Error("Expecting that using a symlink to break out of parent still fails for writing")
+  } catch(e) {}
+  try{
+    await effects.createDir({
+      path: "./hack_back/broken_dir",
+      volumeId: 'main',
+    });
+    throw new Error("Expecting that using a symlink to break out of parent still fails for writing dir")
+  } catch(e) {}
+  try{
+    await effects.readFile({
+      path: "./hack_back/data/bad_file.txt",
+      volumeId: 'main',
+    });
+    throw new Error("Expecting that using a symlink to break out of parent still fails for reading")
+  } catch(e) {}
+
+  // Testing dir, create + delete
     await effects.createDir({
       path: "./testing",
       volumeId: 'main',});
-    await effects.writeFile({
+    await effects.writeJsonFile({
       path: "./testing/test2.log",
-      toWrite: "This is a test",
+      toWrite: {value: "This is a test"},
       volumeId: 'main',
     });
+
+    (await effects.readJsonFile({
+      path: "./testing/test2.log",
+      volumeId: 'main',
+    // @ts-ignore
+    })).value;
+    
     await effects.removeFile({
       path: "./testing/test2.log",
       volumeId: 'main',
@@ -30,10 +64,20 @@ export async function getConfig(effects) {
     await effects.removeDir({
       path: "./testing",
       volumeId: 'main',});
+
+
+      // Testing reading + writing
+    await effects.writeFile({
+      path: "./test.log",
+      toWrite: "This is a test",
+      volumeId: 'main',
+    });
+
     effects.debug(`Read results are ${await effects.readFile({
       path: "./test.log",
       volumeId: 'main',
     })}`)
+    // Testing loging
     effects.trace('trace')
     effects.debug('debug')
     effects.warn('warn')
@@ -587,6 +631,7 @@ export async function getConfig(effects) {
 export async function setConfig(effects, input) {
 
     return {
+        signal: "SIGTERM",
         "depends-on": {}
     }
 }

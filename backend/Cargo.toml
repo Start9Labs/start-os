@@ -25,6 +25,10 @@ name = "embassyd"
 path = "src/bin/embassyd.rs"
 
 [[bin]]
+name = "create-js-snapshots"
+path = "src/bin/build-js-snapshots.rs"
+
+[[bin]]
 name = "embassy-init"
 path = "src/bin/embassy-init.rs"
 
@@ -61,8 +65,8 @@ color-eyre = "0.5"
 cookie_store = "0.15.0"
 digest = "0.9.0"
 divrem = "1.0.0"
-deno_core = "0.134.0"
-deno_ast = {version="0.14.0", features = ["transpiling"]}
+deno_core =  "0.135.0"
+deno_ast = {version="0.14.1", features = ["transpiling"]}
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
 emver = { version = "0.1.6", features = ["serde"] }
 fd-lock-rs = "0.1.3"

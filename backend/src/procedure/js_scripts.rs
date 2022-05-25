@@ -30,7 +30,7 @@ pub enum JsError {
 pub struct JsProcedure {}
 
 impl JsProcedure {
-    pub fn validate(&self, volumes: &Volumes) -> Result<(), color_eyre::eyre::Report> {
+    pub fn validate(&self, _volumes: &Volumes) -> Result<(), color_eyre::eyre::Report> {
         Ok(())
     }
 
@@ -53,7 +53,6 @@ impl JsProcedure {
                 volumes.clone(),
             )
             .await?
-            .with_effects()
             .run_action(name, input);
             let output: O = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
@@ -76,6 +75,7 @@ impl JsProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
+        name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
         Ok(async move {
             let running_action = JsExecutionEnvironment::load_from_package(
@@ -86,7 +86,7 @@ impl JsProcedure {
             )
             .await?
             .read_only_effects()
-            .run_action(ProcedureName::GetConfig, input);
+            .run_action(name, input);
             let output: O = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
@@ -111,6 +111,7 @@ mod js_runtime {
     use deno_core::ModuleSpecifier;
     use deno_core::ModuleType;
     use deno_core::RuntimeOptions;
+    use deno_core::Snapshot;
     use deno_core::{Extension, OpDecl};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
@@ -120,11 +121,16 @@ mod js_runtime {
 
     use crate::s9pk::manifest::PackageId;
     use crate::util::Version;
-    use crate::volume::{script_dir, Volumes};
+    use crate::volume::script_dir;
+    use crate::volume::Volumes;
 
     use super::super::ProcedureName;
     use super::{JsCode, JsError};
+    #[cfg(target_arch = "x86_64")]
+    const SNAPSHOT_BYTES: &[u8] = include_bytes!("./js_scripts/JS_SNAPSHOT.bin");
 
+    #[cfg(target_arch = "aarch64")]
+    const SNAPSHOT_BYTES: &[u8] = include_bytes!("./js_scripts/ARM_JS_SNAPSHOT.bin");
     #[derive(Clone, Deserialize, Serialize)]
     struct JsContext {
         sandboxed: bool,
@@ -212,7 +218,6 @@ mod js_runtime {
         module_loader: ModsLoader,
         package_id: PackageId,
         version: Version,
-        operations: Vec<OpDecl>,
         volumes: Arc<Volumes>,
     }
 
@@ -230,6 +235,7 @@ mod js_runtime {
                 let mut file = match tokio::fs::File::open(file_path.clone()).await {
                     Ok(x) => x,
                     Err(e) => {
+                        tracing::debug!("path: {:?}", file_path);
                         tracing::debug!("{:?}", e);
                         return Err((
                             JsError::FileSystem,
@@ -250,7 +256,6 @@ mod js_runtime {
             Ok(Self {
                 base_directory: base_directory.to_owned(),
                 module_loader: ModsLoader { code: js_code },
-                operations: Default::default(),
                 package_id: package_id.clone(),
                 version: version.clone(),
                 volumes: Arc::new(volumes),
@@ -259,29 +264,9 @@ mod js_runtime {
         }
         pub fn read_only_effects(mut self) -> Self {
             self.sandboxed = true;
-            self.with_effects()
-        }
-
-        pub fn with_effects(mut self) -> Self {
-            self.operations = vec![
-                fns::read_file::decl(),
-                fns::write_file::decl(),
-                fns::create_dir::decl(),
-                fns::remove_dir::decl(),
-                fns::get_context::decl(),
-                fns::log_trace::decl(),
-                fns::log_warn::decl(),
-                fns::log_error::decl(),
-                fns::log_debug::decl(),
-                fns::log_info::decl(),
-                fns::current_function::decl(),
-                fns::set_value::decl(),
-                fns::remove_file::decl(),
-                fns::is_sandboxed::decl(),
-                fns::get_input::decl(),
-            ];
             self
         }
+
         pub async fn run_action<I: Serialize, O: for<'de> Deserialize<'de>>(
             self,
             procedure_name: ProcedureName,
@@ -318,6 +303,25 @@ mod js_runtime {
                 }
             }
         }
+        fn declarations() -> Vec<OpDecl> {
+            vec![
+                fns::read_file::decl(),
+                fns::write_file::decl(),
+                fns::remove_file::decl(),
+                fns::create_dir::decl(),
+                fns::remove_dir::decl(),
+                fns::current_function::decl(),
+                fns::log_trace::decl(),
+                fns::log_warn::decl(),
+                fns::log_error::decl(),
+                fns::log_debug::decl(),
+                fns::log_info::decl(),
+                fns::get_context::decl(),
+                fns::get_input::decl(),
+                fns::set_value::decl(),
+                fns::is_sandboxed::decl(),
+            ]
+        }
 
         fn execute(
             &self,
@@ -337,7 +341,7 @@ mod js_runtime {
                 input,
             };
             let ext = Extension::builder()
-                .ops(self.operations.clone())
+                .ops(Self::declarations())
                 .state(move |state| {
                     state.put(ext_answer_state.clone());
                     state.put(js_ctx.clone());
@@ -346,11 +350,13 @@ mod js_runtime {
                 .build();
 
             let loader = std::rc::Rc::new(self.module_loader.clone());
-            let mut runtime = JsRuntime::new(RuntimeOptions {
+            let runtime_options = RuntimeOptions {
                 module_loader: Some(loader),
                 extensions: vec![ext],
+                startup_snapshot: Some(Snapshot::Static(SNAPSHOT_BYTES)),
                 ..Default::default()
-            });
+            };
+            let mut runtime = JsRuntime::new(runtime_options);
 
             let future = async move {
                 let mod_id = runtime
@@ -358,8 +364,8 @@ mod js_runtime {
                     .await?;
                 let evaluated = runtime.mod_evaluate(mod_id);
                 let res = runtime.run_event_loop(false).await;
-                evaluated.await??;
                 res?;
+                evaluated.await??;
                 Ok::<_, AnyError>(())
             };
 
@@ -367,7 +373,7 @@ mod js_runtime {
                 .block_on(future)
                 .map_err(|e| {
                     tracing::debug!("{:?}", e);
-                    (JsError::Javascript, format!("Execution error: {}", e))
+                    (JsError::Javascript, format!("{}", e))
                 })?;
 
             let answer = answer_state.0.lock().clone();
@@ -377,10 +383,17 @@ mod js_runtime {
 
     /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
     mod fns {
-        use deno_core::{anyhow::bail, error::AnyError, *};
+        use deno_core::{
+            anyhow::{anyhow, bail},
+            error::AnyError,
+            *,
+        };
         use serde_json::Value;
 
-        use std::{convert::TryFrom, path::PathBuf};
+        use std::{
+            convert::TryFrom,
+            path::{Path, PathBuf},
+        };
 
         use crate::volume::VolumeId;
 
@@ -402,8 +415,12 @@ mod js_runtime {
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
             //get_path_for in volume.rs
             let new_file = volume_path.join(path_in);
-            if !new_file.starts_with(volume_path) {
-                bail!("Path has broken away from parent");
+            if !is_subset(&volume_path, &new_file).await? {
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             let answer = tokio::fs::read_to_string(new_file).await?;
             Ok(answer)
@@ -429,10 +446,18 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
+
             let new_file = volume_path.join(path_in);
+            let parent_new_file = new_file
+                .parent()
+                .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
             // With the volume check
-            if !new_file.starts_with(volume_path) {
-                bail!("Path has broken away from parent");
+            if !is_subset(&volume_path, &parent_new_file).await? {
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             tokio::fs::write(new_file, write).await?;
             Ok(())
@@ -457,10 +482,14 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = volume_path.clone().join(path_in);
+            let new_file = volume_path.join(path_in);
             // With the volume check
-            if !new_file.starts_with(volume_path) {
-                bail!("Path has broken away from parent");
+            if !is_subset(&volume_path, &new_file).await? {
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             tokio::fs::remove_file(new_file).await?;
             Ok(())
@@ -485,10 +514,14 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = volume_path.clone().join(path_in);
+            let new_file = volume_path.join(path_in);
             // With the volume check
-            if !new_file.starts_with(volume_path) {
-                bail!("Path has broken away from parent");
+            if !is_subset(&volume_path, &new_file).await? {
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             tokio::fs::remove_dir_all(new_file).await?;
             Ok(())
@@ -513,10 +546,17 @@ mod js_runtime {
             }
             let volume_path =
                 volume.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id);
-            let new_file = volume_path.clone().join(path_in);
+            let new_file = volume_path.join(path_in);
+            let parent_new_file = new_file
+                .parent()
+                .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
             // With the volume check
-            if !new_file.starts_with(volume_path) {
-                bail!("Path has broken away from parent");
+            if !is_subset(&volume_path, &parent_new_file).await? {
+                bail!(
+                    "Path '{}' has broken away from parent '{}'",
+                    new_file.to_string_lossy(),
+                    volume_path.to_string_lossy(),
+                );
             }
             tokio::fs::create_dir_all(new_file).await?;
             Ok(())
@@ -605,12 +645,24 @@ mod js_runtime {
             let ctx = state.borrow::<JsContext>();
             Ok(ctx.sandboxed)
         }
+
+        /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
+        async fn is_subset(parent: impl AsRef<Path>, child: impl AsRef<Path>) -> Result<bool, AnyError> {
+            let child = tokio::fs::canonicalize(child).await?;
+            let parent = tokio::fs::canonicalize(parent).await?;
+            Ok(child.starts_with(parent))
+        }
     }
 }
+
 #[tokio::test]
 async fn js_action_execute() {
     let js_action = JsProcedure {};
-    let path: PathBuf = "test/js_action_execute/".parse().unwrap();
+    let path: PathBuf = "test/js_action_execute/"
+        .parse::<PathBuf>()
+        .unwrap()
+        .canonicalize()
+        .unwrap();
     let package_id = "test-package".parse().unwrap();
     let package_version: Version = "0.3.0.3".parse().unwrap();
     let name = ProcedureName::GetConfig;
@@ -631,7 +683,7 @@ async fn js_action_execute() {
     }))
     .unwrap();
     let input: Option<serde_json::Value> = Some(serde_json::json!({"test":123}));
-    let timeout = None;
+    let timeout = Some(Duration::from_secs(10));
     let _output: crate::config::action::ConfigRes = js_action
         .execute(
             &path,

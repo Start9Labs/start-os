@@ -28,6 +28,8 @@ pub enum ProcedureName {
     SetConfig,
     Migration,
     Properties,
+    Check(PackageId),
+    AutoConfig(PackageId),
     Health(HealthCheckId),
     Action(ActionId),
 }
@@ -44,11 +46,13 @@ impl ProcedureName {
             ProcedureName::Properties => Some(format!("Properties-{}", rand::random::<u64>())),
             ProcedureName::Health(id) => Some(format!("{}Health", id)),
             ProcedureName::Action(id) => Some(format!("{}Action", id)),
+            ProcedureName::Check(_) => None,
+            ProcedureName::AutoConfig(_) => None,
         }
     }
     fn js_function_name(&self) -> String {
         match self {
-            ProcedureName::Main => todo!(),
+            ProcedureName::Main => "/main".to_string(),
             ProcedureName::CreateBackup => "/createBackup".to_string(),
             ProcedureName::RestoreBackup => "/restoreBackup".to_string(),
             ProcedureName::GetConfig => "/getConfig".to_string(),
@@ -57,6 +61,8 @@ impl ProcedureName {
             ProcedureName::Properties => "/properties".to_string(),
             ProcedureName::Health(id) => format!("/health/{}", id),
             ProcedureName::Action(id) => format!("/action/{}", id),
+            ProcedureName::Check(id) => format!("/dependencies/{}/check", id),
+            ProcedureName::AutoConfig(id) => format!("/dependencies/{}/autoConfigure", id),
         }
     }
 }
@@ -136,6 +142,7 @@ impl PackageProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
+        name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
         match self {
             PackageProcedure::Docker(procedure) => {
@@ -145,7 +152,7 @@ impl PackageProcedure {
             }
             PackageProcedure::Script(procedure) => {
                 procedure
-                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
+                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout, name)
                     .await
             }
         }
