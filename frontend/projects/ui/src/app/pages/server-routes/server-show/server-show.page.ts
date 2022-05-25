@@ -15,7 +15,6 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { exists, isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
-import { ServerStatus } from 'src/app/services/patch-db/data-model'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 
 @Component({
@@ -24,9 +23,10 @@ import { LocalStorageService } from 'src/app/services/local-storage.service'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  ServerStatus = ServerStatus
   hasRecoveredPackage: boolean
   clicks = 0
+
+  readonly server$ = this.patch.watch$('server-info')
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -387,7 +387,8 @@ export class ServerShowPage {
       },
       {
         title: 'Kernel Logs',
-        description: 'Diagnostic log stream for device drivers and other kernel processes',
+        description:
+          'Diagnostic log stream for device drivers and other kernel processes',
         icon: 'receipt-outline',
         action: () =>
           this.navCtrl.navigateForward(['kernel-logs'], {
