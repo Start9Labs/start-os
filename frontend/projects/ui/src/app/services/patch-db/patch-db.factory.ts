@@ -36,8 +36,8 @@ export function realSourceFactory(
   { defaultView }: Document,
 ): Source<DataModel>[] {
   const { patchDb } = config
-  const { host } = defaultView.location
-  const protocol = defaultView.location.protocol === 'http:' ? 'ws' : 'wss'
+  const host = defaultView?.location.host
+  const protocol = defaultView?.location.protocol === 'http:' ? 'ws' : 'wss'
 
   return [
     new WebsocketSource<DataModel>(`${protocol}://${host}/ws/db`),

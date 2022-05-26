@@ -16,7 +16,10 @@ export class ServerConfigService {
     private readonly embassyApi: ApiService,
   ) {}
 
-  async presentAlert(key: string, current?: any): Promise<HTMLIonAlertElement> {
+  async presentAlert(
+    key: string,
+    current?: any,
+  ): Promise<HTMLIonAlertElement | null> {
     const spec = serverConfig[key]
 
     let inputs: AlertInput[]
@@ -66,7 +69,7 @@ export class ServerConfigService {
         ]
         break
       default:
-        return
+        return null
     }
 
     const alert = await this.alertCtrl.create({

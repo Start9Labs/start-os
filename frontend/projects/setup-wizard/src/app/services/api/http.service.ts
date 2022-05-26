@@ -15,7 +15,7 @@ import { HttpError, RpcError } from '@start9labs/shared'
 })
 export class HttpService {
   fullUrl: string
-  productKey: string
+  productKey?: string
 
   constructor(private readonly http: HttpClient) {
     const port = window.location.port
@@ -43,6 +43,8 @@ export class HttpService {
     }
 
     if (isRpcSuccess(res)) return res.result
+
+    throw new Error('Unknown RPC response')
   }
 
   async encryptedHttpRequest<T>(httpOpts: {
@@ -53,7 +55,7 @@ export class HttpService {
     const url = urlIsRelative ? this.fullUrl + httpOpts.url : httpOpts.url
 
     const encryptedBody = await AES_CTR.encryptPbkdf2(
-      this.productKey,
+      this.productKey || '',
       encodeUtf8(JSON.stringify(httpOpts.body)),
     )
     const options = {

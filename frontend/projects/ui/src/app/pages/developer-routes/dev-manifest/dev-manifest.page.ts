@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router'
 import * as yaml from 'js-yaml'
 import { take } from 'rxjs/operators'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { getProjectId } from 'src/app/util/get-project-id'
 
 @Component({
   selector: 'dev-manifest',
@@ -10,7 +11,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['dev-manifest.page.scss'],
 })
 export class DevManifestPage {
-  projectId: string
+  readonly projectId = getProjectId(this.route)
   editorOptions = { theme: 'vs-dark', language: 'yaml', readOnly: true }
   manifest: string = ''
 
@@ -20,8 +21,6 @@ export class DevManifestPage {
   ) {}
 
   ngOnInit() {
-    this.projectId = this.route.snapshot.paramMap.get('projectId')
-
     this.patchDb
       .watch$('ui', 'dev', this.projectId)
       .pipe(take(1))

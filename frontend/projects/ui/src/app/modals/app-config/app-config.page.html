@@ -33,7 +33,7 @@
 
     <ng-template #noError>
       <ion-item
-        *ngIf="hasConfig && !pkg.installed.status.configured && !configForm.dirty"
+        *ngIf="hasConfig && !pkg.installed?.status?.configured && !configForm.dirty"
       >
         <ion-label>
           <ion-text color="success"

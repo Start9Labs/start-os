@@ -17,15 +17,13 @@ export interface UIData {
   'auto-check-updates': boolean
   'pkg-order': string[]
   'ack-welcome': string // EOS version
-  marketplace: UIMarketplaceData
-  dev: DevData
-  gaming:
-    | {
-        snake: {
-          'high-score': number
-        }
-      }
-    | undefined
+  marketplace?: UIMarketplaceData
+  dev?: DevData
+  gaming?: {
+    snake: {
+      'high-score': number
+    }
+  }
 }
 
 export interface UIMarketplaceData {
@@ -113,7 +111,7 @@ export interface CurrentDependencyInfo {
   'health-checks': string[] // array of health check IDs
 }
 
-export interface Manifest extends MarketplaceManifest<DependencyConfig> {
+export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
   main: ActionImpl
   'health-checks': Record<
     string,
@@ -124,7 +122,7 @@ export interface Manifest extends MarketplaceManifest<DependencyConfig> {
   'min-os-version': string
   interfaces: Record<string, InterfaceDef>
   backup: BackupActions
-  migrations: Migrations
+  migrations: Migrations | null
   actions: Record<string, Action>
   permissions: any // @TODO 0.3.1
 }
@@ -155,8 +153,8 @@ export enum DockerIoFormat {
 }
 
 export interface ConfigActions {
-  get: ActionImpl
-  set: ActionImpl
+  get: ActionImpl | null
+  set: ActionImpl | null
 }
 
 export type Volume = VolumeData
@@ -229,7 +227,7 @@ export interface Action {
   warning: string | null
   implementation: ActionImpl
   'allowed-statuses': (PackageMainStatus.Stopped | PackageMainStatus.Running)[]
-  'input-spec': ConfigSpec
+  'input-spec': ConfigSpec | null
 }
 
 export interface Status {

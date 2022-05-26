@@ -66,19 +66,20 @@ export class LogsPage {
     try {
       // get logs
       const logs = await this.fetch()
-      if (!logs.length) return
+      if (!logs?.length) return
 
       const container = document.getElementById('container')
-      const beforeContainerHeight = container.scrollHeight
-      const newLogs = document
-        .getElementById('template')
-        .cloneNode(true) as HTMLElement
+      const beforeContainerHeight = container?.scrollHeight || 0
+      const newLogs = document.getElementById('template')?.cloneNode(true)
+
+      if (!(newLogs instanceof HTMLElement)) return
+
       newLogs.innerHTML =
         logs
           .map(l => `${l.timestamp} ${convert.toHtml(l.message)}`)
           .join('\n') + (logs.length ? '\n' : '')
-      container.prepend(newLogs)
-      const afterContainerHeight = container.scrollHeight
+      container?.prepend(newLogs)
+      const afterContainerHeight = container?.scrollHeight || 0
 
       // scroll down
       scrollBy(0, afterContainerHeight - beforeContainerHeight)
@@ -97,17 +98,18 @@ export class LogsPage {
     try {
       this.loadingMore = true
       const logs = await this.fetch(false)
-      if (!logs.length) return (this.loadingMore = false)
+      if (!logs?.length) return (this.loadingMore = false)
 
       const container = document.getElementById('container')
-      const newLogs = document
-        .getElementById('template')
-        .cloneNode(true) as HTMLElement
+      const newLogs = document.getElementById('template')?.cloneNode(true)
+
+      if (!(newLogs instanceof HTMLElement)) return
+
       newLogs.innerHTML =
         logs
           .map(l => `${l.timestamp} ${convert.toHtml(l.message)}`)
           .join('\n') + (logs.length ? '\n' : '')
-      container.append(newLogs)
+      container?.append(newLogs)
       this.loadingMore = false
       this.scrollEvent()
     } catch (e) {}
@@ -116,7 +118,7 @@ export class LogsPage {
   scrollEvent() {
     const buttonDiv = document.getElementById('button-div')
     this.isOnBottom =
-      buttonDiv && buttonDiv.getBoundingClientRect().top < window.innerHeight
+      !!buttonDiv && buttonDiv.getBoundingClientRect().top < window.innerHeight
   }
 
   scrollToBottom() {

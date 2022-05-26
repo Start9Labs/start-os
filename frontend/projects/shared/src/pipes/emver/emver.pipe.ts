@@ -7,8 +7,12 @@ import { Emver } from '../../services/emver.service'
 export class EmverSatisfiesPipe implements PipeTransform {
   constructor(private readonly emver: Emver) {}
 
-  transform(versionUnderTest: string, range: string): boolean {
-    return this.emver.satisfies(versionUnderTest, range)
+  transform(versionUnderTest?: string, range?: string): boolean {
+    return (
+      !!versionUnderTest &&
+      !!range &&
+      this.emver.satisfies(versionUnderTest, range)
+    )
   }
 }
 
