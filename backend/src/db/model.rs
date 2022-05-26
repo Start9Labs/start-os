@@ -265,11 +265,59 @@ pub struct InstalledPackageDataEntry {
     #[model]
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
     #[model]
-    pub current_dependents: BTreeMap<PackageId, CurrentDependencyInfo>,
+    pub current_dependents: CurrentDependents,
     #[model]
-    pub current_dependencies: BTreeMap<PackageId, CurrentDependencyInfo>,
+    pub current_dependencies: CurrentDependencies,
     #[model]
     pub interface_addresses: InterfaceAddressMap,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CurrentDependents(pub BTreeMap<PackageId, CurrentDependencyInfo>);
+impl CurrentDependents {
+    pub fn map(
+        mut self,
+        transform: impl Fn(
+            BTreeMap<PackageId, CurrentDependencyInfo>,
+        ) -> BTreeMap<PackageId, CurrentDependencyInfo>,
+    ) -> Self {
+        self.0 = transform(self.0);
+        self
+    }
+}
+impl Map for CurrentDependents {
+    type Key = PackageId;
+    type Value = CurrentDependencyInfo;
+    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
+        self.0.get(key)
+    }
+}
+impl HasModel for CurrentDependents {
+    type Model = MapModel<Self>;
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CurrentDependencies(pub BTreeMap<PackageId, CurrentDependencyInfo>);
+impl CurrentDependencies {
+    pub fn map(
+        mut self,
+        transform: impl Fn(
+            BTreeMap<PackageId, CurrentDependencyInfo>,
+        ) -> BTreeMap<PackageId, CurrentDependencyInfo>,
+    ) -> Self {
+        self.0 = transform(self.0);
+        self
+    }
+}
+impl Map for CurrentDependencies {
+    type Key = PackageId;
+    type Value = CurrentDependencyInfo;
+    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
+        self.0.get(key)
+    }
+}
+impl HasModel for CurrentDependencies {
+    type Model = MapModel<Self>;
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]

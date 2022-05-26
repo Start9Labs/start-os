@@ -9,7 +9,8 @@ use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
 use crate::config::{not_found, ConfigReceipts};
 use crate::context::RpcContext;
 use crate::db::model::{
-    AllPackageData, CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry,
+    AllPackageData, CurrentDependencies, CurrentDependencyInfo, CurrentDependents,
+    InstalledPackageDataEntry, PackageDataEntry,
 };
 use crate::dependencies::{
     reconfigure_dependents_with_live_pointers, DependencyErrors, TryHealReceipts,
@@ -60,18 +61,14 @@ impl UpdateDependencyReceipts {
 }
 
 #[instrument(skip(ctx, db, deps, receipts))]
-pub async fn update_dependency_errors_of_dependents<
-    'a,
-    Db: DbHandle,
-    I: IntoIterator<Item = &'a PackageId>,
->(
+pub async fn update_dependency_errors_of_dependents<'a, Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
     id: &PackageId,
-    deps: I,
+    deps: &CurrentDependents,
     receipts: &UpdateDependencyReceipts,
 ) -> Result<(), Error> {
-    for dep in deps {
+    for dep in deps.0.keys() {
         if let Some(man) = receipts.manifest.get(db, dep).await? {
             if let Err(e) = if let Some(info) = man.dependencies.0.get(id) {
                 info.satisfied(ctx, db, id, None, dep, &receipts.try_heal)
@@ -269,19 +266,15 @@ pub async fn cleanup_failed<Db: DbHandle>(
 }
 
 #[instrument(skip(db, current_dependencies, current_dependent_receipt))]
-pub async fn remove_from_current_dependents_lists<
-    'a,
-    Db: DbHandle,
-    I: IntoIterator<Item = &'a PackageId>,
->(
+pub async fn remove_from_current_dependents_lists<'a, Db: DbHandle>(
     db: &mut Db,
     id: &'a PackageId,
-    current_dependencies: I,
-    current_dependent_receipt: &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+    current_dependencies: &'a CurrentDependencies,
+    current_dependent_receipt: &LockReceipt<CurrentDependents, String>,
 ) -> Result<(), Error> {
-    for dep in current_dependencies.into_iter().chain(std::iter::once(id)) {
+    for dep in current_dependencies.0.keys().chain(std::iter::once(id)) {
         if let Some(mut current_dependents) = current_dependent_receipt.get(db, dep).await? {
-            if current_dependents.remove(id).is_some() {
+            if current_dependents.0.remove(id).is_some() {
                 current_dependent_receipt
                     .set(db, current_dependents, dep)
                     .await?;
@@ -294,7 +287,7 @@ pub struct UninstallReceipts {
     config: ConfigReceipts,
     removing: LockReceipt<InstalledPackageDataEntry, ()>,
     packages: LockReceipt<AllPackageData, ()>,
-    current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+    current_dependents: LockReceipt<CurrentDependents, String>,
     update_depenency_receipts: UpdateDependencyReceipts,
 }
 impl UninstallReceipts {
@@ -367,7 +360,7 @@ where
     remove_from_current_dependents_lists(
         &mut tx,
         &entry.manifest.id,
-        entry.current_dependencies.keys(),
+        &entry.current_dependencies,
         &receipts.current_dependents,
     )
     .await?;
@@ -375,7 +368,7 @@ where
         ctx,
         &mut tx,
         &entry.manifest.id,
-        entry.current_dependents.keys(),
+        &entry.current_dependents,
         &receipts.update_depenency_receipts,
     )
     .await?;

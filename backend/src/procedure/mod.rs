@@ -151,14 +151,16 @@ impl PackageProcedure {
                     .await
             }
             PackageProcedure::Script(procedure) => {
+                
                 procedure
-                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout, name)
+                    .sandboxed(ctx, dbg!(pkg_id), pkg_version, volumes, input, timeout, dbg!(name))
                     .await
             }
         }
     }
 }
 
+#[derive(Debug)]
 pub struct NoOutput;
 impl<'de> Deserialize<'de> for NoOutput {
     fn deserialize<D>(_: D) -> Result<Self, D::Error>

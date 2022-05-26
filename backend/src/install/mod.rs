@@ -29,8 +29,8 @@ use crate::config::ConfigReceipts;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
-    CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry, RecoveredPackageInfo,
-    StaticDependencyInfo, StaticFiles,
+    CurrentDependencies, CurrentDependencyInfo, CurrentDependents, InstalledPackageDataEntry,
+    PackageDataEntry, RecoveredPackageInfo, StaticDependencyInfo, StaticFiles,
 };
 use crate::db::util::WithRevision;
 use crate::dependencies::{
@@ -1168,18 +1168,20 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     tracing::info!("Install {}@{}: Created manager", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
-    let current_dependencies: BTreeMap<_, _> = manifest
-        .dependencies
-        .0
-        .iter()
-        .filter_map(|(id, info)| {
-            if info.requirement.required() {
-                Some((id.clone(), CurrentDependencyInfo::default()))
-            } else {
-                None
-            }
-        })
-        .collect();
+    let current_dependencies: CurrentDependencies = CurrentDependencies(
+        manifest
+            .dependencies
+            .0
+            .iter()
+            .filter_map(|(id, info)| {
+                if info.requirement.required() {
+                    Some((id.clone(), CurrentDependencyInfo::default()))
+                } else {
+                    None
+                }
+            })
+            .collect(),
+    );
     let current_dependents = {
         let mut deps = BTreeMap::new();
         for package in crate::db::DatabaseModel::new()
@@ -1225,7 +1227,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 deps.insert(package, dep);
             }
         }
-        deps
+        CurrentDependents(deps)
     };
     let mut pde = model
         .clone()
@@ -1360,7 +1362,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         remove_from_current_dependents_lists(
             &mut tx,
             pkg_id,
-            prev.current_dependencies.keys(),
+            &prev.current_dependencies,
             &receipts.config.current_dependents,
         )
         .await?; // remove previous
@@ -1375,10 +1377,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             ctx,
             &mut tx,
             pkg_id,
-            current_dependents
-                .keys()
-                .chain(prev.current_dependents.keys())
-                .collect::<BTreeSet<_>>(),
+            &CurrentDependents({
+                let mut current_dependents = current_dependents.0.clone();
+                current_dependents.append(&mut prev.current_dependents.0.clone());
+                current_dependents
+            }),
             &receipts.config.update_dependency_receipts,
         )
         .await?;
@@ -1409,7 +1412,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             ctx,
             &mut tx,
             pkg_id,
-            current_dependents.keys(),
+            &current_dependents,
             &receipts.config.update_dependency_receipts,
         )
         .await?;
@@ -1441,7 +1444,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             ctx,
             &mut tx,
             pkg_id,
-            current_dependents.keys(),
+            &current_dependents,
             &receipts.config.update_dependency_receipts,
         )
         .await?;
@@ -1457,7 +1460,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             ctx,
             &mut tx,
             pkg_id,
-            current_dependents.keys(),
+            &current_dependents,
             &receipts.config.update_dependency_receipts,
         )
         .await?;
