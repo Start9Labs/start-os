@@ -83,6 +83,8 @@ function getMessage(failure: ConnectionFailure): OfflineMessage {
         message: 'Embassy not found on Local Area Network.',
         link: 'https://start9.com/latest/support/common-issues',
       }
+    default:
+      return { message: '' }
   }
 }
 

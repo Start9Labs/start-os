@@ -19,8 +19,8 @@ export class SnakePage {
   score = 0
   highScore = 0
 
-  xDown: number
-  yDown: number
+  xDown?: number
+  yDown?: number
   canvas: HTMLCanvasElement
   image: HTMLImageElement
   context
@@ -37,7 +37,8 @@ export class SnakePage {
 
   ngOnInit() {
     if (this.patch.getData().ui.gaming?.snake?.['high-score']) {
-      this.highScore = this.patch.getData().ui.gaming?.snake?.['high-score']
+      this.highScore =
+        this.patch.getData().ui.gaming?.snake?.['high-score'] || 0
     }
   }
 
@@ -141,8 +142,8 @@ export class SnakePage {
       }
     }
     /* reset values */
-    this.xDown = null
-    this.yDown = null
+    this.xDown = undefined
+    this.yDown = undefined
   }
 
   // game loop

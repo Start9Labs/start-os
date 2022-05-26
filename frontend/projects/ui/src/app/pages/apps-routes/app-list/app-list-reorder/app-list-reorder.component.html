@@ -1,12 +1,17 @@
 <!-- header -->
 <ion-item-divider>
-  {{ reordering ? "Reorder" : "Installed Services" }}
-  <ion-button *ngIf="pkgs.length > 1" slot="end" fill="clear" (click)="toggle()">
+  {{ reordering ? 'Reorder' : 'Installed Services' }}
+  <ion-button
+    *ngIf="pkgs.length > 1"
+    slot="end"
+    fill="clear"
+    (click)="toggle()"
+  >
     <ion-icon
       slot="start"
       [name]="reordering ? 'checkmark' : 'swap-vertical'"
     ></ion-icon>
-    {{ reordering ? "Done" : "Reorder" }}
+    {{ reordering ? 'Done' : 'Reorder' }}
   </ion-button>
 </ion-item-divider>
 
@@ -14,11 +19,15 @@
 <ion-list *ngIf="reordering; else grid">
   <ion-reorder-group disabled="false" (ionItemReorder)="reorder($any($event))">
     <ion-reorder *ngFor="let item of pkgs">
-      <ion-item color="light" *ngIf="item | packageInfo | async as pkg" class="item">
+      <ion-item
+        color="light"
+        *ngIf="item | packageInfo | async as pkg"
+        class="item"
+      >
         <app-list-icon
           slot="start"
           [pkg]="pkg"
-          [connectionFailure]="connectionFailure$ | async"
+          [connectionFailure]="!!(connectionFailure$ | async)"
         ></app-list-icon>
         <ion-thumbnail slot="start">
           <img alt="" [src]="pkg.entry['static-files'].icon" />
@@ -27,7 +36,7 @@
           <h2>{{ pkg.entry.manifest.title }}</h2>
           <p>{{ pkg.entry.manifest.version | displayEmver }}</p>
           <status
-            [disconnected]="connectionFailure$ | async"
+            [disconnected]="!!(connectionFailure$ | async)"
             [rendering]="pkg.primaryRendering"
             [installProgress]="pkg.installProgress?.totalProgress"
             weight="bold"
@@ -47,8 +56,9 @@
     <ion-row>
       <ion-col *ngFor="let pkg of pkgs" sizeXs="12" sizeXl="6">
         <app-list-pkg
-          [pkg]="pkg | packageInfo | async"
-          [connectionFailure]="connectionFailure$ | async"
+          *ngIf="pkg | packageInfo | async as info"
+          [pkg]="info"
+          [connectionFailure]="!!(connectionFailure$ | async)"
         ></app-list-pkg>
       </ion-col>
     </ion-row>

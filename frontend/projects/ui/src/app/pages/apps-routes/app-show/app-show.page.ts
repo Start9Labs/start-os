@@ -13,6 +13,7 @@ import {
 } from 'src/app/services/connection.service'
 import { map, startWith } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
+import { getPkgId } from '@start9labs/shared'
 
 const STATES = [
   PackageState.Installing,
@@ -26,7 +27,7 @@ const STATES = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowPage {
-  private readonly pkgId = this.route.snapshot.paramMap.get('pkgId')
+  private readonly pkgId = getPkgId(this.route)
 
   readonly pkg$ = this.patch.watch$('package-data', this.pkgId).pipe(
     map(pkg => {

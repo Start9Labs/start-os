@@ -17,7 +17,7 @@ export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
 
-  if (pkg.state === PackageState.Installed) {
+  if (pkg.state === PackageState.Installed && pkg.installed) {
     primary = getPrimaryStatus(pkg.installed.status)
     dependency = getDependencyStatus(pkg)
     health = getHealthStatus(pkg.installed.status)
@@ -36,9 +36,10 @@ function getPrimaryStatus(status: Status): PrimaryStatus {
   }
 }
 
-function getDependencyStatus(pkg: PackageDataEntry): DependencyStatus {
+function getDependencyStatus(pkg: PackageDataEntry): DependencyStatus | null {
   const installed = pkg.installed
-  if (isEmptyObject(installed['current-dependencies'])) return null
+  if (!installed || isEmptyObject(installed['current-dependencies']))
+    return null
 
   const depErrors = installed.status['dependency-errors']
   const depIds = Object.keys(depErrors).filter(key => !!depErrors[key])
@@ -46,9 +47,9 @@ function getDependencyStatus(pkg: PackageDataEntry): DependencyStatus {
   return depIds.length ? DependencyStatus.Warning : DependencyStatus.Satisfied
 }
 
-function getHealthStatus(status: Status): HealthStatus {
+function getHealthStatus(status: Status): HealthStatus | null {
   if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
-    return
+    return null
   }
 
   const values = Object.values(status.main.health)

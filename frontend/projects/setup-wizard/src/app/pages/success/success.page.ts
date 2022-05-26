@@ -24,7 +24,7 @@ export class SuccessPage {
       await this.stateService.completeEmbassy()
       document
         .getElementById('install-cert')
-        .setAttribute(
+        ?.setAttribute(
           'href',
           'data:application/x-x509-ca-cert;base64,' +
             encodeURIComponent(this.stateService.cert),
@@ -56,20 +56,24 @@ export class SuccessPage {
   }
 
   installCert() {
-    document.getElementById('install-cert').click()
+    document.getElementById('install-cert')?.click()
   }
 
   download() {
-    document.getElementById('tor-addr').innerHTML = this.stateService.torAddress
-    document.getElementById('lan-addr').innerHTML = this.stateService.lanAddress
+    const torAddress = document.getElementById('tor-addr')
+    const lanAddress = document.getElementById('lan-addr')
+
+    if (torAddress) torAddress.innerHTML = this.stateService.torAddress
+    if (lanAddress) lanAddress.innerHTML = this.stateService.lanAddress
+
     document
       .getElementById('cert')
-      .setAttribute(
+      ?.setAttribute(
         'href',
         'data:application/x-x509-ca-cert;base64,' +
           encodeURIComponent(this.stateService.cert),
       )
-    let html = document.getElementById('downloadable').innerHTML
+    let html = document.getElementById('downloadable')?.innerHTML || ''
     const filename = 'embassy-info.html'
 
     const elem = document.createElement('a')

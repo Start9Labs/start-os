@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
+import { getPkgId } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
 
 @Component({
@@ -9,7 +10,7 @@ import { AbstractMarketplaceService } from '../../services/marketplace.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReleaseNotesComponent {
-  private readonly pkgId = this.route.snapshot.paramMap.get('pkgId')
+  private readonly pkgId = getPkgId(this.route)
 
   private selected: string | null = null
 

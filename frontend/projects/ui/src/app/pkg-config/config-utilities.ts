@@ -18,7 +18,7 @@ export class Range {
 
   checkIncludes(n: number) {
     if (
-      this.hasMin() !== undefined &&
+      this.hasMin() &&
       (this.min > n || (!this.minInclusive && this.min == n))
     ) {
       throw new Error(this.minMessage())
@@ -31,11 +31,11 @@ export class Range {
     }
   }
 
-  hasMin(): boolean {
+  hasMin(): this is Range & { min: number } {
     return this.min !== undefined
   }
 
-  hasMax(): boolean {
+  hasMax(): this is Range & { max: number } {
     return this.max !== undefined
   }
 

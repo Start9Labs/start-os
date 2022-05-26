@@ -17,6 +17,12 @@ import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { finalize, first } from 'rxjs/operators'
 
+type Marketplaces = {
+  id: string | undefined
+  name: string
+  url: string
+}[]
+
 @Component({
   selector: 'marketplaces',
   templateUrl: 'marketplaces.page.html',
@@ -24,7 +30,7 @@ import { finalize, first } from 'rxjs/operators'
 })
 export class MarketplacesPage {
   selectedId: string | undefined
-  marketplaces: { id: string | undefined; name: string; url: string }[] = []
+  marketplaces: Marketplaces = []
 
   constructor(
     private readonly api: ApiService,
@@ -40,7 +46,7 @@ export class MarketplacesPage {
 
   ngOnInit() {
     this.patch.watch$('ui', 'marketplace').subscribe(mp => {
-      const marketplaces = [
+      let marketplaces: Marketplaces = [
         {
           id: undefined,
           name: this.config.marketplace.name,
@@ -48,7 +54,7 @@ export class MarketplacesPage {
         },
       ]
       if (mp) {
-        this.selectedId = mp['selected-id']
+        this.selectedId = mp['selected-id'] || undefined
         const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
           return {
             id: k,
@@ -56,7 +62,7 @@ export class MarketplacesPage {
             url: v.url,
           }
         })
-        marketplaces.push.apply(marketplaces, alts)
+        marketplaces = marketplaces.concat(alts)
       }
       this.marketplaces = marketplaces
     })
@@ -91,9 +97,10 @@ export class MarketplacesPage {
     await modal.present()
   }
 
-  async presentAction(id: string) {
+  async presentAction(id: string = '') {
     // no need to view actions if is selected marketplace
-    if (id === this.patch.getData().ui.marketplace?.['selected-id']) return
+    if (!id || id === this.patch.getData().ui.marketplace?.['selected-id'])
+      return
 
     const buttons: ActionSheetButton[] = [
       {

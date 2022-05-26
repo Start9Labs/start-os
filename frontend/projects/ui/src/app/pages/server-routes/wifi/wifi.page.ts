@@ -42,7 +42,7 @@ export class WifiPage {
     await this.getWifi()
   }
 
-  async getWifi(timeout?: number): Promise<void> {
+  async getWifi(timeout: number = 0): Promise<void> {
     this.loading = true
     try {
       this.wifi = await this.api.getWifi({}, timeout)

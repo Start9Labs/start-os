@@ -5,8 +5,9 @@
     <ng-container *ngIf="!(pkg | empty)">
       <marketplace-package [pkg]="pkg">
         <marketplace-status
+          *ngIf="localPkg$ | async as localPkg"
           class="status"
-          [pkg]="localPkg$ | async"
+          [pkg]="localPkg"
         ></marketplace-status>
         <marketplace-show-controls
           position="controls"

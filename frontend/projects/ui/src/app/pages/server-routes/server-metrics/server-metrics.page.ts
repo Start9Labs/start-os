@@ -30,7 +30,7 @@ export class ServerMetricsPage {
     })
     const height = headersCount * 54 + rowsCount * 50 + 24 // extra 24 for room at the bottom
     const elem = document.getElementById('metricSection')
-    elem.style.height = `${height}px`
+    if (elem) elem.style.height = `${height}px`
     this.startDaemon()
     this.loading = false
   }
