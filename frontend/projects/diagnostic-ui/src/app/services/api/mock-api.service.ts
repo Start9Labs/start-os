@@ -25,17 +25,14 @@ export class MockApiService extends ApiService {
 
   async restart(): Promise<void> {
     await pauseFor(1000)
-    return null
   }
 
   async forgetDrive(): Promise<void> {
     await pauseFor(1000)
-    return null
   }
 
   async repairDisk(): Promise<void> {
     await pauseFor(1000)
-    return null
   }
 
   async getLogs(params: GetLogsReq): Promise<GetLogsRes> {

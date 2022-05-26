@@ -8,13 +8,14 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
 
     "alwaysStrict": true,
-    // "strictNullChecks": true,
+    "strictNullChecks": true,
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
     // "strictPropertyInitialization": true,
-    // "noImplicitAny": true,
+    "noImplicitAny": true,
     "noImplicitThis": true,
     "useUnknownInCatchVariables": true,
 

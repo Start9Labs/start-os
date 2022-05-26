@@ -8,8 +8,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['./lan.page.scss'],
 })
 export class LANPage {
-  downloadIsDisabled: boolean
-
+  readonly downloadIsDisabled = !this.config.isTor()
   readonly server$ = this.patch.watch$('server-info')
 
   constructor(
@@ -17,11 +16,7 @@ export class LANPage {
     private readonly patch: PatchDbService,
   ) {}
 
-  ngOnInit() {
-    this.downloadIsDisabled = !this.config.isTor()
-  }
-
   installCert(): void {
-    document.getElementById('install-cert').click()
+    document.getElementById('install-cert')?.click()
   }
 }

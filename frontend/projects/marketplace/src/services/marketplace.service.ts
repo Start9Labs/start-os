@@ -15,5 +15,8 @@ export abstract class AbstractMarketplaceService {
 
   abstract getPackageMarkdown(type: string, pkgId: string): Observable<string>
 
-  abstract getPackage(id: string, version: string): Observable<MarketplacePkg>
+  abstract getPackage(
+    id: string,
+    version: string,
+  ): Observable<MarketplacePkg | null>
 }

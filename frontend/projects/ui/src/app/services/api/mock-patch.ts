@@ -11,12 +11,9 @@ import {
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Embassy`,
-    'auto-check-updates': undefined,
+    'auto-check-updates': false,
     'pkg-order': [],
     'ack-welcome': '1.0.0',
-    marketplace: undefined,
-    dev: undefined,
-    gaming: undefined,
   },
   'server-info': {
     id: 'abcdefgh',
@@ -212,8 +209,6 @@ export const mockPatchData: DataModel = {
                 nullable: true,
                 masked: false,
                 copyable: false,
-                pattern: null,
-                'pattern-description': null,
                 warning: 'You may loose all your money by providing your name.',
               },
               notifications: {
@@ -248,7 +243,6 @@ export const mockPatchData: DataModel = {
                 name: 'Top Speed',
                 description: 'The fastest you can possibly run.',
                 nullable: false,
-                default: null,
                 range: '[-1000, 1000]',
                 integral: false,
                 units: 'm/s',
@@ -283,7 +277,6 @@ export const mockPatchData: DataModel = {
                   name: {
                     type: 'string',
                     name: 'Name',
-                    description: null,
                     nullable: false,
                     masked: false,
                     copyable: false,
@@ -293,7 +286,6 @@ export const mockPatchData: DataModel = {
                   email: {
                     type: 'string',
                     name: 'Email',
-                    description: null,
                     nullable: false,
                     masked: false,
                     copyable: true,

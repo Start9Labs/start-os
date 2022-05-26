@@ -43,7 +43,8 @@ export class RestorePage {
       useMask: true,
       buttonText: 'Next',
       submitFn: async (password: string) => {
-        argon2.verify(target.entry['embassy-os']['password-hash'], password)
+        const passwordHash = target.entry['embassy-os']?.['password-hash'] || ''
+        argon2.verify(passwordHash, password)
         await this.restoreFromBackup(target, password)
       },
     }

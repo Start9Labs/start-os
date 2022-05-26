@@ -23,40 +23,47 @@ export class LogsPage {
   scrollToBottomButton = false
   isOnBottom = true
 
-  constructor (
-    private readonly api: ApiService,
-  ) { }
+  constructor(private readonly api: ApiService) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.getLogs()
   }
 
-  async getLogs () {
+  async getLogs() {
     try {
       // get logs
       const logs = await this.fetch()
-      if (!logs.length) return
+
+      if (!logs?.length) return
 
       const container = document.getElementById('container')
-      const beforeContainerHeight = container.scrollHeight
-      const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n') + (logs.length ? '\n' : '')
+      const beforeContainerHeight = container?.scrollHeight || 0
+      const newLogs = document.getElementById('template')?.cloneNode(true)
 
-      container.prepend(newLogs)
-      const afterContainerHeight = container.scrollHeight
+      if (!(newLogs instanceof HTMLElement)) return
+
+      newLogs.innerHTML =
+        logs
+          .map(l => `${l.timestamp} ${convert.toHtml(l.message)}`)
+          .join('\n') + (logs.length ? '\n' : '')
+      container?.prepend(newLogs)
+
+      const afterContainerHeight = container?.scrollHeight || 0
 
       // scroll down
       scrollBy(0, afterContainerHeight - beforeContainerHeight)
-      this.content.scrollToPoint(0, afterContainerHeight - beforeContainerHeight)
+      this.content.scrollToPoint(
+        0,
+        afterContainerHeight - beforeContainerHeight,
+      )
 
       if (logs.length < this.limit) {
         this.needInfinite = false
       }
-
-    } catch (e) { }
+    } catch (e) {}
   }
 
-  async fetch (isBefore: boolean = true) {
+  async fetch(isBefore: boolean = true) {
     try {
       const cursor = isBefore ? this.startCursor : this.endCursor
 
@@ -81,33 +88,40 @@ export class LogsPage {
     }
   }
 
-  async loadMore () {
+  async loadMore() {
     try {
       this.loadingMore = true
       const logs = await this.fetch(false)
-      if (!logs.length) return this.loadingMore = false
+
+      if (!logs?.length) return (this.loadingMore = false)
 
       const container = document.getElementById('container')
-      const newLogs = document.getElementById('template').cloneNode(true) as HTMLElement
-      newLogs.innerHTML = logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n') + (logs.length ? '\n' : '')
-      container.append(newLogs)
+      const newLogs = document.getElementById('template')?.cloneNode(true)
+
+      if (!(newLogs instanceof HTMLElement)) return
+
+      newLogs.innerHTML =
+        logs
+          .map(l => `${l.timestamp} ${convert.toHtml(l.message)}`)
+          .join('\n') + (logs.length ? '\n' : '')
+      container?.append(newLogs)
       this.loadingMore = false
       this.scrollEvent()
-    } catch (e) { }
+    } catch (e) {}
   }
 
-  scrollEvent () {
+  scrollEvent() {
     const buttonDiv = document.getElementById('button-div')
-    this.isOnBottom = buttonDiv.getBoundingClientRect().top < window.innerHeight
+    this.isOnBottom =
+      !!buttonDiv && buttonDiv.getBoundingClientRect().top < window.innerHeight
   }
 
-  scrollToBottom () {
+  scrollToBottom() {
     this.content.scrollToBottom(500)
   }
 
-  async loadData (e: any): Promise<void> {
+  async loadData(e: any): Promise<void> {
     await this.getLogs()
     e.target.complete()
   }
 }
-

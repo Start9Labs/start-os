@@ -61,8 +61,8 @@ export class AppShowStatusComponent {
     return this.pkg.manifest.interfaces
   }
 
-  get pkgStatus(): Status {
-    return this.pkg.installed.status
+  get pkgStatus(): Status | null {
+    return this.pkg.installed?.status || null
   }
 
   get isInstalled(): boolean {
@@ -75,7 +75,8 @@ export class AppShowStatusComponent {
 
   get isStopped(): boolean {
     return (
-      this.status.primary === PrimaryStatus.Stopped && this.pkgStatus.configured
+      this.status.primary === PrimaryStatus.Stopped &&
+      !!this.pkgStatus?.configured
     )
   }
 
@@ -109,7 +110,7 @@ export class AppShowStatusComponent {
   async stop(): Promise<void> {
     const { id, title, version } = this.pkg.manifest
     const hasDependents = !!Object.keys(
-      this.pkg.installed['current-dependents'],
+      this.pkg.installed?.['current-dependents'] || {},
     ).filter(depId => depId !== id).length
 
     if (!hasDependents) {

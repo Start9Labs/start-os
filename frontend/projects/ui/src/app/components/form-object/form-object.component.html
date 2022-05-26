@@ -51,7 +51,7 @@
           <form-label
             [data]="{
               spec: spec,
-              new: current && current[entry.key] === undefined,
+              new: !!current && current[entry.key] === undefined,
               edited: entry.value.dirty
             }"
           ></form-label>
@@ -129,7 +129,7 @@
         <!-- enum -->
         <!-- class enter-click disables the enter click on the modal behind the select -->
         <ion-select
-          *ngIf="spec.type === 'enum'"
+          *ngIf="spec.type === 'enum' && formGroup.get(entry.key) as control"
           [interfaceOptions]="{
             message: getWarningText(spec.warning),
             cssClass: 'enter-click'
@@ -137,7 +137,7 @@
           slot="end"
           placeholder="Select"
           [formControlName]="entry.key"
-          [selectedText]="spec['value-names'][formGroup.get(entry.key).value]"
+          [selectedText]="spec['value-names'][control.value]"
         >
           <ion-select-option
             *ngFor="let option of spec.values"
@@ -157,7 +157,7 @@
           <form-label
             [data]="{
               spec: spec,
-              new: current && current[entry.key] === undefined,
+              new: !!current && current[entry.key] === undefined,
               edited: entry.value.dirty
             }"
           ></form-label>
@@ -208,7 +208,7 @@
             <form-label
               [data]="{
                 spec: spec,
-                new: current && current[entry.key] === undefined,
+                new: !!current && current[entry.key] === undefined,
                 edited: entry.value.dirty
               }"
             ></form-label>
@@ -281,16 +281,12 @@
                         : $any(spec.spec).spec
                     "
                     [formGroup]="abstractControl"
-                    [current]="
-                      current && current[entry.key]
-                        ? current[entry.key][i]
-                        : undefined
-                    "
+                    [current]="current?.[entry.key]?.[i]"
                     [unionSpec]="
                       spec.subtype === 'union' ? $any(spec.spec) : undefined
                     "
                     (onInputChange)="
-                      updateLabel(entry.key, i, spec.spec['display-as'])
+                      updateLabel(entry.key, i, $any(spec.spec)['display-as'])
                     "
                     (onExpand)="resize(entry.key, i)"
                   ></form-object>
@@ -350,7 +346,7 @@
             <form-label
               [data]="{
                 spec: spec,
-                new: current && current[entry.key] === undefined,
+                new: !!current && current[entry.key] === undefined,
                 edited: entry.value.dirty
               }"
             ></form-label>
@@ -372,7 +368,7 @@
         </ng-container>
       </ng-container>
       <form-error
-        *ngIf="formGroup.get(entry.key).errors"
+        *ngIf="formGroup.get(entry.key)?.errors"
         [control]="$any(formGroup.get(entry.key))"
         [spec]="spec"
       >

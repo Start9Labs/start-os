@@ -15,7 +15,19 @@ import { v4 } from 'uuid'
 import { UIMarketplaceData } from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { finalize, first } from 'rxjs/operators'
+import {
+  distinctUntilChanged,
+  finalize,
+  first,
+  map,
+  startWith,
+} from 'rxjs/operators'
+
+type Marketplaces = {
+  id: string | undefined
+  name: string
+  url: string
+}[]
 
 @Component({
   selector: 'marketplaces',
@@ -24,7 +36,7 @@ import { finalize, first } from 'rxjs/operators'
 })
 export class MarketplacesPage {
   selectedId: string | undefined
-  marketplaces: { id: string | undefined; name: string; url: string }[] = []
+  marketplaces: Marketplaces = []
 
   constructor(
     private readonly api: ApiService,
@@ -39,27 +51,33 @@ export class MarketplacesPage {
   ) {}
 
   ngOnInit() {
-    this.patch.watch$('ui', 'marketplace').subscribe(mp => {
-      const marketplaces = [
-        {
-          id: undefined,
-          name: this.config.marketplace.name,
-          url: this.config.marketplace.url,
-        },
-      ]
-      if (mp) {
-        this.selectedId = mp['selected-id']
-        const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
-          return {
-            id: k,
-            name: v.name,
-            url: v.url,
-          }
-        })
-        marketplaces.push.apply(marketplaces, alts)
-      }
-      this.marketplaces = marketplaces
-    })
+    this.patch
+      .watch$('ui')
+      .pipe(
+        map(ui => ui.marketplace),
+        distinctUntilChanged(),
+      )
+      .subscribe(mp => {
+        let marketplaces: Marketplaces = [
+          {
+            id: undefined,
+            name: this.config.marketplace.name,
+            url: this.config.marketplace.url,
+          },
+        ]
+        if (mp) {
+          this.selectedId = mp['selected-id'] || undefined
+          const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
+            return {
+              id: k,
+              name: v.name,
+              url: v.url,
+            }
+          })
+          marketplaces = marketplaces.concat(alts)
+        }
+        this.marketplaces = marketplaces
+      })
   }
 
   async presentModalAdd() {
@@ -91,9 +109,10 @@ export class MarketplacesPage {
     await modal.present()
   }
 
-  async presentAction(id: string) {
+  async presentAction(id: string = '') {
     // no need to view actions if is selected marketplace
-    if (id === this.patch.getData().ui.marketplace?.['selected-id']) return
+    if (!id || id === this.patch.getData().ui.marketplace?.['selected-id'])
+      return
 
     const buttons: ActionSheetButton[] = [
       {
@@ -200,7 +219,10 @@ export class MarketplacesPage {
       ? (JSON.parse(
           JSON.stringify(this.patch.getData().ui.marketplace),
         ) as UIMarketplaceData)
-      : { 'selected-id': undefined, 'known-hosts': {} }
+      : {
+          'selected-id': undefined,
+          'known-hosts': {} as Record<string, unknown>,
+        }
 
     // no-op on duplicates
     const currentUrls = this.marketplaces.map(mp => mp.url)
@@ -242,7 +264,10 @@ export class MarketplacesPage {
       ? (JSON.parse(
           JSON.stringify(this.patch.getData().ui.marketplace),
         ) as UIMarketplaceData)
-      : { 'selected-id': undefined, 'known-hosts': {} }
+      : {
+          'selected-id': undefined,
+          'known-hosts': {} as Record<string, unknown>,
+        }
 
     // no-op on duplicates
     const currentUrls = this.marketplaces.map(mp => mp.url)

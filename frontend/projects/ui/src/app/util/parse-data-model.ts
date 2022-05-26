@@ -5,12 +5,12 @@ import {
 } from 'src/app/services/patch-db/data-model'
 
 export function parseDataModel(data: DataModel): ParsedData {
-  const all = JSON.parse(JSON.stringify(data['package-data'])) as {
-    [id: string]: PackageDataEntry
-  }
+  const all: Record<string, PackageDataEntry> = JSON.parse(
+    JSON.stringify(data['package-data']),
+  )
 
   const order = [...(data.ui['pkg-order'] || [])]
-  const pkgs = []
+  const pkgs: PackageDataEntry[] = []
   const recoveredPkgs = Object.entries(data['recovered-packages'])
     .filter(([id, _]) => !all[id])
     .map(([id, val]) => ({

@@ -68,8 +68,8 @@ export class RecoverPage {
               'embassy-os': p['embassy-os'],
             }
             this.mappedDrives.push({
-              hasValidBackup: p['embassy-os']?.full,
-              is02x: drive['embassy-os']?.version.startsWith('0.2'),
+              hasValidBackup: !!p['embassy-os']?.full,
+              is02x: !!drive['embassy-os']?.version.startsWith('0.2'),
               drive,
             })
           })
@@ -111,7 +111,8 @@ export class RecoverPage {
             {
               text: 'Use Drive',
               handler: async () => {
-                await this.importDrive(importableDrive.guid)
+                if (importableDrive.guid)
+                  await this.importDrive(importableDrive.guid)
               },
             },
           ],
@@ -148,11 +149,14 @@ export class RecoverPage {
   }
 
   async select(target: DiskBackupTarget) {
-    const is02x = target['embassy-os'].version.startsWith('0.2')
+    const is02x = target['embassy-os']?.version.startsWith('0.2')
+    const { logicalname } = target
+
+    if (!logicalname) return
 
     if (this.stateService.hasProductKey) {
       if (is02x) {
-        this.selectRecoverySource(target.logicalname)
+        this.selectRecoverySource(logicalname)
       } else {
         const modal = await this.modalController.create({
           component: PasswordPage,
@@ -160,8 +164,8 @@ export class RecoverPage {
           cssClass: 'alertlike-modal',
         })
         modal.onDidDismiss().then(res => {
-          if (res.data && res.data.password) {
-            this.selectRecoverySource(target.logicalname, res.data.password)
+          if (res.data?.password) {
+            this.selectRecoverySource(logicalname, res.data.password)
           }
         })
         await modal.present()
@@ -188,8 +192,8 @@ export class RecoverPage {
           cssClass: 'alertlike-modal',
         })
         modal.onDidDismiss().then(res => {
-          if (res.data && res.data.productKey) {
-            this.selectRecoverySource(target.logicalname)
+          if (res.data?.productKey) {
+            this.selectRecoverySource(logicalname)
           }
         })
         await modal.present()

@@ -265,7 +265,7 @@ export module RR {
 }
 
 export type WithExpire<T> = { 'expire-id'?: string } & T
-export type WithRevision<T> = { response: T; revision?: Revision }
+export type WithRevision<T> = { response: T | null; revision?: Revision }
 
 export interface MarketplaceEOS {
   version: string

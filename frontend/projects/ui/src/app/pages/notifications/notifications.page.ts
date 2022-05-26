@@ -23,7 +23,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 export class NotificationsPage {
   loading = true
   notifications: ServerNotifications = []
-  beforeCursor: number
+  beforeCursor?: number
   needInfinite = false
   fromToast = false
   readonly perPage = 40
@@ -51,19 +51,23 @@ export class NotificationsPage {
   }
 
   async getNotifications(): Promise<ServerNotifications> {
-    let notifications: ServerNotifications = []
     try {
-      notifications = await this.embassyApi.getNotifications({
+      const notifications = await this.embassyApi.getNotifications({
         before: this.beforeCursor,
         limit: this.perPage,
       })
+
+      if (!notifications) return []
+
       this.beforeCursor = notifications[notifications.length - 1]?.id
       this.needInfinite = notifications.length >= this.perPage
+
+      return notifications
     } catch (e: any) {
       this.errToast.present(e)
-    } finally {
-      return notifications
     }
+
+    return []
   }
 
   async delete(id: number, index: number): Promise<void> {
