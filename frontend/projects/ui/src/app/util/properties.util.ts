@@ -29,7 +29,7 @@ const matchPropertiesV1 = shape(
     qr: boolean,
   },
   ['description', 'copyable', 'qr'],
-  { description: null as null, copyable: false, qr: false } as const,
+  { copyable: false, qr: false } as const,
 )
 type PropertiesV1 = typeof matchPropertiesV1._TYPE
 
@@ -49,7 +49,6 @@ const matchPackagePropertyString = shape(
   },
   ['description', 'copyable', 'qr', 'masked'],
   {
-    description: null as null,
     copyable: false,
     qr: false,
     masked: false,

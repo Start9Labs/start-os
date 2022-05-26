@@ -13,7 +13,7 @@ export class UiLauncherService {
   ) {}
 
   launch(pkg: PackageDataEntry): void {
-    this.document.defaultView.open(
+    this.document.defaultView?.open(
       this.config.launchableURL(pkg),
       '_blank',
       'noreferrer',

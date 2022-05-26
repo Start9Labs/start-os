@@ -15,6 +15,7 @@ import { ServerInfo } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   catchError,
+  filter,
   map,
   shareReplay,
   startWith,
@@ -53,7 +54,11 @@ export class MarketplaceService extends AbstractMarketplaceService {
       ),
     ),
     shareReplay(),
-    catchError(e => this.errToast.present(e) && of([])),
+    catchError(e => {
+      this.errToast.present(e)
+
+      return of([])
+    }),
   )
 
   constructor(
@@ -79,7 +84,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return this.pkg$
   }
 
-  getPackage(id: string, version: string): Observable<MarketplacePkg> {
+  getPackage(id: string, version: string): Observable<MarketplacePkg | null> {
     const params = { ids: [{ id, version }] }
     const fallback$ = this.init$.pipe(
       take(1),
@@ -91,23 +96,29 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return this.getPackages().pipe(
       map(pkgs => this.findPackage(pkgs, id, version)),
       switchMap(pkg => (pkg ? of(pkg) : fallback$)),
-      tap(pkg => {
+      filter((pkg): pkg is MarketplacePkg | null => {
         if (pkg === undefined) {
           throw new Error(`No results for ${id}${version ? ' ' + version : ''}`)
         }
+
+        return true
       }),
     )
   }
 
   getReleaseNotes(id: string): Observable<Record<string, string>> {
     if (this.notes.has(id)) {
-      return of(this.notes.get(id))
+      return of(this.notes.get(id) || {})
     }
 
     return this.init$.pipe(
       switchMap(({ url }) => this.loadReleaseNotes(id, url)),
       tap(response => this.notes.set(id, response)),
-      catchError(e => this.errToast.present(e) && of({})),
+      catchError(e => {
+        this.errToast.present(e)
+
+        return of({})
+      }),
     )
   }
 

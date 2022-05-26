@@ -20,5 +20,5 @@ export class StatusComponent {
   @Input() weight?: string = 'normal'
   @Input() disconnected?: boolean = false
   @Input() installProgress?: number
-  @Input() sigtermTimeout?: string
+  @Input() sigtermTimeout?: string | null = null
 }

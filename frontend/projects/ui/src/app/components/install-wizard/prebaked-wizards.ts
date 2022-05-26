@@ -33,7 +33,7 @@ export class WizardBaker {
     const action = 'update'
     const toolbar: TopbarParams = { action, title, version }
 
-    const slideDefinitions: SlideDefinition[] = [
+    const slideDefinitions: Array<SlideDefinition | undefined> = [
       installAlert
         ? {
             slide: {
@@ -170,7 +170,7 @@ export class WizardBaker {
     const action = 'downgrade'
     const toolbar: TopbarParams = { action, title, version }
 
-    const slideDefinitions: SlideDefinition[] = [
+    const slideDefinitions: Array<SlideDefinition | undefined> = [
       installAlert
         ? {
             slide: {

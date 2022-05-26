@@ -1,6 +1,7 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { IonContent, ToastController } from '@ionic/angular'
+import { getPkgId } from '@start9labs/shared'
 import { getUiInterfaceKey } from 'src/app/services/config.service'
 import {
   InstalledPackageDataEntry,
@@ -23,7 +24,7 @@ export class AppInterfacesPage {
   @ViewChild(IonContent) content: IonContent
   ui: LocalInterface | null
   other: LocalInterface[] = []
-  pkgId: string
+  readonly pkgId = getPkgId(this.route)
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -31,10 +32,11 @@ export class AppInterfacesPage {
   ) {}
 
   ngOnInit() {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     const pkg = this.patch.getData()['package-data'][this.pkgId]
     const interfaces = pkg.manifest.interfaces
     const uiKey = getUiInterfaceKey(interfaces)
+
+    if (!pkg?.installed) return
 
     const addressesMap = pkg.installed['interface-addresses']
 
@@ -45,10 +47,10 @@ export class AppInterfacesPage {
         addresses: {
           'lan-address': uiAddresses['lan-address']
             ? 'https://' + uiAddresses['lan-address']
-            : null,
+            : '',
           'tor-address': uiAddresses['tor-address']
             ? 'http://' + uiAddresses['tor-address']
-            : null,
+            : '',
         },
       }
     }
@@ -62,10 +64,10 @@ export class AppInterfacesPage {
           addresses: {
             'lan-address': addresses['lan-address']
               ? 'https://' + addresses['lan-address']
-              : null,
+              : '',
             'tor-address': addresses['tor-address']
               ? 'http://' + addresses['tor-address']
-              : null,
+              : '',
           },
         }
       })

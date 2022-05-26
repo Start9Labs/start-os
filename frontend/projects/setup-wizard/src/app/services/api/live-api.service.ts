@@ -124,7 +124,7 @@ export class LiveApiService extends ApiService {
 }
 
 function isCifsSource(
-  source: CifsRecoverySource | DiskRecoverySource | undefined,
+  source: CifsRecoverySource | DiskRecoverySource | null,
 ): source is CifsRecoverySource {
   return !!(source as CifsRecoverySource)?.hostname
 }

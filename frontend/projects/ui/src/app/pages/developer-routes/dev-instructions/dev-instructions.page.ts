@@ -1,14 +1,16 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
-import { take } from 'rxjs/operators'
+import { filter, take } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   debounce,
+  exists,
   ErrorToastService,
   MarkdownComponent,
 } from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { getProjectId } from 'src/app/util/get-project-id'
 
 @Component({
   selector: 'dev-instructions',
@@ -16,7 +18,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['dev-instructions.page.scss'],
 })
 export class DevInstructionsPage {
-  projectId: string
+  readonly projectId = getProjectId(this.route)
   editorOptions = { theme: 'vs-dark', language: 'markdown' }
   code: string = ''
   saving: boolean = false
@@ -30,11 +32,9 @@ export class DevInstructionsPage {
   ) {}
 
   ngOnInit() {
-    this.projectId = this.route.snapshot.paramMap.get('projectId')
-
     this.patchDb
       .watch$('ui', 'dev', this.projectId, 'instructions')
-      .pipe(take(1))
+      .pipe(filter(exists), take(1))
       .subscribe(config => {
         this.code = config
       })

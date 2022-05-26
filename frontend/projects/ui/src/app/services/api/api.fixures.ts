@@ -177,8 +177,6 @@ export module Mock {
             nullable: true,
             masked: false,
             copyable: false,
-            pattern: null,
-            'pattern-description': null,
             warning: 'You may loose all your money by providing your name.',
           },
           notifications: {
@@ -213,7 +211,6 @@ export module Mock {
             name: 'Top Speed',
             description: 'The fastest you can possibly run.',
             nullable: false,
-            default: null,
             range: '[-1000, 1000]',
             integral: false,
             units: 'm/s',
@@ -248,7 +245,6 @@ export module Mock {
               name: {
                 type: 'string',
                 name: 'Name',
-                description: null,
                 nullable: false,
                 masked: false,
                 copyable: false,
@@ -258,7 +254,6 @@ export module Mock {
               email: {
                 type: 'string',
                 name: 'Email',
-                description: null,
                 nullable: false,
                 masked: false,
                 copyable: true,
@@ -1187,7 +1182,6 @@ export module Mock {
             type: 'string',
             description: 'User first name',
             nullable: true,
-            default: null,
             masked: false,
             copyable: false,
           },
@@ -1210,7 +1204,6 @@ export module Mock {
             type: 'number',
             description: 'The age of the user',
             nullable: true,
-            default: null,
             integral: false,
             warning: 'User must be at least 18.',
             range: '[18,*)',

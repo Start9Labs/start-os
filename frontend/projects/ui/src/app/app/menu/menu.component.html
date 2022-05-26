@@ -26,13 +26,15 @@
         {{ page.title }}
       </ion-label>
       <ion-icon
-        *ngIf="page.url === '/embassy' && eosService.updateAvailable$ | async"
+        *ngIf="page.url === '/embassy' && (eosService.updateAvailable$ | async)"
         color="success"
         size="small"
         name="rocket-outline"
       ></ion-icon>
       <ion-badge
-        *ngIf="page.url === '/notifications' && notification$ | async as count"
+        *ngIf="
+          page.url === '/notifications' && (notification$ | async) as count
+        "
         color="danger"
         class="badge"
       >

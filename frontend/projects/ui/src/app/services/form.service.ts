@@ -137,6 +137,8 @@ export class FormService {
       case 'enum':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value)
+      default:
+        return this.formBuilder.control(null)
     }
   }
 }
@@ -373,6 +375,7 @@ function listObjEquals(
     }
     return true
   }
+  return false
 }
 
 function objEquals(
@@ -400,6 +403,7 @@ function objEquals(
     }
     return true
   }
+  return false
 }
 
 function unionEquals(
@@ -433,6 +437,7 @@ function unionEquals(
     }
     return true
   }
+  return false
 }
 
 function uniqueByMessageWrapper(
@@ -460,9 +465,9 @@ function uniqueByMessage(
   outermost = true,
 ): string {
   let joinFunc
-  const subSpecs = []
+  const subSpecs: string[] = []
   if (uniqueBy === null) {
-    return null
+    return ''
   } else if (typeof uniqueBy === 'string') {
     return configSpec[uniqueBy] ? configSpec[uniqueBy].name : uniqueBy
   } else if ('any' in uniqueBy) {
@@ -476,7 +481,7 @@ function uniqueByMessage(
       subSpecs.push(uniqueByMessage(subSpec, configSpec, false))
     }
   }
-  const ret = subSpecs.filter(ss => ss).join(joinFunc)
+  const ret = subSpecs.filter(Boolean).join(joinFunc)
   return outermost || subSpecs.filter(ss => ss).length === 1
     ? ret
     : '(' + ret + ')'
@@ -499,18 +504,20 @@ export function convertValuesRecursive(
   group: FormGroup,
 ) {
   Object.entries(configSpec).forEach(([key, valueSpec]) => {
+    const control = group.get(key)
+
+    if (!control) return
+
     if (valueSpec.type === 'number') {
-      const control = group.get(key)
       control.setValue(control.value ? Number(control.value) : null)
     } else if (valueSpec.type === 'string') {
-      const control = group.get(key)
       if (!control.value) control.setValue(null)
     } else if (valueSpec.type === 'object') {
       convertValuesRecursive(valueSpec.spec, group.get(key) as FormGroup)
     } else if (valueSpec.type === 'union') {
-      const control = group.get(key) as FormGroup
-      const spec = valueSpec.variants[control.controls[valueSpec.tag.id].value]
-      convertValuesRecursive(spec, control)
+      const formGr = group.get(key) as FormGroup
+      const spec = valueSpec.variants[formGr.controls[valueSpec.tag.id].value]
+      convertValuesRecursive(spec, formGr)
     } else if (valueSpec.type === 'list') {
       const formArr = group.get(key) as FormArray
       const { controls } = formArr
