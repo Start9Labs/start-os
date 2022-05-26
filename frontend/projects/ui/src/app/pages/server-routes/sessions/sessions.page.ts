@@ -23,7 +23,7 @@ export class SessionsPage {
   async ngOnInit() {
     try {
       this.sessionInfo = await this.embassyApi.getSessions({})
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       this.loading = false
@@ -62,7 +62,7 @@ export class SessionsPage {
     try {
       await this.embassyApi.killSessions({ ids: [id] })
       delete this.sessionInfo.sessions[id]
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()

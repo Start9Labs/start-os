@@ -1,31 +1,21 @@
 import { Injectable } from '@angular/core'
-import { CanActivate, Router } from '@angular/router'
-import { tap } from 'rxjs/operators'
-import { AuthService, AuthState } from '../services/auth.service'
+import { CanActivate, Router, UrlTree } from '@angular/router'
+import { map } from 'rxjs/operators'
+import { AuthService } from '../services/auth.service'
+import { Observable } from 'rxjs'
 
 @Injectable({
   providedIn: 'root',
 })
 export class UnauthGuard implements CanActivate {
-  authState: AuthState
-
-  constructor (
+  constructor(
     private readonly authService: AuthService,
     private readonly router: Router,
-  ) {
-    this.authService.watch$()
-    .pipe(
-      tap(auth => this.authState = auth),
-    ).subscribe()
-  }
+  ) {}
 
-  canActivate (): boolean {
-    if (this.authState === AuthState.VERIFIED) {
-      this.router.navigateByUrl('')
-      return false
-    } else {
-      return true
-    }
+  canActivate(): Observable<boolean | UrlTree> {
+    return this.authService.isVerified$.pipe(
+      map(verified => !verified || this.router.parseUrl('')),
+    )
   }
 }
-

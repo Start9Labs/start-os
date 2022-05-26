@@ -42,7 +42,7 @@ export class DevConfigPage {
     let doc: any
     try {
       doc = yaml.load(this.code)
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     }
 
@@ -73,7 +73,7 @@ export class DevConfigPage {
         pointer: `/dev/${this.projectId}/config`,
         value: this.code,
       })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       this.saving = false

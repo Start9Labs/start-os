@@ -15,7 +15,6 @@ import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { exists, isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
-import { ServerStatus } from 'src/app/services/patch-db/data-model'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 
 @Component({
@@ -24,9 +23,11 @@ import { LocalStorageService } from 'src/app/services/local-storage.service'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  ServerStatus = ServerStatus
   hasRecoveredPackage: boolean
   clicks = 0
+
+  readonly server$ = this.patch.watch$('server-info')
+  readonly ui$ = this.patch.watch$('ui')
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -164,7 +165,7 @@ export class ServerShowPage {
               this.embassyApi.repairDisk({}).then(_ => {
                 this.restart()
               })
-            } catch (e) {
+            } catch (e: any) {
               this.errToast.present(e)
             }
           },
@@ -185,7 +186,7 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.restartServer({})
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -202,7 +203,7 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.shutdownServer({})
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -219,7 +220,7 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.systemRebuild({})
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -239,7 +240,7 @@ export class ServerShowPage {
       if (updateAvailable) {
         this.updateEos()
       }
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -387,7 +388,8 @@ export class ServerShowPage {
       },
       {
         title: 'Kernel Logs',
-        description: 'Diagnostic log stream for device drivers and other kernel processes',
+        description:
+          'Diagnostic log stream for device drivers and other kernel processes',
         icon: 'receipt-outline',
         action: () =>
           this.navCtrl.navigateForward(['kernel-logs'], {

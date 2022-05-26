@@ -8,8 +8,9 @@ const SHOW_DISK_REPAIR = 'SHOW_DISK_REPAIR'
   providedIn: 'root',
 })
 export class LocalStorageService {
-  showDevTools$: BehaviorSubject<boolean> = new BehaviorSubject(false)
-  showDiskRepair$: BehaviorSubject<boolean> = new BehaviorSubject(false)
+  readonly showDevTools$ = new BehaviorSubject<boolean>(false)
+  readonly showDiskRepair$ = new BehaviorSubject<boolean>(false)
+
   constructor(private readonly storage: Storage) {}
 
   async init() {

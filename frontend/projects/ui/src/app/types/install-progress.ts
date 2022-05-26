@@ -1,9 +1,9 @@
 export interface InstallProgress {
-  size: number | null
-  downloaded: number
-  'download-complete': boolean
-  validated: number
-  'validation-complete': boolean
-  unpacked: number
-  'unpack-complete': boolean
+  readonly size: number | null
+  readonly downloaded: number
+  readonly 'download-complete': boolean
+  readonly validated: number
+  readonly 'validation-complete': boolean
+  readonly unpacked: number
+  readonly 'unpack-complete': boolean
 }

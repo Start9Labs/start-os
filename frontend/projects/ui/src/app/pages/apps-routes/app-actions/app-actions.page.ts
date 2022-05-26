@@ -178,7 +178,7 @@ export class AppActionsPage {
       })
 
       setTimeout(() => successModal.present(), 400)
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
       return false
     } finally {

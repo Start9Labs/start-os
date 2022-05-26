@@ -47,18 +47,25 @@ function getDependencyStatus(pkg: PackageDataEntry): DependencyStatus {
 }
 
 function getHealthStatus(status: Status): HealthStatus {
-  if (status.main.status === PackageMainStatus.Running) {
-    const values = Object.values(status.main.health)
-    if (values.some(h => h.result === 'failure')) {
-      return HealthStatus.Failure
-    } else if (values.some(h => h.result === 'starting')) {
-      return HealthStatus.Starting
-    } else if (values.some(h => h.result === 'loading')) {
-      return HealthStatus.Loading
-    } else {
-      return HealthStatus.Healthy
-    }
+  if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
+    return
   }
+
+  const values = Object.values(status.main.health)
+
+  if (values.some(h => h.result === 'failure')) {
+    return HealthStatus.Failure
+  }
+
+  if (values.some(h => h.result === 'starting')) {
+    return HealthStatus.Starting
+  }
+
+  if (values.some(h => h.result === 'loading')) {
+    return HealthStatus.Loading
+  }
+
+  return HealthStatus.Healthy
 }
 
 export interface StatusRendering {

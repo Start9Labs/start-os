@@ -18,6 +18,7 @@ export class AppListPage {
   recoveredPkgs: readonly RecoveredInfo[] = []
   order: readonly string[] = []
   reordering = false
+  loading = true
 
   constructor(
     private readonly api: ApiService,
@@ -26,7 +27,9 @@ export class AppListPage {
   ) {}
 
   get empty(): boolean {
-    return !this.pkgs.length && isEmptyObject(this.recoveredPkgs)
+    return (
+      !this.loading && !this.pkgs.length && isEmptyObject(this.recoveredPkgs)
+    )
   }
 
   ngOnInit() {
@@ -40,6 +43,7 @@ export class AppListPage {
           this.pkgs = pkgs
           this.recoveredPkgs = recoveredPkgs
           this.order = order
+          this.loading = false
 
           // set order in UI DB if there were unknown packages
           if (order.length < pkgs.length) {

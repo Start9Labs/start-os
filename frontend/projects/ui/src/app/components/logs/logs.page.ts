@@ -54,7 +54,7 @@ export class LogsPage {
       this.loading = false
 
       return logsRes.entries
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     }
   }

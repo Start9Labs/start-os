@@ -266,7 +266,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   private syncResponse<
     T,
     F extends (...args: any[]) => Promise<{ response: T; revision?: Revision }>,
-  >(f: F, temp?: Operation): (...args: Parameters<F>) => Promise<T> {
+  >(f: F, temp?: Operation<unknown>): (...args: Parameters<F>) => Promise<T> {
     return (...a) => {
       // let expireId = undefined
       // if (temp) {

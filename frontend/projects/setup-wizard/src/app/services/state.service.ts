@@ -49,7 +49,7 @@ export class StateService {
     let progress
     try {
       progress = await this.apiService.getRecoveryStatus()
-    } catch (e) {
+    } catch (e: any) {
       this.errorToastService.present({
         message: `${e.message}\n\nRestart Embassy to try again.`,
       })

@@ -14,14 +14,14 @@ export function capitalizeFirstLetter(string: string): string {
   return string.charAt(0).toUpperCase() + string.slice(1)
 }
 
-export const exists = (t: any) => {
+export function exists<T>(t: T | undefined): t is T {
   return t !== undefined
 }
 
 export function debounce(delay: number = 300): MethodDecorator {
   return function (
     target: any,
-    propertyKey: string,
+    propertyKey: string | symbol,
     descriptor: PropertyDescriptor,
   ) {
     const timeoutKey = Symbol()

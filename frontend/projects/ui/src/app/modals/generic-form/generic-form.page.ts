@@ -50,7 +50,7 @@ export class GenericFormPage {
       this.formGroup.markAllAsTouched()
       document
         .getElementsByClassName('validation-error')[0]
-        .parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
+        ?.parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
       return
     }
 

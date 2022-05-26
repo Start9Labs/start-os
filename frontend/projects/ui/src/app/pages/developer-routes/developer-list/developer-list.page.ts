@@ -159,7 +159,7 @@ export class DeveloperListPage {
       } else {
         await this.api.setDbValue({ pointer: `/dev`, value: { [id]: def } })
       }
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -197,7 +197,7 @@ export class DeveloperListPage {
 
     try {
       await this.api.setDbValue({ pointer: `/dev/${id}/name`, value: newName })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
@@ -216,7 +216,7 @@ export class DeveloperListPage {
       const devDataToSave: DevData = JSON.parse(JSON.stringify(this.devData))
       delete devDataToSave[id]
       await this.api.setDbValue({ pointer: `/dev`, value: devDataToSave })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()

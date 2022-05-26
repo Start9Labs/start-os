@@ -6,7 +6,11 @@
       </ion-button>
     </ion-buttons>
     <ion-title>Config</ion-title>
-    <ion-buttons *ngIf="!loadingText && !loadingError && hasConfig" slot="end" class="ion-padding-end">
+    <ion-buttons
+      *ngIf="!loadingText && !loadingError && hasConfig"
+      slot="end"
+      class="ion-padding-end"
+    >
       <ion-button fill="clear" (click)="resetDefaults()">
         <ion-icon slot="start" name="refresh"></ion-icon>
         Reset Defaults
@@ -16,38 +20,52 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-
   <!-- loading -->
-  <text-spinner *ngIf="loadingText; else loaded" [text]="loadingText"></text-spinner>
+  <text-spinner *ngIf="loadingText" [text]="loadingText"></text-spinner>
 
   <!-- not loading -->
-  <ng-template #loaded>
-
+  <ng-container *ngIf="!loadingText && pkg">
     <ion-item *ngIf="loadingError; else noError">
       <ion-label>
-        <ion-text color="danger">
-          {{ loadingError }}
-        </ion-text>
+        <ion-text color="danger"> {{ loadingError }} </ion-text>
       </ion-label>
     </ion-item>
 
     <ng-template #noError>
-      <ion-item *ngIf="hasConfig && !pkg.installed.status.configured && !configForm.dirty">
+      <ion-item
+        *ngIf="hasConfig && !pkg.installed.status.configured && !configForm.dirty"
+      >
         <ion-label>
-          <ion-text color="success">To use the default config for {{ pkg.manifest.title }}, click "Save" below.</ion-text>
+          <ion-text color="success"
+            >To use the default config for {{ pkg.manifest.title }}, click
+            "Save" below.</ion-text
+          >
         </ion-label>
       </ion-item>
-  
+
       <!-- auto-config -->
-      <ion-item lines="none" *ngIf="dependentInfo" class="rec-item" style="margin-bottom: 48px;">
+      <ion-item
+        lines="none"
+        *ngIf="dependentInfo"
+        class="rec-item"
+        style="margin-bottom: 48px"
+      >
         <ion-label>
-          <h2 style="display: flex; align-items: center;">
-            <img style="width: 18px; margin: 4px;" [src]="pkg['static-files'].icon" [alt]="pkg.manifest.title"/>
-            <ion-text style="margin: 5px; font-family: 'Montserrat'; font-size: 18px;">{{ pkg.manifest.title }}</ion-text>
+          <h2 style="display: flex; align-items: center">
+            <img
+              style="width: 18px; margin: 4px"
+              [src]="pkg['static-files'].icon"
+              [alt]="pkg.manifest.title"
+            />
+            <ion-text
+              style="margin: 5px; font-family: 'Montserrat'; font-size: 18px"
+              >{{ pkg.manifest.title }}</ion-text
+            >
           </h2>
           <p>
             <ion-text color="dark">
-              The following modifications have been made to {{ pkg.manifest.title }} to satisfy {{ dependentInfo.title }}:
+              The following modifications have been made to {{
+              pkg.manifest.title }} to satisfy {{ dependentInfo.title }}:
               <ul>
                 <li *ngFor="let d of diff" [innerHtml]="d"></li>
               </ul>
@@ -56,14 +74,17 @@
           </p>
         </ion-label>
       </ion-item>
-  
+
       <!-- no config -->
       <ion-item *ngIf="!hasConfig">
         <ion-label>
-          <p>No config options for {{ pkg.manifest.title }} {{ pkg.manifest.version }}.</p>
+          <p>
+            No config options for {{ pkg.manifest.title }} {{
+            pkg.manifest.version }}.
+          </p>
         </ion-label>
       </ion-item>
-  
+
       <!-- has config -->
       <form *ngIf="hasConfig" [formGroup]="configForm" novalidate>
         <form-object
@@ -74,16 +95,32 @@
         ></form-object>
       </form>
     </ng-template>
-  </ng-template>
+  </ng-container>
 </ion-content>
 
 <ion-footer>
   <ion-toolbar>
-    <ion-buttons *ngIf="!loadingText && !loadingError" slot="end" class="ion-padding-end">
-      <ion-button *ngIf="hasConfig" fill="outline" [disabled]="saving" (click)="save()" class="enter-click" [class.no-click]="saving">
+    <ion-buttons
+      *ngIf="!loadingText && !loadingError"
+      slot="end"
+      class="ion-padding-end"
+    >
+      <ion-button
+        *ngIf="hasConfig"
+        fill="outline"
+        [disabled]="saving"
+        (click)="save()"
+        class="enter-click"
+        [class.no-click]="saving"
+      >
         Save
       </ion-button>
-      <ion-button *ngIf="!hasConfig" fill="outline" (click)="dismiss()" class="enter-click">
+      <ion-button
+        *ngIf="!hasConfig"
+        fill="outline"
+        (click)="dismiss()"
+        class="enter-click"
+      >
         Close
       </ion-button>
     </ion-buttons>

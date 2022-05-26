@@ -7,10 +7,8 @@ import {
 } from '@start9labs/marketplace'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { BehaviorSubject, defer, Observable, of } from 'rxjs'
+import { BehaviorSubject, Observable, of } from 'rxjs'
 import { catchError, filter, shareReplay, switchMap, tap } from 'rxjs/operators'
-
-import { spreadProgress } from '../utils/spread-progress'
 
 @Component({
   selector: 'marketplace-show',
@@ -23,13 +21,12 @@ export class MarketplaceShowPage {
 
   readonly loadVersion$ = new BehaviorSubject<string>('*')
 
-  readonly localPkg$ = defer(() =>
-    this.patch.watch$('package-data', this.pkgId),
-  ).pipe(
-    filter<PackageDataEntry>(Boolean),
-    tap(spreadProgress),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  )
+  readonly localPkg$ = this.patch
+    .watch$('package-data', this.pkgId)
+    .pipe(
+      filter<PackageDataEntry>(Boolean),
+      shareReplay({ bufferSize: 1, refCount: true }),
+    )
 
   readonly pkg$: Observable<MarketplacePkg> = this.loadVersion$.pipe(
     switchMap(version =>

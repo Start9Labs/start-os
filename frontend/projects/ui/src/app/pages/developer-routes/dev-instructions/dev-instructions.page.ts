@@ -60,7 +60,7 @@ export class DevInstructionsPage {
         pointer: `/dev/${this.projectId}/instructions`,
         value: this.code,
       })
-    } catch (e) {
+    } catch (e: any) {
       this.errToast.present(e)
     } finally {
       this.saving = false

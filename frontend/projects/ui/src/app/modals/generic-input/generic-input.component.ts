@@ -52,7 +52,7 @@ export class GenericInputComponent {
     try {
       await this.options.submitFn(value)
       this.modalCtrl.dismiss(undefined, 'success')
-    } catch (e) {
+    } catch (e: any) {
       this.error = getErrorMessage(e)
     }
   }
