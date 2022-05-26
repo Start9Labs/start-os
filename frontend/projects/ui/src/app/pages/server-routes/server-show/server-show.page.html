@@ -1,7 +1,7 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title *ngIf="patch.loaded else loading">
-      {{ patch.data.ui?.name || "Embassy-" + patch.data['server-info']?.id }}
+    <ion-title *ngIf="patch.loaded && server$ | async as server else loading">
+      {{ patch.data.ui?.name || "Embassy-" + server.id }}
     </ion-title>
     <ng-template #loading>
       <ion-title>Loading<span class="loading-dots"></span></ion-title>
