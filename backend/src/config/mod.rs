@@ -14,6 +14,7 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::db::model::{CurrentDependencies, CurrentDependents};
 use crate::dependencies::{
     add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
     BreakageRes, DependencyConfig, DependencyError, DependencyErrors, TaggedDependencyError,
@@ -276,7 +277,8 @@ pub struct ConfigReceipts {
     version: LockReceipt<crate::util::Version, String>,
     manifest: LockReceipt<Manifest, String>,
     system_pointers: LockReceipt<Vec<spec::SystemPointerSpec>, String>,
-    pub current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+    pub current_dependents: LockReceipt<CurrentDependents, String>,
+    pub current_dependencies: LockReceipt<CurrentDependencies, String>,
     dependency_errors: LockReceipt<DependencyErrors, String>,
     manifest_dependencies_config: LockReceipt<DependencyConfig, (String, String)>,
 }
@@ -360,6 +362,14 @@ impl ConfigReceipts {
             .make_locker(LockType::Write)
             .add_to_keys(locks);
 
+        let current_dependencies = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .map(|x| x.current_dependencies())
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+
         let dependency_errors = crate::db::DatabaseModel::new()
             .package_data()
             .star()
@@ -391,6 +401,7 @@ impl ConfigReceipts {
                 manifest: manifest.verify(skeleton_key)?,
                 system_pointers: system_pointers.verify(skeleton_key)?,
                 current_dependents: current_dependents.verify(skeleton_key)?,
+                current_dependencies: current_dependencies.verify(skeleton_key)?,
                 dependency_errors: dependency_errors.verify(skeleton_key)?,
                 manifest_dependencies_config: manifest_dependencies_config.verify(skeleton_key)?,
             })
@@ -544,26 +555,28 @@ pub fn configure_rec<'a, Db: DbHandle>(
             .await?
             .ok_or_else(not_found)?;
         sys.truncate(0);
-        let mut current_dependencies: BTreeMap<PackageId, CurrentDependencyInfo> = dependencies
-            .0
-            .iter()
-            .filter_map(|(id, info)| {
-                if info.requirement.required() {
-                    Some((id.clone(), CurrentDependencyInfo::default()))
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let mut current_dependencies: CurrentDependencies = CurrentDependencies(
+            dependencies
+                .0
+                .iter()
+                .filter_map(|(id, info)| {
+                    if info.requirement.required() {
+                        Some((id.clone(), CurrentDependencyInfo::default()))
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        );
         for ptr in spec.pointers(&config)? {
             match ptr {
                 ValueSpecPointer::Package(pkg_ptr) => {
                     if let Some(current_dependency) =
-                        current_dependencies.get_mut(pkg_ptr.package_id())
+                        current_dependencies.0.get_mut(pkg_ptr.package_id())
                     {
                         current_dependency.pointers.push(pkg_ptr);
                     } else {
-                        current_dependencies.insert(
+                        current_dependencies.0.insert(
                             pkg_ptr.package_id().to_owned(),
                             CurrentDependencyInfo {
                                 pointers: vec![pkg_ptr],
@@ -585,10 +598,10 @@ pub fn configure_rec<'a, Db: DbHandle>(
 
             // track dependencies with no pointers
             for (package_id, health_checks) in res.depends_on.into_iter() {
-                if let Some(current_dependency) = current_dependencies.get_mut(&package_id) {
+                if let Some(current_dependency) = current_dependencies.0.get_mut(&package_id) {
                     current_dependency.health_checks.extend(health_checks);
                 } else {
-                    current_dependencies.insert(
+                    current_dependencies.0.insert(
                         package_id,
                         CurrentDependencyInfo {
                             pointers: Vec::new(),
@@ -599,17 +612,18 @@ pub fn configure_rec<'a, Db: DbHandle>(
             }
 
             // track dependency health checks
-            current_dependencies = current_dependencies
-                .into_iter()
-                .filter(|(dep_id, _)| {
-                    if dep_id != id && !manifest.dependencies.0.contains_key(dep_id) {
-                        tracing::warn!("Illegal dependency specified: {}", dep_id);
-                        false
-                    } else {
-                        true
-                    }
-                })
-                .collect();
+            current_dependencies = current_dependencies.map(|x| {
+                x.into_iter()
+                    .filter(|(dep_id, _)| {
+                        if dep_id != id && !manifest.dependencies.0.contains_key(dep_id) {
+                            tracing::warn!("Illegal dependency specified: {}", dep_id);
+                            false
+                        } else {
+                            true
+                        }
+                    })
+                    .collect()
+            });
             res.signal
         } else {
             None
@@ -619,7 +633,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
         remove_from_current_dependents_lists(
             db,
             id,
-            current_dependencies.keys(),
+            &current_dependencies,
             &receipts.current_dependents,
         )
         .await?; // remove previous
@@ -630,9 +644,9 @@ pub fn configure_rec<'a, Db: DbHandle>(
             &receipts.current_dependents,
         )
         .await?; // add new
-        current_dependencies.remove(id);
+        current_dependencies.0.remove(id);
         receipts
-            .current_dependents
+            .current_dependencies
             .set(db, current_dependencies.clone(), &id)
             .await?;
 
@@ -656,12 +670,16 @@ pub fn configure_rec<'a, Db: DbHandle>(
         overrides.insert(id.clone(), config.clone());
 
         // handle dependents
-        let dependents = current_dependencies;
+        let dependents = receipts
+            .current_dependents
+            .get(db, id)
+            .await?
+            .ok_or_else(not_found)?;
         let prev = if is_needs_config { None } else { old_config }
             .map(Value::Object)
             .unwrap_or_default();
         let next = Value::Object(config.clone());
-        for (dependent, dep_info) in dependents.iter().filter(|(dep_id, _)| dep_id != &id) {
+        for (dependent, dep_info) in dependents.0.iter().filter(|(dep_id, _)| dep_id != &id) {
             // check if config passes dependent check
             if let Some(cfg) = receipts
                 .manifest_dependencies_config

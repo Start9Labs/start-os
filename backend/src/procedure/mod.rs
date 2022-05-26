@@ -159,6 +159,7 @@ impl PackageProcedure {
     }
 }
 
+#[derive(Debug)]
 pub struct NoOutput;
 impl<'de> Deserialize<'de> for NoOutput {
     fn deserialize<D>(_: D) -> Result<Self, D::Error>

@@ -102,7 +102,7 @@ pub async fn check<Db: DbHandle>(
     let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
     tracing::debug!("Got receipts {}", id);
 
-    for (dependent, info) in &*current_dependents {
+    for (dependent, info) in (*current_dependents).0.iter() {
         let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results
             .iter()
             .filter(|(_, hc_res)| !matches!(hc_res, HealthCheckResult::Success { .. }))

@@ -17,7 +17,9 @@ use tracing::instrument;
 use crate::config::spec::PackagePointerSpec;
 use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec};
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencyInfo, InstalledPackageDataEntry};
+use crate::db::model::{
+    CurrentDependencies, CurrentDependencyInfo, CurrentDependents, InstalledPackageDataEntry,
+};
 use crate::procedure::{NoOutput, PackageProcedure};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
@@ -64,7 +66,7 @@ pub struct TryHealReceipts {
     status: LockReceipt<Status, String>,
     manifest: LockReceipt<Manifest, String>,
     manifest_version: LockReceipt<Version, String>,
-    current_dependencies: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+    current_dependencies: LockReceipt<CurrentDependencies, String>,
     dependency_errors: LockReceipt<DependencyErrors, String>,
 }
 
@@ -541,6 +543,7 @@ impl DependencyConfig {
 }
 
 pub struct DependencyConfigReceipts {
+    config: ConfigReceipts,
     dependencies: LockReceipt<Dependencies, ()>,
     dependency_volumes: LockReceipt<Volumes, ()>,
     dependency_version: LockReceipt<Version, ()>,
@@ -550,65 +553,76 @@ pub struct DependencyConfigReceipts {
 }
 
 impl DependencyConfigReceipts {
-    pub async fn new(
-        db: &'_ mut impl DbHandle,
+    pub async fn new<'a>(
+        db: &'a mut impl DbHandle,
         package_id: &PackageId,
         dependency_id: &PackageId,
     ) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
+        let setup = Self::setup(&mut locks, package_id, dependency_id);
+        Ok(setup(&db.lock_all(locks).await?)?)
+    }
+
+    pub fn setup(
+        locks: &mut Vec<LockTargetId>,
+        package_id: &PackageId,
+        dependency_id: &PackageId,
+    ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
+        let config = ConfigReceipts::setup(locks);
         let dependencies = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(package_id)
             .and_then(|x| x.installed())
             .map(|x| x.manifest().dependencies())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
         let dependency_volumes = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(dependency_id)
             .and_then(|x| x.installed())
             .map(|x| x.manifest().volumes())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
         let dependency_version = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(dependency_id)
             .and_then(|x| x.installed())
             .map(|x| x.manifest().version())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
         let dependency_config_action = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(dependency_id)
             .and_then(|x| x.installed())
             .and_then(|x| x.manifest().config())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
         let package_volumes = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(package_id)
             .and_then(|x| x.installed())
             .map(|x| x.manifest().volumes())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
+            .add_to_keys(locks);
         let package_version = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(package_id)
             .and_then(|x| x.installed())
             .map(|x| x.manifest().version())
             .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-
-        let skeleton_key = db.lock_all(locks).await?;
-        Ok(Self {
-            dependencies: dependencies.verify(&skeleton_key)?,
-            dependency_volumes: dependency_volumes.verify(&skeleton_key)?,
-            dependency_version: dependency_version.verify(&skeleton_key)?,
-            dependency_config_action: dependency_config_action.verify(&skeleton_key)?,
-            package_volumes: package_volumes.verify(&skeleton_key)?,
-            package_version: package_version.verify(&skeleton_key)?,
-        })
+            .add_to_keys(locks);
+        move |skeleton_key| {
+            Ok(Self {
+                config: config(skeleton_key)?,
+                dependencies: dependencies.verify(&skeleton_key)?,
+                dependency_volumes: dependency_volumes.verify(&skeleton_key)?,
+                dependency_version: dependency_version.verify(&skeleton_key)?,
+                dependency_config_action: dependency_config_action.verify(&skeleton_key)?,
+                package_volumes: package_volumes.verify(&skeleton_key)?,
+                package_version: package_version.verify(&skeleton_key)?,
+            })
+        }
     }
 }
 
@@ -635,7 +649,7 @@ pub async fn configure_impl(
         spec: _,
     } = configure_logic(ctx.clone(), &mut db, (pkg_id, dep_id.clone()), &receipts).await?;
 
-    let locks = ConfigReceipts::new(&mut db).await?;
+    let locks = &receipts.config;
     Ok(crate::config::configure(
         &ctx,
         &mut db,
@@ -645,7 +659,7 @@ pub async fn configure_impl(
         false,
         &mut BTreeMap::new(),
         &mut BTreeMap::new(),
-        &locks,
+        locks,
     )
     .await?)
 }
@@ -749,21 +763,19 @@ pub async fn configure_logic(
     })
 }
 #[instrument(skip(db, current_dependencies, current_dependent_receipt))]
-pub async fn add_dependent_to_current_dependents_lists<
-    'a,
-    Db: DbHandle,
-    I: IntoIterator<Item = (&'a PackageId, &'a CurrentDependencyInfo)>,
->(
+pub async fn add_dependent_to_current_dependents_lists<'a, Db: DbHandle>(
     db: &mut Db,
     dependent_id: &PackageId,
-    current_dependencies: I,
-    current_dependent_receipt: &LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+    current_dependencies: &CurrentDependencies,
+    current_dependent_receipt: &LockReceipt<CurrentDependents, String>,
 ) -> Result<(), Error> {
-    for (dependency, dep_info) in current_dependencies {
+    for (dependency, dep_info) in &current_dependencies.0 {
         if let Some(mut dependency_dependents) =
             current_dependent_receipt.get(db, dependency).await?
         {
-            dependency_dependents.insert(dependent_id.clone(), dep_info.clone());
+            dependency_dependents
+                .0
+                .insert(dependent_id.clone(), dep_info.clone());
             current_dependent_receipt
                 .set(db, dependency_dependents, dependency)
                 .await?;
@@ -789,11 +801,11 @@ impl DependencyErrors {
         ctx: &RpcContext,
         db: &mut Db,
         manifest: &Manifest,
-        current_dependencies: &BTreeMap<PackageId, CurrentDependencyInfo>,
+        current_dependencies: &CurrentDependencies,
         receipts: &TryHealReceipts,
     ) -> Result<DependencyErrors, Error> {
         let mut res = BTreeMap::new();
-        for (dependency_id, info) in current_dependencies.keys().filter_map(|dependency_id| {
+        for (dependency_id, info) in current_dependencies.0.keys().filter_map(|dependency_id| {
             manifest
                 .dependencies
                 .0
@@ -836,7 +848,7 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
         .get(db, id)
         .await?
         .iter()
-        .flat_map(|x| x.keys())
+        .flat_map(|x| x.0.keys())
         .filter(|dependent| id != *dependent)
     {
         break_transitive(db, dependent, id, error.clone(), breakages, receipts).await?;
@@ -848,7 +860,7 @@ pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
 pub struct BreakTransitiveReceipts {
     pub dependency_receipt: DependencyReceipt,
     dependency_errors: LockReceipt<DependencyErrors, String>,
-    current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+    current_dependents: LockReceipt<CurrentDependents, String>,
 }
 
 impl BreakTransitiveReceipts {
@@ -964,7 +976,7 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
         .get(db, id)
         .await?
         .ok_or_else(not_found)?;
-    for dependent in dependents.keys().filter(|dependent| id != *dependent) {
+    for dependent in dependents.0.keys().filter(|dependent| id != *dependent) {
         heal_transitive(ctx, db, dependent, id, locks).await?;
     }
     Ok(())
@@ -1014,7 +1026,7 @@ pub async fn reconfigure_dependents_with_live_pointers(
 ) -> Result<(), Error> {
     let dependents = &pde.current_dependents;
     let me = &pde.manifest.id;
-    for (dependent_id, dependency_info) in dependents {
+    for (dependent_id, dependency_info) in &dependents.0 {
         if dependency_info.pointers.iter().any(|ptr| match ptr {
             // dependency id matches the package being uninstalled
             PackagePointerSpec::TorAddress(ptr) => &ptr.package_id == me && dependent_id != me,
@@ -1043,7 +1055,7 @@ pub async fn reconfigure_dependents_with_live_pointers(
 #[derive(Clone)]
 pub struct DependencyReceipt {
     pub try_heal: TryHealReceipts,
-    current_dependents: LockReceipt<BTreeMap<PackageId, CurrentDependencyInfo>, String>,
+    current_dependents: LockReceipt<CurrentDependents, String>,
     status: LockReceipt<Status, String>,
     dependency: LockReceipt<DepInfo, (String, String)>,
 }
