@@ -134,7 +134,7 @@ export class ToButtonsPipe implements PipeTransform {
   private async donate({ manifest }: PackageDataEntry): Promise<void> {
     const url = manifest['donation-url']
     if (url) {
-      this.document.defaultView.open(url, '_blank', 'noreferrer')
+      this.document.defaultView?.open(url, '_blank', 'noreferrer')
     } else {
       const alert = await this.alertCtrl.create({
         header: 'Not Accepting Donations',

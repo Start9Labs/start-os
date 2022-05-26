@@ -16,19 +16,19 @@ export class ProdKeyModal {
   productKey = ''
   unmasked = false
 
-  constructor (
+  constructor(
     private readonly modalController: ModalController,
     private readonly apiService: ApiService,
     private readonly loadingCtrl: LoadingController,
     private readonly httpService: HttpService,
-  ) { }
+  ) {}
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     setTimeout(() => this.elem.setFocus(), 400)
   }
 
-  async verifyProductKey () {
-    if (!this.productKey) return
+  async verifyProductKey() {
+    if (!this.productKey || !this.target.logicalname) return
 
     const loader = await this.loadingCtrl.create({
       message: 'Verifying Product Key',
@@ -48,7 +48,7 @@ export class ProdKeyModal {
     }
   }
 
-  cancel () {
+  cancel() {
     this.modalController.dismiss()
   }
 }

@@ -34,7 +34,7 @@ export class AdditionalComponent {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
       inputs: this.pkg.versions
-        .sort((a, b) => -1 * this.emver.compare(a, b))
+        .sort((a, b) => -1 * (this.emver.compare(a, b) || 0))
         .map(v => ({
           name: v, // for CSS
           type: 'radio',

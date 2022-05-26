@@ -34,5 +34,6 @@ export * from './types/rpc-error-details'
 export * from './types/url'
 export * from './types/workspace-config'
 
+export * from './util/get-pkg-id'
 export * from './util/misc.util'
 export * from './util/unused'

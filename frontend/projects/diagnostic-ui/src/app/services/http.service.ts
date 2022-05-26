@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { HttpClient, HttpErrorResponse } from '@angular/common/http'
+import { HttpClient } from '@angular/common/http'
 import { HttpError, RpcError } from '@start9labs/shared'
 
 @Injectable({
@@ -12,6 +12,8 @@ export class HttpService {
     const res = await this.httpRequest<RPCResponse<T>>(options)
     if (isRpcError(res)) throw new RpcError(res.error)
     if (isRpcSuccess(res)) return res.result
+
+    throw new Error('Unknown RPC response')
   }
 
   async httpRequest<T>(body: RPCOptions): Promise<T> {

@@ -1,5 +1,6 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
+import { getPkgId } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
@@ -8,22 +9,22 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   styleUrls: ['./app-logs.page.scss'],
 })
 export class AppLogsPage {
-  pkgId: string
+  readonly pkgId = getPkgId(this.route)
   loading = true
   needInfinite = true
   before: string
 
-  constructor (
+  constructor(
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-  }
-
-  fetchFetchLogs () {
-    return async (params: { before_flag?: boolean, limit?: number, cursor?: string }) => {
+  fetchFetchLogs() {
+    return async (params: {
+      before_flag?: boolean
+      limit?: number
+      cursor?: string
+    }) => {
       return this.embassyApi.getPackageLogs({
         id: this.pkgId,
         before_flag: params.before_flag,

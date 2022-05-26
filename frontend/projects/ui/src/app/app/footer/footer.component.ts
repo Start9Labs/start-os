@@ -30,7 +30,7 @@ export class FooterComponent {
   getProgress({
     downloaded,
     size,
-  }: ServerInfo['status-info']['update-progress']): number {
+  }: NonNullable<ServerInfo['status-info']['update-progress']>): number {
     return Math.round((100 * (downloaded || 1)) / (size || 1))
   }
 }

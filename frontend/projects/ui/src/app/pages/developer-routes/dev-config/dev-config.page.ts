@@ -1,12 +1,13 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
+import { debounce, exists, ErrorToastService } from '@start9labs/shared'
 import * as yaml from 'js-yaml'
-import { take } from 'rxjs/operators'
+import { filter, take } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { getProjectId } from 'src/app/util/get-project-id'
 import { GenericFormPage } from '../../../modals/generic-form/generic-form.page'
-import { debounce, ErrorToastService } from '@start9labs/shared'
 
 @Component({
   selector: 'dev-config',
@@ -14,7 +15,7 @@ import { debounce, ErrorToastService } from '@start9labs/shared'
   styleUrls: ['dev-config.page.scss'],
 })
 export class DevConfigPage {
-  projectId: string
+  readonly projectId = getProjectId(this.route)
   editorOptions = { theme: 'vs-dark', language: 'yaml' }
   code: string = ''
   saving: boolean = false
@@ -28,11 +29,9 @@ export class DevConfigPage {
   ) {}
 
   ngOnInit() {
-    this.projectId = this.route.snapshot.paramMap.get('projectId')
-
     this.patchDb
       .watch$('ui', 'dev', this.projectId, 'config')
-      .pipe(take(1))
+      .pipe(filter(exists), take(1))
       .subscribe(config => {
         this.code = config
       })
