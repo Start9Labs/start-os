@@ -691,8 +691,8 @@ pub fn configure_rec<'a, Db: DbHandle>(
                     .get(db, &dependent)
                     .await?
                     .ok_or_else(not_found)?;
-                if let Err(error) = dbg!(
-                    cfg.check(
+                if let Err(error) = cfg
+                    .check(
                         ctx,
                         dependent,
                         &manifest.version,
@@ -701,8 +701,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                         &config,
                     )
                     .await?
-                ) {
-                    tracing::error!("Failed check {error}");
+                {
                     let dep_err = DependencyError::ConfigUnsatisfied { error };
                     break_transitive(
                         db,

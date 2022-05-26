@@ -151,9 +151,8 @@ impl PackageProcedure {
                     .await
             }
             PackageProcedure::Script(procedure) => {
-                
                 procedure
-                    .sandboxed(ctx, dbg!(pkg_id), pkg_version, volumes, input, timeout, dbg!(name))
+                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout, name)
                     .await
             }
         }

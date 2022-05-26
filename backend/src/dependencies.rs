@@ -267,10 +267,8 @@ impl DependencyError {
                             )
                             .await?
                         {
-                            tracing::error!("Error from cfg: {error}");
                             return Ok(Some(DependencyError::ConfigUnsatisfied { error }));
                         }
-                        tracing::error!("No error!");
                     }
                     DependencyError::NotRunning
                         .try_heal(
@@ -507,7 +505,6 @@ impl DependencyConfig {
         dependency_id: &PackageId,
         dependency_config: &Config,
     ) -> Result<Result<NoOutput, String>, Error> {
-        tracing::error!("First entry into check");
         Ok(self
             .check
             .sandboxed(
@@ -692,7 +689,6 @@ pub async fn configure_logic(
     (pkg_id, dependency_id): (PackageId, PackageId),
     receipts: &DependencyConfigReceipts,
 ) -> Result<ConfigDryRes, Error> {
-    tracing::error!("Entered Configure Logic");
     let pkg_version = receipts.package_version.get(db).await?;
     let pkg_volumes = receipts.package_volumes.get(db).await?;
     let dependency_config_action = receipts.dependency_config_action.get(db).await?;
