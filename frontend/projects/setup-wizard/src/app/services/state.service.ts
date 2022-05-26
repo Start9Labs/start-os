@@ -18,7 +18,7 @@ export class StateService {
   embassyLoaded = false
 
   recoverySource: CifsRecoverySource | DiskRecoverySource
-  recoveryPassword: string
+  recoveryPassword?: string
 
   dataTransferProgress: {
     bytesTransferred: number

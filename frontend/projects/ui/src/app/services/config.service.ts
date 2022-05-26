@@ -28,7 +28,7 @@ export class ConfigService {
   api = api
   marketplace = marketplace
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
-  isConsulate = window['platform'] === 'ios'
+  isConsulate = (window as any)['platform'] === 'ios'
   supportsWebSockets = !!window.WebSocket || this.isConsulate
 
   isTor(): boolean {
@@ -76,14 +76,20 @@ export function hasLanUi(interfaces: Record<string, InterfaceDef>): boolean {
   return !!int?.['lan-config']
 }
 
-export function torUiAddress(pkg: PackageDataEntry): string {
-  const key = getUiInterfaceKey(pkg.manifest.interfaces)
-  return pkg.installed['interface-addresses'][key]['tor-address']
+export function torUiAddress({
+  manifest,
+  installed,
+}: PackageDataEntry): string {
+  const key = getUiInterfaceKey(manifest.interfaces)
+  return installed ? installed['interface-addresses'][key]['tor-address'] : ''
 }
 
-export function lanUiAddress(pkg: PackageDataEntry): string {
-  const key = getUiInterfaceKey(pkg.manifest.interfaces)
-  return pkg.installed['interface-addresses'][key]['lan-address']
+export function lanUiAddress({
+  manifest,
+  installed,
+}: PackageDataEntry): string {
+  const key = getUiInterfaceKey(manifest.interfaces)
+  return installed ? installed['interface-addresses'][key]['lan-address'] : ''
 }
 
 export function hasUi(interfaces: Record<string, InterfaceDef>): boolean {
@@ -103,11 +109,11 @@ export function removePort(str: string): string {
 export function getUiInterfaceKey(
   interfaces: Record<string, InterfaceDef>,
 ): string {
-  return Object.keys(interfaces).find(key => interfaces[key].ui)
+  return Object.keys(interfaces).find(key => interfaces[key].ui) || ''
 }
 
 export function getUiInterfaceValue(
   interfaces: Record<string, InterfaceDef>,
-): InterfaceDef {
-  return Object.values(interfaces).find(i => i.ui)
+): InterfaceDef | null {
+  return Object.values(interfaces).find(i => i.ui) || null
 }

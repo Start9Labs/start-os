@@ -5,10 +5,10 @@ import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { BasicInfo, getBasicInfoSpec } from './form-info'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService, DestroyService } from '@start9labs/shared'
 import { takeUntil } from 'rxjs/operators'
 import { DevProjectData } from 'src/app/services/patch-db/data-model'
-import { DestroyService } from '../../../../../../shared/src/services/destroy.service'
+import { getProjectId } from 'src/app/util/get-project-id'
 import * as yaml from 'js-yaml'
 
 @Component({
@@ -18,7 +18,7 @@ import * as yaml from 'js-yaml'
   providers: [DestroyService],
 })
 export class DeveloperMenuPage {
-  projectId: string
+  readonly projectId = getProjectId(this.route)
   projectData: DevProjectData
 
   constructor(
@@ -28,12 +28,14 @@ export class DeveloperMenuPage {
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
     private readonly destroy$: DestroyService,
-    public readonly patchDb: PatchDbService,
+    private readonly patchDb: PatchDbService,
   ) {}
 
-  ngOnInit() {
-    this.projectId = this.route.snapshot.paramMap.get('projectId')
+  get name(): string {
+    return this.patchDb.data.ui?.dev?.[this.projectId]?.name || ''
+  }
 
+  ngOnInit() {
     this.patchDb
       .watch$('ui', 'dev', this.projectId)
       .pipe(takeUntil(this.destroy$))
@@ -51,14 +53,14 @@ export class DeveloperMenuPage {
         buttons: [
           {
             text: 'Save',
-            handler: basicInfo => {
+            handler: (basicInfo: any) => {
               basicInfo.description = {
                 short: basicInfo.short,
                 long: basicInfo.long,
               }
               delete basicInfo.short
               delete basicInfo.long
-              this.saveBasicInfo(basicInfo as BasicInfo)
+              this.saveBasicInfo(basicInfo)
             },
             isSubmit: true,
           },

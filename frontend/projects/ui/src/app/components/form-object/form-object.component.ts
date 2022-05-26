@@ -34,8 +34,8 @@ const Mustache = require('mustache')
 export class FormObjectComponent {
   @Input() objectSpec: ConfigSpec
   @Input() formGroup: FormGroup
-  @Input() unionSpec: ValueSpecUnion
-  @Input() current: { [key: string]: any }
+  @Input() unionSpec?: ValueSpecUnion
+  @Input() current?: { [key: string]: any }
   @Input() showEdited: boolean = false
   @Output() onInputChange = new EventEmitter<void>()
   @Output() onExpand = new EventEmitter<void>()
@@ -61,7 +61,7 @@ export class FormObjectComponent {
 
       if (spec.type === 'list' && ['object', 'union'].includes(spec.subtype)) {
         this.objectListDisplay[key] = []
-        this.formGroup.get(key).value.forEach((obj, index) => {
+        this.formGroup.get(key)?.value.forEach((obj: any, index: number) => {
           const displayAs = (spec.spec as ListValueSpecOf<'object'>)[
             'display-as'
           ]
@@ -87,7 +87,7 @@ export class FormObjectComponent {
   }
 
   updateUnion(e: any): void {
-    const primary = this.unionSpec.tag.id
+    const primary = this.unionSpec?.tag.id
 
     Object.keys(this.formGroup.controls).forEach(control => {
       if (control === primary) return
@@ -104,7 +104,7 @@ export class FormObjectComponent {
       this.formGroup.addControl(control, unionGroup.controls[control])
     })
 
-    Object.entries(this.unionSpec.variants[e.detail.value]).forEach(
+    Object.entries(this.unionSpec?.variants[e.detail.value] || {}).forEach(
       ([key, value]) => {
         if (['object', 'union'].includes(value.type)) {
           this.objectDisplay[key] = {
@@ -138,6 +138,9 @@ export class FormObjectComponent {
     if (markDirty) arr.markAsDirty()
     const listSpec = this.objectSpec[key] as ValueSpecList
     const newItem = this.formService.getListItem(listSpec, val)
+
+    if (!newItem) return
+
     newItem.markAllAsTouched()
     arr.insert(0, newItem)
     if (['object', 'union'].includes(listSpec.subtype)) {
@@ -177,13 +180,14 @@ export class FormObjectComponent {
 
   updateLabel(key: string, i: number, displayAs: string) {
     this.objectListDisplay[key][i].displayAs = displayAs
-      ? Mustache.render(displayAs, this.formGroup.get(key).value[i])
+      ? Mustache.render(displayAs, this.formGroup.get(key)?.value[i])
       : ''
   }
 
-  getWarningText(text: string): IonicSafeString {
-    if (text)
-      return new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
+  getWarningText(text: string = ''): IonicSafeString | string {
+    return text
+      ? new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
+      : ''
   }
 
   handleInputChange() {
@@ -192,8 +196,8 @@ export class FormObjectComponent {
 
   handleBooleanChange(key: string, spec: ValueSpecBoolean) {
     if (spec.warning) {
-      const current = this.formGroup.get(key).value
-      const cancelFn = () => this.formGroup.get(key).setValue(!current)
+      const current = this.formGroup.get(key)?.value
+      const cancelFn = () => this.formGroup.get(key)?.setValue(!current)
       this.presentAlertChangeWarning(key, spec, undefined, cancelFn)
     }
   }
@@ -307,7 +311,7 @@ export class FormObjectComponent {
   }
 
   private updateEnumList(key: string, current: string[], updated: string[]) {
-    this.formGroup.get(key).markAsDirty()
+    this.formGroup.get(key)?.markAsDirty()
 
     for (let i = current.length - 1; i >= 0; i--) {
       if (!updated.includes(current[i])) {
@@ -322,9 +326,9 @@ export class FormObjectComponent {
     })
   }
 
-  private getDocSize(key: string, index = 0) {
+  private getDocSize(key: string, index = 0): string {
     const element = document.getElementById(this.getElementId(key, index))
-    return `${element.scrollHeight}px`
+    return `${element?.scrollHeight}px`
   }
 
   getElementId(key: string, index = 0): string {

@@ -6,8 +6,8 @@ import { packageLoadingProgress } from 'src/app/util/package-loading-progress'
   name: 'installProgress',
 })
 export class InstallProgressPipe implements PipeTransform {
-  transform(loadData: InstallProgress): string {
-    const { totalProgress } = packageLoadingProgress(loadData)
+  transform(loadData?: InstallProgress): string {
+    const totalProgress = packageLoadingProgress(loadData)?.totalProgress || 0
 
     return totalProgress < 99 ? totalProgress + '%' : 'finalizing'
   }

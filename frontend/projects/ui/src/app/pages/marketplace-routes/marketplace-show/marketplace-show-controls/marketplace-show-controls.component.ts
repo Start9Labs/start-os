@@ -25,7 +25,7 @@ export class MarketplaceShowControlsComponent {
   pkg: MarketplacePkg
 
   @Input()
-  localPkg: PackageDataEntry
+  localPkg: PackageDataEntry | null = null
 
   readonly PackageState = PackageState
 
@@ -77,7 +77,7 @@ export class MarketplaceShowControlsComponent {
       title,
       version,
       serviceRequirements: dependencies,
-      installAlert: alerts.install,
+      installAlert: alerts.install || undefined,
     }
 
     const { cancelled } = await wizardModal(

@@ -18,7 +18,7 @@ import { wizardModal } from 'src/app/components/install-wizard/install-wizard.co
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
 import { Subscription } from 'rxjs'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { isEmptyObject, ErrorToastService } from '@start9labs/shared'
+import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 
 @Component({
@@ -28,7 +28,7 @@ import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.
 })
 export class AppActionsPage {
   @ViewChild(IonContent) content: IonContent
-  pkgId: string
+  readonly pkgId = getPkgId(this.route)
   pkg: PackageDataEntry
   subs: Subscription[]
 
@@ -45,7 +45,6 @@ export class AppActionsPage {
   ) {}
 
   ngOnInit() {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.subs = [
       this.patch.watch$('package-data', this.pkgId).subscribe(pkg => {
         this.pkg = pkg
@@ -62,13 +61,14 @@ export class AppActionsPage {
   }
 
   async handleAction(action: { key: string; value: Action }) {
-    const status = this.pkg.installed.status
+    const status = this.pkg.installed?.status
     if (
+      status &&
       (action.value['allowed-statuses'] as PackageMainStatus[]).includes(
         status.main.status,
       )
     ) {
-      if (!isEmptyObject(action.value['input-spec'])) {
+      if (!isEmptyObject(action.value['input-spec'] || {})) {
         const modal = await this.modalCtrl.create({
           component: GenericFormPage,
           componentProps: {
@@ -112,7 +112,7 @@ export class AppActionsPage {
       const statuses = [...action.value['allowed-statuses']]
       const last = statuses.pop()
       let statusesStr = statuses.join(', ')
-      let error = null
+      let error = ''
       if (statuses.length) {
         if (statuses.length > 1) {
           // oxford comma
@@ -144,7 +144,7 @@ export class AppActionsPage {
         id,
         title,
         version,
-        uninstallAlert: alerts.uninstall,
+        uninstallAlert: alerts.uninstall || undefined,
       }),
     )
 
@@ -177,6 +177,7 @@ export class AppActionsPage {
       })
 
       setTimeout(() => successModal.present(), 400)
+      return true
     } catch (e: any) {
       this.errToast.present(e)
       return false

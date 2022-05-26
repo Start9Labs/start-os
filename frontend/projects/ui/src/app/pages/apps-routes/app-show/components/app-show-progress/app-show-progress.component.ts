@@ -31,6 +31,6 @@ export class AppShowProgressComponent {
   }
 
   getColor(action: keyof InstallProgress): string {
-    return this.pkg['install-progress'][action] ? 'success' : 'secondary'
+    return this.pkg['install-progress']?.[action] ? 'success' : 'secondary'
   }
 }

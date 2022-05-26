@@ -1,10 +1,5 @@
 import { Injectable } from '@angular/core'
-import {
-  HttpClient,
-  HttpErrorResponse,
-  HttpHeaders,
-  HttpParams,
-} from '@angular/common/http'
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http'
 import { Observable, from, interval, race } from 'rxjs'
 import { map, take } from 'rxjs/operators'
 import { ConfigService } from './config.service'
@@ -27,6 +22,7 @@ export class HttpService {
     this.fullUrl = `${window.location.protocol}//${window.location.hostname}:${port}`
   }
 
+  // @ts-ignore TODO: fix typing
   async rpcRequest<T>(rpcOpts: RPCOptions): Promise<T> {
     const { url, version } = this.config.api
     rpcOpts.params = rpcOpts.params || {}
@@ -53,12 +49,15 @@ export class HttpService {
 
     const urlIsRelative = httpOpts.url.startsWith('/')
     const url = urlIsRelative ? this.fullUrl + httpOpts.url : httpOpts.url
+    const { params } = httpOpts
 
-    Object.keys(httpOpts.params || {}).forEach(key => {
-      if (httpOpts.params[key] === undefined) {
-        delete httpOpts.params[key]
-      }
-    })
+    if (hasParams(params)) {
+      Object.keys(params).forEach(key => {
+        if (params[key] === undefined) {
+          delete params[key]
+        }
+      })
+    }
 
     const options = {
       responseType: httpOpts.responseType || 'json',
@@ -179,6 +178,12 @@ export interface HttpOptions {
   withCredentials?: boolean
   body?: any
   timeout?: number
+}
+
+function hasParams(
+  params?: HttpOptions['params'],
+): params is Record<string, string | string[]> {
+  return !!params
 }
 
 function withTimeout<U>(req: Observable<U>, timeout: number): Observable<U> {

@@ -51,7 +51,7 @@ export class UnreadToastService extends Observable<unknown> {
     await this.unreadToast?.dismiss()
 
     this.unreadToast = await this.toastCtrl.create(TOAST)
-    this.unreadToast.buttons.push({
+    this.unreadToast.buttons?.push({
       side: 'end',
       text: 'View',
       handler: () => {

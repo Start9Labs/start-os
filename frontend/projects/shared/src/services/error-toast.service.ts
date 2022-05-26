@@ -5,7 +5,7 @@ import { IonicSafeString, ToastController } from '@ionic/angular'
   providedIn: 'root',
 })
 export class ErrorToastService {
-  private toast: HTMLIonToastElement
+  private toast?: HTMLIonToastElement
 
   constructor(private readonly toastCtrl: ToastController) {}
 

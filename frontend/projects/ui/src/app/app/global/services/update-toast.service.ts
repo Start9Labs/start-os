@@ -49,7 +49,7 @@ export class UpdateToastService extends Observable<unknown> {
     await this.updateToast?.dismiss()
 
     this.updateToast = await this.toastCtrl.create(TOAST)
-    this.updateToast.buttons.push({
+    this.updateToast.buttons?.push({
       side: 'end',
       text: 'Restart',
       handler: () => {
