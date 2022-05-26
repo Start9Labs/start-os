@@ -27,6 +27,7 @@ export class ServerShowPage {
   clicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
+  readonly ui$ = this.patch.watch$('ui')
 
   constructor(
     private readonly alertCtrl: AlertController,
