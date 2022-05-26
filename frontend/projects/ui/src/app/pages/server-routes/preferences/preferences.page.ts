@@ -21,39 +21,37 @@ import { LocalStorageService } from '../../../services/local-storage.service'
 })
 export class PreferencesPage {
   @ViewChild(IonContent) content: IonContent
-  defaultName: string
   clicks = 0
 
-  constructor (
+  readonly ui$ = this.patch.watch$('ui')
+  readonly server$ = this.patch.watch$('server-info')
+
+  constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
     private readonly toastCtrl: ToastController,
     private readonly localStorageService: LocalStorageService,
-    public readonly serverConfig: ServerConfigService,
-    public readonly patch: PatchDbService,
-  ) { }
+    private readonly patch: PatchDbService,
+    readonly serverConfig: ServerConfigService,
+  ) {}
 
-  ngOnInit () {
-    this.defaultName = `Embassy-${this.patch.getData()['server-info'].id}`
-  }
-
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  async presentModalName (): Promise<void> {
+  async presentModalName(placeholder: string): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Edit Device Name',
       message: 'This is for your reference only.',
       label: 'Device Name',
       useMask: false,
-      placeholder: this.defaultName,
+      placeholder,
       nullable: true,
       initialValue: this.patch.getData().ui.name,
       buttonText: 'Save',
       submitFn: (value: string) =>
-        this.setDbValue('name', value || this.defaultName),
+        this.setDbValue('name', value || placeholder),
     }
 
     const modal = await this.modalCtrl.create({
@@ -66,7 +64,7 @@ export class PreferencesPage {
     await modal.present()
   }
 
-  private async setDbValue (key: string, value: string): Promise<void> {
+  private async setDbValue(key: string, value: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
@@ -81,7 +79,7 @@ export class PreferencesPage {
     }
   }
 
-  async addClick () {
+  async addClick() {
     this.clicks++
     if (this.clicks >= 5) {
       this.clicks = 0
