@@ -8,10 +8,9 @@
 </ion-header>
 
 <ion-content>
-
   <ion-item-divider>Basic</ion-item-divider>
 
-  <ion-item-group *ngIf="patch.data['server-info'] as server">
+  <ion-item-group *ngIf="server$ | async as server">
     <ion-item>
       <ion-label>
         <h2>EmbassyOS Version</h2>
@@ -47,5 +46,4 @@
       </ion-button>
     </ion-item>
   </ion-item-group>
-
 </ion-content>

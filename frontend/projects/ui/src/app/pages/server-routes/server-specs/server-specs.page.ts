@@ -12,20 +12,23 @@ import { ConfigService } from 'src/app/services/config.service'
 export class ServerSpecsPage {
   @ViewChild(IonContent) content: IonContent
 
-  constructor (
-    private readonly toastCtrl: ToastController,
-    public readonly patch: PatchDbService,
-    public readonly config: ConfigService,
-  ) { }
+  readonly server$ = this.patch.watch$('server-info')
 
-  ngAfterViewInit () {
+  constructor(
+    private readonly toastCtrl: ToastController,
+    private readonly patch: PatchDbService,
+    public readonly config: ConfigService,
+  ) {}
+
+  ngAfterViewInit() {
     this.content.scrollToPoint(undefined, 1)
   }
 
-  async copy (address: string) {
+  async copy(address: string) {
     let message = ''
-    await copyToClipboard(address || '')
-      .then(success => { message = success ? 'copied to clipboard!' : 'failed to copy'})
+    await copyToClipboard(address || '').then(success => {
+      message = success ? 'copied to clipboard!' : 'failed to copy'
+    })
 
     const toast = await this.toastCtrl.create({
       header: message,
@@ -35,7 +38,7 @@ export class ServerSpecsPage {
     await toast.present()
   }
 
-  asIsOrder (a: any, b: any) {
+  asIsOrder(a: any, b: any) {
     return 0
   }
 }
