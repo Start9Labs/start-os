@@ -5,7 +5,7 @@ import { Subscription } from 'rxjs'
 import { Metric } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MainStatus } from 'src/app/services/patch-db/data-model'
-import { pauseFor, ErrorToastService } from '@start9labs/shared'
+import { pauseFor, ErrorToastService, getPkgId } from '@start9labs/shared'
 
 @Component({
   selector: 'app-metrics',
@@ -14,7 +14,7 @@ import { pauseFor, ErrorToastService } from '@start9labs/shared'
 })
 export class AppMetricsPage {
   loading = true
-  pkgId: string
+  readonly pkgId = getPkgId(this.route)
   mainStatus: MainStatus
   going = false
   metrics: Metric
@@ -29,7 +29,6 @@ export class AppMetricsPage {
   ) {}
 
   ngOnInit() {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
     this.startDaemon()
   }
 

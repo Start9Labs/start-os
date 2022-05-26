@@ -62,7 +62,7 @@ export class ToDependenciesPipe implements PipeTransform {
   private setDepValues(
     pkg: PackageDataEntry,
     id: string,
-    errors: { [id: string]: DependencyError },
+    errors: { [id: string]: DependencyError | null },
   ): DependencyInfo {
     let errorText = ''
     let actionText = 'View'
@@ -105,13 +105,13 @@ export class ToDependenciesPipe implements PipeTransform {
       errorText = `${errorText}. ${pkg.manifest.title} will not work as expected.`
     }
 
-    const depInfo = pkg.installed['dependency-info'][id]
+    const depInfo = pkg.installed?.['dependency-info'][id]
 
     return {
       id,
       version: pkg.manifest.dependencies[id].version,
-      title: depInfo.manifest?.title || id,
-      icon: depInfo.icon,
+      title: depInfo?.manifest?.title || id,
+      icon: depInfo?.icon || '',
       errorText,
       actionText,
       action,

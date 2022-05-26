@@ -12,7 +12,7 @@ export class RpcError<T> {
       return `${this.error.message}\n\n${this.error.data}`
     }
 
-    return this.error.data.details
+    return this.error.data?.details
       ? `${this.error.message}\n\n${this.error.data.details}`
       : this.error.message
   }
@@ -20,6 +20,6 @@ export class RpcError<T> {
   private getRevision(): T | null {
     return typeof this.error.data === 'string'
       ? null
-      : this.error.data.revision || null
+      : this.error.data?.revision || null
   }
 }

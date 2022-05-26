@@ -19,18 +19,17 @@ export class ConvertBytesPipe implements PipeTransform {
   name: 'durationToSeconds',
 })
 export class DurationToSecondsPipe implements PipeTransform {
-  transform(duration: string | null): number {
+  transform(duration?: string | null): number {
     if (!duration) return 0
-    const splitUnit = duration.match(/^([0-9]*(\.[0-9]+)?)(ns|µs|ms|s|m|d)$/)
-    const unit = splitUnit[3]
-    const num = splitUnit[1]
+    const [, num, , unit] =
+      duration.match(/^([0-9]*(\.[0-9]+)?)(ns|µs|ms|s|m|d)$/) || []
     return Number(num) * unitsToSeconds[unit]
   }
 }
 
 const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
 
-const unitsToSeconds = {
+const unitsToSeconds: Record<string, number> = {
   ns: 1e-9,
   µs: 1e-6,
   ms: 0.001,

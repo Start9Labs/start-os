@@ -99,7 +99,7 @@ export class MockApiService extends ApiService {
 
   async killSessions(params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
     await pauseFor(2000)
-    return null
+    return { response: null }
   }
 
   // server
@@ -749,13 +749,14 @@ export class MockApiService extends ApiService {
       { progress: 'downloaded', completion: 'download-complete' },
       { progress: 'validated', completion: 'validation-complete' },
       { progress: 'unpacked', completion: 'unpack-complete' },
-    ]
+    ] as const
 
     for (let phase of phases) {
       let i = progress[phase.progress]
-      while (i < progress.size) {
+      const size = progress?.size || 0
+      while (i < size) {
         await pauseFor(250)
-        i = Math.min(i + 5, progress.size)
+        i = Math.min(i + 5, size)
         progress[phase.progress] = i
 
         if (i === progress.size) {
@@ -858,7 +859,7 @@ export class MockApiService extends ApiService {
 
   private async withRevision<T>(
     patch: Operation<unknown>[],
-    response: T = null,
+    response: T | null = null,
   ): Promise<WithRevision<T>> {
     if (!this.sequence) {
       const { sequence } = await this.bootstrapper.init()

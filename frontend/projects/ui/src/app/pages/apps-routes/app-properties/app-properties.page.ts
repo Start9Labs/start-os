@@ -15,7 +15,7 @@ import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService, getPkgId } from '@start9labs/shared'
 import { getValueByPointer } from 'fast-json-patch'
 
 @Component({
@@ -25,7 +25,7 @@ import { getValueByPointer } from 'fast-json-patch'
 })
 export class AppPropertiesPage {
   loading = true
-  pkgId: string
+  readonly pkgId = getPkgId(this.route)
   pointer: string
   properties: PackageProperties
   node: PackageProperties
@@ -55,8 +55,6 @@ export class AppPropertiesPage {
   }
 
   async ngOnInit() {
-    this.pkgId = this.route.snapshot.paramMap.get('pkgId')
-
     await this.getProperties()
 
     this.subs = [
@@ -100,7 +98,7 @@ export class AppPropertiesPage {
 
     const alert = await this.alertCtrl.create({
       header: property.key,
-      message: property.value.description,
+      message: property.value.description || undefined,
     })
     await alert.present()
   }

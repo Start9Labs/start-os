@@ -29,7 +29,7 @@ export class GenericInputComponent {
       ...this.options,
     }
 
-    this.value = this.options.initialValue
+    this.value = this.options.initialValue || ''
   }
 
   ngAfterViewInit() {

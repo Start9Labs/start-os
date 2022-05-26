@@ -62,11 +62,12 @@ export class AppConfigPage {
 
     if (!this.hasConfig) return
 
+    let oldConfig: object
+    let newConfig: object | undefined
+    let spec: ConfigSpec
+    let patch: Operation[] | undefined
+
     try {
-      let oldConfig: object
-      let newConfig: object
-      let spec: ConfigSpec
-      let patch: Operation[]
       if (this.dependentInfo) {
         this.loadingText = `Setting properties to accommodate ${this.dependentInfo.title}`
         const {
@@ -133,7 +134,7 @@ export class AppConfigPage {
     if (this.configForm.invalid) {
       document
         .getElementsByClassName('validation-error')[0]
-        ?.parentElement.parentElement.scrollIntoView({ behavior: 'smooth' })
+        ?.parentElement?.parentElement?.scrollIntoView({ behavior: 'smooth' })
       return
     }
 
@@ -153,7 +154,7 @@ export class AppConfigPage {
         config,
       })
 
-      if (!isEmptyObject(breakages['length'])) {
+      if (!isEmptyObject(breakages['length']) && this.pkg) {
         const { cancelled } = await wizardModal(
           this.modalCtrl,
           this.wizardBaker.configure({
@@ -247,11 +248,11 @@ export class AppConfigPage {
           return isNaN(num) ? node : num
         })
 
-      if (op.op !== 'remove') this.configForm.get(arrPath).markAsDirty()
+      if (op.op !== 'remove') this.configForm.get(arrPath)?.markAsDirty()
 
       if (typeof arrPath[arrPath.length - 1] === 'number') {
         const prevPath = arrPath.slice(0, arrPath.length - 1)
-        this.configForm.get(prevPath).markAsDirty()
+        this.configForm.get(prevPath)?.markAsDirty()
       }
     })
   }

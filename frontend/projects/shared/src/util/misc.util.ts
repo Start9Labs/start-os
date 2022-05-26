@@ -28,7 +28,7 @@ export function debounce(delay: number = 300): MethodDecorator {
 
     const original = descriptor.value
 
-    descriptor.value = function (...args) {
+    descriptor.value = function (this: any, ...args: any[]) {
       clearTimeout(this[timeoutKey])
       this[timeoutKey] = setTimeout(() => original.apply(this, args), delay)
     }

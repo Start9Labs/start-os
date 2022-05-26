@@ -1,6 +1,10 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonInput, ModalController } from '@ionic/angular'
-import { DiskInfo, CifsBackupTarget, DiskBackupTarget } from 'src/app/services/api/api.service'
+import {
+  DiskInfo,
+  CifsBackupTarget,
+  DiskBackupTarget,
+} from 'src/app/services/api/api.service'
 import * as argon2 from '@start9labs/argon2'
 
 @Component({
@@ -21,26 +25,27 @@ export class PasswordPage {
   passwordVer = ''
   unmasked2 = false
 
-  constructor (
-    private modalController: ModalController,
-  ) { }
+  constructor(private modalController: ModalController) {}
 
-  ngAfterViewInit () {
+  ngAfterViewInit() {
     setTimeout(() => this.elem.setFocus(), 400)
   }
 
-  async verifyPw () {
-    if (!this.target || !this.target['embassy-os']) this.pwError = 'No recovery target' // unreachable
+  async verifyPw() {
+    if (!this.target || !this.target['embassy-os'])
+      this.pwError = 'No recovery target' // unreachable
 
     try {
-      argon2.verify(this.target['embassy-os']['password-hash'], this.password)
+      const passwordHash = this.target['embassy-os']?.['password-hash'] || ''
+
+      argon2.verify(passwordHash, this.password)
       this.modalController.dismiss({ password: this.password }, 'success')
     } catch (e) {
       this.pwError = 'Incorrect password provided'
     }
   }
 
-  async submitPw () {
+  async submitPw() {
     this.validate()
     if (this.password !== this.passwordVer) {
       this.verError = '*passwords do not match'
@@ -50,8 +55,8 @@ export class PasswordPage {
     this.modalController.dismiss({ password: this.password }, 'success')
   }
 
-  validate () {
-    if (!!this.target) return this.pwError = ''
+  validate() {
+    if (!!this.target) return (this.pwError = '')
 
     if (this.passwordVer) {
       this.checkVer()
@@ -64,11 +69,12 @@ export class PasswordPage {
     }
   }
 
-  checkVer () {
-    this.verError = this.password !== this.passwordVer ? 'Passwords do not match' : ''
+  checkVer() {
+    this.verError =
+      this.password !== this.passwordVer ? 'Passwords do not match' : ''
   }
 
-  cancel () {
+  cancel() {
     this.modalController.dismiss()
   }
 }

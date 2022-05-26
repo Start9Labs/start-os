@@ -33,7 +33,7 @@ export function traceThrowDesc<T>(description: string, t: T | undefined): T {
 export function inMs(
   count: number,
   unit: 'days' | 'hours' | 'minutes' | 'seconds',
-) {
+): number {
   switch (unit) {
     case 'seconds':
       return count * 1000
@@ -63,31 +63,6 @@ export function toObject<T>(t: T[], map: (t0: T) => string): Record<string, T> {
   }, {} as Record<string, T>)
 }
 
-export function deepCloneUnknown<T>(value: T): T {
-  if (typeof value !== 'object' || value === null) {
-    return value
-  }
-  if (Array.isArray(value)) {
-    return deepCloneArray(value)
-  }
-  return deepCloneObject(value)
-}
-
-export function deepCloneObject<T>(source: T) {
-  const result = {}
-  Object.keys(source).forEach(key => {
-    const value = source[key]
-    result[key] = deepCloneUnknown(value)
-  }, {})
-  return result as T
-}
-
-export function deepCloneArray(collection: any) {
-  return collection.map(value => {
-    return deepCloneUnknown(value)
-  })
-}
-
 export function partitionArray<T>(
   ts: T[],
   condition: (t: T) => boolean,
@@ -109,22 +84,4 @@ export function update<T>(
   u: Record<string, T>,
 ): Record<string, T> {
   return { ...t, ...u }
-}
-
-export function uniqueBy<T>(
-  ts: T[],
-  uniqueBy: (t: T) => string,
-  prioritize: (t1: T, t2: T) => T,
-) {
-  return Object.values(
-    ts.reduce((acc, next) => {
-      const previousValue = acc[uniqueBy(next)]
-      if (previousValue) {
-        acc[uniqueBy(next)] = prioritize(acc[uniqueBy(next)], previousValue)
-      } else {
-        acc[uniqueBy(next)] = previousValue
-      }
-      return acc
-    }, {}),
-  )
 }

@@ -37,7 +37,7 @@
     </ion-button>
 
     <ion-button
-      *ngIf="!pkgStatus.configured"
+      *ngIf="!pkgStatus?.configured"
       class="action-button"
       slot="start"
       color="warning"
@@ -48,7 +48,7 @@
     </ion-button>
 
     <ion-button
-      *ngIf="interfaces | hasUi"
+      *ngIf="pkgStatus && (interfaces | hasUi)"
       class="action-button"
       slot="start"
       color="primary"

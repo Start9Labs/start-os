@@ -9,10 +9,10 @@
 <ion-content class="ion-padding">
   <marketplace-list-content
     *ngIf="loaded else loading"
-    [localPkgs]="localPkgs$ | async"
+    [localPkgs]="(localPkgs$ | async) || {}"
     [pkgs]="pkgs$ | async"
     [categories]="categories$ | async"
-    [name]="name$ | async"
+    [name]="(name$ | async) || ''"
   ></marketplace-list-content>
 
   <ng-template #loading>

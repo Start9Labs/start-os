@@ -7,7 +7,7 @@ import * as emver from '@start9labs/emver'
 export class Emver {
   constructor() {}
 
-  compare(lhs: string, rhs: string): number {
+  compare(lhs: string, rhs: string): number | null {
     if (!lhs || !rhs) return null
     return emver.compare(lhs, rhs)
   }

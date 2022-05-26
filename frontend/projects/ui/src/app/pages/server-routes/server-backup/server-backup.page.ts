@@ -55,7 +55,7 @@ export class ServerBackupPage {
           } else {
             if (this.backingUp) {
               this.backingUp = false
-              this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
+              this.pkgs.forEach(pkg => pkg.sub?.unsubscribe())
               this.navCtrl.navigateRoot('/embassy')
             }
           }
@@ -65,7 +65,7 @@ export class ServerBackupPage {
 
   ngOnDestroy() {
     this.subs.forEach(sub => sub.unsubscribe())
-    this.pkgs.forEach(pkg => pkg.sub.unsubscribe())
+    this.pkgs.forEach(pkg => pkg.sub?.unsubscribe())
   }
 
   async presentModalPassword(
@@ -98,7 +98,10 @@ export class ServerBackupPage {
           // existing backup
         } else {
           try {
-            argon2.verify(target.entry['embassy-os']['password-hash'], password)
+            const passwordHash =
+              target.entry['embassy-os']?.['password-hash'] || ''
+
+            argon2.verify(passwordHash, password)
           } catch {
             setTimeout(
               () => this.presentModalOldPassword(target, password),
@@ -133,7 +136,9 @@ export class ServerBackupPage {
       useMask: true,
       buttonText: 'Create Backup',
       submitFn: async (oldPassword: string) => {
-        argon2.verify(target.entry['embassy-os']['password-hash'], oldPassword)
+        const passwordHash = target.entry['embassy-os']?.['password-hash'] || ''
+
+        argon2.verify(passwordHash, oldPassword)
         await this.createBackup(target.id, password, oldPassword)
       },
     }
@@ -182,15 +187,11 @@ export class ServerBackupPage {
             pkg.installed?.status.main.status === PackageMainStatus.BackingUp,
         )
 
-        this.pkgs = pkgArr.map((pkg, i) => {
-          const pkgInfo = {
-            entry: pkg,
-            active: i === activeIndex,
-            complete: i < activeIndex,
-            sub: null,
-          }
-          return pkgInfo
-        })
+        this.pkgs = pkgArr.map((pkg, i) => ({
+          entry: pkg,
+          active: i === activeIndex,
+          complete: i < activeIndex,
+        }))
 
         // subscribe to pkg
         this.pkgs.forEach(pkg => {
@@ -220,5 +221,5 @@ interface PkgInfo {
   entry: PackageDataEntry
   active: boolean
   complete: boolean
-  sub: Subscription
+  sub?: Subscription
 }

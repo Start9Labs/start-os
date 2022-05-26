@@ -231,9 +231,7 @@ const SAMPLE_CONFIG: ConfigSpec = {
     masked: false,
     copyable: false,
     // optional
-    warning: null,
     description: 'Example description for required string input.',
-    default: null,
     placeholder: 'Enter string value',
     pattern: '^[a-zA-Z0-9! _]+$',
     'pattern-description': 'Must be alphanumeric (may contain underscore).',
@@ -248,14 +246,12 @@ const SAMPLE_CONFIG: ConfigSpec = {
     warning: 'Example warning to display when changing this number value.',
     units: 'ms',
     description: 'Example description for optional number input.',
-    default: null,
     placeholder: 'Enter number value',
   },
   'sample-boolean': {
     type: 'boolean',
     name: 'Example Boolean Toggle',
     // optional
-    warning: null,
     description: 'Example description for boolean toggle',
     default: true,
   },

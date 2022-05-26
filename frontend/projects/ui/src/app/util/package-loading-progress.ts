@@ -3,9 +3,9 @@ import { InstallProgress } from 'src/app/types/install-progress'
 import { ProgressData } from 'src/app/types/progress-data'
 
 export function packageLoadingProgress(
-  loadData: InstallProgress,
+  loadData?: InstallProgress,
 ): ProgressData | null {
-  if (isEmptyObject(loadData)) {
+  if (!loadData || isEmptyObject(loadData)) {
     return null
   }
 
@@ -20,6 +20,7 @@ export function packageLoadingProgress(
   } = loadData
 
   // only permit 100% when "complete" == true
+  size = size || 0
   downloaded = downloadComplete ? size : Math.max(downloaded - 1, 0)
   validated = validationComplete ? size : Math.max(validated - 1, 0)
   unpacked = unpackComplete ? size : Math.max(unpacked - 1, 0)

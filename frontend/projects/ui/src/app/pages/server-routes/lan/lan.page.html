@@ -33,7 +33,7 @@
             >instructions</a
           >.
         </h2>
-        <ng-container *ngIf="downloadIsDisabled && server$ | async as server">
+        <ng-container *ngIf="downloadIsDisabled && (server$ | async) as server">
           <br />
           <ion-text color="warning">
             For security reasons, you must setup LAN over a

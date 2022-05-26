@@ -21,7 +21,9 @@ export class AppListPkgComponent {
   constructor(private readonly launcherService: UiLauncherService) {}
 
   get status(): PackageMainStatus {
-    return this.pkg.entry.installed?.status.main.status
+    return (
+      this.pkg.entry.installed?.status.main.status || PackageMainStatus.Stopped
+    )
   }
 
   get manifest(): Manifest {

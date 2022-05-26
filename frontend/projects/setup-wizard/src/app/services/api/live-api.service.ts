@@ -43,7 +43,7 @@ export class LiveApiService extends ApiService {
     )
   }
 
-  async set02XDrive(logicalname) {
+  async set02XDrive(logicalname: string) {
     return this.http.rpcRequest<void>(
       {
         method: 'setup.recovery.v2.set',
@@ -124,7 +124,7 @@ export class LiveApiService extends ApiService {
 }
 
 function isCifsSource(
-  source: CifsRecoverySource | DiskRecoverySource | undefined,
+  source: CifsRecoverySource | DiskRecoverySource | null,
 ): source is CifsRecoverySource {
   return !!(source as CifsRecoverySource)?.hostname
 }

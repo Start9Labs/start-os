@@ -6,7 +6,7 @@
       <!-- ** status ** -->
       <app-show-status
         [pkg]="pkg"
-        [connectionFailure]="connectionFailure$ | async"
+        [connectionFailure]="!!(connectionFailure$ | async)"
         [dependencies]="dependencies"
         [status]="status"
       ></app-show-status>
@@ -16,7 +16,7 @@
         <app-show-health-checks
           *ngIf="isRunning(status)"
           [pkg]="pkg"
-          [connectionFailure]="connectionFailure$ | async"
+          [connectionFailure]="!!(connectionFailure$ | async)"
         ></app-show-health-checks>
         <!-- ** dependencies ** -->
         <app-show-dependencies
@@ -27,7 +27,7 @@
         <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
       </ng-container>
     </ion-item-group>
-    
+
     <!-- ** installing, updating, restoring ** -->
     <ion-content *ngIf="showProgress(pkg)">
       <app-show-progress
