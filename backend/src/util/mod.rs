@@ -1,16 +1,12 @@
 use std::collections::BTreeMap;
 use std::future::Future;
-use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::Stdio;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
 use async_trait::async_trait;
 use clap::ArgMatches;
 use color_eyre::eyre::{self, eyre};
@@ -19,16 +15,17 @@ use fd_lock_rs::FdLock;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use lazy_static::lazy_static;
-use patch_db::{HasModel, Model};
 use pin_project::pin_project;
 use tokio::fs::File;
 use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
-use tokio::task::{JoinError, JoinHandle};
 use tracing::instrument;
 
 use crate::shutdown::Shutdown;
 use crate::{Error, ResultExt as _};
 
+
+pub use helpers::NonDetachingJoinHandle;
+pub use models::Version;
 pub mod io;
 pub mod logger;
 pub mod serde;
@@ -124,110 +121,6 @@ impl<T> SNone<T> {
     }
 }
 impl<T> SOption<T> for SNone<T> {}
-
-#[derive(Debug, Clone)]
-pub struct Version {
-    version: emver::Version,
-    string: String,
-}
-impl Version {
-    pub fn as_str(&self) -> &str {
-        self.string.as_str()
-    }
-    pub fn into_version(self) -> emver::Version {
-        self.version
-    }
-}
-impl std::fmt::Display for Version {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.string)
-    }
-}
-impl std::str::FromStr for Version {
-    type Err = <emver::Version as FromStr>::Err;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Version {
-            string: s.to_owned(),
-            version: s.parse()?,
-        })
-    }
-}
-impl From<emver::Version> for Version {
-    fn from(v: emver::Version) -> Self {
-        Version {
-            string: v.to_string(),
-            version: v,
-        }
-    }
-}
-impl From<Version> for emver::Version {
-    fn from(v: Version) -> Self {
-        v.version
-    }
-}
-impl Default for Version {
-    fn default() -> Self {
-        Self::from(emver::Version::default())
-    }
-}
-impl Deref for Version {
-    type Target = emver::Version;
-    fn deref(&self) -> &Self::Target {
-        &self.version
-    }
-}
-impl AsRef<emver::Version> for Version {
-    fn as_ref(&self) -> &emver::Version {
-        &self.version
-    }
-}
-impl AsRef<str> for Version {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-impl PartialEq for Version {
-    fn eq(&self, other: &Version) -> bool {
-        self.version.eq(&other.version)
-    }
-}
-impl Eq for Version {}
-impl PartialOrd for Version {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.version.partial_cmp(&other.version)
-    }
-}
-impl Ord for Version {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.version.cmp(&other.version)
-    }
-}
-impl Hash for Version {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.version.hash(state)
-    }
-}
-impl<'de> Deserialize<'de> for Version {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let string = String::deserialize(deserializer)?;
-        let version = emver::Version::from_str(&string).map_err(::serde::de::Error::custom)?;
-        Ok(Self { string, version })
-    }
-}
-impl Serialize for Version {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.string.serialize(serializer)
-    }
-}
-impl HasModel for Version {
-    type Model = Model<Version>;
-}
 
 #[async_trait]
 pub trait AsyncFileExt: Sized {
@@ -358,30 +251,6 @@ where
     }
 }
 
-#[pin_project::pin_project(PinnedDrop)]
-pub struct NonDetachingJoinHandle<T>(#[pin] JoinHandle<T>);
-impl<T> From<JoinHandle<T>> for NonDetachingJoinHandle<T> {
-    fn from(t: JoinHandle<T>) -> Self {
-        NonDetachingJoinHandle(t)
-    }
-}
-#[pin_project::pinned_drop]
-impl<T> PinnedDrop for NonDetachingJoinHandle<T> {
-    fn drop(self: std::pin::Pin<&mut Self>) {
-        let this = self.project();
-        this.0.into_ref().get_ref().abort()
-    }
-}
-impl<T> Future for NonDetachingJoinHandle<T> {
-    type Output = Result<T, JoinError>;
-    fn poll(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
-        let this = self.project();
-        this.0.poll(cx)
-    }
-}
 
 pub struct GeneralGuard<F: FnOnce() -> T, T = ()>(Option<F>);
 impl<F: FnOnce() -> T, T> GeneralGuard<F, T> {

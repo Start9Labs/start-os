@@ -7,65 +7,16 @@ use tracing::instrument;
 
 use self::docker::DockerProcedure;
 use self::js_scripts::JsProcedure;
-use crate::action::ActionId;
 use crate::context::RpcContext;
 use crate::id::ImageId;
 use crate::s9pk::manifest::PackageId;
-use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::Error;
 
 pub mod docker;
 pub mod js_scripts;
-
-#[derive(Debug, Clone)]
-pub enum ProcedureName {
-    Main, // Usually just run container
-    CreateBackup,
-    RestoreBackup,
-    GetConfig,
-    SetConfig,
-    Migration,
-    Properties,
-    Check(PackageId),
-    AutoConfig(PackageId),
-    Health(HealthCheckId),
-    Action(ActionId),
-}
-
-impl ProcedureName {
-    fn docker_name(&self) -> Option<String> {
-        match self {
-            ProcedureName::Main => None,
-            ProcedureName::CreateBackup => Some("CreateBackup".to_string()),
-            ProcedureName::RestoreBackup => Some("RestoreBackup".to_string()),
-            ProcedureName::GetConfig => Some("GetConfig".to_string()),
-            ProcedureName::SetConfig => Some("SetConfig".to_string()),
-            ProcedureName::Migration => Some("Migration".to_string()),
-            ProcedureName::Properties => Some(format!("Properties-{}", rand::random::<u64>())),
-            ProcedureName::Health(id) => Some(format!("{}Health", id)),
-            ProcedureName::Action(id) => Some(format!("{}Action", id)),
-            ProcedureName::Check(_) => None,
-            ProcedureName::AutoConfig(_) => None,
-        }
-    }
-    fn js_function_name(&self) -> String {
-        match self {
-            ProcedureName::Main => "/main".to_string(),
-            ProcedureName::CreateBackup => "/createBackup".to_string(),
-            ProcedureName::RestoreBackup => "/restoreBackup".to_string(),
-            ProcedureName::GetConfig => "/getConfig".to_string(),
-            ProcedureName::SetConfig => "/setConfig".to_string(),
-            ProcedureName::Migration => "/migration".to_string(),
-            ProcedureName::Properties => "/properties".to_string(),
-            ProcedureName::Health(id) => format!("/health/{}", id),
-            ProcedureName::Action(id) => format!("/action/{}", id),
-            ProcedureName::Check(id) => format!("/dependencies/{}/check", id),
-            ProcedureName::AutoConfig(id) => format!("/dependencies/{}/autoConfigure", id),
-        }
-    }
-}
+pub use models::ProcedureName;
 
 // TODO: create RPC endpoint that looks up the appropriate action and calls `execute`
 
