@@ -635,11 +635,6 @@ mod js_runtime {
             Ok(ctx.input.clone())
         }
         #[op]
-        fn get_input(state: &mut OpState) -> Result<Value, AnyError> {
-            let ctx = state.borrow::<JsContext>();
-            Ok(ctx.input.clone())
-        }
-        #[op]
         fn set_value(state: &mut OpState, value: Value) -> Result<(), AnyError> {
             let mut answer = state.borrow::<AnswerState>().0.lock();
             *answer = value;

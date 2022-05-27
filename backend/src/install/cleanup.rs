@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use bollard::image::ListImagesOptions;
 use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, PatchDbHandle, Verifier};
@@ -9,8 +9,8 @@ use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
 use crate::config::{not_found, ConfigReceipts};
 use crate::context::RpcContext;
 use crate::db::model::{
-    AllPackageData, CurrentDependencies, CurrentDependencyInfo, CurrentDependents,
-    InstalledPackageDataEntry, PackageDataEntry,
+    AllPackageData, CurrentDependencies, CurrentDependents, InstalledPackageDataEntry,
+    PackageDataEntry,
 };
 use crate::dependencies::{
     reconfigure_dependents_with_live_pointers, DependencyErrors, TryHealReceipts,

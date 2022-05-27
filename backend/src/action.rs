@@ -14,7 +14,6 @@ use crate::context::RpcContext;
 use crate::id::{Id, ImageId, InvalidId};
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
-use crate::status::health_check::HealthCheckId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::util::Version;
 use crate::volume::Volumes;
