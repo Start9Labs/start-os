@@ -79,7 +79,7 @@ pub enum PackageProcedure {
 impl PackageProcedure {
     pub fn is_script(&self) -> bool {
         match self {
-            Self::Js(_) => true,
+            Self::Script(_) => true,
             _ => false,
         }
     }

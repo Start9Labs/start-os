@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::io::SeekFrom;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};

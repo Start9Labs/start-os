@@ -17,9 +17,7 @@ use tracing::instrument;
 use crate::config::spec::PackagePointerSpec;
 use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec};
 use crate::context::RpcContext;
-use crate::db::model::{
-    CurrentDependencies, CurrentDependencyInfo, CurrentDependents, InstalledPackageDataEntry,
-};
+use crate::db::model::{CurrentDependencies, CurrentDependents, InstalledPackageDataEntry};
 use crate::procedure::{NoOutput, PackageProcedure};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
