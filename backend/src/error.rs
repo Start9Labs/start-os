@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use color_eyre::eyre::eyre;
+use models::InvalidId;
 use patch_db::Revision;
 use rpc_toolkit::yajrc::RpcError;
 
@@ -144,6 +145,7 @@ pub struct Error {
     pub kind: ErrorKind,
     pub revision: Option<Revision>,
 }
+
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}: {}", self.kind.as_str(), self.source)
@@ -156,6 +158,11 @@ impl Error {
             kind,
             revision: None,
         }
+    }
+}
+impl From<InvalidId> for Error {
+    fn from(err: InvalidId) -> Self {
+        Error::new(err, crate::error::ErrorKind::InvalidPackageId)
     }
 }
 impl From<std::io::Error> for Error {
