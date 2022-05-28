@@ -10,7 +10,7 @@
     "check:diagnostic-ui": "tsc --project projects/diagnostic-ui/tsconfig.json --noEmit --skipLibCheck",
     "check:setup-wizard": "tsc --project projects/setup-wizard/tsconfig.json --noEmit --skipLibCheck",
     "check:ui": "tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck",
-    "build:deps": "rm -rf .angular/cache && cd ../patch-db/client && npm install && npm run build",
+    "build:deps": "rm -rf .angular/cache && cd ../patch-db/client && npm ci && npm run build",
     "build:diagnostic-ui": "ng run diagnostic-ui:build",
     "build:setup-wizard": "ng run setup-wizard:build",
     "build:ui": "ng run ui:build && tsc projects/ui/postprocess.ts && node projects/ui/postprocess.js && git log | head -n1 > dist/ui/git-hash.txt",
