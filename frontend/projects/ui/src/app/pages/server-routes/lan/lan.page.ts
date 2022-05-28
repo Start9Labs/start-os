@@ -10,17 +10,16 @@ export class LANPage {
   lanAddress: string
   lanDisabled: string
 
-  constructor (
-    private readonly config: ConfigService,
-  ) { }
+  constructor(private readonly config: ConfigService) {}
 
-  ngOnInit () {
+  ngOnInit() {
     if (!this.config.isTor()) {
-      this.lanDisabled = 'For security reasons, you must setup LAN over a Tor connection. Please navigate to your Embassy Tor Address and try again.'
+      this.lanDisabled =
+        'For security reasons, you must setup LAN over a Tor connection. Please navigate to your Embassy Tor Address and try again.'
     }
   }
 
-  installCert (): void {
+  installCert(): void {
     document.getElementById('install-cert').click()
   }
 }
