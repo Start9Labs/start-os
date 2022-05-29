@@ -30,7 +30,7 @@ fi
 export LOOPDEV=$(sudo losetup --show -fP raspios.img)
 ./build/partitioning.sh
 ./build/write-image.sh
-sudo e2fsck -f 	`partition_for ${OUTPUT_DEVICE} 3`
+sudo e2fsck -f -y `partition_for ${OUTPUT_DEVICE} 3`
 sudo resize2fs -M `partition_for ${OUTPUT_DEVICE} 3`
 BLOCK_INFO=$(sudo dumpe2fs `partition_for ${OUTPUT_DEVICE} 3`)
 BLOCK_COUNT=$(echo "$BLOCK_INFO" | grep "Block count:" | sed 's/Block count:\s\+//g')
