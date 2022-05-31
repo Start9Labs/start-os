@@ -2,7 +2,7 @@
   <div *ngFor="let entry of formGroup.controls | keyvalue: asIsOrder">
     <!-- union enum -->
     <ng-container *ngIf="unionSpec && entry.key === unionSpec.tag.id">
-      <p class="input-label">{{ unionSpec.tag.name }}</p>
+      <br />
       <ion-item>
         <ion-button
           *ngIf="unionSpec.tag.description"
@@ -18,7 +18,11 @@
         >
           <ion-icon name="help-circle-outline"></ion-icon>
         </ion-button>
-        <ion-label>{{ unionSpec.tag.name }}</ion-label>
+        <ion-label>
+          <ion-text color="dark">
+            <b>{{ unionSpec.tag.name }}</b>
+          </ion-text>
+        </ion-label>
         <!-- class enter-click disables the enter click on the modal behind the select -->
         <ion-select
           [interfaceOptions]="{
@@ -40,7 +44,7 @@
         </ion-select>
       </ion-item>
     </ng-container>
-    <ng-container *ngIf="objectSpec[entry.key] as spec">
+    <div *ngIf="objectSpec[entry.key] as spec" [class.indent]="unionSpec">
       <!-- primitive -->
       <ng-container
         *ngIf="['string', 'number', 'boolean', 'enum'] | includes: spec.type"
@@ -362,6 +366,6 @@
         [spec]="spec"
       >
       </form-error>
-    </ng-container>
+    </div>
   </div>
 </ion-item-group>
