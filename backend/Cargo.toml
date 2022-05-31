@@ -39,7 +39,7 @@ path = "src/bin/embassy-cli.rs"
 [features]
 avahi = ["avahi-sys"]
 beta = []
-default = ["avahi", "sound", "metal"]
+default = ["avahi", "sound", "metal", "js_engine"]
 dev = []
 metal = []
 sound = []
@@ -85,7 +85,7 @@ helpers = {path = "../libs/helpers"}
 num = "0.4.0"
 num_enum = "0.5.4"
 models = {version = "*", path = "../libs/models"}
-js_engine = {path = '../libs/js_engine'}
+js_engine = {path = '../libs/js_engine', optional = true}
 openssh-keys = "0.5.0"
 openssl = { version = "0.10.36", features = ["vendored"] }
 patch-db = { version = "*", path = "../patch-db/patch-db", features = [

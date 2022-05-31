@@ -10,24 +10,28 @@ use deno_core::ModuleType;
 use deno_core::RuntimeOptions;
 use deno_core::Snapshot;
 use deno_core::{Extension, OpDecl};
+use helpers::script_dir;
 use helpers::NonDetachingJoinHandle;
+use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{sync::Arc, path::Path};
+use std::{path::Path, sync::Arc};
 use std::{path::PathBuf, pin::Pin};
 use tokio::io::AsyncReadExt;
-use models::{Version,  PackageId, ProcedureName, VolumeId};
 
 pub trait PathForVolumeId: Send + Sync {
-    fn path_for(&self, data_dir: &Path, package_id: &PackageId, version: &Version, volume_id: &VolumeId) -> Option<PathBuf>;
-    fn readonly(&self,  volume_id: &VolumeId) -> bool;
+    fn path_for(
+        &self,
+        data_dir: &Path,
+        package_id: &PackageId,
+        version: &Version,
+        volume_id: &VolumeId,
+    ) -> Option<PathBuf>;
+    fn readonly(&self, volume_id: &VolumeId) -> bool;
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct JsCode(String);
-
-pub const PKG_SCRIPT_DIR: &str = "package-data/scripts";
-
 
 #[derive(Debug, Clone, Copy)]
 pub enum JsError {
@@ -38,14 +42,6 @@ pub enum JsError {
     Tokio = 5,
     FileSystem = 6,
     Timeout = 143,
-}
-
-pub fn script_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Version) -> PathBuf {
-    datadir
-        .as_ref()
-        .join(&*PKG_SCRIPT_DIR)
-        .join(pkg_id)
-        .join(version.as_str())
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -148,7 +144,7 @@ impl JsExecutionEnvironment {
         data_directory: impl AsRef<std::path::Path>,
         package_id: &PackageId,
         version: &Version,
-        volumes: Box<dyn PathForVolumeId >,
+        volumes: Box<dyn PathForVolumeId>,
     ) -> Result<Self, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
@@ -312,8 +308,10 @@ mod fns {
     use serde_json::Value;
 
     use std::{
+        cell::RefCell,
         convert::TryFrom,
-        path::{Path, PathBuf}, rc::Rc, cell::{RefCell},
+        path::{Path, PathBuf},
+        rc::Rc,
     };
 
     use models::VolumeId;
@@ -327,9 +325,11 @@ mod fns {
         path_in: PathBuf,
     ) -> Result<String, AnyError> {
         let state = state.borrow();
-        let ctx: &JsContext = state.borrow(); 
-        let volume_path =
-            ctx.volumes.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id).ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+        let ctx: &JsContext = state.borrow();
+        let volume_path = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
         //get_path_for in volume.rs
         let new_file = volume_path.join(path_in);
         if !is_subset(&volume_path, &new_file).await? {
@@ -350,10 +350,12 @@ mod fns {
         write: String,
     ) -> Result<(), AnyError> {
         let state = state.borrow();
-        let ctx: &JsContext = state.borrow(); 
-        let volume_path =
-            ctx.volumes.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id).ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-        if ctx.volumes.readonly( &volume_id) {
+        let ctx: &JsContext = state.borrow();
+        let volume_path = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+        if ctx.volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
 
@@ -379,10 +381,12 @@ mod fns {
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
         let state = state.borrow();
-        let ctx: &JsContext = state.borrow(); 
-        let volume_path =
-            ctx.volumes.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id).ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-        if ctx.volumes.readonly( &volume_id) {
+        let ctx: &JsContext = state.borrow();
+        let volume_path = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+        if ctx.volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
         let new_file = volume_path.join(path_in);
@@ -404,10 +408,12 @@ mod fns {
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
         let state = state.borrow();
-        let ctx: &JsContext = state.borrow(); 
-        let volume_path =
-            ctx.volumes.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id).ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-        if ctx.volumes.readonly( &volume_id) {
+        let ctx: &JsContext = state.borrow();
+        let volume_path = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+        if ctx.volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
         let new_file = volume_path.join(path_in);
@@ -429,10 +435,12 @@ mod fns {
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
         let state = state.borrow();
-        let ctx: &JsContext = state.borrow(); 
-        let volume_path =
-            ctx.volumes.path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id).ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-        if ctx.volumes.readonly( &volume_id) {
+        let ctx: &JsContext = state.borrow();
+        let volume_path = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+        if ctx.volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
         let new_file = volume_path.join(path_in);
@@ -531,7 +539,10 @@ mod fns {
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
-    async fn is_subset(parent: impl AsRef<Path>, child: impl AsRef<Path>) -> Result<bool, AnyError> {
+    async fn is_subset(
+        parent: impl AsRef<Path>,
+        child: impl AsRef<Path>,
+    ) -> Result<bool, AnyError> {
         let child = tokio::fs::canonicalize(child).await?;
         let parent = tokio::fs::canonicalize(parent).await?;
         Ok(child.starts_with(parent))

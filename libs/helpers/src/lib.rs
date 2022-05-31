@@ -2,6 +2,8 @@ use std::future::Future;
 
 use tokio::task::{JoinError, JoinHandle};
 
+mod script_dir;
+pub use script_dir::*;
 
 #[pin_project::pin_project(PinnedDrop)]
 pub struct NonDetachingJoinHandle<T>(#[pin] JoinHandle<T>);

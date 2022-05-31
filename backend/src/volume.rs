@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
 use patch_db::{HasModel, Map, MapModel};
-use serde::{Deserialize,  Serialize};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
@@ -13,8 +13,8 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::{Error, ResultExt};
 
+pub use helpers::script_dir;
 pub use models::VolumeId;
-pub use js_engine::script_dir;
 
 pub const PKG_VOLUME_DIR: &str = "package-data/volumes";
 pub const BACKUP_DIR: &str = "/media/embassy-os/backups";

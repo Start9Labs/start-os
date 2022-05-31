@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 pin-project = "1.0.8"
 tokio = { version = "1.15.*", features = ["full"] }
+models = {path = "../models"}

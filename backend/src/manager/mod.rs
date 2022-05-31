@@ -393,6 +393,7 @@ impl Manager {
         let _ = self.shared.on_stop.send(OnStop::Exit);
         let action = match &self.shared.manifest.main {
             PackageProcedure::Docker(a) => a,
+            #[cfg(feature = "js_engine")]
             PackageProcedure::Script(_) => return Ok(()),
         };
         match self
@@ -546,6 +547,7 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     }
     let action = match &shared.manifest.main {
         PackageProcedure::Docker(a) => a,
+        #[cfg(feature = "js_engine")]
         PackageProcedure::Script(_) => return Ok(()),
     };
     match shared

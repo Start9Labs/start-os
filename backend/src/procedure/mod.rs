@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use self::docker::DockerProcedure;
-use self::js_scripts::JsProcedure;
 use crate::context::RpcContext;
 use crate::id::ImageId;
 use crate::s9pk::manifest::PackageId;
@@ -15,6 +14,7 @@ use crate::volume::Volumes;
 use crate::Error;
 
 pub mod docker;
+#[cfg(feature = "js_engine")]
 pub mod js_scripts;
 pub use models::ProcedureName;
 
@@ -25,11 +25,14 @@ pub use models::ProcedureName;
 #[serde(tag = "type")]
 pub enum PackageProcedure {
     Docker(DockerProcedure),
-    Script(JsProcedure),
+
+    #[cfg(feature = "js_engine")]
+    Script(js_scripts::JsProcedure),
 }
 impl PackageProcedure {
     pub fn is_script(&self) -> bool {
         match self {
+            #[cfg(feature = "js_engine")]
             Self::Script(_) => true,
             _ => false,
         }
@@ -44,6 +47,7 @@ impl PackageProcedure {
         match self {
             PackageProcedure::Docker(action) => action.validate(volumes, image_ids, expected_io),
 
+            #[cfg(feature = "js_engine")]
             PackageProcedure::Script(action) => action.validate(volumes),
         }
     }
@@ -75,6 +79,7 @@ impl PackageProcedure {
                     )
                     .await
             }
+            #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
                 procedure
                     .execute(
@@ -107,6 +112,7 @@ impl PackageProcedure {
                     .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
                     .await
             }
+            #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
                 procedure
                     .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout, name)

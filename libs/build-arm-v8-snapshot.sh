@@ -9,8 +9,8 @@ if [ "$0" != "./build-arm-v8-snapshot.sh" ]; then
 fi
 
 echo "Building "
-cd ../..
-docker run --rm -it -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-arm-cross:aarch64 sh -c "(cd backend/workspaces && cargo build -p snapshot-creator --release )"
+cd ..
+docker run --rm -it -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-arm-cross:aarch64 sh -c "(cd libs/ && cargo build -p snapshot-creator --release )"
 cd -
 
 echo "Creating Arm v8 Snapshot"

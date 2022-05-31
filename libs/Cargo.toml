@@ -4,6 +4,5 @@ members = [
     "snapshot-creator",
     "models",
     "js_engine",
-    "helpers",
-    "config"
+    "helpers"
 ]
