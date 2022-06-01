@@ -13,6 +13,7 @@ export interface Button {
   description: string
   icon: string
   action: Function
+  disabled?: boolean
 }
 
 @Pipe({
@@ -86,13 +87,8 @@ export class ToButtonsPipe implements PipeTransform {
         icon: 'receipt-outline',
       },
       // view in marketplace
-      {
-        action: () =>
-          this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`]),
-        title: 'Marketplace',
-        description: 'View service in marketplace',
-        icon: 'storefront-outline',
-      },
+      this.viewInMarketplaceButton(pkg),
+      // donate
       {
         action: () => this.donate(pkg),
         title: 'Donate',
@@ -114,6 +110,25 @@ export class ToButtonsPipe implements PipeTransform {
     })
 
     await modal.present()
+  }
+
+  private viewInMarketplaceButton(pkg: PackageDataEntry): Button {
+    return pkg.installed?.['marketplace-url']
+      ? {
+          action: () =>
+            this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`]),
+          title: 'Marketplace',
+          description: 'View service in marketplace',
+          icon: 'storefront-outline',
+        }
+      : {
+          disabled: true,
+          action: () => {},
+          title: 'Marketplace',
+          description:
+            'This package has been side-loaded and is not available in the Start9 Marketplace',
+          icon: 'storefront-outline',
+        }
   }
 
   private async donate({ manifest }: PackageDataEntry): Promise<void> {
