@@ -8,36 +8,62 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-
   <ion-item-group>
     <!-- about -->
     <ion-item class="ion-padding-bottom">
       <ion-label>
         <h2>
-          Connecting to your Embassy over LAN provides a lightning fast experience and is a reliable fallback in case Tor is having problems. To connect to your Embassy's .local address, you must:
+          Connecting to your Embassy over LAN provides a lightning fast
+          experience and is a reliable fallback in case Tor is having problems.
+          To connect to your Embassy's .local address, you must:
           <ol>
-            <li>Be connected to the same Local Area Network (LAN) as your Embassy.</li>
-            <li>Download and trust your Embassy's SSL Certificate Authority (below).</li>
+            <li>
+              Be connected to the same Local Area Network (LAN) as your Embassy.
+            </li>
+            <li>
+              Download and trust your Embassy's SSL Certificate Authority
+              (below).
+            </li>
           </ol>
-          View the full <a href="https://start9.com/latest/user-manual/connecting/connecting-lan" target="_blank" rel="noreferrer">instructions</a>.
+          View the full
+          <a
+            href="https://start9.com/latest/user-manual/connecting/connecting-lan"
+            target="_blank"
+            rel="noreferrer"
+            >instructions</a
+          >.
         </h2>
-        <ng-container *ngIf="lanDisabled">
+        <ng-container *ngIf="downloadIsDisabled && server$ | async as server">
           <br />
-          <ion-text color="warning" [innerHtml]="lanDisabled"></ion-text>
+          <ion-text color="warning">
+            For security reasons, you must setup LAN over a
+            <a
+              [attr.href]="server['tor-address']"
+              target="_blank"
+              rel="noreferrer"
+              >Tor connection</a
+            >.
+          </ion-text>
         </ng-container>
       </ion-label>
     </ion-item>
 
-    <ion-item button (click)="installCert()" [disabled]="lanDisabled">
+    <ion-item button (click)="installCert()" [disabled]="downloadIsDisabled">
       <ion-icon slot="start" name="download-outline" size="large"></ion-icon>
       <ion-label>
         <h1>Download Root CA</h1>
-        <p>Download and trust your Embassy's Root Certificate Authority to establish a secure, https connection over LAN.</p>
+        <p>
+          Download and trust your Embassy's Root Certificate Authority to
+          establish a secure, https connection over LAN.
+        </p>
       </ion-label>
     </ion-item>
   </ion-item-group>
 
   <!-- hidden element for downloading cert -->
-  <a id="install-cert" href="/public/eos/local.crt" download="Embassy Local CA.crt"></a>
-
+  <a
+    id="install-cert"
+    href="/public/eos/local.crt"
+    download="Embassy Local CA.crt"
+  ></a>
 </ion-content>
