@@ -7,7 +7,7 @@ lazy_static::lazy_static! {
     pub static ref V0_3_1_COMPAT: VersionRange = VersionRange::Conj(
         Box::new(VersionRange::Anchor(
             emver::GTE,
-            emver::Version::new(0, 3, 1, 0),
+            emver::Version::new(0, 3, 0, 0),
         )),
         Box::new(VersionRange::Anchor(emver::LTE, Current::new().semver())),
     );

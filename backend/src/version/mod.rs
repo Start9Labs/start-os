@@ -13,7 +13,7 @@ mod v0_3_0_2;
 mod v0_3_0_3;
 mod v0_3_1;
 
-pub type Current = v0_3_0_3::Version;
+pub type Current = v0_3_1::Version;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
