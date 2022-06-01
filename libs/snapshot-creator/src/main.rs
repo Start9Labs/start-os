@@ -1,5 +1,7 @@
+use deno_core::{JsRuntime, RuntimeOptions};
+
 fn main() {
-    let mut runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
+    let mut runtime = JsRuntime::new(RuntimeOptions {
         will_snapshot: true,
         ..Default::default()
     });

@@ -21,14 +21,12 @@ function jsonPointerValue(obj, pointer) {
 }
 
 // @ts-ignore
-const context = Deno.core.opSync("get_context");
-// @ts-ignore
-const writeFile = ({ path, volumeId, toWrite }) => Deno.core.opAsync("write_file", context, volumeId, path, toWrite);
+const writeFile = ({ path, volumeId, toWrite }) => Deno.core.opAsync("write_file",  volumeId, path, toWrite);
 
 // @ts-ignore
-const readFile = ({ volumeId, path }) => Deno.core.opAsync("read_file", context, volumeId, path);
+const readFile = ({ volumeId, path }) => Deno.core.opAsync("read_file",  volumeId, path);
 // @ts-ignore
-const removeFile = ({ volumeId, path }) => Deno.core.opAsync("remove_file", context, volumeId, path);
+const removeFile = ({ volumeId, path }) => Deno.core.opAsync("remove_file",  volumeId, path);
 // @ts-ignore
 const isSandboxed = () => Deno.core.opSync("is_sandboxed");
 
@@ -42,9 +40,9 @@ const writeJsonFile = ({ volumeId, path, toWrite }) =>
 // @ts-ignore
 const readJsonFile = async ({ volumeId, path }) => JSON.parse(await readFile({ volumeId, path }));
 // @ts-ignore
-const createDir = ({ volumeId, path }) => Deno.core.opAsync("create_dir", context, volumeId, path);
+const createDir = ({ volumeId, path }) => Deno.core.opAsync("create_dir",  volumeId, path);
 // @ts-ignore
-const removeDir = ({ volumeId, path }) => Deno.core.opAsync("remove_dir", context, volumeId, path);
+const removeDir = ({ volumeId, path }) => Deno.core.opAsync("remove_dir",  volumeId, path);
 // @ts-ignore
 const trace = (x) => Deno.core.opSync("log_trace", x);
 // @ts-ignore

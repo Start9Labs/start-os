@@ -1,79 +1,23 @@
-use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
 use patch_db::{HasModel, Map, MapModel};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::id::{Id, IdUnchecked};
-use crate::install::PKG_SCRIPT_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::net::NetController;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::{Error, ResultExt};
 
-pub const PKG_VOLUME_DIR: &'static str = "package-data/volumes";
-pub const BACKUP_DIR: &'static str = "/media/embassy-os/backups";
+pub use helpers::script_dir;
+pub use models::VolumeId;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum VolumeId<S: AsRef<str> = String> {
-    Backup,
-    Custom(Id<S>),
-}
-impl<S: AsRef<str>> std::fmt::Display for VolumeId<S> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            VolumeId::Backup => write!(f, "BACKUP"),
-            VolumeId::Custom(id) => write!(f, "{}", id),
-        }
-    }
-}
-impl<S: AsRef<str>> AsRef<str> for VolumeId<S> {
-    fn as_ref(&self) -> &str {
-        match self {
-            VolumeId::Backup => "BACKUP",
-            VolumeId::Custom(id) => id.as_ref(),
-        }
-    }
-}
-impl<S: AsRef<str>> Borrow<str> for VolumeId<S> {
-    fn borrow(&self) -> &str {
-        self.as_ref()
-    }
-}
-impl<S: AsRef<str>> AsRef<Path> for VolumeId<S> {
-    fn as_ref(&self) -> &Path {
-        AsRef::<str>::as_ref(self).as_ref()
-    }
-}
-impl<'de, S> Deserialize<'de> for VolumeId<S>
-where
-    S: AsRef<str>,
-    IdUnchecked<S>: Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let unchecked: IdUnchecked<S> = Deserialize::deserialize(deserializer)?;
-        Ok(match unchecked.0.as_ref() {
-            "BACKUP" => VolumeId::Backup,
-            _ => VolumeId::Custom(Id::try_from(unchecked.0).map_err(serde::de::Error::custom)?),
-        })
-    }
-}
-impl<S: AsRef<str>> Serialize for VolumeId<S> {
-    fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
-    where
-        Ser: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_ref())
-    }
-}
+pub const PKG_VOLUME_DIR: &str = "package-data/volumes";
+pub const BACKUP_DIR: &str = "/media/embassy-os/backups";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Volumes(BTreeMap<VolumeId, Volume>);
@@ -163,14 +107,6 @@ pub fn asset_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Versi
         .join(PKG_VOLUME_DIR)
         .join(pkg_id)
         .join("assets")
-        .join(version.as_str())
-}
-
-pub fn script_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Version) -> PathBuf {
-    datadir
-        .as_ref()
-        .join(&*PKG_SCRIPT_DIR)
-        .join(pkg_id)
         .join(version.as_str())
 }
 
