@@ -345,11 +345,21 @@ where
 {
     let mut tx = db.begin().await?;
     let receipts = UninstallReceipts::new(&mut tx, id).await?;
-    let entry = receipts.removing.get(&mut tx).await?;
+    let entry = receipts.removing.get(&mut tx).await?.ok_or_else(|| {
+        Error::new(
+            color_eyre::eyre::eyre!("Expecting package removing to exist for {:?}", id),
+            crate::ErrorKind::Database,
+        )
+    })?;
     cleanup(ctx, &entry.manifest.id, &entry.manifest.version).await?;
 
     let packages = {
-        let mut packages = receipts.packages.get(&mut tx).await?;
+        let mut packages = receipts.packages.get(&mut tx).await?.ok_or_else(|| {
+            Error::new(
+                color_eyre::eyre::eyre!("Expecting packages to exist"),
+                crate::ErrorKind::Database,
+            )
+        })?;
         packages.0.remove(id);
         packages
     };

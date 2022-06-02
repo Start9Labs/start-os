@@ -137,8 +137,8 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         &receipts
             .last_wifi_region
             .get(&mut handle)
-            .await
-            .map_err(|_e| {
+            .await?
+            .ok_or_else(|| {
                 Error::new(
                     color_eyre::eyre::eyre!("Could not find the last wifi region"),
                     crate::ErrorKind::NotFound,

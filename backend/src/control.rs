@@ -70,7 +70,12 @@ pub async fn start(
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let receipts = StartReceipts::new(&mut tx, &id).await?;
-    let version = receipts.version.get(&mut tx).await?;
+    let version = receipts.version.get(&mut tx).await?.ok_or_else(|| {
+        Error::new(
+            color_eyre::eyre::eyre!("Expecting version to exist for {:?}", id),
+            crate::ErrorKind::Database,
+        )
+    })?;
     receipts.status.set(&mut tx, MainStatus::Starting).await?;
     heal_all_dependents_transitive(&ctx, &mut tx, &id, &receipts.dependency_receipt).await?;
 

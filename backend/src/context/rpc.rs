@@ -278,7 +278,12 @@ impl RpcContext {
         receipts: RpcSetNginxReceipts,
     ) -> Result<(), Error> {
         tokio::fs::write("/etc/nginx/sites-available/default", {
-            let info = receipts.server_info.get(db).await?;
+            let info = receipts.server_info.get(db).await?.ok_or_else(|| {
+                Error::new(
+                    color_eyre::eyre::eyre!("Expecting server info to exist"),
+                    crate::ErrorKind::Database,
+                )
+            })?;
             format!(
                 include_str!("../nginx/main-ui.conf.template"),
                 lan_hostname = info.lan_address.host_str().unwrap(),
@@ -311,61 +316,63 @@ impl RpcContext {
     pub async fn cleanup(&self) -> Result<(), Error> {
         let mut db = self.db.handle();
         let receipts = RpcCleanReceipts::new(&mut db).await?;
-        for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
-            if let Err(e) = async {
-                match package {
-                    PackageDataEntry::Installing { .. }
-                    | PackageDataEntry::Restoring { .. }
-                    | PackageDataEntry::Updating { .. } => {
-                        cleanup_failed(self, &mut db, &package_id, &receipts.cleanup_receipts)
+        if let Some(packages) = receipts.packages.get(&mut db).await? {
+            for (package_id, package) in packages.0 {
+                if let Err(e) = async {
+                    match package {
+                        PackageDataEntry::Installing { .. }
+                        | PackageDataEntry::Restoring { .. }
+                        | PackageDataEntry::Updating { .. } => {
+                            cleanup_failed(self, &mut db, &package_id, &receipts.cleanup_receipts)
+                                .await?;
+                        }
+                        PackageDataEntry::Removing { .. } => {
+                            uninstall(
+                                self,
+                                &mut db,
+                                &mut self.secret_store.acquire().await?,
+                                &package_id,
+                            )
                             .await?;
-                    }
-                    PackageDataEntry::Removing { .. } => {
-                        uninstall(
-                            self,
-                            &mut db,
-                            &mut self.secret_store.acquire().await?,
-                            &package_id,
-                        )
-                        .await?;
-                    }
-                    PackageDataEntry::Installed {
-                        installed,
-                        static_files,
-                        manifest,
-                    } => {
-                        let status = installed.status;
-                        let main = match status.main {
-                            MainStatus::BackingUp { started, .. } => {
-                                if let Some(_) = started {
-                                    MainStatus::Starting
-                                } else {
-                                    MainStatus::Stopped
-                                }
-                            }
-                            MainStatus::Running { .. } => MainStatus::Starting,
-                            a => a.clone(),
-                        };
-                        let new_package = PackageDataEntry::Installed {
-                            installed: InstalledPackageDataEntry {
-                                status: Status { main, ..status },
-                                ..installed
-                            },
+                        }
+                        PackageDataEntry::Installed {
+                            installed,
                             static_files,
                             manifest,
-                        };
-                        receipts
-                            .package
-                            .set(&mut db, new_package, &package_id)
-                            .await?;
+                        } => {
+                            let status = installed.status;
+                            let main = match status.main {
+                                MainStatus::BackingUp { started, .. } => {
+                                    if let Some(_) = started {
+                                        MainStatus::Starting
+                                    } else {
+                                        MainStatus::Stopped
+                                    }
+                                }
+                                MainStatus::Running { .. } => MainStatus::Starting,
+                                a => a.clone(),
+                            };
+                            let new_package = PackageDataEntry::Installed {
+                                installed: InstalledPackageDataEntry {
+                                    status: Status { main, ..status },
+                                    ..installed
+                                },
+                                static_files,
+                                manifest,
+                            };
+                            receipts
+                                .package
+                                .set(&mut db, new_package, &package_id)
+                                .await?;
+                        }
                     }
+                    Ok::<_, Error>(())
                 }
-                Ok::<_, Error>(())
-            }
-            .await
-            {
-                tracing::error!("Failed to clean up package {}: {}", package_id, e);
-                tracing::debug!("{:?}", e);
+                .await
+                {
+                    tracing::error!("Failed to clean up package {}: {}", package_id, e);
+                    tracing::debug!("{:?}", e);
+                }
             }
         }
         Ok(())
