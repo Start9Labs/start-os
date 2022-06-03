@@ -1420,12 +1420,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             .recovered_packages
             .get(&mut tx)
             .await?
-            .ok_or_else(|| {
-                Error::new(
-                    color_eyre::eyre::eyre!("Expecting Recovered packages to exists"),
-                    crate::ErrorKind::Database,
-                )
-            })?
             .remove(pkg_id)
     } {
         handle_recovered_package(
@@ -1472,16 +1466,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     }
 
     let recovered_packages = {
-        let mut r = receipts
-            .recovered_packages
-            .get(&mut tx)
-            .await?
-            .ok_or_else(|| {
-                Error::new(
-                    color_eyre::eyre::eyre!("Expecting Recovered packages"),
-                    crate::ErrorKind::Database,
-                )
-            })?;
+        let mut r = receipts.recovered_packages.get(&mut tx).await?;
         r.remove(pkg_id);
         r
     };
