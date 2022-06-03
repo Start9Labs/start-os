@@ -24,6 +24,15 @@
         </ng-container>
 
         <ion-button
+          class="action-button"
+          color="warning"
+          (click)="tryRestart()"
+          >
+          <ion-icon slot="start" name="refresh"></ion-icon>
+          Restart
+        </ion-button>
+
+        <ion-button
           *ngIf="isStopped"
           class="action-button"
           color="success"

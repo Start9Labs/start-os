@@ -233,6 +233,12 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   startPackage = (params: RR.StartPackageReq) =>
     this.syncResponse(() => this.startPackageRaw(params))()
 
+  protected abstract restartPackageRaw(
+    params: RR.RestartPackageReq,
+  ): Promise<RR.RestartPackageRes>
+  restartPackage = (params: RR.RestartPackageReq) =>
+    this.syncResponse(() => this.restartPackageRaw(params))()
+
   protected abstract stopPackageRaw(
     params: RR.StopPackageReq,
   ): Promise<RR.StopPackageRes>
