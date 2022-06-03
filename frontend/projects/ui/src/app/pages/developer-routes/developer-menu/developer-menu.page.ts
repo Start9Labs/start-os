@@ -32,11 +32,7 @@ export class DeveloperMenuPage {
   ) {}
 
   get name(): string {
-    return (
-      (this.patchDb.data.ui?.dev &&
-        this.patchDb.data.ui?.dev[this.projectId]?.name) ||
-      ''
-    )
+    return this.patchDb.data.ui?.dev?.[this.projectId]?.name || ''
   }
 
   ngOnInit() {
@@ -57,14 +53,14 @@ export class DeveloperMenuPage {
         buttons: [
           {
             text: 'Save',
-            handler: basicInfo => {
+            handler: (basicInfo: any) => {
               basicInfo.description = {
                 short: basicInfo.short,
                 long: basicInfo.long,
               }
               delete basicInfo.short
               delete basicInfo.long
-              this.saveBasicInfo(basicInfo as BasicInfo)
+              this.saveBasicInfo(basicInfo)
             },
             isSubmit: true,
           },

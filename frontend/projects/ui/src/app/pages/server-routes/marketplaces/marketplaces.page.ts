@@ -207,7 +207,10 @@ export class MarketplacesPage {
       ? (JSON.parse(
           JSON.stringify(this.patch.getData().ui.marketplace),
         ) as UIMarketplaceData)
-      : { 'selected-id': undefined, 'known-hosts': {} }
+      : {
+          'selected-id': undefined,
+          'known-hosts': {} as Record<string, unknown>,
+        }
 
     // no-op on duplicates
     const currentUrls = this.marketplaces.map(mp => mp.url)
@@ -249,7 +252,10 @@ export class MarketplacesPage {
       ? (JSON.parse(
           JSON.stringify(this.patch.getData().ui.marketplace),
         ) as UIMarketplaceData)
-      : { 'selected-id': undefined, 'known-hosts': {} }
+      : {
+          'selected-id': undefined,
+          'known-hosts': {} as Record<string, unknown>,
+        }
 
     // no-op on duplicates
     const currentUrls = this.marketplaces.map(mp => mp.url)

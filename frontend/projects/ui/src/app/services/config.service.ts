@@ -28,7 +28,7 @@ export class ConfigService {
   api = api
   marketplace = marketplace
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
-  isConsulate = window['platform'] === 'ios'
+  isConsulate = (window as any)['platform'] === 'ios'
   supportsWebSockets = !!window.WebSocket || this.isConsulate
 
   isTor(): boolean {

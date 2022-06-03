@@ -76,7 +76,7 @@ export class HttpService {
       .toPromise()
       .then(res =>
         AES_CTR.decryptPbkdf2(
-          this.productKey,
+          this.productKey || '',
           (res as any).body as ArrayBuffer,
         ),
       )
@@ -208,7 +208,7 @@ type AES_CTR = {
     secretKey: string,
     messageBuffer: Uint8Array,
   ) => Promise<Uint8Array>
-  decryptPbkdf2: (secretKey, arr: ArrayBuffer) => Promise<string>
+  decryptPbkdf2: (secretKey: string, arr: ArrayBuffer) => Promise<string>
 }
 
 export const AES_CTR: AES_CTR = {
@@ -245,8 +245,10 @@ export const AES_CTR: AES_CTR = {
 
 export const encode16 = (buffer: Uint8Array) =>
   buffer.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
-export const decode16 = hexString =>
-  new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
+export const decode16 = (hexString: string) =>
+  new Uint8Array(
+    hexString.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || [],
+  )
 
 export function encodeUtf8(str: string): Uint8Array {
   const encoder = new TextEncoder()

@@ -61,7 +61,7 @@ export class FormObjectComponent {
 
       if (spec.type === 'list' && ['object', 'union'].includes(spec.subtype)) {
         this.objectListDisplay[key] = []
-        this.formGroup.get(key)?.value.forEach((obj, index) => {
+        this.formGroup.get(key)?.value.forEach((obj: any, index: number) => {
           const displayAs = (spec.spec as ListValueSpecOf<'object'>)[
             'display-as'
           ]

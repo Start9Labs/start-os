@@ -12,7 +12,7 @@ export class SnakePage {
   speed = 45
   width = 40
   height = 26
-  grid
+  grid = NaN
 
   startingLength = 4
 
@@ -23,10 +23,10 @@ export class SnakePage {
   yDown?: number
   canvas: HTMLCanvasElement
   image: HTMLImageElement
-  context
+  context: CanvasRenderingContext2D
 
-  snake
-  bitcoin
+  snake: any
+  bitcoin: { x: number; y: number } = { x: NaN, y: NaN }
 
   moveQueue: String[] = []
 
@@ -61,8 +61,8 @@ export class SnakePage {
     this.handleTouchMove(e)
   }
 
-  @HostListener('window:resize', ['$event'])
-  sizeChange(event) {
+  @HostListener('window:resize')
+  sizeChange() {
     this.init()
   }
 
@@ -79,7 +79,7 @@ export class SnakePage {
   init() {
     this.canvas = document.getElementById('game') as HTMLCanvasElement
     this.canvas.style.border = '1px solid #e0e0e0'
-    this.context = this.canvas.getContext('2d')
+    this.context = this.canvas.getContext('2d')!
     const container = document.getElementsByClassName('canvas-center')[0]
     this.grid = Math.min(
       Math.floor(container.clientWidth / this.width),
@@ -110,13 +110,13 @@ export class SnakePage {
     return evt.touches
   }
 
-  handleTouchStart(evt) {
+  handleTouchStart(evt: TouchEvent) {
     const firstTouch = this.getTouches(evt)[0]
     this.xDown = firstTouch.clientX
     this.yDown = firstTouch.clientY
   }
 
-  handleTouchMove(evt) {
+  handleTouchMove(evt: TouchEvent) {
     if (!this.xDown || !this.yDown) {
       return
     }
@@ -258,7 +258,7 @@ export class SnakePage {
     this.score = 0
   }
 
-  getRandomInt(min, max) {
+  getRandomInt(min: number, max: number) {
     return Math.floor(Math.random() * (max - min)) + min
   }
 }

@@ -105,7 +105,7 @@ export class ToDependenciesPipe implements PipeTransform {
       errorText = `${errorText}. ${pkg.manifest.title} will not work as expected.`
     }
 
-    const depInfo = pkg.installed && pkg.installed['dependency-info'][id]
+    const depInfo = pkg.installed?.['dependency-info'][id]
 
     return {
       id,

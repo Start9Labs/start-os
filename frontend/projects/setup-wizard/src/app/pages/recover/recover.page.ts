@@ -164,7 +164,7 @@ export class RecoverPage {
           cssClass: 'alertlike-modal',
         })
         modal.onDidDismiss().then(res => {
-          if (res.data && res.data.password) {
+          if (res.data?.password) {
             this.selectRecoverySource(logicalname, res.data.password)
           }
         })
@@ -192,7 +192,7 @@ export class RecoverPage {
           cssClass: 'alertlike-modal',
         })
         modal.onDidDismiss().then(res => {
-          if (res.data && res.data.productKey) {
+          if (res.data?.productKey) {
             this.selectRecoverySource(logicalname)
           }
         })

@@ -51,7 +51,7 @@ export class HttpService {
     const url = urlIsRelative ? this.fullUrl + httpOpts.url : httpOpts.url
     const { params } = httpOpts
 
-    if (params) {
+    if (hasParams(params)) {
       Object.keys(params).forEach(key => {
         if (params[key] === undefined) {
           delete params[key]
@@ -178,6 +178,12 @@ export interface HttpOptions {
   withCredentials?: boolean
   body?: any
   timeout?: number
+}
+
+function hasParams(
+  params?: HttpOptions['params'],
+): params is Record<string, string | string[]> {
+  return !!params
 }
 
 function withTimeout<U>(req: Observable<U>, timeout: number): Observable<U> {

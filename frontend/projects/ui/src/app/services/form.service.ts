@@ -86,7 +86,7 @@ export class FormService {
     validators: ValidatorFn[] = [],
     current: { [key: string]: any } = {},
   ): FormGroup {
-    let group = {}
+    let group: Record<string, FormGroup | FormArray | FormControl> = {}
     Object.entries(config).map(([key, spec]) => {
       if (spec.type === 'pointer') return
       group[key] = this.getFormEntry(spec, current ? current[key] : undefined)
@@ -300,25 +300,20 @@ export function listUnique(spec: ValueSpecList): ValidatorFn {
 }
 
 function listItemEquals(spec: ValueSpecList, val1: any, val2: any): boolean {
+  // TODO: fix types
   switch (spec.subtype) {
     case 'string':
     case 'number':
     case 'enum':
       return val1 == val2
     case 'object':
-      return listObjEquals(
-        spec.spec['unique-by'],
-        spec.spec as ListValueSpecObject,
-        val1,
-        val2,
-      )
+      const obj: ListValueSpecObject = spec.spec as any
+
+      return listObjEquals(obj['unique-by'], obj, val1, val2)
     case 'union':
-      return unionEquals(
-        spec.spec['unique-by'],
-        spec.spec as ListValueSpecUnion,
-        val1,
-        val2,
-      )
+      const union: ListValueSpecUnion = spec.spec as any
+
+      return unionEquals(union['unique-by'], union, val1, val2)
     default:
       return false
   }
@@ -332,9 +327,21 @@ function itemEquals(spec: ValueSpec, val1: any, val2: any): boolean {
     case 'enum':
       return val1 == val2
     case 'object':
-      return objEquals(spec['unique-by'], spec as ValueSpecObject, val1, val2)
+      // TODO: 'unique-by' does not exist on ValueSpecObject, fix types
+      return objEquals(
+        (spec as any)['unique-by'],
+        spec as ValueSpecObject,
+        val1,
+        val2,
+      )
     case 'union':
-      return unionEquals(spec['unique-by'], spec as ValueSpecUnion, val1, val2)
+      // TODO: 'unique-by' does not exist on ValueSpecUnion, fix types
+      return unionEquals(
+        (spec as any)['unique-by'],
+        spec as ValueSpecUnion,
+        val1,
+        val2,
+      )
     case 'list':
       if (val1.length !== val2.length) {
         return false
@@ -387,7 +394,8 @@ function objEquals(
   if (uniqueBy === null) {
     return false
   } else if (typeof uniqueBy === 'string') {
-    return itemEquals(spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
+    // TODO: fix types
+    return itemEquals((spec as any)[uniqueBy], val1[uniqueBy], val2[uniqueBy])
   } else if ('any' in uniqueBy) {
     for (let subSpec of uniqueBy.any) {
       if (objEquals(subSpec, spec, val1, val2)) {
@@ -443,7 +451,7 @@ function unionEquals(
 function uniqueByMessageWrapper(
   uniqueBy: UniqueBy,
   spec: ListValueSpecObject | ListValueSpecUnion,
-  obj: object,
+  obj: Record<string, string>,
 ) {
   let configSpec: ConfigSpec
   if (isUnion(spec)) {
@@ -491,7 +499,7 @@ function isObjectOrUnion(
   spec: ListValueSpecOf<any>,
 ): spec is ListValueSpecObject | ListValueSpecUnion {
   // only lists of objects and unions have unique-by
-  return spec['unique-by'] !== undefined
+  return 'unique-by' in spec
 }
 
 function isUnion(spec: any): spec is ListValueSpecUnion {
