@@ -8,4 +8,4 @@ if [ "$0" != "./install-sdk.sh" ]; then
 	exit 1
 fi
 
-cargo install --bin=embassy-sdk --path=. --no-default-features
+cargo install --bin=embassy-sdk --path=. --no-default-features --features=js_engine
