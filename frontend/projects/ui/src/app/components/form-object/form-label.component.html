@@ -1,9 +1,21 @@
-<ion-button *ngIf="data.spec.description" class="slot-start" fill="clear" size="small" (click)="presentAlertDescription()">
-  <ion-icon name="help-circle-outline"></ion-icon>
+<ion-button
+  *ngIf="data.spec.description"
+  class="slot-start"
+  style="--padding-start: 0; --padding-end: 7px"
+  fill="clear"
+  (click)="presentAlertDescription()"
+>
+  <ion-icon name="help-circle-outline" slot="icon-only" size="small"></ion-icon>
 </ion-button>
 
 <!-- this is a button for css purposes only -->
-<ion-button *ngIf="data.invalid" class="slot-start" fill="clear" size="small" color="danger">
+<ion-button
+  *ngIf="data.invalid"
+  class="slot-start"
+  fill="clear"
+  size="small"
+  color="danger"
+>
   <ion-icon name="warning-outline"></ion-icon>
 </ion-button>
 
@@ -12,6 +24,14 @@
 <ion-text color="success" *ngIf="data.new">&nbsp;(New)</ion-text>
 <ion-text color="warning" *ngIf="data.edited">&nbsp;(Edited)</ion-text>
 
-<span *ngIf="(['string', 'number'] | includes : data.spec.type) && !$any(data.spec).nullable">&nbsp;*</span>
+<span
+  *ngIf="
+    (['string', 'number'] | includes: data.spec.type) &&
+    !$any(data.spec).nullable
+  "
+  >&nbsp;*</span
+>
 
-<span *ngIf="data.spec.type === 'list' && Range.from(data.spec.range).min">&nbsp;*</span>
+<span *ngIf="data.spec.type === 'list' && Range.from(data.spec.range).min"
+  >&nbsp;*</span
+>
