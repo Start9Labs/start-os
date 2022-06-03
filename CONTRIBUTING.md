@@ -21,7 +21,7 @@ All types of contributions are encouraged and valued. See the [Table of Contents
   - [Suggesting Enhancements](#suggesting-enhancements)
   - [Project Structure](#project-structure)
   - [Your First Code Contribution](#your-first-code-contribution)
-    - [Setting up your development environment](#setting-up-your-development-environment)
+    - [Setting Up Your Development Environment](#setting-up-your-development-environment)
     - [Building The Image](#building-the-image)
   - [Improving The Documentation](#improving-the-documentation)
 - [Styleguides](#styleguides)
@@ -148,11 +148,11 @@ EmbassyOS is composed of the following components. Please visit the README for e
 
 ### Your First Code Contribution
 
-#### Setting up your development environment
+#### Setting Up Your Development Environment
 
 First, clone the EmbassyOS repository and from the project root, pull in the submodules for dependent libraries.
 
-```
+```sh
 git clone https://github.com/Start9Labs/embassy-os.git
 git submodule update --init --recursive
 ```
