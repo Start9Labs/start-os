@@ -10,12 +10,13 @@ ion-input {
 
 ion-item-divider {
   text-transform: unset;
+  --padding-top: 18px;
   --padding-start: 0;
   border-bottom: 1px solid var(--ion-item-border-color, var(--ion-border-color, var(--ion-color-step-150, rgba(0, 0, 0, 0.13))))
 }
 
 .nested-wrapper {
-  padding: 0 0 30px 30px;
+  padding: 0 0 24px 24px;
 }
 
 .validation-error {
@@ -23,4 +24,8 @@ ion-item-divider {
     font-size: small;
     color: var(--ion-color-danger);
   }
+}
+
+.indent {
+  margin-left: 24px;
 }
