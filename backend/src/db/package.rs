@@ -32,12 +32,7 @@ pub async fn get_packages<Db: DbHandle>(
     db: &mut Db,
     receipts: &PackageReceipts,
 ) -> Result<Vec<PackageId>, Error> {
-    let packages = receipts.package_data.get(db).await?.ok_or_else(|| {
-        Error::new(
-            color_eyre::eyre::eyre!("Expecting package data to exist"),
-            crate::ErrorKind::Database,
-        )
-    })?;
+    let packages = receipts.package_data.get(db).await?;
     Ok(packages.0.keys().cloned().collect())
 }
 

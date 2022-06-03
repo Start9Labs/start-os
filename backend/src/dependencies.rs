@@ -687,55 +687,12 @@ pub async fn configure_logic(
     (pkg_id, dependency_id): (PackageId, PackageId),
     receipts: &DependencyConfigReceipts,
 ) -> Result<ConfigDryRes, Error> {
-    let pkg_version = receipts.package_version.get(db).await?.ok_or_else(|| {
-        Error::new(
-            color_eyre::eyre::eyre!("Expecting package version to exist for {:?}", pkg_id),
-            crate::ErrorKind::Database,
-        )
-    })?;
-    let pkg_volumes = receipts.package_volumes.get(db).await?.ok_or_else(|| {
-        Error::new(
-            color_eyre::eyre::eyre!("Expecting package volumes to exist for {:?}", pkg_id),
-            crate::ErrorKind::Database,
-        )
-    })?;
-    let dependency_config_action = receipts
-        .dependency_config_action
-        .get(db)
-        .await?
-        .ok_or_else(|| {
-            Error::new(
-                color_eyre::eyre::eyre!(
-                    "Expecting dependency config action to exist for {:?}",
-                    dependency_id
-                ),
-                crate::ErrorKind::Database,
-            )
-        })?;
-    let dependency_version = receipts.dependency_version.get(db).await?.ok_or_else(|| {
-        Error::new(
-            color_eyre::eyre::eyre!(
-                "Expecting dependency version to exist for {:?}",
-                dependency_id
-            ),
-            crate::ErrorKind::Database,
-        )
-    })?;
-    let dependency_volumes = receipts.dependency_volumes.get(db).await?.ok_or_else(|| {
-        Error::new(
-            color_eyre::eyre::eyre!(
-                "Expecting dependency volumes to exist for {:?}",
-                dependency_id
-            ),
-            crate::ErrorKind::Database,
-        )
-    })?;
-    let dependencies = receipts.dependencies.get(db).await?.ok_or_else(|| {
-        Error::new(
-            color_eyre::eyre::eyre!("Expecting dependencies to exist for {:?}", pkg_id),
-            crate::ErrorKind::Database,
-        )
-    })?;
+    let pkg_version = receipts.package_version.get(db).await?;
+    let pkg_volumes = receipts.package_volumes.get(db).await?;
+    let dependency_config_action = receipts.dependency_config_action.get(db).await?;
+    let dependency_version = receipts.dependency_version.get(db).await?;
+    let dependency_volumes = receipts.dependency_volumes.get(db).await?;
+    let dependencies = receipts.dependencies.get(db).await?;
 
     let dependency = dependencies
         .0

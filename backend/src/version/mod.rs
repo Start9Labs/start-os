@@ -151,13 +151,7 @@ pub async fn init<Db: DbHandle>(
     db: &mut Db,
     receipts: &crate::init::InitReceipts,
 ) -> Result<(), Error> {
-    let version =
-        Version::from_util_version(receipts.server_version.get(db).await?.ok_or_else(|| {
-            Error::new(
-                color_eyre::eyre::eyre!("ting server info to exist"),
-                crate::ErrorKind::Database,
-            )
-        })?);
+    let version = Version::from_util_version(receipts.server_version.get(db).await?);
     match version {
         Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
         Version::V0_3_0_1(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,

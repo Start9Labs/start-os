@@ -234,29 +234,10 @@ pub async fn get(
         .manifest_config
         .get(&mut db)
         .await?
-        .flatten()
         .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
 
-    let volumes = receipts
-        .manifest_volumes
-        .get(&mut db)
-        .await?
-        .ok_or_else(|| {
-            Error::new(
-                color_eyre::eyre::eyre!("Expecting manifest volumes to exists for {:?}", id),
-                crate::ErrorKind::Database,
-            )
-        })?;
-    let version = receipts
-        .manifest_version
-        .get(&mut db)
-        .await?
-        .ok_or_else(|| {
-            Error::new(
-                color_eyre::eyre::eyre!("Expecting manifest version to exists for {:?}", id),
-                crate::ErrorKind::Database,
-            )
-        })?;
+    let volumes = receipts.manifest_volumes.get(&mut db).await?;
+    let version = receipts.manifest_version.get(&mut db).await?;
     action.get(&ctx, &id, &version, &volumes).await
 }
 
