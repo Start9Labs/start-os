@@ -29,7 +29,7 @@ export class DurationToSecondsPipe implements PipeTransform {
 
 const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
 
-const unitsToSeconds = {
+const unitsToSeconds: Record<string, number> = {
   ns: 1e-9,
   µs: 1e-6,
   ms: 0.001,

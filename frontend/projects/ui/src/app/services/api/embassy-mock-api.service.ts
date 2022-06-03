@@ -749,7 +749,7 @@ export class MockApiService extends ApiService {
       { progress: 'downloaded', completion: 'download-complete' },
       { progress: 'validated', completion: 'validation-complete' },
       { progress: 'unpacked', completion: 'unpack-complete' },
-    ]
+    ] as const
 
     for (let phase of phases) {
       let i = progress[phase.progress]

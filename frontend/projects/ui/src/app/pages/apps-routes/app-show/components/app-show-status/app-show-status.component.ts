@@ -110,7 +110,7 @@ export class AppShowStatusComponent {
   async stop(): Promise<void> {
     const { id, title, version } = this.pkg.manifest
     const hasDependents = !!Object.keys(
-      (this.pkg.installed && this.pkg.installed['current-dependents']) || {},
+      this.pkg.installed?.['current-dependents'] || {},
     ).filter(depId => depId !== id).length
 
     if (!hasDependents) {
