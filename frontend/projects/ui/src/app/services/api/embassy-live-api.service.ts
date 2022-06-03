@@ -306,6 +306,12 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'package.start', params })
   }
 
+  async restartPackageRaw(
+    params: RR.RestartPackageReq,
+  ): Promise<RR.RestartPackageRes> {
+    return this.http.rpcRequest({ method: 'package.restart', params })
+  }
+
   async dryStopPackage(
     params: RR.DryStopPackageReq,
   ): Promise<RR.DryStopPackageRes> {

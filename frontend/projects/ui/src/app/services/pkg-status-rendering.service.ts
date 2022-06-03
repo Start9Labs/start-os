@@ -93,6 +93,7 @@ export enum PrimaryStatus {
   Starting = 'starting',
   Running = 'running',
   Stopping = 'stopping',
+  Restarting = 'restarting',
   Stopped = 'stopped',
   BackingUp = 'backing-up',
   // config
@@ -136,6 +137,11 @@ export const PrimaryRendering: Record<string, StatusRendering> = {
   [PrimaryStatus.Stopping]: {
     display: 'Stopping',
     color: 'dark-shade',
+    showDots: true,
+  },
+  [PrimaryStatus.Restarting]: {
+    display: 'Restarting',
+    color: 'warning',
     showDots: true,
   },
   [PrimaryStatus.Stopped]: {
