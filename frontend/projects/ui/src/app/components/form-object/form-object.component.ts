@@ -278,6 +278,22 @@ export class FormObjectComponent {
     await alert.present()
   }
 
+  async presentAlertDescription(spec: ValueSpec) {
+    const { name, description } = spec
+
+    const alert = await this.alertCtrl.create({
+      header: name,
+      message: description,
+      buttons: [
+        {
+          text: 'OK',
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
+  }
+
   private deleteListItem(key: string, index: number, markDirty = true): void {
     if (this.objectListDisplay[key])
       this.objectListDisplay[key][index].height = '0px'
@@ -352,6 +368,12 @@ export class FormLabelComponent {
     const alert = await this.alertCtrl.create({
       header: name,
       message: description,
+      buttons: [
+        {
+          text: 'OK',
+          cssClass: 'enter-click',
+        },
+      ],
     })
     await alert.present()
   }

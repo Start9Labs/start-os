@@ -19,9 +19,10 @@ import { MarketplacePkg } from '@start9labs/marketplace'
 
 export module Mock {
   export const MarketplaceEos: RR.GetMarketplaceEOSRes = {
-    version: '0.3.1',
+    version: '0.3.2',
     headline: 'Our biggest release ever.',
     'release-notes': {
+      '0.3.2': 'Some **Markdown** release _notes_ for 0.3.2',
       '0.3.1': 'Some **Markdown** release _notes_ for 0.3.1',
       '0.3.0': 'Some **Markdown** release _notes_ from a prior version',
     },

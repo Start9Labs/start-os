@@ -5,7 +5,8 @@ EmbassyOS has three user interfaces and a shared library, all written in Ionic/A
 1. **ui**: the main user interface
 1. **setup-wizard**: used to facilitate initial setup
 1. **diagnostic-ui**: used to display certain diagnostic information in the event EmbassyOS fails to initialize
-1. **shared**: contains components, types, and functions shared amongst the three UIs.
+1. **marketplace**: abstracted ui elements to search for, list and display details for packages and their dependencies
+1. **shared**: contains components, types, and functions shared amongst all of the UIs.
 
 ## Development Environment Setup
 
@@ -15,7 +16,7 @@ EmbassyOS has three user interfaces and a shared library, all written in Ionic/A
 
 Check your versions
 
-```
+```sh
 node --version
 v16.10.0
 
@@ -27,7 +28,7 @@ v8.0.0
 
 1. Clone the repository
 
-```
+```sh
 git clone https://github.com/Start9Labs/embassy-os.git
 cd embassy-os
 git submodule update --init --recursive
@@ -38,7 +39,7 @@ npm run build:deps
 
 2. Copy `config-sample.json` and its contents to a new file `config.json`.
 
-```
+```sh
 cp config-sample.json config.json
 ```
 
@@ -47,7 +48,7 @@ Valid values for "maskAs" are `tor` and `lan`.
 
 3. Start the development server(s)
 
-```
+```sh
 npm run start:ui
 npm run start:setup-wizard
 npm run start:diagnostic-ui
@@ -61,7 +62,7 @@ This section enables you to run a local frontend with a remote backend (eg. host
 
 2. Create a proxy configuration file from the sample:
 
-```
+```sh
 cp proxy.conf.json.sample proxy.conf.json
 ```
 
@@ -69,6 +70,6 @@ cp proxy.conf.json.sample proxy.conf.json
 
 4. Start the development server
 
-```
+```sh
 npm run start:ui:proxy
 ```

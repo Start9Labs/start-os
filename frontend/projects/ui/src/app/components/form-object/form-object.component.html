@@ -2,7 +2,6 @@
   <div *ngFor="let entry of formGroup.controls | keyvalue: asIsOrder">
     <!-- union enum -->
     <ng-container *ngIf="unionSpec && entry.key === unionSpec.tag.id">
-      <p class="input-label">{{ unionSpec.tag.name }}</p>
       <ion-item>
         <ion-button
           *ngIf="unionSpec.tag.description"
@@ -18,7 +17,11 @@
         >
           <ion-icon name="help-circle-outline"></ion-icon>
         </ion-button>
-        <ion-label>{{ unionSpec.tag.name }}</ion-label>
+        <ion-label>
+          <ion-text color="dark">
+            <b>{{ unionSpec.tag.name }}</b>
+          </ion-text>
+        </ion-label>
         <!-- class enter-click disables the enter click on the modal behind the select -->
         <ion-select
           [interfaceOptions]="{
@@ -40,11 +43,9 @@
         </ion-select>
       </ion-item>
     </ng-container>
-    <ng-container *ngIf="objectSpec[entry.key] as spec">
-      <!-- primitive -->
-      <ng-container
-        *ngIf="['string', 'number', 'boolean', 'enum'] | includes: spec.type"
-      >
+    <div *ngIf="objectSpec[entry.key] as spec" [class.indent]="unionSpec">
+      <!-- string or number -->
+      <ng-container *ngIf="spec.type === 'string' || spec.type === 'number'">
         <!-- label -->
         <h4 class="input-label">
           <form-label
@@ -55,11 +56,7 @@
             }"
           ></form-label>
         </h4>
-        <!-- string or number -->
-        <ion-item
-          color="dark"
-          *ngIf="spec.type === 'string' || spec.type === 'number'"
-        >
+        <ion-item color="dark" class="ion-margin-bottom">
           <ion-textarea
             *ngIf="spec.type === 'string' && spec.textarea; else notTextArea"
             [placeholder]="spec.placeholder || 'Enter ' + spec.name"
@@ -101,38 +98,55 @@
             >{{ spec.units }}</ion-note
           >
         </ion-item>
-        <!-- boolean -->
-        <ion-item *ngIf="spec.type === 'boolean'">
-          <ion-label>{{ spec.name }}</ion-label>
-          <ion-toggle
-            slot="end"
-            [formControlName]="entry.key"
-            (ionChange)="handleBooleanChange(entry.key, spec)"
-          ></ion-toggle>
-        </ion-item>
-        <!-- enum -->
-        <ion-item *ngIf="spec.type === 'enum'">
-          <ion-label>{{ spec.name }}</ion-label>
-          <!-- class enter-click disables the enter click on the modal behind the select -->
-          <ion-select
-            [interfaceOptions]="{
-              message: getWarningText(spec.warning),
-              cssClass: 'enter-click'
-            }"
-            slot="end"
-            placeholder="Select"
-            [formControlName]="entry.key"
-            [selectedText]="spec['value-names'][formGroup.get(entry.key).value]"
-          >
-            <ion-select-option
-              *ngFor="let option of spec.values"
-              [value]="option"
-            >
-              {{ spec['value-names'][option] }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
       </ng-container>
+      <!-- boolean or enum -->
+      <ion-item
+        *ngIf="['boolean', 'enum'] | includes: spec.type"
+        style="--padding-start: 0"
+      >
+        <ion-button
+          *ngIf="spec.description"
+          fill="clear"
+          (click)="presentAlertDescription(spec)"
+          style="--padding-start: 0"
+        >
+          <ion-icon
+            name="help-circle-outline"
+            slot="icon-only"
+            size="small"
+          ></ion-icon>
+        </ion-button>
+        <ion-label
+          ><b>{{ spec.name }}</b></ion-label
+        >
+        <!-- boolean -->
+        <ion-toggle
+          *ngIf="spec.type === 'boolean'"
+          slot="end"
+          [formControlName]="entry.key"
+          (ionChange)="handleBooleanChange(entry.key, spec)"
+        ></ion-toggle>
+        <!-- enum -->
+        <!-- class enter-click disables the enter click on the modal behind the select -->
+        <ion-select
+          *ngIf="spec.type === 'enum'"
+          [interfaceOptions]="{
+            message: getWarningText(spec.warning),
+            cssClass: 'enter-click'
+          }"
+          slot="end"
+          placeholder="Select"
+          [formControlName]="entry.key"
+          [selectedText]="spec['value-names'][formGroup.get(entry.key).value]"
+        >
+          <ion-select-option
+            *ngFor="let option of spec.values"
+            [value]="option"
+          >
+            {{ spec['value-names'][option] }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
       <!-- object or union -->
       <ng-container *ngIf="spec.type === 'object' || spec.type === 'union'">
         <!-- label -->
@@ -248,6 +262,7 @@
                 </ion-item>
                 <!-- nested body -->
                 <div
+                  class="ion-padding-start"
                   [id]="getElementId(entry.key, i)"
                   [ngStyle]="{
                     'max-height': objectListDisplay[entry.key][i].height,
@@ -362,6 +377,6 @@
         [spec]="spec"
       >
       </form-error>
-    </ng-container>
+    </div>
   </div>
 </ion-item-group>
