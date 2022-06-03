@@ -1,5 +1,5 @@
 import { NgModule, Pipe, PipeTransform } from '@angular/core'
-import Fuse from 'fuse.js/dist/fuse.min.js'
+import Fuse from 'fuse.js'
 
 import { MarketplacePkg } from '../types/marketplace-pkg'
 import { MarketplaceManifest } from '../types/marketplace-manifest'

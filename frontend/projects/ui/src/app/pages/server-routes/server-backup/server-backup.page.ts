@@ -99,10 +99,9 @@ export class ServerBackupPage {
         } else {
           try {
             const passwordHash =
-              target.entry['embassy-os'] &&
-              target.entry['embassy-os']['password-hash']
+              target.entry['embassy-os']?.['password-hash'] || ''
 
-            argon2.verify(passwordHash || '', password)
+            argon2.verify(passwordHash, password)
           } catch {
             setTimeout(
               () => this.presentModalOldPassword(target, password),
@@ -137,11 +136,9 @@ export class ServerBackupPage {
       useMask: true,
       buttonText: 'Create Backup',
       submitFn: async (oldPassword: string) => {
-        const passwordHash =
-          target.entry['embassy-os'] &&
-          target.entry['embassy-os']['password-hash']
+        const passwordHash = target.entry['embassy-os']?.['password-hash'] || ''
 
-        argon2.verify(passwordHash || '', oldPassword)
+        argon2.verify(passwordHash, oldPassword)
         await this.createBackup(target.id, password, oldPassword)
       },
     }

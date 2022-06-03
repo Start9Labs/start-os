@@ -65,9 +65,9 @@ export class NotificationsPage {
       return notifications
     } catch (e: any) {
       this.errToast.present(e)
-    } finally {
-      return []
     }
+
+    return []
   }
 
   async delete(id: number, index: number): Promise<void> {

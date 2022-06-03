@@ -281,14 +281,12 @@
                         : $any(spec.spec).spec
                     "
                     [formGroup]="abstractControl"
-                    [current]="
-                      current && current[entry.key] && current[entry.key][i]
-                    "
+                    [current]="current?.[entry.key]?.[i]"
                     [unionSpec]="
                       spec.subtype === 'union' ? $any(spec.spec) : undefined
                     "
                     (onInputChange)="
-                      updateLabel(entry.key, i, spec.spec['display-as'])
+                      updateLabel(entry.key, i, $any(spec.spec)['display-as'])
                     "
                     (onExpand)="resize(entry.key, i)"
                   ></form-object>

@@ -99,16 +99,16 @@ export function parsePropertiesPermissive(
         name,
         value: {
           value: String(value),
-          description: null,
           copyable: false,
           qr: false,
           masked: false,
         },
       }))
       .reduce((acc, { name, value }) => {
-        acc[name] = value
+        // TODO: Fix type
+        acc[name] = value as any
         return acc
-      }, {})
+      }, {} as PackageProperties)
   }
   switch (properties.version) {
     case 1:
