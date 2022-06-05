@@ -796,7 +796,7 @@ export module Mock {
       code: 4,
       level: NotificationLevel.Error,
       title: 'Service Crashed',
-      message: new Array(50)
+      message: new Array(40)
         .fill(
           `2021-11-27T18:36:30.451064Z 2021-11-27T18:36:30Z tor: Thread interrupt
         2021-11-27T18:36:30.452833Z 2021-11-27T18:36:30Z Shutdown: In progress...

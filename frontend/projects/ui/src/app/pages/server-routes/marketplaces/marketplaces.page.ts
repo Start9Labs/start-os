@@ -138,7 +138,6 @@ export class MarketplacesPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Validating Marketplace...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -183,7 +182,6 @@ export class MarketplacesPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -211,7 +209,6 @@ export class MarketplacesPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Validating Marketplace...',
-      cssClass: 'loader',
     })
 
     await loader.present()
@@ -254,7 +251,6 @@ export class MarketplacesPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Validating Marketplace...',
-      cssClass: 'loader',
     })
     await loader.present()
 

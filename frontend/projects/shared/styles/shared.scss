@@ -1,5 +1,13 @@
+$wide-modal: 900px;
+
 ion-input {
   caret-color: gray;
+}
+
+ion-alert {
+  .alert-wrapper {
+    --min-width: 320px;
+  }
 }
 
 ion-modal::part(content) {
@@ -15,16 +23,6 @@ ion-modal::part(content) {
   box-shadow: 0 0 70px 70px black;
 }
 
-@media (min-width: 1000px) {
-  ion-modal::part(content) {
-    position: absolute;
-    height: 80% !important;
-    top: 10%;
-    width: 50% !important;
-    left: 25%;
-  }
-}
-
 .alertlike-modal {
   &::part(content) {
     max-height: 380px !important;
@@ -36,10 +34,25 @@ ion-modal::part(content) {
 }
 
 @media (min-width: 1000px) {
+  ion-modal::part(content) {
+    position: absolute;
+    height: 80% !important;
+    top: 10%;
+    width: $wide-modal !important;
+    left: calc((100vw - $wide-modal) / 2) !important;
+  }
+
   .alertlike-modal {
     &::part(content) {
-      width: 60% !important;
-      left: 20% !important;
+      width: $wide-modal !important;
+      left: calc((100vw - $wide-modal) / 2) !important;
+    }
+  }
+
+  ion-alert {
+    .alert-wrapper {
+      --width: 50%;
+      --max-width: 500px;
     }
   }
 }

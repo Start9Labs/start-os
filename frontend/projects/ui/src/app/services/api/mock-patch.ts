@@ -19,7 +19,7 @@ export const mockPatchData: DataModel = {
     gaming: undefined,
   },
   'server-info': {
-    id: 'embassy-abcdefgh',
+    id: 'abcdefgh',
     version: '0.3.1',
     'last-backup': null,
     'lan-address': 'https://embassy-abcdefgh.local',

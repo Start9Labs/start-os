@@ -72,7 +72,6 @@ export class DeveloperMenuPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
-      cssClass: 'loader',
     })
     await loader.present()
 

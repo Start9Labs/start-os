@@ -143,7 +143,6 @@ export class DeveloperListPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Creating Project...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -191,7 +190,6 @@ export class DeveloperListPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -208,7 +206,6 @@ export class DeveloperListPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Removing Project...',
-      cssClass: 'loader',
     })
     await loader.present()
 

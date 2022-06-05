@@ -144,7 +144,6 @@ export class BackupDrivesComponent {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Testing connectivity to shared folder...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -203,7 +202,6 @@ export class BackupDrivesComponent {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Testing connectivity to shared folder...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -221,7 +219,6 @@ export class BackupDrivesComponent {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Removing...',
-      cssClass: 'loader',
     })
     await loader.present()
 
