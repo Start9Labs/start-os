@@ -21,7 +21,8 @@
         <marketplace-item [pkg]="pkg">
           <marketplace-status
             class="status"
-            [pkg]="localPkgs[pkg.manifest.id]"
+            [version]="pkg.manifest.version"
+            [localPkg]="localPkgs[pkg.manifest.id]"
           ></marketplace-status>
         </marketplace-item>
       </ion-col>

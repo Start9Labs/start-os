@@ -6,7 +6,8 @@
       <marketplace-package [pkg]="pkg">
         <marketplace-status
           class="status"
-          [pkg]="localPkg$ | async"
+          [version]="pkg.manifest.version"
+          [localPkg]="localPkg$ | async"
         ></marketplace-status>
         <marketplace-show-controls
           position="controls"
