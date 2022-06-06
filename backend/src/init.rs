@@ -134,16 +134,7 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
 
     crate::net::wifi::synchronize_wpa_supplicant_conf(
         &cfg.datadir().join("main"),
-        &receipts
-            .last_wifi_region
-            .get(&mut handle)
-            .await
-            .map_err(|_e| {
-                Error::new(
-                    color_eyre::eyre::eyre!("Could not find the last wifi region"),
-                    crate::ErrorKind::NotFound,
-                )
-            })?,
+        &receipts.last_wifi_region.get(&mut handle).await?,
     )
     .await?;
     tracing::info!("Synchronized wpa_supplicant.conf");
