@@ -37,7 +37,9 @@ export class SuccessPage {
 
   async copy(address: string): Promise<void> {
     const success = await this.copyToClipboard(address)
-    const message = success ? 'copied to clipboard!' : 'failed to copy'
+    const message = success
+      ? 'Copied to clipboard!'
+      : 'Failed to copy to clipboard.'
 
     const toast = await this.toastCtrl.create({
       header: message,
