@@ -66,7 +66,6 @@ export class RestorePage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Decrypting drive...',
-      cssClass: 'loader',
     })
     await loader.present()
 

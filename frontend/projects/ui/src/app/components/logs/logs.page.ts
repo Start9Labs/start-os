@@ -5,6 +5,9 @@ import { RR } from 'src/app/services/api/api.types'
 var Convert = require('ansi-to-html')
 var convert = new Convert({
   bg: 'transparent',
+  colors: {
+    4: 'Cyan',
+  },
 })
 
 @Component({

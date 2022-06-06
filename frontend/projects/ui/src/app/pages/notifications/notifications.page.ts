@@ -70,7 +70,6 @@ export class NotificationsPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -118,11 +117,11 @@ export class NotificationsPage {
     await modal.present()
   }
 
-  async viewFullMessage(title: string, message: string) {
+  async viewFullMessage(header: string, message: string) {
     const alert = await this.alertCtrl.create({
-      header: title,
-      message: message,
-      cssClass: 'wider-alert',
+      header,
+      message,
+      cssClass: 'notification-detail-alert',
       buttons: [
         {
           text: `OK`,
@@ -159,7 +158,6 @@ export class NotificationsPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
-      cssClass: 'loader',
     })
     await loader.present()
 

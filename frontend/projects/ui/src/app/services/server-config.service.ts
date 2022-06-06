@@ -31,7 +31,6 @@ export class ServerConfigService {
           const loader = await this.loadingCtrl.create({
             spinner: 'lines',
             message: 'Saving...',
-            cssClass: 'loader',
           })
           loader.present()
 

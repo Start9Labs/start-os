@@ -66,7 +66,6 @@ export class SSHKeysPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -103,7 +102,6 @@ export class SSHKeysPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
-      cssClass: 'loader',
     })
     await loader.present()
 

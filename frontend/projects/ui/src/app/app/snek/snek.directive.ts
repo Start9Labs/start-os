@@ -33,7 +33,6 @@ export class SnekDirective {
       if (data?.highScore > highScore) {
         const loader = await this.loadingCtrl.create({
           spinner: 'lines',
-          cssClass: 'loader',
           message: 'Saving High Score...',
         })
 
