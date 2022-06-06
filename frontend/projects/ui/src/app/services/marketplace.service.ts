@@ -117,7 +117,6 @@ export class MarketplaceService extends AbstractMarketplaceService {
         this.loadingCtrl.create({
           spinner: 'lines',
           message: 'Beginning Installation',
-          cssClass: 'loader',
         }),
       ),
     ).pipe(

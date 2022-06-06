@@ -63,10 +63,6 @@ $subheader-height: 48px;
   color: var(--ion-color-warning);
 }
 
-.wide-alert {
-  --min-width: 400px;
-}
-
 .break-all {
   word-break: break-all;
 }
@@ -79,20 +75,6 @@ $subheader-height: 48px;
     display: inline-block;
     vertical-align: middle;
   }
-}
-
-.item-subdivider {
-  padding: 0 16px;
-  margin-top: 0;
-}
-
-.loader {
-  --spinner-color: var(--ion-color-warning) !important;
-  z-index: 40000 !important;
-}
-
-.borderless {
-  border-style: none;
 }
 
 .center {
@@ -216,8 +198,15 @@ ion-button {
   }
 }
 
-.wider-alert .alert-wrapper {
-  min-width: 60% !important;
+.notification-detail-alert {
+  .alert-wrapper {
+    --max-height: 80% !important;
+    --width: 90% !important;
+    --max-width: 900px !important;
+  }
+  .alert-message {
+    max-height: unset;
+  }
 }
 
 ion-slides {
@@ -251,7 +240,8 @@ ion-label {
 }
 
 ion-loading {
-  z-index: 100 !important;
+  --spinner-color: var(--ion-color-warning) !important;
+  z-index: 40000 !important;
 }
 
 .swiper-pagination {

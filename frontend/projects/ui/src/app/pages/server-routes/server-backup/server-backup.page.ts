@@ -155,7 +155,6 @@ export class ServerBackupPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Beginning backup...',
-      cssClass: 'loader',
     })
     await loader.present()
 

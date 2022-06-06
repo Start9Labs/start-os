@@ -180,7 +180,6 @@ export class ServerShowPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Restarting...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -197,7 +196,6 @@ export class ServerShowPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Shutting down...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -214,7 +212,6 @@ export class ServerShowPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Hard Restarting...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -231,7 +228,6 @@ export class ServerShowPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Checking for updates',
-      cssClass: 'loader',
     })
     await loader.present()
 

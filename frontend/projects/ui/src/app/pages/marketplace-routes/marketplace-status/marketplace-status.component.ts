@@ -8,11 +8,13 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 })
 export class MarketplaceStatusComponent {
   @Input()
-  pkg?: PackageDataEntry
+  version: string
+  @Input()
+  localPkg?: PackageDataEntry
 
   PackageState = PackageState
 
-  get version(): string {
-    return this.pkg?.manifest.version || ''
+  get localVersion(): string {
+    return this.localPkg?.manifest.version || ''
   }
 }

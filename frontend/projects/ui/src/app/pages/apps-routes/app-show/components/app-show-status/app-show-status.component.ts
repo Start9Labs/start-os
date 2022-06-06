@@ -116,7 +116,6 @@ export class AppShowStatusComponent {
       const loader = await this.loadingCtrl.create({
         message: `Stopping...`,
         spinner: 'lines',
-        cssClass: 'loader',
       })
       await loader.present()
 
@@ -143,7 +142,6 @@ export class AppShowStatusComponent {
     const loader = await this.loadingCtrl.create({
       message: `Starting...`,
       spinner: 'lines',
-      cssClass: 'loader',
     })
     await loader.present()
 

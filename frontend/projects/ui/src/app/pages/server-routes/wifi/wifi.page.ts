@@ -68,7 +68,7 @@ export class WifiPage {
             role: 'cancel',
           },
         ],
-        cssClass: 'wide-alert enter-click',
+        cssClass: 'enter-click',
       })
       await alert.present()
       return
@@ -103,7 +103,7 @@ export class WifiPage {
           },
         },
       ],
-      cssClass: 'wide-alert enter-click select-warning',
+      cssClass: 'enter-click select-warning',
     })
     await alert.present()
   }
@@ -171,7 +171,6 @@ export class WifiPage {
   private async setCountry(country: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -264,7 +263,6 @@ export class WifiPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Connecting. This could take a while...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -282,7 +280,6 @@ export class WifiPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Deleting...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -301,7 +298,6 @@ export class WifiPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Saving...',
-      cssClass: 'loader',
     })
     await loader.present()
 
@@ -324,7 +320,6 @@ export class WifiPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Connecting. This could take a while...',
-      cssClass: 'loader',
     })
     await loader.present()
 

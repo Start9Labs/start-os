@@ -102,7 +102,7 @@ export class AppActionsPage {
               handler: () => {
                 this.executeAction(action.key)
               },
-              cssClass: 'wide-alert enter-click',
+              cssClass: 'enter-click',
             },
           ],
         })
@@ -159,7 +159,6 @@ export class AppActionsPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Executing action...',
-      cssClass: 'loader',
     })
     await loader.present()
 

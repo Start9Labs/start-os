@@ -55,7 +55,6 @@ export class SessionsPage {
     const loader = await this.loadingCtrl.create({
       spinner: 'lines',
       message: 'Killing session...',
-      cssClass: 'loader',
     })
     await loader.present()
 

@@ -78,7 +78,6 @@ export class UpdateToastService extends Observable<unknown> {
 const LOADER: LoadingOptions = {
   spinner: 'lines',
   message: 'Restarting...',
-  cssClass: 'loader',
 }
 
 const TOAST: ToastOptions = {

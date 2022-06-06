@@ -796,7 +796,7 @@ export module Mock {
       code: 4,
       level: NotificationLevel.Error,
       title: 'Service Crashed',
-      message: new Array(50)
+      message: new Array(40)
         .fill(
           `2021-11-27T18:36:30.451064Z 2021-11-27T18:36:30Z tor: Thread interrupt
         2021-11-27T18:36:30.452833Z 2021-11-27T18:36:30Z Shutdown: In progress...
@@ -922,7 +922,7 @@ export module Mock {
     {
       timestamp: '2019-12-26T14:21:30.872Z',
       message:
-        '2021/11/09 22:55:04 \u001b[0;32;49mPOST \u001b[0;32;49m200\u001b[0m photoview.embassy/api/graphql \u001b[0;36;49m1.169406ms\u001b[0m unauthenticated',
+        '2021/11/09 22:55:04 \u001b[34mPOST \u001b[0;32;49m200\u001b[0m photoview.embassy/api/graphql \u001b[0;36;49m1.169406ms\u001b[0m unauthenticated',
     },
     {
       timestamp: '2019-12-26T14:22:30.872Z',
