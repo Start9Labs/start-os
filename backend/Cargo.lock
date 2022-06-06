@@ -128,7 +128,7 @@ checksum = "10f203db73a71dfa2fb6dd22763990fa26f3d2625a6da2da900d23b87d26be27"
 dependencies = [
  "proc-macro2 1.0.39",
  "quote 1.0.18",
- "syn 1.0.95",
+ "syn 1.0.96",
 ]
 
 [[package]]

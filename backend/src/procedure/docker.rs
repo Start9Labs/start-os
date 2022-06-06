@@ -17,7 +17,7 @@ use nix::unistd::Pid;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::VecDeque;
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
 use tracing::instrument;
 
 use crate::context::RpcContext;
@@ -498,4 +498,27 @@ async fn max_buffer(
         }
     }
     Ok(buffer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    /// Note, this size doesn't mean the vec will match. The vec will go to the next size, 0 -> 7 = 7 and so forth 7-15 = 15
+    /// Just how the vec with capacity works.
+    const CAPACITY_IN: usize = 7;
+    #[test]
+    fn default_capacity_is_set() {
+        let ring: RingVec<usize> = RingVec::new(CAPACITY_IN);
+        assert_eq!(CAPACITY_IN, ring.value.capacity());
+        assert_eq!(0, ring.value.len());
+    }
+    #[test]
+    fn capacity_can_not_be_exceeded() {
+        let mut ring = RingVec::new(CAPACITY_IN);
+        for i in 1..100usize {
+            ring.push(i);
+        }
+        assert_eq!(CAPACITY_IN, ring.value.capacity());
+        assert_eq!(CAPACITY_IN, ring.value.len());
+    }
 }
