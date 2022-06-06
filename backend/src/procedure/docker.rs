@@ -178,8 +178,8 @@ impl DockerProcedure {
             TimedOut,
         }
 
-        let io_format = self.io_format.clone();
-        let mut output = BufReader::new(
+        let io_format = self.io_format;
+        let output = BufReader::new(
             handle
                 .stdout
                 .take()
@@ -188,8 +188,7 @@ impl DockerProcedure {
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Some(format) = io_format {
-                let mut buffer = Vec::new();
-                output.read_to_end(&mut buffer).await?;
+                let buffer = max_buffer(output, None).await?;
                 return Ok::<Value, Error>(match format.from_reader(&*buffer) {
                     Ok(a) => a,
                     Err(e) => {
@@ -305,8 +304,8 @@ impl DockerProcedure {
             Ok::<_, Error>(joined_output)
         }));
 
-        let io_format = self.io_format.clone();
-        let mut output = BufReader::new(
+        let io_format = self.io_format;
+        let output = BufReader::new(
             handle
                 .stdout
                 .take()
@@ -315,8 +314,7 @@ impl DockerProcedure {
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Some(format) = io_format {
-                let mut buffer = Vec::new();
-                output.read_to_end(&mut buffer).await?;
+                let buffer = max_buffer(output, None).await?;
                 return Ok::<Value, Error>(match format.from_reader(&*buffer) {
                     Ok(a) => a,
                     Err(e) => {
@@ -366,9 +364,9 @@ impl DockerProcedure {
     }
 
     pub fn uncontainer_name(name: &str) -> Option<(PackageId<&str>, Option<&str>)> {
-        let (pre_tld, _) = name.split_once(".")?;
+        let (pre_tld, _) = name.split_once('.')?;
         if pre_tld.contains('_') {
-            let (pkg, name) = name.split_once("_")?;
+            let (pkg, name) = name.split_once('_')?;
             Some((Id::try_from(pkg).ok()?.into(), Some(name)))
         } else {
             Some((Id::try_from(pre_tld).ok()?.into(), None))
@@ -479,4 +477,25 @@ async fn buf_reader_to_lines(
         .with_kind(crate::ErrorKind::Unknown)?;
     let output: Vec<String> = output.value.into_iter().collect();
     Ok(output)
+}
+
+async fn max_buffer(
+    reader: impl AsyncBufRead + Unpin,
+    max_items: impl Into<Option<usize>>,
+) -> Result<Vec<u8>, Error> {
+    let mut buffer = Vec::new();
+
+    let mut lines = reader.lines();
+    let max_items = max_items.into().unwrap_or(10_000_000);
+    while let Some(line) = lines.next_line().await? {
+        let mut line = line.into_bytes();
+        buffer.append(&mut line);
+        if buffer.len() >= max_items {
+            return Err(Error::new(
+                color_eyre::eyre::eyre!("Reading the buffer exceeding limits of {}", max_items),
+                crate::ErrorKind::Unknown,
+            ));
+        }
+    }
+    Ok(buffer)
 }
