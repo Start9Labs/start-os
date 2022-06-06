@@ -45,13 +45,13 @@ ion-modal::part(content) {
     position: absolute;
     height: 80% !important;
     top: 10%;
-    width: $wide-modal  !important;
+    width: $wide-modal !important;
     left: calc((100vw - $wide-modal) / 2) !important;
   }
 
   .alertlike-modal {
     &::part(content) {
-      width: $wide-modal  !important;
+      width: $wide-modal !important;
       left: calc((100vw - $wide-modal) / 2) !important;
     }
   }
