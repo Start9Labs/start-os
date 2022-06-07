@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { ToastController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { copyToClipboard } from 'src/app/util/web.util'
 
 @Component({
   selector: 'app-logs',
@@ -41,7 +42,7 @@ export class AppLogsPage {
       .getElementById('template')
       ?.cloneNode(true) as HTMLElement
     const formatted = '```' + logs.innerHTML + '```'
-    const success = await this.copyToClipboard(formatted)
+    const success = await copyToClipboard(formatted)
     const message = success
       ? 'Copied to clipboard!'
       : 'Failed to copy to clipboard.'
@@ -52,17 +53,5 @@ export class AppLogsPage {
       duration: 1000,
     })
     await toast.present()
-  }
-  private async copyToClipboard(str: string): Promise<boolean> {
-    const el = document.createElement('textarea')
-    el.value = str
-    el.setAttribute('readonly', '')
-    el.style.position = 'absolute'
-    el.style.left = '-9999px'
-    document.body.appendChild(el)
-    el.select()
-    const copy = document.execCommand('copy')
-    document.body.removeChild(el)
-    return copy
   }
 }
