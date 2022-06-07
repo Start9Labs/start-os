@@ -10,7 +10,7 @@
 <ion-content class="ion-text-center">
   <!-- file upload -->
   <div
-    *ngIf="!toUpload"
+    *ngIf="!toUpload.file"
     class="drop-area"
     [class.drop-area_mobile]="isMobile"
     appDnd
@@ -40,38 +40,49 @@
     </ion-button>
   </div>
   <!-- file uploaded -->
-  <div class="drop-area_filled" *ngIf="toUpload">
+  <div class="drop-area_filled" *ngIf="toUpload.file">
     <div class="inline">
-      <ion-icon name="checkmark-circle-outline" color="success"></ion-icon>
-      <h4>A valid s9pk has been detected!</h4>
+      <ion-icon
+        *ngIf="valid"
+        name="checkmark-circle-outline"
+        color="success"
+      ></ion-icon>
+      <ion-icon
+        *ngIf="!valid"
+        name="close-circle-outline"
+        color="danger"
+      ></ion-icon>
+      <h4>{{ message }}</h4>
     </div>
     <br />
-    <div class="service-card">
-      <div class="row row_end">
-        <ion-button
-          style="
-            --background-hover: transparent;
-            --padding-end: 0px;
-            --padding-start: 0px;
-          "
-          fill="clear"
-          size="small"
-          (click)="toUpload = undefined"
-        >
-          <ion-icon slot="icon-only" name="close" color="danger"></ion-icon>
-        </ion-button>
+    <div>
+      <div class="service-card">
+        <div *ngIf="toUpload.manifest" class="row row_end">
+          <ion-button
+            style="
+              --background-hover: transparent;
+              --padding-end: 0px;
+              --padding-start: 0px;
+            "
+            fill="clear"
+            size="small"
+            (click)="toUpload = undefined"
+          >
+            <ion-icon slot="icon-only" name="close" color="danger"></ion-icon>
+          </ion-button>
+        </div>
+        <div *ngIf="toUpload.icon" class="row">
+          <img
+            [alt]="toUpload.manifest.title + ' Icon'"
+            [src]="'data:image/png;base64,' + toUpload.icon"
+          />
+          <h2>{{ toUpload.manifest.title }}</h2>
+          <p>{{ toUpload.manifest.version | displayEmver }}</p>
+        </div>
       </div>
-      <div class="row">
-        <img
-          [alt]="toUpload.manifest.title + ' Icon'"
-          [src]="'data:image/png;base64,' + toUpload.icon"
-        />
-        <h2>{{ toUpload.manifest.title }}</h2>
-        <p>{{ toUpload.manifest.version | displayEmver }}</p>
-      </div>
+      <ion-button color="primary" (click)="toUpload = undefined">
+        Upload & Install
+      </ion-button>
     </div>
-    <ion-button color="primary" (click)="toUpload = undefined">
-      Upload & Install
-    </ion-button>
   </div>
 </ion-content>
