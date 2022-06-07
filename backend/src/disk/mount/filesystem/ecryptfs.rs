@@ -4,7 +4,7 @@ use std::path::Path;
 use async_trait::async_trait;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
-use digest::Digest;
+use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -63,7 +63,9 @@ impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> Fil
     ) -> Result<(), Error> {
         mount_ecryptfs(self.encrypted_dir.as_ref(), mountpoint, self.key.as_ref()).await
     }
-    async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
+    async fn source_hash(
+        &self,
+    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
         let mut sha = Sha256::new();
         sha.update("EcryptFS");
         sha.update(

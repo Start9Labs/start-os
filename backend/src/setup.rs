@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
+use digest::OutputSizeUser;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt, TryStreamExt};
 use nix::unistd::{Gid, Uid};
@@ -477,7 +478,7 @@ async fn recover(
 
 async fn shasum(
     path: impl AsRef<Path>,
-) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
+) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
     use tokio::io::AsyncReadExt;
 
     let mut rdr = tokio::fs::File::open(path).await?;

@@ -1,4 +1,3 @@
-pub const CONFIG_PATH: &str = "/etc/embassy/config.yaml";
 #[cfg(not(feature = "beta"))]
 pub const DEFAULT_MARKETPLACE: &str = "https://marketplace.start9.com";
 #[cfg(feature = "beta")]

@@ -28,7 +28,7 @@ impl DiagnosticContextConfig {
         let cfg_path = path
             .as_ref()
             .map(|p| p.as_ref())
-            .unwrap_or(Path::new(crate::CONFIG_PATH));
+            .unwrap_or(Path::new(crate::util::config::CONFIG_PATH));
         if let Some(f) = File::maybe_open(cfg_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, cfg_path.display().to_string()))?

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use digest::generic_array::GenericArray;
-use digest::Digest;
+use digest::{Digest, OutputSizeUser};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tokio::process::Command;
@@ -93,7 +93,9 @@ impl FileSystem for Cifs {
         )
         .await
     }
-    async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
+    async fn source_hash(
+        &self,
+    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
         let mut sha = Sha256::new();
         sha.update("Cifs");
         sha.update(self.hostname.as_bytes());
