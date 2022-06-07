@@ -40,7 +40,8 @@ export class AppLogsPage {
     const logs = document
       .getElementById('template')
       ?.cloneNode(true) as HTMLElement
-    const success = await this.copyToClipboard(logs.innerHTML)
+    const formatted = '```' + logs.innerHTML + '```'
+    const success = await this.copyToClipboard(formatted)
     const message = success
       ? 'Copied to clipboard!'
       : 'Failed to copy to clipboard.'
