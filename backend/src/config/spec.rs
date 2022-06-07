@@ -2163,3 +2163,13 @@ fn missing_pattern_produces_error() {
         .is_err()
     )
 }
+
+#[test]
+fn regex_control() {
+    assert!(
+        serde_yaml::from_reader::<_, ConfigSpec>(std::io::Cursor::new(include_bytes!(
+            "../../test/config-spec/lnd-correct.yaml"
+        )))
+        .is_ok()
+    )
+}
