@@ -1,6 +1,6 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { IonContent, ToastController } from '@ionic/angular'
+import { IonContent, ModalController, ToastController } from '@ionic/angular'
 import { getPkgId } from '@start9labs/shared'
 import { getUiInterfaceKey } from 'src/app/services/config.service'
 import {
@@ -9,6 +9,7 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { copyToClipboard } from 'src/app/util/web.util'
+import { QRComponent } from 'src/app/components/qr/qr.component'
 
 interface LocalInterface {
   def: InterfaceDef
@@ -90,10 +91,24 @@ export class AppInterfacesPage {
 export class AppInterfacesItemComponent {
   @Input() interface: LocalInterface
 
-  constructor(private readonly toastCtrl: ToastController) {}
+  constructor(
+    private readonly toastCtrl: ToastController,
+    private readonly modalCtrl: ModalController,
+  ) {}
 
   launch(url: string): void {
     window.open(url, '_blank', 'noreferrer')
+  }
+
+  async showQR(text: string): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: QRComponent,
+      componentProps: {
+        text,
+      },
+      cssClass: 'qr-modal',
+    })
+    await modal.present()
   }
 
   async copy(address: string): Promise<void> {
