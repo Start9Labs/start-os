@@ -56,6 +56,16 @@ impl Loader for ModsLoader {
             });
         }
 
+        if module_specifier.as_str() == "file:///loadModule.js" {
+            let specifier = module_specifier.clone();
+            return Box::pin(async move { Ok(Some(LoadResponse::BuiltIn { specifier })) });
+        }
+
+        if module_specifier.as_str() == "file:///deno_global.js" {
+            let specifier = module_specifier.clone();
+            return Box::pin(async move { Ok(Some(LoadResponse::BuiltIn { specifier })) });
+        }
+
         let project_root = self.project_root.clone();
         let module_specifier = module_specifier.clone();
         println!("BLUJ {:?} {:?}", project_root, module_specifier);
