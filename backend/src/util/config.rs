@@ -41,18 +41,16 @@ pub fn load_config_from_paths<'a, T: for<'de> Deserialize<'de>>(
 
 pub fn merge_configs(mut first: Config, second: Config) -> Config {
     for (k, v) in second.into_iter() {
-        if !first.contains_key(&k) {
-            first.insert(k, v);
-        } else {
-            let old = first.remove(&k).unwrap(); // because in else of !contains_key
-            let new = match (old, v) {
+        let new = match first.remove(&k) {
+            None => v,
+            Some(old) => match (old, v) {
                 (Value::Object(first), Value::Object(second)) => {
                     Value::Object(merge_configs(first, second))
                 }
                 (first, _) => first,
-            };
-            first.insert(k, new);
-        }
+            },
+        };
+        first.insert(k, new);
     }
     first
 }
