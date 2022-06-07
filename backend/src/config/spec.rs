@@ -1170,6 +1170,7 @@ pub struct Pattern {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct ValueSpecString {
+    #[serde(flatten)]
     pub pattern: Option<Pattern>,
     pub copyable: bool,
     pub masked: bool,
@@ -2166,10 +2167,9 @@ fn missing_pattern_produces_error() {
 
 #[test]
 fn regex_control() {
-    assert!(
-        serde_yaml::from_reader::<_, ConfigSpec>(std::io::Cursor::new(include_bytes!(
-            "../../test/config-spec/lnd-correct.yaml"
-        )))
-        .is_ok()
-    )
+    let spec = serde_yaml::from_reader::<_, ConfigSpec>(std::io::Cursor::new(include_bytes!(
+        "../../test/config-spec/lnd-correct.yaml"
+    )))
+    .unwrap();
+    println!("{}", serde_json::to_string_pretty(&spec).unwrap());
 }
