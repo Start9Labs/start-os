@@ -39,11 +39,12 @@ path = "src/bin/embassy-cli.rs"
 [features]
 avahi = ["avahi-sys"]
 beta = []
-default = ["avahi", "sound", "metal", "js_engine"]
+default = ["avahi", "sound", "metal", "js_engine", "embassy-script"]
 dev = []
 metal = []
 sound = []
 unstable = ["patch-db/unstable"]
+embassy-script = ["ts-bundler"]
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
@@ -80,6 +81,7 @@ imbl = "1.0.1"
 indexmap = { version = "1.8.1", features = ["serde"] }
 isocountry = "0.3.2"
 itertools = "0.10.1"
+ts-bundler = { path = '../libs/ts-bundler', optional = true }
 js_engine = { path = '../libs/js_engine', optional = true }
 jsonpath_lib = "0.3.0"
 lazy_static = "1.4"

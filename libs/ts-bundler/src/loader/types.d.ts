@@ -264,3 +264,7 @@ export type Dependencies = {
     autoConfigure(effects: Effects, input: Config): Promise<Config>,
   }
 }
+
+type SetConfigProcedure = (effects: Effects, input: Config) => Promise<SetResult>
+type GetConfigProcedure = (effects: Effects) => Promise<ConfigRes>
+type PropertiesProcedure = (effects: Effects) => Promise<Properties>

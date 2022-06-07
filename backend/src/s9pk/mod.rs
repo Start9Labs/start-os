@@ -4,6 +4,7 @@ use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use rpc_toolkit::command;
 use serde_json::Value;
+use tokio::io::{AsyncRead, AsyncReadExt};
 use tracing::instrument;
 
 use crate::context::SdkContext;
@@ -122,19 +123,50 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
             std::io::Cursor::new(assets.into_inner().await?)
         })
         .scripts({
-            let script_path = path.join(manifest.assets.scripts_path()).join("embassy.js");
+            let script_base_path = path.join(manifest.assets.scripts_path());
             let needs_script = manifest.package_procedures().any(|a| a.is_script());
-            let has_script = script_path.exists();
-            match (needs_script, has_script) {
-                (true, true) => Some(File::open(script_path).await?),
-                (true, false) => {
-                    return Err(Error::new(eyre!("Script is declared in manifest, but no such script exists at ./scripts/embassy.js"), ErrorKind::Pack).into())
-                }
-                (false, true) => {
+            let script_path_js = script_base_path.join("embassy.js");
+            let script_path_ts = script_base_path.join("embassy.ts");
+            match (needs_script, script_path_js.exists(), script_path_ts.exists()) {
+                (false, false, false) => None,
+                (false, true, _) => {
                     tracing::warn!("Manifest does not declare any actions that use scripts, but a script exists at ./scripts/embassy.js");
                     None
                 }
-                (false, false) => None
+                (false, false, true) => {
+                    tracing::warn!("Manifest does not declare any actions that use scripts, but a script exists at ./scripts/embassy.ts");
+                    None
+                }
+                (true, false, false) => {
+                    return Err(Error::new(eyre!("Script is declared in manifest, but no such script exists at ./scripts/embassy.js"), ErrorKind::Pack))
+                }
+                (true, true, true) => {
+                    tracing::warn!("Both ./scripts/embassy.js and ./scripts/embassy.ts exist. Using embassy.js, skipping Typescript bundling...");
+                    Some(Box::new(File::open(script_path_js).await?))
+                }
+                (true, true, false) => Some(Box::new(File::open(script_path_js).await?)),
+                (true, false, true) => {
+                    #[cfg(feature = "embassy-script")]
+                    {
+                        use ts_bundler::loader::{BOOTSTRAP, ModsLoader};
+                        use ts_bundler::options::{ EMIT_OPTIONS};
+                        use ts_bundler::deno_emit;
+                        // typecheck against bootstrap
+                        println!("path = {:?}", path);
+                        println!("script_base_path = {:?}", script_base_path);
+                        let mut loader = ModsLoader::from(script_base_path);
+                        let code_string = deno_emit::bundle(BOOTSTRAP.parse().unwrap(), &mut loader, None, deno_emit::BundleOptions {
+                            bundle_type: deno_emit::BundleType::Module,
+                            emit_options: EMIT_OPTIONS.clone(),
+                            emit_ignore_directives: true,
+                        }).await.map_err(|e| Error::new(eyre!("Typescript bundling failed: {:?}", e), ErrorKind::Javascript))?.code;
+                        Some(Box::new(std::io::Cursor::new(code_string)))
+                    }
+                    #[cfg(not(feature = "embassy-script"))]
+                    {
+                        panic!("Embassy Script Feature is NOT ENABLED")
+                    }
+                }
             }
         })
         .build()
