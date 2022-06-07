@@ -5,13 +5,15 @@ import {
   MarketplacePkg,
   AbstractMarketplaceService,
   Marketplace,
-  MarketplaceData,
 } from '@start9labs/marketplace'
 import { defer, from, Observable, of } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
-import { ServerInfo } from 'src/app/services/patch-db/data-model'
+import {
+  ServerInfo,
+  UIMarketplaceData,
+} from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   catchError,
@@ -28,37 +30,49 @@ import {
 export class MarketplaceService extends AbstractMarketplaceService {
   private readonly notes = new Map<string, Record<string, string>>()
 
-  private readonly init$: Observable<Marketplace> = this.patch
+  private readonly data$: Observable<UIMarketplaceData> = this.patch
     .watch$('ui', 'marketplace')
-    .pipe(
-      map(marketplace =>
-        marketplace?.['selected-id']
-          ? marketplace['known-hosts'][marketplace['selected-id']]
-          : this.config.marketplace,
-      ),
-      shareReplay(),
-    )
+    .pipe(take(1), shareReplay({ bufferSize: 1, refCount: true }))
 
-  private readonly data$: Observable<MarketplaceData> = this.init$.pipe(
-    switchMap(({ url }) =>
-      from(this.getMarketplaceData({ 'server-id': this.serverInfo.id }, url)),
-    ),
-    shareReplay(),
+  private readonly marketplace$: Observable<Marketplace> = this.data$.pipe(
+    map(data => this.toMarketplace(data)),
   )
 
-  private readonly pkg$: Observable<MarketplacePkg[]> = this.init$.pipe(
-    take(1),
-    switchMap(({ url, name }) =>
-      from(this.getMarketplacePkgs({ page: 1, 'per-page': 100 }, url)).pipe(
-        tap(() => this.onPackages(name)),
+  private readonly serverInfo$: Observable<ServerInfo> = this.patch
+    .watch$('server-info')
+    .pipe(take(1), shareReplay({ bufferSize: 1, refCount: true }))
+
+  private readonly categories$: Observable<string[]> = this.marketplace$.pipe(
+    switchMap(({ url }) =>
+      this.serverInfo$.pipe(
+        switchMap(({ id }) =>
+          from(this.getMarketplaceData({ 'server-id': id }, url)),
+        ),
       ),
     ),
-    shareReplay(),
+    map(({ categories }) => categories),
+  )
+
+  private readonly pkg$: Observable<MarketplacePkg[]> = this.data$.pipe(
+    switchMap(data =>
+      this.serverInfo$.pipe(
+        switchMap(info =>
+          from(
+            this.getMarketplacePkgs(
+              { page: 1, 'per-page': 100 },
+              this.toMarketplace(data).url,
+              info['eos-version-compat'],
+            ),
+          ).pipe(tap(() => this.onPackages(data))),
+        ),
+      ),
+    ),
     catchError(e => {
       this.errToast.present(e)
 
       return of([])
     }),
+    shareReplay({ bufferSize: 1, refCount: true }),
   )
 
   constructor(
@@ -73,11 +87,11 @@ export class MarketplaceService extends AbstractMarketplaceService {
   }
 
   getMarketplace(): Observable<Marketplace> {
-    return this.init$
+    return this.marketplace$
   }
 
   getCategories(): Observable<string[]> {
-    return this.data$.pipe(map(({ categories }) => categories))
+    return this.categories$
   }
 
   getPackages(): Observable<MarketplacePkg[]> {
@@ -86,9 +100,16 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   getPackage(id: string, version: string): Observable<MarketplacePkg | null> {
     const params = { ids: [{ id, version }] }
-    const fallback$ = this.init$.pipe(
-      take(1),
-      switchMap(({ url }) => from(this.getMarketplacePkgs(params, url))),
+    const fallback$ = this.marketplace$.pipe(
+      switchMap(({ url }) =>
+        this.serverInfo$.pipe(
+          switchMap(info =>
+            from(
+              this.getMarketplacePkgs(params, url, info['eos-version-compat']),
+            ),
+          ),
+        ),
+      ),
       map(pkgs => this.findPackage(pkgs, id, version)),
       startWith(null),
     )
@@ -111,7 +132,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
       return of(this.notes.get(id) || {})
     }
 
-    return this.init$.pipe(
+    return this.marketplace$.pipe(
       switchMap(({ url }) => this.loadReleaseNotes(id, url)),
       tap(response => this.notes.set(id, response)),
       catchError(e => {
@@ -184,20 +205,17 @@ export class MarketplaceService extends AbstractMarketplaceService {
   async getMarketplacePkgs(
     params: Omit<RR.GetMarketplacePackagesReq, 'eos-version-compat'>,
     url: string,
+    eosVersionCompat: string,
   ): Promise<RR.GetMarketplacePackagesRes> {
     if (params.query) delete params.category
     if (params.ids) params.ids = JSON.stringify(params.ids)
 
     const qp: RR.GetMarketplacePackagesReq = {
       ...params,
-      'eos-version-compat': this.serverInfo['eos-version-compat'],
+      'eos-version-compat': eosVersionCompat,
     }
 
     return this.api.marketplaceProxy('/package/v0/index', qp, url)
-  }
-
-  private get serverInfo(): ServerInfo {
-    return this.patch.getData()['server-info']
   }
 
   private loadReleaseNotes(
@@ -213,15 +231,15 @@ export class MarketplaceService extends AbstractMarketplaceService {
     )
   }
 
-  private onPackages(name: string) {
-    const { marketplace } = this.patch.getData().ui
+  private onPackages(data?: UIMarketplaceData) {
+    const { name } = this.toMarketplace(data)
 
-    if (!marketplace?.['selected-id']) {
+    if (!data?.['selected-id']) {
       return
     }
 
-    const selectedId = marketplace['selected-id']
-    const knownHosts = marketplace['known-hosts']
+    const selectedId = data['selected-id']
+    const knownHosts = data['known-hosts']
 
     if (knownHosts[selectedId].name !== name) {
       this.api.setDbValue({
@@ -229,6 +247,12 @@ export class MarketplaceService extends AbstractMarketplaceService {
         value: name,
       })
     }
+  }
+
+  private toMarketplace(marketplace?: UIMarketplaceData): Marketplace {
+    return marketplace?.['selected-id']
+      ? marketplace['known-hosts'][marketplace['selected-id']]
+      : this.config.marketplace
   }
 
   private findPackage(
