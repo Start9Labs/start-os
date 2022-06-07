@@ -6,10 +6,10 @@ use std::str::FromStr;
 use std::task::{Context, Poll};
 
 use color_eyre::eyre::eyre;
-use digest::Output;
+use digest_old::Output;
 use ed25519_dalek::PublicKey;
 use futures::TryStreamExt;
-use sha2::{Digest, Sha512};
+use sha2_old::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf, Take};
 use tracing::instrument;

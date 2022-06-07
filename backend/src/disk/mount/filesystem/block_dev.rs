@@ -3,7 +3,7 @@ use std::path::Path;
 
 use async_trait::async_trait;
 use digest::generic_array::GenericArray;
-use digest::Digest;
+use digest::{Digest, OutputSizeUser};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
@@ -45,7 +45,9 @@ impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for BlockDev<LogicalName
     ) -> Result<(), Error> {
         mount(self.logicalname.as_ref(), mountpoint, mount_type).await
     }
-    async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
+    async fn source_hash(
+        &self,
+    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
         let mut sha = Sha256::new();
         sha.update("BlockDev");
         sha.update(

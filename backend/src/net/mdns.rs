@@ -94,12 +94,7 @@ impl MdnsControllerInner {
                 std::ptr::null::<libc::c_char>(),
             );
             if res < avahi_sys::AVAHI_OK {
-                let e_str = avahi_strerror(res);
-                tracing::error!(
-                    "Could not add service to Avahi entry group: {:?}",
-                    std::ffi::CStr::from_ptr(e_str)
-                );
-                avahi_free(e_str as *mut c_void);
+                log_str_error("add service to Avahi entry group", res);
                 panic!("Failed to load Avahi services");
             }
             tracing::info!(
@@ -129,12 +124,7 @@ impl MdnsControllerInner {
                     self.hostname.len(),
                 );
                 if res < avahi_sys::AVAHI_OK {
-                    let e_str = avahi_strerror(res);
-                    tracing::error!(
-                        "Could not add CNAME record to Avahi entry group: {:?}",
-                        std::ffi::CStr::from_ptr(e_str)
-                    );
-                    avahi_free(e_str as *mut c_void);
+                    log_str_error("add CNAME record to Avahi entry group", res);
                     panic!("Failed to load Avahi services");
                 }
                 tracing::info!("Published {:?}", lan_address_ptr);
@@ -156,12 +146,7 @@ impl MdnsControllerInner {
                 err_c,
             );
             if avahi_client == std::ptr::null_mut::<AvahiClient>() {
-                let e_str = avahi_strerror(*box_err);
-                tracing::error!(
-                    "Could not create avahi client: {:?}",
-                    std::ffi::CStr::from_ptr(e_str)
-                );
-                avahi_free(e_str as *mut c_void);
+                log_str_error("create Avahi client", *box_err);
                 panic!("Failed to create Avahi Client");
             }
             let group = avahi_sys::avahi_entry_group_new(
@@ -170,12 +155,7 @@ impl MdnsControllerInner {
                 std::ptr::null_mut(),
             );
             if group == std::ptr::null_mut() {
-                let e_str = avahi_strerror(avahi_client_errno(avahi_client));
-                tracing::error!(
-                    "Could not create avahi entry group: {:?}",
-                    std::ffi::CStr::from_ptr(e_str)
-                );
-                avahi_free(e_str as *mut c_void);
+                log_str_error("create Avahi entry group", avahi_client_errno(avahi_client));
                 panic!("Failed to create Avahi Entry Group");
             }
             let mut hostname_buf = vec![0];
@@ -199,12 +179,7 @@ impl MdnsControllerInner {
             res.load_services();
             let commit_err = avahi_entry_group_commit(res.entry_group);
             if commit_err < avahi_sys::AVAHI_OK {
-                let e_str = avahi_strerror(commit_err);
-                tracing::error!(
-                    "Could not reset Avahi entry group: {:?}",
-                    std::ffi::CStr::from_ptr(e_str)
-                );
-                avahi_free(e_str as *mut c_void);
+                log_str_error("reset Avahi entry group", commit_err);
                 panic!("Failed to load Avahi services: reset");
             }
             res
@@ -215,23 +190,13 @@ impl MdnsControllerInner {
             let mut res;
             res = avahi_entry_group_reset(self.entry_group);
             if res < avahi_sys::AVAHI_OK {
-                let e_str = avahi_strerror(res);
-                tracing::error!(
-                    "Could not reset Avahi entry group: {:?}",
-                    std::ffi::CStr::from_ptr(e_str)
-                );
-                avahi_free(e_str as *mut c_void);
+                log_str_error("reset Avahi entry group", res);
                 panic!("Failed to load Avahi services: reset");
             }
             self.load_services();
             res = avahi_entry_group_commit(self.entry_group);
             if res < avahi_sys::AVAHI_OK {
-                let e_str = avahi_strerror(res);
-                tracing::error!(
-                    "Could not commit Avahi entry group: {:?}",
-                    std::ffi::CStr::from_ptr(e_str)
-                );
-                avahi_free(e_str as *mut c_void);
+                log_str_error("commit Avahi entry group", res);
                 panic!("Failed to load Avahi services: commit");
             }
         }
@@ -261,6 +226,18 @@ impl Drop for MdnsControllerInner {
             avahi_free(self.hostname_raw as *mut c_void);
             avahi_entry_group_free(self.entry_group);
         }
+    }
+}
+
+fn log_str_error(action: &str, e: i32) {
+    unsafe {
+        let e_str = avahi_strerror(e);
+        tracing::error!(
+            "Could not {}: {:?}",
+            action,
+            std::ffi::CStr::from_ptr(e_str)
+        );
+        avahi_free(e_str as *mut c_void);
     }
 }
 

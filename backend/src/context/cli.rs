@@ -15,6 +15,7 @@ use rpc_toolkit::Context;
 use serde::Deserialize;
 use tracing::instrument;
 
+use crate::util::config::{load_config_from_paths, local_config_path};
 use crate::ResultExt;
 
 #[derive(Debug, Default, Deserialize)]
@@ -60,16 +61,16 @@ impl CliContext {
     /// BLOCKING
     #[instrument(skip(matches))]
     pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
-        let cfg_path = Path::new(matches.value_of("config").unwrap_or(crate::CONFIG_PATH));
-        let base = if cfg_path.exists() {
-            serde_yaml::from_reader(
-                File::open(cfg_path)
-                    .with_ctx(|_| (crate::ErrorKind::Filesystem, cfg_path.display().to_string()))?,
-            )
-            .with_kind(crate::ErrorKind::Deserialization)?
-        } else {
-            CliContextConfig::default()
-        };
+        let local_config_path = local_config_path();
+        let base: CliContextConfig = load_config_from_paths(
+            matches
+                .values_of("config")
+                .into_iter()
+                .flatten()
+                .map(|p| Path::new(p))
+                .chain(local_config_path.as_deref().into_iter())
+                .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
+        )?;
         let mut url = if let Some(host) = matches.value_of("host") {
             host.parse()?
         } else if let Some(host) = base.host {
@@ -88,7 +89,9 @@ impl CliContext {
         };
 
         let cookie_path = base.cookie_path.unwrap_or_else(|| {
-            cfg_path
+            local_config_path
+                .as_deref()
+                .unwrap_or_else(|| Path::new(crate::util::config::CONFIG_PATH))
                 .parent()
                 .unwrap_or(Path::new("/"))
                 .join(".cookies.json")

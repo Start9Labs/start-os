@@ -313,8 +313,8 @@ impl DockerProcedure {
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Some(format) = io_format {
-                let buffer = max_by_lines(output, None).await?;
-                return Ok::<Value, Error>(match format.from_slice(buffer.as_bytes()) {
+                let buffer = max_buffer(output, None).await?;
+                return Ok::<Value, Error>(match format.from_reader(&*buffer) {
                     Ok(a) => a,
                     Err(e) => {
                         tracing::warn!(
@@ -507,11 +507,7 @@ mod tests {
     const CAPACITY_IN: usize = 7;
     #[test]
     fn default_capacity_is_set() {
-        let ring: RingVec<usize> = RingVec::new(CAPACITY_IN);
         assert_eq!(CAPACITY_IN, ring.value.capacity());
-        assert_eq!(0, ring.value.len());
-    }
-    #[test]
     fn capacity_can_not_be_exceeded() {
         let mut ring = RingVec::new(CAPACITY_IN);
         for i in 1..100usize {

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use async_trait::async_trait;
 use digest::generic_array::GenericArray;
-use digest::Digest;
+use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 
 use super::{FileSystem, MountType, ReadOnly};
@@ -41,7 +41,9 @@ impl<S: AsRef<str> + Send + Sync> FileSystem for Label<S> {
     ) -> Result<(), Error> {
         mount_label(self.label.as_ref(), mountpoint, mount_type).await
     }
-    async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
+    async fn source_hash(
+        &self,
+    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
         let mut sha = Sha256::new();
         sha.update("Label");
         sha.update(self.label.as_ref().as_bytes());
