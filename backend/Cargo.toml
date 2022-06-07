@@ -53,21 +53,25 @@ avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", version = "0.10.0
 ], optional = true }
 base32 = "0.4.0"
 base64 = "0.13.0"
+base64ct = "1.5.0"
 basic-cookies = "0.1.4"
 bollard = "0.11.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "2.33"
 color-eyre = "0.5"
 cookie_store = "0.15.0"
-digest = "0.9.0"
+digest = "0.10.3"
+digest-old = { package = "digest", version = "0.9.0" }
 divrem = "1.0.0"
+ed25519 = { version = "1.5.2", features = ["pkcs8", "pem", "alloc"] }
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
 emver = { version = "0.1.6", features = ["serde"] }
 fd-lock-rs = "0.1.3"
 futures = "0.3.17"
 git-version = "0.3.5"
+helpers = { path = "../libs/helpers" }
 hex = "0.4.3"
-hmac = "0.11.0"
+hmac = "0.12.1"
 http = "0.2.5"
 hyper = "0.14.13"
 hyper-ws-listener = { git = "https://github.com/Start9Labs/hyper-ws-listener.git", branch = "main" }
@@ -75,24 +79,24 @@ imbl = "1.0.1"
 indexmap = { version = "1.8.1", features = ["serde"] }
 isocountry = "0.3.2"
 itertools = "0.10.1"
+js_engine = { path = '../libs/js_engine', optional = true }
 jsonpath_lib = "0.3.0"
 lazy_static = "1.4"
 libc = "0.2.103"
 log = "0.4.14"
+models = { version = "*", path = "../libs/models" }
 nix = "0.23.0"
 nom = "7.0.0"
-helpers = {path = "../libs/helpers"}
 num = "0.4.0"
 num_enum = "0.5.4"
-models = {version = "*", path = "../libs/models"}
-js_engine = {path = '../libs/js_engine', optional = true}
 openssh-keys = "0.5.0"
 openssl = { version = "0.10.36", features = ["vendored"] }
 patch-db = { version = "*", path = "../patch-db/patch-db", features = [
   "trace",
 ] }
-pbkdf2 = "0.9.0"
+pbkdf2 = "0.11.0"
 pin-project = "1.0.8"
+pkcs8 = { version = "0.9.0", features = ["std"] }
 platforms = "1.1.0"
 prettytable-rs = "0.8.0"
 proptest = "1.0.0"
@@ -110,7 +114,8 @@ serde_cbor = { package = "ciborium", version = "0.2.0" }
 serde_json = "1.0.68"
 serde_toml = { package = "toml", version = "0.5.8" }
 serde_yaml = "0.8.21"
-sha2 = "0.9.8"
+sha2 = "0.10.2"
+sha2-old = { package = "sha2", version = "0.9.8" }
 simple-logging = "2.0"
 sqlx = { version = "0.5.11", features = [
   "chrono",

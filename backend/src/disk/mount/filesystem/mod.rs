@@ -2,7 +2,7 @@ use std::path::Path;
 
 use async_trait::async_trait;
 use digest::generic_array::GenericArray;
-use digest::Digest;
+use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 
 use crate::Error;
@@ -27,5 +27,7 @@ pub trait FileSystem {
         mountpoint: P,
         mount_type: MountType,
     ) -> Result<(), Error>;
-    async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error>;
+    async fn source_hash(
+        &self,
+    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error>;
 }

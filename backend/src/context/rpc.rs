@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
-use patch_db::{json_ptr::JsonPointer, LockReceipt};
-use patch_db::{DbHandle, LockType, PatchDb, Revision};
+use patch_db::json_ptr::JsonPointer;
+use patch_db::{DbHandle, LockReceipt, LockType, PatchDb, Revision};
 use reqwest::Url;
 use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
@@ -20,9 +20,10 @@ use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
+use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::hostname::{derive_hostname, derive_id, get_product_key};
-use crate::install::cleanup::{cleanup_failed, uninstall};
+use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::tor::os_key;
@@ -34,10 +35,6 @@ use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::io::from_yaml_async_reader;
 use crate::util::{AsyncFileExt, Invoke};
-use crate::{
-    core::rpc_continuations::{RequestGuid, RpcContinuation},
-    install::cleanup::CleanupFailedReceipts,
-};
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -57,7 +54,7 @@ impl RpcContextConfig {
         let cfg_path = path
             .as_ref()
             .map(|p| p.as_ref())
-            .unwrap_or(Path::new(crate::CONFIG_PATH));
+            .unwrap_or(Path::new(crate::util::config::CONFIG_PATH));
         if let Some(f) = File::maybe_open(cfg_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, cfg_path.display().to_string()))?

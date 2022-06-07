@@ -10,22 +10,21 @@ use std::task::{Context, Poll};
 use async_trait::async_trait;
 use clap::ArgMatches;
 use color_eyre::eyre::{self, eyre};
-use digest::Digest;
 use fd_lock_rs::FdLock;
 use futures::future::BoxFuture;
 use futures::FutureExt;
+pub use helpers::NonDetachingJoinHandle;
 use lazy_static::lazy_static;
+pub use models::Version;
 use pin_project::pin_project;
+use sha2_old::Digest;
 use tokio::fs::File;
 use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
 
 use crate::shutdown::Shutdown;
 use crate::{Error, ResultExt as _};
-
-
-pub use helpers::NonDetachingJoinHandle;
-pub use models::Version;
+pub mod config;
 pub mod io;
 pub mod logger;
 pub mod serde;
@@ -250,7 +249,6 @@ where
         IntoIterator::into_iter(self)
     }
 }
-
 
 pub struct GeneralGuard<F: FnOnce() -> T, T = ()>(Option<F>);
 impl<F: FnOnce() -> T, T> GeneralGuard<F, T> {

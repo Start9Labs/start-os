@@ -31,7 +31,7 @@ pub enum ErrorKind {
     InvalidOnionAddress = 22,
     Pack = 23,
     ValidateS9pk = 24,
-    DiskCorrupted = 25,
+    DiskCorrupted = 25, // Remove
     Tor = 26,
     ConfigGen = 27,
     ParseNumber = 28,
@@ -66,6 +66,7 @@ pub enum ErrorKind {
     ProductKeyMismatch = 57,
     LanPortConflict = 58,
     Javascript = 59,
+    Pem = 60,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -128,8 +129,9 @@ impl ErrorKind {
             Incoherent => "Incoherent",
             InvalidBackupTargetId => "Invalid Backup Target ID",
             ProductKeyMismatch => "Incompatible Product Keys",
-            LanPortConflict => "Incompatible LAN port configuration",
-            Javascript => "Javascript engine error",
+            LanPortConflict => "Incompatible LAN Port Configuration",
+            Javascript => "Javascript Engine Error",
+            Pem => "PEM Encoding Error",
         }
     }
 }

@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
-use digest::Digest;
+use digest::{Digest, OutputSizeUser};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -119,7 +119,9 @@ impl FileSystem for BackupTargetFS {
             BackupTargetFS::Cifs(a) => a.mount(mountpoint, mount_type).await,
         }
     }
-    async fn source_hash(&self) -> Result<GenericArray<u8, <Sha256 as Digest>::OutputSize>, Error> {
+    async fn source_hash(
+        &self,
+    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
         match self {
             BackupTargetFS::Disk(a) => a.source_hash().await,
             BackupTargetFS::Cifs(a) => a.source_hash().await,

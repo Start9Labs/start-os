@@ -1,5 +1,4 @@
-use digest::Digest;
-use sha2::Sha512;
+use sha2_old::{Digest, Sha512};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, SeekFrom};
 use tracing::instrument;
 use typed_builder::TypedBuilder;
