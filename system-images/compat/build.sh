@@ -8,7 +8,12 @@ if [ "$0" != "./build.sh" ]; then
 	exit 1
 fi
 
-alias 'rust-musl-builder'='docker run --rm -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-musl-cross:aarch64-musl'
+USE_TTY=
+if tty -s; then
+	USE_TTY="-it"
+fi
+
+alias 'rust-musl-builder'='docker run $USE_TTY --rm -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-musl-cross:aarch64-musl'
 
 cd ../../..
 rust-musl-builder sh -c "(cd embassy-os/system-images/compat && cargo +beta build --release --target=aarch64-unknown-linux-musl --no-default-features)"

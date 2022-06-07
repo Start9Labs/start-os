@@ -8,7 +8,12 @@ if [ "$0" != "./build-portable.sh" ]; then
 	exit 1
 fi
 
-alias 'rust-musl-builder'='docker run --rm -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-musl-cross:x86_64-musl'
+USE_TTY=
+if tty -s; then
+	USE_TTY="-it"
+fi
+
+alias 'rust-musl-builder'='docker run $USE_TTY --rm -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-musl-cross:x86_64-musl'
 
 cd ..
 rust-musl-builder sh -c "(cd backend && cargo +beta build --release --target=x86_64-unknown-linux-musl --no-default-features)"
