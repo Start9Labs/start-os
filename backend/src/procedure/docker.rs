@@ -188,8 +188,8 @@ impl DockerProcedure {
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Some(format) = io_format {
-                let buffer = max_buffer(output, None).await?;
-                return Ok::<Value, Error>(match format.from_reader(&*buffer) {
+                let buffer = max_by_lines(output, None).await?;
+                return Ok::<Value, Error>(match format.from_slice(buffer.as_bytes()) {
                     Ok(a) => a,
                     Err(e) => {
                         tracing::warn!(
@@ -197,9 +197,7 @@ impl DockerProcedure {
                             format,
                             e
                         );
-                        String::from_utf8(buffer)
-                            .with_kind(crate::ErrorKind::Deserialization)?
-                            .into()
+                        Value::String(buffer)
                     }
                 });
             }
@@ -210,7 +208,7 @@ impl DockerProcedure {
             }
 
             let joined_output = lines.join("\n");
-            Ok(joined_output.into())
+            Ok(Value::String(joined_output))
         }));
         let err_output = BufReader::new(
             handle
@@ -314,8 +312,8 @@ impl DockerProcedure {
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Some(format) = io_format {
-                let buffer = max_buffer(output, None).await?;
-                return Ok::<Value, Error>(match format.from_reader(&*buffer) {
+                let buffer = max_by_lines(output, None).await?;
+                return Ok::<Value, Error>(match format.from_slice(&buffer.as_bytes()) {
                     Ok(a) => a,
                     Err(e) => {
                         tracing::warn!(
@@ -323,9 +321,7 @@ impl DockerProcedure {
                             format,
                             e
                         );
-                        String::from_utf8(buffer)
-                            .with_kind(crate::ErrorKind::Deserialization)?
-                            .into()
+                        Value::String(buffer)
                     }
                 });
             }
@@ -336,7 +332,7 @@ impl DockerProcedure {
             }
 
             let joined_output = lines.join("\n");
-            Ok(joined_output.into())
+            Ok(Value::String(joined_output))
         }));
 
         let exit_status = handle.wait().await.with_kind(crate::ErrorKind::Docker)?;
@@ -479,27 +475,28 @@ async fn buf_reader_to_lines(
     Ok(output)
 }
 
-async fn max_buffer(
+async fn max_by_lines(
     reader: impl AsyncBufRead + Unpin,
     max_items: impl Into<Option<usize>>,
-) -> Result<Vec<u8>, Error> {
-    let mut buffer = Vec::new();
+) -> Result<String, Error> {
+    let mut answer = String::new();
 
     let mut lines = reader.lines();
     let max_items = max_items.into().unwrap_or(10_000_000);
     while let Some(line) = lines.next_line().await? {
-        let mut line = line.into_bytes();
-        buffer.append(&mut line);
-        if buffer.len() >= max_items {
+        if !answer.is_empty() {
+            answer.push('\n');
+        }
+        answer.push_str(&line);
+        if answer.len() >= max_items {
             return Err(Error::new(
                 color_eyre::eyre::eyre!("Reading the buffer exceeding limits of {}", max_items),
                 crate::ErrorKind::Unknown,
             ));
         }
     }
-    Ok(buffer)
+    Ok(answer)
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
