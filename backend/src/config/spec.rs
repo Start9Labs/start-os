@@ -15,6 +15,7 @@ use jsonpath_lib::Compiled as CompiledJsonPath;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use rand::{CryptoRng, Rng};
 use regex::Regex;
+use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Number, Value};
 use sqlx::SqlitePool;
@@ -1167,17 +1168,86 @@ pub struct Pattern {
     pub pattern_description: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ValueSpecString {
-    #[serde(flatten)]
     pub pattern: Option<Pattern>,
-    #[serde(default)]
     pub copyable: bool,
-    #[serde(default)]
     pub masked: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
     pub placeholder: Option<String>,
+}
+impl<'de> Deserialize<'de> for ValueSpecString {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<ValueSpecString, D::Error> {
+        struct ValueSpecStringVisitor;
+        impl<'de> Visitor<'de> for ValueSpecStringVisitor {
+            type Value = ValueSpecString;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct ValueSpecString")
+            }
+            fn visit_map<V: MapAccess<'de>>(self, mut map: V) -> Result<ValueSpecString, V::Error> {
+                let mut pattern = None;
+                let mut pattern_description = None;
+                let mut copyable = false;
+                let mut masked = false;
+                let mut placeholder = None;
+                while let Some::<String>(key) = map.next_key()? {
+                    if &key == "pattern" {
+                        if pattern.is_some() {
+                            return Err(serde::de::Error::duplicate_field("pattern"));
+                        } else {
+                            pattern = Some(
+                                Regex::new(&map.next_value::<String>()?)
+                                    .map_err(serde::de::Error::custom)?,
+                            );
+                        }
+                    } else if &key == "pattern-description" {
+                        if pattern_description.is_some() {
+                            return Err(serde::de::Error::duplicate_field("pattern-description"));
+                        } else {
+                            pattern_description = Some(map.next_value()?);
+                        }
+                    } else if &key == "copyable" {
+                        copyable = map.next_value()?;
+                    } else if &key == "masked" {
+                        masked = map.next_value()?;
+                    } else if &key == "placeholder" {
+                        if placeholder.is_some() {
+                            return Err(serde::de::Error::duplicate_field("pattern"));
+                        } else {
+                            placeholder = Some(map.next_value()?);
+                        }
+                    }
+                }
+                let regex = match (pattern, pattern_description) {
+                    (None, None) => None,
+                    (Some(p), Some(d)) => Some(Pattern {
+                        pattern: p,
+                        pattern_description: d,
+                    }),
+                    (Some(_), None) => {
+                        return Err(serde::de::Error::missing_field("pattern-description"));
+                    }
+                    (None, Some(_)) => {
+                        return Err(serde::de::Error::missing_field("pattern"));
+                    }
+                };
+                Ok(ValueSpecString {
+                    pattern: regex,
+                    copyable,
+                    masked,
+                    placeholder,
+                })
+            }
+        }
+        const FIELDS: &'static [&'static str] = &[
+            "pattern",
+            "pattern-description",
+            "copyable",
+            "masked",
+            "placeholder",
+        ];
+        deserializer.deserialize_struct("ValueSpecString", FIELDS, ValueSpecStringVisitor)
+    }
 }
 #[async_trait]
 impl ValueSpec for ValueSpecString {
@@ -2062,4 +2132,34 @@ impl ValueSpec for SystemPointerSpec {
     fn eq(&self, _lhs: &Value, _rhs: &Value) -> bool {
         false
     }
+}
+
+#[test]
+fn invalid_regex_produces_error() {
+    assert!(
+        serde_yaml::from_reader::<_, ConfigSpec>(std::io::Cursor::new(include_bytes!(
+            "../../test/config-spec/lnd-invalid-regex.yaml"
+        )))
+        .is_err()
+    )
+}
+
+#[test]
+fn missing_pattern_description_produces_error() {
+    assert!(
+        serde_yaml::from_reader::<_, ConfigSpec>(std::io::Cursor::new(include_bytes!(
+            "../../test/config-spec/lnd-missing-pattern-description.yaml"
+        )))
+        .is_err()
+    )
+}
+
+#[test]
+fn missing_pattern_produces_error() {
+    assert!(
+        serde_yaml::from_reader::<_, ConfigSpec>(std::io::Cursor::new(include_bytes!(
+            "../../test/config-spec/lnd-missing-pattern.yaml"
+        )))
+        .is_err()
+    )
 }
