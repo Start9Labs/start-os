@@ -115,6 +115,7 @@ async fn normalize_to_js(
         bail!("Expecting that the module specifier is a file path or url");
     }?;
     Ok(if should_transpile {
+        println!("Transpiling {}", module_specifier);
         let parsed = deno_ast::parse_module(ParseParams {
             specifier: module_specifier.to_string(),
             text_info: SourceTextInfo::from_string(code_raw),
