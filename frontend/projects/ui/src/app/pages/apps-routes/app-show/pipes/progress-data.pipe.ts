@@ -4,9 +4,9 @@ import { ProgressData } from 'src/app/types/progress-data'
 import { packageLoadingProgress } from 'src/app/util/package-loading-progress'
 
 @Pipe({
-  name: 'installState',
+  name: 'progressData',
 })
-export class InstallStatePipe implements PipeTransform {
+export class ProgressDataPipe implements PipeTransform {
   transform(pkg: PackageDataEntry): ProgressData | null {
     return packageLoadingProgress(pkg['install-progress'])
   }

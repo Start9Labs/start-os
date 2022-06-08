@@ -6,10 +6,10 @@ import {
 } from '@start9labs/marketplace'
 import { pauseFor } from '@start9labs/shared'
 
-import { PackageState } from 'src/app/types/package-state'
 import {
   Manifest,
   PackageDataEntry,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'

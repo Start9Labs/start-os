@@ -21,7 +21,7 @@
   </div>
   <div *ngSwitchDefault>
     <ion-text
-      *ngIf="localPkg['install-progress'] | installProgress as progress"
+      *ngIf="localPkg['install-progress'] | installProgressDisplay as progress"
       color="primary"
     >
       Installing
