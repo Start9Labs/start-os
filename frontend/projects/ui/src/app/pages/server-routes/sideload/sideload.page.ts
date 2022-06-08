@@ -4,6 +4,10 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Manifest } from 'src/app/services/patch-db/data-model'
 import { BTC_ICON } from 'src/app/services/api/api-icons'
 import { ConfigService } from 'src/app/services/config.service'
+import * as cbor from 'cbor-web'
+interface Positions {
+  [key: string]: [bigint, bigint] // [position, length]
+}
 
 const MAGIC = new Uint8Array([59, 59])
 const VERSION = new Uint8Array([1])
@@ -52,17 +56,104 @@ export class SideloadPage {
     if (compare(magic, MAGIC) && compare(version, VERSION)) {
       this.valid = true
       this.message = 'A valid s9pk has been detected!'
-      await parseS9pk(this.toUpload.file)
+      await this.parseS9pk(this.toUpload.file)
     } else {
       this.valid = false
       this.message = 'Invalid s9pk detected :('
     }
   }
+
+  clearToUpload() {
+    this.toUpload.file = null
+    this.toUpload.manifest = null
+    this.toUpload.icon = null
+  }
+
+  async handleUpload() {
+    console.log('uploading')
+  }
+
+  async parseS9pk(file: Blob) {
+    const positions: Positions = {}
+    // magic=2bytes, version=1bytes, pubkey=32bytes, signature=64bytes, toc_length=4bytes = 103byte is starting point
+    let start = 103
+    let end = start + 1 // 104
+    await getPositions(start, end, file, positions)
+    console.log('POSITIONS', positions)
+    const tocLength = new Uint8Array(
+      await readBlobToArrayBuffer(this.toUpload.file.slice(98, 102)),
+    )[0]
+    console.log('TOC_LEN:', tocLength)
+
+    await this.getManifest(positions, file)
+    await this.getIcon(positions, file)
+  }
+
+  async getManifest(positions: Positions, file: Blob) {
+    const data = await readBlobToArrayBuffer(
+      file.slice(
+        Number(positions['manifest'][0]),
+        Number(positions['manifest'][0]) + Number(positions['manifest'][1]),
+      ),
+    )
+    const decoded = await cbor.decodeAll(data, (error, obj) => {
+      console.log('OBJ: ', obj)
+      if (error) throw new Error(error)
+      return obj[0]
+    })
+    this.toUpload.manifest = decoded[0]
+  }
+
+  async getIcon(positions: Positions, file: Blob) {
+    const data = file.slice(
+      Number(positions['icon'][0]),
+      Number(positions['icon'][0]) + Number(positions['icon'][1]),
+    )
+
+    this.toUpload.icon = await readBlobAsDataURL(data)
+  }
 }
 
-async function readBlobAsText(f: Blob): Promise<string> {
+async function getPositions(
+  initialStart: number,
+  initialEnd: number,
+  file: Blob,
+  positions: Positions,
+) {
+  let start = initialStart
+  let end = initialEnd
+  const titleLength = new Uint8Array(
+    await readBlobToArrayBuffer(file.slice(start, end)),
+  )[0]
+  console.log('TITLE_LENGTH:', titleLength)
+  const tocTitle = await file.slice(end, end + titleLength).text()
+  console.log('TOC_TITLE:', tocTitle)
+
+  start = end + titleLength
+  end = start + 8
+  const chapterPosition = new DataView(
+    await readBlobToArrayBuffer(file.slice(start, end)),
+  ).getBigUint64(0, false)
+  console.log('CHAPTER_POSITION:', chapterPosition)
+  start = end
+  end = start + 8
+  const chapterLength = new DataView(
+    await readBlobToArrayBuffer(file.slice(start, end)),
+  ).getBigUint64(0, false)
+  console.log('CHAPTER_LENGTH:', chapterLength)
+
+  positions[tocTitle] = [chapterPosition, chapterLength]
+  start = end
+  end = start + 1
+  // 254 is length of table of contents
+  if (end <= 254) {
+    await getPositions(start, end, file, positions)
+  }
+}
+
+async function readBlobAsDataURL(f: Blob): Promise<string> {
   const reader = new FileReader()
-  reader.readAsText(f, 'utf8')
+  reader.readAsDataURL(f)
   return new Promise(resolve => {
     reader.onloadend = () => {
       resolve(reader.result as string)
@@ -85,47 +176,4 @@ function compare(a, b) {
     if (a[i] !== b[i]) return false
   }
   return true
-}
-
-async function parseS9pk(s) {
-  // magic=2bytes, version=1bytes, pubkey=32bytes, signature=64bytes, toc_length=4bytes = 103
-  //s.slice(99, 102) = length of toc
-  const toc1 = new Uint8Array(await readBlobToArrayBuffer(s.slice(103, 104)))[0]
-  console.log('TOC1:' + toc1)
-  const toc1_name = await s.slice(104, 104 + toc1).text() // 112
-  console.log('TOC1_NAME:', toc1_name)
-  const toc1_position = new DataView(
-    await readBlobToArrayBuffer(s.slice(104 + toc1, 104 + toc1 + 8)),
-  )
-  const toc1_pos = toc1_position.getBigUint64(0, false)
-  console.log('TOC1_POS:', toc1_pos)
-  const toc1_length = new DataView(
-    await readBlobToArrayBuffer(s.slice(104 + toc1 + 8, 104 + toc1 + 8 + 8)),
-  )
-  const toc1_len = toc1_length.getBigUint64(0, false)
-  console.log('TOC1_LEN:', toc1_len)
-  // TODO convert bigint into regular number
-  const m = await readBlobToArrayBuffer(
-    s.slice(toc1_pos.toString(10), (toc1_pos + toc1_len).toString(10)),
-  )
-  const cbor = require('cbor-web')
-  cbor.decodeAll(m, (error, obj) => {
-    // If there was an error, error != null
-    // obj is the unpacked object
-    console.log('TOC_ERROR: ' + error)
-    console.log('TOC_OBJ: ', obj)
-  })
-}
-
-function getManifest(): Manifest {
-  // get position and length
-  // offset from position and read to length
-
-  // const manfiestIndex = f.slice(5, 6)
-  // const manfiest = f.slice(7, 14)
-  throw new Error('Function not implemented.')
-}
-
-function getIcon(): string {
-  throw new Error('Function not implemented.')
 }
