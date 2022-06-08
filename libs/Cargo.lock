@@ -2817,6 +2817,7 @@ dependencies = [
  "swc_macros_common",
  "swc_visit",
  "swc_visit_macros",
+ "tokio",
 ]
 
 [[package]]

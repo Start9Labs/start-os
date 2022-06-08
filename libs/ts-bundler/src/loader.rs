@@ -1,22 +1,17 @@
 use std::{
     path::{Path, PathBuf},
-    pin::Pin,
     sync::Arc,
 };
 
 use deno_ast::MediaType;
 use deno_ast::{ParseParams, SourceTextInfo};
-use deno_core::resolve_import;
-use deno_core::ModuleLoader;
-use deno_core::ModuleSource;
-use deno_core::ModuleSourceFuture;
+use deno_core::futures::TryFutureExt;
 use deno_core::ModuleSpecifier;
-use deno_core::ModuleType;
 use deno_core::{
-    anyhow::{anyhow, bail},
+    anyhow::{bail, Error},
     futures::FutureExt,
+    url,
 };
-use deno_core::{error::AnyError, futures::TryFutureExt};
 use deno_emit::{LoadFuture, Loader};
 use deno_graph::source::LoadResponse;
 
@@ -68,80 +63,10 @@ impl Loader for ModsLoader {
 
         let project_root = self.project_root.clone();
         let module_specifier = module_specifier.clone();
-        println!("BLUJ {:?} {:?}", project_root, module_specifier);
         async move {
-            let mut code;
-            let should_transpile: bool;
-            let module_type: ModuleType;
-            let media_type: MediaType;
-            if let Ok(path) = module_specifier.to_file_path() {
-                media_type = MediaType::from(&path);
-                (module_type, should_transpile) = match MediaType::from(&path) {
-                    MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => {
-                        (ModuleType::JavaScript, false)
-                    }
-                    MediaType::Jsx => (ModuleType::JavaScript, true),
-                    MediaType::TypeScript
-                    | MediaType::Mts
-                    | MediaType::Cts
-                    | MediaType::Dts
-                    | MediaType::Dmts
-                    | MediaType::Dcts
-                    | MediaType::Tsx => (ModuleType::JavaScript, true),
-                    MediaType::Json => (ModuleType::Json, false),
-                    _ => bail!("Unknown extension {:?}", path.extension()),
-                };
-                // TODO make this better
-                let path = format!("./{}", path.to_string_lossy());
-                let expected_path = project_root.join(&path);
-
-                println!("BLUJ expected_path {:?} ", expected_path);
-                code = std::fs::read_to_string(&project_root.join(&path))?;
-            } else if let Ok(code_in) = reqwest::get(module_specifier.clone())
-                .and_then(|r| async move { Ok(r.text().await?) })
-                .await
-            {
-                (module_type, should_transpile) = match MediaType::from(&module_specifier) {
-                    MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => {
-                        (ModuleType::JavaScript, false)
-                    }
-                    MediaType::Jsx => (ModuleType::JavaScript, true),
-                    MediaType::TypeScript
-                    | MediaType::Mts
-                    | MediaType::Cts
-                    | MediaType::Dts
-                    | MediaType::Dmts
-                    | MediaType::Dcts
-                    | MediaType::Tsx => (ModuleType::JavaScript, true),
-                    MediaType::Json => (ModuleType::Json, false),
-                    _ => bail!("Unknown extension {:?}", module_specifier),
-                };
-                media_type = MediaType::from(&module_specifier);
-                code = code_in;
-            } else {
-                bail!("Expecting that the module specifier is a file path or url");
-            }
-
-            code = if should_transpile {
-                let parsed = deno_ast::parse_module(ParseParams {
-                    specifier: module_specifier.to_string(),
-                    text_info: SourceTextInfo::from_string(code),
-                    media_type,
-                    capture_tokens: false,
-                    scope_analysis: false,
-                    maybe_syntax: None,
-                })?;
-                println!("BLUJ successfully parsed");
-                let transpiled = parsed.transpile(&Default::default())?.text;
-                println!("BLUJ successfully transpiled");
-                transpiled
-            } else {
-                println!("BLUJ will not transpile");
-                code
-            };
-            let content: Arc<str> = code.into();
+            let code = normalize_to_js(&project_root, &module_specifier).await?;
             let module = LoadResponse::Module {
-                content,
+                content: code.into(),
                 specifier: module_specifier,
                 maybe_headers: None,
             };
@@ -149,4 +74,58 @@ impl Loader for ModsLoader {
         }
         .boxed_local()
     }
+}
+
+fn requires_transpilation(url: &url::Url) -> bool {
+    match MediaType::from(url) {
+        MediaType::JavaScript
+        | MediaType::Mjs
+        | MediaType::Cjs
+        | MediaType::Json
+        | MediaType::Wasm
+        | MediaType::TsBuildInfo
+        | MediaType::SourceMap
+        | MediaType::Unknown => false,
+        MediaType::Jsx
+        | MediaType::TypeScript
+        | MediaType::Mts
+        | MediaType::Cts
+        | MediaType::Dts
+        | MediaType::Dmts
+        | MediaType::Dcts
+        | MediaType::Tsx => true,
+    }
+}
+
+async fn normalize_to_js(
+    project_root: &Path,
+    module_specifier: &url::Url,
+) -> Result<String, Error> {
+    let media_type = MediaType::from(module_specifier);
+    let should_transpile = requires_transpilation(module_specifier);
+    let code_raw = if let Ok(path) = module_specifier.to_file_path() {
+        let path = tokio::fs::canonicalize(project_root.join(path)).await?;
+        Ok::<_, Error>(std::fs::read_to_string(project_root.join(&path))?)
+    } else if let Ok(code) = reqwest::get(module_specifier.clone())
+        .and_then(|r| async move { Ok(r.text().await?) })
+        .await
+    {
+        Ok(code)
+    } else {
+        bail!("Expecting that the module specifier is a file path or url");
+    }?;
+    Ok(if should_transpile {
+        let parsed = deno_ast::parse_module(ParseParams {
+            specifier: module_specifier.to_string(),
+            text_info: SourceTextInfo::from_string(code_raw),
+            media_type,
+            capture_tokens: false,
+            scope_analysis: false,
+            maybe_syntax: None,
+        })?;
+        let transpiled = parsed.transpile(&Default::default())?.text;
+        transpiled
+    } else {
+        code_raw
+    })
 }

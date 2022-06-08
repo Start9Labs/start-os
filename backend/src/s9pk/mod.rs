@@ -4,7 +4,6 @@ use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use rpc_toolkit::command;
 use serde_json::Value;
-use tokio::io::{AsyncRead, AsyncReadExt};
 use tracing::instrument;
 
 use crate::context::SdkContext;
@@ -61,6 +60,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
 
     let outfile_path = path.join(format!("{}.s9pk", manifest.id));
     let mut outfile = File::create(outfile_path).await?;
+    let key: ed25519_dalek::Keypair = ctx.developer_key()?;
     S9pkPacker::builder()
         .manifest(&manifest)
         .writer(&mut outfile)
@@ -170,7 +170,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
             }
         })
         .build()
-        .pack(&ctx.developer_key()?)
+        .pack(&key)
         .await?;
     outfile.sync_all().await?;
 
