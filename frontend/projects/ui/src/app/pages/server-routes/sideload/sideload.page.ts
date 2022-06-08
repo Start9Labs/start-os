@@ -1,10 +1,15 @@
 import { Component } from '@angular/core'
-import { isPlatform, LoadingController, ToastController } from '@ionic/angular'
+import {
+  isPlatform,
+  LoadingController,
+  NavController,
+  ToastController,
+} from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Manifest } from 'src/app/services/patch-db/data-model'
-import { BTC_ICON } from 'src/app/services/api/api-icons'
 import { ConfigService } from 'src/app/services/config.service'
 import * as cbor from 'cbor-web'
+import { ErrorToastService } from '@start9labs/shared'
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
 }
@@ -35,6 +40,8 @@ export class SideloadPage {
     private readonly loadingCtrl: LoadingController,
     private readonly api: ApiService,
     private readonly toastCtrl: ToastController,
+    private readonly navCtrl: NavController,
+    private readonly errToast: ErrorToastService,
     private readonly config: ConfigService,
   ) {}
 
@@ -70,7 +77,25 @@ export class SideloadPage {
   }
 
   async handleUpload() {
-    console.log('uploading')
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Uploading Package',
+      cssClass: 'loader',
+    })
+    await loader.present()
+    try {
+      const res = await this.api.sideloadPackage({
+        manifest: this.toUpload.manifest,
+        icon: this.toUpload.icon,
+      })
+      // TODO do file upload to /rest/rpc/${guid}
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+      this.clearToUpload()
+      // TODO navigate to service page
+    }
   }
 
   async parseS9pk(file: Blob) {
@@ -80,9 +105,9 @@ export class SideloadPage {
     let end = start + 1 // 104
     await getPositions(start, end, file, positions)
     console.log('POSITIONS', positions)
-    const tocLength = new Uint8Array(
+    const tocLength = new DataView(
       await readBlobToArrayBuffer(this.toUpload.file.slice(98, 102)),
-    )[0]
+    ).getUint32(0, false)
     console.log('TOC_LEN:', tocLength)
 
     await this.getManifest(positions, file)
