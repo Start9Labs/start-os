@@ -1,17 +1,10 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use deno_ast::MediaType;
-use deno_ast::{ParseParams, SourceTextInfo};
-use deno_core::futures::TryFutureExt;
-use deno_core::ModuleSpecifier;
-use deno_core::{
-    anyhow::{bail, Error},
-    futures::FutureExt,
-    url,
-};
+use deno_ast::{MediaType, ParseParams, SourceTextInfo};
+use deno_core::anyhow::{bail, Error};
+use deno_core::futures::{FutureExt, TryFutureExt};
+use deno_core::{url, ModuleSpecifier};
 use deno_emit::{LoadFuture, Loader};
 use deno_graph::source::LoadResponse;
 
@@ -104,7 +97,12 @@ async fn normalize_to_js(
     let media_type = MediaType::from(module_specifier);
     let should_transpile = requires_transpilation(module_specifier);
     let code_raw = if let Ok(path) = module_specifier.to_file_path() {
-        let path = tokio::fs::canonicalize(project_root.join(path)).await?;
+        let rel = if path.is_absolute() {
+            String::from(path.as_path().display().to_string().get(1..).unwrap())
+        } else {
+            path.into_os_string().into_string().unwrap()
+        };
+        let path = tokio::fs::canonicalize(project_root.join(rel)).await?;
         Ok::<_, Error>(std::fs::read_to_string(project_root.join(&path))?)
     } else if let Ok(code) = reqwest::get(module_specifier.clone())
         .and_then(|r| async move { Ok(r.text().await?) })
@@ -129,4 +127,10 @@ async fn normalize_to_js(
     } else {
         code_raw
     })
+}
+
+#[test]
+fn absolute_join_relative() {
+    PathBuf::from("/test/absolute");
+    url::Url::parse("./embassy.ts");
 }

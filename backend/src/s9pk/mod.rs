@@ -152,8 +152,6 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                         use ts_bundler::options::{ EMIT_OPTIONS};
                         use ts_bundler::deno_emit;
                         // typecheck against bootstrap
-                        println!("path = {:?}", path);
-                        println!("script_base_path = {:?}", script_base_path);
                         let mut loader = ModsLoader::from(script_base_path);
                         let code_string = deno_emit::bundle(BOOTSTRAP.parse().unwrap(), &mut loader, None, deno_emit::BundleOptions {
                             bundle_type: deno_emit::BundleType::Module,
