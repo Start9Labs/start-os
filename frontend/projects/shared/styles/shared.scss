@@ -1,5 +1,12 @@
 $wide-modal: 900px;
 
+body {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 ion-input {
   caret-color: gray;
 }
@@ -73,17 +80,17 @@ ion-modal::part(content) {
   }
 
   /* Hide scrollbar for IE, Edge and Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  /* IE and Edge */
+  -ms-overflow-style: none;
+  /* Firefox */
+  scrollbar-width: none;
 }
 
 .divider {
-  background: linear-gradient(
-    90deg,
-    var(--ion-color-light) 0,
-    var(--ion-color-dark) 50%,
-    var(--ion-color-light) 100%
-  );
+  background: linear-gradient(90deg,
+      var(--ion-color-light) 0,
+      var(--ion-color-dark) 50%,
+      var(--ion-color-light) 100%);
   height: 1px;
 }
 
@@ -98,5 +105,5 @@ ion-modal::part(content) {
 }
 
 .montserrat {
-  font-family: 'Montserrat', sans-serif!important;
+  font-family: 'Montserrat', sans-serif !important;
 }
