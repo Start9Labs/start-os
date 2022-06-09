@@ -1,6 +1,6 @@
 import { isEmptyObject } from '@start9labs/shared'
-import { InstallProgress } from 'src/app/types/install-progress'
 import { ProgressData } from 'src/app/types/progress-data'
+import { InstallProgress } from '../services/patch-db/data-model'
 
 export function packageLoadingProgress(
   loadData?: InstallProgress,

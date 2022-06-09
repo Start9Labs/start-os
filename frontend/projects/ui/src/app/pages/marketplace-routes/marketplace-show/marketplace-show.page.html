@@ -3,37 +3,11 @@
 <ion-content class="ion-padding">
   <ng-container *ngIf="pkg$ | async as pkg else loading">
     <ng-container *ngIf="!(pkg | empty)">
-      <marketplace-package [pkg]="pkg">
-        <marketplace-status
-          *ngIf="localPkg$ | async as localPkg"
-          class="status"
-          [localPkg]="localPkg"
-        ></marketplace-status>
-        <marketplace-show-controls
-          position="controls"
-          [pkg]="pkg"
-          [localPkg]="localPkg$ | async"
-        ></marketplace-show-controls>
-        <ion-row *ngIf="localPkg$ | async">
-          <ion-col
-            sizeXl="3"
-            sizeLg="3"
-            sizeMd="3"
-            sizeSm="12"
-            sizeXs="12"
-            class="ion-align-self-center"
-          >
-            <ion-button
-              expand="block"
-              fill="outline"
-              color="primary"
-              [routerLink]="['/services', pkg.manifest.id]"
-            >
-              View Service
-            </ion-button>
-          </ion-col>
-        </ion-row>
-      </marketplace-package>
+      <marketplace-package [pkg]="pkg"></marketplace-package>
+      <marketplace-show-controls
+        [pkg]="pkg"
+        [localPkg]="localPkg$ | async"
+      ></marketplace-show-controls>
 
       <marketplace-show-dependent [pkg]="pkg"></marketplace-show-dependent>
 
