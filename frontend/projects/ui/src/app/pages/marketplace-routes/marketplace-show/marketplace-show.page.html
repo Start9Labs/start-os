@@ -7,7 +7,7 @@
         <marketplace-status
           *ngIf="localPkg$ | async as localPkg"
           class="status"
-          [pkg]="localPkg"
+          [localPkg]="localPkg"
         ></marketplace-status>
         <marketplace-show-controls
           position="controls"
