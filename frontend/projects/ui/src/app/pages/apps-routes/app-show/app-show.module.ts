@@ -20,7 +20,7 @@ import { ToHealthChecksPipe } from './pipes/to-health-checks.pipe'
 import { ToButtonsPipe } from './pipes/to-buttons.pipe'
 import { ToDependenciesPipe } from './pipes/to-dependencies.pipe'
 import { ToStatusPipe } from './pipes/to-status.pipe'
-import { InstallStatePipe } from './pipes/install-state.pipe'
+import { ProgressDataPipe } from './pipes/progress-data.pipe'
 
 const routes: Routes = [
   {
@@ -33,7 +33,7 @@ const routes: Routes = [
   declarations: [
     AppShowPage,
     HealthColorPipe,
-    InstallStatePipe,
+    ProgressDataPipe,
     ToHealthChecksPipe,
     ToButtonsPipe,
     ToDependenciesPipe,
