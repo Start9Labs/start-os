@@ -23,6 +23,7 @@ use crate::ResultExt;
 pub struct CliContextConfig {
     pub bind_rpc: Option<SocketAddr>,
     pub host: Option<Url>,
+    #[serde(default)]
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str_opt")]
     pub proxy: Option<Url>,
     pub cookie_path: Option<PathBuf>,
@@ -151,4 +152,15 @@ impl Context for CliContext {
     fn client(&self) -> &Client {
         &self.0.client
     }
+}
+
+/// When we had an empty proxy the system wasn't working like it used to, which allowed empty proxy
+#[test]
+fn test_cli_proxy_empty() {
+    serde_yaml::from_str::<CliContextConfig>(
+        "
+        bind_rpc:
+    ",
+    )
+    .unwrap();
 }

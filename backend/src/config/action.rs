@@ -108,6 +108,7 @@ impl ConfigActions {
 #[serde(rename_all = "kebab-case")]
 pub struct SetResult {
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str_opt")]
+    #[serde(default)]
     #[serde(serialize_with = "crate::util::serde::serialize_display_opt")]
     pub signal: Option<Signal>,
     pub depends_on: BTreeMap<PackageId, BTreeSet<HealthCheckId>>,
