@@ -19,6 +19,7 @@ pub use js_engine::JsError;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
+#[serde(deny_unknown_fields)]
 enum ErrorValue {
     Error { error: String },
     Value(serde_json::Value),
