@@ -1,8 +1,8 @@
 import { isEmptyObject } from '@start9labs/shared'
-import { PackageState } from 'src/app/types/package-state'
 import {
   PackageDataEntry,
   PackageMainStatus,
+  PackageState,
   Status,
 } from 'src/app/services/patch-db/data-model'
 

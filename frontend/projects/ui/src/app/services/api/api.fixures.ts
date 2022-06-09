@@ -1,10 +1,10 @@
-import { PackageState } from 'src/app/types/package-state'
 import {
   DependencyErrorType,
   DockerIoFormat,
   Manifest,
   PackageDataEntry,
   PackageMainStatus,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import {
   Log,

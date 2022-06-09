@@ -63,7 +63,7 @@ This section enables you to run a local frontend with a remote backend (eg. host
 2. Create a proxy configuration file from the sample:
 
 ```sh
-cp proxy.conf.json.sample proxy.conf.json
+cp proxy.conf-sample.json proxy.conf.json
 ```
 
 3. Change the target address to desired IP address in `proxy.conf.json`
