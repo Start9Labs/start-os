@@ -141,23 +141,25 @@ export class FormObjectComponent {
 
     if (!newItem) return
 
+    const index = arr.length
+
     newItem.markAllAsTouched()
-    arr.insert(0, newItem)
+    arr.insert(index, newItem)
     if (['object', 'union'].includes(listSpec.subtype)) {
       const displayAs = (listSpec.spec as ListValueSpecOf<'object'>)[
         'display-as'
       ]
-      this.objectListDisplay[key].unshift({
+      this.objectListDisplay[key].push({
         height: '0px',
         expanded: true,
         displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',
       })
-
-      pauseFor(200).then(() => {
-        this.objectListDisplay[key][0].height = this.getDocSize(key, 0)
-        this.onExpand.emit()
-      })
     }
+
+    pauseFor(400).then(() => {
+      const element = document.getElementById(this.getElementId(key, index))
+      element?.parentElement?.scrollIntoView({ behavior: 'smooth' })
+    })
   }
 
   toggleExpandObject(key: string) {

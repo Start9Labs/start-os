@@ -7,6 +7,7 @@ const ICONS = [
   'alert-circle-outline',
   'aperture-outline',
   'arrow-back',
+  'arrow-forward',
   'arrow-up',
   'briefcase-outline',
   'bookmark-outline',

@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { AlertController } from '@ionic/angular'
 import {
   HealthResult,
   PackageDataEntry,
@@ -19,8 +18,6 @@ export class AppShowHealthChecksComponent {
   connectionFailure = false
 
   HealthResult = HealthResult
-
-  constructor(private readonly alertCtrl: AlertController) {}
 
   isLoading(result: HealthResult): boolean {
     return result === HealthResult.Starting || result === HealthResult.Loading

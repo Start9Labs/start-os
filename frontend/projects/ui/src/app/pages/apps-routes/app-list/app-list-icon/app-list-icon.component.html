@@ -1,10 +1,18 @@
 <ion-icon
-  *ngIf="pkg.error; else bulb"
+  *ngIf="pkg.error; else noError"
   class="warning-icon"
   name="warning-outline"
   size="small"
   color="warning"
 ></ion-icon>
-<ng-template #bulb>
-  <div class="bulb" [style.background-color]="color"></div>
+<ng-template #noError>
+  <ion-spinner
+    *ngIf="pkg.transitioning; else bulb"
+    class="spinner"
+    size="small"
+    color="primary"
+  ></ion-spinner>
+  <ng-template #bulb>
+    <div class="bulb" [style.background-color]="color"></div>
+  </ng-template>
 </ng-template>
