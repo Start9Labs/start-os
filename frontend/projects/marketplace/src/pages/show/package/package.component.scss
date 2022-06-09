@@ -1,25 +1,38 @@
 .header {
-  padding: 2%;
-}
-
-.logo {
-  min-width: 15%;
-  max-width: 18%;
+  padding: 16px;
 }
 
 .text {
-  margin-left: 5%;
   display: inline-block;
   vertical-align: top;
 }
 
+.logo {
+  width: 80px;
+  margin-right: 16px;
+}
+
 .title {
   margin: 0 0 0 -2px;
-  font-size: calc(20px + 3vw);
+  font-size: 36px;
 }
 
 .version {
   padding: 4px 0 12px 0;
   margin: 0;
-  font-size: calc(10px + 1vw);
+  font-size: 18px;
+}
+
+@media (min-width: 1000px) {
+  .logo {
+    width: 140px;
+  }
+
+  .title {
+    font-size: 64px;
+  }
+
+  .version {
+    font-size: 32px;
+  }
 }

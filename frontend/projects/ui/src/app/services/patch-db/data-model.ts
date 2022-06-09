@@ -2,8 +2,6 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
 import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
-import { PackageState } from 'src/app/types/package-state'
-import { InstallProgress } from 'src/app/types/install-progress'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -84,6 +82,14 @@ export interface PackageDataEntry {
   manifest: Manifest
   installed?: InstalledPackageDataEntry // exists when: installed, updating
   'install-progress'?: InstallProgress // exists when: installing, updating
+}
+
+export enum PackageState {
+  Installing = 'installing',
+  Installed = 'installed',
+  Updating = 'updating',
+  Removing = 'removing',
+  Restoring = 'restoring',
 }
 
 export interface InstalledPackageDataEntry {
@@ -355,4 +361,14 @@ export interface DependencyErrorHealthChecksFailed {
 
 export interface DependencyErrorTransitive {
   type: DependencyErrorType.Transitive
+}
+
+export interface InstallProgress {
+  readonly size: number | null
+  readonly downloaded: number
+  readonly 'download-complete': boolean
+  readonly validated: number
+  readonly 'validation-complete': boolean
+  readonly unpacked: number
+  readonly 'unpack-complete': boolean
 }

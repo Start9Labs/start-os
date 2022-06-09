@@ -2,13 +2,13 @@ import { Injectable } from '@angular/core'
 import { pauseFor } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { PatchOp, Update, Operation, RemoveOperation } from 'patch-db-client'
-import { PackageState } from 'src/app/types/package-state'
-import { InstallProgress } from 'src/app/types/install-progress'
 import {
   DataModel,
   DependencyErrorType,
+  InstallProgress,
   PackageDataEntry,
   PackageMainStatus,
+  PackageState,
   ServerStatus,
 } from 'src/app/services/patch-db/data-model'
 import { CifsBackupTarget, Log, RR, WithRevision } from './api.types'
@@ -690,7 +690,14 @@ export class MockApiService extends ApiService {
     params: RR.DryUninstallPackageReq,
   ): Promise<RR.DryUninstallPackageRes> {
     await pauseFor(2000)
-    return {}
+    return {
+      lnd: {
+        dependency: 'bitcoind',
+        error: {
+          type: DependencyErrorType.NotRunning,
+        },
+      },
+    }
   }
 
   async uninstallPackageRaw(
