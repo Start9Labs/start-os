@@ -15,7 +15,7 @@ import { v4 } from 'uuid'
 import { UIMarketplaceData } from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { finalize, first } from 'rxjs/operators'
+import { finalize, first, startWith } from 'rxjs/operators'
 
 type Marketplaces = {
   id: string | undefined
@@ -45,27 +45,35 @@ export class MarketplacesPage {
   ) {}
 
   ngOnInit() {
-    this.patch.watch$('ui', 'marketplace').subscribe(mp => {
-      let marketplaces: Marketplaces = [
-        {
-          id: undefined,
-          name: this.config.marketplace.name,
-          url: this.config.marketplace.url,
-        },
-      ]
-      if (mp) {
-        this.selectedId = mp['selected-id'] || undefined
-        const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
-          return {
-            id: k,
-            name: v.name,
-            url: v.url,
-          }
-        })
-        marketplaces = marketplaces.concat(alts)
-      }
-      this.marketplaces = marketplaces
-    })
+    this.patch
+      .watch$('ui', 'marketplace')
+      .pipe(
+        startWith({
+          'selected-id': null,
+          'known-hosts': {},
+        }),
+      )
+      .subscribe(mp => {
+        let marketplaces: Marketplaces = [
+          {
+            id: undefined,
+            name: this.config.marketplace.name,
+            url: this.config.marketplace.url,
+          },
+        ]
+        if (mp) {
+          this.selectedId = mp['selected-id'] || undefined
+          const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
+            return {
+              id: k,
+              name: v.name,
+              url: v.url,
+            }
+          })
+          marketplaces = marketplaces.concat(alts)
+        }
+        this.marketplaces = marketplaces
+      })
   }
 
   async presentModalAdd() {
