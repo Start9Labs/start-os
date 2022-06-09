@@ -16,7 +16,7 @@
       {{ dependentViolation }}
     </div>
 
-    <div *ngIf="patch.data['package-data']" class="items">
+    <div *ngIf="pkgs$ | async as pkgs" class="items">
       <div class="affected">
         <ion-text color="warning">Affected Services</ion-text>
       </div>
@@ -26,13 +26,10 @@
         *ngFor="let dep of dependentBreakages | keyvalue"
       >
         <ion-thumbnail class="thumbnail" slot="start">
-          <img
-            alt=""
-            [src]="patch.data['package-data'][dep.key]['static-files'].icon"
-          />
+          <img alt="" [src]="pkgs[dep.key]['static-files'].icon" />
         </ion-thumbnail>
         <ion-label>
-          <h5>{{ patch.data['package-data'][dep.key].manifest.title }}</h5>
+          <h5>{{ pkgs[dep.key].manifest.title }}</h5>
         </ion-label>
       </ion-item>
     </div>

@@ -35,6 +35,8 @@ export class DependentsComponent {
   loading$ = new BehaviorSubject(false)
   cancel$ = new Subject<void>()
 
+  readonly pkgs$ = this.patch.watch$('package-data')
+
   constructor(public readonly patch: PatchDbService) {}
 
   load() {
@@ -45,6 +47,7 @@ export class DependentsComponent {
       )
       .subscribe({
         complete: () => {
+          console.log('DEP BREAKS, ', this.dependentBreakages)
           if (
             this.dependentBreakages &&
             !isEmptyObject(this.dependentBreakages)
