@@ -1,5 +1,7 @@
 import { Component } from '@angular/core'
+import { ToastController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { copyToClipboard } from 'src/app/util/web.util'
 
 @Component({
   selector: 'server-logs',
@@ -12,17 +14,40 @@ export class ServerLogsPage {
   needInfinite = true
   before: string
 
-  constructor (
+  constructor(
     private readonly embassyApi: ApiService,
-  ) { }
+    private readonly toastCtrl: ToastController,
+  ) {}
 
-  fetchFetchLogs () {
-    return async (params: { before_flag?: boolean, limit?: number, cursor?: string }) => {
+  fetchFetchLogs() {
+    return async (params: {
+      before_flag?: boolean
+      limit?: number
+      cursor?: string
+    }) => {
       return this.embassyApi.getServerLogs({
         before_flag: params.before_flag,
         cursor: params.cursor,
         limit: params.limit,
       })
     }
+  }
+
+  async copy(): Promise<void> {
+    const logs = document
+      .getElementById('template')
+      .cloneNode(true) as HTMLElement
+    const formatted = '```' + logs.innerHTML + '```'
+    const success = await copyToClipboard(formatted)
+    const message = success
+      ? 'Copied to clipboard!'
+      : 'Failed to copy to clipboard.'
+
+    const toast = await this.toastCtrl.create({
+      header: message,
+      position: 'bottom',
+      duration: 1000,
+    })
+    await toast.present()
   }
 }
