@@ -1,20 +1,52 @@
+export namespace ExpectedExports {
+  /** Set configuration is called after we have modified and saved the configuration in the embassy ui. Use this to make a file for the docker to read from for configuration.  */
+  export type setConfig = (
+    effects: Effects,
+    input: Config,
+  ) => Promise<ResultType<SetResult>>;
+  /** Get configuration returns a shape that describes the format that the embassy ui will generate, and later send to the set config  */
+  export type getConfig = (effects: Effects) => Promise<ResultType<ConfigRes>>;
+  /** These are how we make sure the our dependency configurations are valid and if not how to fix them. */
+  export type dependencies = Dependencies;
+  /**  Properties are used to get values from the docker, like a username + password, what ports we are hosting from */
+  export type properties = (
+    effects: Effects,
+  ) => Promise<ResultType<Properties>>;
+}
+
+/** Used to reach out from the pure js runtime */
 export type Effects = {
+  /** Usable when not sandboxed */
   writeFile(
     input: { path: string; volumeId: string; toWrite: string },
   ): Promise<void>;
   readFile(input: { volumeId: string; path: string }): Promise<string>;
+  /** Create a directory. Usable when not sandboxed */
   createDir(input: { volumeId: string; path: string }): Promise<string>;
+  /** Remove a directory. Usable when not sandboxed */
   removeDir(input: { volumeId: string; path: string }): Promise<string>;
   removeFile(input: { volumeId: string; path: string }): Promise<void>;
+
+  /** Write a json file into an object. Usable when not sandboxed */
   writeJsonFile(
     input: { volumeId: string; path: string; toWrite: object },
   ): Promise<void>;
+
+  /** Read a json file into an object */
   readJsonFile(input: { volumeId: string; path: string }): Promise<object>;
-  trace(whatToPrin: string): void;
-  warn(whatToPrin: string): void;
-  error(whatToPrin: string): void;
-  debug(whatToPrin: string): void;
-  info(whatToPrin: string): void;
+
+  /** Log at the trace level */
+  trace(whatToPrint: string): void;
+  /** Log at the warn level */
+  warn(whatToPrint: string): void;
+  /** Log at the error level */
+  error(whatToPrint: string): void;
+  /** Log at the debug level */
+  debug(whatToPrint: string): void;
+  /** Log at the info level */
+  info(whatToPrint: string): void;
+
+  /** Sandbox mode lets us read but not write */
   is_sandboxed(): boolean;
 };
 
@@ -27,15 +59,18 @@ export type ActionResult = {
 };
 
 export type ConfigRes = {
+  /** This should be the previous config, that way during set config we start with the previous */
   config?: Config;
+  /** Shape that is describing the form in the ui */
   spec: ConfigSpec;
 };
 export type Config = {
-  [value: string]: any;
+  [propertyName: string]: any;
 };
 
 export type ConfigSpec = {
-  [value: string]: ValueSpecAny;
+  /** Given a config value, define what it should render with the following spec */
+  [configValue: string]: ValueSpecAny;
 };
 export type WithDefault<T, Default> = T & {
   default?: Default;
@@ -68,9 +103,6 @@ export type UniqueBy =
   | {
     any: UniqueBy[];
   }
-  | {
-    all: UniqueBy[];
-  }
   | string
   | null;
 
@@ -80,7 +112,9 @@ export type WithNullable<T> = T & {
 export type DefaultString =
   | String
   | {
+    /** The chars available for the randome generation */
     charset?: string;
+    /** Length that we generate to */
     len: number;
   };
 
@@ -98,8 +132,10 @@ export type ValueSpecString =
     placeholder?: string;
   };
 export type ValueSpecNumber = {
+  /** Something like [3,6] or [0, *) */
   range?: string;
   integral?: boolean;
+  /** Used a description of the units */
   units?: string;
   placeholder?: number;
 };
@@ -170,6 +206,7 @@ export type ValueSpecAny =
     >
   >;
 export type ValueSpecUnion = {
+  /** What tag for the specification, for tag unions */
   tag: {
     id: string;
     name: string;
@@ -178,6 +215,7 @@ export type ValueSpecUnion = {
       [key: string]: string;
     };
   };
+  /** The possible enum values */
   variants: {
     [key: string]: ConfigSpec;
   };
@@ -218,6 +256,7 @@ export type ValueSpecList =
   >;
 
 export type SetResult = {
+  /** These are the unix process signals */
   signal:
     | "SIGTERM"
     | "SIGHUP"
@@ -267,8 +306,11 @@ export type PackagePropertyString = {
   type: "string";
   description?: string;
   value: string;
+  /** Let's the ui make this copyable button */
   copyable?: boolean;
+  /** Let the ui create a qr for this field */
   qr?: boolean;
+  /** Hiding the value unless toggled off for field */
   masked?: boolean;
 };
 export type PackagePropertyObject = {
@@ -283,24 +325,11 @@ export type Properties = {
 };
 
 export type Dependencies = {
+  /** Id is the id of the package, should be the same as the manifest */
   [id: string]: {
+    /** Checks are called to make sure that our dependency is in the correct shape. If a known error is returned we know that the dependency needs modification */
     check(effects: Effects, input: Config): Promise<ResultType<void | null>>;
+    /** This is called after we know that the dependency package needs a new configuration, this would be a transform for defaults */
     autoConfigure(effects: Effects, input: Config): Promise<ResultType<Config>>;
   };
 };
-
-export type AllExport = {
-  setConfig(effects: Effects, input: Config): Promise<ResultType<SetResult>>;
-  getConfig(effects: Effects): Promise<ResultType<ConfigRes>>;
-  dependencies: Dependencies;
-  properties(effects: Effects): Promise<ResultType<Properties>>;
-};
-
-
-
-export namespace ExpectedExports {
-  export type setConfig = AllExport["setConfig"];
-  export type getConfig = AllExport["getConfig"];
-  export type dependencies = AllExport["dependencies"];
-  export type properties = AllExport["properties"];
-}
