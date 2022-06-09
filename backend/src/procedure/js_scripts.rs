@@ -18,11 +18,11 @@ use super::ProcedureName;
 pub use js_engine::JsError;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(untagged)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+
 enum ErrorValue {
     Error { error: String },
-    Value(serde_json::Value),
+    Result(serde_json::Value),
 }
 
 impl PathForVolumeId for Volumes {
@@ -124,7 +124,7 @@ fn unwrap_known_error<O: for<'de> Deserialize<'de>>(
 ) -> Result<O, (JsError, String)> {
     match error_value {
         ErrorValue::Error { error } => Err((JsError::Javascript, error)),
-        ErrorValue::Value(ref value) => match serde_json::from_value(value.clone()) {
+        ErrorValue::Result(ref value) => match serde_json::from_value(value.clone()) {
             Ok(a) => Ok(a),
             Err(err) => {
                 tracing::error!("{}", err);
