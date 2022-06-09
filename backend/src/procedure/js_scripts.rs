@@ -21,7 +21,7 @@ pub use js_engine::JsError;
 #[serde(rename_all = "kebab-case")]
 
 enum ErrorValue {
-    Error { error: String },
+    Error(String),
     Result(serde_json::Value),
 }
 
@@ -123,7 +123,7 @@ fn unwrap_known_error<O: for<'de> Deserialize<'de>>(
     error_value: ErrorValue,
 ) -> Result<O, (JsError, String)> {
     match error_value {
-        ErrorValue::Error { error } => Err((JsError::Javascript, error)),
+        ErrorValue::Error(error) => Err((JsError::Javascript, error)),
         ErrorValue::Result(ref value) => match serde_json::from_value(value.clone()) {
             Ok(a) => Ok(a),
             Err(err) => {
@@ -194,4 +194,48 @@ async fn js_action_execute() {
         "test/js_action_execute/package-data/volumes/test-package/data/main/test.log",
     )
     .unwrap();
+}
+
+#[tokio::test]
+async fn js_action_execute_error() {
+    let js_action = JsProcedure {};
+    let path: PathBuf = "test/js_action_execute/"
+        .parse::<PathBuf>()
+        .unwrap()
+        .canonicalize()
+        .unwrap();
+    let package_id = "test-package".parse().unwrap();
+    let package_version: Version = "0.3.0.3".parse().unwrap();
+    let name = ProcedureName::SetConfig;
+    let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        "main": {
+            "type": "data"
+        },
+        "compat": {
+            "type": "assets"
+        },
+        "filebrowser" :{
+            "package-id": "filebrowser",
+            "path": "data",
+            "readonly": true,
+            "type": "pointer",
+            "volume-id": "main",
+        }
+    }))
+    .unwrap();
+    let input: Option<serde_json::Value> = None;
+    let timeout = Some(Duration::from_secs(10));
+    let output: Result<serde_json::Value, _> = js_action
+        .execute(
+            &path,
+            &package_id,
+            &package_version,
+            name,
+            &volumes,
+            input,
+            timeout,
+        )
+        .await
+        .unwrap();
+    assert_eq!("Err((2, \"Not setup\"))", &format!("{:?}", output));
 }

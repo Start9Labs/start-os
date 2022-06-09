@@ -1,5 +1,3 @@
-// @ts-check
-
 export function properties() {
   return "Anything here";
 }
@@ -678,11 +676,9 @@ export async function getConfig(effects) {
     },
   };
 }
-export async function setConfig(effects, input) {
+
+export async function setConfig(effects) {
   return {
-    result: {
-      signal: "SIGTERM",
-      "depends-on": {},
-    },
+    error: "Not setup"
   };
 }
