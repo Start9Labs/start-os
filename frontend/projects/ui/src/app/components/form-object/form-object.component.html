@@ -129,7 +129,7 @@
         <!-- enum -->
         <!-- class enter-click disables the enter click on the modal behind the select -->
         <ion-select
-          *ngIf="spec.type === 'enum' && (formGroup.get(entry.key) as control)"
+          *ngIf="spec.type === 'enum' && formGroup.get(entry.key) as control"
           [interfaceOptions]="{
             message: getWarningText(spec.warning),
             cssClass: 'enter-click'
