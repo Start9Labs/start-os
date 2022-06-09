@@ -8,10 +8,10 @@ import {
 import {
   InterfaceDef,
   PackageDataEntry,
+  PackageState,
   Status,
 } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from '@start9labs/shared'
-import { PackageState } from 'src/app/types/package-state'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import {
   AlertController,

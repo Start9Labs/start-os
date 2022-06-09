@@ -1,4 +1,3 @@
-import { PackageState } from 'src/app/types/package-state'
 import {
   DataModel,
   DependencyErrorType,
@@ -6,6 +5,7 @@ import {
   HealthResult,
   Manifest,
   PackageMainStatus,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
 
 export const mockPatchData: DataModel = {
@@ -445,7 +445,7 @@ export const mockPatchData: DataModel = {
         'donation-url': null,
         alerts: {
           install: null,
-          uninstall: null,
+          uninstall: undefined,
           restore:
             'If this is a duplicate instance of the same LND node, you may loose your funds.',
           start: 'Starting LND is good for your health.',

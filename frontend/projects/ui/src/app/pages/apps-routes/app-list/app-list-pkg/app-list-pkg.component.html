@@ -13,7 +13,7 @@
     <status
       [disconnected]="connectionFailure"
       [rendering]="pkg.primaryRendering"
-      [installProgress]="pkg.installProgress?.totalProgress"
+      [installProgress]="pkg.entry['install-progress']"
       weight="bold"
       size="small"
       [sigtermTimeout]="manifest.main['sigterm-timeout']"

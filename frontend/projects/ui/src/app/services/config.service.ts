@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
-import { PackageState } from 'src/app/types/package-state'
 import {
   InterfaceDef,
   PackageDataEntry,
   PackageMainStatus,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
 
 const {

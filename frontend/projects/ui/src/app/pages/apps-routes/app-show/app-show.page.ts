@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { PackageState } from 'src/app/types/package-state'
+import {
+  PackageDataEntry,
+  PackageState,
+} from 'src/app/services/patch-db/data-model'
 import {
   PackageStatus,
   PrimaryStatus,

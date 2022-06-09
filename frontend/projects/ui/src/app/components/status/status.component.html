@@ -18,13 +18,12 @@
     >
   </span>
   <span *ngIf="installProgress">
-    <span *ngIf="installProgress < 99">
+    <ion-text
+      *ngIf="installProgress | installProgressDisplay as progress"
+      color="primary"
+    >
       Installing
-      <span class="loading-dots"></span>{{ installProgress }}%
-    </span>
-    <span *ngIf="installProgress >= 99">
-      Finalizing install. This could take a minute
-      <span class="loading-dots"></span>
-    </span>
+      <span class="loading-dots"></span>{{ progress }}
+    </ion-text>
   </span>
 </p>

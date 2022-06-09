@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { InstallProgress } from 'src/app/types/install-progress'
+import {
+  InstallProgress,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
 import { ProgressData } from 'src/app/types/progress-data'
 
 @Component({
@@ -14,18 +16,18 @@ export class AppShowProgressComponent {
   pkg: PackageDataEntry
 
   @Input()
-  installProgress: ProgressData
+  progressData: ProgressData
 
   get unpackingBuffer(): number {
-    return this.installProgress.validateProgress === 100 &&
-      !this.installProgress.unpackProgress
+    return this.progressData.validateProgress === 100 &&
+      !this.progressData.unpackProgress
       ? 0
       : 1
   }
 
   get validationBuffer(): number {
-    return this.installProgress.downloadProgress === 100 &&
-      !this.installProgress.validateProgress
+    return this.progressData.downloadProgress === 100 &&
+      !this.progressData.validateProgress
       ? 0
       : 1
   }
