@@ -1,0 +1,19 @@
+ion-button::part(native) {
+  font-size: 17px;
+}
+
+ion-button {
+  height: 44px;
+  margin: 16px;
+}
+
+@media (min-width: 1000px) {
+
+  .action-buttons {
+    display: flex;
+  }
+
+  ion-button {
+    width: 240px;
+  }
+}

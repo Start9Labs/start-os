@@ -18,6 +18,7 @@ import { LocalStorageService } from 'src/app/services/local-storage.service'
 @Component({
   selector: 'marketplace-show-controls',
   templateUrl: 'marketplace-show-controls.component.html',
+  styleUrls: ['./marketplace-show-controls.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceShowControlsComponent {

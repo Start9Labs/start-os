@@ -690,7 +690,14 @@ export class MockApiService extends ApiService {
     params: RR.DryUninstallPackageReq,
   ): Promise<RR.DryUninstallPackageRes> {
     await pauseFor(2000)
-    return {}
+    return {
+      lnd: {
+        dependency: 'bitcoind',
+        error: {
+          type: DependencyErrorType.NotRunning,
+        },
+      },
+    }
   }
 
   async uninstallPackageRaw(
