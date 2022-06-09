@@ -16,11 +16,12 @@ export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
   let primary: PrimaryStatus
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
+  const hasHealthChecks = !isEmptyObject(pkg.manifest['health-checks'])
 
   if (pkg.state === PackageState.Installed && pkg.installed) {
     primary = getPrimaryStatus(pkg.installed.status)
     dependency = getDependencyStatus(pkg)
-    health = getHealthStatus(pkg.installed.status)
+    health = getHealthStatus(pkg.installed.status, hasHealthChecks)
   } else {
     primary = pkg.state as string as PrimaryStatus
   }
@@ -47,23 +48,32 @@ function getDependencyStatus(pkg: PackageDataEntry): DependencyStatus | null {
   return depIds.length ? DependencyStatus.Warning : DependencyStatus.Satisfied
 }
 
-function getHealthStatus(status: Status): HealthStatus | null {
+function getHealthStatus(
+  status: Status,
+  hasHealthChecks: boolean,
+): HealthStatus | null {
+  console.log('HEALTH STATUS', status)
   if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
     return null
   }
 
   const values = Object.values(status.main.health)
+  console.log('HEALTH CHECKS', values)
 
   if (values.some(h => h.result === 'failure')) {
     return HealthStatus.Failure
   }
 
-  if (values.some(h => h.result === 'starting')) {
-    return HealthStatus.Starting
+  if (!values.length && hasHealthChecks) {
+    return HealthStatus.Waiting
   }
 
   if (values.some(h => h.result === 'loading')) {
     return HealthStatus.Loading
+  }
+
+  if (values.some(h => !h.result || h.result === 'starting')) {
+    return HealthStatus.Starting
   }
 
   return HealthStatus.Healthy
@@ -98,6 +108,7 @@ export enum DependencyStatus {
 
 export enum HealthStatus {
   Failure = 'failure',
+  Waiting = 'waiting',
   Starting = 'starting',
   Loading = 'loading',
   Healthy = 'healthy',
