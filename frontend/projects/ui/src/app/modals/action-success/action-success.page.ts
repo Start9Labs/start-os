@@ -11,15 +11,18 @@ import { copyToClipboard } from 'src/app/util/web.util'
 export class ActionSuccessPage {
   @Input() actionRes: ActionResponse
 
-  constructor (
+  constructor(
     private readonly modalCtrl: ModalController,
     private readonly toastCtrl: ToastController,
-  ) { }
+  ) {}
 
-  async copy (address: string) {
+  async copy(address: string) {
     let message = ''
-    await copyToClipboard(address || '')
-      .then(success => { message = success ? 'copied to clipboard!' : 'failed to copy'})
+    await copyToClipboard(address || '').then(success => {
+      message = success
+        ? 'Copied to clipboard!'
+        : 'Failed to copy to clipboard.'
+    })
 
     const toast = await this.toastCtrl.create({
       header: message,
@@ -29,7 +32,7 @@ export class ActionSuccessPage {
     await toast.present()
   }
 
-  async dismiss () {
+  async dismiss() {
     return this.modalCtrl.dismiss()
   }
 }

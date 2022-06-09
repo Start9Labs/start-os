@@ -27,7 +27,9 @@ export class ServerSpecsPage {
   async copy(address: string) {
     let message = ''
     await copyToClipboard(address || '').then(success => {
-      message = success ? 'copied to clipboard!' : 'failed to copy'
+      message = success
+        ? 'Copied to clipboard!'
+        : 'Failed to copy to clipboard.'
     })
 
     const toast = await this.toastCtrl.create({

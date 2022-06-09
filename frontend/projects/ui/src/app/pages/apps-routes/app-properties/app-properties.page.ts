@@ -114,7 +114,9 @@ export class AppPropertiesPage {
   async copy(text: string): Promise<void> {
     let message = ''
     await copyToClipboard(text).then(success => {
-      message = success ? 'copied to clipboard!' : 'failed to copy'
+      message = success
+        ? 'Copied to clipboard!'
+        : 'Failed to copy to clipboard.'
     })
 
     const toast = await this.toastCtrl.create({
