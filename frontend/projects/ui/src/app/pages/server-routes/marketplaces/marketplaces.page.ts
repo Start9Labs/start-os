@@ -12,7 +12,10 @@ import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDbService } from '../../../services/patch-db/patch-db.service'
 import { v4 } from 'uuid'
-import { UIMarketplaceData } from '../../../services/patch-db/data-model'
+import {
+  UIData,
+  UIMarketplaceData,
+} from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
@@ -54,10 +57,10 @@ export class MarketplacesPage {
     this.patch
       .watch$('ui')
       .pipe(
-        map(ui => ui.marketplace),
+        map((ui: UIData) => ui.marketplace),
         distinctUntilChanged(),
       )
-      .subscribe(mp => {
+      .subscribe((mp: UIMarketplaceData | undefined) => {
         let marketplaces: Marketplaces = [
           {
             id: undefined,

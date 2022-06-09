@@ -12,14 +12,20 @@ import { packageLoadingProgress } from './package-loading-progress'
 
 export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
   const statuses = renderPkgStatus(entry)
+  const primaryRendering = PrimaryRendering[statuses.primary]
 
   return {
     entry,
-    primaryRendering: PrimaryRendering[statuses.primary],
+    primaryRendering,
     installProgress: packageLoadingProgress(entry['install-progress']),
     error:
       statuses.health === HealthStatus.Failure ||
       statuses.dependency === DependencyStatus.Warning,
+    transitioning:
+      primaryRendering.showDots ||
+      statuses.health === HealthStatus.Waiting ||
+      statuses.health === HealthStatus.Loading ||
+      statuses.health === HealthStatus.Starting,
   }
 }
 
@@ -28,5 +34,6 @@ export interface PkgInfo {
   primaryRendering: StatusRendering
   installProgress: ProgressData | null
   error: boolean
+  transitioning: boolean
   sub?: Subscription | null
 }
