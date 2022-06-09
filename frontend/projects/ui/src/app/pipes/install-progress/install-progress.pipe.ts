@@ -1,13 +1,13 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { InstallProgress } from 'src/app/types/install-progress'
+import { InstallProgress } from 'src/app/services/patch-db/data-model'
 import { packageLoadingProgress } from 'src/app/util/package-loading-progress'
 
 @Pipe({
-  name: 'installProgress',
+  name: 'installProgressDisplay',
 })
 export class InstallProgressPipe implements PipeTransform {
-  transform(loadData?: InstallProgress): string {
-    const totalProgress = packageLoadingProgress(loadData)?.totalProgress || 0
+  transform(installProgress?: InstallProgress): string {
+    const totalProgress = packageLoadingProgress(installProgress)?.totalProgress || 0
 
     return totalProgress < 99 ? totalProgress + '%' : 'finalizing'
   }

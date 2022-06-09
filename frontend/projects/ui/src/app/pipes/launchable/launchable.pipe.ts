@@ -1,8 +1,8 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { PackageState } from 'src/app/types/package-state'
 import {
   InterfaceDef,
   PackageMainStatus,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from '../../services/config.service'
 

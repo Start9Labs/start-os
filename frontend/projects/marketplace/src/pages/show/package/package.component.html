@@ -1,22 +1,12 @@
-<ion-grid>
-  <ion-row>
-    <ion-col sizeXs="12" sizeSm="12" sizeMd="9" sizeLg="9" sizeXl="9">
-      <div class="header montserrat">
-        <img
-          class="logo"
-          alt=""
-          [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
-        />
-        <div class="text">
-          <h1 class="title">{{ pkg.manifest.title }}</h1>
-          <p class="version">{{ pkg.manifest.version | displayEmver }}</p>
-          <ng-content></ng-content>
-        </div>
-      </div>
-    </ion-col>
-    <ion-col sizeMd="3" sizeXs="12" class="ion-align-self-center">
-      <ng-content select="[position=controls]"></ng-content>
-    </ion-col>
-  </ion-row>
-  <ng-content select="ion-row"></ng-content>
-</ion-grid>
+<div class="header montserrat">
+  <img
+    class="logo"
+    alt=""
+    [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+  />
+  <div class="text">
+    <h1 class="title">{{ pkg.manifest.title }}</h1>
+    <p class="version">{{ pkg.manifest.version | displayEmver }}</p>
+    <ng-content></ng-content>
+  </div>
+</div>

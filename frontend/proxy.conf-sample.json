@@ -1,0 +1,16 @@
+{
+  "/rpc/v1": {
+    "target": "http://<CHANGE_ME>/rpc/v1"
+  },
+  "/ws/*": {
+    "target": "http://<CHANGE_ME>",
+    "secure": false,
+    "ws": true
+  },
+  "/public/*": {
+    "target": "http://<CHANGE_ME>/public",
+    "pathRewrite": {
+      "^/public": ""
+    }
+  }
+}
