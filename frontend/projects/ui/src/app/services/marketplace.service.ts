@@ -32,7 +32,13 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   private readonly data$: Observable<UIMarketplaceData> = this.patch
     .watch$('ui', 'marketplace')
-    .pipe(take(1), shareReplay({ bufferSize: 1, refCount: true }))
+    .pipe(
+      startWith({
+        'selected-id': null,
+        'known-hosts': {},
+      }),
+      shareReplay({ bufferSize: 1, refCount: true }),
+    )
 
   private readonly marketplace$: Observable<Marketplace> = this.data$.pipe(
     map(data => this.toMarketplace(data)),

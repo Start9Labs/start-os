@@ -36,7 +36,7 @@ export class ServerLogsPage {
   async copy(): Promise<void> {
     const logs = document
       .getElementById('template')
-      .cloneNode(true) as HTMLElement
+      ?.cloneNode(true) as HTMLElement
     const formatted = '```' + logs.innerHTML + '```'
     const success = await copyToClipboard(formatted)
     const message = success
