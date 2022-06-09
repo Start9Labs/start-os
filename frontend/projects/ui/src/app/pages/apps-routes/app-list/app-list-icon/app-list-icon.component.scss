@@ -18,3 +18,10 @@
   background-color: rgba(255, 213, 52, 0.1);
   box-shadow: 0 0 4px 4px rgba(255, 213, 52, 0.1);
 }
+
+.spinner {
+  position: absolute !important;
+  left: 6px !important;
+  top: 6px !important;
+  width: 18px;
+}
