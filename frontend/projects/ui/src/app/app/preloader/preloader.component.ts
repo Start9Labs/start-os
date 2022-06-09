@@ -57,6 +57,7 @@ const ICONS = [
   'pencil',
   'phone-portrait-outline',
   'play-circle-outline',
+  'play-outline',
   'power',
   'pulse',
   'qr-code-outline',
