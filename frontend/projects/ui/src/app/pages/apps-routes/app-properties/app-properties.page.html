@@ -14,13 +14,21 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <text-spinner *ngIf="loading; else loaded" text="Loading Properties"></text-spinner>
+  <text-spinner
+    *ngIf="loading; else loaded"
+    text="Loading Properties"
+  ></text-spinner>
 
   <ng-template #loaded>
     <!-- not running -->
     <ion-item *ngIf="!running" class="ion-margin-bottom">
       <ion-label>
-        <p><ion-text color="warning">Service not running. Information on this page could be inaccurate.</ion-text></p>
+        <p>
+          <ion-text color="warning"
+            >Service not running. Information on this page could be
+            inaccurate.</ion-text
+          >
+        </p>
       </ion-label>
     </ion-item>
 
@@ -35,8 +43,18 @@
     <ion-item-group *ngIf="!(properties | empty)">
       <div *ngFor="let prop of node | keyvalue: asIsOrder">
         <!-- object -->
-        <ion-item button detail="true" *ngIf="prop.value.type === 'object'" (click)="goToNested(prop.key)">
-          <ion-button *ngIf="prop.value.description" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
+        <ion-item
+          button
+          detail="true"
+          *ngIf="prop.value.type === 'object'"
+          (click)="goToNested(prop.key)"
+        >
+          <ion-button
+            *ngIf="prop.value.description"
+            fill="clear"
+            slot="start"
+            (click)="presentDescription(prop, $event)"
+          >
             <ion-icon slot="icon-only" name="help-circle-outline"></ion-icon>
           </ion-button>
           <ion-label>
@@ -45,22 +63,55 @@
         </ion-item>
         <!-- not object -->
         <ion-item *ngIf="prop.value.type === 'string'">
-          <ion-button *ngIf="prop.value.description" fill="clear" slot="start" (click)="presentDescription(prop, $event)">
+          <ion-button
+            *ngIf="prop.value.description"
+            fill="clear"
+            slot="start"
+            (click)="presentDescription(prop, $event)"
+          >
             <ion-icon slot="icon-only" name="help-circle-outline"></ion-icon>
           </ion-button>
           <ion-label>
             <h2>{{ prop.key }}</h2>
-            <p>{{ prop.value.masked && !unmasked[prop.key] ? (prop.value.value | mask ) : prop.value.value }}</p>
+            <p class="courier-new">
+              {{ prop.value.masked && !unmasked[prop.key] ? (prop.value.value |
+              mask ) : prop.value.value }}
+            </p>
           </ion-label>
           <div slot="end" *ngIf="prop.value.copyable || prop.value.qr">
-            <ion-button *ngIf="prop.value.masked" fill="clear" (click)="toggleMask(prop.key)">
-              <ion-icon slot="icon-only" [name]="unmasked[prop.key] ? 'eye-off-outline' : 'eye-outline'" [color]="unmasked[prop.key] ? 'danger' : 'dark'" size="small"></ion-icon>
+            <ion-button
+              *ngIf="prop.value.masked"
+              fill="clear"
+              (click)="toggleMask(prop.key)"
+            >
+              <ion-icon
+                slot="icon-only"
+                [name]="unmasked[prop.key] ? 'eye-off-outline' : 'eye-outline'"
+                [color]="unmasked[prop.key] ? 'danger' : 'dark'"
+                size="small"
+              ></ion-icon>
             </ion-button>
-            <ion-button *ngIf="prop.value.qr" fill="clear" (click)="showQR(prop.value.value)">
-              <ion-icon slot="icon-only" name="qr-code-outline" size="small"></ion-icon>
+            <ion-button
+              *ngIf="prop.value.qr"
+              fill="clear"
+              (click)="showQR(prop.value.value)"
+            >
+              <ion-icon
+                slot="icon-only"
+                name="qr-code-outline"
+                size="small"
+              ></ion-icon>
             </ion-button>
-            <ion-button *ngIf="prop.value.copyable" fill="clear" (click)="copy(prop.value.value)">
-              <ion-icon slot="icon-only" name="copy-outline" size="small"></ion-icon>
+            <ion-button
+              *ngIf="prop.value.copyable"
+              fill="clear"
+              (click)="copy(prop.value.value)"
+            >
+              <ion-icon
+                slot="icon-only"
+                name="copy-outline"
+                size="small"
+              ></ion-icon>
             </ion-button>
           </div>
         </ion-item>
