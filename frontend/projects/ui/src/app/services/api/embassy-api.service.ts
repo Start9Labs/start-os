@@ -27,6 +27,9 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   // for getting static files: ex icons, instructions, licenses
   abstract getStatic(url: string): Promise<string>
 
+  // for sideloading packages
+  abstract uploadPackage(guid: string, body: ArrayBuffer): Promise<string>
+
   // db
 
   abstract getRevisions(since: number): Promise<RR.GetRevisionsRes>

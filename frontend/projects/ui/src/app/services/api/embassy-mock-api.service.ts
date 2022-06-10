@@ -48,6 +48,11 @@ export class MockApiService extends ApiService {
     return markdown
   }
 
+  async uploadPackage(guid: string, body: ArrayBuffer): Promise<string> {
+    await pauseFor(2000)
+    return 'success'
+  }
+
   // db
 
   async getRevisions(since: number): Promise<RR.GetRevisionsRes> {

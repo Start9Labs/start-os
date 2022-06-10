@@ -36,3 +36,8 @@ export function debounce(delay: number = 300): MethodDecorator {
     return descriptor
   }
 }
+
+export function asNotNull<T>(value: T | null | undefined): T {
+  if (value == null) throw new TypeError('Expecting a non null')
+  return value
+}

@@ -23,10 +23,10 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async uploadPackage(guid: string, file: Blob): Promise<string> {
+  async uploadPackage(guid: string, body: ArrayBuffer): Promise<string> {
     return this.http.httpRequest({
       method: Method.POST,
-      body: {},
+      body,
       url: `/rest/rpc/${guid}`,
       responseType: 'text',
     })

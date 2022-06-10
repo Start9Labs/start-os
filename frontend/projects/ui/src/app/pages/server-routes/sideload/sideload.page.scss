@@ -1,3 +1,10 @@
+.inline {
+  * {
+    vertical-align: initial;
+    padding-right: 5px;
+  }
+}
+
 .drop-area {
   display: flex;
   background-color: rgba(24, 24, 24, 0.5);
@@ -28,12 +35,6 @@
     padding: 30px;
     min-height: 600px;
 
-    .inline {
-      * {
-        vertical-align: initial;
-        padding-right: 5px;
-      }
-    }
   }
 
   &_mobile {

@@ -1,15 +1,10 @@
 import { Component } from '@angular/core'
-import {
-  isPlatform,
-  LoadingController,
-  NavController,
-  ToastController,
-} from '@ionic/angular'
+import { isPlatform, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Manifest } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
-import * as cbor from 'cbor-web'
-import { ErrorToastService } from '@start9labs/shared'
+import cbor from 'cbor'
+import { asNotNull, ErrorToastService } from '@start9labs/shared'
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
 }
@@ -24,9 +19,9 @@ const VERSION = new Uint8Array([1])
 export class SideloadPage {
   isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
   toUpload: {
-    manifest: Manifest
-    icon: string
-    file: File
+    manifest: Manifest | null
+    icon: string | null
+    file: File | null
   } = {
     manifest: null,
     icon: null,
@@ -39,7 +34,6 @@ export class SideloadPage {
   constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly api: ApiService,
-    private readonly toastCtrl: ToastController,
     private readonly navCtrl: NavController,
     private readonly errToast: ErrorToastService,
     private readonly config: ConfigService,
@@ -58,15 +52,19 @@ export class SideloadPage {
     if (!files || !files.length) return
     this.toUpload.file = files[0]
     // verify valid s9pk
-    const magic = await readBlobToArrayBuffer(this.toUpload.file.slice(0, 4))
-    const version = await readBlobToArrayBuffer(this.toUpload.file.slice(2, 3))
+    const magic = new Uint8Array(
+      await readBlobToArrayBuffer(this.toUpload.file.slice(0, 2)),
+    )
+    const version = new Uint8Array(
+      await readBlobToArrayBuffer(this.toUpload.file.slice(2, 3)),
+    )
     if (compare(magic, MAGIC) && compare(version, VERSION)) {
       this.valid = true
-      this.message = 'A valid s9pk has been detected!'
+      this.message = 'A valid file has been detected!'
       await this.parseS9pk(this.toUpload.file)
     } else {
       this.valid = false
-      this.message = 'Invalid s9pk detected :('
+      this.message = 'Invalid file detected. Please try again.'
     }
   }
 
@@ -85,16 +83,22 @@ export class SideloadPage {
     await loader.present()
     try {
       const res = await this.api.sideloadPackage({
-        manifest: this.toUpload.manifest,
-        icon: this.toUpload.icon,
+        manifest: asNotNull(this.toUpload.manifest),
+        icon: asNotNull(this.toUpload.icon),
       })
-      // TODO do file upload to /rest/rpc/${guid}
+      this.api.uploadPackage(
+        res.guid,
+        await readBlobToArrayBuffer(asNotNull(this.toUpload.file)),
+      )
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
       this.clearToUpload()
       // TODO navigate to service page
+      await this.navCtrl.navigateForward(
+        `/services/${asNotNull(this.toUpload.manifest).id}`,
+      )
     }
   }
 
@@ -103,12 +107,12 @@ export class SideloadPage {
     // magic=2bytes, version=1bytes, pubkey=32bytes, signature=64bytes, toc_length=4bytes = 103byte is starting point
     let start = 103
     let end = start + 1 // 104
-    await getPositions(start, end, file, positions)
-    console.log('POSITIONS', positions)
     const tocLength = new DataView(
-      await readBlobToArrayBuffer(this.toUpload.file.slice(98, 102)),
+      await readBlobToArrayBuffer(
+        this.toUpload.file?.slice(99, 103) ?? new Blob(),
+      ),
     ).getUint32(0, false)
-    console.log('TOC_LEN:', tocLength)
+    await getPositions(start, end, file, positions, tocLength as any)
 
     await this.getManifest(positions, file)
     await this.getIcon(positions, file)
@@ -121,12 +125,7 @@ export class SideloadPage {
         Number(positions['manifest'][0]) + Number(positions['manifest'][1]),
       ),
     )
-    const decoded = await cbor.decodeAll(data, (error, obj) => {
-      console.log('OBJ: ', obj)
-      if (error) throw new Error(error)
-      return obj[0]
-    })
-    this.toUpload.manifest = decoded[0]
+    this.toUpload.manifest = await cbor.decode(data, true)
   }
 
   async getIcon(positions: Positions, file: Blob) {
@@ -144,35 +143,31 @@ async function getPositions(
   initialEnd: number,
   file: Blob,
   positions: Positions,
+  tocLength: number,
 ) {
   let start = initialStart
   let end = initialEnd
   const titleLength = new Uint8Array(
     await readBlobToArrayBuffer(file.slice(start, end)),
   )[0]
-  console.log('TITLE_LENGTH:', titleLength)
   const tocTitle = await file.slice(end, end + titleLength).text()
-  console.log('TOC_TITLE:', tocTitle)
 
   start = end + titleLength
   end = start + 8
   const chapterPosition = new DataView(
     await readBlobToArrayBuffer(file.slice(start, end)),
   ).getBigUint64(0, false)
-  console.log('CHAPTER_POSITION:', chapterPosition)
   start = end
   end = start + 8
   const chapterLength = new DataView(
     await readBlobToArrayBuffer(file.slice(start, end)),
   ).getBigUint64(0, false)
-  console.log('CHAPTER_LENGTH:', chapterLength)
 
   positions[tocTitle] = [chapterPosition, chapterLength]
   start = end
   end = start + 1
-  // 254 is length of table of contents
-  if (end <= 254) {
-    await getPositions(start, end, file, positions)
+  if (end <= tocLength + (initialStart - 1)) {
+    await getPositions(start, end, file, positions, tocLength)
   }
 }
 
@@ -196,7 +191,7 @@ async function readBlobToArrayBuffer(f: Blob): Promise<ArrayBuffer> {
   })
 }
 
-function compare(a, b) {
+function compare(a: Uint8Array, b: Uint8Array) {
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false
   }

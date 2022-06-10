@@ -39,24 +39,46 @@
       />
     </ion-button>
   </div>
-  <!-- file uploaded -->
-  <div class="drop-area_filled" *ngIf="toUpload.file">
+  <!-- file uploaded and invalid -->
+  <div
+    *ngIf="toUpload.file && !valid"
+    class="drop-area"
+    [class.drop-area_mobile]="isMobile"
+    appDnd
+    (onFileDropped)="handleFileDrop($event)"
+  >
+    <div class="inline">
+      <ion-icon
+        *ngIf="!valid"
+        name="close-circle-outline"
+        color="danger"
+      ></ion-icon>
+      <h4 *ngIf="message">{{ message }}</h4>
+    </div>
+    <br />
+    <ion-button color="primary" type="file">
+      <label for="upload-photo">Browse</label>
+      <input
+        type="file"
+        style="position: absolute; opacity: 0; height: 100%"
+        id="upload-photo"
+        (change)="handleFileInput($event)"
+      />
+    </ion-button>
+  </div>
+  <!-- file uploaded and valid -->
+  <div class="drop-area_filled" *ngIf="toUpload.file && valid">
     <div class="inline">
       <ion-icon
         *ngIf="valid"
         name="checkmark-circle-outline"
         color="success"
       ></ion-icon>
-      <ion-icon
-        *ngIf="!valid"
-        name="close-circle-outline"
-        color="danger"
-      ></ion-icon>
-      <h4>{{ message }}</h4>
+      <h4 *ngIf="message">{{ message }}</h4>
     </div>
     <br />
-    <div>
-      <div *ngIf="toUpload.manifest" class="service-card">
+    <div *ngIf="toUpload.file && valid">
+      <div *ngIf="toUpload.manifest " class="service-card">
         <div class="row row_end">
           <ion-button
             style="
