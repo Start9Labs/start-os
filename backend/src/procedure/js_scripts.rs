@@ -1,4 +1,7 @@
-use std::{path::{PathBuf, Path}, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use models::VolumeId;
 use serde::{Deserialize, Serialize};
@@ -12,20 +15,31 @@ use js_engine::{JsExecutionEnvironment, PathForVolumeId};
 
 use super::ProcedureName;
 
-pub use js_engine::{JsError};
+pub use js_engine::JsError;
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
+
+enum ErrorValue {
+    Error(String),
+    Result(serde_json::Value),
+}
 
 impl PathForVolumeId for Volumes {
-    fn path_for(&self, data_dir: &Path, package_id: &PackageId, version: &Version, volume_id: &VolumeId) -> Option<PathBuf> {
-
+    fn path_for(
+        &self,
+        data_dir: &Path,
+        package_id: &PackageId,
+        version: &Version,
+        volume_id: &VolumeId,
+    ) -> Option<PathBuf> {
         let volume = self.get(volume_id)?;
         Some(volume.path_for(data_dir, package_id, version, volume_id))
     }
 
-    fn readonly(&self,volume_id: &VolumeId) -> bool {
+    fn readonly(&self, volume_id: &VolumeId) -> bool {
         self.get(volume_id).map(|x| x.readonly()).unwrap_or(false)
     }
-    
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -57,12 +71,13 @@ impl JsProcedure {
             )
             .await?
             .run_action(name, input);
-            let output: O = match timeout {
+            let output: ErrorValue = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
                     .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
                 None => running_action.await?,
             };
+            let output: O = unwrap_known_error(output)?;
             Ok(output)
         }
         .await
@@ -90,16 +105,39 @@ impl JsProcedure {
             .await?
             .read_only_effects()
             .run_action(name, input);
-            let output: O = match timeout {
+            let output: ErrorValue = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
                     .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
                 None => running_action.await?,
             };
+            let output: O = unwrap_known_error(output)?;
             Ok(output)
         }
         .await
         .map_err(|(error, message)| (error as i32, message)))
+    }
+}
+
+fn unwrap_known_error<O: for<'de> Deserialize<'de>>(
+    error_value: ErrorValue,
+) -> Result<O, (JsError, String)> {
+    match error_value {
+        ErrorValue::Error(error) => Err((JsError::Javascript, error)),
+        ErrorValue::Result(ref value) => match serde_json::from_value(value.clone()) {
+            Ok(a) => Ok(a),
+            Err(err) => {
+                tracing::error!("{}", err);
+                tracing::debug!("{:?}", err);
+                Err((
+                    JsError::BoundryLayerSerDe,
+                    format!(
+                        "Couldn't convert output = {:#?} to the correct type",
+                        serde_json::to_string_pretty(&error_value).unwrap_or_default()
+                    ),
+                ))
+            }
+        },
     }
 }
 
@@ -156,4 +194,48 @@ async fn js_action_execute() {
         "test/js_action_execute/package-data/volumes/test-package/data/main/test.log",
     )
     .unwrap();
+}
+
+#[tokio::test]
+async fn js_action_execute_error() {
+    let js_action = JsProcedure {};
+    let path: PathBuf = "test/js_action_execute/"
+        .parse::<PathBuf>()
+        .unwrap()
+        .canonicalize()
+        .unwrap();
+    let package_id = "test-package".parse().unwrap();
+    let package_version: Version = "0.3.0.3".parse().unwrap();
+    let name = ProcedureName::SetConfig;
+    let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        "main": {
+            "type": "data"
+        },
+        "compat": {
+            "type": "assets"
+        },
+        "filebrowser" :{
+            "package-id": "filebrowser",
+            "path": "data",
+            "readonly": true,
+            "type": "pointer",
+            "volume-id": "main",
+        }
+    }))
+    .unwrap();
+    let input: Option<serde_json::Value> = None;
+    let timeout = Some(Duration::from_secs(10));
+    let output: Result<serde_json::Value, _> = js_action
+        .execute(
+            &path,
+            &package_id,
+            &package_version,
+            name,
+            &volumes,
+            input,
+            timeout,
+        )
+        .await
+        .unwrap();
+    assert_eq!("Err((2, \"Not setup\"))", &format!("{:?}", output));
 }
