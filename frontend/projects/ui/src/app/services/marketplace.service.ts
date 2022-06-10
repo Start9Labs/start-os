@@ -17,6 +17,7 @@ import {
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   catchError,
+  distinctUntilChanged,
   filter,
   map,
   shareReplay,
@@ -30,17 +31,15 @@ import {
 export class MarketplaceService extends AbstractMarketplaceService {
   private readonly notes = new Map<string, Record<string, string>>()
 
-  private readonly data$: Observable<UIMarketplaceData> = this.patch
-    .watch$('ui', 'marketplace')
-    .pipe(
-      startWith({
-        'selected-id': null,
-        'known-hosts': {},
-      }),
-      shareReplay({ bufferSize: 1, refCount: true }),
-    )
+  private readonly altMarketplaceData$: Observable<
+    UIMarketplaceData | undefined
+  > = this.patch.watch$('ui').pipe(
+    map(ui => ui.marketplace),
+    distinctUntilChanged(),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  )
 
-  private readonly marketplace$: Observable<Marketplace> = this.data$.pipe(
+  private readonly marketplace$ = this.altMarketplaceData$.pipe(
     map(data => this.toMarketplace(data)),
   )
 
@@ -59,27 +58,28 @@ export class MarketplaceService extends AbstractMarketplaceService {
     map(({ categories }) => categories),
   )
 
-  private readonly pkg$: Observable<MarketplacePkg[]> = this.data$.pipe(
-    switchMap(data =>
-      this.serverInfo$.pipe(
-        switchMap(info =>
-          from(
-            this.getMarketplacePkgs(
-              { page: 1, 'per-page': 100 },
-              this.toMarketplace(data).url,
-              info['eos-version-compat'],
-            ),
-          ).pipe(tap(() => this.onPackages(data))),
+  private readonly pkg$: Observable<MarketplacePkg[]> =
+    this.altMarketplaceData$.pipe(
+      switchMap(data =>
+        this.serverInfo$.pipe(
+          switchMap(info =>
+            from(
+              this.getMarketplacePkgs(
+                { page: 1, 'per-page': 100 },
+                this.toMarketplace(data).url,
+                info['eos-version-compat'],
+              ),
+            ).pipe(tap(() => this.onPackages(data))),
+          ),
         ),
       ),
-    ),
-    catchError(e => {
-      this.errToast.present(e)
+      catchError(e => {
+        this.errToast.present(e)
 
-      return of([])
-    }),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  )
+        return of([])
+      }),
+      shareReplay({ bufferSize: 1, refCount: true }),
+    )
 
   constructor(
     private readonly api: ApiService,
