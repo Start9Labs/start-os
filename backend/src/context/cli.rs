@@ -157,3 +157,13 @@ impl Context for CliContext {
         &self.0.client
     }
 }
+/// When we had an empty proxy the system wasn't working like it used to, which allowed empty proxy
+#[test]
+fn test_cli_proxy_empty() {
+    serde_yaml::from_str::<CliContextConfig>(
+        "
+        bind_rpc:
+    ",
+    )
+    .unwrap();
+}
