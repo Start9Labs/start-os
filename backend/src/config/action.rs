@@ -107,6 +107,7 @@ impl ConfigActions {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SetResult {
+    #[serde(default)]
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str_opt")]
     #[serde(serialize_with = "crate::util::serde::serialize_display_opt")]
     pub signal: Option<Signal>,

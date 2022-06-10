@@ -24,6 +24,7 @@ pub struct CliContextConfig {
     pub bind_rpc: Option<SocketAddr>,
     pub host: Option<Url>,
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str_opt")]
+    #[serde(default)]
     pub proxy: Option<Url>,
     pub cookie_path: Option<PathBuf>,
 }
@@ -39,6 +40,10 @@ pub struct CliContextSeed {
 impl Drop for CliContextSeed {
     fn drop(&mut self) {
         let tmp = format!("{}.tmp", self.cookie_path.display());
+        let parent_dir = self.cookie_path.parent().unwrap_or(Path::new("/"));
+        if !parent_dir.exists() {
+            std::fs::create_dir_all(&parent_dir).unwrap();
+        }
         let mut writer = fd_lock_rs::FdLock::lock(
             File::create(&tmp).unwrap(),
             fd_lock_rs::LockType::Exclusive,
@@ -151,4 +156,14 @@ impl Context for CliContext {
     fn client(&self) -> &Client {
         &self.0.client
     }
+}
+/// When we had an empty proxy the system wasn't working like it used to, which allowed empty proxy
+#[test]
+fn test_cli_proxy_empty() {
+    serde_yaml::from_str::<CliContextConfig>(
+        "
+        bind_rpc:
+    ",
+    )
+    .unwrap();
 }
