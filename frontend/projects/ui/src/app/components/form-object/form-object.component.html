@@ -304,6 +304,7 @@
               </ng-container>
               <!-- string or number -->
               <ion-item-group
+                [id]="getElementId(entry.key, i)"
                 *ngIf="spec.subtype === 'string' || spec.subtype === 'number'"
               >
                 <ion-item color="dark">
