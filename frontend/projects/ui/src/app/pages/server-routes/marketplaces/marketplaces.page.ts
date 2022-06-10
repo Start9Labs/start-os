@@ -15,7 +15,13 @@ import { v4 } from 'uuid'
 import { UIMarketplaceData } from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { finalize, first, startWith } from 'rxjs/operators'
+import {
+  distinctUntilChanged,
+  finalize,
+  first,
+  map,
+  startWith,
+} from 'rxjs/operators'
 
 type Marketplaces = {
   id: string | undefined
@@ -46,12 +52,10 @@ export class MarketplacesPage {
 
   ngOnInit() {
     this.patch
-      .watch$('ui', 'marketplace')
+      .watch$('ui')
       .pipe(
-        startWith({
-          'selected-id': null,
-          'known-hosts': {},
-        }),
+        map(ui => ui.marketplace),
+        distinctUntilChanged(),
       )
       .subscribe(mp => {
         let marketplaces: Marketplaces = [
