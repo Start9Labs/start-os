@@ -759,9 +759,7 @@ export class MockApiService extends ApiService {
     params: RR.SideloadPackageReq,
   ): Promise<RR.SideloadPacakgeRes> {
     await pauseFor(2000)
-    return {
-      guid: '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
-    }
+    return '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e' // no significance, randomly generated
   }
 
   private async updateProgress(id: string): Promise<void> {

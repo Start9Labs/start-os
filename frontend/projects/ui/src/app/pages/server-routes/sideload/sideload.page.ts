@@ -60,11 +60,11 @@ export class SideloadPage {
     )
     if (compare(magic, MAGIC) && compare(version, VERSION)) {
       this.valid = true
-      this.message = 'A valid file has been detected!'
+      this.message = 'A valid package file has been detected!'
       await this.parseS9pk(this.toUpload.file)
     } else {
       this.valid = false
-      this.message = 'Invalid file detected. Please try again.'
+      this.message = 'Invalid package file detected. Please try again.'
     }
   }
 
@@ -82,23 +82,22 @@ export class SideloadPage {
     })
     await loader.present()
     try {
-      const res = await this.api.sideloadPackage({
+      const guid = await this.api.sideloadPackage({
         manifest: asNotNull(this.toUpload.manifest),
         icon: asNotNull(this.toUpload.icon),
       })
-      this.api.uploadPackage(
-        res.guid,
+      await this.api.uploadPackage(
+        guid,
         await readBlobToArrayBuffer(asNotNull(this.toUpload.file)),
       )
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
-      this.clearToUpload()
-      // TODO navigate to service page
       await this.navCtrl.navigateForward(
         `/services/${asNotNull(this.toUpload.manifest).id}`,
       )
+      this.clearToUpload()
     }
   }
 

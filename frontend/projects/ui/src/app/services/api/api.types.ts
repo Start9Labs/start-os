@@ -244,9 +244,7 @@ export module RR {
     manifest: Manifest
     icon: string // base64
   }
-  export interface SideloadPacakgeRes {
-    guid: string
-  }
+  export type SideloadPacakgeRes = string //guid
 
   // marketplace
 
