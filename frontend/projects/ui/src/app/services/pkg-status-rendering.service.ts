@@ -57,7 +57,6 @@ function getHealthStatus(
   }
 
   const values = Object.values(status.main.health)
-  console.log('HEALTH CHECKS', values)
 
   if (values.some(h => h.result === 'failure')) {
     return HealthStatus.Failure
