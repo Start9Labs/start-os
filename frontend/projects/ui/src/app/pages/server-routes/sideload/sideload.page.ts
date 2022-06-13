@@ -4,7 +4,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Manifest } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
 import cbor from 'cbor'
-import { asNotNull, ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService } from '@start9labs/shared'
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
 }
@@ -83,19 +83,19 @@ export class SideloadPage {
     await loader.present()
     try {
       const guid = await this.api.sideloadPackage({
-        manifest: asNotNull(this.toUpload.manifest),
-        icon: asNotNull(this.toUpload.icon),
+        manifest: this.toUpload.manifest!,
+        icon: this.toUpload.icon!,
       })
       await this.api.uploadPackage(
         guid,
-        await readBlobToArrayBuffer(asNotNull(this.toUpload.file)),
+        await readBlobToArrayBuffer(this.toUpload.file!),
       )
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
       await this.navCtrl.navigateForward(
-        `/services/${asNotNull(this.toUpload.manifest).id}`,
+        `/services/${this.toUpload.manifest!.id}`,
       )
       this.clearToUpload()
     }
@@ -132,7 +132,6 @@ export class SideloadPage {
       Number(positions['icon'][0]),
       Number(positions['icon'][0]) + Number(positions['icon'][1]),
     )
-
     this.toUpload.icon = await readBlobAsDataURL(data)
   }
 }
@@ -150,7 +149,6 @@ async function getPositions(
     await readBlobToArrayBuffer(file.slice(start, end)),
   )[0]
   const tocTitle = await file.slice(end, end + titleLength).text()
-
   start = end + titleLength
   end = start + 8
   const chapterPosition = new DataView(
