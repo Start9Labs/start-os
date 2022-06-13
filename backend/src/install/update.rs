@@ -36,14 +36,14 @@ impl UpdateReceipts {
             .star()
             .installed()
             .map(|x| x.current_dependents())
-            .make_locker(LockType::Exist)
+            .make_locker(LockType::Write)
             .add_to_keys(locks);
         let dependency = crate::db::DatabaseModel::new()
             .package_data()
             .star()
             .installed()
             .map(|x| x.manifest().dependencies().star())
-            .make_locker(LockType::Exist)
+            .make_locker(LockType::Write)
             .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
