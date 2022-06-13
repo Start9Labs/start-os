@@ -94,10 +94,11 @@ export class SideloadPage {
         manifest: this.toUpload.manifest!,
         icon: this.toUpload.icon!,
       })
-      await this.api.uploadPackage(
-        guid,
-        await readBlobToArrayBuffer(this.toUpload.file!),
-      )
+      this.api
+        .uploadPackage(guid, await readBlobToArrayBuffer(this.toUpload.file!))
+        .catch(e => {
+          this.errToast.present(e)
+        })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
