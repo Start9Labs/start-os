@@ -5,6 +5,11 @@
   }
 }
 
+.area {
+  flex-direction: column;
+  justify-content: center;
+}
+
 .drop-area {
   display: flex;
   background-color: rgba(24, 24, 24, 0.5);

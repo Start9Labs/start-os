@@ -49,6 +49,12 @@ export class SideloadPage {
     this.setFile(files)
   }
   async setFile(files?: File[]) {
+    const loader = await this.loadingCtrl.create({
+      spinner: 'lines',
+      message: 'Verifying Package',
+      cssClass: 'loader',
+    })
+    await loader.present()
     if (!files || !files.length) return
     this.toUpload.file = files[0]
     // verify valid s9pk
@@ -59,12 +65,14 @@ export class SideloadPage {
       await readBlobToArrayBuffer(this.toUpload.file.slice(2, 3)),
     )
     if (compare(magic, MAGIC) && compare(version, VERSION)) {
+      loader.dismiss()
       this.valid = true
       this.message = 'A valid package file has been detected!'
       await this.parseS9pk(this.toUpload.file)
     } else {
+      loader.dismiss()
       this.valid = false
-      this.message = 'Invalid package file detected. Please try again.'
+      this.message = 'Invalid package file'
     }
   }
 

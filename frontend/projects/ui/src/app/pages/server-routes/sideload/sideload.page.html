@@ -23,9 +23,8 @@
     ></ion-icon>
     <h4>To install a service manually, upload the s9pk here</h4>
     <p *ngIf="onTor">
-      <ion-text color="warning"
-        >Warning! You are connected over Tor. It is recommended to preform
-        manual installs over LAN.</ion-text
+      <ion-text color="success"
+        >Tip: switch to LAN for faster uploads.</ion-text
       >
     </p>
     <br />
@@ -39,45 +38,29 @@
       />
     </ion-button>
   </div>
-  <!-- file uploaded and invalid -->
-  <div
-    *ngIf="toUpload.file && !valid"
-    class="drop-area"
-    [class.drop-area_mobile]="isMobile"
-    appDnd
-    (onFileDropped)="handleFileDrop($event)"
-  >
-    <div class="inline">
-      <ion-icon
-        *ngIf="!valid"
-        name="close-circle-outline"
-        color="danger"
-      ></ion-icon>
-      <h4 *ngIf="message">{{ message }}</h4>
+  <!-- file uploaded -->
+  <div class="drop-area_filled" *ngIf="toUpload.file">
+    <div class="inline" *ngIf="valid; else invalid">
+      <ion-icon name="checkmark-circle-outline" color="success"></ion-icon>
+      <h4>{{ message }}</h4>
     </div>
+    <ng-template #invalid>
+      <div class="area">
+        <div class="inline">
+          <ion-icon
+            *ngIf="!valid"
+            name="close-circle-outline"
+            color="danger"
+          ></ion-icon>
+          <h4><ion-text color="danger">{{ message }}</ion-text></h4>
+        </div>
+        <ion-button color="primary" (click)="clearToUpload()">
+          Try again
+        </ion-button>
+      </div>
+    </ng-template>
     <br />
-    <ion-button color="primary" type="file">
-      <label for="upload-photo">Browse</label>
-      <input
-        type="file"
-        style="position: absolute; opacity: 0; height: 100%"
-        id="upload-photo"
-        (change)="handleFileInput($event)"
-      />
-    </ion-button>
-  </div>
-  <!-- file uploaded and valid -->
-  <div class="drop-area_filled" *ngIf="toUpload.file && valid">
-    <div class="inline">
-      <ion-icon
-        *ngIf="valid"
-        name="checkmark-circle-outline"
-        color="success"
-      ></ion-icon>
-      <h4 *ngIf="message">{{ message }}</h4>
-    </div>
-    <br />
-    <div *ngIf="toUpload.file && valid">
+    <div *ngIf="valid">
       <div *ngIf="toUpload.manifest " class="service-card">
         <div class="row row_end">
           <ion-button
