@@ -60,6 +60,7 @@ const ICONS = [
   'play-outline',
   'power',
   'pulse',
+  'push-outline',
   'qr-code-outline',
   'receipt-outline',
   'refresh',

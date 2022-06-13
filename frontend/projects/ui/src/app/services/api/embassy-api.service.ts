@@ -27,6 +27,9 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   // for getting static files: ex icons, instructions, licenses
   abstract getStatic(url: string): Promise<string>
 
+  // for sideloading packages
+  abstract uploadPackage(guid: string, body: ArrayBuffer): Promise<string>
+
   // db
 
   abstract getRevisions(since: number): Promise<RR.GetRevisionsRes>
@@ -259,6 +262,10 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   ): Promise<RR.UninstallPackageRes>
   deleteRecoveredPackage = (params: RR.UninstallPackageReq) =>
     this.syncResponse(() => this.deleteRecoveredPackageRaw(params))()
+
+  abstract sideloadPackage(
+    params: RR.SideloadPackageReq,
+  ): Promise<RR.SideloadPacakgeRes>
 
   // Helper allowing quick decoration to sync the response patch and return the response contents.
   // Pass in a tempUpdate function which returns a UpdateTemp corresponding to a temporary

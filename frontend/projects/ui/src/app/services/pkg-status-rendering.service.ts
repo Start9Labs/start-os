@@ -47,7 +47,10 @@ function getDependencyStatus(pkg: PackageDataEntry): DependencyStatus | null {
   return depIds.length ? DependencyStatus.Warning : DependencyStatus.Satisfied
 }
 
-function getHealthStatus(status: Status): HealthStatus | null {
+function getHealthStatus(
+  status: Status,
+  hasHealthChecks: boolean,
+): HealthStatus | null {
   if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
     return null
   }

@@ -332,6 +332,17 @@ export class ServerShowPage {
         disabled: of(false),
       },
       {
+        title: 'Manually install a service',
+        description: `Install a service by drag n' drop`,
+        icon: 'push-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['sideload'], {
+            relativeTo: this.route,
+          }),
+        detail: true,
+        disabled: of(false),
+      },
+      {
         title: 'Marketplace Settings',
         description: 'Add or remove marketplaces',
         icon: 'storefront-outline',
