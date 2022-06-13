@@ -23,6 +23,15 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async uploadPackage(guid: string, body: ArrayBuffer): Promise<string> {
+    return this.http.httpRequest({
+      method: Method.POST,
+      body,
+      url: `/rest/rpc/${guid}`,
+      responseType: 'text',
+    })
+  }
+
   // db
 
   async getRevisions(since: number): Promise<RR.GetRevisionsRes> {
@@ -330,6 +339,15 @@ export class LiveApiService extends ApiService {
   ): Promise<RR.DryConfigureDependencyRes> {
     return this.http.rpcRequest({
       method: 'package.dependency.configure.dry',
+      params,
+    })
+  }
+
+  async sideloadPackage(
+    params: RR.SideloadPackageReq,
+  ): Promise<RR.SideloadPacakgeRes> {
+    return this.http.rpcRequest({
+      method: 'package.sideload',
       params,
     })
   }

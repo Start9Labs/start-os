@@ -5,6 +5,7 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
   DataModel,
   DependencyError,
+  Manifest,
 } from 'src/app/services/patch-db/data-model'
 
 export module RR {
@@ -238,6 +239,12 @@ export module RR {
     'new-config': object
     spec: ConfigSpec
   }
+
+  export interface SideloadPackageReq {
+    manifest: Manifest
+    icon: string // base64
+  }
+  export type SideloadPacakgeRes = string //guid
 
   // marketplace
 

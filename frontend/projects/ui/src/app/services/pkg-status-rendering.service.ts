@@ -52,7 +52,6 @@ function getHealthStatus(
   status: Status,
   hasHealthChecks: boolean,
 ): HealthStatus | null {
-  console.log('HEALTH STATUS', status)
   if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
     return null
   }
