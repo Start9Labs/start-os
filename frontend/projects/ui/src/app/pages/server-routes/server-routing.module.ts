@@ -68,6 +68,11 @@ const routes: Routes = [
       import('./sessions/sessions.module').then(m => m.SessionsPageModule),
   },
   {
+    path: 'sideload',
+    loadChildren: () =>
+      import('./sideload/sideload.module').then(m => m.SideloadPageModule),
+  },
+  {
     path: 'specs',
     loadChildren: () =>
       import('./server-specs/server-specs.module').then(
