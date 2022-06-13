@@ -1,0 +1,94 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="embassy"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Manually install a service</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-text-center">
+  <!-- file upload -->
+  <div
+    *ngIf="!toUpload.file"
+    class="drop-area"
+    [class.drop-area_mobile]="isMobile"
+    appDnd
+    (onFileDropped)="handleFileDrop($event)"
+  >
+    <ion-icon
+      name="cloud-upload-outline"
+      color="dark"
+      style="font-size: 42px"
+    ></ion-icon>
+    <h4>To install a service manually, upload the s9pk here</h4>
+    <p *ngIf="onTor">
+      <ion-text color="success"
+        >Tip: switch to LAN for faster uploads.</ion-text
+      >
+    </p>
+    <br />
+    <ion-button color="primary" type="file">
+      <label for="upload-photo">Browse</label>
+      <input
+        type="file"
+        style="position: absolute; opacity: 0; height: 100%"
+        id="upload-photo"
+        (change)="handleFileInput($event)"
+      />
+    </ion-button>
+  </div>
+  <!-- file uploaded -->
+  <div class="drop-area_filled" *ngIf="toUpload.file">
+    <div class="inline" *ngIf="valid; else invalid">
+      <ion-icon name="checkmark-circle-outline" color="success"></ion-icon>
+      <h4>{{ message }}</h4>
+    </div>
+    <ng-template #invalid>
+      <div class="area">
+        <div class="inline">
+          <ion-icon
+            *ngIf="!valid"
+            name="close-circle-outline"
+            color="danger"
+          ></ion-icon>
+          <h4><ion-text color="danger">{{ message }}</ion-text></h4>
+        </div>
+        <ion-button color="primary" (click)="clearToUpload()">
+          Try again
+        </ion-button>
+      </div>
+    </ng-template>
+    <br />
+    <div *ngIf="valid">
+      <div *ngIf="toUpload.manifest " class="service-card">
+        <div class="row row_end">
+          <ion-button
+            style="
+              --background-hover: transparent;
+              --padding-end: 0px;
+              --padding-start: 0px;
+            "
+            fill="clear"
+            size="small"
+            (click)="clearToUpload()"
+          >
+            <ion-icon slot="icon-only" name="close" color="danger"></ion-icon>
+          </ion-button>
+        </div>
+        <div class="row">
+          <img
+            *ngIf="toUpload.icon"
+            [alt]="toUpload.manifest.title + ' Icon'"
+            [src]="toUpload.icon | trustUrl"
+          />
+          <h2>{{ toUpload.manifest.title }}</h2>
+          <p>{{ toUpload.manifest.version | displayEmver }}</p>
+        </div>
+      </div>
+      <ion-button color="primary" (click)="handleUpload()">
+        Upload & Install
+      </ion-button>
+    </div>
+  </div>
+</ion-content>
