@@ -13,7 +13,10 @@
       "^/public": ""
     }
   },
-  "/rest/rpc": {
-    "target": "http://<CHANGE_ME>/rest/rpc"
+  "/rest/rpc/*": {
+    "target": "http://<CHANGE_ME>/rest/rpc",
+    "pathRewrite": {
+      "^/rest/rpc": ""
+    }
   }
 }
