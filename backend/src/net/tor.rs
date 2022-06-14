@@ -351,8 +351,9 @@ impl TorControllerInner {
             .get_info("onions/current")
             .await?
             .lines()
-            .filter(|l| !l.trim().is_empty())
-            .map(|l| l.trim().parse().with_kind(ErrorKind::Tor))
+            .map(|l| l.trim())
+            .filter(|l| !l.is_empty())
+            .map(|l| l.parse().with_kind(ErrorKind::Tor))
             .collect()
     }
 }
