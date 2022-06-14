@@ -12,6 +12,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import {
   ServerInfo,
+  UIData,
   UIMarketplaceData,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -34,7 +35,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly altMarketplaceData$: Observable<
     UIMarketplaceData | undefined
   > = this.patch.watch$('ui').pipe(
-    map(ui => ui.marketplace),
+    map((ui: UIData) => ui.marketplace),
     distinctUntilChanged(),
     shareReplay({ bufferSize: 1, refCount: true }),
   )
