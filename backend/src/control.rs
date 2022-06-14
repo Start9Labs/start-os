@@ -181,3 +181,29 @@ pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()
         response: (),
     })
 }
+
+pub async fn restart(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
+    let mut db = ctx.db.handle();
+    let mut tx = db.begin().await?;
+
+    let mut status = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .and_then(|pde| pde.installed())
+        .map(|i| i.status().main())
+        .get_mut(&mut tx)
+        .await?;
+    if !matches!(&*status, Some(MainStatus::Running { .. })) {
+        return Err(Error::new(
+            eyre!("{} is not running", id),
+            crate::ErrorKind::InvalidRequest,
+        ));
+    }
+    *status = Some(MainStatus::Restarting);
+    status.save(&mut tx).await?;
+
+    Ok(WithRevision {
+        revision: tx.commit(None).await?,
+        response: (),
+    })
+}
