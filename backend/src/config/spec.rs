@@ -1169,9 +1169,11 @@ pub struct Pattern {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct ValueSpecString {
     #[serde(flatten)]
     pub pattern: Option<Pattern>,
+    pub textarea: bool,
     pub copyable: bool,
     pub masked: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1188,6 +1190,7 @@ impl<'de> Deserialize<'de> for ValueSpecString {
             fn visit_map<V: MapAccess<'de>>(self, mut map: V) -> Result<ValueSpecString, V::Error> {
                 let mut pattern = None;
                 let mut pattern_description = None;
+                let mut textarea = false;
                 let mut copyable = false;
                 let mut masked = false;
                 let mut placeholder = None;
@@ -1207,6 +1210,8 @@ impl<'de> Deserialize<'de> for ValueSpecString {
                         } else {
                             pattern_description = Some(map.next_value()?);
                         }
+                    } else if &key == "textarea" {
+                        textarea = map.next_value()?;
                     } else if &key == "copyable" {
                         copyable = map.next_value()?;
                     } else if &key == "masked" {
@@ -1234,6 +1239,7 @@ impl<'de> Deserialize<'de> for ValueSpecString {
                 };
                 Ok(ValueSpecString {
                     pattern: regex,
+                    textarea,
                     copyable,
                     masked,
                     placeholder,
@@ -1243,6 +1249,7 @@ impl<'de> Deserialize<'de> for ValueSpecString {
         const FIELDS: &'static [&'static str] = &[
             "pattern",
             "pattern-description",
+            "textarea",
             "copyable",
             "masked",
             "placeholder",
