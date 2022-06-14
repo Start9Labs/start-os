@@ -4,7 +4,7 @@
 set -e
 
 # introduce start9 username and embassy as default password
-if ! awk -F: '{ print $1}' /etc/passwd | grep start9
+if ! awk -F: '{ print $1 }' /etc/passwd | grep start9
 then
 	usermod -l start9 -d /home/start9 -m pi
 	groupmod --new-name start9 pi
@@ -46,6 +46,9 @@ curl -fsSL https://get.docker.com | sh # TODO: commit this script into git inste
 
 apt-get purge openresolv dhcpcd5 -y
 systemctl disable wpa_supplicant.service
+
+systemctl disable bluetooth.service
+systemctl disable triggerhappy.service
 
 apt-get autoremove -y
 apt-get upgrade -y
