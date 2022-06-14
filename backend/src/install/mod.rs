@@ -193,7 +193,8 @@ pub async fn install(
                         Current::new().compat(),
                         platforms::TARGET_ARCH,
                     ))
-                    .await?,
+                    .await?
+                    .error_for_status()?,
                 ),
                 &mut File::create(public_dir_path.join("LICENSE.md")).await?,
             )
@@ -211,7 +212,8 @@ pub async fn install(
                         Current::new().compat(),
                         platforms::TARGET_ARCH,
                     ))
-                    .await?,
+                    .await?
+                    .error_for_status()?,
                 ),
                 &mut File::create(public_dir_path.join("INSTRUCTIONS.md")).await?,
             )
@@ -229,7 +231,8 @@ pub async fn install(
                         Current::new().compat(),
                         platforms::TARGET_ARCH,
                     ))
-                    .await?,
+                    .await?
+                    .error_for_status()?,
                 ),
                 &mut File::create(public_dir_path.join(format!("icon.{}", icon_type))).await?,
             )
