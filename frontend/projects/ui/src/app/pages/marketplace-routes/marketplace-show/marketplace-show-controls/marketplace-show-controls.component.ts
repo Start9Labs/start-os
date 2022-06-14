@@ -81,16 +81,11 @@ export class MarketplaceShowControlsComponent {
       installAlert: alerts.install || undefined,
     }
 
-    const success = await wizardModal(
+    wizardModal(
       this.modalCtrl,
       action === 'update'
         ? this.wizards.update(value)
         : this.wizards.downgrade(value),
     )
-
-    if (!success) return
-
-    await pauseFor(250)
-    this.navCtrl.back()
   }
 }

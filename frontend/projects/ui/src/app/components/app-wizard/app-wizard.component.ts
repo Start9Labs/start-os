@@ -58,6 +58,7 @@ export class AppWizardComponent {
 
   ionViewDidEnter() {
     this.initializing = false
+    this.swiper.allowTouchMove = false
     this.loadSlide()
   }
 

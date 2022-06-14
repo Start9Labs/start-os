@@ -1659,10 +1659,8 @@ export module Mock {
     },
   }
 
-  export const MockConfig = {}
-
-  export const MockDependencyConfig = {
-    testnet: true,
+  export const MockConfig = {
+    testnet: undefined,
     'object-list': [
       {
         'first-name': 'First',
@@ -1688,18 +1686,18 @@ export module Mock {
         law1: 'The first law Amended',
         law2: 'The second law',
       },
-      rpcpass: null,
+      rpcpass: undefined,
       rpcuser: '123',
       rulemakers: [],
-    },
-    advanced: {
-      notifications: ['email', 'text', 'push'],
     },
     'bitcoin-node': undefined,
     port: 20,
     rpcallowip: undefined,
     rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
+    advanced: undefined,
   }
+
+  export const MockDependencyConfig = MockConfig
 
   export const bitcoind: PackageDataEntry = {
     state: PackageState.Installed,
