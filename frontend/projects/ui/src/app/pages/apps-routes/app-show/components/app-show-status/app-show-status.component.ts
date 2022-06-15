@@ -139,6 +139,28 @@ export class AppShowStatusComponent {
     }
   }
 
+  async presentAlertRestart(): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'Confirm',
+      message: 'Are you sure you want to restart this service?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Restart',
+          handler: () => {
+            this.restart()
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+
+    await alert.present()
+  }
+
   private async start(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Starting...`,
@@ -148,6 +170,23 @@ export class AppShowStatusComponent {
 
     try {
       await this.embassyApi.startPackage({ id: this.pkg.manifest.id })
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async restart(): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      message: `Restarting...`,
+      spinner: 'lines',
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.restartPackage({ id: this.pkg.manifest.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

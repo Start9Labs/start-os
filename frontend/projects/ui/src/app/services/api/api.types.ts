@@ -215,6 +215,9 @@ export module RR {
   export type StartPackageReq = WithExpire<{ id: string }> // package.start
   export type StartPackageRes = WithRevision<null>
 
+  export type RestartPackageReq = WithExpire<{ id: string }> // package.restart
+  export type RestartPackageRes = WithRevision<null>
+
   export type DryStopPackageReq = StopPackageReq // package.stop.dry
   export type DryStopPackageRes = Breakages
 
