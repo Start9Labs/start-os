@@ -1,0 +1,14 @@
+<div class="ion-text-left">
+  <h1>Release Notes</h1>
+  <br />
+  <div *ngFor="let v of params.versions">
+    <h4>
+      <b>
+        {{ v.version }}
+      </b>
+    </h4>
+    <hr style="height: 0; border-width: 1px" />
+    <div [innerHTML]="v.notes | markdown"></div>
+    <br />
+  </div>
+</div>

@@ -1,19 +1,9 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="start">
+    <ion-title>Config</ion-title>
+    <ion-buttons slot="end">
       <ion-button (click)="dismiss()">
         <ion-icon slot="icon-only" name="close"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>Config</ion-title>
-    <ion-buttons
-      *ngIf="!loadingText && !loadingError && hasConfig"
-      slot="end"
-      class="ion-padding-end"
-    >
-      <ion-button fill="clear" (click)="resetDefaults()">
-        <ion-icon slot="start" name="refresh"></ion-icon>
-        Reset Defaults
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
@@ -91,7 +81,7 @@
           [objectSpec]="configSpec"
           [formGroup]="configForm"
           [current]="configForm.value"
-          [showEdited]="true"
+          [original]="original"
         ></form-object>
       </form>
     </ng-template>
@@ -100,6 +90,16 @@
 
 <ion-footer>
   <ion-toolbar>
+    <ion-buttons
+      *ngIf="!loadingText && !loadingError && hasConfig"
+      slot="start"
+      class="ion-padding-start"
+    >
+      <ion-button fill="clear" (click)="resetDefaults()">
+        <ion-icon slot="start" name="refresh"></ion-icon>
+        Reset Defaults
+      </ion-button>
+    </ion-buttons>
     <ion-buttons
       *ngIf="!loadingText && !loadingError"
       slot="end"

@@ -11,8 +11,8 @@ import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Observable, of } from 'rxjs'
 import { filter, map, take } from 'rxjs/operators'
-import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
+import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
+import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { exists, isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
@@ -32,7 +32,7 @@ export class ServerShowPage {
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
-    private readonly wizardBaker: WizardBaker,
+    private readonly wizards: WizardDefs,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
@@ -70,7 +70,7 @@ export class ServerShowPage {
 
       await wizardModal(
         this.modalCtrl,
-        this.wizardBaker.updateOS({
+        this.wizards.updateOS({
           version,
           headline,
           releaseNotes,
