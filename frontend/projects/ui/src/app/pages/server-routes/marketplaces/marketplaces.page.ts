@@ -145,7 +145,6 @@ export class MarketplacesPage {
       : this.config.marketplace.url
 
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Validating Marketplace...',
     })
     await loader.present()
@@ -189,7 +188,6 @@ export class MarketplacesPage {
     )
 
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Deleting...',
     })
     await loader.present()
@@ -219,7 +217,6 @@ export class MarketplacesPage {
     if (currentUrls.includes(new URL(url).hostname)) return
 
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Validating Marketplace...',
     })
 
@@ -264,7 +261,6 @@ export class MarketplacesPage {
     if (currentUrls.includes(new URL(url).hostname)) return
 
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Validating Marketplace...',
     })
     await loader.present()

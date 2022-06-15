@@ -190,7 +190,6 @@ export class AppActionsPage {
     input?: object,
   ): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Executing action...',
     })
     await loader.present()

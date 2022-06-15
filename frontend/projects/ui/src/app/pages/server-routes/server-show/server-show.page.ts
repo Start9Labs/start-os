@@ -112,7 +112,6 @@ export class ServerShowPage {
           cssClass: 'enter-click',
         },
       ],
-      cssClass: '',
     })
     await alert.present()
   }
@@ -202,7 +201,6 @@ export class ServerShowPage {
 
   private async systemRebuild() {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Hard Restarting...',
     })
     await loader.present()
@@ -218,7 +216,6 @@ export class ServerShowPage {
 
   private async checkForEosUpdate(): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Checking for updates',
     })
     await loader.present()

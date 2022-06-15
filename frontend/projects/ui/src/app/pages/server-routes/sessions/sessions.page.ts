@@ -53,7 +53,6 @@ export class SessionsPage {
 
   async kill(id: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Killing session...',
     })
     await loader.present()

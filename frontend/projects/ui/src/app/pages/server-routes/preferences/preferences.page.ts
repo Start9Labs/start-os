@@ -66,7 +66,6 @@ export class PreferencesPage {
 
   private async setDbValue(key: string, value: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Saving...',
     })
     await loader.present()

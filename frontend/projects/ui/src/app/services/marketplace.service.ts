@@ -149,8 +149,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return defer(() =>
       from(
         this.loadingCtrl.create({
-          spinner: 'lines',
-          message: 'Beginning Installation',
+          message: 'Beginning Installation...',
         }),
       ),
     ).pipe(

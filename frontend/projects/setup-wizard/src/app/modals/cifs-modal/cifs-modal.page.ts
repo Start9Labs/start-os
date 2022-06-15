@@ -38,7 +38,6 @@ export class CifsModal {
 
   async submit(): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Connecting to shared folder...',
       cssClass: 'loader',
     })

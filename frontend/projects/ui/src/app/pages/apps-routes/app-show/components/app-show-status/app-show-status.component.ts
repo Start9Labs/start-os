@@ -167,7 +167,6 @@ export class AppShowStatusComponent {
   private async start(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Starting...`,
-      spinner: 'lines',
     })
     await loader.present()
 
@@ -198,8 +197,6 @@ export class AppShowStatusComponent {
   private async restart(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Restarting...`,
-      spinner: 'lines',
-      cssClass: 'loader',
     })
     await loader.present()
 

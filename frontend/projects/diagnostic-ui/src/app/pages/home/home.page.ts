@@ -91,7 +91,6 @@ export class HomePage {
 
   async restart(): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       cssClass: 'loader',
     })
     await loader.present()
@@ -108,7 +107,6 @@ export class HomePage {
 
   async forgetDrive(): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       cssClass: 'loader',
     })
     await loader.present()
@@ -126,7 +124,6 @@ export class HomePage {
 
   async repairDrive(): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       cssClass: 'loader',
     })
     await loader.present()

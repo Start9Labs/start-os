@@ -72,7 +72,6 @@ export class DeveloperMenuPage {
 
   async saveBasicInfo(basicInfo: BasicInfo) {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Saving...',
     })
     await loader.present()
