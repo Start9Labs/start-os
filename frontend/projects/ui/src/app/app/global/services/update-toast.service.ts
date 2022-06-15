@@ -45,23 +45,43 @@ export class UpdateToastService extends Observable<unknown> {
     super(subscriber => this.stream$.subscribe(subscriber))
   }
 
+  LOADER: LoadingOptions = {
+    spinner: 'lines',
+    message: 'Restarting...',
+  }
+
+  TOAST: ToastOptions = {
+    header: 'EOS download complete!',
+    message:
+      'Restart your Embassy for these updates to take effect. It can take several minutes to come back online.',
+    position: 'bottom',
+    duration: 0,
+    cssClass: 'success-toast',
+    buttons: [
+      {
+        side: 'start',
+        icon: 'close',
+        handler: () => true,
+      },
+      {
+        side: 'end',
+        text: 'Restart',
+        handler: () => {
+          this.restart()
+        },
+      },
+    ],
+  }
   private async showToast() {
     await this.updateToast?.dismiss()
 
-    this.updateToast = await this.toastCtrl.create(TOAST)
-    this.updateToast.buttons?.push({
-      side: 'end',
-      text: 'Restart',
-      handler: () => {
-        this.restart()
-      },
-    })
+    this.updateToast = await this.toastCtrl.create(this.TOAST)
 
     await this.updateToast.present()
   }
 
   private async restart(): Promise<void> {
-    const loader = await this.loadingCtrl.create(LOADER)
+    const loader = await this.loadingCtrl.create(this.LOADER)
 
     await loader.present()
 
@@ -73,25 +93,4 @@ export class UpdateToastService extends Observable<unknown> {
       await loader.dismiss()
     }
   }
-}
-
-const LOADER: LoadingOptions = {
-  spinner: 'lines',
-  message: 'Restarting...',
-}
-
-const TOAST: ToastOptions = {
-  header: 'EOS download complete!',
-  message:
-    'Restart your Embassy for these updates to take effect. It can take several minutes to come back online.',
-  position: 'bottom',
-  duration: 0,
-  cssClass: 'success-toast',
-  buttons: [
-    {
-      side: 'start',
-      icon: 'close',
-      handler: () => true,
-    },
-  ],
 }

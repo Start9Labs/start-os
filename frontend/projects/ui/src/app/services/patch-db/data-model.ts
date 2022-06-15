@@ -52,13 +52,15 @@ export interface ServerInfo {
   'lan-address': Url
   'tor-address': Url
   'unread-notification-count': number
-  'status-info': {
-    'backing-up': boolean
-    updated: boolean
-    'update-progress': { size: number | null; downloaded: number } | null
-  }
+  'status-info': ServerStatusInfo
   'eos-version-compat': string
   'password-hash': string
+}
+
+export interface ServerStatusInfo {
+  'backing-up': boolean
+  updated: boolean
+  'update-progress': { size: number | null; downloaded: number } | null
 }
 
 export enum ServerStatus {
