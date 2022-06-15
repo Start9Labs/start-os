@@ -1,12 +1,10 @@
 import { Injectable } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { Storage } from '@ionic/storage-angular'
 import { Observable, of } from 'rxjs'
 import { filter, share, switchMap, take, tap } from 'rxjs/operators'
 import { isEmptyObject } from '@start9labs/shared'
 
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { AuthService } from 'src/app/services/auth.service'
 import { DataModel, UIData } from 'src/app/services/patch-db/data-model'
 import { EOSService } from 'src/app/services/eos.service'
 import { OSWelcomePage } from 'src/app/modals/os-welcome/os-welcome.page'
@@ -39,9 +37,7 @@ export class PatchDataService extends Observable<DataModel | null> {
 
   constructor(
     private readonly patchMonitor: PatchMonitorService,
-    private readonly authService: AuthService,
     private readonly patch: PatchDbService,
-    private readonly storage: Storage,
     private readonly eosService: EOSService,
     private readonly config: ConfigService,
     private readonly modalCtrl: ModalController,

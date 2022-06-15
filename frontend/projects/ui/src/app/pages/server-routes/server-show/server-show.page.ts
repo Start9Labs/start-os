@@ -270,14 +270,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
         detail: true,
-        disabled: this.patch
-          .watch$('server-info', 'status-info')
-          .pipe(
-            map(
-              status =>
-                status && (status['backing-up'] || !!status['update-progress']),
-            ),
-          ),
+        disabled: this.eosService.updatingOrBackingUp$,
       },
     ],
     Settings: [
@@ -290,7 +283,7 @@ export class ServerShowPage {
             ? this.updateEos()
             : this.checkForEosUpdate(),
         detail: false,
-        disabled: this.eosService.updateStarted$,
+        disabled: this.eosService.updatingOrBackingUp$,
       },
       {
         title: 'Preferences',

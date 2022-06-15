@@ -13,25 +13,33 @@ export class EOSService {
   eos: MarketplaceEOS
   updateAvailable$ = new BehaviorSubject<boolean>(false)
 
-  readonly updateStarted$ = this.patch
-    .watch$('server-info', 'status-info')
-    .pipe(
-      map(status => {
-        return (
-          status &&
-          (status['backing-up'] ||
-            !!status['update-progress'] ||
-            status.updated)
-        )
-      }),
-    )
+  readonly updating$ = this.patch.watch$('server-info', 'status-info').pipe(
+    map(status => {
+      return status && (!!status['update-progress'] || status.updated)
+    }),
+  )
+
+  readonly backingUp$ = this.patch.watch$(
+    'server-info',
+    'status-info',
+    'backing-up',
+  )
+
+  readonly updatingOrBackingUp$ = combineLatest([
+    this.updating$,
+    this.backingUp$,
+  ]).pipe(
+    map(([updating, backingUp]) => {
+      return updating || backingUp
+    }),
+  )
 
   readonly showUpdate$ = combineLatest([
     this.updateAvailable$,
-    this.updateStarted$,
+    this.updating$,
   ]).pipe(
-    map(([available, started]) => {
-      return available && !started
+    map(([available, updating]) => {
+      return available && !updating
     }),
   )
 
