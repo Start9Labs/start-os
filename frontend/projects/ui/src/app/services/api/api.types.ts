@@ -184,9 +184,6 @@ export module RR {
   }> // package.install
   export type InstallPackageRes = WithRevision<null>
 
-  export type DryUpdatePackageReq = { id: string; version: string } // package.update.dry
-  export type DryUpdatePackageRes = Breakages
-
   export type GetPackageConfigReq = { id: string } // package.config.get
   export type GetPackageConfigRes = { spec: ConfigSpec; config: object }
 
@@ -218,14 +215,8 @@ export module RR {
   export type RestartPackageReq = WithExpire<{ id: string }> // package.restart
   export type RestartPackageRes = WithRevision<null>
 
-  export type DryStopPackageReq = StopPackageReq // package.stop.dry
-  export type DryStopPackageRes = Breakages
-
   export type StopPackageReq = WithExpire<{ id: string }> // package.stop
   export type StopPackageRes = WithRevision<null>
-
-  export type DryUninstallPackageReq = UninstallPackageReq // package.uninstall.dry
-  export type DryUninstallPackageRes = Breakages
 
   export type UninstallPackageReq = WithExpire<{ id: string }> // package.uninstall
   export type UninstallPackageRes = WithRevision<null>

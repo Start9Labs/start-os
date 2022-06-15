@@ -9,7 +9,6 @@ import { IonContent, ModalController } from '@ionic/angular'
 import { CompleteComponent } from './complete/complete.component'
 import { DependentsComponent } from './dependents/dependents.component'
 import { AlertComponent } from './alert/alert.component'
-import { NotesComponent } from './notes/notes.component'
 import { WizardAction } from './wizard-types'
 import SwiperCore, { Swiper } from 'swiper'
 import { IonicSlides } from '@ionic/angular'
@@ -87,7 +86,6 @@ export class AppWizardComponent {
 
 export type SlideDefinition =
   | { selector: 'alert'; params: AlertComponent['params'] }
-  | { selector: 'notes'; params: NotesComponent['params'] }
   | { selector: 'dependents'; params: DependentsComponent['params'] }
   | { selector: 'complete'; params: CompleteComponent['params'] }
 

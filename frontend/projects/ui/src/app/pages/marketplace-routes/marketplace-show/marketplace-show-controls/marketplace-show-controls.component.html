@@ -13,7 +13,7 @@
         *ngIf="(version | compareEmver: pkg.manifest.version) === -1"
         expand="block"
         color="success"
-        (click)="presentModal('update')"
+        (click)="tryInstall()"
       >
         Update
       </ion-button>
@@ -21,7 +21,7 @@
         *ngIf="(version | compareEmver: pkg.manifest.version) === 1"
         expand="block"
         color="warning"
-        (click)="presentModal('downgrade')"
+        (click)="tryInstall()"
       >
         Downgrade
       </ion-button>

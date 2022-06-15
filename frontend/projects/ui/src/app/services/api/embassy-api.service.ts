@@ -199,10 +199,6 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   installPackage = (params: RR.InstallPackageReq) =>
     this.syncResponse(() => this.installPackageRaw(params))()
 
-  abstract dryUpdatePackage(
-    params: RR.DryUpdatePackageReq,
-  ): Promise<RR.DryUpdatePackageRes>
-
   abstract getPackageConfig(
     params: RR.GetPackageConfigReq,
   ): Promise<RR.GetPackageConfigRes>
@@ -239,19 +235,11 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   restartPackage = (params: RR.RestartPackageReq) =>
     this.syncResponse(() => this.restartPackageRaw(params))()
 
-  abstract dryStopPackage(
-    params: RR.DryStopPackageReq,
-  ): Promise<RR.DryStopPackageRes>
-
   protected abstract stopPackageRaw(
     params: RR.StopPackageReq,
   ): Promise<RR.StopPackageRes>
   stopPackage = (params: RR.StopPackageReq) =>
     this.syncResponse(() => this.stopPackageRaw(params))()
-
-  abstract dryUninstallPackage(
-    params: RR.DryUninstallPackageReq,
-  ): Promise<RR.DryUninstallPackageRes>
 
   protected abstract uninstallPackageRaw(
     params: RR.UninstallPackageReq,

@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { AlertController } from '@ionic/angular'
-
 import { ConfigService } from '../../services/config.service'
 import { LocalStorageService } from '../../services/local-storage.service'
 import { EOSService } from '../../services/eos.service'

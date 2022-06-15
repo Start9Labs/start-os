@@ -12,16 +12,15 @@ import {
   Status,
 } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from '@start9labs/shared'
-import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
-import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import {
   AlertController,
+  IonicSafeString,
   LoadingController,
-  ModalController,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ModalService } from 'src/app/services/modal.service'
 import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Component({
   selector: 'app-show-status',
@@ -48,9 +47,7 @@ export class AppShowStatusComponent {
     private readonly alertCtrl: AlertController,
     private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
-    private readonly wizards: WizardDefs,
     private readonly launcherService: UiLauncherService,
     private readonly modalService: ModalService,
   ) {}
@@ -105,57 +102,66 @@ export class AppShowStatusComponent {
     this.start()
   }
 
-  async stop(): Promise<void> {
-    const { id, title } = this.pkg.manifest
-    const hasDependents = !!Object.keys(
-      this.pkg.installed?.['current-dependents'] || {},
-    ).filter(depId => depId !== id).length
+  async tryStop(): Promise<void> {
+    const { title, alerts } = this.pkg.manifest
 
-    if (!hasDependents) {
-      const loader = await this.loadingCtrl.create({
-        message: `Stopping...`,
-        spinner: 'lines',
+    let message = alerts.stop || ''
+    if (hasCurrentDeps(this.pkg)) {
+      const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
+      message = message ? `${message}.\n\n${depMessage}` : depMessage
+    }
+
+    if (message) {
+      const alert = await this.alertCtrl.create({
+        header: 'Stop Service',
+        message: new IonicSafeString(
+          `<ion-text color="warning">Warning:</ion-text> <p>${message}</p>`,
+        ),
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+          {
+            text: 'Stop',
+            handler: () => {
+              this.stop()
+            },
+            cssClass: 'enter-click',
+          },
+        ],
       })
-      await loader.present()
 
-      try {
-        await this.embassyApi.stopPackage({ id })
-      } catch (e: any) {
-        this.errToast.present(e)
-      } finally {
-        loader.dismiss()
-      }
+      await alert.present()
     } else {
-      wizardModal(
-        this.modalCtrl,
-        this.wizards.stop({
-          id,
-          title,
-        }),
-      )
+      this.stop()
     }
   }
 
-  async presentAlertRestart(): Promise<void> {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Are you sure you want to restart this service?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Restart',
-          handler: () => {
-            this.restart()
+  async tryRestart(): Promise<void> {
+    if (hasCurrentDeps(this.pkg)) {
+      const alert = await this.alertCtrl.create({
+        header: 'Warning',
+        message: `Services that depend on ${this.pkg.manifest.title} may temporarily experiences issues`,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
           },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
+          {
+            text: 'Restart',
+            handler: () => {
+              this.restart()
+            },
+            cssClass: 'enter-click',
+          },
+        ],
+      })
 
-    await alert.present()
+      await alert.present()
+    } else {
+      this.restart()
+    }
   }
 
   private async start(): Promise<void> {
@@ -167,6 +173,21 @@ export class AppShowStatusComponent {
 
     try {
       await this.embassyApi.startPackage({ id: this.pkg.manifest.id })
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async stop(): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      message: 'Stopping...',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.stopPackage({ id: this.pkg.manifest.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

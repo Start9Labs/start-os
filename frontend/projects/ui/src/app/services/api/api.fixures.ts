@@ -62,6 +62,7 @@ export module Mock {
         'Chain state will be lost, as will any funds stored on your Bitcoin Core waller that have not been backed up.',
       restore: null,
       start: 'Starting Bitcoin is good for your health.',
+      stop: null,
     },
     main: {
       type: 'docker',
@@ -359,6 +360,7 @@ export module Mock {
       restore:
         'If this is a duplicate instance of the same LND node, you may loose your funds.',
       start: 'Starting LND is good for your health.',
+      stop: null,
     },
     main: {
       type: 'docker',
@@ -503,6 +505,7 @@ export module Mock {
       uninstall: null,
       restore: null,
       start: null,
+      stop: null,
     },
     main: {
       type: 'docker',

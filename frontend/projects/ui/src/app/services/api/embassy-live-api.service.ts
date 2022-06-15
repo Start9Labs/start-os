@@ -264,12 +264,6 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'package.install', params })
   }
 
-  async dryUpdatePackage(
-    params: RR.DryUpdatePackageReq,
-  ): Promise<RR.DryUpdatePackageRes> {
-    return this.http.rpcRequest({ method: 'package.update.dry', params })
-  }
-
   async getPackageConfig(
     params: RR.GetPackageConfigReq,
   ): Promise<RR.GetPackageConfigRes> {
@@ -312,20 +306,8 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'package.restart', params })
   }
 
-  async dryStopPackage(
-    params: RR.DryStopPackageReq,
-  ): Promise<RR.DryStopPackageRes> {
-    return this.http.rpcRequest({ method: 'package.stop.dry', params })
-  }
-
   async stopPackageRaw(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     return this.http.rpcRequest({ method: 'package.stop', params })
-  }
-
-  async dryUninstallPackage(
-    params: RR.DryUninstallPackageReq,
-  ): Promise<RR.DryUninstallPackageRes> {
-    return this.http.rpcRequest({ method: 'package.uninstall.dry', params })
   }
 
   async deleteRecoveredPackageRaw(

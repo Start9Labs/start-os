@@ -11,12 +11,11 @@ import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Observable, of } from 'rxjs'
 import { filter, map, take } from 'rxjs/operators'
-import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
-import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { exists, isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { RecoveredPackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 
 @Component({
   selector: 'server-show',
@@ -33,7 +32,6 @@ export class ServerShowPage {
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
-    private readonly wizards: WizardDefs,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
@@ -63,26 +61,19 @@ export class ServerShowPage {
       })
       await alert.present()
     } else {
-      const {
-        version,
-        headline,
-        'release-notes': releaseNotes,
-      } = this.eosService.eos
-
-      await wizardModal(
-        this.modalCtrl,
-        this.wizards.updateOS({
-          version,
-          headline,
-          releaseNotes,
-        }),
-      )
+      const modal = await this.modalCtrl.create({
+        componentProps: {
+          releaseNotes: this.eosService.eos['release-notes'],
+        },
+        component: OSUpdatePage,
+      })
+      modal.present()
     }
   }
 
   async presentAlertRestart() {
     const alert = await this.alertCtrl.create({
-      header: 'Confirm',
+      header: 'Restart',
       message:
         'Are you sure you want to restart your Embassy? It can take several minutes to come back online.',
       buttons: [
@@ -104,9 +95,10 @@ export class ServerShowPage {
 
   async presentAlertShutdown() {
     const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message:
-        'Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in.',
+      header: 'Shutdown',
+      message: new IonicSafeString(
+        `<ion-text color="warning">Warning:</ion-text> <p>Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in..</p>`,
+      ),
       buttons: [
         {
           text: 'Cancel',
@@ -120,6 +112,7 @@ export class ServerShowPage {
           cssClass: 'enter-click',
         },
       ],
+      cssClass: '',
     })
     await alert.present()
   }
@@ -179,7 +172,6 @@ export class ServerShowPage {
 
   private async restart() {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Restarting...',
     })
     await loader.present()
@@ -195,7 +187,6 @@ export class ServerShowPage {
 
   private async shutdown() {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Shutting down...',
     })
     await loader.present()
@@ -302,17 +293,7 @@ export class ServerShowPage {
             ? this.updateEos()
             : this.checkForEosUpdate(),
         detail: false,
-        disabled: this.patch
-          .watch$('server-info', 'status-info')
-          .pipe(
-            map(
-              status =>
-                status &&
-                (status['backing-up'] ||
-                  !!status['update-progress'] ||
-                  status.updated),
-            ),
-          ),
+        disabled: this.eosService.updateStarted$,
       },
       {
         title: 'Preferences',

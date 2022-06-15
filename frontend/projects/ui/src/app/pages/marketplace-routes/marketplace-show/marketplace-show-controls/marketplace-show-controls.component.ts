@@ -1,18 +1,13 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
-import { pauseFor } from '@start9labs/shared'
-
 import {
-  Manifest,
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
-import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
-import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 
 @Component({
@@ -32,9 +27,6 @@ export class MarketplaceShowControlsComponent {
 
   constructor(
     private readonly alertCtrl: AlertController,
-    private readonly modalCtrl: ModalController,
-    private readonly wizards: WizardDefs,
-    private readonly navCtrl: NavController,
     private readonly marketplaceService: AbstractMarketplaceService,
     public readonly localStorageService: LocalStorageService,
   ) {}
@@ -67,25 +59,5 @@ export class MarketplaceShowControlsComponent {
       })
       await alert.present()
     }
-  }
-
-  async presentModal(action: 'update' | 'downgrade') {
-    // TODO: Fix type
-    const { id, title, version, dependencies, alerts } = this.pkg
-      .manifest as Manifest
-    const value = {
-      id,
-      title,
-      version,
-      serviceRequirements: dependencies,
-      installAlert: alerts.install || undefined,
-    }
-
-    wizardModal(
-      this.modalCtrl,
-      action === 'update'
-        ? this.wizards.update(value)
-        : this.wizards.downgrade(value),
-    )
   }
 }

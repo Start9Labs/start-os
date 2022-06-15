@@ -4,7 +4,6 @@ import { ApiService } from './embassy-api.service'
 import { PatchOp, Update, Operation, RemoveOperation } from 'patch-db-client'
 import {
   DataModel,
-  DependencyErrorType,
   InstallProgress,
   PackageDataEntry,
   PackageMainStatus,
@@ -497,13 +496,6 @@ export class MockApiService extends ApiService {
     return this.withRevision(patch)
   }
 
-  async dryUpdatePackage(
-    params: RR.DryUpdatePackageReq,
-  ): Promise<RR.DryUpdatePackageRes> {
-    await pauseFor(2000)
-    return {}
-  }
-
   async getPackageConfig(
     params: RR.GetPackageConfigReq,
   ): Promise<RR.GetPackageConfigRes> {
@@ -702,20 +694,6 @@ export class MockApiService extends ApiService {
     return this.withRevision(patch)
   }
 
-  async dryStopPackage(
-    params: RR.DryStopPackageReq,
-  ): Promise<RR.DryStopPackageRes> {
-    await pauseFor(2000)
-    return {
-      lnd: {
-        dependency: 'bitcoind',
-        error: {
-          type: DependencyErrorType.NotRunning,
-        },
-      },
-    }
-  }
-
   async stopPackageRaw(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
     const path = `/package-data/${params.id}/installed/status/main`
@@ -745,20 +723,6 @@ export class MockApiService extends ApiService {
     ]
 
     return this.withRevision(patch)
-  }
-
-  async dryUninstallPackage(
-    params: RR.DryUninstallPackageReq,
-  ): Promise<RR.DryUninstallPackageRes> {
-    await pauseFor(2000)
-    return {
-      lnd: {
-        dependency: 'bitcoind',
-        error: {
-          type: DependencyErrorType.NotRunning,
-        },
-      },
-    }
   }
 
   async uninstallPackageRaw(
