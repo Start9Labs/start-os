@@ -163,7 +163,7 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
 
 pub struct CleanupFailedReceipts {
     package_data_entry: LockReceipt<PackageDataEntry, String>,
-    package_entries: LockReceipt<AllPackageData, String>,
+    package_entries: LockReceipt<AllPackageData, ()>,
 }
 
 impl CleanupFailedReceipts {
@@ -233,13 +233,9 @@ pub async fn cleanup_failed<Db: DbHandle>(
 
     match pde {
         PackageDataEntry::Installing { .. } | PackageDataEntry::Restoring { .. } => {
-            let mut entries = receipts
-                .package_entries
-                .get(db, id)
-                .await?
-                .ok_or_else(not_found)?;
+            let mut entries = receipts.package_entries.get(db).await?;
             entries.0.remove(id);
-            receipts.package_entries.set(db, entries, id).await?;
+            receipts.package_entries.set(db, entries).await?;
         }
         PackageDataEntry::Updating {
             installed,
