@@ -12,19 +12,10 @@ import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDbService } from '../../../services/patch-db/patch-db.service'
 import { v4 } from 'uuid'
-import {
-  UIData,
-  UIMarketplaceData,
-} from '../../../services/patch-db/data-model'
+import { UIMarketplaceData } from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import {
-  distinctUntilChanged,
-  finalize,
-  first,
-  map,
-  startWith,
-} from 'rxjs/operators'
+import { distinctUntilChanged, finalize, first } from 'rxjs/operators'
 
 type Marketplaces = {
   id: string | undefined
@@ -55,11 +46,8 @@ export class MarketplacesPage {
 
   ngOnInit() {
     this.patch
-      .watch$('ui')
-      .pipe(
-        map((ui: UIData) => ui.marketplace),
-        distinctUntilChanged(),
-      )
+      .watch$('ui', 'marketplace')
+      .pipe(distinctUntilChanged())
       .subscribe((mp: UIMarketplaceData | undefined) => {
         let marketplaces: Marketplaces = [
           {
@@ -114,8 +102,7 @@ export class MarketplacesPage {
 
   async presentAction(id: string = '') {
     // no need to view actions if is selected marketplace
-    if (!id || id === this.patch.getData().ui.marketplace?.['selected-id'])
-      return
+    if (id === this.patch.getData().ui.marketplace?.['selected-id']) return
 
     const buttons: ActionSheetButton[] = [
       {

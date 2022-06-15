@@ -121,7 +121,7 @@ export class AppConfigPage {
 
   async dismiss() {
     if (this.configForm?.dirty) {
-      await this.presentAlertUnsaved()
+      this.presentAlertUnsaved()
     } else {
       this.modalCtrl.dismiss()
     }
