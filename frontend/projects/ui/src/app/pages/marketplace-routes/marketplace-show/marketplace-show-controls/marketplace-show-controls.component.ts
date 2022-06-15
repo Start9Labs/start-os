@@ -11,8 +11,8 @@ import {
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
-import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
-import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
+import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
+import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 
 @Component({
@@ -33,7 +33,7 @@ export class MarketplaceShowControlsComponent {
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
-    private readonly wizardBaker: WizardBaker,
+    private readonly wizards: WizardDefs,
     private readonly navCtrl: NavController,
     private readonly marketplaceService: AbstractMarketplaceService,
     public readonly localStorageService: LocalStorageService,
@@ -81,16 +81,11 @@ export class MarketplaceShowControlsComponent {
       installAlert: alerts.install || undefined,
     }
 
-    const { cancelled } = await wizardModal(
+    wizardModal(
       this.modalCtrl,
       action === 'update'
-        ? this.wizardBaker.update(value)
-        : this.wizardBaker.downgrade(value),
+        ? this.wizards.update(value)
+        : this.wizards.downgrade(value),
     )
-
-    if (cancelled) return
-
-    await pauseFor(250)
-    this.navCtrl.back()
   }
 }

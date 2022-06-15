@@ -12,15 +12,14 @@ import {
   Status,
 } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from '@start9labs/shared'
-import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
+import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
+import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import {
   AlertController,
   LoadingController,
   ModalController,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ModalService } from 'src/app/services/modal.service'
 import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 
@@ -51,8 +50,7 @@ export class AppShowStatusComponent {
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
-    private readonly wizardBaker: WizardBaker,
-    private readonly patch: PatchDbService,
+    private readonly wizards: WizardDefs,
     private readonly launcherService: UiLauncherService,
     private readonly modalService: ModalService,
   ) {}
@@ -108,7 +106,7 @@ export class AppShowStatusComponent {
   }
 
   async stop(): Promise<void> {
-    const { id, title, version } = this.pkg.manifest
+    const { id, title } = this.pkg.manifest
     const hasDependents = !!Object.keys(
       this.pkg.installed?.['current-dependents'] || {},
     ).filter(depId => depId !== id).length
@@ -130,10 +128,9 @@ export class AppShowStatusComponent {
     } else {
       wizardModal(
         this.modalCtrl,
-        this.wizardBaker.stop({
+        this.wizards.stop({
           id,
           title,
-          version,
         }),
       )
     }

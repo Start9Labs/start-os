@@ -55,8 +55,7 @@ export module Mock {
       uninstall:
         'Chain state will be lost, as will any funds stored on your Bitcoin Core waller that have not been backed up.',
       restore: null,
-      start: null,
-      stop: 'Stopping Bitcoin is bad for your health.',
+      start: 'Starting Bitcoin is good for your health.',
     },
     main: {
       type: 'docker',
@@ -354,7 +353,6 @@ export module Mock {
       restore:
         'If this is a duplicate instance of the same LND node, you may loose your funds.',
       start: 'Starting LND is good for your health.',
-      stop: null,
     },
     main: {
       type: 'docker',
@@ -499,7 +497,6 @@ export module Mock {
       uninstall: null,
       restore: null,
       start: null,
-      stop: null,
     },
     main: {
       type: 'docker',
@@ -1662,10 +1659,8 @@ export module Mock {
     },
   }
 
-  export const MockConfig = {}
-
-  export const MockDependencyConfig = {
-    testnet: true,
+  export const MockConfig = {
+    testnet: undefined,
     'object-list': [
       {
         'first-name': 'First',
@@ -1691,18 +1686,18 @@ export module Mock {
         law1: 'The first law Amended',
         law2: 'The second law',
       },
-      rpcpass: null,
+      rpcpass: undefined,
       rpcuser: '123',
       rulemakers: [],
-    },
-    advanced: {
-      notifications: ['email', 'text', 'push'],
     },
     'bitcoin-node': undefined,
     port: 20,
     rpcallowip: undefined,
     rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
+    advanced: undefined,
   }
+
+  export const MockDependencyConfig = MockConfig
 
   export const bitcoind: PackageDataEntry = {
     state: PackageState.Installed,
