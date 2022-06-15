@@ -1,8 +1,8 @@
 export namespace ExpectedExports {
   /** Set configuration is called after we have modified and saved the configuration in the embassy ui. Use this to make a file for the docker to read from for configuration.  */
   export type setConfig = (
-    effects: Effects,
-    input: Config,
+      effects: Effects,
+      input: Config,
   ) => Promise<ResultType<SetResult>>;
   /** Get configuration returns a shape that describes the format that the embassy ui will generate, and later send to the set config  */
   export type getConfig = (effects: Effects) => Promise<ResultType<ConfigRes>>;
@@ -10,7 +10,7 @@ export namespace ExpectedExports {
   export type dependencies = Dependencies;
   /**  Properties are used to get values from the docker, like a username + password, what ports we are hosting from */
   export type properties = (
-    effects: Effects,
+      effects: Effects,
   ) => Promise<ResultType<Properties>>;
 }
 
@@ -18,7 +18,7 @@ export namespace ExpectedExports {
 export type Effects = {
   /** Usable when not sandboxed */
   writeFile(
-    input: { path: string; volumeId: string; toWrite: string },
+      input: { path: string; volumeId: string; toWrite: string },
   ): Promise<void>;
   readFile(input: { volumeId: string; path: string }): Promise<string>;
   /** Create a directory. Usable when not sandboxed */
@@ -29,7 +29,7 @@ export type Effects = {
 
   /** Write a json file into an object. Usable when not sandboxed */
   writeJsonFile(
-    input: { volumeId: string; path: string; toWrite: object },
+      input: { volumeId: string; path: string; toWrite: object },
   ): Promise<void>;
 
   /** Read a json file into an object */
@@ -101,7 +101,7 @@ export type Target<T extends string, V> = V & {
 
 export type UniqueBy =
   | {
-    any: UniqueBy[];
+      any: UniqueBy[];
   }
   | string
   | null;
@@ -112,24 +112,24 @@ export type WithNullable<T> = T & {
 export type DefaultString =
   | String
   | {
-    /** The chars available for the randome generation */
-    charset?: string;
-    /** Length that we generate to */
-    len: number;
+      /** The chars available for the randome generation */
+      charset?: string;
+      /** Length that we generate to */
+      len: number;
   };
 
 export type ValueSpecString =
   & (
-    | {}
-    | {
-      pattern: string;
-      "pattern-description": string;
-    }
+      | {}
+      | {
+          pattern: string;
+          "pattern-description": string;
+      }
   )
   & {
-    copyable?: boolean;
-    masked?: boolean;
-    placeholder?: string;
+      copyable?: boolean;
+      masked?: boolean;
+      placeholder?: string;
   };
 export type ValueSpecNumber = {
   /** Something like [3,6] or [0, *) */
@@ -143,81 +143,81 @@ export type ValueSpecBoolean = {};
 export type ValueSpecAny =
   | Tag<"boolean", WithDescription<WithDefault<ValueSpecBoolean, boolean>>>
   | Tag<
-    "string",
-    WithDescription<WithDefault<WithNullable<ValueSpecString>, DefaultString>>
+      "string",
+      WithDescription<WithDefault<WithNullable<ValueSpecString>, DefaultString>>
   >
   | Tag<
-    "number",
-    WithDescription<WithDefault<WithNullable<ValueSpecNumber>, number>>
+      "number",
+      WithDescription<WithDefault<WithNullable<ValueSpecNumber>, number>>
   >
   | Tag<
-    "enum",
-    WithDescription<
-      WithDefault<
-        {
-          values: string[];
-          "value-names": {
-            [key: string]: string;
-          };
-        },
-        string
+      "enum",
+      WithDescription<
+          WithDefault<
+              {
+                  values: string[];
+                  "value-names": {
+                      [key: string]: string;
+                  };
+              },
+              string
+          >
       >
-    >
   >
   | Tag<"list", ValueSpecList>
   | Tag<"object", WithDescription<WithDefault<ValueSpecObject, Config>>>
   | Tag<"union", WithDescription<WithDefault<ValueSpecUnion, string>>>
   | Tag<
-    "pointer",
-    WithDescription<
-      | Subtype<
-        "package",
-        | Target<
-          "tor-key",
-          {
-            "package-id": string;
-            interface: string;
-          }
-        >
-        | Target<
-          "tor-address",
-          {
-            "package-id": string;
-            interface: string;
-          }
-        >
-        | Target<
-          "lan-address",
-          {
-            "package-id": string;
-            interface: string;
-          }
-        >
-        | Target<
-          "config",
-          {
-            "package-id": string;
-            selector: string;
-            multi: boolean;
-          }
-        >
+      "pointer",
+      WithDescription<
+          | Subtype<
+              "package",
+              | Target<
+                  "tor-key",
+                  {
+                      "package-id": string;
+                      interface: string;
+                  }
+              >
+              | Target<
+                  "tor-address",
+                  {
+                      "package-id": string;
+                      interface: string;
+                  }
+              >
+              | Target<
+                  "lan-address",
+                  {
+                      "package-id": string;
+                      interface: string;
+                  }
+              >
+              | Target<
+                  "config",
+                  {
+                      "package-id": string;
+                      selector: string;
+                      multi: boolean;
+                  }
+              >
+          >
+          | Subtype<"system", {}>
       >
-      | Subtype<"system", {}>
-    >
   >;
 export type ValueSpecUnion = {
   /** What tag for the specification, for tag unions */
   tag: {
-    id: string;
-    name: string;
-    description?: string;
-    "variant-names": {
-      [key: string]: string;
-    };
+      id: string;
+      name: string;
+      description?: string;
+      "variant-names": {
+          [key: string]: string;
+      };
   };
   /** The possible enum values */
   variants: {
-    [key: string]: ConfigSpec;
+      [key: string]: ConfigSpec;
   };
   "display-as"?: string;
   "unique-by"?: UniqueBy;
@@ -229,70 +229,75 @@ export type ValueSpecObject = {
 };
 export type ValueSpecList =
   | Subtype<
-    "boolean",
-    WithDescription<WithDefault<ListSpec<ValueSpecBoolean>, boolean>>
+      "boolean",
+      WithDescription<WithDefault<ListSpec<ValueSpecBoolean>, boolean[]>>
   >
   | Subtype<
-    "string",
-    WithDescription<WithDefault<ListSpec<ValueSpecString>, string>>
+      "string",
+      WithDescription<WithDefault<ListSpec<ValueSpecString>, string[]>>
   >
   | Subtype<
-    "number",
-    WithDescription<WithDefault<ListSpec<ValueSpecNumber>, number>>
+      "number",
+      WithDescription<WithDefault<ListSpec<ValueSpecNumber>, number[]>>
   >
   | Subtype<
-    "enum",
-    WithDescription<
-      WithDefault<
-        {
-          values: string[];
-          "value-names": {
-            [key: string]: string;
-          };
-        },
-        string
+      "enum",
+      WithDescription<
+          WithDefault<
+              {
+                  values: string[];
+                  "value-names": {
+                      [key: string]: string;
+                  };
+              },
+              string[]
+          >
       >
-    >
+  >
+  | Subtype<
+      "object",
+      WithDescription<WithDefault<ListSpec<Tag<"object", WithDescription<WithDefault<ValueSpecObject, Config>>>>, {}[]>>
   >;
+
 
 export type SetResult = {
   /** These are the unix process signals */
   signal:
-    | "SIGTERM"
-    | "SIGHUP"
-    | "SIGINT"
-    | "SIGQUIT"
-    | "SIGILL"
-    | "SIGTRAP"
-    | "SIGABRT"
-    | "SIGBUS"
-    | "SIGFPE"
-    | "SIGKILL"
-    | "SIGUSR1"
-    | "SIGSEGV"
-    | "SIGUSR2"
-    | "SIGPIPE"
-    | "SIGALRM"
-    | "SIGSTKFLT"
-    | "SIGCHLD"
-    | "SIGCONT"
-    | "SIGSTOP"
-    | "SIGTSTP"
-    | "SIGTTIN"
-    | "SIGTTOU"
-    | "SIGURG"
-    | "SIGXCPU"
-    | "SIGXFSZ"
-    | "SIGVTALRM"
-    | "SIGPROF"
-    | "SIGWINCH"
-    | "SIGIO"
-    | "SIGPWR"
-    | "SIGSYS"
-    | "SIGEMT"
-    | "SIGINFO";
+  | "SIGTERM"
+  | "SIGHUP"
+  | "SIGINT"
+  | "SIGQUIT"
+  | "SIGILL"
+  | "SIGTRAP"
+  | "SIGABRT"
+  | "SIGBUS"
+  | "SIGFPE"
+  | "SIGKILL"
+  | "SIGUSR1"
+  | "SIGSEGV"
+  | "SIGUSR2"
+  | "SIGPIPE"
+  | "SIGALRM"
+  | "SIGSTKFLT"
+  | "SIGCHLD"
+  | "SIGCONT"
+  | "SIGSTOP"
+  | "SIGTSTP"
+  | "SIGTTIN"
+  | "SIGTTOU"
+  | "SIGURG"
+  | "SIGXCPU"
+  | "SIGXFSZ"
+  | "SIGVTALRM"
+  | "SIGPROF"
+  | "SIGWINCH"
+  | "SIGIO"
+  | "SIGPWR"
+  | "SIGSYS"
+  | "SIGEMT"
+  | "SIGINFO";
   "depends-on": {
-    [packageId: string]: string[];
+      [packageId: string]: string[];
   };
 };
 
@@ -327,9 +332,9 @@ export type Properties = {
 export type Dependencies = {
   /** Id is the id of the package, should be the same as the manifest */
   [id: string]: {
-    /** Checks are called to make sure that our dependency is in the correct shape. If a known error is returned we know that the dependency needs modification */
-    check(effects: Effects, input: Config): Promise<ResultType<void | null>>;
-    /** This is called after we know that the dependency package needs a new configuration, this would be a transform for defaults */
-    autoConfigure(effects: Effects, input: Config): Promise<ResultType<Config>>;
+      /** Checks are called to make sure that our dependency is in the correct shape. If a known error is returned we know that the dependency needs modification */
+      check(effects: Effects, input: Config): Promise<ResultType<void | null>>;
+      /** This is called after we know that the dependency package needs a new configuration, this would be a transform for defaults */
+      autoConfigure(effects: Effects, input: Config): Promise<ResultType<Config>>;
   };
 };
