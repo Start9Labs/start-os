@@ -444,7 +444,7 @@ export const mockPatchData: DataModel = {
         'donation-url': null,
         alerts: {
           install: null,
-          uninstall: undefined,
+          uninstall: null,
           restore:
             'If this is a duplicate instance of the same LND node, you may loose your funds.',
           start: 'Starting LND is good for your health.',

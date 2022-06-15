@@ -27,6 +27,7 @@ export class AppWizardComponent {
     action: WizardAction
     title: string
     slides: SlideDefinition[]
+    submitBtn: string
     version?: string
   }
 
@@ -76,7 +77,6 @@ export class AppWizardComponent {
   }
 
   setError(e: any) {
-    console.log(e)
     this.error = e
   }
 

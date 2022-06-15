@@ -29,8 +29,8 @@ clean:
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
 
-	rm libs/js_engine/src/artifacts/ARM_JS_SNAPSHOT.bin
-	rm libs/js_engine/src/artifacts/JS_SNAPSHOT.bin
+	rm -f libs/js_engine/src/artifacts/ARM_JS_SNAPSHOT.bin
+	rm -f libs/js_engine/src/artifacts/JS_SNAPSHOT.bin
 	touch libs/snapshot-creator/Cargo.toml
 
 eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar $(EMBASSY_V8_SNAPSHOTS)

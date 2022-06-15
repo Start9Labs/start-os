@@ -187,7 +187,6 @@ export class MockApiService extends ApiService {
         value: initialProgress,
       },
     ]
-
     return this.withRevision(patch, 'updating')
   }
 
@@ -860,6 +859,16 @@ export class MockApiService extends ApiService {
         },
       ]
       this.updateMock(patch4)
+      // set patch indicating update is complete
+      await pauseFor(100)
+      const patch6 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/status-info',
+          value: Mock.ServerUpdated,
+        },
+      ]
+      this.updateMock(patch6)
     }, 1000)
   }
 

@@ -5,6 +5,7 @@ import {
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
+  ServerStatusInfo,
 } from 'src/app/services/patch-db/data-model'
 import {
   Log,
@@ -18,6 +19,11 @@ import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import { MarketplacePkg } from '@start9labs/marketplace'
 
 export module Mock {
+  export const ServerUpdated: ServerStatusInfo = {
+    'backing-up': false,
+    'update-progress': null,
+    updated: true,
+  }
   export const MarketplaceEos: RR.GetMarketplaceEOSRes = {
     version: '0.3.2',
     headline: 'Our biggest release ever.',
