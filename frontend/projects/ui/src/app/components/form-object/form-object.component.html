@@ -51,7 +51,7 @@
           <form-label
             [data]="{
               spec: spec,
-              new: !!current && current[entry.key] === undefined,
+              new: original?.[entry.key] === undefined,
               edited: entry.value.dirty
             }"
           ></form-label>
@@ -116,9 +116,20 @@
             size="small"
           ></ion-icon>
         </ion-button>
-        <ion-label
-          ><b>{{ spec.name }}</b></ion-label
-        >
+        <ion-label>
+          <b>
+            {{ spec.name }}
+            <ion-text *ngIf="entry.value.dirty" color="warning">
+              (Edited)</ion-text
+            >
+            <ion-text
+              *ngIf="original?.[entry.key] === undefined"
+              color="success"
+            >
+              (New)</ion-text
+            >
+          </b>
+        </ion-label>
         <!-- boolean -->
         <ion-toggle
           *ngIf="spec.type === 'boolean'"
@@ -157,7 +168,8 @@
           <form-label
             [data]="{
               spec: spec,
-              new: !!current && current[entry.key] === undefined,
+              new: original?.[entry.key] === undefined,
+              newOptions: objectDisplay[entry.key].hasNewOptions,
               edited: entry.value.dirty
             }"
           ></form-label>
@@ -190,7 +202,8 @@
                   : spec.spec
               "
               [formGroup]="$any(entry.value)"
-              [current]="current ? current[entry.key] : undefined"
+              [current]="current?.[entry.key]"
+              [original]="original?.[entry.key]"
               [unionSpec]="spec.type === 'union' ? spec : undefined"
               (onExpand)="resize(entry.key)"
             ></form-object>
@@ -208,7 +221,7 @@
             <form-label
               [data]="{
                 spec: spec,
-                new: !!current && current[entry.key] === undefined,
+                new: original?.[entry.key] === undefined,
                 edited: entry.value.dirty
               }"
             ></form-label>
@@ -282,6 +295,7 @@
                     "
                     [formGroup]="abstractControl"
                     [current]="current?.[entry.key]?.[i]"
+                    [original]="original?.[entry.key]?.[i]"
                     [unionSpec]="
                       spec.subtype === 'union' ? $any(spec.spec) : undefined
                     "
@@ -347,7 +361,7 @@
             <form-label
               [data]="{
                 spec: spec,
-                new: !!current && current[entry.key] === undefined,
+                new: original?.[entry.key] === undefined,
                 edited: entry.value.dirty
               }"
             ></form-label>
