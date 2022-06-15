@@ -12,13 +12,11 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import {
   ServerInfo,
-  UIData,
   UIMarketplaceData,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   catchError,
-  distinctUntilChanged,
   filter,
   map,
   shareReplay,
@@ -34,11 +32,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   private readonly altMarketplaceData$: Observable<
     UIMarketplaceData | undefined
-  > = this.patch.watch$('ui').pipe(
-    map((ui: UIData) => ui.marketplace),
-    distinctUntilChanged(),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  )
+  > = this.patch.watch$('ui', 'marketplace').pipe(shareReplay())
 
   private readonly marketplace$ = this.altMarketplaceData$.pipe(
     map(data => this.toMarketplace(data)),
@@ -46,7 +40,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   private readonly serverInfo$: Observable<ServerInfo> = this.patch
     .watch$('server-info')
-    .pipe(take(1), shareReplay({ bufferSize: 1, refCount: true }))
+    .pipe(take(1), shareReplay())
 
   private readonly categories$: Observable<string[]> = this.marketplace$.pipe(
     switchMap(({ url }) =>
@@ -57,6 +51,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
       ),
     ),
     map(({ categories }) => categories),
+    shareReplay(),
   )
 
   private readonly pkg$: Observable<MarketplacePkg[]> =
@@ -79,7 +74,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
         return of([])
       }),
-      shareReplay({ bufferSize: 1, refCount: true }),
+      shareReplay(),
     )
 
   constructor(
