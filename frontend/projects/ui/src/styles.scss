@@ -60,6 +60,10 @@ $subheader-height: 48px;
   }
 }
 
+.btn-128 {
+  min-width: 128px;
+}
+
 .subheader-padding {
   --padding-top: #{$subheader-height} + 10px;
 }

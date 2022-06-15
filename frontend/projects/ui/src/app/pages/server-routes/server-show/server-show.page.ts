@@ -16,6 +16,7 @@ import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { exists, isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
+import { RecoveredPackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'server-show',
@@ -47,7 +48,7 @@ export class ServerShowPage {
     this.patch
       .watch$('recovered-packages')
       .pipe(filter(exists), take(1))
-      .subscribe(rps => {
+      .subscribe((rps: { [id: string]: RecoveredPackageDataEntry }) => {
         this.hasRecoveredPackage = !isEmptyObject(rps)
       })
   }
@@ -233,14 +234,34 @@ export class ServerShowPage {
 
     try {
       const updateAvailable = await this.eosService.getEOS()
+
+      await loader.dismiss()
+
       if (updateAvailable) {
         this.updateEos()
+      } else {
+        this.presentAlertLatest()
       }
     } catch (e: any) {
+      await loader.dismiss()
       this.errToast.present(e)
-    } finally {
-      loader.dismiss()
     }
+  }
+
+  async presentAlertLatest() {
+    const alert = await this.alertCtrl.create({
+      header: 'Up to date!',
+      message: 'You are on the latest version of EmbassyOS.',
+      buttons: [
+        {
+          text: 'OK',
+          role: 'cancel',
+          cssClass: 'enter-click',
+        },
+      ],
+      cssClass: 'alert-success-message',
+    })
+    alert.present()
   }
 
   settings: ServerSettings = {
@@ -332,8 +353,8 @@ export class ServerShowPage {
         disabled: of(false),
       },
       {
-        title: 'Manually install a service',
-        description: `Install a service by drag n' drop`,
+        title: 'Manually Install A Service',
+        description: `Install a service by drag and drop`,
         icon: 'push-outline',
         action: () =>
           this.navCtrl.navigateForward(['sideload'], {

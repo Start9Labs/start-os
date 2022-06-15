@@ -63,6 +63,7 @@ export class WizardDefs {
       title,
       version,
       slides: slides.filter(exists),
+      submitBtn: 'Begin Update',
     }
   }
 
@@ -110,6 +111,7 @@ export class WizardDefs {
       title,
       version,
       slides: slides.filter(exists),
+      submitBtn: 'Begin Update',
     }
   }
 
@@ -160,6 +162,7 @@ export class WizardDefs {
       title,
       version,
       slides: slides.filter(exists),
+      submitBtn: 'Begin Downgrade',
     }
   }
 
@@ -199,6 +202,7 @@ export class WizardDefs {
       action: 'uninstall',
       title,
       slides: slides.filter(exists),
+      submitBtn: 'Uninstall Anyway',
     }
   }
 
@@ -228,6 +232,7 @@ export class WizardDefs {
       action: 'stop',
       title,
       slides: slides.filter(exists),
+      submitBtn: 'Stop Anyway',
     }
   }
 
@@ -261,6 +266,7 @@ export class WizardDefs {
       action: 'configure',
       title,
       slides: slides.filter(exists),
+      submitBtn: 'Configure Anyway',
     }
   }
 }
