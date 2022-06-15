@@ -1,16 +1,9 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="start">
+    <ion-title> {{ spec.name }} </ion-title>
+    <ion-buttons slot="end">
       <ion-button (click)="dismiss()">
         <ion-icon slot="icon-only" name="close"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>
-      {{ spec.name }}
-    </ion-title>
-    <ion-buttons slot="end">
-      <ion-button slot="end" fill="clear" (click)="toggleSelectAll()">
-        {{ selectAll ? 'All' : 'None' }}
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
@@ -18,9 +11,20 @@
 
 <ion-content>
   <ion-item-group>
+    <ion-item-divider style="padding-bottom: 4px">
+      <ion-buttons slot="end">
+        <ion-button fill="clear" (click)="toggleSelectAll()">
+          <b>{{ selectAll ? 'All' : 'None' }}</b>
+        </ion-button>
+      </ion-buttons>
+    </ion-item-divider>
     <ion-item *ngFor="let option of options | keyvalue : asIsOrder">
       <ion-label>{{ spec.spec['value-names'][option.key] }}</ion-label>
-      <ion-checkbox slot="end" [(ngModel)]="option.value" (click)="toggleSelected(option.key)"></ion-checkbox>
+      <ion-checkbox
+        slot="end"
+        [(ngModel)]="option.value"
+        (click)="toggleSelected(option.key)"
+      ></ion-checkbox>
     </ion-item>
   </ion-item-group>
 </ion-content>
@@ -28,7 +32,12 @@
 <ion-footer>
   <ion-toolbar>
     <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button fill="outline" (click)="save()" class="enter-click">
+      <ion-button
+        fill="solid"
+        color="primary"
+        (click)="save()"
+        class="enter-click btn-128"
+      >
         Done
       </ion-button>
     </ion-buttons>

@@ -107,19 +107,21 @@
     >
       <ion-button
         *ngIf="hasConfig"
-        fill="outline"
+        fill="solid"
+        color="primary"
         [disabled]="saving"
         (click)="save()"
-        class="enter-click"
+        class="enter-click btn-128"
         [class.no-click]="saving"
       >
         Save
       </ion-button>
       <ion-button
         *ngIf="!hasConfig"
-        fill="outline"
+        fill="solid"
+        color="dark"
         (click)="dismiss()"
-        class="enter-click"
+        class="enter-click btn-128"
       >
         Close
       </ion-button>
