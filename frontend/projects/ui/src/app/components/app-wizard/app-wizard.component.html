@@ -85,7 +85,11 @@
             class="enter-click btn-128"
             [class.no-click]="currentSlide.loading"
           >
-            Continue
+            {{
+              currentIndex < swiper.slides.length - 2
+                ? 'Continue'
+                : params.submitBtn
+            }}
           </ion-button>
         </ng-template>
       </ion-buttons>
