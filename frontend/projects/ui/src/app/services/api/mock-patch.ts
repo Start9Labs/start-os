@@ -11,7 +11,7 @@ import {
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Embassy`,
-    'auto-check-updates': false,
+    'auto-check-updates': true,
     'pkg-order': [],
     'ack-welcome': '1.0.0',
   },
@@ -67,8 +67,7 @@ export const mockPatchData: DataModel = {
           uninstall:
             'Chain state will be lost, as will any funds stored on your Bitcoin Core waller that have not been backed up.',
           restore: null,
-          start: null,
-          stop: 'Stopping Bitcoin is bad for your health.',
+          start: 'Starting Bitcoin is good for your health.',
         },
         main: {
           type: 'docker',
@@ -449,7 +448,6 @@ export const mockPatchData: DataModel = {
           restore:
             'If this is a duplicate instance of the same LND node, you may loose your funds.',
           start: 'Starting LND is good for your health.',
-          stop: null,
         },
         main: {
           type: 'docker',

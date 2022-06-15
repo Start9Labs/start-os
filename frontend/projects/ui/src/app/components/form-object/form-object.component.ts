@@ -36,12 +36,14 @@ export class FormObjectComponent {
   @Input() formGroup: FormGroup
   @Input() unionSpec?: ValueSpecUnion
   @Input() current?: { [key: string]: any }
-  @Input() showEdited: boolean = false
+  @Input() original?: { [key: string]: any }
   @Output() onInputChange = new EventEmitter<void>()
   @Output() onExpand = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = {}
   unmasked: { [key: string]: boolean } = {}
-  objectDisplay: { [key: string]: { expanded: boolean; height: string } } = {}
+  objectDisplay: {
+    [key: string]: { expanded: boolean; height: string; hasNewOptions: boolean }
+  } = {}
   objectListDisplay: {
     [key: string]: { expanded: boolean; height: string; displayAs: string }[]
   } = {}
@@ -74,9 +76,23 @@ export class FormObjectComponent {
           }
         })
       } else if (['object', 'union'].includes(spec.type)) {
+        let hasNewOptions = false
+
+        // We can only really show new children for objects, not unions.
+        if (spec.type === 'object') {
+          hasNewOptions = Object.keys(spec.spec).some(childKey => {
+            const parentValue = this.original?.[key]
+            return !!parentValue && parentValue[childKey] === undefined
+          })
+        } else if (spec.type === 'union') {
+          // @TODO
+          hasNewOptions = false
+        }
+
         this.objectDisplay[key] = {
           expanded: false,
           height: '0px',
+          hasNewOptions,
         }
       }
     })
@@ -110,6 +126,7 @@ export class FormObjectComponent {
           this.objectDisplay[key] = {
             expanded: false,
             height: '0px',
+            hasNewOptions: false,
           }
         }
       },
@@ -354,6 +371,7 @@ interface HeaderData {
   spec: ValueSpec
   edited: boolean
   new: boolean
+  newOptions?: boolean
   invalid?: boolean
 }
 
