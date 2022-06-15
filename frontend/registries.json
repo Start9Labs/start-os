@@ -5,10 +5,10 @@
   },
   "beta": {
     "url": "https://beta-registry-0-3.start9labs.com",
-    "name": "Embassy Marketplace (Beta)"
+    "name": "Beta Marketplace"
   },
   "alpha": {
     "url": "https://alpha-registry-0-3.start9labs.com",
-    "name": "Embassy Marketplace (Alpha)"
+    "name": "Alpha Marketplace"
   }
 }

@@ -66,22 +66,30 @@
 <ion-footer>
   <ion-toolbar>
     <ng-container *ngIf="!initializing && swiper">
-      <ion-buttons slot="end" style="padding-right: 8px">
+      <ion-buttons slot="end" class="ion-padding-end">
         <ion-button
           *ngIf="error; else noError"
+          fill="solid"
+          color="dark"
           (click)="dismiss()"
-          class="enter-click"
+          class="enter-click btn-128"
         >
-          <b>Dismiss</b>
+          Dismiss
         </ion-button>
         <ng-template #noError>
           <ion-button
             *ngIf="!currentSlide.loading && !swiper.isEnd"
+            fill="solid"
+            color="primary"
             (click)="next()"
-            class="enter-click"
+            class="enter-click btn-128"
             [class.no-click]="currentSlide.loading"
           >
-            <b>Continue</b>
+            {{
+              currentIndex < swiper.slides.length - 2
+                ? 'Continue'
+                : params.submitBtn
+            }}
           </ion-button>
         </ng-template>
       </ion-buttons>

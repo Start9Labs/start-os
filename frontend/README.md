@@ -58,7 +58,7 @@ npm run start:diagnostic-ui
 
 This section enables you to run a local frontend with a remote backend (eg. hosted on a live Embassy). It assumes you have completed Step 1 and Step 2 in the [section above](#running-locally-with-mocks)
 
-1. Set `useMocks: true` in `config.json`
+1. Set `useMocks: false` in `config.json`
 
 2. Create a proxy configuration file from the sample:
 
