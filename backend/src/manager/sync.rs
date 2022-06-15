@@ -31,6 +31,9 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             MainStatus::Stopping => {
                 *status = MainStatus::Stopped;
             }
+            MainStatus::Restarting => {
+                *status = MainStatus::Starting;
+            }
             MainStatus::Starting => {
                 start(shared).await?;
             }
@@ -41,7 +44,7 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             MainStatus::BackingUp { .. } => (),
         },
         Status::Starting => match *status {
-            MainStatus::Stopped | MainStatus::Stopping => {
+            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 stop(shared).await?;
             }
             MainStatus::Starting | MainStatus::Running { .. } => (),
@@ -50,7 +53,7 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             }
         },
         Status::Running => match *status {
-            MainStatus::Stopped | MainStatus::Stopping => {
+            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 stop(shared).await?;
             }
             MainStatus::Starting => {
@@ -65,7 +68,7 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             }
         },
         Status::Paused => match *status {
-            MainStatus::Stopped | MainStatus::Stopping => {
+            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 stop(shared).await?;
             }
             MainStatus::Starting | MainStatus::Running { .. } => {

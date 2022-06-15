@@ -24,6 +24,7 @@ pub struct Status {
 #[serde(rename_all = "kebab-case")]
 pub enum MainStatus {
     Stopped,
+    Restarting,
     Stopping,
     Starting,
     Running {
@@ -45,6 +46,7 @@ impl MainStatus {
             } => true,
             MainStatus::Stopped
             | MainStatus::Stopping
+            | MainStatus::Restarting
             | MainStatus::BackingUp { started: None, .. } => false,
         }
     }
@@ -56,7 +58,7 @@ impl MainStatus {
             MainStatus::BackingUp { started, .. } => {
                 *started = None;
             }
-            MainStatus::Stopped | MainStatus::Stopping => (),
+            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => (),
         }
     }
 }
