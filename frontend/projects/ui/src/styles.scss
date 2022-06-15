@@ -1,3 +1,6 @@
+@import '~swiper/scss';
+@import '~@ionic/angular/css/ionic-swiper';
+
 @font-face {
   font-family: 'Montserrat';
   font-style: normal;
@@ -50,6 +53,12 @@
 }
 
 $subheader-height: 48px;
+
+.swiper {
+  .swiper-slide {
+    display: unset;
+  }
+}
 
 .subheader-padding {
   --padding-top: #{$subheader-height} + 10px;
@@ -206,13 +215,6 @@ ion-button {
   }
   .alert-message {
     max-height: unset;
-  }
-}
-
-ion-slides {
-  .slider-wrapper {
-    height: 100%;
-    width: 100%;
   }
 }
 

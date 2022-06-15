@@ -10,12 +10,11 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   ErrorToastService,
   getErrorMessage,
-  isEmptyObject,
   isObject,
 } from '@start9labs/shared'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
-import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
+import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
+import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -46,7 +45,7 @@ export class AppConfigPage {
   loadingError: string | IonicSafeString
 
   constructor(
-    private readonly wizardBaker: WizardBaker,
+    private readonly wizards: WizardDefs,
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
@@ -138,43 +137,45 @@ export class AppConfigPage {
       return
     }
 
-    const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      message: `Saving config. This could take a while...`,
-    })
-    await loader.present()
+    const hasDependents = !!Object.keys(
+      this.pkg?.installed?.['current-dependents'] || {},
+    ).filter(depId => depId !== this.pkgId).length
 
-    this.saving = true
+    const config = this.configForm.value
 
-    try {
-      const config = this.configForm.value
-
-      const breakages = await this.embassyApi.drySetPackageConfig({
-        id: this.pkgId,
-        config,
+    if (!hasDependents) {
+      const loader = await this.loadingCtrl.create({
+        spinner: 'lines',
+        message: `Saving config. This could take a while...`,
       })
+      await loader.present()
 
-      if (!isEmptyObject(breakages['length']) && this.pkg) {
-        const { cancelled } = await wizardModal(
-          this.modalCtrl,
-          this.wizardBaker.configure({
-            pkg: this.pkg,
-            breakages,
-          }),
-        )
-        if (cancelled) return
+      this.saving = true
+
+      try {
+        await this.embassyApi.setPackageConfig({
+          id: this.pkgId,
+          config,
+        })
+        this.modalCtrl.dismiss()
+      } catch (e: any) {
+        this.errToast.present(e)
+      } finally {
+        this.saving = false
+        loader.dismiss()
       }
+    } else {
+      const success = await wizardModal(
+        this.modalCtrl,
+        this.wizards.configure({
+          manifest: this.pkg!.manifest,
+          config,
+        }),
+      )
 
-      await this.embassyApi.setPackageConfig({
-        id: this.pkgId,
-        config,
-      })
-      this.modalCtrl.dismiss()
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      this.saving = false
-      loader.dismiss()
+      if (success) {
+        this.modalCtrl.dismiss()
+      }
     }
   }
 

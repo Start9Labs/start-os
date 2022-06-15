@@ -14,8 +14,8 @@ import {
   PackageDataEntry,
   PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
-import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
-import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
+import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
+import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { Subscription } from 'rxjs'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
@@ -39,7 +39,7 @@ export class AppActionsPage {
     private readonly alertCtrl: AlertController,
     private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
-    private readonly wizardBaker: WizardBaker,
+    private readonly wizards: WizardDefs,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
   ) {}
@@ -137,19 +137,19 @@ export class AppActionsPage {
   }
 
   async uninstall() {
-    const { id, title, version, alerts } = this.pkg.manifest
-    const data = await wizardModal(
+    const { id, title, alerts } = this.pkg.manifest
+    const success = await wizardModal(
       this.modalCtrl,
-      this.wizardBaker.uninstall({
+      this.wizards.uninstall({
         id,
         title,
-        version,
         uninstallAlert: alerts.uninstall || undefined,
       }),
     )
 
-    if (data.cancelled) return
-    return this.navCtrl.navigateRoot('/services')
+    if (success) {
+      return this.navCtrl.navigateRoot('/services')
+    }
   }
 
   private async executeAction(
