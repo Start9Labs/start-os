@@ -156,7 +156,7 @@ export type ValueSpecAny =
           WithDefault<
               {
                   values: string[];
-                  "value-names"?: {
+                  "value-names": {
                       [key: string]: string;
                   };
               },
@@ -211,7 +211,7 @@ export type ValueSpecUnion = {
       id: string;
       name: string;
       description?: string;
-      "variant-names"?: {
+      "variant-names": {
           [key: string]: string;
       };
   };
@@ -246,7 +246,7 @@ export type ValueSpecList =
           WithDefault<
               {
                   values: string[];
-                  "value-names"?: {
+                  "value-names": {
                       [key: string]: string;
                   };
               },
