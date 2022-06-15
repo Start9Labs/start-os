@@ -235,12 +235,24 @@ export class ServerShowPage {
       const updateAvailable = await this.eosService.getEOS()
       if (updateAvailable) {
         this.updateEos()
+      } else {
+        this.presentAlertLatest()
       }
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
+  }
+
+  async presentAlertLatest() {
+    const alert = await this.alertCtrl.create({
+      header: 'Up to date!',
+      message: 'You are on the latest version of EmbassyOS.',
+      buttons: ['OK'],
+      cssClass: 'alert-success-message',
+    })
+    await alert.present()
   }
 
   settings: ServerSettings = {
