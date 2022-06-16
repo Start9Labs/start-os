@@ -113,10 +113,8 @@ export class AppShowStatusComponent {
 
     if (message) {
       const alert = await this.alertCtrl.create({
-        header: 'Stop Service',
-        message: new IonicSafeString(
-          `<ion-text color="warning">Warning:</ion-text> <p>${message}</p>`,
-        ),
+        header: 'Warning',
+        message,
         buttons: [
           {
             text: 'Cancel',
@@ -130,6 +128,7 @@ export class AppShowStatusComponent {
             cssClass: 'enter-click',
           },
         ],
+        cssClass: 'alert-warning-message',
       })
 
       await alert.present()
@@ -212,7 +211,7 @@ export class AppShowStatusComponent {
   private async presentAlertStart(message: string): Promise<boolean> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
-        header: 'Warning',
+        header: 'Alert',
         message,
         buttons: [
           {

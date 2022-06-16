@@ -95,10 +95,9 @@ export class ServerShowPage {
 
   async presentAlertShutdown() {
     const alert = await this.alertCtrl.create({
-      header: 'Shutdown',
-      message: new IonicSafeString(
-        `<ion-text color="warning">Warning:</ion-text> <p>Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in..</p>`,
-      ),
+      header: 'Warning',
+      message:
+        'Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in',
       buttons: [
         {
           text: 'Cancel',
@@ -112,6 +111,7 @@ export class ServerShowPage {
           cssClass: 'enter-click',
         },
       ],
+      cssClass: 'alert-warning-message',
     })
     await alert.present()
   }
@@ -119,9 +119,9 @@ export class ServerShowPage {
   async presentAlertSystemRebuild() {
     const minutes = Object.keys(this.patch.getData()['package-data']).length * 2
     const alert = await this.alertCtrl.create({
-      header: 'System Rebuild',
+      header: 'Warning',
       message: new IonicSafeString(
-        `<ion-text color="warning">Warning:</ion-text> This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
+        `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
       ),
       buttons: [
         {
@@ -136,15 +136,16 @@ export class ServerShowPage {
           cssClass: 'enter-click',
         },
       ],
+      cssClass: 'alert-warning-message',
     })
     await alert.present()
   }
 
   async presentAlertRepairDisk() {
     const alert = await this.alertCtrl.create({
-      header: 'Repair Disk',
+      header: 'Warning',
       message: new IonicSafeString(
-        `<ion-text color="warning">Warning:</ion-text> <p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.</p>`,
+        `<p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
       ),
       buttons: [
         {
@@ -165,6 +166,7 @@ export class ServerShowPage {
           cssClass: 'enter-click',
         },
       ],
+      cssClass: 'alert-warning-message',
     })
     await alert.present()
   }

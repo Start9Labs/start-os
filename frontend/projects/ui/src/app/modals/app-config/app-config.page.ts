@@ -201,17 +201,17 @@ export class AppConfigPage {
 
   private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
     let message: string | IonicSafeString =
-      '<ion-text color="warning">Warning:</ion-text> <p>As a result of this change, the following services will no longer work properly and may crash:</p><ul>'
+      'As a result of this change, the following services will no longer work properly and may crash:<ul>'
     const localPkgs = this.patch.getData()['package-data']
     const bullets = Object.keys(breakages).map(id => {
       const title = localPkgs[id].manifest.title
-      return `<li>${title}</li>`
+      return `<li><b>${title}</b></li>`
     })
     message = new IonicSafeString(`${message}${bullets}</ul>`)
 
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
-        header: 'Configure Service',
+        header: 'Warning',
         message,
         buttons: [
           {
@@ -229,6 +229,7 @@ export class AppConfigPage {
             cssClass: 'enter-click',
           },
         ],
+        cssClass: 'alert-warning-message',
       })
 
       await alert.present()

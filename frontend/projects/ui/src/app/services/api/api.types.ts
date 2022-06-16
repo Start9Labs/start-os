@@ -184,6 +184,9 @@ export module RR {
   }> // package.install
   export type InstallPackageRes = WithRevision<null>
 
+  export type DryUpdatePackageReq = { id: string; version: string } // package.update.dry
+  export type DryUpdatePackageRes = Breakages
+
   export type GetPackageConfigReq = { id: string } // package.config.get
   export type GetPackageConfigRes = { spec: ConfigSpec; config: object }
 

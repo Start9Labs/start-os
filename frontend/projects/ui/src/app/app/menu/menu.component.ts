@@ -75,8 +75,8 @@ export class MenuComponent {
         },
         {
           text: 'Logout',
-          cssClass: 'enter-click',
           handler: () => this.logout(),
+          cssClass: 'enter-click',
         },
       ],
     })

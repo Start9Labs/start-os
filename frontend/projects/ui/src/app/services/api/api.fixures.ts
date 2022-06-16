@@ -501,7 +501,7 @@ export module Mock {
     'marketing-site': '',
     'donation-url': 'https://start9.com',
     alerts: {
-      install: null,
+      install: 'Testing install alert',
       uninstall: null,
       restore: null,
       start: null,

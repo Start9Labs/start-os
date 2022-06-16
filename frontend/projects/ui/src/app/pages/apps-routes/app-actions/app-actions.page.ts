@@ -147,10 +147,8 @@ export class AppActionsPage {
     }
 
     const alert = await this.alertCtrl.create({
-      header: 'Uninstall',
-      message: new IonicSafeString(
-        `<ion-text color="warning">Warning:</ion-text> <p>${message}</p>`,
-      ),
+      header: 'Warning',
+      message,
       buttons: [
         {
           text: 'Cancel',
@@ -164,6 +162,7 @@ export class AppActionsPage {
           cssClass: 'enter-click',
         },
       ],
+      cssClass: 'alert-warning-message',
     })
 
     await alert.present()

@@ -145,27 +145,6 @@ export class MarketplaceService extends AbstractMarketplaceService {
     )
   }
 
-  install(id: string, version?: string): Observable<unknown> {
-    return defer(() =>
-      from(
-        this.loadingCtrl.create({
-          message: 'Beginning Installation...',
-        }),
-      ),
-    ).pipe(
-      tap(loader => loader.present()),
-      switchMap(loader =>
-        this.installPackage({
-          id,
-          'version-spec': version ? `=${version}` : undefined,
-        }).pipe(
-          catchError(e => from(this.errToast.present(e))),
-          tap(() => loader.dismiss()),
-        ),
-      ),
-    )
-  }
-
   installPackage(
     req: Omit<RR.InstallPackageReq, 'marketplace-url'>,
   ): Observable<unknown> {

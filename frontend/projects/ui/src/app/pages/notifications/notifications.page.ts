@@ -99,10 +99,10 @@ export class NotificationsPage {
         },
         {
           text: 'Delete',
-          cssClass: 'enter-click',
           handler: () => {
             this.deleteAll()
           },
+          cssClass: 'enter-click',
         },
       ],
     })
