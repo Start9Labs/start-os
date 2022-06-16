@@ -10,10 +10,10 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   ErrorToastService,
   getErrorMessage,
+  isEmptyObject,
   isObject,
 } from '@start9labs/shared'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
 import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -24,6 +24,8 @@ import {
   FormService,
 } from 'src/app/services/form.service'
 import { compare, Operation, getValueByPointer } from 'fast-json-patch'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { Breakages } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'app-config',
@@ -35,7 +37,7 @@ export class AppConfigPage {
   @Input() pkgId: string
   @Input() dependentInfo?: DependentInfo
   diff: string[] // only if dependent info
-  pkg?: PackageDataEntry
+  pkg: PackageDataEntry
   loadingText: string | undefined
   configSpec: ConfigSpec
   configForm: FormGroup
@@ -45,7 +47,6 @@ export class AppConfigPage {
   loadingError: string | IonicSafeString
 
   constructor(
-    private readonly wizards: WizardDefs,
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
@@ -127,7 +128,7 @@ export class AppConfigPage {
     }
   }
 
-  async save() {
+  async tryConfigure() {
     convertValuesRecursive(this.configSpec, this.configForm)
 
     if (this.configForm.invalid) {
@@ -137,46 +138,102 @@ export class AppConfigPage {
       return
     }
 
-    const hasDependents = !!Object.keys(
-      this.pkg?.installed?.['current-dependents'] || {},
-    ).filter(depId => depId !== this.pkgId).length
+    this.saving = true
 
-    const config = this.configForm.value
-
-    if (!hasDependents) {
-      const loader = await this.loadingCtrl.create({
-        spinner: 'lines',
-        message: `Saving config. This could take a while...`,
-      })
-      await loader.present()
-
-      this.saving = true
-
-      try {
-        await this.embassyApi.setPackageConfig({
-          id: this.pkgId,
-          config,
-        })
-        this.modalCtrl.dismiss()
-      } catch (e: any) {
-        this.errToast.present(e)
-      } finally {
-        this.saving = false
-        loader.dismiss()
-      }
+    if (hasCurrentDeps(this.pkg)) {
+      this.dryConfigure()
     } else {
-      const success = await wizardModal(
-        this.modalCtrl,
-        this.wizards.configure({
-          manifest: this.pkg!.manifest,
-          config,
-        }),
-      )
-
-      if (success) {
-        this.modalCtrl.dismiss()
-      }
+      this.configure()
     }
+  }
+
+  private async dryConfigure() {
+    const loader = await this.loadingCtrl.create({
+      message: 'Checking dependent services...',
+    })
+    await loader.present()
+
+    try {
+      const breakages = await this.embassyApi.drySetPackageConfig({
+        id: this.pkgId,
+        config: this.configForm.value,
+      })
+
+      if (isEmptyObject(breakages)) {
+        this.configure(loader)
+      } else {
+        await loader.dismiss()
+        const proceed = await this.presentAlertBreakages(breakages)
+        if (proceed) {
+          this.configure()
+        } else {
+          this.saving = false
+        }
+      }
+    } catch (e: any) {
+      this.errToast.present(e)
+      this.saving = false
+    }
+  }
+
+  private async configure(loader?: HTMLIonLoadingElement) {
+    const message = 'Saving...'
+    if (loader) {
+      loader.message = message
+    } else {
+      loader = await this.loadingCtrl.create({ message })
+      await loader.present()
+    }
+
+    try {
+      await this.embassyApi.setPackageConfig({
+        id: this.pkgId,
+        config: this.configForm.value,
+      })
+      this.modalCtrl.dismiss()
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      this.saving = false
+      loader.dismiss()
+    }
+  }
+
+  private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
+    let message: string | IonicSafeString =
+      'As a result of this change, the following services will no longer work properly and may crash:<ul>'
+    const localPkgs = this.patch.getData()['package-data']
+    const bullets = Object.keys(breakages).map(id => {
+      const title = localPkgs[id].manifest.title
+      return `<li><b>${title}</b></li>`
+    })
+    message = new IonicSafeString(`${message}${bullets}</ul>`)
+
+    return new Promise(async resolve => {
+      const alert = await this.alertCtrl.create({
+        header: 'Warning',
+        message,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            handler: () => {
+              resolve(false)
+            },
+          },
+          {
+            text: 'Continue',
+            handler: () => {
+              resolve(true)
+            },
+            cssClass: 'enter-click',
+          },
+        ],
+        cssClass: 'alert-warning-message',
+      })
+
+      await alert.present()
+    })
   }
 
   private getDiff(patch: Operation[]): string[] {

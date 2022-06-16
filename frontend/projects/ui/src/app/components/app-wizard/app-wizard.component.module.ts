@@ -6,7 +6,6 @@ import { RouterModule } from '@angular/router'
 import { EmverPipesModule } from '@start9labs/shared'
 import { DependentsComponentModule } from './dependents/dependents.component.module'
 import { CompleteComponentModule } from './complete/complete.component.module'
-import { NotesComponentModule } from './notes/notes.component.module'
 import { AlertComponentModule } from './alert/alert.component.module'
 import { SwiperModule } from 'swiper/angular'
 
@@ -19,7 +18,6 @@ import { SwiperModule } from 'swiper/angular'
     EmverPipesModule,
     DependentsComponentModule,
     CompleteComponentModule,
-    NotesComponentModule,
     AlertComponentModule,
     SwiperModule,
   ],

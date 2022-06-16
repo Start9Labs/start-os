@@ -11,12 +11,11 @@ import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Observable, of } from 'rxjs'
 import { filter, map, take } from 'rxjs/operators'
-import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
-import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { exists, isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { RecoveredPackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 
 @Component({
   selector: 'server-show',
@@ -33,7 +32,6 @@ export class ServerShowPage {
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
-    private readonly wizards: WizardDefs,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
@@ -63,26 +61,19 @@ export class ServerShowPage {
       })
       await alert.present()
     } else {
-      const {
-        version,
-        headline,
-        'release-notes': releaseNotes,
-      } = this.eosService.eos
-
-      await wizardModal(
-        this.modalCtrl,
-        this.wizards.updateOS({
-          version,
-          headline,
-          releaseNotes,
-        }),
-      )
+      const modal = await this.modalCtrl.create({
+        componentProps: {
+          releaseNotes: this.eosService.eos['release-notes'],
+        },
+        component: OSUpdatePage,
+      })
+      modal.present()
     }
   }
 
   async presentAlertRestart() {
     const alert = await this.alertCtrl.create({
-      header: 'Confirm',
+      header: 'Restart',
       message:
         'Are you sure you want to restart your Embassy? It can take several minutes to come back online.',
       buttons: [
@@ -106,7 +97,7 @@ export class ServerShowPage {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
-        'Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in.',
+        'Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in',
       buttons: [
         {
           text: 'Cancel',
@@ -120,6 +111,7 @@ export class ServerShowPage {
           cssClass: 'enter-click',
         },
       ],
+      cssClass: 'alert-warning-message',
     })
     await alert.present()
   }
@@ -127,9 +119,9 @@ export class ServerShowPage {
   async presentAlertSystemRebuild() {
     const minutes = Object.keys(this.patch.getData()['package-data']).length * 2
     const alert = await this.alertCtrl.create({
-      header: 'System Rebuild',
+      header: 'Warning',
       message: new IonicSafeString(
-        `<ion-text color="warning">Warning:</ion-text> This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
+        `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
       ),
       buttons: [
         {
@@ -144,15 +136,16 @@ export class ServerShowPage {
           cssClass: 'enter-click',
         },
       ],
+      cssClass: 'alert-warning-message',
     })
     await alert.present()
   }
 
   async presentAlertRepairDisk() {
     const alert = await this.alertCtrl.create({
-      header: 'Repair Disk',
+      header: 'Warning',
       message: new IonicSafeString(
-        `<ion-text color="warning">Warning:</ion-text> <p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.</p>`,
+        `<p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
       ),
       buttons: [
         {
@@ -173,13 +166,13 @@ export class ServerShowPage {
           cssClass: 'enter-click',
         },
       ],
+      cssClass: 'alert-warning-message',
     })
     await alert.present()
   }
 
   private async restart() {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Restarting...',
     })
     await loader.present()
@@ -195,7 +188,6 @@ export class ServerShowPage {
 
   private async shutdown() {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Shutting down...',
     })
     await loader.present()
@@ -211,7 +203,6 @@ export class ServerShowPage {
 
   private async systemRebuild() {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Hard Restarting...',
     })
     await loader.present()
@@ -227,7 +218,6 @@ export class ServerShowPage {
 
   private async checkForEosUpdate(): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Checking for updates',
     })
     await loader.present()
@@ -282,14 +272,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
         detail: true,
-        disabled: this.patch
-          .watch$('server-info', 'status-info')
-          .pipe(
-            map(
-              status =>
-                status && (status['backing-up'] || !!status['update-progress']),
-            ),
-          ),
+        disabled: this.eosService.updatingOrBackingUp$,
       },
     ],
     Settings: [
@@ -302,17 +285,7 @@ export class ServerShowPage {
             ? this.updateEos()
             : this.checkForEosUpdate(),
         detail: false,
-        disabled: this.patch
-          .watch$('server-info', 'status-info')
-          .pipe(
-            map(
-              status =>
-                status &&
-                (status['backing-up'] ||
-                  !!status['update-progress'] ||
-                  status.updated),
-            ),
-          ),
+        disabled: this.eosService.updatingOrBackingUp$,
       },
       {
         title: 'Preferences',

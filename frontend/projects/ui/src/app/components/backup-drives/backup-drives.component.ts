@@ -142,7 +142,6 @@ export class BackupDrivesComponent {
 
   private async addCifs(value: RR.AddBackupTargetReq): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Testing connectivity to shared folder...',
     })
     await loader.present()
@@ -200,7 +199,6 @@ export class BackupDrivesComponent {
     index: number,
   ): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Testing connectivity to shared folder...',
     })
     await loader.present()
@@ -217,7 +215,6 @@ export class BackupDrivesComponent {
 
   private async deleteCifs(id: string, index: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Removing...',
     })
     await loader.present()

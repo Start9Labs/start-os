@@ -10,24 +10,24 @@
   <ng-container *ngIf="localPkg; else install">
     <ng-container *ngIf="localPkg.state === PackageState.Installed">
       <ion-button
-        *ngIf="(version | compareEmver: pkg.manifest.version) === -1"
+        *ngIf="(localVersion | compareEmver: pkg.manifest.version) === -1"
         expand="block"
         color="success"
-        (click)="presentModal('update')"
+        (click)="tryInstall()"
       >
         Update
       </ion-button>
       <ion-button
-        *ngIf="(version | compareEmver: pkg.manifest.version) === 1"
+        *ngIf="(localVersion | compareEmver: pkg.manifest.version) === 1"
         expand="block"
         color="warning"
-        (click)="presentModal('downgrade')"
+        (click)="tryInstall()"
       >
         Downgrade
       </ion-button>
       <ng-container *ngIf="localStorageService.showDevTools$ | async">
         <ion-button
-          *ngIf="(version | compareEmver: pkg.manifest.version) === 0"
+          *ngIf="(localVersion | compareEmver: pkg.manifest.version) === 0"
           expand="block"
           color="success"
           (click)="tryInstall()"

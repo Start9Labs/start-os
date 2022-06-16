@@ -68,7 +68,6 @@ export class AppRecoverSelectPage {
       .map(option => option.id)
 
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Initializing...',
     })
     await loader.present()

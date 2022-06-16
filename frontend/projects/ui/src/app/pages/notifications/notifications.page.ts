@@ -72,7 +72,6 @@ export class NotificationsPage {
 
   async delete(id: number, index: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Deleting...',
     })
     await loader.present()
@@ -100,10 +99,10 @@ export class NotificationsPage {
         },
         {
           text: 'Delete',
-          cssClass: 'enter-click',
           handler: () => {
             this.deleteAll()
           },
+          cssClass: 'enter-click',
         },
       ],
     })
@@ -160,7 +159,6 @@ export class NotificationsPage {
 
   private async deleteAll(): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Deleting...',
     })
     await loader.present()

@@ -26,7 +26,7 @@
         {{ page.title }}
       </ion-label>
       <ion-icon
-        *ngIf="page.url === '/embassy' && (eosService.updateAvailable$ | async)"
+        *ngIf="page.url === '/embassy' && (eosService.showUpdate$ | async)"
         color="success"
         size="small"
         name="rocket-outline"
