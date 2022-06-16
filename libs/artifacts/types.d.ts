@@ -260,27 +260,25 @@ export type ValueSpecList =
     "enum",
     WithDescription<
       WithDefault<
-        {
-          values: string[];
-          "value-names": {
-            [key: string]: string;
-          };
-        },
+        ListSpec<
+          ValueSpecEnum
+        >,
         string[]
       >
     >
   >
   | Subtype<
     "object",
-    WithDescription<
-      WithDefault<
-        ListSpec<
-          Tag<"object", WithDescription<WithDefault<ValueSpecObject, Config>>>
-        >,
-        {}[]
-      >
-    >
+    WithDescription<WithDefault<ListSpec<ValueSpecObject>, {}[]>>
+  >
+  | Subtype<
+    "union",
+    WithDescription<WithDefault<ListSpec<ValueSpecUnion>, string[]>>
   >;
+export type ValueSpecEnum = {
+  values: string[];
+  "value-names": { [key: string]: string };
+};
 
 export type SetResult = {
   /** These are the unix process signals */
