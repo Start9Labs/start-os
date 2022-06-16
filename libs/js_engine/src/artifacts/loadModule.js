@@ -1,7 +1,5 @@
-//@ts-check
-// @ts-ignore
+
 import Deno from "/deno_global.js";
-// @ts-ignore
 import * as mainModule from "/embassy.js";
 /**
  * This is using the simplified json pointer spec, using no escapes and arrays
@@ -20,45 +18,42 @@ function jsonPointerValue(obj, pointer) {
   return obj;
 }
 
-// @ts-ignore
+function maybeDate(value) {
+  if (!value) return value;
+  return new Date(value)
+}
 const writeFile = ({ path, volumeId, toWrite }) => Deno.core.opAsync("write_file",  volumeId, path, toWrite);
 
-// @ts-ignore
 const readFile = ({ volumeId, path }) => Deno.core.opAsync("read_file",  volumeId, path);
-// @ts-ignore
+const metadata = async ({ volumeId, path }) => {
+  const data = await Deno.core.opAsync("metadata",  volumeId, path)
+  return {
+    ...data,
+    modified: maybeDate(data.modified),
+    created: maybeDate(data.created),
+    accessed: maybeDate(data.accessed),
+  }
+};
 const removeFile = ({ volumeId, path }) => Deno.core.opAsync("remove_file",  volumeId, path);
-// @ts-ignore
 const isSandboxed = () => Deno.core.opSync("is_sandboxed");
 
-// @ts-ignore
 const writeJsonFile = ({ volumeId, path, toWrite }) =>
   writeFile({
     volumeId,
     path,
     toWrite: JSON.stringify(toWrite),
   });
-// @ts-ignore
 const readJsonFile = async ({ volumeId, path }) => JSON.parse(await readFile({ volumeId, path }));
-// @ts-ignore
 const createDir = ({ volumeId, path }) => Deno.core.opAsync("create_dir",  volumeId, path);
-// @ts-ignore
 const removeDir = ({ volumeId, path }) => Deno.core.opAsync("remove_dir",  volumeId, path);
-// @ts-ignore
 const trace = (x) => Deno.core.opSync("log_trace", x);
-// @ts-ignore
 const warn = (x) => Deno.core.opSync("log_warn", x);
-// @ts-ignore
 const error = (x) => Deno.core.opSync("log_error", x);
-// @ts-ignore
 const debug = (x) => Deno.core.opSync("log_debug", x);
-// @ts-ignore
 const info = (x) => Deno.core.opSync("log_info", x);
 
-// @ts-ignore
 const currentFunction = Deno.core.opSync("current_function");
-//@ts-ignore
 const input = Deno.core.opSync("get_input");
-// @ts-ignore
 const setState = (x) => Deno.core.opSync("set_value", x);
 const effects = {
   writeFile,
@@ -74,6 +69,7 @@ const effects = {
   removeFile,
   createDir,
   removeDir,
+  metadata  
 };
 
 const runFunction = jsonPointerValue(mainModule, currentFunction);
