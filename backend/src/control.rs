@@ -182,7 +182,11 @@ pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()
     })
 }
 
-pub async fn restart(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
+#[command(display(display_none))]
+pub async fn restart(
+    #[context] ctx: RpcContext,
+    #[arg] id: PackageId,
+) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
 
