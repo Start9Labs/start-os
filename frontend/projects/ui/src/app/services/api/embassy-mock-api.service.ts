@@ -501,7 +501,16 @@ export class MockApiService extends ApiService {
     params: RR.DryUpdatePackageReq,
   ): Promise<RR.DryUpdatePackageRes> {
     await pauseFor(2000)
-    return {}
+    return {
+      lnd: {
+        dependency: 'bitcoind',
+        error: {
+          type: DependencyErrorType.IncorrectVersion,
+          expected: '>0.23.0',
+          received: params.version,
+        },
+      },
+    }
   }
 
   async getPackageConfig(
@@ -645,20 +654,6 @@ export class MockApiService extends ApiService {
     return this.withRevision(originalPatch)
   }
 
-  async dryStopPackage(
-    params: RR.DryStopPackageReq,
-  ): Promise<RR.DryStopPackageRes> {
-    await pauseFor(2000)
-    return {
-      lnd: {
-        dependency: 'bitcoind',
-        error: {
-          type: DependencyErrorType.NotRunning,
-        },
-      },
-    }
-  }
-
   async stopPackageRaw(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
     const path = `/package-data/${params.id}/installed/status/main`
@@ -688,20 +683,6 @@ export class MockApiService extends ApiService {
     ]
 
     return this.withRevision(patch)
-  }
-
-  async dryUninstallPackage(
-    params: RR.DryUninstallPackageReq,
-  ): Promise<RR.DryUninstallPackageRes> {
-    await pauseFor(2000)
-    return {
-      lnd: {
-        dependency: 'bitcoind',
-        error: {
-          type: DependencyErrorType.NotRunning,
-        },
-      },
-    }
   }
 
   async uninstallPackageRaw(

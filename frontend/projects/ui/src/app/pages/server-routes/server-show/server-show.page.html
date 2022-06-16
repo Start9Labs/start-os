@@ -69,18 +69,16 @@
               </p>
               <!-- "Software Update" button only -->
               <p *ngIf="button.title === 'Software Update'">
-                <ng-container *ngIf="button.disabled | async; else enabled">
-                  <ion-text
-                    *ngIf="server['status-info'].updated"
-                    class="inline"
-                    color="warning"
-                  >
-                    Update Complete, Restart to apply changes
-                  </ion-text>
-                </ng-container>
-                <ng-template #enabled>
+                <ion-text
+                  *ngIf="server['status-info'].updated; else notUpdated"
+                  class="inline"
+                  color="warning"
+                >
+                  Update Complete. Restart to apply changes
+                </ion-text>
+                <ng-template #notUpdated>
                   <ng-container
-                    *ngIf="eosService.updateAvailable$ | async; else check"
+                    *ngIf="eosService.showUpdate$ | async; else check"
                   >
                     <ion-text class="inline" color="success">
                       <ion-icon name="rocket-outline"></ion-icon>

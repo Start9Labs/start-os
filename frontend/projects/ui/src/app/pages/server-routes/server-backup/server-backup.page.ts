@@ -158,7 +158,6 @@ export class ServerBackupPage {
     oldPassword?: string,
   ): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Beginning backup...',
     })
     await loader.present()

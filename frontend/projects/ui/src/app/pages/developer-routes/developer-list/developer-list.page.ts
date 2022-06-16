@@ -141,7 +141,6 @@ export class DeveloperListPage {
       return
 
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Creating Project...',
     })
     await loader.present()
@@ -188,7 +187,6 @@ export class DeveloperListPage {
 
   async editName(id: string, newName: string) {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Saving...',
     })
     await loader.present()
@@ -204,7 +202,6 @@ export class DeveloperListPage {
 
   async delete(id: string) {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Removing Project...',
     })
     await loader.present()

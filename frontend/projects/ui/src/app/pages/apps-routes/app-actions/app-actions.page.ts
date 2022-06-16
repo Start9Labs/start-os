@@ -4,6 +4,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   AlertController,
   IonContent,
+  IonicSafeString,
   LoadingController,
   ModalController,
   NavController,
@@ -14,12 +15,11 @@ import {
   PackageDataEntry,
   PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
-import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
-import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { Subscription } from 'rxjs'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Component({
   selector: 'app-actions',
@@ -39,7 +39,6 @@ export class AppActionsPage {
     private readonly alertCtrl: AlertController,
     private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
-    private readonly wizards: WizardDefs,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
   ) {}
@@ -136,19 +135,52 @@ export class AppActionsPage {
     }
   }
 
-  async uninstall() {
-    const { id, title, alerts } = this.pkg.manifest
-    const success = await wizardModal(
-      this.modalCtrl,
-      this.wizards.uninstall({
-        id,
-        title,
-        uninstallAlert: alerts.uninstall || undefined,
-      }),
-    )
+  async tryUninstall(): Promise<void> {
+    const { title, alerts } = this.pkg.manifest
 
-    if (success) {
-      return this.navCtrl.navigateRoot('/services')
+    let message =
+      alerts.uninstall ||
+      `Uninstalling ${title} will permanently delete its data`
+
+    if (hasCurrentDeps(this.pkg)) {
+      message = `${message}. Services that depend on ${title} will no longer work properly and may crash`
+    }
+
+    const alert = await this.alertCtrl.create({
+      header: 'Warning',
+      message,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Uninstall',
+          handler: () => {
+            this.uninstall()
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+      cssClass: 'alert-warning-message',
+    })
+
+    await alert.present()
+  }
+
+  private async uninstall() {
+    const loader = await this.loadingCtrl.create({
+      message: `Beginning uninstall...`,
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.uninstallPackage({ id: this.pkgId })
+      this.navCtrl.navigateRoot('/services')
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
     }
   }
 
@@ -157,7 +189,6 @@ export class AppActionsPage {
     input?: object,
   ): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Executing action...',
     })
     await loader.present()

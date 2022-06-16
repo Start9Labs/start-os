@@ -13,50 +13,49 @@
 </ion-item>
 
 <ng-container *ngIf="isInstalled">
-  <ion-item lines="none">
-    <ion-button
-      *ngIf="isRunning"
-      class="action-button"
-      slot="start"
-      color="danger"
-      (click)="stop()"
-    >
-      <ion-icon slot="start" name="stop-outline"></ion-icon>
-      Stop
-    </ion-button>
+  <ion-grid>
+    <ion-row style="padding-left: 12px">
+      <ion-col>
+        <ng-container *ngIf="isRunning">
+          <ion-button class="action-button" color="danger" (click)="tryStop()">
+            <ion-icon slot="start" name="stop-outline"></ion-icon>
+            Stop
+          </ion-button>
+        </ng-container>
 
-    <ion-button
-      *ngIf="isStopped"
-      class="action-button"
-      slot="start"
-      color="success"
-      (click)="tryStart()"
-    >
-      <ion-icon slot="start" name="play-outline"></ion-icon>
-      Start
-    </ion-button>
+        <ion-button
+          *ngIf="isStopped"
+          class="action-button"
+          color="success"
+          (click)="tryStart()"
+        >
+          <ion-icon slot="start" name="play-outline"></ion-icon>
+          Start
+        </ion-button>
 
-    <ion-button
-      *ngIf="!pkgStatus?.configured"
-      class="action-button"
-      slot="start"
-      color="warning"
-      (click)="presentModalConfig()"
-    >
-      <ion-icon slot="start" name="construct-outline"></ion-icon>
-      Configure
-    </ion-button>
+        <ion-button
+          *ngIf="!pkgStatus?.configured"
+          class="action-button"
+          color="warning"
+          (click)="presentModalConfig()"
+        >
+          <ion-icon slot="start" name="construct-outline"></ion-icon>
+          Configure
+        </ion-button>
 
-    <ion-button
-      *ngIf="pkgStatus && (interfaces | hasUi)"
-      class="action-button"
-      slot="start"
-      color="primary"
-      [disabled]="!(pkg.state | isLaunchable: pkgStatus.main.status:interfaces)"
-      (click)="launchUi()"
-    >
-      <ion-icon slot="start" name="open-outline"></ion-icon>
-      Launch UI
-    </ion-button>
-  </ion-item>
+        <ion-button
+          *ngIf="pkgStatus && (interfaces | hasUi)"
+          class="action-button"
+          color="primary"
+          [disabled]="
+            !(pkg.state | isLaunchable: pkgStatus.main.status:interfaces)
+          "
+          (click)="launchUi()"
+        >
+          <ion-icon slot="start" name="open-outline"></ion-icon>
+          Launch UI
+        </ion-button>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
 </ng-container>

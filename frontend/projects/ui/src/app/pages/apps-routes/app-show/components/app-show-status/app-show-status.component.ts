@@ -12,16 +12,15 @@ import {
   Status,
 } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from '@start9labs/shared'
-import { wizardModal } from 'src/app/components/app-wizard/app-wizard.component'
-import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import {
   AlertController,
+  IonicSafeString,
   LoadingController,
-  ModalController,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ModalService } from 'src/app/services/modal.service'
 import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Component({
   selector: 'app-show-status',
@@ -48,9 +47,7 @@ export class AppShowStatusComponent {
     private readonly alertCtrl: AlertController,
     private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
-    private readonly wizards: WizardDefs,
     private readonly launcherService: UiLauncherService,
     private readonly modalService: ModalService,
   ) {}
@@ -105,41 +102,73 @@ export class AppShowStatusComponent {
     this.start()
   }
 
-  async stop(): Promise<void> {
-    const { id, title } = this.pkg.manifest
-    const hasDependents = !!Object.keys(
-      this.pkg.installed?.['current-dependents'] || {},
-    ).filter(depId => depId !== id).length
+  async tryStop(): Promise<void> {
+    const { title, alerts } = this.pkg.manifest
 
-    if (!hasDependents) {
-      const loader = await this.loadingCtrl.create({
-        message: `Stopping...`,
-        spinner: 'lines',
+    let message = alerts.stop || ''
+    if (hasCurrentDeps(this.pkg)) {
+      const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
+      message = message ? `${message}.\n\n${depMessage}` : depMessage
+    }
+
+    if (message) {
+      const alert = await this.alertCtrl.create({
+        header: 'Warning',
+        message,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+          {
+            text: 'Stop',
+            handler: () => {
+              this.stop()
+            },
+            cssClass: 'enter-click',
+          },
+        ],
+        cssClass: 'alert-warning-message',
       })
-      await loader.present()
 
-      try {
-        await this.embassyApi.stopPackage({ id })
-      } catch (e: any) {
-        this.errToast.present(e)
-      } finally {
-        loader.dismiss()
-      }
+      await alert.present()
     } else {
-      wizardModal(
-        this.modalCtrl,
-        this.wizards.stop({
-          id,
-          title,
-        }),
-      )
+      this.stop()
     }
   }
 
+<<<<<<< HEAD
+=======
+  async tryRestart(): Promise<void> {
+    if (hasCurrentDeps(this.pkg)) {
+      const alert = await this.alertCtrl.create({
+        header: 'Warning',
+        message: `Services that depend on ${this.pkg.manifest.title} may temporarily experiences issues`,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+          {
+            text: 'Restart',
+            handler: () => {
+              this.restart()
+            },
+            cssClass: 'enter-click',
+          },
+        ],
+      })
+
+      await alert.present()
+    } else {
+      this.restart()
+    }
+  }
+
+>>>>>>> 918a1907... Remove app wiz and dry calls (#1541)
   private async start(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Starting...`,
-      spinner: 'lines',
     })
     await loader.present()
 
@@ -152,10 +181,43 @@ export class AppShowStatusComponent {
     }
   }
 
+<<<<<<< HEAD
+=======
+  private async stop(): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      message: 'Stopping...',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.stopPackage({ id: this.pkg.manifest.id })
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async restart(): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      message: `Restarting...`,
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.restartPackage({ id: this.pkg.manifest.id })
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+>>>>>>> 918a1907... Remove app wiz and dry calls (#1541)
   private async presentAlertStart(message: string): Promise<boolean> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
-        header: 'Warning',
+        header: 'Alert',
         message,
         buttons: [
           {

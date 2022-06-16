@@ -215,14 +215,8 @@ export module RR {
   export type StartPackageReq = WithExpire<{ id: string }> // package.start
   export type StartPackageRes = WithRevision<null>
 
-  export type DryStopPackageReq = StopPackageReq // package.stop.dry
-  export type DryStopPackageRes = Breakages
-
   export type StopPackageReq = WithExpire<{ id: string }> // package.stop
   export type StopPackageRes = WithRevision<null>
-
-  export type DryUninstallPackageReq = UninstallPackageReq // package.uninstall.dry
-  export type DryUninstallPackageRes = Breakages
 
   export type UninstallPackageReq = WithExpire<{ id: string }> // package.uninstall
   export type UninstallPackageRes = WithRevision<null>

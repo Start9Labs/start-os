@@ -12,7 +12,7 @@ export class LiveApiService extends ApiService {
     private readonly config: ConfigService,
   ) {
     super()
-    ;(window as any).rpcClient = this
+      ; (window as any).rpcClient = this
   }
 
   async getStatic(url: string): Promise<string> {
@@ -306,20 +306,8 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'package.start', params })
   }
 
-  async dryStopPackage(
-    params: RR.DryStopPackageReq,
-  ): Promise<RR.DryStopPackageRes> {
-    return this.http.rpcRequest({ method: 'package.stop.dry', params })
-  }
-
   async stopPackageRaw(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     return this.http.rpcRequest({ method: 'package.stop', params })
-  }
-
-  async dryUninstallPackage(
-    params: RR.DryUninstallPackageReq,
-  ): Promise<RR.DryUninstallPackageRes> {
-    return this.http.rpcRequest({ method: 'package.uninstall.dry', params })
   }
 
   async deleteRecoveredPackageRaw(
