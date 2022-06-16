@@ -14,21 +14,18 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencies, CurrentDependents};
+use crate::db::model::{CurrentDependencies, CurrentDependencyInfo, CurrentDependents};
+use crate::db::util::WithRevision;
 use crate::dependencies::{
     add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
-    BreakageRes, DependencyConfig, DependencyError, DependencyErrors, TaggedDependencyError,
+    BreakTransitiveReceipts, BreakageRes, Dependencies, DependencyConfig, DependencyError,
+    DependencyErrors, DependencyReceipt, TaggedDependencyError, TryHealReceipts,
 };
+use crate::install::cleanup::{remove_from_current_dependents_lists, UpdateDependencyReceipts};
 use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::Error;
-use crate::{db::model::CurrentDependencyInfo, dependencies::DependencyReceipt};
-use crate::{db::util::WithRevision, dependencies::Dependencies};
-use crate::{
-    dependencies::BreakTransitiveReceipts,
-    install::cleanup::{remove_from_current_dependents_lists, UpdateDependencyReceipts},
-};
-use crate::{dependencies::TryHealReceipts, util::display_none};
 
 pub mod action;
 pub mod spec;
@@ -37,11 +34,8 @@ pub mod util;
 pub use spec::{ConfigSpec, Defaultable};
 use util::NumRange;
 
-use self::spec::{PackagePointerSpec, ValueSpecPointer};
-use self::{
-    action::{ConfigActions, ConfigRes},
-    spec::ConfigPointerReceipts,
-};
+use self::action::{ConfigActions, ConfigRes};
+use self::spec::{ConfigPointerReceipts, PackagePointerSpec, ValueSpecPointer};
 
 pub type Config = serde_json::Map<String, Value>;
 pub trait TypeOf {
@@ -697,7 +691,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                         dependent,
                         &manifest.version,
                         &manifest.volumes,
-                        dependent,
+                        id,
                         &config,
                     )
                     .await?
