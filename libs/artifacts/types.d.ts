@@ -26,6 +26,7 @@ export namespace ExpectedExports {
   ) => Promise<ResultType<MigrationRes>>;
 }
 
+
 /** Used to reach out from the pure js runtime */
 export type Effects = {
   /** Usable when not sandboxed */
@@ -33,6 +34,7 @@ export type Effects = {
     input: { path: string; volumeId: string; toWrite: string },
   ): Promise<void>;
   readFile(input: { volumeId: string; path: string }): Promise<string>;
+  metadata(input: { volumeId: string; path: string }): Promise<Metadata>;
   /** Create a directory. Usable when not sandboxed */
   createDir(input: { volumeId: string; path: string }): Promise<string>;
   /** Remove a directory. Usable when not sandboxed */
@@ -60,7 +62,20 @@ export type Effects = {
 
   /** Sandbox mode lets us read but not write */
   is_sandboxed(): boolean;
+  
 };
+export type Metadata = {
+
+  fileType: string,
+  isDir: boolean,
+  isFile: boolean,
+  isSymlink: boolean,
+  len: number,
+  modified?: Date,
+  accessed?: Date,
+  created?: Date,
+  readonly: boolean,
+}
 
 export type MigrationRes = {
   configured: boolean;
