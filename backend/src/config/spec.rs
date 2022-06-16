@@ -1213,7 +1213,7 @@ impl<'de> Deserialize<'de> for ValueSpecString {
                         masked = map.next_value()?;
                     } else if &key == "placeholder" {
                         if placeholder.is_some() {
-                            return Err(serde::de::Error::duplicate_field("pattern"));
+                            return Err(serde::de::Error::duplicate_field("placeholder"));
                         } else {
                             placeholder = Some(map.next_value()?);
                         }
