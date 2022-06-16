@@ -64,7 +64,6 @@ export class SSHKeysPage {
 
   async add(pubkey: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Saving...',
     })
     await loader.present()
@@ -100,7 +99,6 @@ export class SSHKeysPage {
 
   async delete(i: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Deleting...',
     })
     await loader.present()

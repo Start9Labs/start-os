@@ -100,6 +100,7 @@ export class EmbassyPage {
                 this.presentModalPassword(drive)
               }
             },
+            cssClass: 'enter-click',
           },
         ],
       })

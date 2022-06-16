@@ -33,11 +33,6 @@
           *ngIf="slide.selector === 'alert'"
           [params]="slide.params"
         ></alert>
-        <notes
-          #components
-          *ngIf="slide.selector === 'notes'"
-          [params]="slide.params"
-        ></notes>
         <dependents
           #components
           *ngIf="slide.selector === 'dependents'"

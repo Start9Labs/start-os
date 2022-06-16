@@ -35,14 +35,6 @@ export class WizardDefs {
           }
         : undefined,
       {
-        selector: 'dependents',
-        params: {
-          verb: 'updating',
-          title,
-          Fn: () => this.embassyApi.dryUpdatePackage({ id, version }),
-        },
-      },
-      {
         selector: 'complete',
         params: {
           verb: 'beginning update for',
@@ -55,54 +47,6 @@ export class WizardDefs {
               })
               .pipe(first())
               .toPromise(),
-        },
-      },
-    ]
-    return {
-      action: 'update',
-      title,
-      version,
-      slides: slides.filter(exists),
-      submitBtn: 'Begin Update',
-    }
-  }
-
-  updateOS(values: {
-    version: string
-    releaseNotes: { [version: string]: string }
-    headline: string
-  }): AppWizardComponent['params'] {
-    const { version, releaseNotes, headline } = values
-
-    const versions = Object.keys(releaseNotes)
-      .sort()
-      .reverse()
-      .map(version => {
-        return {
-          version,
-          notes: releaseNotes[version],
-        }
-      })
-
-    const title = 'EmbassyOS'
-
-    const slides: SlideDefinition[] = [
-      {
-        selector: 'notes',
-        params: {
-          versions,
-          headline,
-        },
-      },
-      {
-        selector: 'complete',
-        params: {
-          verb: 'beginning update for',
-          title,
-          Fn: () =>
-            this.embassyApi.updateServer({
-              'marketplace-url': this.config.marketplace.url,
-            }),
         },
       },
     ]
@@ -132,14 +76,6 @@ export class WizardDefs {
             },
           }
         : undefined,
-      {
-        selector: 'dependents',
-        params: {
-          verb: 'downgrading',
-          title,
-          Fn: () => this.embassyApi.dryUpdatePackage({ id, version }),
-        },
-      },
       {
         selector: 'complete',
         params: {
@@ -181,14 +117,6 @@ export class WizardDefs {
         },
       },
       {
-        selector: 'dependents',
-        params: {
-          verb: 'uninstalling',
-          title,
-          Fn: () => this.embassyApi.dryUninstallPackage({ id }),
-        },
-      },
-      {
         selector: 'complete',
         params: {
           verb: 'uninstalling',
@@ -210,14 +138,6 @@ export class WizardDefs {
     const { title, id } = values
 
     const slides: SlideDefinition[] = [
-      {
-        selector: 'dependents',
-        params: {
-          verb: 'stopping',
-          title,
-          Fn: () => this.embassyApi.dryStopPackage({ id }),
-        },
-      },
       {
         selector: 'complete',
         params: {

@@ -65,7 +65,6 @@ export class RestorePage {
     oldPassword?: string,
   ): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
       message: 'Decrypting drive...',
     })
     await loader.present()

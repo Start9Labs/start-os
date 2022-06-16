@@ -233,19 +233,11 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   startPackage = (params: RR.StartPackageReq) =>
     this.syncResponse(() => this.startPackageRaw(params))()
 
-  abstract dryStopPackage(
-    params: RR.DryStopPackageReq,
-  ): Promise<RR.DryStopPackageRes>
-
   protected abstract stopPackageRaw(
     params: RR.StopPackageReq,
   ): Promise<RR.StopPackageRes>
   stopPackage = (params: RR.StopPackageReq) =>
     this.syncResponse(() => this.stopPackageRaw(params))()
-
-  abstract dryUninstallPackage(
-    params: RR.DryUninstallPackageReq,
-  ): Promise<RR.DryUninstallPackageRes>
 
   protected abstract uninstallPackageRaw(
     params: RR.UninstallPackageReq,
@@ -273,7 +265,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   private syncResponse<
     T,
     F extends (...args: any[]) => Promise<{ response: T; revision?: Revision }>,
-  >(f: F, temp?: Operation<unknown>): (...args: Parameters<F>) => Promise<T> {
+    >(f: F, temp?: Operation<unknown>): (...args: Parameters<F>) => Promise<T> {
     return (...a) => {
       // let expireId = undefined
       // if (temp) {

@@ -205,6 +205,12 @@ ion-button {
   }
 }
 
+.alert-warning-message {
+  .alert-title {
+    color: var(--ion-color-warning);
+  }
+}
+
 .alert-success-message {
   .alert-title {
     color: var(--ion-color-success);

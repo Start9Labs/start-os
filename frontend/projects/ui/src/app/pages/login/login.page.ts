@@ -34,8 +34,7 @@ export class LoginPage {
     this.error = ''
 
     this.loader = await this.loadingCtrl.create({
-      message: 'Logging in',
-      spinner: 'lines',
+      message: 'Logging in...',
     })
     await this.loader.present()
 

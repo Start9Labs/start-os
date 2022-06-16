@@ -1,5 +1,4 @@
 import { Url } from '@start9labs/shared'
-
 import { Dependency } from './dependency'
 
 export interface MarketplaceManifest<T = unknown> {
@@ -22,6 +21,7 @@ export interface MarketplaceManifest<T = unknown> {
     uninstall: string | null
     restore: string | null
     start: string | null
+    stop: string | null
   }
   dependencies: Record<string, Dependency<T>>
 }

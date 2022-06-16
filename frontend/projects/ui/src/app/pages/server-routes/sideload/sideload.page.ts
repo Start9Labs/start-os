@@ -50,8 +50,7 @@ export class SideloadPage {
   }
   async setFile(files?: File[]) {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      message: 'Verifying Package',
+      message: 'Verifying package',
       cssClass: 'loader',
     })
     await loader.present()
@@ -84,8 +83,7 @@ export class SideloadPage {
 
   async handleUpload() {
     const loader = await this.loadingCtrl.create({
-      spinner: 'lines',
-      message: 'Uploading Package',
+      message: 'Uploading package',
       cssClass: 'loader',
     })
     await loader.present()
