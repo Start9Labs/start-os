@@ -43,8 +43,6 @@ export class MarketplaceShowControlsComponent {
 
   readonly PackageState = PackageState
 
-  loader: HTMLIonLoadingElement | undefined
-
   constructor(
     private readonly alertCtrl: AlertController,
     public readonly localStorageService: LocalStorageService,
@@ -62,22 +60,26 @@ export class MarketplaceShowControlsComponent {
   }
 
   async tryInstall() {
-    if (
-      this.localPkg &&
-      this.emver.compare(this.localVersion, this.pkg.manifest.version) !== 0 &&
-      hasCurrentDeps(this.localPkg)
-    ) {
-      this.dryInstall()
-    } else {
+    if (!this.localPkg) {
       this.alertInstall()
+    } else {
+      if (
+        this.emver.compare(this.localVersion, this.pkg.manifest.version) !==
+          0 &&
+        hasCurrentDeps(this.localPkg)
+      ) {
+        this.dryInstall()
+      } else {
+        this.install()
+      }
     }
   }
 
   private async dryInstall() {
-    this.loader = await this.loadingCtrl.create({
+    const loader = await this.loadingCtrl.create({
       message: 'Checking dependent services...',
     })
-    await this.loader.present()
+    await loader.present()
 
     const { id, version } = this.pkg.manifest
 
@@ -88,11 +90,12 @@ export class MarketplaceShowControlsComponent {
       })
 
       if (isEmptyObject(breakages)) {
-        this.alertInstall()
+        this.install(loader)
       } else {
+        await loader.dismiss()
         const proceed = await this.presentAlertBreakages(breakages)
         if (proceed) {
-          this.alertInstall()
+          this.install()
         }
       }
     } catch (e: any) {
@@ -101,8 +104,6 @@ export class MarketplaceShowControlsComponent {
   }
 
   private async alertInstall() {
-    this.dismissLoader()
-
     const installAlert = this.pkg.manifest.alerts.install
 
     if (!installAlert) return this.install()
@@ -127,13 +128,13 @@ export class MarketplaceShowControlsComponent {
     await alert.present()
   }
 
-  private async install() {
+  private async install(loader?: HTMLIonLoadingElement) {
     const message = 'Beginning Install...'
-    if (this.loader) {
-      this.loader.message = message
+    if (loader) {
+      loader.message = message
     } else {
-      this.loader = await this.loadingCtrl.create({ message })
-      await this.loader.present()
+      loader = await this.loadingCtrl.create({ message })
+      await loader.present()
     }
 
     const { id, version } = this.pkg.manifest
@@ -149,13 +150,11 @@ export class MarketplaceShowControlsComponent {
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
-      this.loader.dismiss()
+      loader.dismiss()
     }
   }
 
   private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
-    await this.dismissLoader()
-
     let message: string | IonicSafeString =
       'As a result of this update, the following services will no longer work properly and may crash:<ul>'
     const localPkgs = this.patch.getData()['package-data']
@@ -190,12 +189,5 @@ export class MarketplaceShowControlsComponent {
 
       await alert.present()
     })
-  }
-
-  async dismissLoader() {
-    if (this.loader) {
-      await this.loader.dismiss()
-      this.loader = undefined
-    }
   }
 }
