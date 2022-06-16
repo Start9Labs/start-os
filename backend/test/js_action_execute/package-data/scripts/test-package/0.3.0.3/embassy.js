@@ -89,6 +89,42 @@ export async function getConfig(effects) {
   effects.warn("warn");
   effects.error("error");
   effects.info("info");
+
+  {
+    const metadata = await effects.metadata({
+      path: "./test.log",
+      volumeId: "main",
+    })
+
+    if (typeof metadata.fileType !== 'string') {
+      throw new TypeError("File type is not a string")
+    }
+    if (typeof metadata.isDir !== 'boolean' ) {
+      throw new TypeError("isDir is not a boolean")
+    }
+    if (typeof metadata.isFile !== 'boolean' ) {
+      throw new TypeError("isFile is not a boolean")
+    }
+    if (typeof metadata.isSymlink !== 'boolean' ) {
+      throw new TypeError("isSymlink is not a boolean")
+    }
+    if (typeof metadata.len !== 'number' ) {
+      throw new TypeError("len is not a number")
+    }
+    if (!(metadata.modified instanceof  Date )) {
+      throw new TypeError("modified is not a Date")
+    }
+    if (!(metadata.accessed instanceof  Date )) {
+      throw new TypeError("accessed is not a Date")
+    }
+    if (!(metadata.created instanceof  Date )) {
+      throw new TypeError("created is not a Date")
+    }
+    if (typeof metadata.readonly !== 'boolean' ) {
+      throw new TypeError("readonly is not a boolean")
+    }
+    effects.error(JSON.stringify(metadata))
+  }
   return {
     result: {
       spec: {

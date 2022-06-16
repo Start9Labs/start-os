@@ -15,6 +15,7 @@ use helpers::NonDetachingJoinHandle;
 use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::time::SystemTime;
 use std::{path::Path, sync::Arc};
 use std::{path::PathBuf, pin::Pin};
 use tokio::io::AsyncReadExt;
@@ -58,6 +59,20 @@ impl JsError {
             JsError::Timeout => 143,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetadataJs {
+    file_type: String,
+    is_dir: bool,
+    is_file: bool,
+    is_symlink: bool,
+    len: u64,
+    modified: Option<u64>,
+    accessed: Option<u64>,
+    created: Option<u64>,
+    readonly: bool,
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -240,6 +255,7 @@ impl JsExecutionEnvironment {
     fn declarations() -> Vec<OpDecl> {
         vec![
             fns::read_file::decl(),
+            fns::metadata::decl(),
             fns::write_file::decl(),
             fns::remove_file::decl(),
             fns::create_dir::decl(),
@@ -332,6 +348,8 @@ mod fns {
 
     use models::VolumeId;
 
+    use crate::{system_time_as_unix_ms, MetadataJs};
+
     use super::{AnswerState, JsContext};
 
     #[op]
@@ -357,6 +375,54 @@ mod fns {
         }
         let answer = tokio::fs::read_to_string(new_file).await?;
         Ok(answer)
+    }
+    #[op]
+    async fn metadata(
+        state: Rc<RefCell<OpState>>,
+        volume_id: VolumeId,
+        path_in: PathBuf,
+    ) -> Result<MetadataJs, AnyError> {
+        let state = state.borrow();
+        let ctx: &JsContext = state.borrow();
+        let volume_path = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+        //get_path_for in volume.rs
+        let new_file = volume_path.join(path_in);
+        if !is_subset(&volume_path, &new_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                new_file.to_string_lossy(),
+                volume_path.to_string_lossy(),
+            );
+        }
+        let answer = tokio::fs::metadata(new_file).await?;
+        let metadata_js = MetadataJs {
+            file_type: format!("{:?}", answer.file_type()),
+            is_dir: answer.is_dir(),
+            is_file: answer.is_file(),
+            is_symlink: answer.is_symlink(),
+            len: answer.len(),
+            modified: answer
+                .modified()
+                .ok()
+                .as_ref()
+                .and_then(system_time_as_unix_ms),
+            accessed: answer
+                .accessed()
+                .ok()
+                .as_ref()
+                .and_then(system_time_as_unix_ms),
+            created: answer
+                .created()
+                .ok()
+                .as_ref()
+                .and_then(system_time_as_unix_ms),
+            readonly: answer.permissions().readonly(),
+        };
+
+        Ok(metadata_js)
     }
     #[op]
     async fn write_file(
@@ -563,4 +629,13 @@ mod fns {
         let parent = tokio::fs::canonicalize(parent).await?;
         Ok(child.starts_with(parent))
     }
+}
+
+fn system_time_as_unix_ms(system_time: &SystemTime) -> Option<u64> {
+    system_time
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .ok()?
+        .as_millis()
+        .try_into()
+        .ok()
 }
