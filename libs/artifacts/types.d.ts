@@ -17,6 +17,7 @@ export namespace ExpectedExports {
     /** Should be the health check id */
     [id: string]: (effects: Effects, dateMs: number) => Promise<ResultType<null | void>>;
   }
+  export type migration = (effects: Effects, version: string) => Promise<ResultType<MigrationRes>>
 }
 
 /** Used to reach out from the pure js runtime */
@@ -54,6 +55,10 @@ export type Effects = {
   /** Sandbox mode lets us read but not write */
   is_sandboxed(): boolean;
 };
+
+export type MigrationRes = {
+  configured: boolean,
+}
 
 export type ActionResult = {
   version: "0";
