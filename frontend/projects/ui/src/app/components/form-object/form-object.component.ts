@@ -1,4 +1,9 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core'
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+} from '@angular/core'
 import {
   AbstractFormGroupDirective,
   FormArray,
@@ -24,12 +29,14 @@ import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
 import { pauseFor } from '@start9labs/shared'
 import { v4 } from 'uuid'
+import { MaskPipe } from 'src/app/pipes/mask/mask.pipe'
 const Mustache = require('mustache')
 
 @Component({
   selector: 'form-object',
   templateUrl: './form-object.component.html',
   styleUrls: ['./form-object.component.scss'],
+  providers: [MaskPipe],
 })
 export class FormObjectComponent {
   @Input() objectSpec: ConfigSpec
@@ -40,7 +47,13 @@ export class FormObjectComponent {
   @Output() onInputChange = new EventEmitter<void>()
   @Output() onExpand = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = {}
-  unmasked: { [key: string]: boolean } = {}
+  maskDisplay: {
+    [key: string]: {
+      masked: boolean
+      maskedValue: string
+      originalValue: string
+    }
+  } = {}
   objectDisplay: {
     [key: string]: { expanded: boolean; height: string; hasNewOptions: boolean }
   } = {}
@@ -55,7 +68,8 @@ export class FormObjectComponent {
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
-  ) {}
+    private readonly mask: MaskPipe,
+  ) { }
 
   ngOnInit() {
     Object.keys(this.objectSpec).forEach(key => {
@@ -94,8 +108,48 @@ export class FormObjectComponent {
           height: '0px',
           hasNewOptions,
         }
+      } else if (spec.type === 'string') {
+        const val = this.formGroup.get(key)?.value
+        this.maskDisplay[key] = {
+          masked: spec.masked,
+          originalValue: val,
+          maskedValue: this.mask.transform(val),
+        }
+        this.maskDisplay[key].masked
+          ? this.formGroup.get(key)?.setValue(this.maskDisplay[key].maskedValue)
+          : this.formGroup
+            .get(key)
+            ?.setValue(this.maskDisplay[key].originalValue)
       }
     })
+  }
+
+  toggleMasked(key: string) {
+    this.maskDisplay[key].masked = !this.maskDisplay[key].masked
+    this.maskDisplay[key].masked
+      ? this.formGroup.get(key)?.setValue(this.maskDisplay[key].maskedValue)
+      : this.formGroup.get(key)?.setValue(this.maskDisplay[key].originalValue)
+  }
+
+  isCustomEvent(event: Event): event is CustomEvent {
+    return 'detail' in event
+  }
+
+  transformInput(e: Event, key: string) {
+    if (!this.isCustomEvent(e)) throw new Error('not a custom event')
+    let i = 0
+    this.maskDisplay[key].originalValue = (e.detail.value as string)
+      .split('')
+      .map(x => {
+        if (x === '●') {
+          return this.maskDisplay[key].originalValue[i++]
+        }
+        return x
+      })
+      .join('')
+    this.maskDisplay[key].maskedValue = this.mask.transform(
+      this.maskDisplay[key].originalValue,
+    )
   }
 
   getEnumListDisplay(arr: string[], spec: ListValueSpecOf<'enum'>): string {
@@ -384,7 +438,7 @@ export class FormLabelComponent {
   Range = Range
   @Input() data: HeaderData
 
-  constructor(private readonly alertCtrl: AlertController) {}
+  constructor(private readonly alertCtrl: AlertController) { }
 
   async presentAlertDescription() {
     const { name, description } = this.data.spec

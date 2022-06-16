@@ -68,28 +68,46 @@
           <ng-template #notTextArea>
             <ion-input
               type="text"
+              *ngIf="maskDisplay[entry.key]?.masked"
               [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
               [placeholder]="spec.placeholder || 'Enter ' + spec.name"
               [formControlName]="entry.key"
               (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
-              (ionChange)="handleInputChange()"
+              (ionChange)="
+                handleInputChange(); transformInput($event, entry.key)
+              "
+            >
+            </ion-input>
+            <ion-input
+              *ngIf="!maskDisplay[entry.key]?.masked"
+              type="text"
+              [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
+              [placeholder]="spec.placeholder || 'Enter ' + spec.name"
+              [formControlName]="entry.key"
+              (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
+              (ionChange)="
+                handleInputChange(); transformInput($event, entry.key)
+              "
             >
             </ion-input>
           </ng-template>
-          <!-- removing mask button until proper solution implemented -->
-          <!-- <ion-button
+          <ion-button
             *ngIf="spec.type === 'string' && spec.masked"
             slot="end"
             fill="clear"
             color="light"
-            (click)="unmasked[entry.key] = !unmasked[entry.key]"
+            (click)="toggleMasked(entry.key)"
           >
             <ion-icon
               slot="icon-only"
-              [name]="unmasked[entry.key] ? 'eye-off-outline' : 'eye-outline'"
+              [name]="
+                !maskDisplay[entry.key]?.masked
+                  ? 'eye-off-outline'
+                  : 'eye-outline'
+              "
               size="small"
             ></ion-icon>
-          </ion-button> -->
+          </ion-button>
           <ion-note
             *ngIf="spec.type === 'number' && spec.units"
             slot="end"
@@ -177,7 +195,7 @@
             slot="end"
             name="chevron-up"
             [ngStyle]="{
-              transform: objectDisplay[entry.key].expanded
+              transform: objectDisplay[entry.key]?.expanded
                 ? 'rotate(0deg)'
                 : 'rotate(180deg)',
               transition: 'transform 0.25s ease-out'
@@ -188,7 +206,7 @@
         <div
           [id]="getElementId(entry.key)"
           [ngStyle]="{
-            'max-height': objectDisplay[entry.key].height,
+            'max-height': objectDisplay[entry.key]?.height,
             overflow: 'hidden',
             'transition-property': 'max-height',
             'transition-duration': '.25s'

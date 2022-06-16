@@ -9,6 +9,7 @@ import { IonicModule } from '@ionic/angular'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { SharedPipesModule } from '@start9labs/shared'
 import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
+import { MaskPipeModule } from 'src/app/pipes/mask/mask.module'
 
 @NgModule({
   declarations: [FormObjectComponent, FormLabelComponent, FormErrorComponent],
@@ -19,6 +20,7 @@ import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
     ReactiveFormsModule,
     SharedPipesModule,
     EnumListPageModule,
+    MaskPipeModule,
   ],
   exports: [FormObjectComponent, FormLabelComponent, FormErrorComponent],
 })
