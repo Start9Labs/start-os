@@ -12,6 +12,18 @@ export namespace ExpectedExports {
   export type properties = (
     effects: Effects,
   ) => Promise<ResultType<Properties>>;
+
+  export type health = {
+    /** Should be the health check id */
+    [id: string]: (
+      effects: Effects,
+      dateMs: number,
+    ) => Promise<ResultType<null | void>>;
+  };
+  export type migration = (
+    effects: Effects,
+    version: string,
+  ) => Promise<ResultType<MigrationRes>>;
 }
 
 /** Used to reach out from the pure js runtime */
@@ -48,6 +60,10 @@ export type Effects = {
 
   /** Sandbox mode lets us read but not write */
   is_sandboxed(): boolean;
+};
+
+export type MigrationRes = {
+  configured: boolean;
 };
 
 export type ActionResult = {
@@ -260,52 +276,54 @@ export type ValueSpecList =
     WithDescription<WithDefault<ListSpec<ValueSpecUnion>, string[]>>
   >;
 export type ValueSpecEnum = {
-  values: string[],
+  values: string[];
   "value-names": { [key: string]: string };
-}
+};
 
 export type SetResult = {
   /** These are the unix process signals */
   signal:
-  | "SIGTERM"
-  | "SIGHUP"
-  | "SIGINT"
-  | "SIGQUIT"
-  | "SIGILL"
-  | "SIGTRAP"
-  | "SIGABRT"
-  | "SIGBUS"
-  | "SIGFPE"
-  | "SIGKILL"
-  | "SIGUSR1"
-  | "SIGSEGV"
-  | "SIGUSR2"
-  | "SIGPIPE"
-  | "SIGALRM"
-  | "SIGSTKFLT"
-  | "SIGCHLD"
-  | "SIGCONT"
-  | "SIGSTOP"
-  | "SIGTSTP"
-  | "SIGTTIN"
-  | "SIGTTOU"
-  | "SIGURG"
-  | "SIGXCPU"
-  | "SIGXFSZ"
-  | "SIGVTALRM"
-  | "SIGPROF"
-  | "SIGWINCH"
-  | "SIGIO"
-  | "SIGPWR"
-  | "SIGSYS"
-  | "SIGEMT"
-  | "SIGINFO";
+    | "SIGTERM"
+    | "SIGHUP"
+    | "SIGINT"
+    | "SIGQUIT"
+    | "SIGILL"
+    | "SIGTRAP"
+    | "SIGABRT"
+    | "SIGBUS"
+    | "SIGFPE"
+    | "SIGKILL"
+    | "SIGUSR1"
+    | "SIGSEGV"
+    | "SIGUSR2"
+    | "SIGPIPE"
+    | "SIGALRM"
+    | "SIGSTKFLT"
+    | "SIGCHLD"
+    | "SIGCONT"
+    | "SIGSTOP"
+    | "SIGTSTP"
+    | "SIGTTIN"
+    | "SIGTTOU"
+    | "SIGURG"
+    | "SIGXCPU"
+    | "SIGXFSZ"
+    | "SIGVTALRM"
+    | "SIGPROF"
+    | "SIGWINCH"
+    | "SIGIO"
+    | "SIGPWR"
+    | "SIGSYS"
+    | "SIGEMT"
+    | "SIGINFO";
   "depends-on": {
     [packageId: string]: string[];
   };
 };
 
-export type KnownError = { error: String };
+export type KnownError = { error: String } | {
+  "error-code": [number, string] | readonly [number, string];
+};
 export type ResultType<T> = KnownError | { result: T };
 
 export type PackagePropertiesV2 = {
