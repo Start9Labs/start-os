@@ -123,6 +123,7 @@ export async function getConfig(effects) {
     if (typeof metadata.readonly !== 'boolean' ) {
       throw new TypeError("readonly is not a boolean")
     }
+    effects.error(JSON.stringify(metadata))
   }
   return {
     result: {

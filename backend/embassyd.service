@@ -5,7 +5,7 @@ Requires=embassy-init.service
 
 [Service]
 Type=simple
-Environment=RUST_LOG=embassyd=debug,embassy=debug
+Environment=RUST_LOG=embassyd=debug,embassy=debug,js_engine=debug
 ExecStart=/usr/local/bin/embassyd
 Restart=always
 RestartSec=3
