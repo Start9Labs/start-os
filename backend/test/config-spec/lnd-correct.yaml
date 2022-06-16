@@ -27,6 +27,7 @@ alias:
   name: Alias
   description: The public, human-readable name of your Lightning node
   nullable: true
+  placeholder: Enter a value
   pattern: ".{1,32}"
   pattern-description: Must be at least 1 character and no more than 32 characters
 color:
