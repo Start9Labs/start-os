@@ -12,6 +12,11 @@ export namespace ExpectedExports {
   export type properties = (
       effects: Effects,
   ) => Promise<ResultType<Properties>>;
+
+  export type health = {
+    /** Should be the health check id */
+    [id: string]: (effects: Effects, dateMs: number) => Promise<ResultType<null | void>>;
+  }
 }
 
 /** Used to reach out from the pure js runtime */
@@ -301,7 +306,7 @@ export type SetResult = {
   };
 };
 
-export type KnownError = { error: String };
+export type KnownError = { error: String } | { 'error-code': [number, string]};
 export type ResultType<T> = KnownError | { result: T };
 
 export type PackagePropertiesV2 = {

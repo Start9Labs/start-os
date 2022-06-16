@@ -22,6 +22,7 @@ pub use js_engine::JsError;
 
 enum ErrorValue {
     Error(String),
+    ErrorCode((i32, String)),
     Result(serde_json::Value),
 }
 
@@ -81,7 +82,7 @@ impl JsProcedure {
             Ok(output)
         }
         .await
-        .map_err(|(error, message)| (error as i32, message)))
+        .map_err(|(error, message)| (error.as_code_num(), message)))
     }
 
     #[instrument(skip(ctx, input))]
@@ -115,7 +116,7 @@ impl JsProcedure {
             Ok(output)
         }
         .await
-        .map_err(|(error, message)| (error as i32, message)))
+        .map_err(|(error, message)| (error.as_code_num(), message)))
     }
 }
 
@@ -124,6 +125,7 @@ fn unwrap_known_error<O: for<'de> Deserialize<'de>>(
 ) -> Result<O, (JsError, String)> {
     match error_value {
         ErrorValue::Error(error) => Err((JsError::Javascript, error)),
+        ErrorValue::ErrorCode((code, message)) => Err((JsError::Code(code), message)),
         ErrorValue::Result(ref value) => match serde_json::from_value(value.clone()) {
             Ok(a) => Ok(a),
             Err(err) => {

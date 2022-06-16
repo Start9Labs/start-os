@@ -35,13 +35,29 @@ pub struct JsCode(String);
 
 #[derive(Debug, Clone, Copy)]
 pub enum JsError {
-    Unknown = 1,
-    Javascript = 2,
-    Engine = 3,
-    BoundryLayerSerDe = 4,
-    Tokio = 5,
-    FileSystem = 6,
-    Timeout = 143,
+    Unknown,
+    Javascript,
+    Engine,
+    BoundryLayerSerDe,
+    Tokio,
+    FileSystem,
+    Code(i32),
+    Timeout,
+}
+
+impl JsError {
+    pub fn as_code_num(&self) -> i32 {
+        match self {
+            JsError::Unknown => 1,
+            JsError::Javascript => 2,
+            JsError::Engine => 3,
+            JsError::BoundryLayerSerDe => 4,
+            JsError::Tokio => 5,
+            JsError::FileSystem => 6,
+            JsError::Code(code) => *code,
+            JsError::Timeout => 143,
+        }
+    }
 }
 
 #[cfg(target_arch = "x86_64")]
