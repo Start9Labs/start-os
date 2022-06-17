@@ -65,7 +65,7 @@ $subheader-height: 48px;
 }
 
 .subheader-padding {
-  --padding-top: #{$subheader-height} + 10px;
+  --padding-top: #{$subheader-height}+10px;
 }
 
 .subheader {
@@ -84,6 +84,7 @@ $subheader-height: 48px;
   margin-bottom: 6px;
   font-size: medium;
   font-weight: bold;
+
   * {
     display: inline-block;
     vertical-align: middle;
@@ -223,6 +224,7 @@ ion-button {
     --width: 90% !important;
     --max-width: 900px !important;
   }
+
   .alert-message {
     max-height: unset;
   }
@@ -281,12 +283,15 @@ h2 {
   25% {
     content: '';
   }
+
   50% {
     content: '.';
   }
+
   75% {
     content: '..';
   }
+
   100% {
     content: '...';
   }
@@ -296,16 +301,20 @@ h2 {
   0% {
     opacity: 1;
   }
+
   20% {
     opacity: 0;
   }
+
   60% {
     opacity: 0;
   }
+
   100% {
     opacity: 1;
   }
 }
+
 .fader {
   animation: flickerAnimation 4s infinite;
 }

@@ -1,3 +1,7 @@
 .content-padding {
-  padding: 0 16px 16px 16px
+  padding: 0 16px 16px 16px;
+}
+
+:host ::ng-deep img {
+  border-radius: 0 !important;
 }
