@@ -26,7 +26,9 @@ pub enum MainStatus {
     Stopped,
     Restarting,
     Stopping,
-    Starting,
+    Starting {
+        restarting: bool,
+    },
     Running {
         started: DateTime<Utc>,
         health: BTreeMap<HealthCheckId, HealthCheckResult>,
@@ -39,7 +41,7 @@ pub enum MainStatus {
 impl MainStatus {
     pub fn running(&self) -> bool {
         match self {
-            MainStatus::Starting
+            MainStatus::Starting { .. }
             | MainStatus::Running { .. }
             | MainStatus::BackingUp {
                 started: Some(_), ..
@@ -52,7 +54,7 @@ impl MainStatus {
     }
     pub fn stop(&mut self) {
         match self {
-            MainStatus::Starting | MainStatus::Running { .. } => {
+            MainStatus::Starting { .. } | MainStatus::Running { .. } => {
                 *self = MainStatus::Stopping;
             }
             MainStatus::BackingUp { started, .. } => {

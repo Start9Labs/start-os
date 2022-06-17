@@ -32,9 +32,9 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
                 *status = MainStatus::Stopped;
             }
             MainStatus::Restarting => {
-                *status = MainStatus::Starting;
+                *status = MainStatus::Starting { restarting: true };
             }
-            MainStatus::Starting => {
+            MainStatus::Starting { .. } => {
                 start(shared).await?;
             }
             MainStatus::Running { started, .. } => {
@@ -47,7 +47,7 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 stop(shared).await?;
             }
-            MainStatus::Starting | MainStatus::Running { .. } => (),
+            MainStatus::Starting { .. } | MainStatus::Running { .. } => (),
             MainStatus::BackingUp { .. } => {
                 pause(shared).await?;
             }
@@ -56,7 +56,7 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 stop(shared).await?;
             }
-            MainStatus::Starting => {
+            MainStatus::Starting { .. } => {
                 *status = MainStatus::Running {
                     started: Utc::now(),
                     health: BTreeMap::new(),
@@ -71,7 +71,7 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 stop(shared).await?;
             }
-            MainStatus::Starting | MainStatus::Running { .. } => {
+            MainStatus::Starting { .. } | MainStatus::Running { .. } => {
                 resume(shared).await?;
             }
             MainStatus::BackingUp { .. } => (),

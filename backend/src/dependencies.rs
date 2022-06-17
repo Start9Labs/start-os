@@ -336,7 +336,7 @@ impl DependencyError {
                                     .await?
                             }
                         }
-                        MainStatus::Starting | MainStatus::Restarting => {
+                        MainStatus::Starting { .. } | MainStatus::Restarting => {
                             DependencyError::Transitive
                                 .try_heal(
                                     ctx,
