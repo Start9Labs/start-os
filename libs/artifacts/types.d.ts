@@ -65,7 +65,6 @@ export type Effects = {
   
 };
 export type Metadata = {
-
   fileType: string,
   isDir: boolean,
   isFile: boolean,
@@ -75,6 +74,9 @@ export type Metadata = {
   accessed?: Date,
   created?: Date,
   readonly: boolean,
+  uid: number,
+  gid: number,
+  mode: number
 }
 
 export type MigrationRes = {

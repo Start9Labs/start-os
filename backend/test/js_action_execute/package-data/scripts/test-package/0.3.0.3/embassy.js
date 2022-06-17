@@ -111,6 +111,15 @@ export async function getConfig(effects) {
     if (typeof metadata.len !== 'number' ) {
       throw new TypeError("len is not a number")
     }
+    if (typeof metadata.gid !== 'number' ) {
+      throw new TypeError("gid is not a number")
+    }
+    if (typeof metadata.uid !== 'number' ) {
+      throw new TypeError("uid is not a number")
+    }
+    if (typeof metadata.mode !== 'number' ) {
+      throw new TypeError("mode is not a number")
+    }
     if (!(metadata.modified instanceof  Date )) {
       throw new TypeError("modified is not a Date")
     }

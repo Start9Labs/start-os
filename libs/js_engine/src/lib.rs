@@ -73,6 +73,9 @@ pub struct MetadataJs {
     accessed: Option<u64>,
     created: Option<u64>,
     readonly: bool,
+    gid: u32,
+    mode: u32,
+    uid: u32,
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -338,6 +341,7 @@ mod fns {
         *,
     };
     use serde_json::Value;
+    use std::os::unix::fs::MetadataExt;
 
     use std::{
         cell::RefCell,
@@ -420,6 +424,9 @@ mod fns {
                 .as_ref()
                 .and_then(system_time_as_unix_ms),
             readonly: answer.permissions().readonly(),
+            gid: answer.gid(),
+            mode: answer.mode(),
+            uid: answer.uid(),
         };
 
         Ok(metadata_js)
