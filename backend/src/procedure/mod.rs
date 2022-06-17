@@ -64,6 +64,15 @@ impl PackageProcedure {
         allow_inject: bool,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
+        tracing::trace!(
+            "Procedure execute {} {} - {:?}",
+            match self {
+                PackageProcedure::Docker(_) => "docker",
+                PackageProcedure::Script(_) => "JS",
+            },
+            pkg_id,
+            name
+        );
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
@@ -106,6 +115,15 @@ impl PackageProcedure {
         timeout: Option<Duration>,
         name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
+        tracing::trace!(
+            "Procedure sandboxed {} {} - {:?}",
+            match self {
+                PackageProcedure::Docker(_) => "docker",
+                PackageProcedure::Script(_) => "JS",
+            },
+            pkg_id,
+            name
+        );
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
