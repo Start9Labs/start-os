@@ -1,23 +1,17 @@
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use std::sync::Arc;
 use deno_core::anyhow::{anyhow, bail};
 use deno_core::error::AnyError;
-use deno_core::resolve_import;
-use deno_core::JsRuntime;
-use deno_core::ModuleLoader;
-use deno_core::ModuleSource;
-use deno_core::ModuleSourceFuture;
-use deno_core::ModuleSpecifier;
-use deno_core::ModuleType;
-use deno_core::RuntimeOptions;
-use deno_core::Snapshot;
-use deno_core::{Extension, OpDecl};
-use helpers::script_dir;
-use helpers::NonDetachingJoinHandle;
+use deno_core::{
+    resolve_import, Extension, JsRuntime, ModuleLoader, ModuleSource, ModuleSourceFuture,
+    ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
+};
+use helpers::{script_dir, NonDetachingJoinHandle};
 use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::SystemTime;
-use std::{path::Path, sync::Arc};
-use std::{path::PathBuf, pin::Pin};
 use tokio::io::AsyncReadExt;
 
 pub trait PathForVolumeId: Send + Sync {
@@ -335,22 +329,16 @@ impl JsExecutionEnvironment {
 
 /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
 mod fns {
-    use deno_core::{
-        anyhow::{anyhow, bail},
-        error::AnyError,
-        *,
-    };
+    use std::cell::RefCell;
+    use std::convert::TryFrom;
+    use std::path::{Path, PathBuf};
+    use std::rc::Rc;
+    use deno_core::anyhow::{anyhow, bail};
+    use deno_core::error::AnyError;
+    use deno_core::*;
+    use models::VolumeId;
     use serde_json::Value;
     use std::os::unix::fs::MetadataExt;
-
-    use std::{
-        cell::RefCell,
-        convert::TryFrom,
-        path::{Path, PathBuf},
-        rc::Rc,
-    };
-
-    use models::VolumeId;
 
     use crate::{system_time_as_unix_ms, MetadataJs};
 

@@ -250,6 +250,7 @@ export type MainStatus =
   | MainStatusStarting
   | MainStatusRunning
   | MainStatusBackingUp
+  | MainStatusRestarting
 
 export interface MainStatusStopped {
   status: PackageMainStatus.Stopped
@@ -261,6 +262,7 @@ export interface MainStatusStopping {
 
 export interface MainStatusStarting {
   status: PackageMainStatus.Starting
+  restarting: boolean
 }
 
 export interface MainStatusRunning {
@@ -274,12 +276,17 @@ export interface MainStatusBackingUp {
   started: string | null // UTC date string
 }
 
+export interface MainStatusRestarting {
+  status: PackageMainStatus.Restarting
+}
+
 export enum PackageMainStatus {
   Starting = 'starting',
   Running = 'running',
   Stopping = 'stopping',
   Stopped = 'stopped',
   BackingUp = 'backing-up',
+  Restarting = 'restarting',
 }
 
 export type HealthCheckResult =

@@ -268,9 +268,11 @@ async fn perform_backup<Db: DbHandle>(
 
         main_status_model.lock(&mut tx, LockType::Write).await?;
         let (started, health) = match main_status_model.get(&mut tx, true).await?.into_owned() {
-            MainStatus::Starting => (Some(Utc::now()), Default::default()),
+            MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
             MainStatus::Running { started, health } => (Some(started), health.clone()),
-            MainStatus::Stopped | MainStatus::Stopping => (None, Default::default()),
+            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
+                (None, Default::default())
+            }
             MainStatus::BackingUp { .. } => {
                 backup_report.insert(
                     package_id,
