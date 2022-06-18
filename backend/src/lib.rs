@@ -99,6 +99,7 @@ pub fn server() -> Result<(), RpcError> {
     config::config,
     control::start,
     control::stop,
+    control::restart,
     logs::logs,
     properties::properties,
     dependencies::dependency,
