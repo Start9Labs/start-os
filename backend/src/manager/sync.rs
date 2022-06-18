@@ -31,7 +31,10 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             MainStatus::Stopping => {
                 *status = MainStatus::Stopped;
             }
-            MainStatus::Starting => {
+            MainStatus::Restarting => {
+                *status = MainStatus::Starting { restarting: true };
+            }
+            MainStatus::Starting { .. } => {
                 start(shared).await?;
             }
             MainStatus::Running { started, .. } => {
@@ -41,19 +44,19 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             MainStatus::BackingUp { .. } => (),
         },
         Status::Starting => match *status {
-            MainStatus::Stopped | MainStatus::Stopping => {
+            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 stop(shared).await?;
             }
-            MainStatus::Starting | MainStatus::Running { .. } => (),
+            MainStatus::Starting { .. } | MainStatus::Running { .. } => (),
             MainStatus::BackingUp { .. } => {
                 pause(shared).await?;
             }
         },
         Status::Running => match *status {
-            MainStatus::Stopped | MainStatus::Stopping => {
+            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 stop(shared).await?;
             }
-            MainStatus::Starting => {
+            MainStatus::Starting { .. } => {
                 *status = MainStatus::Running {
                     started: Utc::now(),
                     health: BTreeMap::new(),
@@ -65,10 +68,10 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             }
         },
         Status::Paused => match *status {
-            MainStatus::Stopped | MainStatus::Stopping => {
+            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 stop(shared).await?;
             }
-            MainStatus::Starting | MainStatus::Running { .. } => {
+            MainStatus::Starting { .. } | MainStatus::Running { .. } => {
                 resume(shared).await?;
             }
             MainStatus::BackingUp { .. } => (),

@@ -71,7 +71,10 @@ pub async fn start(
     let mut tx = db.begin().await?;
     let receipts = StartReceipts::new(&mut tx, &id).await?;
     let version = receipts.version.get(&mut tx).await?;
-    receipts.status.set(&mut tx, MainStatus::Starting).await?;
+    receipts
+        .status
+        .set(&mut tx, MainStatus::Starting { restarting: false })
+        .await?;
     heal_all_dependents_transitive(&ctx, &mut tx, &id, &receipts.dependency_receipt).await?;
 
     let revision = tx.commit(None).await?;
@@ -175,6 +178,36 @@ pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()
     let mut tx = db.begin().await?;
 
     stop_common(&mut tx, &id, &mut BTreeMap::new()).await?;
+
+    Ok(WithRevision {
+        revision: tx.commit(None).await?,
+        response: (),
+    })
+}
+
+#[command(display(display_none))]
+pub async fn restart(
+    #[context] ctx: RpcContext,
+    #[arg] id: PackageId,
+) -> Result<WithRevision<()>, Error> {
+    let mut db = ctx.db.handle();
+    let mut tx = db.begin().await?;
+
+    let mut status = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .and_then(|pde| pde.installed())
+        .map(|i| i.status().main())
+        .get_mut(&mut tx)
+        .await?;
+    if !matches!(&*status, Some(MainStatus::Running { .. })) {
+        return Err(Error::new(
+            eyre!("{} is not running", id),
+            crate::ErrorKind::InvalidRequest,
+        ));
+    }
+    *status = Some(MainStatus::Restarting);
+    status.save(&mut tx).await?;
 
     Ok(WithRevision {
         revision: tx.commit(None).await?,

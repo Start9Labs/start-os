@@ -3,6 +3,7 @@ import { NavController } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   PackageDataEntry,
+  PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
 import {
@@ -13,7 +14,7 @@ import {
   ConnectionFailure,
   ConnectionService,
 } from 'src/app/services/connection.service'
-import { map, startWith } from 'rxjs/operators'
+import { map, startWith, filter } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 
@@ -32,6 +33,13 @@ export class AppShowPage {
   private readonly pkgId = getPkgId(this.route)
 
   readonly pkg$ = this.patch.watch$('package-data', this.pkgId).pipe(
+    filter(
+      (p: PackageDataEntry) =>
+        !(
+          p.installed?.status.main.status === PackageMainStatus.Starting &&
+          p.installed?.status.main.restarting
+        ),
+    ),
     map(pkg => {
       // if package disappears, navigate to list page
       if (!pkg) {

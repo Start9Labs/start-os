@@ -335,12 +335,14 @@ impl RpcContext {
                         let main = match status.main {
                             MainStatus::BackingUp { started, .. } => {
                                 if let Some(_) = started {
-                                    MainStatus::Starting
+                                    MainStatus::Starting { restarting: false }
                                 } else {
                                     MainStatus::Stopped
                                 }
                             }
-                            MainStatus::Running { .. } => MainStatus::Starting,
+                            MainStatus::Running { .. } => {
+                                MainStatus::Starting { restarting: false }
+                            }
                             a => a.clone(),
                         };
                         let new_package = PackageDataEntry::Installed {

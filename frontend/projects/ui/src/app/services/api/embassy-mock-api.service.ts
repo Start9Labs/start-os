@@ -36,7 +36,7 @@ export class MockApiService extends ApiService {
     value: mockPatchData,
     expireId: null,
   })
-  private readonly revertTime = 4000
+  private readonly revertTime = 2000
   sequence: number
 
   constructor(private readonly bootstrapper: LocalStorageBootstrap) {
@@ -652,6 +652,63 @@ export class MockApiService extends ApiService {
     ]
 
     return this.withRevision(originalPatch)
+  }
+
+  async restartPackageRaw(
+    params: RR.RestartPackageReq,
+  ): Promise<RR.RestartPackageRes> {
+    // first enact stop
+    await pauseFor(2000)
+    const path = `/package-data/${params.id}/installed/status/main`
+
+    setTimeout(() => {
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: path + '/status',
+          value: PackageMainStatus.Running,
+        },
+        {
+          op: PatchOp.REPLACE,
+          path: path + '/health',
+          value: {
+            'ephemeral-health-check': {
+              result: 'starting',
+            },
+            'unnecessary-health-check': {
+              result: 'disabled',
+            },
+            'chain-state': {
+              result: 'loading',
+              message: 'Bitcoin is syncing from genesis',
+            },
+            'p2p-interface': {
+              result: 'success',
+            },
+            'rpc-interface': {
+              result: 'failure',
+              error: 'RPC interface unreachable.',
+            },
+          },
+        } as any,
+      ]
+      this.updateMock(patch2)
+    }, this.revertTime)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: path + '/status',
+        value: PackageMainStatus.Restarting,
+      },
+      {
+        op: PatchOp.REPLACE,
+        path: path + '/health',
+        value: {},
+      },
+    ]
+
+    return this.withRevision(patch)
   }
 
   async stopPackageRaw(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {

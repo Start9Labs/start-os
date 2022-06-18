@@ -137,8 +137,6 @@ export class AppShowStatusComponent {
     }
   }
 
-<<<<<<< HEAD
-=======
   async tryRestart(): Promise<void> {
     if (hasCurrentDeps(this.pkg)) {
       const alert = await this.alertCtrl.create({
@@ -165,7 +163,28 @@ export class AppShowStatusComponent {
     }
   }
 
->>>>>>> 918a1907... Remove app wiz and dry calls (#1541)
+  async presentAlertRestart(): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'Confirm',
+      message: 'Are you sure you want to restart this service?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Restart',
+          handler: () => {
+            this.restart()
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+
+    await alert.present()
+  }
+
   private async start(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Starting...`,
@@ -181,8 +200,6 @@ export class AppShowStatusComponent {
     }
   }
 
-<<<<<<< HEAD
-=======
   private async stop(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Stopping...',
@@ -212,8 +229,6 @@ export class AppShowStatusComponent {
       loader.dismiss()
     }
   }
-
->>>>>>> 918a1907... Remove app wiz and dry calls (#1541)
   private async presentAlertStart(message: string): Promise<boolean> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
