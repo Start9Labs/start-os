@@ -50,7 +50,7 @@ export class AppShowStatusComponent {
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
     private readonly modalService: ModalService,
-  ) { }
+  ) {}
 
   get interfaces(): Record<string, InterfaceDef> {
     return this.pkg.manifest.interfaces
@@ -215,12 +215,9 @@ export class AppShowStatusComponent {
     }
   }
 
-
   private async restart(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Restarting...`,
-      spinner: 'lines',
-      cssClass: 'loader',
     })
     await loader.present()
 

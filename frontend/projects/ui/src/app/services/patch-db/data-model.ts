@@ -262,6 +262,7 @@ export interface MainStatusStopping {
 
 export interface MainStatusStarting {
   status: PackageMainStatus.Starting
+  restarting: boolean
 }
 
 export interface MainStatusRunning {

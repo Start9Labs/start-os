@@ -1,5 +1,6 @@
 import { isEmptyObject } from '@start9labs/shared'
 import {
+  MainStatusStarting,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
@@ -32,6 +33,8 @@ export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
 function getPrimaryStatus(status: Status): PrimaryStatus {
   if (!status.configured) {
     return PrimaryStatus.NeedsConfig
+  } else if ((status.main as MainStatusStarting).restarting) {
+    return PrimaryStatus.Restarting
   } else {
     return status.main.status as any as PrimaryStatus
   }
@@ -57,7 +60,6 @@ function getHealthStatus(
   }
 
   const values = Object.values(status.main.health)
-  console.log('HEALTH CHECKS', values)
 
   if (values.some(h => h.result === 'failure')) {
     return HealthStatus.Failure
