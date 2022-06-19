@@ -27,10 +27,10 @@ if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 	FLAGS="dev,$FLAGS"
 fi
 if [[ "$FLAGS" = "" ]]; then
-	rust-arm64-builder sh -c "(cd backend && cargo build --release)"
+	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release)"
 else
 	echo "FLAGS=$FLAGS"
-	rust-arm64-builder sh -c "(cd backend && cargo build --release --features $FLAGS)"
+	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS)"
 fi
 cd backend
 #rust-arm64-builder aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/embassyd
