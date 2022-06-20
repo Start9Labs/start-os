@@ -32,7 +32,7 @@ export class RecoverPage {
     private readonly loadingCtrl: LoadingController,
     private readonly errorToastService: ErrorToastService,
     public readonly stateService: StateService,
-  ) {}
+  ) { }
 
   async ngOnInit() {
     await this.getDrives()
@@ -99,8 +99,7 @@ export class RecoverPage {
         const alert = await this.alertCtrl.create({
           header: 'Embassy Data Drive Detected',
           message: new IonicSafeString(
-            `${importableDrive.vendor || 'Unknown Vendor'} - ${
-              importableDrive.model || 'Unknown Model'
+            `${importableDrive.vendor || 'Unknown Vendor'} - ${importableDrive.model || 'Unknown Model'
             } contains Embassy data. To use this drive and its data <i>as-is</i>, click "Use Drive". This will complete the setup process.<br /><br /><b>Important</b>. If you are trying to restore from backup or update from 0.2.x, DO NOT click "Use Drive". Instead, click "Cancel" and follow instructions.`,
           ),
           buttons: [
@@ -111,8 +110,16 @@ export class RecoverPage {
             {
               text: 'Use Drive',
               handler: async () => {
-                if (importableDrive.guid)
-                  await this.importDrive(importableDrive.guid)
+                const modal = await this.modalController.create({
+                  component: PasswordPage,
+                  componentProps: { storageDrive: importableDrive },
+                })
+                modal.onDidDismiss().then(res => {
+                  if (res.data && res.data.password) {
+                    this.importDrive(importableDrive.guid!, res.data.password)
+                  }
+                })
+                await modal.present()
               },
             },
           ],
@@ -201,13 +208,13 @@ export class RecoverPage {
     }
   }
 
-  private async importDrive(guid: string) {
+  private async importDrive(guid: string, password: string) {
     const loader = await this.loadingCtrl.create({
       message: 'Importing Drive',
     })
     await loader.present()
     try {
-      await this.stateService.importDrive(guid)
+      await this.stateService.importDrive(guid, password)
       await this.navCtrl.navigateForward(`/success`)
     } catch (e: any) {
       this.errorToastService.present(e)

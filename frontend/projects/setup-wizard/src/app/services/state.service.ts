@@ -69,8 +69,11 @@ export class StateService {
     setTimeout(() => this.pollDataTransferProgress(), 0) // prevent call stack from growing
   }
 
-  async importDrive(guid: string): Promise<void> {
-    const ret = await this.apiService.importDrive(guid)
+  async importDrive(guid: string, password: string): Promise<void> {
+    const ret = await this.apiService.importDrive({
+      guid,
+      'embassy-password': password,
+    })
     this.torAddress = ret['tor-address']
     this.lanAddress = ret['lan-address']
     this.cert = ret['root-ca']

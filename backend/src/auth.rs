@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
+use patch_db::{DbHandle, LockReceipt};
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
@@ -18,7 +19,7 @@ use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{ensure_code, Error, ResultExt};
 
-#[command(subcommands(login, logout, session))]
+#[command(subcommands(login, logout, session, reset_password))]
 pub fn auth() -> Result<(), Error> {
     Ok(())
 }
@@ -254,5 +255,115 @@ pub async fn kill(
     #[arg(parse(parse_comma_separated))] ids: Vec<String>,
 ) -> Result<(), Error> {
     HasLoggedOutSessions::new(ids.into_iter().map(KillSessionId), &ctx).await?;
+    Ok(())
+}
+
+#[instrument(skip(ctx, old_password, new_password))]
+async fn cli_reset_password(
+    ctx: CliContext,
+    old_password: Option<String>,
+    new_password: Option<String>,
+) -> Result<(), RpcError> {
+    let old_password = if let Some(old_password) = old_password {
+        old_password
+    } else {
+        rpassword::prompt_password_stdout("Current Password: ")?
+    };
+
+    let new_password = if let Some(new_password) = new_password {
+        new_password
+    } else {
+        let new_password = rpassword::prompt_password_stdout("New Password: ")?;
+        if new_password != rpassword::prompt_password_stdout("Confirm: ")? {
+            return Err(Error::new(
+                eyre!("Passwords do not match"),
+                crate::ErrorKind::IncorrectPassword,
+            )
+            .into());
+        }
+        new_password
+    };
+
+    rpc_toolkit::command_helpers::call_remote(
+        ctx,
+        "auth.reset-password",
+        serde_json::json!({ "old-password": old_password, "new-password": new_password }),
+        PhantomData::<()>,
+    )
+    .await?
+    .result?;
+
+    Ok(())
+}
+
+pub struct SetPasswordReceipt(LockReceipt<String, ()>);
+impl SetPasswordReceipt {
+    pub async fn new<Db: DbHandle>(db: &mut Db) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks);
+        Ok(setup(&db.lock_all(locks).await?)?)
+    }
+
+    pub fn setup(
+        locks: &mut Vec<patch_db::LockTargetId>,
+    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+        let password_hash = crate::db::DatabaseModel::new()
+            .server_info()
+            .password_hash()
+            .make_locker(patch_db::LockType::Write)
+            .add_to_keys(locks);
+        move |skeleton_key| Ok(Self(password_hash.verify(skeleton_key)?))
+    }
+}
+
+pub async fn set_password<Db: DbHandle, Ex>(
+    db: &mut Db,
+    receipt: &SetPasswordReceipt,
+    secrets: &mut Ex,
+    password: &str,
+) -> Result<(), Error>
+where
+    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+{
+    let password = argon2::hash_encoded(
+        password.as_bytes(),
+        &rand::random::<[u8; 16]>()[..],
+        &argon2::Config::default(),
+    )
+    .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
+
+    sqlx::query!("UPDATE account SET password = ?", password,)
+        .execute(secrets)
+        .await?;
+
+    receipt.0.set(db, password).await?;
+
+    Ok(())
+}
+
+#[command(
+    rename = "reset-password",
+    custom_cli(cli_reset_password(async, context(CliContext))),
+    display(display_none)
+)]
+#[instrument(skip(ctx, old_password, new_password))]
+pub async fn reset_password(
+    #[context] ctx: RpcContext,
+    #[arg(rename = "old-password")] old_password: Option<String>,
+    #[arg(rename = "new-password")] new_password: Option<String>,
+) -> Result<(), Error> {
+    let old_password = old_password.unwrap_or_default();
+    let new_password = new_password.unwrap_or_default();
+
+    let mut secrets = ctx.secret_store.acquire().await?;
+    check_password_against_db(&mut secrets, &old_password).await?;
+
+    let mut db = ctx.db.handle();
+
+    let set_password_receipt = SetPasswordReceipt::new(&mut db).await?;
+
+    set_password(&mut db, &set_password_receipt, &mut secrets, &new_password).await?;
+
     Ok(())
 }

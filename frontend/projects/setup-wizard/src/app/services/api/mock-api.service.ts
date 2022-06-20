@@ -1,6 +1,11 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '@start9labs/shared'
-import { ApiService, CifsRecoverySource, SetupEmbassyReq } from './api.service'
+import {
+  ApiService,
+  CifsRecoverySource,
+  ImportDriveReq,
+  SetupEmbassyReq,
+} from './api.service'
 
 let tries = 0
 
@@ -84,7 +89,7 @@ export class MockApiService extends ApiService {
     return
   }
 
-  async importDrive(guid: string) {
+  async importDrive(params: ImportDriveReq) {
     await pauseFor(3000)
     return setupRes
   }

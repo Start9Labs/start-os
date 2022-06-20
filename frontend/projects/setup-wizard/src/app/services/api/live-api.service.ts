@@ -2,11 +2,11 @@ import { Injectable } from '@angular/core'
 import {
   ApiService,
   CifsRecoverySource,
-  DiskInfo,
   DiskListResponse,
   DiskRecoverySource,
   EmbassyOSRecoveryInfo,
   GetStatusRes,
+  ImportDriveReq,
   RecoveryStatusRes,
   SetupEmbassyReq,
   SetupEmbassyRes,
@@ -80,10 +80,10 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async importDrive(guid: string) {
+  async importDrive(params: ImportDriveReq) {
     const res = await this.http.rpcRequest<SetupEmbassyRes>({
       method: 'setup.attach',
-      params: { guid },
+      params: params as any,
     })
 
     return {

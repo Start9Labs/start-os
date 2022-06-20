@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::SystemTime;
+
 use deno_core::anyhow::{anyhow, bail};
 use deno_core::error::AnyError;
 use deno_core::{
@@ -11,7 +13,6 @@ use helpers::{script_dir, NonDetachingJoinHandle};
 use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::time::SystemTime;
 use tokio::io::AsyncReadExt;
 
 pub trait PathForVolumeId: Send + Sync {
@@ -331,18 +332,18 @@ impl JsExecutionEnvironment {
 mod fns {
     use std::cell::RefCell;
     use std::convert::TryFrom;
+    use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
+
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
     use deno_core::*;
     use models::VolumeId;
     use serde_json::Value;
-    use std::os::unix::fs::MetadataExt;
-
-    use crate::{system_time_as_unix_ms, MetadataJs};
 
     use super::{AnswerState, JsContext};
+    use crate::{system_time_as_unix_ms, MetadataJs};
 
     #[op]
     async fn read_file(
