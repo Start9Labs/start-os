@@ -64,6 +64,7 @@ impl PackageProcedure {
         allow_inject: bool,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
+        tracing::trace!("Procedure execute {} {} - {:?}", self, pkg_id, name);
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
@@ -106,6 +107,7 @@ impl PackageProcedure {
         timeout: Option<Duration>,
         name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
+        tracing::trace!("Procedure sandboxed {} {} - {:?}", self, pkg_id, name);
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
@@ -122,6 +124,15 @@ impl PackageProcedure {
     }
 }
 
+impl std::fmt::Display for PackageProcedure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PackageProcedure::Docker(_) => write!(f, "Docker")?,
+            PackageProcedure::Script(_) => write!(f, "JS")?,
+        }
+        Ok(())
+    }
+}
 #[derive(Debug)]
 pub struct NoOutput;
 impl<'de> Deserialize<'de> for NoOutput {
