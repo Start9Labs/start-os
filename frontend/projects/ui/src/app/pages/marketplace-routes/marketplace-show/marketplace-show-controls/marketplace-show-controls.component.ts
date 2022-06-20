@@ -86,7 +86,7 @@ export class MarketplaceShowControlsComponent {
     try {
       const breakages = await this.embassyApi.dryUpdatePackage({
         id,
-        version: `=${version}`,
+        version: `${version}`,
       })
 
       if (isEmptyObject(breakages)) {
