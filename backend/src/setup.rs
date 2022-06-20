@@ -12,12 +12,12 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt, TryStreamExt};
 use nix::unistd::{Gid, Uid};
 use openssl::x509::X509;
-use patch_db::LockType;
+use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{Executor, Sqlite};
+use sqlx::{Connection, Executor, Sqlite};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
@@ -96,6 +96,7 @@ pub async fn list_disks() -> Result<DiskListResponse, Error> {
 pub async fn attach(
     #[context] ctx: SetupContext,
     #[arg] guid: Arc<String>,
+    #[arg(rename = "embassy-password")] password: Option<String>,
 ) -> Result<SetupResult, Error> {
     let requires_reboot = crate::disk::main::import(
         &*guid,
@@ -148,7 +149,28 @@ pub async fn attach(
     )
     .await?;
     let secrets = ctx.secret_store().await?;
-    let tor_key = crate::net::tor::os_key(&mut secrets.acquire().await?).await?;
+    let db = ctx.db(&secrets).await?;
+    let mut secrets_handle = secrets.acquire().await?;
+    let mut db_handle = db.handle();
+    let mut secrets_tx = secrets_handle.begin().await?;
+    let mut db_tx = db_handle.begin().await?;
+
+    if let Some(password) = password {
+        let set_password_receipt = crate::auth::SetPasswordReceipt::new(&mut db_tx).await?;
+        crate::auth::set_password(
+            &mut db_tx,
+            &set_password_receipt,
+            &mut secrets_tx,
+            &password,
+        )
+        .await?;
+    }
+
+    let tor_key = crate::net::tor::os_key(&mut secrets_tx).await?;
+
+    db_tx.commit(None).await?;
+    secrets_tx.commit().await?;
+
     let (_, root_ca) = SslManager::init(secrets).await?.export_root_ca().await?;
     let setup_result = SetupResult {
         tor_address: format!("http://{}", tor_key.public().get_onion_address()),

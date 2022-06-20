@@ -25,7 +25,7 @@ pub struct StartReceipts {
 }
 
 impl StartReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
+    pub async fn new(db: &mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks, id);
