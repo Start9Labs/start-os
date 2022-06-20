@@ -35,6 +35,7 @@ export class HttpService {
 
     const res = await this.httpRequest<RPCResponse<T>>(httpOpts)
     if (isRpcError(res)) {
+      // code 34 is authorization error ie. invalid session
       if (res.error.code === 34) this.auth.setUnverified()
       throw new RpcError(res.error)
     }
