@@ -6,8 +6,8 @@
 }
 
 .error-border {
-  border-color: red;
-  --border-color: red;
+  border-color: var(--ion-color-danger-shade);
+  --border-color: var(--ion-color-danger-shade);
 }
 
 ion-input {
