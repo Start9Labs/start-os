@@ -168,7 +168,7 @@ export class FormObjectComponent {
       ]
       this.objectListDisplay[key].push({
         height: '0px',
-        expanded: true,
+        expanded: false,
         displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',
       })
     }
@@ -372,7 +372,6 @@ interface HeaderData {
   edited: boolean
   new: boolean
   newOptions?: boolean
-  invalid?: boolean
 }
 
 @Component({

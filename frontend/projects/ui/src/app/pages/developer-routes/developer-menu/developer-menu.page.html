@@ -11,7 +11,11 @@
 </ion-header>
 
 <ion-content>
-  <ion-item button (click)="openBasicInfoModal()">
+  <ion-item
+    *ngIf="projectData$ | async as projectData"
+    button
+    (click)="openBasicInfoModal(projectData)"
+  >
     <ion-icon slot="start" name="information-circle-outline"></ion-icon>
     <ion-label>
       <h2>Basic Info</h2>

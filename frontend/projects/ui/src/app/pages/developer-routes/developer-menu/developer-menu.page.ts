@@ -6,10 +6,8 @@ import { BasicInfo, getBasicInfoSpec } from './form-info'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService, DestroyService } from '@start9labs/shared'
-import { takeUntil } from 'rxjs/operators'
-import { DevProjectData } from 'src/app/services/patch-db/data-model'
 import { getProjectId } from 'src/app/util/get-project-id'
-import * as yaml from 'js-yaml'
+import { DevProjectData } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'developer-menu',
@@ -19,7 +17,7 @@ import * as yaml from 'js-yaml'
 })
 export class DeveloperMenuPage {
   readonly projectId = getProjectId(this.route)
-  projectData: DevProjectData
+  projectData$ = this.patch.watch$('ui', 'dev', this.projectId)
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -27,29 +25,19 @@ export class DeveloperMenuPage {
     private readonly loadingCtrl: LoadingController,
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
-    private readonly destroy$: DestroyService,
-    private readonly patchDb: PatchDbService,
-  ) {}
+    private readonly patch: PatchDbService,
+  ) { }
 
   get name(): string {
-    return this.patchDb.getData().ui?.dev?.[this.projectId]?.name || ''
+    return this.patch.getData().ui?.dev?.[this.projectId]?.name || ''
   }
 
-  ngOnInit() {
-    this.patchDb
-      .watch$('ui', 'dev', this.projectId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(pd => {
-        this.projectData = pd
-      })
-  }
-
-  async openBasicInfoModal() {
+  async openBasicInfoModal(data: DevProjectData) {
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
       componentProps: {
         title: 'Basic Info',
-        spec: getBasicInfoSpec(this.projectData),
+        spec: getBasicInfoSpec(data),
         buttons: [
           {
             text: 'Save',
