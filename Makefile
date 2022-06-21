@@ -1,7 +1,7 @@
 EMBASSY_BINS := backend/target/aarch64-unknown-linux-gnu/release/embassyd backend/target/aarch64-unknown-linux-gnu/release/embassy-init backend/target/aarch64-unknown-linux-gnu/release/embassy-cli backend/target/aarch64-unknown-linux-gnu/release/embassy-sdk
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
 EMBASSY_SRC := raspios.img product_key.txt $(EMBASSY_BINS) backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
-EMBASSY_V8_SNAPSHOTS := libs/js_engine/src/artifacts/ARM_JS_SNAPSHOT.bin
+EMBASSY_V8_SNAPSHOTS := libs/js_engine/src/artifacts/ARM_JS_SNAPSHOT.bin libs/js_engine/src/artifacts/JS_SNAPSHOT.bin
 COMPAT_SRC := $(shell find system-images/compat/src)
 UTILS_SRC := $(shell find system-images/utils/Dockerfile)
 BACKEND_SRC := $(shell find backend/src) $(shell find patch-db/*/src) $(shell find rpc-toolkit/*/src) backend/Cargo.toml backend/Cargo.lock
@@ -32,6 +32,9 @@ clean:
 	rm -f libs/js_engine/src/artifacts/ARM_JS_SNAPSHOT.bin
 	rm -f libs/js_engine/src/artifacts/JS_SNAPSHOT.bin
 	touch libs/snapshot-creator/Cargo.toml
+
+sdk: $(EMBASSY_V8_SNAPSHOTS)
+	cd backend/ && ./install-sdk.sh
 
 eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar $(EMBASSY_V8_SNAPSHOTS)
 	! test -f eos.img || rm eos.img
