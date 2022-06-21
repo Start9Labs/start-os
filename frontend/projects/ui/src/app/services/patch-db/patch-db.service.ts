@@ -23,7 +23,7 @@ import { isEmptyObject, pauseFor } from '@start9labs/shared'
 import { DataModel } from './data-model'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
-import { BOOTSTRAPPER, PATCH_SOURCE } from './patch-db.factory'
+import { BOOTSTRAPPER, PATCH_SOURCE, PATCH_SOURCE$ } from './patch-db.factory'
 
 export enum PatchConnection {
   Initializing = 'initializing',
@@ -39,13 +39,8 @@ export class PatchDbService {
   private patchConnection$ = new ReplaySubject<PatchConnection>(1)
   private wsSuccess$ = new BehaviorSubject(false)
   private polling$ = new BehaviorSubject(false)
-  private patchDb: PatchDB<DataModel>
   private subs: Subscription[] = []
-  private sources$: BehaviorSubject<Source<DataModel>[]> = new BehaviorSubject([
-    this.sources[0],
-  ])
 
-  data: DataModel
   errors = 0
 
   getData() {
@@ -65,23 +60,16 @@ export class PatchDbService {
     @Inject(PATCH_SOURCE) private readonly sources: Source<DataModel>[],
     @Inject(BOOTSTRAPPER)
     private readonly bootstrapper: Bootstrapper<DataModel>,
+    @Inject(PATCH_SOURCE$)
+    private readonly sources$: BehaviorSubject<Source<DataModel>[]>,
     private readonly http: ApiService,
     private readonly auth: AuthService,
     private readonly storage: Storage,
+    private readonly patchDb: PatchDB<DataModel>,
   ) {}
 
-  async init(): Promise<void> {
-    const cache = await this.bootstrapper.init()
-    this.sources$.next([this.sources[0], this.http])
-
-    this.patchDb = new PatchDB(this.sources$, this.http, cache)
-
-    this.patchConnection$.next(PatchConnection.Initializing)
-    this.data = this.patchDb.store.cache.data
-  }
-
   async start(): Promise<void> {
-    await this.init()
+    this.reset()
 
     this.subs.push(
       // Connection Error
@@ -165,11 +153,9 @@ export class PatchDbService {
   }
 
   stop(): void {
-    if (this.patchDb) {
-      console.log('patchDB: STOPPING')
-      this.patchConnection$.next(PatchConnection.Initializing)
-      this.patchDb.store.reset()
-    }
+    console.log('patchDB: STOPPING')
+    this.reset()
+    this.patchDb.store.reset()
     this.subs.forEach(x => x.unsubscribe())
     this.subs = []
   }
@@ -195,5 +181,10 @@ export class PatchDbService {
       }),
       finalize(() => console.log('patchDB: UNSUBSCRIBING', argsString)),
     )
+  }
+
+  private reset() {
+    this.patchConnection$.next(PatchConnection.Initializing)
+    this.sources$.next([this.sources[0], this.http])
   }
 }

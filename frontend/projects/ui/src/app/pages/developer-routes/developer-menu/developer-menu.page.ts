@@ -32,7 +32,7 @@ export class DeveloperMenuPage {
   ) {}
 
   get name(): string {
-    return this.patchDb.data.ui?.dev?.[this.projectId]?.name || ''
+    return this.patchDb.getData().ui?.dev?.[this.projectId]?.name || ''
   }
 
   ngOnInit() {

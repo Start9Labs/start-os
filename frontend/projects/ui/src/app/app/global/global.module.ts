@@ -17,10 +17,11 @@ import { UnreadToastService } from './services/unread-toast.service'
 import { RefreshToastService } from './services/refresh-toast.service'
 import { UpdateToastService } from './services/update-toast.service'
 
-const GLOBAL_SERVICE = new InjectionToken<readonly Observable<unknown>[]>(
-  'A multi token of global Observable services',
-)
+export const GLOBAL_SERVICE = new InjectionToken<
+  readonly Observable<unknown>[]
+>('A multi token of global Observable services')
 
+// This module is purely for providers organization purposes
 @NgModule({
   providers: [
     [
@@ -34,18 +35,7 @@ const GLOBAL_SERVICE = new InjectionToken<readonly Observable<unknown>[]>(
     [PatchDataService, PatchMonitorService].map(useExisting),
   ],
 })
-export class GlobalModule implements OnDestroy {
-  readonly subscription = merge(...this.services).subscribe()
-
-  constructor(
-    @Inject(GLOBAL_SERVICE)
-    private readonly services: readonly Observable<unknown>[],
-  ) {}
-
-  ngOnDestroy() {
-    this.subscription.unsubscribe()
-  }
-}
+export class GlobalModule {}
 
 function useClass(useClass: Type<unknown>): ClassProvider {
   return {

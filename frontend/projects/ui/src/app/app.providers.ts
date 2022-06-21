@@ -1,4 +1,4 @@
-import { DOCUMENT } from '@angular/common'
+import { Bootstrapper, DBCache } from 'patch-db-client'
 import { APP_INITIALIZER, ErrorHandler, Provider } from '@angular/core'
 import { FormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
@@ -9,15 +9,11 @@ import { WorkspaceConfig } from '@start9labs/shared'
 import { ApiService } from './services/api/embassy-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
-import {
-  PATCH_SOURCE,
-  mockSourceFactory,
-  realSourceFactory,
-} from './services/patch-db/patch-db.factory'
-import { ConfigService } from './services/config.service'
+import { BOOTSTRAPPER, PATCH_CACHE } from './services/patch-db/patch-db.factory'
 import { GlobalErrorHandler } from './services/global-error-handler.service'
 import { AuthService } from './services/auth.service'
 import { LocalStorageService } from './services/local-storage.service'
+import { DataModel } from './services/patch-db/data-model'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
@@ -33,17 +29,19 @@ export const APP_PROVIDERS: Provider[] = [
     useClass: useMocks ? MockApiService : LiveApiService,
   },
   {
-    provide: PATCH_SOURCE,
-    deps: [ApiService, ConfigService, DOCUMENT],
-    useFactory: useMocks ? mockSourceFactory : realSourceFactory,
-  },
-  {
     provide: ErrorHandler,
     useClass: GlobalErrorHandler,
   },
   {
     provide: APP_INITIALIZER,
-    deps: [Storage, AuthService, LocalStorageService, Router],
+    deps: [
+      Storage,
+      AuthService,
+      LocalStorageService,
+      Router,
+      BOOTSTRAPPER,
+      PATCH_CACHE,
+    ],
     useFactory: appInitializer,
     multi: true,
   },
@@ -54,11 +52,18 @@ export function appInitializer(
   auth: AuthService,
   localStorage: LocalStorageService,
   router: Router,
+  bootstrapper: Bootstrapper<DataModel>,
+  cache: DBCache<DataModel>,
 ): () => Promise<void> {
   return async () => {
     await storage.create()
     await auth.init()
     await localStorage.init()
+
+    const localCache = await bootstrapper.init()
+
+    cache.sequence = localCache.sequence
+    cache.data = localCache.data
 
     router.initialNavigation()
   }
