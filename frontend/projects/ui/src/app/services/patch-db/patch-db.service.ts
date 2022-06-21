@@ -68,8 +68,13 @@ export class PatchDbService {
     private readonly patchDb: PatchDB<DataModel>,
   ) {}
 
+  init() {
+    this.sources$.next([this.sources[0], this.http])
+    this.patchConnection$.next(PatchConnection.Initializing)
+  }
+
   async start(): Promise<void> {
-    this.reset()
+    this.init()
 
     this.subs.push(
       // Connection Error
@@ -154,7 +159,7 @@ export class PatchDbService {
 
   stop(): void {
     console.log('patchDB: STOPPING')
-    this.reset()
+    this.patchConnection$.next(PatchConnection.Initializing)
     this.patchDb.store.reset()
     this.subs.forEach(x => x.unsubscribe())
     this.subs = []
@@ -181,10 +186,5 @@ export class PatchDbService {
       }),
       finalize(() => console.log('patchDB: UNSUBSCRIBING', argsString)),
     )
-  }
-
-  private reset() {
-    this.patchConnection$.next(PatchConnection.Initializing)
-    this.sources$.next([this.sources[0], this.http])
   }
 }

@@ -14,7 +14,7 @@ import {
 import { LocalStorageBootstrap } from './local-storage-bootstrap'
 import { ApiService } from '../api/embassy-api.service'
 import { ConfigService } from '../config.service'
-import { BehaviorSubject } from 'rxjs'
+import { ReplaySubject } from 'rxjs'
 
 const { useMocks } = require('../../../../../../config.json') as WorkspaceConfig
 
@@ -32,8 +32,7 @@ const { useMocks } = require('../../../../../../config.json') as WorkspaceConfig
     },
     {
       provide: PATCH_SOURCE$,
-      deps: [PATCH_SOURCE],
-      useClass: BehaviorSubject,
+      useValue: new ReplaySubject(1),
     },
     {
       provide: PatchDB,
