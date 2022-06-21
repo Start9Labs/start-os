@@ -10,7 +10,7 @@
 <ion-content class="ion-padding">
   <!-- loading -->
   <text-spinner
-    *ngIf="!patch.loaded else data"
+    *ngIf="loading else data"
     text="Connecting to Embassy"
   ></text-spinner>
 
