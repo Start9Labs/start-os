@@ -33,13 +33,6 @@ export class AppShowPage {
   private readonly pkgId = getPkgId(this.route)
 
   readonly pkg$ = this.patch.watch$('package-data', this.pkgId).pipe(
-    filter(
-      (p: PackageDataEntry) =>
-        !(
-          p.installed?.status.main.status === PackageMainStatus.Starting &&
-          p.installed?.status.main.restarting
-        ),
-    ),
     map(pkg => {
       // if package disappears, navigate to list page
       if (!pkg) {
@@ -49,6 +42,15 @@ export class AppShowPage {
       return { ...pkg }
     }),
     startWith(this.patch.getData()['package-data'][this.pkgId]),
+    filter(
+      (p: PackageDataEntry | undefined) =>
+        // will be undefined when sideloading
+        p !== undefined &&
+        !(
+          p.installed?.status.main.status === PackageMainStatus.Starting &&
+          p.installed?.status.main.restarting
+        ),
+    ),
   )
 
   readonly connectionFailure$ = this.connectionService
@@ -60,7 +62,7 @@ export class AppShowPage {
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
     private readonly connectionService: ConnectionService,
-  ) {}
+  ) { }
 
   isInstalled(
     { state }: PackageDataEntry,

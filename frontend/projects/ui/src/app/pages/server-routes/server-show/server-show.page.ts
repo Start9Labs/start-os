@@ -327,8 +327,8 @@ export class ServerShowPage {
         disabled: of(false),
       },
       {
-        title: 'Manually Install A Service',
-        description: `Install a service by drag and drop`,
+        title: 'Sideload Service',
+        description: `Manually install any service package`,
         icon: 'push-outline',
         action: () =>
           this.navCtrl.navigateForward(['sideload'], {
