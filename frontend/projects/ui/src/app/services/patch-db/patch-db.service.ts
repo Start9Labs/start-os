@@ -14,12 +14,13 @@ import {
   filter,
   finalize,
   mergeMap,
+  shareReplay,
   switchMap,
   take,
   tap,
   withLatestFrom,
 } from 'rxjs/operators'
-import { isEmptyObject, pauseFor } from '@start9labs/shared'
+import { pauseFor } from '@start9labs/shared'
 import { DataModel } from './data-model'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
@@ -41,18 +42,16 @@ export class PatchDbService {
   private polling$ = new BehaviorSubject(false)
   private subs: Subscription[] = []
 
+  readonly connected$ = this.watchPatchConnection$().pipe(
+    filter(status => status === PatchConnection.Connected),
+    take(1),
+    shareReplay(),
+  )
+
   errors = 0
 
   getData() {
     return this.patchDb.store.cache.data
-  }
-
-  // TODO: Refactor to use `Observable` so that we can react to PatchDb becoming loaded
-  get loaded(): boolean {
-    return (
-      this.patchDb?.store?.cache?.data &&
-      !isEmptyObject(this.patchDb.store.cache.data)
-    )
   }
 
   constructor(

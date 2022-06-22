@@ -10,7 +10,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Observable, of } from 'rxjs'
-import { filter, map, take } from 'rxjs/operators'
+import { filter, take } from 'rxjs/operators'
 import { exists, isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
@@ -28,6 +28,7 @@ export class ServerShowPage {
 
   readonly server$ = this.patch.watch$('server-info')
   readonly ui$ = this.patch.watch$('ui')
+  readonly connected$ = this.patch.connected$
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -37,8 +38,8 @@ export class ServerShowPage {
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
+    private readonly patch: PatchDbService,
     public readonly eosService: EOSService,
-    public readonly patch: PatchDbService,
     public readonly localStorageService: LocalStorageService,
   ) {}
 
