@@ -21,7 +21,6 @@ import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { Emver } from '../../../../../../../shared/src/services/emver.service'
-import { first } from 'rxjs/operators'
 import { ErrorToastService } from '../../../../../../../shared/src/services/error-toast.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { isEmptyObject } from '../../../../../../../shared/src/util/misc.util'
@@ -145,7 +144,6 @@ export class MarketplaceShowControlsComponent {
           id,
           'version-spec': `=${version}`,
         })
-        .pipe(first())
         .toPromise()
     } catch (e: any) {
       this.errToast.present(e)
