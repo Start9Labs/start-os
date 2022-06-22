@@ -119,7 +119,7 @@ const sshSpec = {
   type: 'string',
   name: 'SSH Key',
   description:
-    'Enter the SSH public key of you would like to authorize for root access to your Embassy.',
+    'Enter the SSH public key you would like to authorize for root access to your Embassy.',
   nullable: false,
   masked: false,
   copyable: false,
