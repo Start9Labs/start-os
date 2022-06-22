@@ -53,7 +53,6 @@ pub async fn restore_packages_rpc(
     #[arg] password: String,
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
-    check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
     let fs = target_id
         .load(&mut ctx.secret_store.acquire().await?)
         .await?;
