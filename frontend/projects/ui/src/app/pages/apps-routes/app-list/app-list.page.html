@@ -9,13 +9,12 @@
 
 <ion-content class="ion-padding">
   <!-- loading -->
-  <text-spinner
-    *ngIf="!patch.loaded else data"
-    text="Connecting to Embassy"
-  ></text-spinner>
+  <ng-template #loading>
+    <text-spinner text="Connecting to Embassy"></text-spinner>
+  </ng-template>
 
   <!-- not loading -->
-  <ng-template #data>
+  <ng-container *ngIf="connected$ | async else loading">
     <app-list-empty
       *ngIf="empty; else list"
       class="ion-text-center ion-padding"
@@ -40,5 +39,5 @@
         </ion-item-group>
       </ng-container>
     </ng-template>
-  </ng-template>
+  </ng-container>
 </ion-content>

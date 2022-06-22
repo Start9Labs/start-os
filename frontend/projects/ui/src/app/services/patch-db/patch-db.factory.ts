@@ -1,8 +1,9 @@
-import { inject, InjectionToken } from '@angular/core'
+import { InjectionToken } from '@angular/core'
 import { exists } from '@start9labs/shared'
 import { filter } from 'rxjs/operators'
 import {
   Bootstrapper,
+  DBCache,
   MockSource,
   PollSource,
   Source,
@@ -10,17 +11,20 @@ import {
 } from 'patch-db-client'
 
 import { ConfigService } from '../config.service'
-import { LocalStorageBootstrap } from './local-storage-bootstrap'
 import { ApiService } from '../api/embassy-api.service'
 import { MockApiService } from '../api/embassy-mock-api.service'
 import { DataModel } from './data-model'
+import { BehaviorSubject } from 'rxjs'
 
-export const PATCH_SOURCE = new InjectionToken<Source<DataModel>[]>(
-  '[wsSources, pollSources]',
-)
-export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('', {
-  factory: () => inject(LocalStorageBootstrap),
+// [wsSources, pollSources]
+export const PATCH_SOURCE = new InjectionToken<Source<DataModel>[]>('')
+export const PATCH_SOURCE$ = new InjectionToken<
+  BehaviorSubject<Source<DataModel>[]>
+>('')
+export const PATCH_CACHE = new InjectionToken<DBCache<DataModel>>('', {
+  factory: () => ({} as any),
 })
+export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('')
 
 export function mockSourceFactory({
   mockPatch$,

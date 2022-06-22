@@ -18,18 +18,17 @@ export class AppListPage {
   recoveredPkgs: readonly RecoveredInfo[] = []
   order: readonly string[] = []
   reordering = false
-  loading = true
+
+  readonly connected$ = this.patch.connected$
 
   constructor(
     private readonly api: ApiService,
     private readonly destroy$: DestroyService,
-    public readonly patch: PatchDbService,
+    private readonly patch: PatchDbService,
   ) {}
 
   get empty(): boolean {
-    return (
-      !this.loading && !this.pkgs.length && isEmptyObject(this.recoveredPkgs)
-    )
+    return !this.pkgs.length && isEmptyObject(this.recoveredPkgs)
   }
 
   ngOnInit() {
@@ -43,7 +42,6 @@ export class AppListPage {
           this.pkgs = pkgs
           this.recoveredPkgs = recoveredPkgs
           this.order = order
-          this.loading = false
 
           // set order in UI DB if there were unknown packages
           if (order.length < pkgs.length) {

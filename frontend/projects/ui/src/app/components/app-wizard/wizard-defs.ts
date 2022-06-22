@@ -6,7 +6,6 @@ import { ApiService } from '../../services/api/embassy-api.service'
 import { AppWizardComponent, SlideDefinition } from './app-wizard.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { first } from 'rxjs/operators'
 
 @Injectable({ providedIn: 'root' })
 export class WizardDefs {
@@ -45,7 +44,6 @@ export class WizardDefs {
                 id,
                 'version-spec': version ? `=${version}` : undefined,
               })
-              .pipe(first())
               .toPromise(),
         },
       },
@@ -87,7 +85,6 @@ export class WizardDefs {
                 id,
                 'version-spec': version ? `=${version}` : undefined,
               })
-              .pipe(first())
               .toPromise(),
         },
       },

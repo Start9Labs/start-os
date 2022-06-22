@@ -8,7 +8,7 @@
 
 <ion-content class="ion-padding">
   <marketplace-list-content
-    *ngIf="loaded else loading"
+    *ngIf="connected$ | async else loading"
     [localPkgs]="(localPkgs$ | async) || {}"
     [pkgs]="pkgs$ | async"
     [categories]="categories$ | async"

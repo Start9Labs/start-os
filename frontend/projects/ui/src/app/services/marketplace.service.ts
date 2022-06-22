@@ -6,7 +6,7 @@ import {
   AbstractMarketplaceService,
   Marketplace,
 } from '@start9labs/marketplace'
-import { defer, from, Observable, of } from 'rxjs'
+import { from, Observable, of } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
@@ -32,7 +32,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   private readonly altMarketplaceData$: Observable<
     UIMarketplaceData | undefined
-  > = this.patch.watch$('ui', 'marketplace').pipe(shareReplay())
+  > = this.patch.watch$('ui', 'marketplace').pipe(shareReplay(1))
 
   private readonly marketplace$ = this.altMarketplaceData$.pipe(
     map(data => this.toMarketplace(data)),
@@ -51,7 +51,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
       ),
     ),
     map(({ categories }) => categories),
-    shareReplay(),
+    shareReplay(1),
   )
 
   private readonly pkg$: Observable<MarketplacePkg[]> =
@@ -74,7 +74,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
         return of([])
       }),
-      shareReplay(),
+      shareReplay(1),
     )
 
   constructor(

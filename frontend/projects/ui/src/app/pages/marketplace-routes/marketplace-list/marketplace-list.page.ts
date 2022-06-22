@@ -15,6 +15,8 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   templateUrl: './marketplace-list.page.html',
 })
 export class MarketplaceListPage {
+  readonly connected$ = this.patch.connected$
+
   readonly localPkgs$: Observable<Record<string, PackageDataEntry>> = this.patch
     .watch$('package-data')
     .pipe(
@@ -44,8 +46,4 @@ export class MarketplaceListPage {
     private readonly patch: PatchDbService,
     private readonly marketplaceService: AbstractMarketplaceService,
   ) {}
-
-  get loaded(): boolean {
-    return this.patch.loaded
-  }
 }

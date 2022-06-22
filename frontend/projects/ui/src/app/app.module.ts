@@ -18,6 +18,7 @@ import { MenuModule } from './app/menu/menu.module'
 import { EnterModule } from './app/enter/enter.module'
 import { APP_PROVIDERS } from './app.providers'
 import { GlobalModule } from './app/global/global.module'
+import { PatchDbModule } from './services/patch-db/patch-db.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -46,6 +47,7 @@ import { GlobalModule } from './app/global/global.module'
     SharedPipesModule,
     MarketplaceModule,
     GlobalModule,
+    PatchDbModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],
