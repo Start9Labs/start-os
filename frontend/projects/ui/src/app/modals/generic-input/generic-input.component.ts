@@ -64,6 +64,11 @@ export class GenericInputComponent {
     this.maskedValue = this.mask.transform(this.value)
   }
 
+  clearInput() {
+    this.maskedValue = ''
+    this.value = ''
+  }
+
   async submit() {
     const value = this.value.trim()
 
@@ -72,6 +77,7 @@ export class GenericInputComponent {
     try {
       await this.options.submitFn(value)
       this.modalCtrl.dismiss(undefined, 'success')
+      this.clearInput()
     } catch (e: any) {
       this.error = getErrorMessage(e)
     }
