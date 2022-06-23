@@ -14,15 +14,7 @@ import {
   ConnectionFailure,
   ConnectionService,
 } from 'src/app/services/connection.service'
-import {
-  map,
-  startWith,
-  filter,
-  first,
-  distinctUntilChanged,
-  switchMap,
-  skipWhile,
-} from 'rxjs/operators'
+import { map, startWith, filter, first } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -67,19 +59,8 @@ export class AppShowPage {
     ),
   )
 
-  skipNull =
-    () =>
-    <T>(source: Observable<T>): Observable<T> =>
-      source.pipe(skipWhile((value: any) => value === null))
-
   readonly currentMarketplace$: Observable<Marketplace> =
-    this.marketplaceService.getMarketplace().pipe(
-      // switchMap(m => m ? m : EMPTY),
-      // distinctUntilChanged(),
-      // filter<Marketplace>(Boolean),
-      this.skipNull(),
-      first(),
-    )
+    this.marketplaceService.getMarketplace().pipe(first())
 
   readonly connectionFailure$ = this.connectionService
     .watchFailure$()

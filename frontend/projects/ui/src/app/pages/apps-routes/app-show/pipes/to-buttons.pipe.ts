@@ -136,7 +136,6 @@ export class ToButtonsPipe implements PipeTransform {
         icon: 'storefront-outline',
       }
     } else if (pkgM && currentM && pkgM !== currentM) {
-      // action fires alert showing marketplace differences, link to switch marketplaces
       return {
         action: async () => {
           const alert = await this.alertCtrl.create({
