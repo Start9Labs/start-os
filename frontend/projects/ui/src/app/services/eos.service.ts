@@ -10,7 +10,7 @@ import { distinctUntilChanged, map } from 'rxjs/operators'
   providedIn: 'root',
 })
 export class EOSService {
-  eos: MarketplaceEOS
+  eos?: MarketplaceEOS
   updateAvailable$ = new BehaviorSubject<boolean>(false)
 
   readonly updating$ = this.patch.watch$('server-info', 'status-info').pipe(

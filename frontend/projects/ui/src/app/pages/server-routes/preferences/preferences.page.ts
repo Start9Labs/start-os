@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core'
+import { Component } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   LoadingController,

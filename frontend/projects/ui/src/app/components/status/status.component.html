@@ -13,7 +13,7 @@
     <span *ngIf="rendering.showDots" class="loading-dots"></span>
     <span
       *ngIf="
-        rendering.display === PR[PS.Stopping].display &&
+        rendering?.display === PR[PS.Stopping].display &&
         (sigtermTimeout | durationToSeconds) > 30
       "
       >this may take a while</span

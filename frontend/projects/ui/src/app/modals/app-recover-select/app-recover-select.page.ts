@@ -16,18 +16,19 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['./app-recover-select.page.scss'],
 })
 export class AppRecoverSelectPage {
-  @Input() id: string
-  @Input() backupInfo: BackupInfo
-  @Input() password: string
-  @Input() oldPassword: string
+  @Input() id = ''
+  @Input() backupInfo?: BackupInfo
+  @Input() password = ''
+  @Input() oldPassword = ''
+
   options: (PackageBackupInfo & {
     id: string
     checked: boolean
     installed: boolean
     'newer-eos': boolean
-  })[]
+  })[] = []
   hasSelection = false
-  error: string | IonicSafeString
+  error: string | IonicSafeString = ''
 
   constructor(
     private readonly modalCtrl: ModalController,
@@ -39,15 +40,17 @@ export class AppRecoverSelectPage {
   ) {}
 
   ngOnInit() {
-    this.options = Object.keys(this.backupInfo['package-backups']).map(id => {
+    const packageBackups = this.backupInfo?.['package-backups'] || {}
+
+    this.options = Object.keys(packageBackups).map(id => {
       return {
-        ...this.backupInfo['package-backups'][id],
+        ...packageBackups[id],
         id,
         checked: false,
         installed: !!this.patch.getData()['package-data'][id],
         'newer-eos':
           this.emver.compare(
-            this.backupInfo['package-backups'][id]['os-version'],
+            packageBackups[id]['os-version'],
             this.config.version,
           ) === 1,
       }

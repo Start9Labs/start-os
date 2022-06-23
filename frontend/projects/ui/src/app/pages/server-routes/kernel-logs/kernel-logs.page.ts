@@ -7,11 +7,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   styleUrls: ['./kernel-logs.page.scss'],
 })
 export class KernelLogsPage {
-  pkgId: string
-  loading = true
-  needInfinite = true
-  before: string
-
   constructor(private readonly embassyApi: ApiService) {}
 
   fetchFetchLogs() {

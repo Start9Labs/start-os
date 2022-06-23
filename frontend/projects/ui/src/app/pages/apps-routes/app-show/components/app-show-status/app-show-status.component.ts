@@ -27,10 +27,10 @@ import { ConnectionService } from 'src/app/services/connection.service'
 })
 export class AppShowStatusComponent {
   @Input()
-  pkg: PackageDataEntry
+  pkg!: PackageDataEntry
 
   @Input()
-  status: PackageStatus
+  status!: PackageStatus
 
   @Input()
   dependencies: DependencyInfo[] = []
@@ -50,11 +50,11 @@ export class AppShowStatusComponent {
   ) {}
 
   get interfaces(): Record<string, InterfaceDef> {
-    return this.pkg.manifest.interfaces
+    return this.pkg?.manifest.interfaces || {}
   }
 
   get pkgStatus(): Status | null {
-    return this.pkg.installed?.status || null
+    return this.pkg?.installed?.status || null
   }
 
   get isInstalled(): boolean {
@@ -62,7 +62,7 @@ export class AppShowStatusComponent {
   }
 
   get isRunning(): boolean {
-    return this.status.primary === PrimaryStatus.Running
+    return this.status?.primary === PrimaryStatus.Running
   }
 
   get isStopped(): boolean {
@@ -70,24 +70,26 @@ export class AppShowStatusComponent {
   }
 
   launchUi(): void {
-    this.launcherService.launch(this.pkg)
+    if (this.pkg) this.launcherService.launch(this.pkg)
   }
 
   async presentModalConfig(): Promise<void> {
-    return this.modalService.presentModalConfig({ pkgId: this.pkg.manifest.id })
+    return this.modalService.presentModalConfig({
+      pkgId: this.id,
+    })
   }
 
   async tryStart(): Promise<void> {
     if (this.dependencies.some(d => !!d.errorText)) {
-      const depErrMsg = `${this.pkg.manifest.title} has unmet dependencies. It will not work as expected.`
+      const depErrMsg = `${this.pkg?.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
 
       if (!proceed) return
     }
 
-    const alertMsg = this.pkg.manifest.alerts.start
+    const alertMsg = this.pkg?.manifest.alerts.start
 
-    if (!!alertMsg) {
+    if (alertMsg) {
       const proceed = await this.presentAlertStart(alertMsg)
 
       if (!proceed) return
@@ -97,6 +99,7 @@ export class AppShowStatusComponent {
   }
 
   async tryStop(): Promise<void> {
+    if (!this.pkg) return
     const { title, alerts } = this.pkg.manifest
 
     let message = alerts.stop || ''
@@ -132,7 +135,7 @@ export class AppShowStatusComponent {
   }
 
   async tryRestart(): Promise<void> {
-    if (hasCurrentDeps(this.pkg)) {
+    if (this.pkg && hasCurrentDeps(this.pkg)) {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
         message: `Services that depend on ${this.pkg.manifest.title} may temporarily experiences issues`,
@@ -180,6 +183,10 @@ export class AppShowStatusComponent {
     await alert.present()
   }
 
+  private get id(): string {
+    return this.pkg?.manifest.id || ''
+  }
+
   private async start(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Starting...`,
@@ -187,7 +194,7 @@ export class AppShowStatusComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.startPackage({ id: this.pkg.manifest.id })
+      await this.embassyApi.startPackage({ id: this.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -202,7 +209,7 @@ export class AppShowStatusComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.stopPackage({ id: this.pkg.manifest.id })
+      await this.embassyApi.stopPackage({ id: this.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -217,7 +224,7 @@ export class AppShowStatusComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.restartPackage({ id: this.pkg.manifest.id })
+      await this.embassyApi.restartPackage({ id: this.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

@@ -9,11 +9,6 @@ import { copyToClipboard, strip } from 'src/app/util/web.util'
   styleUrls: ['./server-logs.page.scss'],
 })
 export class ServerLogsPage {
-  pkgId: string
-  loading = true
-  needInfinite = true
-  before: string
-
   constructor(
     private readonly embassyApi: ApiService,
     private readonly toastCtrl: ToastController,

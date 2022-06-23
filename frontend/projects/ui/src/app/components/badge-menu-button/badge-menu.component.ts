@@ -8,32 +8,30 @@ import { combineLatest, Subscription } from 'rxjs'
   templateUrl: './badge-menu.component.html',
   styleUrls: ['./badge-menu.component.scss'],
 })
-
 export class BadgeMenuComponent {
-  unreadCount: number
-  sidebarOpen: boolean
+  unreadCount = 0
+  sidebarOpen = false
 
   subs: Subscription[] = []
 
-  constructor (
+  constructor(
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDbService,
-  ) { }
+  ) {}
 
-  ngOnInit () {
+  ngOnInit() {
     this.subs = [
       combineLatest([
         this.patch.watch$('server-info', 'unread-notification-count'),
         this.splitPane.sidebarOpen$,
-      ])
-      .subscribe(([unread, menu]) => {
+      ]).subscribe(([unread, menu]) => {
         this.unreadCount = unread
         this.sidebarOpen = menu
       }),
     ]
   }
 
-  ngOnDestroy () {
+  ngOnDestroy() {
     this.subs.forEach(sub => sub.unsubscribe())
   }
 }

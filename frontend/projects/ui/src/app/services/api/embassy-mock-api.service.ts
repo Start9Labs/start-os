@@ -37,7 +37,7 @@ export class MockApiService extends ApiService {
     expireId: null,
   })
   private readonly revertTime = 2000
-  sequence: number
+  sequence = 0
 
   constructor(private readonly bootstrapper: LocalStorageBootstrap) {
     super()

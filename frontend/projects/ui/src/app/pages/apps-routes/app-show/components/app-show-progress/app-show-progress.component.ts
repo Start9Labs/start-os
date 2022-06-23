@@ -13,26 +13,26 @@ import { ProgressData } from 'src/app/types/progress-data'
 })
 export class AppShowProgressComponent {
   @Input()
-  pkg: PackageDataEntry
+  pkg?: PackageDataEntry
 
   @Input()
-  progressData: ProgressData
+  progressData?: ProgressData
 
   get unpackingBuffer(): number {
-    return this.progressData.validateProgress === 100 &&
+    return this.progressData?.validateProgress === 100 &&
       !this.progressData.unpackProgress
       ? 0
       : 1
   }
 
   get validationBuffer(): number {
-    return this.progressData.downloadProgress === 100 &&
+    return this.progressData?.downloadProgress === 100 &&
       !this.progressData.validateProgress
       ? 0
       : 1
   }
 
   getColor(action: keyof InstallProgress): string {
-    return this.pkg['install-progress']?.[action] ? 'success' : 'secondary'
+    return this.pkg?.['install-progress']?.[action] ? 'success' : 'secondary'
   }
 }

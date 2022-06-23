@@ -11,7 +11,8 @@ import {
 })
 export class MarketplaceStatusComponent {
   @Input()
-  version: string
+  version = ''
+
   @Input()
   localPkg?: PackageDataEntry
 

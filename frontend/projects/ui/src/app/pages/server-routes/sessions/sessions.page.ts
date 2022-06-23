@@ -11,7 +11,7 @@ import { PlatformType, Session } from 'src/app/services/api/api.types'
 })
 export class SessionsPage {
   loading = true
-  currentSession: Session
+  currentSession?: Session
   otherSessions: SessionWithId[] = []
 
   constructor(

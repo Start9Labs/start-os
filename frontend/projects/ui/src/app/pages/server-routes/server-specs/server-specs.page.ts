@@ -10,7 +10,8 @@ import { ConfigService } from 'src/app/services/config.service'
   styleUrls: ['./server-specs.page.scss'],
 })
 export class ServerSpecsPage {
-  @ViewChild(IonContent) content: IonContent
+  @ViewChild(IonContent)
+  content?: IonContent
 
   readonly server$ = this.patch.watch$('server-info')
 
@@ -21,7 +22,7 @@ export class ServerSpecsPage {
   ) {}
 
   ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
+    this.content?.scrollToPoint(undefined, 1)
   }
 
   async copy(address: string) {

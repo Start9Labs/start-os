@@ -9,21 +9,21 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['./snake.page.scss'],
 })
 export class SnakePage {
-  speed = 45
-  width = 40
-  height = 26
-  grid = NaN
+  private readonly speed = 45
+  private readonly width = 40
+  private readonly height = 26
+  private grid = NaN
 
-  startingLength = 4
+  private readonly startingLength = 4
 
   score = 0
   highScore = 0
 
   xDown?: number
   yDown?: number
-  canvas: HTMLCanvasElement
-  image: HTMLImageElement
-  context: CanvasRenderingContext2D
+  canvas!: HTMLCanvasElement
+  image!: HTMLImageElement
+  context!: CanvasRenderingContext2D
 
   snake: any
   bitcoin: { x: number; y: number } = { x: NaN, y: NaN }
@@ -77,7 +77,7 @@ export class SnakePage {
   }
 
   init() {
-    this.canvas = document.getElementById('game') as HTMLCanvasElement
+    this.canvas = document.querySelector('cavas#game')!
     this.canvas.style.border = '1px solid #e0e0e0'
     this.context = this.canvas.getContext('2d')!
     const container = document.getElementsByClassName('canvas-center')[0]

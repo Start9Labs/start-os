@@ -17,20 +17,22 @@ var convert = new Convert({
   styleUrls: ['./logs.page.scss'],
 })
 export class LogsPage {
-  @ViewChild(IonContent) private content: IonContent
-  @Input() fetchLogs: (params: {
+  @ViewChild(IonContent)
+  private content?: IonContent
+
+  @Input()
+  fetchLogs?: (params: {
     before_flag?: boolean
     limit?: number
     cursor?: string
   }) => Promise<RR.LogsRes>
+
   loading = true
   loadingMore = false
-  logs: string
   needInfinite = true
-  startCursor: string
-  endCursor: string
+  startCursor = ''
+  endCursor = ''
   limit = 200
-  scrollToBottomButton = false
   isOnBottom = true
 
   constructor(private readonly errToast: ErrorToastService) {}
@@ -40,6 +42,8 @@ export class LogsPage {
   }
 
   async fetch(isBefore: boolean = true) {
+    if (!this.fetchLogs) return
+
     try {
       const cursor = isBefore ? this.startCursor : this.endCursor
       const logsRes = await this.fetchLogs({
@@ -84,7 +88,7 @@ export class LogsPage {
 
       // scroll down
       scrollBy(0, afterContainerHeight - beforeContainerHeight)
-      this.content.scrollToPoint(
+      this.content?.scrollToPoint(
         0,
         afterContainerHeight - beforeContainerHeight,
       )
@@ -123,7 +127,7 @@ export class LogsPage {
   }
 
   scrollToBottom() {
-    this.content.scrollToBottom(500)
+    this.content?.scrollToBottom(500)
   }
 
   async loadData(e: any): Promise<void> {

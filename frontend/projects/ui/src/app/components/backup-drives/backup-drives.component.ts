@@ -25,11 +25,11 @@ type BackupType = 'create' | 'restore'
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesComponent {
-  @Input() type: BackupType
+  @Input() type!: BackupType
   @Output() onSelect: EventEmitter<
     MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
   > = new EventEmitter()
-  loadingText: string
+  loadingText = ''
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -234,7 +234,7 @@ export class BackupDrivesComponent {
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesHeaderComponent {
-  @Input() type: BackupType
+  @Input() type!: BackupType
   @Output() onClose: EventEmitter<void> = new EventEmitter()
 
   constructor(public readonly backupService: BackupService) {}
@@ -250,8 +250,8 @@ export class BackupDrivesHeaderComponent {
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesStatusComponent {
-  @Input() type: string
-  @Input() hasValidBackup: boolean
+  @Input() type = ''
+  @Input() hasValidBackup = false
 }
 
 const CifsSpec: ConfigSpec = {

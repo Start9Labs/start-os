@@ -32,19 +32,25 @@ import { Breakages } from 'src/app/services/api/api.types'
   styleUrls: ['./app-config.page.scss'],
 })
 export class AppConfigPage {
-  @ViewChild(IonContent) content: IonContent
-  @Input() pkgId: string
-  @Input() dependentInfo?: DependentInfo
-  diff: string[] // only if dependent info
-  pkg: PackageDataEntry
-  loadingText: string | undefined
-  configSpec: ConfigSpec
-  configForm: FormGroup
-  original: object
+  @ViewChild(IonContent)
+  content?: IonContent
+
+  @Input()
+  pkgId = ''
+
+  @Input()
+  dependentInfo?: DependentInfo
+
+  diff: string[] = [] // only if dependent info
+  pkg?: PackageDataEntry
+  loadingText?: string
+  configSpec: ConfigSpec = {}
+  configForm = new FormGroup({})
+  original: object = {}
   hasConfig = false
   hasNewOptions = false
   saving = false
-  loadingError: string | IonicSafeString
+  loadingError?: string | IonicSafeString
 
   constructor(
     private readonly embassyApi: ApiService,
@@ -111,7 +117,7 @@ export class AppConfigPage {
   }
 
   ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
+    this.content?.scrollToPoint(undefined, 1)
   }
 
   resetDefaults() {
@@ -131,7 +137,7 @@ export class AppConfigPage {
   async tryConfigure() {
     convertValuesRecursive(this.configSpec, this.configForm)
 
-    if (this.configForm.invalid) {
+    if (this.configForm?.invalid) {
       document
         .getElementsByClassName('validation-error')[0]
         ?.scrollIntoView({ behavior: 'smooth' })
@@ -140,7 +146,7 @@ export class AppConfigPage {
 
     this.saving = true
 
-    if (hasCurrentDeps(this.pkg)) {
+    if (this.pkg && hasCurrentDeps(this.pkg)) {
       this.dryConfigure()
     } else {
       this.configure()
@@ -156,7 +162,7 @@ export class AppConfigPage {
     try {
       const breakages = await this.embassyApi.drySetPackageConfig({
         id: this.pkgId,
-        config: this.configForm.value,
+        config: this.configForm?.value,
       })
 
       if (isEmptyObject(breakages)) {
@@ -188,7 +194,7 @@ export class AppConfigPage {
     try {
       await this.embassyApi.setPackageConfig({
         id: this.pkgId,
-        config: this.configForm.value,
+        config: this.configForm?.value,
       })
       this.modalCtrl.dismiss()
     } catch (e: any) {
@@ -306,11 +312,11 @@ export class AppConfigPage {
           return isNaN(num) ? node : num
         })
 
-      if (op.op !== 'remove') this.configForm.get(arrPath)?.markAsDirty()
+      if (op.op !== 'remove') this.configForm?.get(arrPath)?.markAsDirty()
 
       if (typeof arrPath[arrPath.length - 1] === 'number') {
         const prevPath = arrPath.slice(0, arrPath.length - 1)
-        this.configForm.get(prevPath)?.markAsDirty()
+        this.configForm?.get(prevPath)?.markAsDirty()
       }
     })
   }

@@ -22,7 +22,7 @@ import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  hasRecoveredPackage: boolean
+  hasRecoveredPackage = false
   clicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
@@ -63,7 +63,7 @@ export class ServerShowPage {
     } else {
       const modal = await this.modalCtrl.create({
         componentProps: {
-          releaseNotes: this.eosService.eos['release-notes'],
+          releaseNotes: this.eosService.eos?.['release-notes'],
         },
         component: OSUpdatePage,
       })

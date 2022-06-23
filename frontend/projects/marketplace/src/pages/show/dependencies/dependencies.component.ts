@@ -9,9 +9,11 @@ import { MarketplacePkg } from '../../../types/marketplace-pkg'
 })
 export class DependenciesComponent {
   @Input()
-  pkg: MarketplacePkg
+  pkg?: MarketplacePkg
 
   getImg(key: string): string {
-    return 'data:image/png;base64,' + this.pkg['dependency-metadata'][key].icon
+    return this.pkg
+      ? 'data:image/png;base64,' + this.pkg['dependency-metadata'][key].icon
+      : ''
   }
 }

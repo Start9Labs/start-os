@@ -3,8 +3,8 @@ import { ValueSpec, DefaultString } from './config-types'
 export class Range {
   min?: number
   max?: number
-  minInclusive: boolean
-  maxInclusive: boolean
+  minInclusive = false
+  maxInclusive = false
 
   static from(s: string): Range {
     const r = new Range()
