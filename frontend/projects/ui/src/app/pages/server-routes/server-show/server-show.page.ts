@@ -328,7 +328,7 @@ export class ServerShowPage {
       },
       {
         title: 'Sideload Service',
-        description: `Manually install any service package`,
+        description: `Manually install a service`,
         icon: 'push-outline',
         action: () =>
           this.navCtrl.navigateForward(['sideload'], {

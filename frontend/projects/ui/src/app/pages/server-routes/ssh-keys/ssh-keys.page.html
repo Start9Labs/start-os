@@ -9,13 +9,15 @@
 
 <ion-content class="ion-padding-top">
   <ion-item-group>
-
     <!-- always -->
     <ion-item>
       <ion-label>
         <h2>
-          Adding SSH keys to your Embassy is useful for command line access, as well as for debugging purposes.
-          <a [href]="docsUrl" target="_blank" rel="noreferrer">View instructions</a>
+          Adding SSH keys to your Embassy is useful for command line access, as
+          well as for debugging purposes.
+          <a [href]="docsUrl" target="_blank" rel="noreferrer"
+            >View instructions</a
+          >
         </h2>
       </ion-label>
     </ion-item>
@@ -23,23 +25,37 @@
     <ion-item-divider>Saved Keys</ion-item-divider>
 
     <ion-item button detail="false" (click)="presentModalAdd()">
-      <ion-icon slot="start" name="add" size="large"></ion-icon>
-      <ion-label>Add new key</ion-label>
+      <ion-icon slot="start" name="add" color="dark"></ion-icon>
+      <ion-label>
+        <b>Add new key</b>
+      </ion-label>
     </ion-item>
 
     <!-- loading  -->
     <ng-container *ngIf="loading">
       <ion-item *ngFor="let entry of ['', '']">
-        <ion-avatar slot="start" style="margin-right: 30px;">
-          <ion-skeleton-text animated style="width: 30px; height: 30px; border-radius: 0;"></ion-skeleton-text>
+        <ion-avatar slot="start" style="margin-right: 30px">
+          <ion-skeleton-text
+            animated
+            style="width: 30px; height: 30px; border-radius: 0"
+          ></ion-skeleton-text>
         </ion-avatar>
         <ion-label>
-          <ion-skeleton-text animated style="width: 100px; height: 20px; margin-bottom: 12px;"></ion-skeleton-text>
-          <ion-skeleton-text animated style="width: 150px; margin-bottom: 18px;"></ion-skeleton-text>
-          <ion-skeleton-text animated style="width: 300px;"></ion-skeleton-text>
+          <ion-skeleton-text
+            animated
+            style="width: 100px; height: 20px; margin-bottom: 12px"
+          ></ion-skeleton-text>
+          <ion-skeleton-text
+            animated
+            style="width: 150px; margin-bottom: 18px"
+          ></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 300px"></ion-skeleton-text>
         </ion-label>
         <ion-button slot="end" fill="clear">
-          <ion-skeleton-text animated style="width: 60px; border-radius: 0"></ion-skeleton-text>
+          <ion-skeleton-text
+            animated
+            style="width: 60px; border-radius: 0"
+          ></ion-skeleton-text>
         </ion-button>
       </ion-item>
     </ng-container>
@@ -53,13 +69,16 @@
           <h2>{{ ssh['created-at'] | date: 'short' }}</h2>
           <p>{{ ssh.alg }} {{ ssh.fingerprint }}</p>
         </ion-label>
-        <ion-button slot="end" fill="clear" color="danger" (click)="presentAlertDelete(i)">
+        <ion-button
+          slot="end"
+          fill="clear"
+          color="danger"
+          (click)="presentAlertDelete(i)"
+        >
           <ion-icon slot="start" name="close"></ion-icon>
           Remove
         </ion-button>
       </ion-item>
-    </ng-container> 
-
+    </ng-container>
   </ion-item-group>
-
 </ion-content>
