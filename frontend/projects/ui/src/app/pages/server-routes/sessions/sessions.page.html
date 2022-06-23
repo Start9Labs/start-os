@@ -61,7 +61,7 @@
     <ion-item-divider>
       Other Sessions
       <ion-button
-        *ngIf="!(otherSessions | empty)"
+        *ngIf="otherSessions.length"
         slot="end"
         fill="clear"
         color="danger"
@@ -72,7 +72,7 @@
       </ion-button>
     </ion-item-divider>
     <div *ngFor="let session of otherSessions">
-      <ion-item [id]="session.id">
+      <ion-item>
         <ion-icon
           slot="start"
           size="large"
