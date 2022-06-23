@@ -44,27 +44,22 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<PackageId>
 }
 
 #[command(rename = "restore", display(display_none))]
-#[instrument(skip(ctx, old_password, password))]
+#[instrument(skip(ctx, password))]
 pub async fn restore_packages_rpc(
     #[context] ctx: RpcContext,
     #[arg(parse(parse_comma_separated))] ids: Vec<PackageId>,
     #[arg(rename = "target-id")] target_id: BackupTargetId,
-    #[arg(rename = "old-password", long = "old-password")] old_password: Option<String>,
     #[arg] password: String,
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
-    check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
     let fs = target_id
         .load(&mut ctx.secret_store.acquire().await?)
         .await?;
-    let mut backup_guard = BackupMountGuard::mount(
+    let backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadOnly).await?,
-        old_password.as_ref().unwrap_or(&password),
+        &password,
     )
     .await?;
-    if old_password.is_some() {
-        backup_guard.change_password(&password)?;
-    }
 
     let (revision, backup_guard, tasks, _) =
         restore_packages(&ctx, &mut db, backup_guard, ids).await?;
