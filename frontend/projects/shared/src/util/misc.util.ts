@@ -36,3 +36,7 @@ export function debounce(delay: number = 300): MethodDecorator {
     return descriptor
   }
 }
+
+export function removeTrailingSlash(word: string): string {
+  return word.replace(/\/+$/, '')
+}
