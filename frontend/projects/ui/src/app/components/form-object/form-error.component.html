@@ -1,4 +1,4 @@
-<div [hidden]="!control.dirty && !control.touched" class="validation-error">
+<div [hidden]="!control.dirty && !control.touched" class="error-message">
   <!-- primitive -->
   <p *ngIf="control.hasError('required')">{{ spec.name }} is required</p>
 

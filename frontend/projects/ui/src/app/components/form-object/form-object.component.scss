@@ -1,6 +1,13 @@
 .slot-start {
   display: inline-block;
   vertical-align: middle;
+  --padding-start: 0;
+  --padding-end: 7px;
+}
+
+.error-border {
+  border-color: var(--ion-color-danger-shade);
+  --border-color: var(--ion-color-danger-shade);
 }
 
 ion-input {
@@ -17,11 +24,16 @@ ion-item-divider {
 }
 
 .nested-wrapper {
-  padding: 0 0 24px 24px;
+  padding: 0 0 16px 24px;
 }
 
 .validation-error {
+  opacity: 1;
+}
+
+.error-message {
   p {
+    margin-bottom: 4px;
     font-size: small;
     color: var(--ion-color-danger);
   }

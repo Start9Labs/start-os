@@ -14,7 +14,6 @@ import {
   isObject,
 } from '@start9labs/shared'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { WizardDefs } from 'src/app/components/app-wizard/wizard-defs'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -134,7 +133,7 @@ export class AppConfigPage {
     if (this.configForm.invalid) {
       document
         .getElementsByClassName('validation-error')[0]
-        ?.parentElement?.parentElement?.scrollIntoView({ behavior: 'smooth' })
+        ?.scrollIntoView({ behavior: 'smooth' })
       return
     }
 

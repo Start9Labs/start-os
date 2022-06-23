@@ -1,22 +1,10 @@
 <ion-button
   *ngIf="data.spec.description"
   class="slot-start"
-  style="--padding-start: 0; --padding-end: 7px"
   fill="clear"
   (click)="presentAlertDescription()"
 >
   <ion-icon name="help-circle-outline" slot="icon-only" size="small"></ion-icon>
-</ion-button>
-
-<!-- this is a button for css purposes only -->
-<ion-button
-  *ngIf="data.invalid"
-  class="slot-start"
-  fill="clear"
-  size="small"
-  color="danger"
->
-  <ion-icon name="warning-outline"></ion-icon>
 </ion-button>
 
 <span>{{ data.spec.name }}</span>
