@@ -144,7 +144,7 @@ export const PrimaryRendering: Record<string, StatusRendering> = {
   },
   [PrimaryStatus.Restarting]: {
     display: 'Restarting',
-    color: 'warning',
+    color: 'tertiary',
     showDots: true,
   },
   [PrimaryStatus.Stopped]: {
