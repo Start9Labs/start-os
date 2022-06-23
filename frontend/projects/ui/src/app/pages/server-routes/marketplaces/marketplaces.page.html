@@ -11,7 +11,7 @@
   <ion-item-group>
     <ion-item-divider>Saved Marketplaces</ion-item-divider>
     <ion-item button detail="false" (click)="presentModalAdd()">
-      <ion-icon slot="start" name="add" size="large" color="dark"></ion-icon>
+      <ion-icon slot="start" name="add" color="dark"></ion-icon>
       <ion-label>
         <ion-text color="dark">
           <b>Add alt marketplace</b>
@@ -37,9 +37,6 @@
         <h2>{{ mp.name }}</h2>
         <p>{{ mp.url }}</p>
       </ion-label>
-      <ion-note *ngIf="mp.id === selectedId" slot="end">
-        <ion-text color="success">Selected</ion-text>
-      </ion-note>
     </ion-item>
   </ion-item-group>
 </ion-content>
