@@ -1,20 +1,22 @@
-<p>Downloading: {{ progressData.downloadProgress }}%</p>
-<ion-progress-bar
-  [color]="getColor('download-complete')"
-  [value]="progressData.downloadProgress / 100"
-  [buffer]="!progressData.downloadProgress ? 0 : 1"
-></ion-progress-bar>
+<ng-container *ngIf="progressData">
+  <p>Downloading: {{ progressData.downloadProgress }}%</p>
+  <ion-progress-bar
+    [color]="getColor('download-complete')"
+    [value]="progressData.downloadProgress / 100"
+    [buffer]="!progressData.downloadProgress ? 0 : 1"
+  ></ion-progress-bar>
 
-<p>Validating: {{ progressData.validateProgress }}%</p>
-<ion-progress-bar
-  [color]="getColor('validation-complete')"
-  [value]="progressData.validateProgress / 100"
-  [buffer]="validationBuffer"
-></ion-progress-bar>
+  <p>Validating: {{ progressData.validateProgress }}%</p>
+  <ion-progress-bar
+    [color]="getColor('validation-complete')"
+    [value]="progressData.validateProgress / 100"
+    [buffer]="validationBuffer"
+  ></ion-progress-bar>
 
-<p>Unpacking: {{ progressData.unpackProgress }}%</p>
-<ion-progress-bar
-  [color]="getColor('unpack-complete')"
-  [value]="progressData.unpackProgress / 100"
-  [buffer]="unpackingBuffer"
-></ion-progress-bar>
+  <p>Unpacking: {{ progressData.unpackProgress }}%</p>
+  <ion-progress-bar
+    [color]="getColor('unpack-complete')"
+    [value]="progressData.unpackProgress / 100"
+    [buffer]="unpackingBuffer"
+  ></ion-progress-bar>
+</ng-container>

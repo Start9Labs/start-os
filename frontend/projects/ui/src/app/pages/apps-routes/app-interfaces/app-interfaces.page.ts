@@ -22,8 +22,10 @@ interface LocalInterface {
   styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesPage {
-  @ViewChild(IonContent) content: IonContent
-  ui: LocalInterface | null
+  @ViewChild(IonContent)
+  content?: IonContent
+
+  ui?: LocalInterface
   other: LocalInterface[] = []
   readonly pkgId = getPkgId(this.route)
 
@@ -75,7 +77,7 @@ export class AppInterfacesPage {
   }
 
   ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
+    this.content?.scrollToPoint(undefined, 1)
   }
 
   asIsOrder() {
@@ -89,7 +91,8 @@ export class AppInterfacesPage {
   styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesItemComponent {
-  @Input() interface: LocalInterface
+  @Input()
+  interface?: LocalInterface
 
   constructor(
     private readonly toastCtrl: ToastController,

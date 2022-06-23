@@ -1,6 +1,6 @@
 <ion-item-divider>Dependencies</ion-item-divider>
 <ion-grid>
-  <ion-row>
+  <ion-row *ngIf="pkg">
     <ion-col
       *ngFor="let dep of pkg.manifest.dependencies | keyvalue"
       sizeSm="12"

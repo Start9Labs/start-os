@@ -1,4 +1,4 @@
-<ion-item>
+<ion-item *ngIf="interface">
   <ion-icon
     slot="start"
     size="large"
@@ -9,7 +9,7 @@
     <h2>{{ interface.def.description }}</h2>
   </ion-label>
 </ion-item>
-<div style="padding-left: 64px">
+<div *ngIf="interface" style="padding-left: 64px">
   <!-- has tor -->
   <ion-item *ngIf="interface.addresses['tor-address'] as tor">
     <ion-label>

@@ -16,7 +16,7 @@ import { DependentInfo } from 'src/app/types/dependent-info'
 })
 export class MarketplaceShowDependentComponent {
   @Input()
-  pkg: MarketplacePkg
+  pkg?: MarketplacePkg
 
   readonly dependentInfo?: DependentInfo =
     this.document.defaultView?.history.state?.dependentInfo

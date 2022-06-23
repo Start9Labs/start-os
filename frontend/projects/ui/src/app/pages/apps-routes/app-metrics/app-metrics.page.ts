@@ -15,12 +15,13 @@ import { pauseFor, ErrorToastService, getPkgId } from '@start9labs/shared'
 export class AppMetricsPage {
   loading = true
   readonly pkgId = getPkgId(this.route)
-  mainStatus: MainStatus
+  mainStatus?: MainStatus
   going = false
-  metrics: Metric
+  metrics?: Metric
   subs: Subscription[] = []
 
-  @ViewChild(IonContent) content: IonContent
+  @ViewChild(IonContent)
+  content?: IonContent
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -33,7 +34,7 @@ export class AppMetricsPage {
   }
 
   ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
+    this.content?.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy() {

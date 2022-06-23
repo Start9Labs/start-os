@@ -1,5 +1,5 @@
 <ion-header>
-  <ion-toolbar>
+  <ion-toolbar *ngIf="params">
     <div style="padding: 10px 0">
       <ion-title style="font-size: 32px">{{ params.title }}</ion-title>
       <div class="underline"></div>
@@ -27,7 +27,7 @@
       (swiper)="setSwiperInstance($event)"
       (slideNextTransitionStart)="loadSlide()"
     >
-      <ng-template swiperSlide *ngFor="let slide of params.slides">
+      <ng-template swiperSlide *ngFor="let slide of params?.slides">
         <alert
           #components
           *ngIf="slide.selector === 'alert'"
@@ -83,7 +83,7 @@
             {{
               currentIndex < swiper.slides.length - 2
                 ? 'Continue'
-                : params.submitBtn
+                : params?.submitBtn
             }}
           </ion-button>
         </ng-template>

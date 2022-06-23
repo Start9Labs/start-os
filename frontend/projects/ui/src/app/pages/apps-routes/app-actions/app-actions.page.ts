@@ -26,10 +26,12 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
   styleUrls: ['./app-actions.page.scss'],
 })
 export class AppActionsPage {
-  @ViewChild(IonContent) content: IonContent
+  @ViewChild(IonContent)
+  content?: IonContent
+
   readonly pkgId = getPkgId(this.route)
-  pkg: PackageDataEntry
-  subs: Subscription[]
+  pkg?: PackageDataEntry
+  subs: Subscription[] = []
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -51,7 +53,7 @@ export class AppActionsPage {
   }
 
   ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
+    this.content?.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy() {
@@ -59,7 +61,7 @@ export class AppActionsPage {
   }
 
   async handleAction(action: { key: string; value: Action }) {
-    const status = this.pkg.installed?.status
+    const status = this.pkg?.installed?.status
     if (
       status &&
       (action.value['allowed-statuses'] as PackageMainStatus[]).includes(
@@ -135,6 +137,8 @@ export class AppActionsPage {
   }
 
   async tryUninstall(): Promise<void> {
+    if (!this.pkg) return
+
     const { title, alerts } = this.pkg.manifest
 
     let message =
@@ -233,5 +237,5 @@ interface LocalAction {
   styleUrls: ['./app-actions.page.scss'],
 })
 export class AppActionsItemComponent {
-  @Input() action: LocalAction
+  @Input() action?: LocalAction
 }

@@ -10,12 +10,16 @@ import { MaskPipe } from 'src/app/pipes/mask/mask.pipe'
   providers: [MaskPipe],
 })
 export class GenericInputComponent {
-  @ViewChild('mainInput') elem: IonInput
-  @Input() options: GenericInputOptions
-  value: string
-  maskedValue: string
-  masked: boolean
-  error: string | IonicSafeString
+  @ViewChild('mainInput')
+  elem?: IonInput
+
+  @Input()
+  options!: GenericInputOptions
+
+  value = ''
+  maskedValue = ''
+  masked = true
+  error: string | IonicSafeString = ''
 
   constructor(
     private readonly modalCtrl: ModalController,
@@ -23,6 +27,8 @@ export class GenericInputComponent {
   ) {}
 
   ngOnInit() {
+    if (!this.options) return
+
     const defaultOptions: Partial<GenericInputOptions> = {
       buttonText: 'Submit',
       placeholder: 'Enter value',
@@ -40,7 +46,7 @@ export class GenericInputComponent {
   }
 
   ngAfterViewInit() {
-    setTimeout(() => this.elem.setFocus(), 400)
+    setTimeout(() => this.elem?.setFocus(), 400)
   }
 
   toggleMask() {
@@ -63,10 +69,10 @@ export class GenericInputComponent {
   async submit() {
     const value = this.value.trim()
 
-    if (!value && !this.options.nullable) return
+    if (!value && !this.options?.nullable) return
 
     try {
-      await this.options.submitFn(value)
+      await this.options?.submitFn(value)
       this.modalCtrl.dismiss(undefined, 'success')
     } catch (e: any) {
       this.error = getErrorMessage(e)

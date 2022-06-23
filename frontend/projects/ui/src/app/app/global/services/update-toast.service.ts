@@ -16,7 +16,7 @@ import { PatchDataService } from './patch-data.service'
 // Watch status to present toast for updated state
 @Injectable()
 export class UpdateToastService extends Observable<unknown> {
-  private updateToast: HTMLIonToastElement
+  private updateToast?: HTMLIonToastElement
 
   private readonly stream$ = this.patchData.pipe(
     switchMap(data => {

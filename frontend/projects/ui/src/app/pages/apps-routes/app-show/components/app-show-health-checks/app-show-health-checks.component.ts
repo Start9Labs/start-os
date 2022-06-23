@@ -13,7 +13,7 @@ import {
 })
 export class AppShowHealthChecksComponent {
   @Input()
-  pkg: PackageDataEntry
+  pkg!: PackageDataEntry
 
   HealthResult = HealthResult
 

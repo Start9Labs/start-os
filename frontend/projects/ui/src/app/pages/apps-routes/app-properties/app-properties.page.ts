@@ -26,15 +26,18 @@ import { getValueByPointer } from 'fast-json-patch'
 export class AppPropertiesPage {
   loading = true
   readonly pkgId = getPkgId(this.route)
-  pointer: string
-  properties: PackageProperties
-  node: PackageProperties
+  pointer = ''
+  properties: PackageProperties = {}
+  node: PackageProperties = {}
   unmasked: { [key: string]: boolean } = {}
   running = true
 
   @ViewChild(IonBackButtonDelegate, { static: false })
-  backButton: IonBackButtonDelegate
-  @ViewChild(IonContent) content: IonContent
+  backButton?: IonBackButtonDelegate
+
+  @ViewChild(IonContent)
+  content?: IonContent
+
   subs: Subscription[] = []
 
   constructor(
@@ -49,6 +52,7 @@ export class AppPropertiesPage {
   ) {}
 
   ionViewDidEnter() {
+    if (!this.backButton) return
     this.backButton.onClick = () => {
       history.back()
     }
@@ -60,8 +64,8 @@ export class AppPropertiesPage {
     this.subs = [
       this.route.queryParams.subscribe(queryParams => {
         if (queryParams['pointer'] === this.pointer) return
-        this.pointer = queryParams['pointer']
-        this.node = getValueByPointer(this.properties, this.pointer || '')
+        this.pointer = queryParams['pointer'] || ''
+        this.node = getValueByPointer(this.properties, this.pointer)
       }),
       this.patch
         .watch$(
@@ -79,7 +83,7 @@ export class AppPropertiesPage {
   }
 
   ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
+    this.content?.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy() {
@@ -106,7 +110,7 @@ export class AppPropertiesPage {
   async goToNested(key: string): Promise<any> {
     this.navCtrl.navigateForward(`/services/${this.pkgId}/properties`, {
       queryParams: {
-        pointer: `${this.pointer || ''}/${key}/value`,
+        pointer: `${this.pointer}/${key}/value`,
       },
     })
   }
@@ -148,7 +152,7 @@ export class AppPropertiesPage {
       this.properties = await this.embassyApi.getPackageProperties({
         id: this.pkgId,
       })
-      this.node = getValueByPointer(this.properties, this.pointer || '')
+      this.node = getValueByPointer(this.properties, this.pointer)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

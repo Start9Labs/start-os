@@ -12,9 +12,6 @@ import { copyToClipboard, strip } from 'src/app/util/web.util'
 })
 export class AppLogsPage {
   readonly pkgId = getPkgId(this.route)
-  loading = true
-  needInfinite = true
-  before: string
 
   constructor(
     private readonly route: ActivatedRoute,
