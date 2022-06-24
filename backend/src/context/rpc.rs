@@ -223,10 +223,10 @@ impl RpcContext {
             crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
             base.tor_control
                 .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
-            base.dns_bind.as_ref().map(|v| v.as_slice()).unwrap_or(&[
-                SocketAddr::from(([127, 0, 0, 1], 5953)),
-                SocketAddr::from(([172, 18, 0, 1], 5953)),
-            ]),
+            base.dns_bind
+                .as_ref()
+                .map(|v| v.as_slice())
+                .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
             secret_store.clone(),
             None,
         )

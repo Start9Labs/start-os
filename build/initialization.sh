@@ -81,7 +81,9 @@ CookieAuthentication 1
 EOF
 
 # enable embassyd dns server
-systemd-resolve --set-dns 172.18.0.1
+systemctl enable systemd-resolved
+sed -i '/\(^\|#\)DNS=/c\DNS=127.0.0.1' /etc/systemd/resolved.conf
+sed -i '/prepend domain-name-servers/c\prepend domain-name-servers 127.0.0.53;' /etc/dhcp/dhclient.conf
 
 if [ -f /embassy-os/product_key.txt ]
 then
