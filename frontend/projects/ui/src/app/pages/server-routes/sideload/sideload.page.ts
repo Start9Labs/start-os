@@ -135,9 +135,13 @@ export class SideloadPage {
   }
 
   async getIcon(positions: Positions, file: Blob) {
+    const contentType = `image/${this.toUpload.manifest?.assets.icon
+      .split('.')
+      .pop()}`
     const data = file.slice(
       Number(positions['icon'][0]),
       Number(positions['icon'][0]) + Number(positions['icon'][1]),
+      contentType,
     )
     this.toUpload.icon = await readBlobAsDataURL(data)
   }
