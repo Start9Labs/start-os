@@ -7,7 +7,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top">
+<ion-content *ngIf="currentSession" class="ion-padding-top">
   <!-- loading -->
   <ion-item-group *ngIf="loading; else notLoading">
     <div *ngFor="let entry of ['This Session', 'Other Sessions']">
