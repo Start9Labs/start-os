@@ -5,6 +5,7 @@ import {
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
+  UIMarketplaceData,
 } from 'src/app/services/patch-db/data-model'
 import {
   PackageStatus,
@@ -60,7 +61,10 @@ export class AppShowPage {
   )
 
   readonly currentMarketplace$: Observable<Marketplace> =
-    this.marketplaceService.getMarketplace().pipe(first())
+    this.marketplaceService.getMarketplace()
+
+  readonly altMarketplaceData$: Observable<UIMarketplaceData | undefined> =
+    this.marketplaceService.getAltMarketplace()
 
   readonly connectionFailure$ = this.connectionService
     .watchFailure$()

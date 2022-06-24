@@ -2,8 +2,15 @@ import { Inject, Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { DOCUMENT } from '@angular/common'
 import { AlertController, ModalController, NavController } from '@ionic/angular'
-import { MarkdownComponent, removeTrailingSlash } from '@start9labs/shared'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import {
+  isValidHttpUrl,
+  MarkdownComponent,
+  removeTrailingSlash,
+} from '@start9labs/shared'
+import {
+  PackageDataEntry,
+  UIMarketplaceData,
+} from 'src/app/services/patch-db/data-model'
 import { ModalService } from 'src/app/services/modal.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from } from 'rxjs'
@@ -33,6 +40,7 @@ export class ToButtonsPipe implements PipeTransform {
   transform(
     pkg: PackageDataEntry,
     currentMarketplace: Marketplace | null,
+    altMarketplaces: UIMarketplaceData | null | undefined,
   ): Button[] {
     const pkgTitle = pkg.manifest.title
 
@@ -90,7 +98,7 @@ export class ToButtonsPipe implements PipeTransform {
         icon: 'receipt-outline',
       },
       // view in marketplace
-      this.viewInMarketplaceButton(pkg, currentMarketplace),
+      this.viewInMarketplaceButton(pkg, currentMarketplace, altMarketplaces),
       // donate
       {
         action: () => this.donate(pkg),
@@ -118,64 +126,50 @@ export class ToButtonsPipe implements PipeTransform {
   private viewInMarketplaceButton(
     pkg: PackageDataEntry,
     currentMarketplace: Marketplace | null,
+    altMarketplaces: UIMarketplaceData | null | undefined,
   ): Button {
     const pkgMarketplace = pkg.installed?.['marketplace-url']
-    const pkgM = pkgMarketplace
-      ? removeTrailingSlash(pkgMarketplace)
-      : pkgMarketplace
-    const currentM = currentMarketplace
-      ? removeTrailingSlash(currentMarketplace.url)
-      : currentMarketplace
-    if (!pkgMarketplace) {
-      return {
-        disabled: true,
-        action: () => {},
-        title: 'Marketplace',
-        description:
-          'This package has been sideloaded and is not available in the Start9 Marketplace',
-        icon: 'storefront-outline',
-      }
-    } else if (pkgM && currentM && pkgM !== currentM) {
-      return {
-        action: async () => {
-          const alert = await this.alertCtrl.create({
-            header: 'Marketplace Conflict',
-            message: `This service was installed from:
-            <br><br>
-            <span class="courier-new color-success-shade">${pkgM}</span>
-            <br><br>but you are currently connected to:<br><br>
-            <span class="courier-new color-primary-shade">${currentM}</span>
-            <br><br>
-            Please change marketplaces to see the relevant details.`,
-            buttons: [
-              {
-                text: 'Cancel',
-                role: 'cancel',
-              },
-              {
-                text: 'Change Marketplace',
-                handler: () =>
-                  this.navCtrl.navigateForward(['embassy/marketplaces']),
-                cssClass: 'enter-click',
-              },
-            ],
-          })
-          await alert.present()
-        },
-        title: 'Marketplace',
-        description: 'Service was installed from a different marketplace',
-        icon: 'storefront-outline',
-      }
-    } else {
-      // package marketplace and current marketplace are the same
-      return {
-        action: () =>
-          this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`]),
-        title: 'Marketplace',
-        description: 'View service in marketplace',
-        icon: 'storefront-outline',
-      }
+    // default button if package marketplace and current marketplace are the same
+    let button: Button = {
+      title: 'Marketplace',
+      icon: 'storefront-outline',
+      action: () =>
+        this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`]),
+      disabled: false,
+      description: 'View service in marketplace',
     }
+    if (!pkgMarketplace) {
+      button.disabled = true
+      button.description = 'This package was not installed from a marketplace.'
+      button.action = () => {}
+    } else if (
+      pkgMarketplace &&
+      currentMarketplace &&
+      removeTrailingSlash(pkgMarketplace) !==
+        removeTrailingSlash(currentMarketplace.url)
+    ) {
+      // attempt to get name for pkg marketplace
+      let pkgTitle = removeTrailingSlash(pkgMarketplace)
+      if (altMarketplaces) {
+        const nameOptions = Object.values(
+          altMarketplaces['known-hosts'],
+        ).filter(m => m.url === pkgTitle)
+        if (nameOptions.length) {
+          // if multiple of the same url exist, they will have the same name, so fine to grab first
+          pkgTitle = nameOptions[0].name
+        }
+      }
+      let marketplaceTitle = removeTrailingSlash(currentMarketplace.url)
+      // if we found a name for the pkg marketplace, use the name of the currently connected marketplace
+      if (!isValidHttpUrl(pkgTitle)) {
+        marketplaceTitle = currentMarketplace.name
+      }
+
+      button.action = () =>
+        this.differentMarketplaceAction(pkgTitle, marketplaceTitle)
+      button.description = 'Service was installed from a different marketplace'
+    }
+    return button
   }
 
   private async donate({ manifest }: PackageDataEntry): Promise<void> {
@@ -189,5 +183,29 @@ export class ToButtonsPipe implements PipeTransform {
       })
       await alert.present()
     }
+  }
+  private async differentMarketplaceAction(pkgM: string, currentM: string) {
+    const alert = await this.alertCtrl.create({
+      header: 'Marketplace Conflict',
+      message: `This service was installed from:
+        <br><br>
+        <span class="courier-new color-success-shade">${pkgM}</span>
+        <br><br>but you are currently connected to:<br><br>
+        <span class="courier-new color-primary-shade">${currentM}</span>
+        <br><br>
+        To view the marketplace listing for this service, visit your Marketplace Settings and change marketplaces.`,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Go to Settings',
+          handler: () => this.navCtrl.navigateForward(['embassy/marketplaces']),
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
   }
 }

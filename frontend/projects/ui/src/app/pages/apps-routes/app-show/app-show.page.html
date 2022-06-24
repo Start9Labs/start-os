@@ -25,7 +25,7 @@
         ></app-show-dependencies>
         <!-- ** menu ** -->
         <app-show-menu
-          [buttons]="pkg | toButtons: (currentMarketplace$ | async)"
+          [buttons]="pkg | toButtons: (currentMarketplace$ | async): (altMarketplaceData$ | async)"
         ></app-show-menu>
       </ng-container>
     </ion-item-group>

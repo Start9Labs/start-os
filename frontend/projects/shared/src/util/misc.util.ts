@@ -40,3 +40,12 @@ export function debounce(delay: number = 300): MethodDecorator {
 export function removeTrailingSlash(word: string): string {
   return word.replace(/\/+$/, '')
 }
+
+export function isValidHttpUrl(string: string): boolean {
+  try {
+    const _ = new URL(string)
+    return true
+  } catch (_) {
+    return false
+  }
+}
