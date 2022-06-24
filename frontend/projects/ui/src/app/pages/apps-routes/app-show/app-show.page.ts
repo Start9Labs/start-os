@@ -15,7 +15,7 @@ import {
   ConnectionFailure,
   ConnectionService,
 } from 'src/app/services/connection.service'
-import { map, startWith, filter, first } from 'rxjs/operators'
+import { map, startWith, filter } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
