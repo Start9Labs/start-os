@@ -7,7 +7,6 @@ import { MaskPipe } from 'src/app/pipes/mask/mask.pipe'
   selector: 'generic-input',
   templateUrl: './generic-input.component.html',
   styleUrls: ['./generic-input.component.scss'],
-  providers: [MaskPipe],
 })
 export class GenericInputComponent {
   @ViewChild('mainInput') elem: IonInput
@@ -64,11 +63,6 @@ export class GenericInputComponent {
     this.maskedValue = this.mask.transform(this.value)
   }
 
-  clearInput() {
-    this.maskedValue = ''
-    this.value = ''
-  }
-
   async submit() {
     const value = this.value.trim()
 
@@ -77,7 +71,6 @@ export class GenericInputComponent {
     try {
       await this.options.submitFn(value)
       this.modalCtrl.dismiss(undefined, 'success')
-      this.clearInput()
     } catch (e: any) {
       this.error = getErrorMessage(e)
     }
