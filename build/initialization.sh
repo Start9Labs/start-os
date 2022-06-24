@@ -80,6 +80,9 @@ ControlPort 9051
 CookieAuthentication 1
 EOF
 
+# enable embassyd dns server
+systemd-resolve --set-dns 172.18.0.1
+
 if [ -f /embassy-os/product_key.txt ]
 then
 	cat /embassy-os/product_key.txt | tr -d '\n' | sha256sum | head -c 32 | sed 's/$/\n/' > /etc/machine-id
