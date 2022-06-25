@@ -1,9 +1,8 @@
-import { Component, Input, ViewChild } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   AlertController,
-  IonContent,
   LoadingController,
   ModalController,
   NavController,
@@ -25,9 +24,6 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
   styleUrls: ['./app-actions.page.scss'],
 })
 export class AppActionsPage {
-  @ViewChild(IonContent)
-  content?: IonContent
-
   readonly pkgId = getPkgId(this.route)
   readonly pkg$ = this.patch.watch$('package-data', this.pkgId)
 
@@ -41,10 +37,6 @@ export class AppActionsPage {
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
   ) {}
-
-  ngAfterViewInit() {
-    this.content?.scrollToPoint(undefined, 1)
-  }
 
   async handleAction(
     pkg: PackageDataEntry,

@@ -1,8 +1,7 @@
-import { Component, Input, ViewChild } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import {
   AlertController,
   ModalController,
-  IonContent,
   LoadingController,
   IonicSafeString,
 } from '@ionic/angular'
@@ -32,9 +31,6 @@ import { Breakages } from 'src/app/services/api/api.types'
   styleUrls: ['./app-config.page.scss'],
 })
 export class AppConfigPage {
-  @ViewChild(IonContent)
-  content?: IonContent
-
   @Input() pkgId!: string
 
   @Input()
@@ -115,10 +111,6 @@ export class AppConfigPage {
     } finally {
       this.loadingText = ''
     }
-  }
-
-  ngAfterViewInit() {
-    this.content?.scrollToPoint(undefined, 1)
   }
 
   resetDefaults() {

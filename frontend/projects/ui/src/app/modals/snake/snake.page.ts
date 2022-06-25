@@ -1,7 +1,6 @@
-import { Component, HostListener } from '@angular/core'
+import { Component, HostListener, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { pauseFor } from '@start9labs/shared'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'snake',
@@ -9,6 +8,11 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['./snake.page.scss'],
 })
 export class SnakePage {
+  @Input()
+  highScore = 0
+
+  score = 0
+
   private readonly speed = 45
   private readonly width = 40
   private readonly height = 26
@@ -16,31 +20,18 @@ export class SnakePage {
 
   private readonly startingLength = 4
 
-  score = 0
-  highScore = 0
+  private xDown?: number
+  private yDown?: number
+  private canvas!: HTMLCanvasElement
+  private image!: HTMLImageElement
+  private context!: CanvasRenderingContext2D
 
-  xDown?: number
-  yDown?: number
-  canvas!: HTMLCanvasElement
-  image!: HTMLImageElement
-  context!: CanvasRenderingContext2D
+  private snake: any
+  private bitcoin: { x: number; y: number } = { x: NaN, y: NaN }
 
-  snake: any
-  bitcoin: { x: number; y: number } = { x: NaN, y: NaN }
+  private moveQueue: String[] = []
 
-  moveQueue: String[] = []
-
-  constructor(
-    private readonly modalCtrl: ModalController,
-    private readonly patch: PatchDbService,
-  ) {}
-
-  ngOnInit() {
-    if (this.patch.getData().ui.gaming?.snake?.['high-score']) {
-      this.highScore =
-        this.patch.getData().ui.gaming?.snake?.['high-score'] || 0
-    }
-  }
+  constructor(private readonly modalCtrl: ModalController) {}
 
   async dismiss() {
     return this.modalCtrl.dismiss({ highScore: this.highScore })
@@ -77,7 +68,7 @@ export class SnakePage {
   }
 
   init() {
-    this.canvas = document.querySelector('cavas#game')!
+    this.canvas = document.querySelector('canvas#game')!
     this.canvas.style.border = '1px solid #e0e0e0'
     this.context = this.canvas.getContext('2d')!
     const container = document.getElementsByClassName('canvas-center')[0]
@@ -224,7 +215,7 @@ export class SnakePage {
       // snake ate bitcoin
       if (cell.x === this.bitcoin.x && cell.y === this.bitcoin.y) {
         this.score++
-        if (this.score > this.highScore) this.highScore = this.score
+        this.highScore = Math.max(this.score, this.highScore)
         this.snake.maxCells++
 
         this.bitcoin.x = this.getRandomInt(0, this.width) * this.grid

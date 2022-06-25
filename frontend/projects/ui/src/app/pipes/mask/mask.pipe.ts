@@ -5,8 +5,6 @@ import { Pipe, PipeTransform } from '@angular/core'
 })
 export class MaskPipe implements PipeTransform {
   transform(val: string, max = 16): string {
-    if (!val) return val
-    const times = val.length <= max ? val.length : max
-    return '●'.repeat(times)
+    return val && '●'.repeat(Math.min(val.length, max))
   }
 }

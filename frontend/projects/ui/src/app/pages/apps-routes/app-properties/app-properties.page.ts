@@ -1,12 +1,10 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { Subscription } from 'rxjs'
 import { copyToClipboard } from 'src/app/util/web.util'
 import {
   AlertController,
   IonBackButtonDelegate,
-  IonContent,
   ModalController,
   NavController,
   ToastController,
@@ -42,9 +40,6 @@ export class AppPropertiesPage {
   @ViewChild(IonBackButtonDelegate, { static: false })
   backButton?: IonBackButtonDelegate
 
-  @ViewChild(IonContent)
-  content?: IonContent
-
   constructor(
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
@@ -74,10 +69,6 @@ export class AppPropertiesPage {
         this.pointer = queryParams['pointer'] || ''
         this.node = getValueByPointer(this.properties, this.pointer)
       })
-  }
-
-  ngAfterViewInit() {
-    this.content?.scrollToPoint(undefined, 1)
   }
 
   async refresh() {

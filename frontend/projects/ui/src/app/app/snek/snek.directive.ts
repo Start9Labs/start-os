@@ -1,4 +1,4 @@
-import { Directive, HostListener } from '@angular/core'
+import { Directive, HostListener, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
 
@@ -10,6 +10,9 @@ import { ApiService } from '../../services/api/embassy-api.service'
   selector: 'img[appSnek]',
 })
 export class SnekDirective {
+  @Input()
+  appSnekHighScore: number | null = null
+
   constructor(
     private readonly modalCtrl: ModalController,
     private readonly loadingCtrl: LoadingController,
@@ -24,6 +27,7 @@ export class SnekDirective {
       component: SnakePage,
       cssClass: 'snake-modal',
       backdropDismiss: false,
+      componentProps: { highScore: this.appSnekHighScore || 0 },
     })
 
     modal.onDidDismiss().then(async ({ data }) => {
