@@ -1,11 +1,12 @@
 <!-- header -->
-<ion-item-divider>
+<ion-item-divider class="ion-padding-bottom">
   {{ reordering ? 'Reorder' : 'Installed Services' }}
   <ion-button
     *ngIf="pkgs.length > 1"
     slot="end"
     fill="clear"
     (click)="toggle()"
+    strong
   >
     <ion-icon
       slot="start"
@@ -24,11 +25,7 @@
         *ngIf="item | packageInfo | async as pkg"
         class="item"
       >
-        <app-list-icon
-          slot="start"
-          [pkg]="pkg"
-          [connectionFailure]="!!(connectionFailure$ | async)"
-        ></app-list-icon>
+        <app-list-icon slot="start" [pkg]="pkg"></app-list-icon>
         <ion-thumbnail slot="start">
           <img alt="" [src]="pkg.entry['static-files'].icon" />
         </ion-thumbnail>
@@ -36,7 +33,6 @@
           <h2>{{ pkg.entry.manifest.title }}</h2>
           <p>{{ pkg.entry.manifest.version | displayEmver }}</p>
           <status
-            [disconnected]="!!(connectionFailure$ | async)"
             [rendering]="pkg.primaryRendering"
             [installProgress]="pkg.entry['install-progress']"
             weight="bold"
@@ -58,7 +54,6 @@
         <app-list-pkg
           *ngIf="pkg | packageInfo | async as info"
           [pkg]="info"
-          [connectionFailure]="!!(connectionFailure$ | async)"
         ></app-list-pkg>
       </ion-col>
     </ion-row>

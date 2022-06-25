@@ -5,8 +5,6 @@ import {
   fromEvent,
   merge,
   Observable,
-  Subject,
-  Subscription,
 } from 'rxjs'
 import { PatchConnection, PatchDbService } from './patch-db/patch-db.service'
 import {
@@ -30,7 +28,9 @@ export class ConnectionService {
     map(() => navigator.onLine),
   )
 
-  private readonly connectionFailure$ = new Subject<ConnectionFailure>()
+  private readonly connectionFailure$ = new BehaviorSubject<ConnectionFailure>(
+    ConnectionFailure.None,
+  )
 
   constructor(
     private readonly configService: ConfigService,
@@ -39,6 +39,12 @@ export class ConnectionService {
 
   watchFailure$() {
     return this.connectionFailure$.asObservable()
+  }
+
+  watchDisconnected$() {
+    return this.connectionFailure$.pipe(
+      map(failure => failure !== ConnectionFailure.None),
+    )
   }
 
   start(): Observable<unknown> {

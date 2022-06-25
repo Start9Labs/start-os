@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core'
+import { ConnectionService } from 'src/app/services/connection.service'
 import { InstallProgress } from 'src/app/services/patch-db/data-model'
 import {
   PrimaryRendering,
@@ -19,7 +20,10 @@ export class StatusComponent {
   @Input() size?: string
   @Input() style?: string = 'regular'
   @Input() weight?: string = 'normal'
-  @Input() disconnected?: boolean = false
   @Input() installProgress?: InstallProgress
   @Input() sigtermTimeout?: string | null = null
+
+  disconnected$ = this.connectionService.watchDisconnected$()
+
+  constructor(private readonly connectionService: ConnectionService) {}
 }

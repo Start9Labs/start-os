@@ -11,10 +11,6 @@ import {
   PackageStatus,
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
-import {
-  ConnectionFailure,
-  ConnectionService,
-} from 'src/app/services/connection.service'
 import { map, startWith, filter } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
@@ -66,30 +62,24 @@ export class AppShowPage {
   readonly altMarketplaceData$: Observable<UIMarketplaceData | undefined> =
     this.marketplaceService.getAltMarketplace()
 
-  readonly connectionFailure$ = this.connectionService
-    .watchFailure$()
-    .pipe(map(failure => failure !== ConnectionFailure.None))
-
   constructor(
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
-    private readonly connectionService: ConnectionService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
   ) {}
 
-  isInstalled(
-    { state }: PackageDataEntry,
-    { primary }: PackageStatus,
-  ): boolean {
-    return (
-      state === PackageState.Installed && primary !== PrimaryStatus.BackingUp
-    )
+  isInstalled({ state }: PackageDataEntry): boolean {
+    return state === PackageState.Installed
   }
 
   isRunning({ primary }: PackageStatus): boolean {
     return primary === PrimaryStatus.Running
+  }
+
+  isBackingUp({ primary }: PackageStatus): boolean {
+    return primary === PrimaryStatus.BackingUp
   }
 
   showProgress({ state }: PackageDataEntry): boolean {

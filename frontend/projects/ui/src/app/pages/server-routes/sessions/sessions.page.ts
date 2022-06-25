@@ -54,7 +54,7 @@ export class SessionsPage {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
       message: new IonicSafeString(
-        `Kill all sessions?<br /><br />Note: you will <b>not</b> be logged out of your current session on this device.`,
+        `Log out <b>all</b> other web sessions?<br /><br />Note: you will <b>not</b> be logged out of your current session on this device.`,
       ),
       buttons: [
         {
@@ -62,7 +62,7 @@ export class SessionsPage {
           role: 'cancel',
         },
         {
-          text: 'Kill All',
+          text: 'Log out all',
           handler: () => {
             this.kill(this.otherSessions.map(s => s.id))
           },
@@ -76,14 +76,14 @@ export class SessionsPage {
   async presentAlertKill(id: string) {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
-      message: `Kill this session?`,
+      message: 'Log out other web session?',
       buttons: [
         {
           text: 'Cancel',
           role: 'cancel',
         },
         {
-          text: 'Kill',
+          text: 'Log Out',
           handler: () => {
             this.kill([id])
           },
@@ -96,7 +96,7 @@ export class SessionsPage {
 
   async kill(ids: string[]): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      message: 'Killing session...',
+      message: `Logging out session${ids.length > 1 ? 's' : ''}...`,
     })
     await loader.present()
 

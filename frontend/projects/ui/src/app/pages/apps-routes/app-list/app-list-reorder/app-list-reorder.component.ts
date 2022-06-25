@@ -7,11 +7,6 @@ import {
 } from '@angular/core'
 import { ItemReorderEventDetail } from '@ionic/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { map } from 'rxjs/operators'
-import {
-  ConnectionFailure,
-  ConnectionService,
-} from 'src/app/services/connection.service'
 
 @Component({
   selector: 'app-list-reorder',
@@ -31,12 +26,6 @@ export class AppListReorderComponent {
 
   @Output()
   readonly pkgsChange = new EventEmitter<readonly PackageDataEntry[]>()
-
-  readonly connectionFailure$ = this.connectionService
-    .watchFailure$()
-    .pipe(map(failure => failure !== ConnectionFailure.None))
-
-  constructor(private readonly connectionService: ConnectionService) {}
 
   toggle() {
     this.reordering = !this.reordering
