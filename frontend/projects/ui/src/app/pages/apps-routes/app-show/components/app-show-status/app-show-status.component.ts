@@ -149,6 +149,7 @@ export class AppShowStatusComponent {
             cssClass: 'enter-click',
           },
         ],
+        cssClass: 'alert-warning-message',
       })
 
       await alert.present()

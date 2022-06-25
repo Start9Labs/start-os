@@ -18,7 +18,7 @@
     *ngIf="manifest.interfaces | hasUi"
     slot="end"
     fill="clear"
-    color="dark"
+    color="primary"
     (click)="launchUi($event)"
     [disabled]="!(pkg.entry.state | isLaunchable: status:manifest.interfaces)"
   >
