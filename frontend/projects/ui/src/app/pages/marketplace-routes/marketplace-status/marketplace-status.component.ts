@@ -7,6 +7,7 @@ import {
 @Component({
   selector: 'marketplace-status',
   templateUrl: 'marketplace-status.component.html',
+  styleUrls: ['marketplace-status.component.scss'],
 })
 export class MarketplaceStatusComponent {
   @Input()

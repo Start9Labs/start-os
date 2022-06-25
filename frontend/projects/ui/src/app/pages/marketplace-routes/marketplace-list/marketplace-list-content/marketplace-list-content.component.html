@@ -6,6 +6,7 @@
   <marketplace-categories
     [categories]="categories"
     [category]="category"
+    [updatesAvailable]="(pkgs | filterPackages: '':'updates':localPkgs).length"
     (categoryChange)="onCategoryChange($event)"
   ></marketplace-categories>
 
