@@ -22,20 +22,9 @@
         <ion-item lines="none" color="dark">
           <ion-input
             #mainInput
-            *ngIf="!masked"
             type="text"
             name="value"
-            [ngModel]="value"
-            (ngModelChange)="transformInput($event)"
-            [placeholder]="options.placeholder"
-            (ionChange)="error = ''"
-          ></ion-input>
-          <ion-input
-            #mainInput
-            *ngIf="masked"
-            type="text"
-            name="value"
-            [ngModel]="maskedValue"
+            [ngModel]="masked ? maskedValue : value"
             (ngModelChange)="transformInput($event)"
             [placeholder]="options.placeholder"
             (ionChange)="error = ''"

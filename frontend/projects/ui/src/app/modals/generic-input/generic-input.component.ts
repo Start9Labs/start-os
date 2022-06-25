@@ -7,13 +7,14 @@ import { MaskPipe } from 'src/app/pipes/mask/mask.pipe'
   selector: 'generic-input',
   templateUrl: './generic-input.component.html',
   styleUrls: ['./generic-input.component.scss'],
+  providers: [MaskPipe],
 })
 export class GenericInputComponent {
   @ViewChild('mainInput') elem: IonInput
   @Input() options: GenericInputOptions
   value: string
   maskedValue: string
-  masked = true
+  masked: boolean
   error: string | IonicSafeString
 
   constructor(
@@ -34,6 +35,7 @@ export class GenericInputComponent {
       ...this.options,
     }
 
+    this.masked = !!this.options.useMask
     this.value = this.options.initialValue || ''
   }
 
@@ -53,12 +55,7 @@ export class GenericInputComponent {
     let i = 0
     this.value = newValue
       .split('')
-      .map(x => {
-        if (x === '●') {
-          return this.value[i++]
-        }
-        return x
-      })
+      .map(x => (x === '●' ? this.value[i++] : x))
       .join('')
     this.maskedValue = this.mask.transform(this.value)
   }
