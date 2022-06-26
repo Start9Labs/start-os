@@ -1,6 +1,6 @@
-import { Component, Input, ViewChild } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { IonContent, ModalController, ToastController } from '@ionic/angular'
+import { ModalController, ToastController } from '@ionic/angular'
 import { getPkgId } from '@start9labs/shared'
 import { getUiInterfaceKey } from 'src/app/services/config.service'
 import {
@@ -10,6 +10,7 @@ import {
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
+import { PackageDataEntry } from '../../../services/patch-db/data-model'
 
 interface LocalInterface {
   def: InterfaceDef
@@ -32,7 +33,7 @@ export class AppInterfacesPage {
   ) {}
 
   ngOnInit() {
-    const pkg = this.patch.getData()['package-data'][this.pkgId]
+    const { pkg } = this.route.snapshot.data as { pkg: PackageDataEntry }
     const interfaces = pkg.manifest.interfaces
     const uiKey = getUiInterfaceKey(interfaces)
 

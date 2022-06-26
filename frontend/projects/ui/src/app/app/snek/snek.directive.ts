@@ -18,7 +18,6 @@ export class SnekDirective {
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
-    private readonly patch: PatchDbService,
   ) {}
 
   @HostListener('click')
@@ -31,27 +30,24 @@ export class SnekDirective {
     })
 
     modal.onDidDismiss().then(async ({ data }) => {
-      const highScore =
-        this.patch.getData().ui.gaming?.snake?.['high-score'] || 0
+      if (data?.highScore <= (this.appSnekHighScore || 0)) return
 
-      if (data?.highScore > highScore) {
-        const loader = await this.loadingCtrl.create({
-          message: 'Saving high score...',
-          backdropDismiss: true,
+      const loader = await this.loadingCtrl.create({
+        message: 'Saving high score...',
+        backdropDismiss: true,
+      })
+
+      await loader.present()
+
+      try {
+        await this.embassyApi.setDbValue({
+          pointer: '/gaming',
+          value: { snake: { 'high-score': data.highScore } },
         })
-
-        await loader.present()
-
-        try {
-          await this.embassyApi.setDbValue({
-            pointer: '/gaming',
-            value: { snake: { 'high-score': data.highScore } },
-          })
-        } catch (e: any) {
-          this.errToast.present(e)
-        } finally {
-          this.loadingCtrl.dismiss()
-        }
+      } catch (e: any) {
+        this.errToast.present(e)
+      } finally {
+        this.loadingCtrl.dismiss()
       }
     })
 
