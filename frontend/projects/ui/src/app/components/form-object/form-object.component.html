@@ -72,6 +72,12 @@
             <ion-input
               type="text"
               [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
+              [class.redacted]="
+                spec.type === 'string' &&
+                entry.value.value &&
+                spec.masked &&
+                !unmasked[entry.key]
+              "
               [placeholder]="spec.placeholder || 'Enter ' + spec.name"
               [formControlName]="entry.key"
               (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
@@ -80,7 +86,7 @@
             </ion-input>
           </ng-template>
           <!-- removing mask button until proper solution implemented -->
-          <!-- <ion-button
+          <ion-button
             *ngIf="spec.type === 'string' && spec.masked"
             slot="end"
             fill="clear"
@@ -92,7 +98,7 @@
               [name]="unmasked[entry.key] ? 'eye-off-outline' : 'eye-outline'"
               size="small"
             ></ion-icon>
-          </ion-button> -->
+          </ion-button>
           <ion-note
             *ngIf="spec.type === 'number' && spec.units"
             slot="end"

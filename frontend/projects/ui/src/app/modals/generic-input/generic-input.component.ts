@@ -1,20 +1,26 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { ModalController, IonicSafeString, IonInput } from '@ionic/angular'
 import { getErrorMessage } from '@start9labs/shared'
+import { MaskPipe } from 'src/app/pipes/mask/mask.pipe'
 
 @Component({
   selector: 'generic-input',
   templateUrl: './generic-input.component.html',
   styleUrls: ['./generic-input.component.scss'],
+  providers: [MaskPipe],
 })
 export class GenericInputComponent {
   @ViewChild('mainInput') elem: IonInput
   @Input() options: GenericInputOptions
   value: string
-  unmasked = false
+  maskedValue: string
+  masked: boolean
   error: string | IonicSafeString
 
-  constructor(private readonly modalCtrl: ModalController) {}
+  constructor(
+    private readonly modalCtrl: ModalController,
+    private readonly mask: MaskPipe,
+  ) {}
 
   ngOnInit() {
     const defaultOptions: Partial<GenericInputOptions> = {
@@ -29,6 +35,7 @@ export class GenericInputComponent {
       ...this.options,
     }
 
+    this.masked = !!this.options.useMask
     this.value = this.options.initialValue || ''
   }
 
@@ -37,11 +44,20 @@ export class GenericInputComponent {
   }
 
   toggleMask() {
-    this.unmasked = !this.unmasked
+    this.masked = !this.masked
   }
 
   cancel() {
     this.modalCtrl.dismiss()
+  }
+
+  transformInput(newValue: string) {
+    let i = 0
+    this.value = newValue
+      .split('')
+      .map(x => (x === '●' ? this.value[i++] : x))
+      .join('')
+    this.maskedValue = this.mask.transform(this.value)
   }
 
   async submit() {

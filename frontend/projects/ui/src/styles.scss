@@ -43,6 +43,13 @@
   src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
 }
 
+@font-face {
+  font-family: 'Redacted';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Redacted/redacted.regular.ttf');
+}
+
 /** Ionic CSS Variables overrides **/
 :root {
   --ion-font-family: 'Open Sans';
